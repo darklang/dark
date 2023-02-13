@@ -48,20 +48,26 @@ export async function activate(context: vscode.ExtensionContext) {
   // TODO: don't download if we already have latest on disk
   let executorPath = await Executor.downloadExecutor(latestExecutorHash);
   let executorHttpServerPort = "3275";
-  Executor.startExecutorHttpServer(executorPath, executorHttpServerPort);
+  await Executor.startExecutorHttpServer(executorPath, executorHttpServerPort);
+
+  // const z = await Executor.evalSomeCodeAgainstHttpServer(
+  //   executorHttpServerPort,
+  //   "1+2",
+  // );
+  // vscode.window.showInformationMessage(`eval response: ${z}`);
 
   // register command
   let codeGenPromptCommand = vscode.commands.registerCommand(
-    "darklang-vscode-editor.codeGenPrompt",
+    "darklang-vscode-editor.evalCode",
     async () => {
       const test = await vscode.window.showInputBox({
-        prompt: "Enter your code-gen prompt",
+        prompt: "Enter your Dark code to evaluate",
       });
-      const response = await Executor.evalSomeCodeAgainstHttpServer(
-        executorHttpServerPort,
-        test || "",
-      );
-      vscode.window.showInformationMessage(`eval response: ${response}`);
+      // const response = await Executor.evalSomeCodeAgainstHttpServer(
+      //   executorHttpServerPort,
+      //   test || "",
+      // );
+      // vscode.window.showInformationMessage(`eval response: ${response}`);
     },
   );
   context.subscriptions.push(codeGenPromptCommand);
@@ -95,6 +101,6 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 }
 
-export function deactivate() {
-  Executor.stopExecutor();
+export async function deactivate() {
+  await Executor.stopExecutor();
 }
