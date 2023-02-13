@@ -225,11 +225,6 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
   { c with dbs = applyToMap tlid f c.dbs }
 
 
-let moveToplevel (tlid : tlid) (pos : PT.Position) (c : T) : T =
-  { c with
-      handlers = applyToMap tlid (fun h -> { h with pos = pos }) c.handlers
-      dbs = applyToMap tlid (fun db -> { db with pos = pos }) c.dbs }
-
 // -------------------------
 // Build
 // -------------------------
@@ -263,7 +258,6 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
       // applyToAllToplevels (TL.set_expr id e) tlid c
       c
     | PT.DeleteTL tlid -> deleteToplevel tlid c
-    | PT.MoveTL (tlid, pos) -> moveToplevel tlid pos c
     | PT.SetFunction user_fn -> setFunction user_fn c
     | PT.DeleteFunction tlid -> deleteFunction tlid c
     | PT.TLSavepoint _ -> c

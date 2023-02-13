@@ -31,8 +31,7 @@ let isOpThatCreatesToplevel (op : PT.Op) : bool =
   | PT.SetDBColType _
   | PT.TLSavepoint _
   | PT.UndoTL _
-  | PT.RedoTL _
-  | PT.MoveTL _ -> false
+  | PT.RedoTL _ -> false
 
 
 /// When we clone a canvas, we sometimes
