@@ -319,7 +319,7 @@ jobs:
       - auth-with-gcp: { background: true }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run: scripts/deployment/_executor-push-to-cdn
+      - run: scripts/deployment/_executor-push-to-cdn executors
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
