@@ -16,19 +16,14 @@
   "contributes": {
     "commands": [
       {
-        "command": "darklang-vscode-editor.codeGenPrompt",
-        "category": "Darklang",
-        "title": "Generate Dark Code"
-      },
-      {
-        "command": "darklang-vscode-editor.showCanvasElements",
-        "category": "Darklang",
-        "title": "Show Canvas Components"
-      },
-      {
         "command": "darklang.showHandlerPanel",
         "title": "Show handler panel",
         "category": "Darklang"
+      },
+      {
+        "command": "darklang-vscode-editor.codeGenPrompt",
+        "category": "Darklang",
+        "title": "Generate Dark Code"
       }
     ],
     "configuration": {

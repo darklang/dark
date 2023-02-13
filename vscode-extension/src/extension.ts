@@ -1,17 +1,14 @@
 import * as vscode from "vscode";
-import axios from "axios";
 import { CanvasElementsTreeProvider } from "./CanvasElementsTree";
-import { spawn } from "node:child_process";
-import * as fs from "fs";
 import { DarkHandlerPanel } from "./DarkHandlerPanel";
 import { getWebviewOptions } from "./utils";
 import { viewTypes } from "./ViewTypes";
+import * as Executor from "./Executor";
 
 type Repl = {
   id: string;
   name: string;
   code: string;
-  result: string;
 };
 type GlobalState = {
   mainRepl: Repl | undefined;
@@ -21,12 +18,10 @@ const globalState: GlobalState = {
   mainRepl: undefined,
 };
 
-let panel: vscode.WebviewPanel | undefined = undefined;
-
 export async function activate(context: vscode.ExtensionContext) {
   // fetch config vals
-  // const config = vscode.workspace.getConfiguration('darklang');
-  // vscode.window.showInformationMessage(`Fetched some config vals: ${config.get("chatGptKey")}`);
+  // const extensionConfig = vscode.workspace.getConfiguration('darklang');
+  // const chatGptKey = extensionConfig.get("chatGptKey");
 
   var statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
@@ -47,21 +42,13 @@ export async function activate(context: vscode.ExtensionContext) {
     treeDataProvider: new CanvasElementsTreeProvider(),
   });
 
-  // Fetch, save, and start the interpreter
-  const fetchedInterpreterScript = await axios.get(
-    "https://stachu-scratch.builtwithdark.com/interpreter.sh",
-  );
-  const interpreterScriptName = "./interpreter.sh";
-  fs.writeFileSync(interpreterScriptName, fetchedInterpreterScript.data);
-  fs.chmodSync(interpreterScriptName, "755"); // executable
-  const ls = spawn(interpreterScriptName);
-  ls.stdout.on("data", data => {
-    vscode.window.showInformationMessage(`eval response: ${data}`);
-  });
-  ls.stderr.on("data", data => {
-    vscode.window.showInformationMessage(`interpreter error: ${data}`);
-  });
-  ls.on("close", _code => {});
+  // faking this until Paul tidies something up
+  let latestExecutorHash = "526c07b8f"; //await Executor.latestExecutorHash();
+
+  // TODO: don't download if we already have latest on disk
+  let executorPath = await Executor.downloadExecutor(latestExecutorHash);
+  let executorHttpServerPort = "3275";
+  Executor.startExecutorHttpServer(executorPath, executorHttpServerPort);
 
   // register command
   let codeGenPromptCommand = vscode.commands.registerCommand(
@@ -70,12 +57,16 @@ export async function activate(context: vscode.ExtensionContext) {
       const test = await vscode.window.showInputBox({
         prompt: "Enter your code-gen prompt",
       });
-      ls.send(test || "");
+      const response = await Executor.evalSomeCodeAgainstHttpServer(
+        executorHttpServerPort,
+        test || "",
+      );
+      vscode.window.showInformationMessage(`eval response: ${response}`);
     },
   );
   context.subscriptions.push(codeGenPromptCommand);
 
-  globalState.mainRepl = { id: "123", name: "", code: "1+2", result: "" };
+  globalState.mainRepl = { id: "123", name: "", code: "1+2" };
 
   // show handler panel
   context.subscriptions.push(
@@ -105,7 +96,5 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-  if (panel) {
-    panel.dispose();
-  }
+  Executor.stopExecutor();
 }
