@@ -7,11 +7,6 @@ dir=$1
 
 ls -la $dir
 
-# Remove the .br suffix and the uncompressed files
-for f in "$dir"/*.br; do
-  mv "$f" "${f%.br}"
-done
-
 gcloud storage cp \
   --verbosity debug \
   --content-type "application/octet-stream" \
