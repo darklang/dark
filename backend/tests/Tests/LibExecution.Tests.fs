@@ -311,10 +311,7 @@ let fileTests () : Test =
       Map.empty
     let mutable dbs : Map<string, PT.DB.T> = Map.empty
     let owner =
-      if filename = "internal.tests" || filename = "httpbaseclient.tests" then
-        testAdmin.Force()
-      else
-        testOwner.Force()
+      if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
     let initializeCanvas = filename = "internal.tests"
 
     let finish () =

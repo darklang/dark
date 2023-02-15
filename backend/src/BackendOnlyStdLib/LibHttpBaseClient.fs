@@ -236,86 +236,83 @@ let fns : List<BuiltInFn> =
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        LibDarkInternal.internalFn (function
-          | _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
-            let reqHeaders : Result<List<string * string>, string> =
-              reqHeaders
-              |> List.fold (Ok []) (fun agg item ->
-                match agg, item with
-                | (Error err, _) -> Error err
-                | (Ok pairs, DTuple (DStr k, DStr v, [])) ->
-                  // TODO: what about whitespace? What else can break?
-                  if k = "" then
-                    Error "Empty request header key provided"
-                  else
-                    Ok((k, v) :: pairs)
+        (function
+        | _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
+          let reqHeaders : Result<List<string * string>, string> =
+            reqHeaders
+            |> List.fold (Ok []) (fun agg item ->
+              match agg, item with
+              | (Error err, _) -> Error err
+              | (Ok pairs, DTuple (DStr k, DStr v, [])) ->
+                // TODO: what about whitespace? What else can break?
+                if k = "" then
+                  Error "Empty request header key provided"
+                else
+                  Ok((k, v) :: pairs)
 
-                | (_, notAPair) ->
-                  // this should be a DError, not a "normal" error
-                  Error
-                    $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}")
-              |> Result.map (fun pairs -> List.rev pairs)
+              | (_, notAPair) ->
+                // this should be a DError, not a "normal" error
+                Error
+                  $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}")
+            |> Result.map (fun pairs -> List.rev pairs)
 
-            let method =
-              try
-                Some(HttpMethod method)
-              with
-              | _ -> None
+          let method =
+            try
+              Some(HttpMethod method)
+            with
+            | _ -> None
 
-            match reqHeaders, method with
-            | Ok reqHeaders, Some method ->
-              uply {
-                let request : HttpBaseClient.HttpRequest =
-                  { url = uri
-                    method = method
-                    headers = reqHeaders
-                    body = reqBody }
+          match reqHeaders, method with
+          | Ok reqHeaders, Some method ->
+            uply {
+              let request : HttpBaseClient.HttpRequest =
+                { url = uri; method = method; headers = reqHeaders; body = reqBody }
 
-                let! (response : HttpBaseClient.HttpRequestResult) =
-                  HttpBaseClient.request request
+              let! (response : HttpBaseClient.HttpRequestResult) =
+                HttpBaseClient.request request
 
-                match response with
-                | Ok response ->
-                  let responseHeaders =
-                    response.headers
-                    |> List.map (fun (k, v) ->
-                      DTuple(
-                        DStr(String.toLowercase k),
-                        DStr(String.toLowercase v),
-                        []
-                      ))
-                    |> DList
+              match response with
+              | Ok response ->
+                let responseHeaders =
+                  response.headers
+                  |> List.map (fun (k, v) ->
+                    DTuple(
+                      DStr(String.toLowercase k),
+                      DStr(String.toLowercase v),
+                      []
+                    ))
+                  |> DList
 
-                  return
-                    [ ("statusCode", DInt(int64 response.statusCode))
-                      ("headers", responseHeaders)
-                      ("body", DBytes response.body) ]
-                    |> Dval.obj
-                    |> Ok
-                    |> DResult
+                return
+                  [ ("statusCode", DInt(int64 response.statusCode))
+                    ("headers", responseHeaders)
+                    ("body", DBytes response.body) ]
+                  |> Dval.obj
+                  |> Ok
+                  |> DResult
 
-                | Error (HttpBaseClient.BadUrl details) ->
-                  // TODO: include a DvalSource rather than SourceNone
-                  return DError(SourceNone, $"Bad URL: {details}")
+              | Error (HttpBaseClient.BadUrl details) ->
+                // TODO: include a DvalSource rather than SourceNone
+                return DError(SourceNone, $"Bad URL: {details}")
 
-                | Error (HttpBaseClient.Timeout) ->
-                  return DResult(Error(DStr $"Request timed out"))
+              | Error (HttpBaseClient.Timeout) ->
+                return DResult(Error(DStr $"Request timed out"))
 
-                | Error (HttpBaseClient.NetworkError) ->
-                  return DResult(Error(DStr $"Network error"))
+              | Error (HttpBaseClient.NetworkError) ->
+                return DResult(Error(DStr $"Network error"))
 
-                | Error (HttpBaseClient.Other details) ->
-                  return DResult(Error(DStr details))
-              }
+              | Error (HttpBaseClient.Other details) ->
+                return DResult(Error(DStr details))
+            }
 
-            | Error reqHeadersErr, _ ->
-              uply { return DError(SourceNone, reqHeadersErr) }
+          | Error reqHeadersErr, _ ->
+            uply { return DError(SourceNone, reqHeadersErr) }
 
-            | _, None ->
-              let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-              uply { return DError(SourceNone, error) }
+          | _, None ->
+            let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
+            uply { return DError(SourceNone, error) }
 
-          | _ -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
