@@ -19,7 +19,6 @@
     <None Include="paket.references" />
     <Compile Include="LibCrypto.fs" />
     <Compile Include="LibDB.fs" />
-    <Compile Include="LibDB2.fs" />
     <Compile Include="LibDarkInternal.fs" />
     <Compile Include="LibEvent.fs" />
     <Compile Include="HttpQueryEncoding.fs" />
