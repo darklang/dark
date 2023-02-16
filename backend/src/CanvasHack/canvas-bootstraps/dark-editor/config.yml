@@ -1,0 +1,16 @@
+http-handlers:
+  - basic-http-handler
+    - method: GET
+    - path: /yolo/:varNameYolo
+
+  # - initial-load
+  #   - method: GET
+  #   - path: /initial-load
+
+  # - add-op
+  #   - method: GET
+  #   - path: /add-op
+
+  # - handler-traces
+  #   - method: GET
+  #   - path: /traces-for-handler/:handlerID
