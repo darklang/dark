@@ -526,7 +526,6 @@ let saveTLIDs
                 PTParser.Handler.Spec.toModifier spec
               )
             | PT.Handler.Worker _
-            | PT.Handler.OldWorker _
             | PT.Handler.Cron _
             | PT.Handler.UnknownHandler _
             | PT.Handler.REPL _ ->

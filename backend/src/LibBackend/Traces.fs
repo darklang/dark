@@ -49,8 +49,7 @@ let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   | PT.Handler.UnknownHandler _ ->
     // HttpBasicHandlerTODO should this include sampleHttpBasicRequestInputVars?
     sampleHttpRequestInputVars @ sampleEventInputVars
-  | PT.Handler.Worker _
-  | PT.Handler.OldWorker _ -> sampleEventInputVars
+  | PT.Handler.Worker _ -> sampleEventInputVars
 
 let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
@@ -95,7 +94,6 @@ let savedInputVars
         []
 
     [ ("request", event) ] @ boundRouteVariables
-  | PT.Handler.OldWorker _
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
   | PT.Handler.UnknownHandler _ -> []
@@ -177,7 +175,6 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID.
             |> Option.bind (fun matching ->
               if matching.tlid = h.tlid then Some traceID else None)
           | PT.Handler.Spec.Worker _
-          | PT.Handler.Spec.OldWorker _
           | PT.Handler.Spec.Cron _
           | PT.Handler.Spec.REPL _
           | PT.Handler.Spec.UnknownHandler _ ->

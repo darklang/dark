@@ -339,8 +339,6 @@ module Handler =
       | CTPT.Handler.Spec.HTTPBasic (route, method, i) ->
         PT.Handler.HTTPBasic(route, method, ids.fromCT i)
       | CTPT.Handler.Spec.Worker (name, i) -> PT.Handler.Worker(name, ids.fromCT i)
-      | CTPT.Handler.Spec.OldWorker (modulename, name, i) ->
-        PT.Handler.OldWorker(modulename, name, ids.fromCT i)
       | CTPT.Handler.Spec.Cron (name, interval, i) ->
         PT.Handler.Cron(name, Option.map CronInterval.fromCT interval, ids.fromCT i)
       | CTPT.Handler.Spec.REPL (name, i) -> PT.Handler.REPL(name, ids.fromCT i)
@@ -354,8 +352,6 @@ module Handler =
       | PT.Handler.HTTPBasic (route, method, i) ->
         CTPT.Handler.Spec.HTTPBasic(route, method, ids.toCT i)
       | PT.Handler.Worker (name, i) -> CTPT.Handler.Spec.Worker(name, ids.toCT i)
-      | PT.Handler.OldWorker (modulename, name, i) ->
-        CTPT.Handler.Spec.OldWorker(modulename, name, ids.toCT i)
       | PT.Handler.Cron (name, interval, i) ->
         CTPT.Handler.Spec.Cron(
           name,

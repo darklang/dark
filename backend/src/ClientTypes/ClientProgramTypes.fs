@@ -127,7 +127,6 @@ module Handler =
     | HTTP of route : string * method : string * ids : ids
     | HTTPBasic of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
-    | OldWorker of modulename : string * name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
     | UnknownHandler of string * string * ids

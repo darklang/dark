@@ -215,8 +215,6 @@ module Handler =
       | PT.Handler.HTTPBasic (route, method, _ids) ->
         RT.Handler.HTTPBasic(route, method)
       | PT.Handler.Worker (name, _ids) -> RT.Handler.Worker(name)
-      | PT.Handler.OldWorker (modulename, name, _ids) ->
-        RT.Handler.OldWorker(modulename, name)
       | PT.Handler.Cron (name, interval, _ids) ->
         RT.Handler.Cron(name, interval |> Option.map CronInterval.toRT)
       | PT.Handler.REPL (name, _ids) -> RT.Handler.REPL(name)

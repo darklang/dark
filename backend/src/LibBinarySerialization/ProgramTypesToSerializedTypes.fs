@@ -161,8 +161,6 @@ module Handler =
       | PT.Handler.HTTPBasic (route, method, ids) ->
         ST.Handler.HTTPBasic(route, method, IDs.toST ids)
       | PT.Handler.Worker (name, ids) -> ST.Handler.Worker(name, IDs.toST ids)
-      | PT.Handler.OldWorker (modulename, name, ids) ->
-        ST.Handler.OldWorker(modulename, name, IDs.toST ids)
       | PT.Handler.Cron (name, interval, ids) ->
         ST.Handler.Cron(name, interval |> Option.map CronInterval.toST, IDs.toST ids)
       | PT.Handler.REPL (name, ids) -> ST.Handler.REPL(name, IDs.toST ids)
