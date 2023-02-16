@@ -147,6 +147,8 @@ NUGET
       LaunchDarkly.JsonStream (>= 1.0.3)
       LaunchDarkly.Logging (>= 1.0.1)
       System.Collections.Immutable (>= 1.7.1)
+    Legivel (0.4.6)
+      FSharp.Core (>= 4.6)
     libsodium (1.0.18.1)
     MessagePack (2.3.85)
       MessagePack.Annotations (>= 2.3.85)
