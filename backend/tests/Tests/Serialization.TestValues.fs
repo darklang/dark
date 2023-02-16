@@ -508,23 +508,20 @@ module ProgramTypes =
         Spec.cronWithInterval
         Spec.repl ]
 
-    let http : PT.Handler.T =
-      { spec = Spec.http; tlid = 92987663UL; ast = expr; pos = pos }
+    let http : PT.Handler.T = { spec = Spec.http; tlid = 92987663UL; ast = expr }
 
     let httpBasic : PT.Handler.T =
-      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr; pos = pos }
+      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr }
 
-    let worker : PT.Handler.T =
-      { spec = Spec.worker; tlid = 19930486UL; ast = expr; pos = pos }
+    let worker : PT.Handler.T = { spec = Spec.worker; tlid = 19930486UL; ast = expr }
 
-    let repl : PT.Handler.T =
-      { spec = Spec.repl; tlid = 10395769302UL; ast = expr; pos = pos }
+    let repl : PT.Handler.T = { spec = Spec.repl; tlid = 10395769302UL; ast = expr }
 
     let cronWithoutInterval : PT.Handler.T =
-      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr; pos = pos }
+      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr }
 
     let cronWithInterval : PT.Handler.T =
-      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr; pos = pos }
+      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr }
 
     let handlersWithName : List<string * PT.Handler.T> =
       [ "Http", http
@@ -618,7 +615,7 @@ module ProgramTypes =
   let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(Handler.http.tlid, pos, Handler.http)
+    [ PT.SetHandler(Handler.http.tlid, Handler.http)
       PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")

@@ -15,7 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
 let handler code = testHttpRouteHandler "" "GET" (Parser.parsePTExpr code)
 

@@ -37,9 +37,7 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
       |> List.map (fun (worker, tlid) ->
         PT.SetHandler(
           tlid,
-          testPos,
           { tlid = tlid
-            pos = testPos
             ast = PT.Expr.EBlank(gid ())
             spec =
               PT.Handler.Worker(

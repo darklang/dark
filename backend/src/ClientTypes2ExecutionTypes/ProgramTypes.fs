@@ -359,16 +359,10 @@ module Handler =
       | PT.Handler.REPL (name, i) -> CTPT.Handler.Spec.REPL(name, ids.toCT i)
 
   let fromCT (h : CTPT.Handler.T) : PT.Handler.T =
-    { tlid = h.tlid
-      pos = Position.fromCT h.pos
-      ast = Expr.fromCT h.ast
-      spec = Spec.fromCT h.spec }
+    { tlid = h.tlid; ast = Expr.fromCT h.ast; spec = Spec.fromCT h.spec }
 
   let toCT (h : PT.Handler.T) : CTPT.Handler.T =
-    { tlid = h.tlid
-      pos = Position.toCT h.pos
-      ast = Expr.toCT h.ast
-      spec = Spec.toCT h.spec }
+    { tlid = h.tlid; ast = Expr.toCT h.ast; spec = Spec.toCT h.spec }
 
 
 module DB =
@@ -501,8 +495,8 @@ module Op =
 
   let fromCT (op : CTPT.Op) : PT.Op =
     match op with
-    | CTPT.Op.SetHandler (tlid, pos, handler) ->
-      PT.Op.SetHandler(tlid, Position.fromCT pos, Handler.fromCT handler)
+    | CTPT.Op.SetHandler (tlid, handler) ->
+      PT.Op.SetHandler(tlid, Handler.fromCT handler)
     | CTPT.Op.CreateDB (tlid, name) -> PT.Op.CreateDB(tlid, name)
     | CTPT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       PT.Op.AddDBCol(dbid, colNameID, colTypeID)
@@ -528,8 +522,8 @@ module Op =
 
   let toCT (op : PT.Op) : CTPT.Op =
     match op with
-    | PT.Op.SetHandler (tlid, pos, handler) ->
-      CTPT.Op.SetHandler(tlid, Position.toCT pos, Handler.toCT handler)
+    | PT.Op.SetHandler (tlid, handler) ->
+      CTPT.Op.SetHandler(tlid, Handler.toCT handler)
     | PT.Op.CreateDB (tlid, name) -> CTPT.Op.CreateDB(tlid, name)
     | PT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       CTPT.Op.AddDBCol(dbid, colNameID, colTypeID)

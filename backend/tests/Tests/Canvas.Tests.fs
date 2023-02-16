@@ -22,7 +22,7 @@ module Account = LibBackend.Account
 
 let parse = Parser.parsePTExpr
 
-let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {

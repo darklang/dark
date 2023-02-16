@@ -130,7 +130,7 @@ module Handler =
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
 
-  type T = { tlid : tlid; pos : Position; ast : Expr; spec : Spec }
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 
 module DB =
@@ -183,7 +183,7 @@ type Toplevel =
   | TLType of UserType.T
 
 type Op =
-  | SetHandler of tlid * Position * Handler.T
+  | SetHandler of tlid * Handler.T
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string

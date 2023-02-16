@@ -166,10 +166,7 @@ module Handler =
       | PT.Handler.REPL (name, ids) -> ST.Handler.REPL(name, IDs.toST ids)
 
   let toST (h : PT.Handler.T) : ST.Handler.T =
-    { tlid = h.tlid
-      ast = Expr.toST h.ast
-      spec = Spec.toST h.spec
-      pos = { x = h.pos.x; y = h.pos.y } }
+    { tlid = h.tlid; ast = Expr.toST h.ast; spec = Spec.toST h.spec }
 
 module DB =
   let toST (db : PT.DB.T) : ST.DB.T =
@@ -240,9 +237,7 @@ module Toplevel =
 module Op =
   let toST (op : PT.Op) : ST.Op =
     match op with
-    | PT.SetHandler (tlid, pos, handler) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.SetHandler(tlid, position, Handler.toST handler)
+    | PT.SetHandler (tlid, handler) -> ST.SetHandler(tlid, Handler.toST handler)
     | PT.CreateDB (tlid, name) -> ST.CreateDB(tlid, name)
     | PT.AddDBCol (tlid, id1, id2) -> ST.AddDBCol(tlid, id1, id2)
     | PT.SetDBColName (tlid, id, name) -> ST.SetDBColName(tlid, id, name)

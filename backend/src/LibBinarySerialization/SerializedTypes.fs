@@ -215,11 +215,11 @@ module Handler =
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
+
       [<MessagePack.Key 1>]
-      pos : Position
-      [<MessagePack.Key 2>]
       ast : Expr
-      [<MessagePack.Key 3>]
+
+      [<MessagePack.Key 2>]
       spec : Spec }
 
 
@@ -329,7 +329,7 @@ module Toplevel =
 /// and is preferred throughout code and documentation.
 [<MessagePack.MessagePackObject>]
 type Op =
-  | SetHandler of tlid * Position * Handler.T
+  | SetHandler of tlid * Handler.T
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string

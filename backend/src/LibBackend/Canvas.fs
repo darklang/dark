@@ -231,7 +231,7 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
 let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   try
     match op with
-    | PT.SetHandler (_, _, h) -> setHandler h c
+    | PT.SetHandler (_, h) -> setHandler h c
     | PT.CreateDB (tlid, name) ->
       if isNew && name = "" then Exception.raiseEditor "DB must have a name"
       let db = UserDB.create tlid name
@@ -549,7 +549,7 @@ let saveTLIDs
 
         let pos =
           match tl with
-          | PT.Toplevel.TLHandler ({ pos = pos }) -> Some(Json.Vanilla.serialize pos)
+          | PT.Toplevel.TLHandler _ -> Some(Json.Vanilla.serialize {x = 0; y = 0 })
           | PT.Toplevel.TLDB _ -> None
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None
