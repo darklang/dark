@@ -67,7 +67,7 @@ myvar = Test.typeError_v0 "There is no variable named: myvar"
 5 + (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
 "xx" ++ "yy" = "xxyy"
-(5 + (partial "three" 3)) = 8
+(5 + (3)) = 8
 Int.add_v0 5 3 = 8
 
 [tests.fqfnname]
@@ -76,9 +76,7 @@ toString 5 = "5"
 
 [tests.if]
 (if true then "correct" else 0) = "correct")
-(if true then partial "" "correct" else 0) = "correct")
 (if false then "" else "correct") = "correct")
-(if false then "" else partial "" "correct") = "correct")
 (if null then "" else "correct") = "correct")
 (if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error")
 (if List.head_v1_ster [] then "" else "") = Test.errorRailValue_v0 Nothing)
@@ -143,7 +141,6 @@ toString 5 = "5"
 
 [tests.featureflag]
 flag "test" true "old" "new" = "new"
-flag "test" true "old" (partial "outer" "new") = "new"
 // everything else is old
 flag "test" false "old" "new" = "old"
 flag "" [true] "old" "new" = "old"
@@ -198,13 +195,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  |> x
  |> (+) 3
  |> blank)) = 10
-
-[test.pipe through partial]
-// partials need to be removed when converting to RT, and we had issues with pipes
-(5
-|> (+) 1
-|> partial "outer" (fun x -> partial "inner" (if (x + 4) > 1 then x else (1 + x)))
-) = 6
 
 
 [tests.match]

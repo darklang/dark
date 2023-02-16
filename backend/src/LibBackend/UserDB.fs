@@ -506,17 +506,12 @@ let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
 // DB schema
 // -------------------------
 
-let create (tlid : tlid) (name : string) (pos : PT.Position) : PT.DB.T =
-  { tlid = tlid; pos = pos; name = name; nameID = tlid; cols = []; version = 0 }
+let create (tlid : tlid) (name : string) : PT.DB.T =
+  { tlid = tlid; name = name; nameID = tlid; cols = []; version = 0 }
 
 
-let create2
-  (tlid : tlid)
-  (name : string)
-  (pos : PT.Position)
-  (nameID : id)
-  : PT.DB.T =
-  { tlid = tlid; name = name; nameID = nameID; pos = pos; cols = []; version = 0 }
+let create2 (tlid : tlid) (name : string) (nameID : id) : PT.DB.T =
+  { tlid = tlid; name = name; nameID = nameID; cols = []; version = 0 }
 
 let renameDB (n : string) (db : PT.DB.T) : PT.DB.T = { db with name = n }
 

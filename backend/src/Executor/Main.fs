@@ -213,7 +213,6 @@ let initSerializers () =
 
 // one-off types used internally
 // Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
-// Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
 // Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
 //   "RoundtrippableSerializationFormatV0.Dval"
 // Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"

@@ -75,17 +75,7 @@ let infixFnMapping : Map<FQFnName.StdlibFnName, (FQFnName.StdlibFnName * Depreca
     ("Date", "greaterThanOrEqualTo", 0), (("Date", ">="), NotDeprecated)
     ("String", "append", 1), (("", "++"), NotDeprecated)
     ("", "equals", 0), (("", "=="), NotDeprecated)
-    ("", "notEquals", 0), (("", "!="), NotDeprecated)
-    ("Bool", "and", 0),
-    (("", "&&"),
-     DeprecatedBecause(
-       "Use built-in keyword `&&` instead. Use the `convert-to-short-circuiting` command to convert automatically"
-     ))
-    ("Bool", "or", 0),
-    (("", "||"),
-     DeprecatedBecause(
-       "Use built-in keyword `||` instead. Use the `convert-to-short-circuiting` command to convert automatically"
-     )) ]
+    ("", "notEquals", 0), (("", "!="), NotDeprecated) ]
   |> List.map (fun ((module_, name, version), ((newMod, opName), deprecation)) ->
     FQFnName.stdlibFnName module_ name version,
     (FQFnName.stdlibFnName newMod opName 0, deprecation))

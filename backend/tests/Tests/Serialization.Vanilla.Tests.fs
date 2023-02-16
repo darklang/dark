@@ -151,8 +151,6 @@ module PersistedSerializations =
               description = "" }
             { name = "obj"; tipe = LibBackend.PackageManager.TObj; description = "" } ]
 
-        v<PT.Position> "simple" { x = 10; y = -16 }
-
         v<LibBackend.TraceCloudStorage.CloudStorageFormat>
           "simple"
           { storageFormatVersion = 0
@@ -427,7 +425,6 @@ module PersistedSerializations =
                 [ { tlid = V.tlid
                     name = "dbname"
                     nameID = 7UL
-                    pos = CT2Program.Position.toCT V.ProgramTypes.pos
                     cols =
                       [ { name = Some("colname")
                           nameID = 8UL
@@ -454,7 +451,6 @@ module PersistedSerializations =
                 [ { tlid = V.tlid
                     name = "dbname"
                     nameID = 7UL
-                    pos = CT2Program.Position.toCT V.ProgramTypes.pos
                     cols =
                       [ { name = Some("colname")
                           nameID = 8UL
@@ -663,12 +659,7 @@ module RoundtripTests =
 
   module ProgramTypes =
     let tests =
-      [ testRoundtrip
-          "PT.Position"
-          V.ProgramTypes.pos
-          CT2Program.Position.toCT
-          CT2Program.Position.fromCT
-        testRoundtripList
+      [ testRoundtripList
           "PT.FQFnName"
           V.ProgramTypes.fqFnNames
           CT2Program.FQFnName.toCT

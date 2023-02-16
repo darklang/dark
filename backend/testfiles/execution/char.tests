@@ -6,12 +6,6 @@
 
 [tests.all]
 
-Char.toASCIICode_v0 "a" = Test.typeError_v0 "Char::toASCIICode was removed from Dark"
-Char.toASCIIChar_v0 1 = Test.typeError_v0 "Char::toASCIIChar was removed from Dark"
-Char.toLowercase_v0 "A" = Test.typeError_v0 "Char::toLowercase was removed from Dark"
-Char.toUppercase_v0 "A" = Test.typeError_v0 "Char::toUppercase was removed from Dark"
-
-
 Char.toLowercase_v1 'A' = 'a'
 Char.toLowercase_v1 'a' = 'a'
 Char.toLowercase_v1 'Á' = 'á'

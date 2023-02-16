@@ -33,22 +33,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "" "toRepr" 0
-      parameters = [ Param.make "v" varA "" ]
-      returnType = TStr
-      description =
-        "Returns an adorned string representation of <param v>, suitable for internal
-         developer usage. Not designed for sending to end-users, use <fn toString>
-         instead.  Redacts passwords."
-      fn =
-        (function
-        | _, [ a ] -> Ply(DStr(DvalReprDeveloper.toRepr a))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = DeprecatedBecause "Not intended for external use" }
-
-
     { name = fn "" "equals" 0
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
@@ -75,53 +59,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "" "toForm" 0
-      parameters = [ Param.make "obj" (TDict varA) ""; Param.make "submit" TStr "" ]
-      returnType = TStr
-      description =
-        "For demonstration only. Returns a HTML form with the labels and types
-         described in <param obj>. <param submit> is the form's action."
-      fn =
-        (function
-        | _, [ DObj o; DStr uri ] ->
-          let toInput (k, v) =
-            let label = Printf.sprintf "<label for=\"%s\">%s:</label>" k k
-
-            let input =
-              Printf.sprintf "<input id=\"%s\" type=\"text\" name=\"%s\">" k k
-
-            label + "\n" + input
-
-          let inputs = o |> Map.toList |> List.map toInput |> String.concat "\n"
-
-          Ply(
-            DStr(
-              Printf.sprintf
-                "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
-                uri
-                inputs
-            )
-          )
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = DeprecatedBecause "It is just a demo function" }
-
-
-    { name = fn "Error" "toString" 0 // CLEANUP can’t actually call this
-      parameters = [ Param.make "err" TError "" ]
-      returnType = TStr
-      description = "Return a string representing the error"
-      fn =
-        (function
-        | _, [ DError (_, err) ] -> Ply(DStr err)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated =
-        DeprecatedBecause "It is no longer allowed to use errors as arguments" }
 
 
     { name = fn "AWS" "urlencode" 0

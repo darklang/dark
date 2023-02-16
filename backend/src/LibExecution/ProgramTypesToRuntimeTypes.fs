@@ -94,9 +94,6 @@ module Expr =
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
-    | PT.EPartial (_, _, oldExpr)
-    | PT.ERightPartial (_, _, oldExpr)
-    | PT.ELeftPartial (_, _, oldExpr) -> toRT oldExpr
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
@@ -148,9 +145,6 @@ module Expr =
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
             // If there's a hole, run the computation right through it as if it wasn't there
             | PT.EBlank _ -> prev
-            // We can ignore partials as we just want whatever is inside them
-            | PT.EPartial (_, _, oldExpr) -> convert oldExpr
-            // Here, the expression evaluates to an FnValue. This is for eg variables containing values
             | other ->
               RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID, RT.NoRail)
           convert next)
@@ -221,13 +215,9 @@ module Handler =
       | PT.Handler.HTTPBasic (route, method, _ids) ->
         RT.Handler.HTTPBasic(route, method)
       | PT.Handler.Worker (name, _ids) -> RT.Handler.Worker(name)
-      | PT.Handler.OldWorker (modulename, name, _ids) ->
-        RT.Handler.OldWorker(modulename, name)
       | PT.Handler.Cron (name, interval, _ids) ->
         RT.Handler.Cron(name, interval |> Option.map CronInterval.toRT)
       | PT.Handler.REPL (name, _ids) -> RT.Handler.REPL(name)
-      | PT.Handler.UnknownHandler (_name, _modifier, _ids) ->
-        RT.Handler.UnknownHandler
 
   let toRT (h : PT.Handler.T) : RT.Handler.T =
     { tlid = h.tlid; ast = Expr.toRT h.ast; spec = Spec.toRT h.spec }

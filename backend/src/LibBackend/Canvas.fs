@@ -231,10 +231,10 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
 let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   try
     match op with
-    | PT.SetHandler (_, _, h) -> setHandler h c
-    | PT.CreateDB (tlid, pos, name) ->
+    | PT.SetHandler (_, h) -> setHandler h c
+    | PT.CreateDB (tlid, name) ->
       if isNew && name = "" then Exception.raiseEditor "DB must have a name"
-      let db = UserDB.create tlid name pos
+      let db = UserDB.create tlid name
       setDB db c
     | PT.AddDBCol (tlid, colid, typeid) ->
       applyToDB (UserDB.addCol colid typeid) tlid c
@@ -267,8 +267,8 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
         "Undo/Redo op should have been preprocessed out!"
         [ "op", op ]
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
-    | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
-      setDB (UserDB.create2 tlid name pos id) c
+    | PT.CreateDBWithBlankOr (tlid, id, name) ->
+      setDB (UserDB.create2 tlid name id) c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
   with
@@ -526,9 +526,7 @@ let saveTLIDs
                 PTParser.Handler.Spec.toModifier spec
               )
             | PT.Handler.Worker _
-            | PT.Handler.OldWorker _
             | PT.Handler.Cron _
-            | PT.Handler.UnknownHandler _
             | PT.Handler.REPL _ ->
               Some(
                 PTParser.Handler.Spec.toModule spec,
@@ -551,8 +549,8 @@ let saveTLIDs
 
         let pos =
           match tl with
-          | PT.Toplevel.TLHandler ({ pos = pos })
-          | PT.Toplevel.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
+          | PT.Toplevel.TLHandler _ -> Some(Json.Vanilla.serialize { x = 0; y = 0 })
+          | PT.Toplevel.TLDB _ -> None
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None
 

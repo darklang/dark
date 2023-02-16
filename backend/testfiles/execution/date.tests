@@ -233,10 +233,6 @@ Date.toStringISO8601BasicDate_v0 (d "1069-07-28T22:42:36Z") = "10690728"
 // d "2019-07-28T22:42:36Z" |> Date.toSeconds_v0 |> Date.fromSeconds_v0 |> toString_v0 = "2019-07-28T22:42:36Z"
 // Date.today_v0 |> toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
 
-[tests.date human readable don't work]
-Date.toHumanReadable_v0 (d "2021-07-02T17:42:36Z") = "18 days, 19 hours, 27 minutes"
-Date.toHumanReadable_v0 (d "1970-01-01T00:00:00Z") = "less than a minute"
-
 [tests.date adding seconds]
 Date.add_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
 Date.add_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:47Z")

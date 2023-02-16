@@ -22,7 +22,7 @@ module Account = LibBackend.Account
 
 let parse = Parser.parsePTExpr
 
-let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
@@ -222,10 +222,8 @@ let testDbCreateWithOrblankName =
     let colNameID = gid ()
     let colTypeID = gid ()
     let name = "Books"
-    let pos : PT.Position = { x = 0; y = 0 }
     let db : PT.DB.T =
       { tlid = dbid
-        pos = pos
         name = name
         nameID = nameID
         version = 0
@@ -233,7 +231,7 @@ let testDbCreateWithOrblankName =
           [ { name = None; nameID = colNameID; typ = None; typeID = colTypeID } ] }
 
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid, pos, nameID, name)
+      [ PT.CreateDBWithBlankOr(dbid, nameID, name)
         PT.AddDBCol(dbid, colNameID, colTypeID) ]
     let canvas = Canvas.fromOplist meta [] ops
     Expect.equal (canvas.dbs[dbid]) db "Datastore is created"
@@ -248,9 +246,8 @@ let testDbRename =
     let colNameID = gid ()
     let colTypeID = gid ()
     let name = "Books"
-    let pos : PT.Position = { x = 0; y = 0 }
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid, pos, nameID, name)
+      [ PT.CreateDBWithBlankOr(dbid, nameID, name)
         PT.AddDBCol(dbid, colNameID, colTypeID)
         PT.RenameDBname(dbid, "BsCode") ]
     let canvas = Canvas.fromOplist meta [] ops
@@ -335,10 +332,9 @@ let testLoadAllDBs =
     let! meta = initializeTestCanvas (Randomized "load-all-dbs")
     let dbid1, dbid2, dbid3 = gid (), gid (), gid ()
     let nameid1, nameid2, nameid3 = gid (), gid (), gid ()
-    let ops1 =
-      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books"); PT.DeleteTL dbid1 ]
-    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books2") ]
-    let ops3 = [ PT.CreateDBWithBlankOr(dbid3, testPos, nameid3, "Books3") ]
+    let ops1 = [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books"); PT.DeleteTL dbid1 ]
+    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, nameid2, "Books2") ]
+    let ops3 = [ PT.CreateDBWithBlankOr(dbid3, nameid3, "Books3") ]
     let c1 = Canvas.empty meta |> Canvas.addOps (ops1 @ ops2 @ ops3) []
     do!
       Canvas.saveTLIDs
@@ -360,8 +356,8 @@ let testCanvasVerificationDuplicationCreation =
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
-        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books") ]
+      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
+        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books") ]
     try
       Canvas.empty meta |> Canvas.addOps [] ops |> ignore<Canvas.T>
       Expect.equal false true "should not verify"
@@ -378,8 +374,8 @@ let testCanvasVerificationDuplicationCreationOffDisk =
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     // same name
-    let ops1 = [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books") ]
-    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books") ]
+    let ops1 = [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books") ]
+    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, nameid2, "Books") ]
     let c1 = Canvas.empty meta |> Canvas.addOps (ops1 @ ops2) []
     do!
       Canvas.saveTLIDs
@@ -406,8 +402,8 @@ let testCanvasVerificationDuplicationRenaming =
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
-        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books2")
+      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
+        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books2")
         PT.RenameDBname(dbid2, "Books") ]
     try
       Canvas.empty meta |> Canvas.addOps [] ops |> ignore<Canvas.T>
@@ -422,8 +418,8 @@ let testCanvasVerificationNoError =
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
-        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books2") ]
+      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
+        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books2") ]
     try
       Canvas.empty meta |> Canvas.addOps [] ops |> ignore<Canvas.T>
     with
@@ -437,10 +433,10 @@ let testCanvasVerificationUndoRenameDupedName =
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops1 =
-      [ PT.CreateDBWithBlankOr(dbid1, testPos, nameid1, "Books")
+      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
         PT.TLSavepoint dbid1
         PT.DeleteTL dbid1
-        PT.CreateDBWithBlankOr(dbid2, testPos, nameid2, "Books") ]
+        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books") ]
     let ops2 = ops1 @ [ PT.UndoTL dbid1 ]
     try
       Canvas.empty meta |> Canvas.addOps [] ops1 |> ignore<Canvas.T>

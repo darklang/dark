@@ -172,8 +172,6 @@ let createTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
     return! createCanvasForOwner owner name
   }
 
-let testPos : PT.Position = { x = 0; y = 0 }
-
 let testHttpRouteHandler
   (route : string)
   (method : string)
@@ -182,10 +180,7 @@ let testHttpRouteHandler
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { pos = { x = 0; y = 0 }
-    tlid = gid ()
-    ast = ast
-    spec = PT.Handler.HTTP(route, method, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method, ids) }
 
 let testCron
   (name : string)
@@ -195,19 +190,13 @@ let testCron
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { pos = { x = 0; y = 0 }
-    tlid = gid ()
-    ast = ast
-    spec = PT.Handler.Cron(name, Some interval, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, Some interval, ids) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { pos = { x = 0; y = 0 }
-    tlid = gid ()
-    ast = ast
-    spec = PT.Handler.Worker(name, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Worker(name, ids) }
 
 let testUserFn
   (name : string)
@@ -248,18 +237,13 @@ let testUserType
 
 
 
-let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
 let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
 
 let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
-  { tlid = gid ()
-    pos = { x = 0; y = 0 }
-    nameID = gid ()
-    name = name
-    cols = cols
-    version = 0 }
+  { tlid = gid (); nameID = gid (); name = name; cols = cols; version = 0 }
 
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
@@ -352,7 +336,7 @@ let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.
 
         let op =
           match tl with
-          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
+          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, h)
           | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
 
         (tlid, [ op ], tl, Canvas.NotDeleted))

@@ -85,8 +85,8 @@ let hasEffect (op : PT.Op) : bool =
 
 let tlidOf (op : PT.Op) : tlid =
   match op with
-  | PT.SetHandler (tlid, _, _) -> tlid
-  | PT.CreateDB (tlid, _, _) -> tlid
+  | PT.SetHandler (tlid, _) -> tlid
+  | PT.CreateDB (tlid, _) -> tlid
   | PT.AddDBCol (tlid, _, _) -> tlid
   | PT.SetDBColName (tlid, _, _) -> tlid
   | PT.ChangeDBColName (tlid, _, _) -> tlid
@@ -101,7 +101,7 @@ let tlidOf (op : PT.Op) : tlid =
   | PT.DeleteFunction tlid -> tlid
   | PT.DeleteDBCol (tlid, _) -> tlid
   | PT.RenameDBname (tlid, _) -> tlid
-  | PT.CreateDBWithBlankOr (tlid, _, _, _) -> tlid
+  | PT.CreateDBWithBlankOr (tlid, _, _) -> tlid
   | PT.SetType ut -> ut.tlid
   | PT.DeleteType tlid -> tlid
 
@@ -117,8 +117,8 @@ let astOf (op : PT.Op) : PT.Expr option =
   match op with
   | PT.SetFunction f -> Some f.body
   | PT.SetExpr (_, _, ast) -> Some ast
-  | PT.SetHandler (_, _, h) -> Some h.ast
-  | PT.CreateDB (_, _, _)
+  | PT.SetHandler (_, h) -> Some h.ast
+  | PT.CreateDB (_, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)
   | PT.SetDBColType (_, _, _)
@@ -131,7 +131,7 @@ let astOf (op : PT.Op) : PT.Expr option =
   | PT.ChangeDBColType (_, _, _)
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
-  | PT.CreateDBWithBlankOr (_, _, _, _)
+  | PT.CreateDBWithBlankOr (_, _, _)
   | PT.SetType _
   | PT.DeleteType _ -> None
 
@@ -140,9 +140,9 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   match op with
   | PT.SetFunction userfn -> PT.SetFunction { userfn with body = newAST }
   | PT.SetExpr (tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
-  | PT.SetHandler (tlid, id, handler) ->
-    PT.SetHandler(tlid, id, { handler with ast = newAST })
-  | PT.CreateDB (_, _, _)
+  | PT.SetHandler (tlid, handler) ->
+    PT.SetHandler(tlid, { handler with ast = newAST })
+  | PT.CreateDB (_, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)
   | PT.SetDBColType (_, _, _)
@@ -155,7 +155,7 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   | PT.ChangeDBColType (_, _, _)
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
-  | PT.CreateDBWithBlankOr (_, _, _, _)
+  | PT.CreateDBWithBlankOr (_, _, _)
   | PT.SetType _
   | PT.DeleteType _ -> op
 

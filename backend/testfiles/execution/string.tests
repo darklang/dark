@@ -78,7 +78,6 @@ String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
 String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
 String.endsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷"= true
 
-String.foreach_v0 "a string" (fun x -> x) = Test.typeError_v0 "String::foreach was removed from Dark"
 String.foreach_v1 "a string" (fun x -> x) = "a string"
 String.foreach_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 String.foreach_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
@@ -88,7 +87,6 @@ String.foreach_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 String.foreach_v1 "abcdef" (fun x -> blank) = blank
 
 // fromChar
-String.fromChar_v0 'a' = Test.typeError_v0 "String::fromChar was removed from Dark"
 String.fromChar_v1 'a' = "a"
 String.fromChar_v1 (c "1") = "1"
 String.fromChar_v1 (c "👩‍👩‍👧‍👦") = "👩‍👩‍👧‍👦"
@@ -327,8 +325,6 @@ String.slugify_v2 "[\\]^_`" = "-"
 String.slugify_v2 "{|}~\x7F" = ""
 
 // toList and fromList
-String.fromList_v0 [] = Test.typeError_v0 "String::fromList was removed from Dark"
-String.toList_v0 "" = Test.typeError_v0 "String::toList was removed from Dark"
 String.fromList_v1 [] = ""
 String.fromList_v1 [c "a"] = "a"
 String.fromList_v1 [c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"

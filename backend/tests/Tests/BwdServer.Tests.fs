@@ -238,11 +238,10 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
               ids = ids
             )
 
-        let h : PT.Handler.T =
-          { tlid = gid (); pos = { x = 0; y = 0 }; ast = source; spec = spec }
+        let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 
         (h.tlid,
-         [ PT.SetHandler(h.tlid, h.pos, h) ],
+         [ PT.SetHandler(h.tlid, h) ],
          PT.Toplevel.TLHandler h,
          Canvas.NotDeleted))
 

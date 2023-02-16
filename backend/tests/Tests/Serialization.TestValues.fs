@@ -159,8 +159,6 @@ module ProgramTypes =
           function_ = "sms"
           version = 1 } ]
 
-  let pos : PT.Position = { x = 6; y = 6 }
-
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPConstructor(7471263UL, "None", [])
@@ -404,16 +402,7 @@ module ProgramTypes =
                               PT.ELet(
                                 6345345UL,
                                 "partials",
-                                PT.EList(
-                                  23423423UL,
-                                  [ PT.EPartial(2949606UL, "some 🤬 string", e)
-                                    PT.ERightPartial(9239755UL, "some 😭 string", e)
-                                    PT.ELeftPartial(
-                                      234885UL,
-                                      "some 👨‍👩‍👧‍👦 string",
-                                      e
-                                    ) ]
-                                ),
+                                PT.EList(23423423UL, []),
                                 PT.ELet(
                                   883434UL,
                                   "tuples",
@@ -502,48 +491,35 @@ module ProgramTypes =
       let http = PT.Handler.HTTP("/path", "GET", ids)
       let httpBasic = PT.Handler.HTTPBasic("/path-bytes", "GET", ids)
       let worker = PT.Handler.Worker("name", ids)
-      let oldWorker = PT.Handler.OldWorker("MODULE", "name", ids)
       let cronWithoutInterval = PT.Handler.Cron("name", None, ids)
 
       let cronWithInterval =
         PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
 
       let repl = PT.Handler.REPL("name", ids)
-      let unknown = PT.Handler.UnknownHandler("name", "", ids)
 
     let specs : List<PT.Handler.Spec> =
       [ Spec.http
         Spec.httpBasic
         Spec.worker
-        Spec.oldWorker
         Spec.cronWithoutInterval
         Spec.cronWithInterval
-        Spec.repl
-        Spec.unknown ]
+        Spec.repl ]
 
-    let http : PT.Handler.T =
-      { spec = Spec.http; tlid = 92987663UL; ast = expr; pos = pos }
+    let http : PT.Handler.T = { spec = Spec.http; tlid = 92987663UL; ast = expr }
 
     let httpBasic : PT.Handler.T =
-      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr; pos = pos }
+      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr }
 
-    let worker : PT.Handler.T =
-      { spec = Spec.worker; tlid = 19930486UL; ast = expr; pos = pos }
+    let worker : PT.Handler.T = { spec = Spec.worker; tlid = 19930486UL; ast = expr }
 
-    let oldWorker : PT.Handler.T =
-      { spec = Spec.oldWorker; tlid = 10438664321UL; ast = expr; pos = pos }
-
-    let repl : PT.Handler.T =
-      { spec = Spec.repl; tlid = 10395769302UL; ast = expr; pos = pos }
+    let repl : PT.Handler.T = { spec = Spec.repl; tlid = 10395769302UL; ast = expr }
 
     let cronWithoutInterval : PT.Handler.T =
-      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr; pos = pos }
+      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr }
 
     let cronWithInterval : PT.Handler.T =
-      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr; pos = pos }
-
-    let unknown : PT.Handler.T =
-      { spec = Spec.unknown; tlid = 13633UL; ast = expr; pos = pos }
+      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr }
 
     let handlersWithName : List<string * PT.Handler.T> =
       [ "Http", http
@@ -551,15 +527,12 @@ module ProgramTypes =
         "Cron1", cronWithoutInterval
         "Cron2", cronWithInterval
         "REPL", repl
-        "Unknown", unknown
-        "OldWorker", oldWorker
         "HttpBasic", httpBasic ]
 
     let handlers = List.map snd handlersWithName
 
   let userDB : PT.DB.T =
     { tlid = 0UL
-      pos = pos
       nameID = 2399545UL
       name = "User"
       version = 0
@@ -640,8 +613,8 @@ module ProgramTypes =
   let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(Handler.http.tlid, pos, Handler.http)
-      PT.CreateDB(tlid, pos, "name")
+    [ PT.SetHandler(Handler.http.tlid, Handler.http)
+      PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")
       PT.SetDBColType(tlid, id, "int")
@@ -656,7 +629,7 @@ module ProgramTypes =
       PT.DeleteFunction tlid
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
-      PT.CreateDBWithBlankOr(tlid, pos, id, "User")
+      PT.CreateDBWithBlankOr(tlid, id, "User")
       PT.SetType(userType)
       PT.DeleteType tlid ]
 

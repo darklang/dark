@@ -86,10 +86,6 @@ module Expr =
     | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
-    | PT.EPartial (id, str, expr) -> ST.EPartial(id, str, toST expr)
-    | PT.ERightPartial (id, str, expr) -> ST.ERightPartial(id, str, toST expr)
-    | PT.ELeftPartial (id, str_, expr) -> ST.ELeftPartial(id, str_, toST expr)
-
     | PT.EList (id, exprs) -> ST.EList(id, List.map toST exprs)
     | PT.ETuple (id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
@@ -165,24 +161,16 @@ module Handler =
       | PT.Handler.HTTPBasic (route, method, ids) ->
         ST.Handler.HTTPBasic(route, method, IDs.toST ids)
       | PT.Handler.Worker (name, ids) -> ST.Handler.Worker(name, IDs.toST ids)
-      | PT.Handler.OldWorker (modulename, name, ids) ->
-        ST.Handler.OldWorker(modulename, name, IDs.toST ids)
       | PT.Handler.Cron (name, interval, ids) ->
         ST.Handler.Cron(name, interval |> Option.map CronInterval.toST, IDs.toST ids)
       | PT.Handler.REPL (name, ids) -> ST.Handler.REPL(name, IDs.toST ids)
-      | PT.Handler.UnknownHandler (name, modifier, ids) ->
-        ST.Handler.UnknownHandler(name, modifier, IDs.toST ids)
 
   let toST (h : PT.Handler.T) : ST.Handler.T =
-    { tlid = h.tlid
-      ast = Expr.toST h.ast
-      spec = Spec.toST h.spec
-      pos = { x = h.pos.x; y = h.pos.y } }
+    { tlid = h.tlid; ast = Expr.toST h.ast; spec = Spec.toST h.spec }
 
 module DB =
   let toST (db : PT.DB.T) : ST.DB.T =
     { tlid = db.tlid
-      pos = { x = db.pos.x; y = db.pos.y }
       name = db.name
       nameID = db.nameID
       version = db.version
@@ -249,12 +237,8 @@ module Toplevel =
 module Op =
   let toST (op : PT.Op) : ST.Op =
     match op with
-    | PT.SetHandler (tlid, pos, handler) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.SetHandler(tlid, position, Handler.toST handler)
-    | PT.CreateDB (tlid, pos, name) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.CreateDB(tlid, position, name)
+    | PT.SetHandler (tlid, handler) -> ST.SetHandler(tlid, Handler.toST handler)
+    | PT.CreateDB (tlid, name) -> ST.CreateDB(tlid, name)
     | PT.AddDBCol (tlid, id1, id2) -> ST.AddDBCol(tlid, id1, id2)
     | PT.SetDBColName (tlid, id, name) -> ST.SetDBColName(tlid, id, name)
     | PT.SetDBColType (tlid, id, string) -> ST.SetDBColType(tlid, id, string)
@@ -269,8 +253,7 @@ module Op =
     | PT.DeleteFunction tlid -> ST.DeleteFunction tlid
     | PT.DeleteDBCol (tlid, id) -> ST.DeleteDBCol(tlid, id)
     | PT.RenameDBname (tlid, string) -> ST.RenameDBname(tlid, string)
-    | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.CreateDBWithBlankOr(tlid, position, id, string)
+    | PT.CreateDBWithBlankOr (tlid, id, string) ->
+      ST.CreateDBWithBlankOr(tlid, id, string)
     | PT.SetType tipe -> ST.SetType(UserType.toST tipe)
     | PT.DeleteType tlid -> ST.DeleteType tlid

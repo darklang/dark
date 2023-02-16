@@ -692,14 +692,9 @@ module Handler =
 
     | Worker of name : string
 
-    /// This form is deprecated, but still supported
-    | OldWorker of modulename : string * name : string
-
     | Cron of name : string * interval : Option<CronInterval>
 
     | REPL of name : string
-
-    | UnknownHandler // no useful info here
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 

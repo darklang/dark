@@ -37,9 +37,7 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
       |> List.map (fun (worker, tlid) ->
         PT.SetHandler(
           tlid,
-          testPos,
           { tlid = tlid
-            pos = testPos
             ast = PT.Expr.EBlank(gid ())
             spec =
               PT.Handler.Worker(
@@ -64,8 +62,7 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
       // Convert the DBs back into ops so that DB operations will run
       dbs
       |> List.map (fun (db : PT.DB.T) ->
-        let initial =
-          PT.CreateDBWithBlankOr(db.tlid, { x = 0; y = 0 }, db.nameID, db.name)
+        let initial = PT.CreateDBWithBlankOr(db.tlid, db.nameID, db.name)
         let cols =
           db.cols
           |> List.map (fun (col : PT.DB.Col) ->
@@ -408,7 +405,6 @@ let fileTests () : Test =
 
         let (db : PT.DB.T) =
           { tlid = id i
-            pos = { x = 0; y = 0 }
             name = name
             nameID = gid ()
             version = 0

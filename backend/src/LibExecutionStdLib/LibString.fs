@@ -38,27 +38,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "foreach" 0
-      parameters =
-        [ Param.make "s" TStr "string to iterate over"
-          Param.makeWithArgs
-            "fn"
-            (TFn([ TChar ], TChar))
-            "function used to convert one character to another"
-            [ "char" ] ]
-      returnType = TStr
-      description =
-        "Iterate over each character (byte, not EGC) in the string, performing the
-         operation in the block on each one"
-      fn =
-        function
-        | state, [ s; f ] -> Errors.removedFunction state "String::foreach"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "foreach" 1) }
-
-
     { name = fn "String" "foreach" 1
       parameters =
         [ Param.make "s" TStr ""
@@ -116,19 +95,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "toList" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TList TChar
-      description = "Returns the list of characters (byte, not EGC) in the string"
-      fn =
-        function
-        | state, [ s ] -> Errors.removedFunction state "String::toList"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "toList" 1) }
 
 
     { name = fn "String" "toList" 1
@@ -613,19 +579,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "fromList" 0
-      parameters = [ Param.make "l" (TList TChar) "" ]
-      returnType = TStr
-      description = "Returns the list of characters as a string"
-      fn =
-        function
-        | state, [ l ] -> Errors.removedFunction state "String::fromList"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "fromList" 1) }
-
-
     { name = fn "String" "fromList" 1
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TStr
@@ -646,19 +599,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "fromChar" 0
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TChar
-      description = "Converts a <type char> to a <type string>"
-      fn =
-        function
-        | state, [ c ] -> Errors.removedFunction state "String::fromChar"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "fromChar" 1) }
 
 
     { name = fn "String" "fromChar" 1

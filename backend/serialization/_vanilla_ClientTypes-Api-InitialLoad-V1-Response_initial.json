@@ -603,14 +603,9 @@
                                         ]
                                       ],
                                       [
-                                        "ERightPartial",
-                                        9239755,
-                                        "some \uD83D\uDE2D string",
-                                        [
                                           "EInteger",
                                           34545,
                                           5
-                                        ]
                                       ],
                                       [
                                         "ELeftPartial",
