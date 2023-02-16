@@ -88,30 +88,6 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
   }
 
 
-
-let setupStaticAssets
-  (meta : Canvas.Meta)
-  (deployHashes : List<string>)
-  : Task<unit> =
-  task {
-    return!
-      Task.iterSequentially
-        (fun hash ->
-          // If it's already there just update the times. Multiple tests can use the same hash.
-          Sql.query
-            "INSERT INTO static_asset_deploys
-              (canvas_id, branch, deploy_hash, uploaded_by_account_id, created_at, live_at)
-            VALUES
-              (@canvasID, @branch, @deployHash, @uploadedBy, NOW(), NOW())
-            ON CONFLICT DO NOTHING"
-          |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                              "branch", Sql.string "main"
-                              "deployHash", Sql.string hash
-                              "uploadedBy", Sql.uuid meta.owner ]
-          |> Sql.executeStatementAsync)
-        deployHashes
-  }
-
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
   (initializeCanvas : bool)
@@ -122,7 +98,6 @@ let t
   (packageFns : Map<PT.FQFnName.PackageFnName, PT.Package.Fn>)
   (functions : Map<string, PT.UserFunction.T>)
   (workers : List<string>)
-  (staticAssetsDeployHashes : List<string>)
   : Test =
   let name = $"{comment} ({code})"
 
@@ -133,11 +108,7 @@ let t
       try
         let! owner = owner
         let! meta =
-          let initializeCanvas =
-            initializeCanvas
-            || dbs <> []
-            || workers <> []
-            || staticAssetsDeployHashes <> []
+          let initializeCanvas = initializeCanvas || dbs <> [] || workers <> []
           // Little optimization to skip the DB sometimes
           if initializeCanvas then
             initializeCanvasForOwner owner canvasName
@@ -171,8 +142,6 @@ let t
           Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
         // Initialize
-        if staticAssetsDeployHashes <> [] then
-          do! setupStaticAssets meta staticAssetsDeployHashes
         if workers <> [] then do! setupWorkers meta workers
         if dbs <> [] then do! setupDBs meta dbs
 
@@ -214,7 +183,6 @@ let t
 type TestExtras =
   { dbs : List<PT.DB.T>
     workers : List<string>
-    staticAssetsDeployHashes : List<string>
     exactCanvasName : Option<string> }
 
 type TestInfo =
@@ -250,8 +218,7 @@ let testAdmin =
         |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
     })
 
-let emptyExtras =
-  { dbs = []; workers = []; staticAssetsDeployHashes = []; exactCanvasName = None }
+let emptyExtras = { dbs = []; workers = []; exactCanvasName = None }
 
 let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras =
   annotation
@@ -268,10 +235,6 @@ let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras 
       { extras with workers = workerName :: extras.workers }
     | [ "ExactCanvasName"; canvasName ] ->
       { extras with exactCanvasName = Some(String.trim canvasName) }
-    | [ "StaticAssetsDeployHash"; hash ] ->
-      let hash = String.trim hash
-      { extras with
-          staticAssetsDeployHashes = extras.staticAssetsDeployHashes @ [ hash ] }
     | other -> Exception.raiseInternal "invalid option" [ "annotation", other ])
 
 
@@ -328,7 +291,6 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.extras.workers
-            currentTest.extras.staticAssetsDeployHashes
 
         fileTests <- fileTests @ [ newTestCase ]
 
@@ -503,7 +465,6 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.extras.workers
-            currentTest.extras.staticAssetsDeployHashes
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
@@ -518,7 +479,6 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.extras.workers
-            currentTest.extras.staticAssetsDeployHashes
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 
