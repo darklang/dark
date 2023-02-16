@@ -25,8 +25,6 @@ type StringValues = Microsoft.Extensions.Primitives.StringValues
 open Prelude
 open Tablecloth
 
-open LibService.Exception
-
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes

@@ -8,8 +8,6 @@ module UserDB = LibBackend.UserDB
 module Errors = LibExecution.Errors
 module Db = LibBackend.Db
 
-open LibService.Exception
-
 let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs

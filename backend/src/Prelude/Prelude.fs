@@ -215,6 +215,21 @@ module Exception =
     with
     | e -> Error e.Message
 
+type System.Exception with
+
+  /// <summary>
+  /// This hack adds a `Reraise` method to exceptions, since
+  /// it's not normally possible to reraise exceptions within F# CEs.
+  /// </summary>
+  ///
+  /// <remarks>
+  /// Sources:
+  /// - https://github.com/fsharp/fslang-suggestions/issues/660#issuecomment-382070639
+  /// - https://stackoverflow.com/questions/57383
+  /// </remarks>
+  member this.Reraise() =
+    (System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture this).Throw()
+    Unchecked.defaultof<_>
 
 // ----------------------
 // Regex patterns
