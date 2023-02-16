@@ -1,11 +1,6 @@
 // bootstrapping the interpreter
 import fetch from "node-fetch";
-import {
-  ChildProcess,
-  spawn,
-  exec,
-  ChildProcessWithoutNullStreams,
-} from "node:child_process";
+import * as childProcess from "node:child_process";
 import * as fs from "fs/promises";
 
 import * as vscode from "vscode";
@@ -27,8 +22,9 @@ export async function latestExecutorHash(): Promise<string> {
 
 /** returns: path (on disk) to downloaded executor */
 export async function downloadExecutor(
+  storageUri: vscode.Uri,
   latestExecutorHash: string,
-): Promise<string> {
+): Promise<vscode.Uri> {
   // TODO: this URL should be a function of the host OS
   let fileToDownload = `darklang-executor-${latestExecutorHash}-linux-x64`;
 
@@ -36,28 +32,22 @@ export async function downloadExecutor(
   const url = `https://downloads.darklang.com/${fileToDownload}`;
 
   const apiResponse = await fetch(url);
+  const buffer = await apiResponse.arrayBuffer();
+  const array = new Uint8Array(buffer);
 
-  let destPath = `./${fileToDownload}`;
+  let destPathUri = vscode.Uri.parse(`${storageUri}/${fileToDownload}`);
 
-  const blob = await apiResponse.blob();
-  const bos = blob.stream();
+  await vscode.workspace.fs.writeFile(destPathUri, array);
+  await fs.chmod(destPathUri.fsPath, "755"); // executable
 
-  await fs.writeFile(destPath, bos);
-  await fs.chmod(destPath, "755"); // executable
-
-  return destPath;
+  return destPathUri;
 }
 
-export async function downloadLatestExecutor(): Promise<string> {
-  const hash = await latestExecutorHash();
-  return downloadExecutor(hash);
-}
-
-let executorSubprocess: ChildProcessWithoutNullStreams;
+let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
 
 // returns the pid?
 export async function startExecutorHttpServer(
-  executorLocation: string,
+  executorUri: vscode.Uri,
   port: string,
 ): Promise<void> {
   // const pwd = exec("pwd");
@@ -65,7 +55,12 @@ export async function startExecutorHttpServer(
   //   vscode.window.showInformationMessage(`pwd: ${data}`);
   // });
 
-  executorSubprocess = spawn(executorLocation, ["serve", `--port=${port}`]);
+  console.log(`executorLocation: ${executorUri}`);
+  console.log(`port: ${port}`);
+  executorSubprocess = childProcess.spawn(executorUri.fsPath, [
+    "serve",
+    `--port=${port}`,
+  ]);
 
   executorSubprocess.stdout?.on("data", data => {
     vscode.window.showInformationMessage(`stdout: ${data}`);

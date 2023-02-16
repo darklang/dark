@@ -41,9 +41,11 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.window.createTreeView(canvasExplorerId, {
     treeDataProvider: new CanvasElementsTreeProvider(),
   });
+  statusBarItem.text = "dl: created tree view";
 
   // faking this until Paul tidies something up
-  let latestExecutorHash = "526c07b8f"; //await Executor.latestExecutorHash();
+  let latestExecutorHash = await Executor.latestExecutorHash();
+  statusBarItem.text = "dl: latest executor is " + latestExecutorHash;
 
   // LightTODO: it's possible for us to end in a state where the spawned dark-executor
   // process hasn't been properly cleaned up. You may have to manually kill this running process.
@@ -51,10 +53,20 @@ export async function activate(context: vscode.ExtensionContext) {
   // the deactivate() fn would clear that up. If you're trying to work on something else
   // and are hitting issues here, comment out the next few (~3) lines of code.
   //
-  // LightTODO: don't download if we already have latest on disk
-  let executorPath = await Executor.downloadExecutor(latestExecutorHash);
+
+  vscode.workspace.fs.createDirectory(context.globalStorageUri);
+
+  let executorUri = await Executor.downloadExecutor(
+    context.globalStorageUri,
+    latestExecutorHash,
+  );
+  statusBarItem.text = "dl: downloaded executor";
   let executorHttpServerPort = "3275";
-  await Executor.startExecutorHttpServer(executorPath, executorHttpServerPort);
+  console.log(
+    `executorPath: ${executorUri}`,
+    `executorHttpServerPort: ${executorHttpServerPort}`,
+  );
+  await Executor.startExecutorHttpServer(executorUri, executorHttpServerPort);
 
   // LightTODO: for some reason, the HTTP request here fails with
   // request to http://localhost:3275/api/v0/execute-text failed,
