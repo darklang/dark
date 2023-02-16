@@ -33,9 +33,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | ERecord (id, fields) ->
     ERecord(id, List.map (fun (name, expr) -> (name, f expr)) fields)
   | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map f exprs)
-  | EPartial (id, str, oldExpr) -> EPartial(id, str, f oldExpr)
-  | ELeftPartial (id, str, oldExpr) -> ELeftPartial(id, str, f oldExpr)
-  | ERightPartial (id, str, oldExpr) -> ERightPartial(id, str, f oldExpr)
   | EFeatureFlag (id, name, cond, casea, caseb) ->
     EFeatureFlag(id, name, f cond, f casea, f caseb)
 

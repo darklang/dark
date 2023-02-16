@@ -142,9 +142,6 @@ type Expr =
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
   | EFnCall of id * FQFnName.T * List<Expr> * SendToRail
-  | EPartial of id * string * Expr
-  | ERightPartial of id * string * Expr
-  | ELeftPartial of id * string * Expr
   | EList of id * List<Expr>
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>

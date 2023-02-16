@@ -86,10 +86,6 @@ module Expr =
     | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
-    | PT.EPartial (id, str, expr) -> ST.EPartial(id, str, toST expr)
-    | PT.ERightPartial (id, str, expr) -> ST.ERightPartial(id, str, toST expr)
-    | PT.ELeftPartial (id, str_, expr) -> ST.ELeftPartial(id, str_, toST expr)
-
     | PT.EList (id, exprs) -> ST.EList(id, List.map toST exprs)
     | PT.ETuple (id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)

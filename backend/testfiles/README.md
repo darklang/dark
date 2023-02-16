@@ -36,8 +36,6 @@ this are not very good, but there are a few things to be careful of:
 
 - to get a blank, use the word `blank`
 
-- to get a partial, use `partial "message" innerExpr`
-
 - to produce results that are hard to otherwise create, you can add functions
   to LibTest.fs. For example, `Test.nan_v0` produces a `NaN` float, and
   `Test.typeError` produces a built-in error.

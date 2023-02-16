@@ -166,11 +166,6 @@ module Expr =
         List.map fromCT args,
         SendToRail.fromCT str
       )
-    | CTPT.Expr.EPartial (id, part, expr) -> PT.EPartial(id, part, fromCT expr)
-    | CTPT.Expr.ERightPartial (id, part, expr) ->
-      PT.ERightPartial(id, part, fromCT expr)
-    | CTPT.Expr.ELeftPartial (id, part, expr) ->
-      PT.ELeftPartial(id, part, fromCT expr)
     | CTPT.Expr.EList (id, exprs) -> PT.EList(id, List.map fromCT exprs)
     | CTPT.Expr.ETuple (id, first, second, theRest) ->
       PT.ETuple(id, fromCT first, fromCT second, List.map fromCT theRest)
@@ -223,10 +218,6 @@ module Expr =
         List.map toCT args,
         SendToRail.toCT str
       )
-    | PT.EPartial (id, part, expr) -> CTPT.Expr.EPartial(id, part, toCT expr)
-    | PT.ERightPartial (id, part, expr) ->
-      CTPT.Expr.ERightPartial(id, part, toCT expr)
-    | PT.ELeftPartial (id, part, expr) -> CTPT.Expr.ELeftPartial(id, part, toCT expr)
     | PT.EList (id, exprs) -> CTPT.Expr.EList(id, List.map toCT exprs)
     | PT.ETuple (id, first, second, theRest) ->
       CTPT.Expr.ETuple(id, toCT first, toCT second, List.map toCT theRest)

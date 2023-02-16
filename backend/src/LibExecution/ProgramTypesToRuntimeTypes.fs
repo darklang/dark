@@ -94,9 +94,6 @@ module Expr =
     | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
-    | PT.EPartial (_, _, oldExpr)
-    | PT.ERightPartial (_, _, oldExpr)
-    | PT.ELeftPartial (_, _, oldExpr) -> toRT oldExpr
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
@@ -148,9 +145,6 @@ module Expr =
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
             // If there's a hole, run the computation right through it as if it wasn't there
             | PT.EBlank _ -> prev
-            // We can ignore partials as we just want whatever is inside them
-            | PT.EPartial (_, _, oldExpr) -> convert oldExpr
-            // Here, the expression evaluates to an FnValue. This is for eg variables containing values
             | other ->
               RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID, RT.NoRail)
           convert next)

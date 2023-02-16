@@ -404,16 +404,7 @@ module ProgramTypes =
                               PT.ELet(
                                 6345345UL,
                                 "partials",
-                                PT.EList(
-                                  23423423UL,
-                                  [ PT.EPartial(2949606UL, "some 🤬 string", e)
-                                    PT.ERightPartial(9239755UL, "some 😭 string", e)
-                                    PT.ELeftPartial(
-                                      234885UL,
-                                      "some 👨‍👩‍👧‍👦 string",
-                                      e
-                                    ) ]
-                                ),
+                                PT.EList(23423423UL, []),
                                 PT.ELet(
                                   883434UL,
                                   "tuples",

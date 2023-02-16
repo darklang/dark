@@ -562,9 +562,6 @@ module ProgramTypes =
   // TODO: ELambda
   // TODO: EFieldAccess
   // TODO: EFnCall
-  // TODO: EPartial
-  // TODO: ERightPartial
-  // TODO: ELeftPartial
   // TODO: EPipe
   // TODO: EPipeTarget
   // TODO: EFeatureFlag
