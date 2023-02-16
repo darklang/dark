@@ -525,16 +525,7 @@ let fileTests () : Test =
       | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
     finish ()
-    let tests = testList $"Tests from {filename}" fileTests
-    // Staticassets.tests use a combination of ExactCanvasName and
-    // StaticAssetsDeployHash, which can have race conditions. See comment in
-    // staticassets.tests.
-    if filename = "staticassets.tests" then
-      testSequencedGroup "staticAssetsInSequence" tests
-    else
-      tests
-
-  )
+    testList $"Tests from {filename}" fileTests)
   |> Array.toList
   |> testList "All files"
 
