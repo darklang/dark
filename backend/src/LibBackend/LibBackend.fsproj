@@ -34,7 +34,6 @@
     <Compile Include="TraceFunctionResults.fs" />
     <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="TraceCloudStorage.fs" />
-    <Compile Include="StaticAssets.fs" />
     <Compile Include="Op.fs" />
     <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />
