@@ -538,7 +538,6 @@ module ProgramTypes =
 
   let userDB : PT.DB.T =
     { tlid = 0UL
-      pos = pos
       nameID = 2399545UL
       name = "User"
       version = 0
@@ -620,7 +619,7 @@ module ProgramTypes =
     let id = 923832423UL
     let tlid = 94934534UL
     [ PT.SetHandler(Handler.http.tlid, pos, Handler.http)
-      PT.CreateDB(tlid, pos, "name")
+      PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")
       PT.SetDBColType(tlid, id, "int")
@@ -635,7 +634,7 @@ module ProgramTypes =
       PT.DeleteFunction tlid
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
-      PT.CreateDBWithBlankOr(tlid, pos, id, "User")
+      PT.CreateDBWithBlankOr(tlid, id, "User")
       PT.SetType(userType)
       PT.DeleteType tlid ]
 

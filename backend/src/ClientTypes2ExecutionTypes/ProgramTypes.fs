@@ -387,7 +387,6 @@ module DB =
 
   let fromCT (db : CTPT.DB.T) : PT.DB.T =
     { tlid = db.tlid
-      pos = Position.fromCT db.pos
       name = db.name
       nameID = db.nameID
       version = db.version
@@ -395,7 +394,6 @@ module DB =
 
   let toCT (db : PT.DB.T) : CTPT.DB.T =
     { tlid = db.tlid
-      pos = Position.toCT db.pos
       name = db.name
       nameID = db.nameID
       version = db.version
@@ -505,8 +503,7 @@ module Op =
     match op with
     | CTPT.Op.SetHandler (tlid, pos, handler) ->
       PT.Op.SetHandler(tlid, Position.fromCT pos, Handler.fromCT handler)
-    | CTPT.Op.CreateDB (tlid, pos, name) ->
-      PT.Op.CreateDB(tlid, Position.fromCT pos, name)
+    | CTPT.Op.CreateDB (tlid, name) -> PT.Op.CreateDB(tlid, name)
     | CTPT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       PT.Op.AddDBCol(dbid, colNameID, colTypeID)
     | CTPT.Op.SetDBColName (tlid, id, name) -> PT.Op.SetDBColName(tlid, id, name)
@@ -524,8 +521,8 @@ module Op =
     | CTPT.Op.DeleteFunction (tlid) -> PT.Op.DeleteFunction(tlid)
     | CTPT.Op.DeleteDBCol (tlid, colID) -> PT.Op.DeleteDBCol(tlid, colID)
     | CTPT.Op.RenameDBname (tlid, name) -> PT.Op.RenameDBname(tlid, name)
-    | CTPT.Op.CreateDBWithBlankOr (tlid, pos, id, name) ->
-      PT.Op.CreateDBWithBlankOr(tlid, Position.fromCT pos, id, name)
+    | CTPT.Op.CreateDBWithBlankOr (tlid, id, name) ->
+      PT.Op.CreateDBWithBlankOr(tlid, id, name)
     | CTPT.Op.SetType (ut) -> PT.Op.SetType(UserType.fromCT ut)
     | CTPT.Op.DeleteType (tlid) -> PT.Op.DeleteType(tlid)
 
@@ -533,8 +530,7 @@ module Op =
     match op with
     | PT.Op.SetHandler (tlid, pos, handler) ->
       CTPT.Op.SetHandler(tlid, Position.toCT pos, Handler.toCT handler)
-    | PT.Op.CreateDB (tlid, pos, name) ->
-      CTPT.Op.CreateDB(tlid, Position.toCT pos, name)
+    | PT.Op.CreateDB (tlid, name) -> CTPT.Op.CreateDB(tlid, name)
     | PT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       CTPT.Op.AddDBCol(dbid, colNameID, colTypeID)
     | PT.Op.SetDBColName (tlid, id, name) -> CTPT.Op.SetDBColName(tlid, id, name)
@@ -552,8 +548,8 @@ module Op =
     | PT.Op.DeleteFunction (tlid) -> CTPT.Op.DeleteFunction(tlid)
     | PT.Op.DeleteDBCol (tlid, colID) -> CTPT.Op.DeleteDBCol(tlid, colID)
     | PT.Op.RenameDBname (tlid, name) -> CTPT.Op.RenameDBname(tlid, name)
-    | PT.Op.CreateDBWithBlankOr (tlid, pos, id, name) ->
-      CTPT.Op.CreateDBWithBlankOr(tlid, Position.toCT pos, id, name)
+    | PT.Op.CreateDBWithBlankOr (tlid, id, name) ->
+      CTPT.Op.CreateDBWithBlankOr(tlid, id, name)
     | PT.Op.SetType (ut) -> CTPT.Op.SetType(UserType.toCT ut)
     | PT.Op.DeleteType (tlid) -> CTPT.Op.DeleteType(tlid)
 

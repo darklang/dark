@@ -239,15 +239,17 @@ module DB =
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
+
       [<MessagePack.Key 1>]
-      pos : Position
-      [<MessagePack.Key 2>]
       nameID : id
-      [<MessagePack.Key 3>]
+
+      [<MessagePack.Key 2>]
       name : string
-      [<MessagePack.Key 4>]
+
+      [<MessagePack.Key 3>]
       version : int
-      [<MessagePack.Key 5>]
+
+      [<MessagePack.Key 4>]
       cols : List<Col> }
 
 module UserType =
@@ -328,7 +330,7 @@ module Toplevel =
 [<MessagePack.MessagePackObject>]
 type Op =
   | SetHandler of tlid * Position * Handler.T
-  | CreateDB of tlid * Position * string
+  | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
@@ -343,7 +345,7 @@ type Op =
   | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * Position * id * string
+  | CreateDBWithBlankOr of tlid * id * string
   | DeleteTLForever of tlid // CLEANUP not used, can be removed (carefully)
   | DeleteFunctionForever of tlid // CLEANUP not used, can be removed (carefully)
   | SetType of UserType.T

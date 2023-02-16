@@ -8095,10 +8095,6 @@
     "dbs": [
       {
         "tlid": 0,
-        "pos": {
-          "x": 6,
-          "y": 6
-        },
         "name": "User",
         "nameID": 2399545,
         "version": 0,
@@ -8368,10 +8364,6 @@
     "deletedDBs": [
       {
         "tlid": 0,
-        "pos": {
-          "x": 6,
-          "y": 6
-        },
         "name": "User",
         "nameID": 2399545,
         "version": 0,
@@ -12142,10 +12134,6 @@
       [
         "CreateDB",
         94934534,
-        {
-          "x": 6,
-          "y": 6
-        },
         "name"
       ],
       [
@@ -14024,10 +14012,6 @@
       [
         "CreateDBWithBlankOr",
         94934534,
-        {
-          "x": 6,
-          "y": 6
-        },
         923832423,
         "User"
       ],

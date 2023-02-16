@@ -161,7 +161,6 @@ module DB =
 
   type T =
     { tlid : tlid
-      pos : Position
       name : string
       nameID : id
       version : int
@@ -218,7 +217,7 @@ module Toplevel =
 /// and is preferred throughout code and documentation.
 type Op =
   | SetHandler of tlid * Position * Handler.T
-  | CreateDB of tlid * Position * string
+  | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
@@ -233,7 +232,7 @@ type Op =
   | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * Position * id * string
+  | CreateDBWithBlankOr of tlid * id * string
   | SetType of UserType.T
   | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
 

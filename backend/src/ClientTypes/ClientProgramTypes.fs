@@ -138,7 +138,6 @@ module DB =
 
   type T =
     { tlid : tlid
-      pos : Position
       name : string
       nameID : id
       version : int
@@ -185,7 +184,7 @@ type Toplevel =
 
 type Op =
   | SetHandler of tlid * Position * Handler.T
-  | CreateDB of tlid * Position * string
+  | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
@@ -200,7 +199,7 @@ type Op =
   | DeleteFunction of tlid
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * Position * id * string
+  | CreateDBWithBlankOr of tlid * id * string
   | SetType of UserType.T
   | DeleteType of tlid
 

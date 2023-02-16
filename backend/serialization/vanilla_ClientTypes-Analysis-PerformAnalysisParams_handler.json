@@ -7303,10 +7303,6 @@
     "dbs": [
       {
         "tlid": 7,
-        "pos": {
-          "x": 6,
-          "y": 6
-        },
         "name": "dbname",
         "nameID": 7,
         "version": 1,

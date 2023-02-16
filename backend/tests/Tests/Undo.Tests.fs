@@ -90,10 +90,10 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     let! meta = createTestCanvas (Randomized "undo-verification")
 
     let ops1 =
-      [ PT.CreateDBWithBlankOr(dbID, pos, nameID, "Books")
+      [ PT.CreateDBWithBlankOr(dbID, nameID, "Books")
         PT.TLSavepoint dbID
         PT.DeleteTL dbID
-        PT.CreateDBWithBlankOr(dbID2, pos, nameID2, "Books") ]
+        PT.CreateDBWithBlankOr(dbID2, nameID2, "Books") ]
 
     Canvas.fromOplist meta [] ops1 |> ignore<Canvas.T>
 

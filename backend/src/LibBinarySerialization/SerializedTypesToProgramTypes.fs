@@ -217,7 +217,6 @@ module Handler =
 module DB =
   let toPT (db : ST.DB.T) : PT.DB.T =
     { tlid = db.tlid
-      pos = { x = db.pos.x; y = db.pos.y }
       name = db.name
       nameID = db.nameID
       version = db.version
@@ -286,9 +285,7 @@ module Op =
     | ST.SetHandler (tlid, pos, handler) ->
       let position : PT.Position = { x = pos.x; y = pos.y }
       Some(PT.SetHandler(tlid, position, Handler.toPT handler))
-    | ST.CreateDB (tlid, pos, name) ->
-      let position : PT.Position = { x = pos.x; y = pos.y }
-      Some(PT.CreateDB(tlid, position, name))
+    | ST.CreateDB (tlid, name) -> Some(PT.CreateDB(tlid, name))
     | ST.AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
     | ST.SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
     | ST.SetDBColType (tlid, id, string) -> Some(PT.SetDBColType(tlid, id, string))
@@ -305,9 +302,8 @@ module Op =
     | ST.DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
     | ST.DeleteDBCol (tlid, id) -> Some(PT.DeleteDBCol(tlid, id))
     | ST.RenameDBname (tlid, string) -> Some(PT.RenameDBname(tlid, string))
-    | ST.CreateDBWithBlankOr (tlid, pos, id, string) ->
-      let position : PT.Position = { x = pos.x; y = pos.y }
-      Some(PT.CreateDBWithBlankOr(tlid, position, id, string))
+    | ST.CreateDBWithBlankOr (tlid, id, string) ->
+      Some(PT.CreateDBWithBlankOr(tlid, id, string))
     | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
     | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
     | ST.DeleteTLForever _
