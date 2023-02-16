@@ -27,7 +27,6 @@ export async function downloadExecutor(
   storageUri: vscode.Uri,
   latestExecutorHash: string,
 ): Promise<vscode.Uri> {
-  // TODO: this URL should be a function of the host OS
   let rid = getRuntimeIdentifier();
   let fileToDownload = `darklang-executor-${latestExecutorHash}-${rid}`;
 
@@ -56,6 +55,7 @@ function getRuntimeIdentifier(): string {
   } else if (process.platform === "darwin") {
     platform = "osx";
   } else if (process.platform === "linux") {
+    // TODO: linux-musl
     platform = "linux";
   } else {
     throw new Error("unknown platform");
@@ -79,7 +79,6 @@ async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
   let checkConnection = async () => {
     return new Promise((resolve, reject) => {
       const client = net.connect(port, host, () => {
-        console.log(`connected to server! ${retryCount}`);
         resolve(true);
       });
       client.on("error", () => {
@@ -97,17 +96,12 @@ async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
     });
   };
 
-  console.log("waiting for cvonnection");
   let result = await checkConnection();
-  console.log("waited for cvonnection");
-  if (result) {
-    console.log("tcp connected");
-    return;
+  if (!result) {
+    throw new Error(" connection to dark-executor failed");
   }
-  throw new Error("tcp connection failed");
 }
 
-// returns the pid?
 export async function startExecutorHttpServer(
   executorUri: vscode.Uri,
   port: number,
