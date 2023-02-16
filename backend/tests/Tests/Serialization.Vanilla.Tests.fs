@@ -28,12 +28,6 @@ module V = SerializationTestValues
 module ClientTestValues =
   let dval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT V.RuntimeTypes.dval
 
-  let staticDeploy : ClientTypes.Pusher.Payload.NewStaticDeploy =
-    { deployHash = "zf2ttsgwln"
-      url = "https://paul.darksa.com/nwtf5qhdku2untsc17quotrhffa/zf2ttsgwln"
-      status = ClientTypes.StaticDeploy.Deployed
-      lastUpdate = V.instant }
-
   let addOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
     { handlers = V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
       deletedHandlers =
@@ -179,7 +173,6 @@ module PersistedSerializations =
         // ------------------
         // Used by Pusher
         // ------------------
-        v<ClientTypes.Pusher.Payload.NewStaticDeploy> "simple" CV.staticDeploy
         v<ClientTypes.Pusher.Payload.NewTrace> "simple" (V.uuid, V.tlids)
         v<ClientTypes.Pusher.Payload.New404>
           "simple"
