@@ -10,7 +10,6 @@ open LibBackend.Db
 
 open Prelude
 open Tablecloth
-open LibService.Exception
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes

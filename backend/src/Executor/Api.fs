@@ -29,15 +29,14 @@ type HttpContextExtensions() =
       do! ctx.Request.Body.CopyToAsync(ms)
       let body = ms.ToArray() |> UTF8.ofBytesUnsafe
       // t.next "deserialize-json"
-      let response =
-        // try
-        Json.Vanilla.deserialize<'T> body
-      // with
-      // | e ->
-      //   addTag "json-body" (String.take 1000 body)
-      //   e.Reraise()
-
-      return response
+      try
+        return Json.Vanilla.deserialize<'T> body
+      with
+      | e ->
+        System.Console.WriteLine("Error deserializing json: " + e.Message)
+        System.Console.WriteLine("JSON is: " + e.Message)
+        e.Reraise()
+        return Unchecked.defaultof<'T>
     }
 
 
