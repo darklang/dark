@@ -166,8 +166,4 @@ let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"
 
 let browserReloadEnabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
 
-let hashStaticFilenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
-
-let staticAssetsSaltSuffix = string "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX"
-
 let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"

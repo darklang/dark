@@ -29,7 +29,6 @@ let theList: CanvasItem[] = [
   { title: "Deleted", children: [] },
   { title: "Packages", children: [] },
   { title: "Secrets", children: [] },
-  { title: "Static Assets", children: [] },
 ];
 
 export class CanvasElementsTreeProvider

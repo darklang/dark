@@ -167,7 +167,7 @@ You can add a custom domains:
 You can set the canvas name for the test:
 
 ```
-[canvas-name test-static-assets-deploys]
+[canvas-name test-something]
 ```
 
 ## LENGTH

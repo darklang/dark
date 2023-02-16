@@ -141,8 +141,7 @@ Pub/Sub has a dashboard.
 ### Deliberate DOS or cannot stop the other way
 
 - You can prevent HTTP traffic to darklang.com, builtwithdark.com, or
-  static.darklang.com or darksa.com by adding AppArmor rules to disable the
-  traffic.
+  by adding AppArmor rules to disable the traffic.
 - You can disable queues by adding a scheduling rule (LibDarkInternal). Solves crons
   too.
 - You can safely add launchdarkly flags to anything to be able to selectively disable
