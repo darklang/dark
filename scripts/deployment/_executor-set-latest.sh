@@ -5,7 +5,7 @@ set -euo pipefail
 if [[ -v DARKLANG_EXECUTOR_SECRET ]]; then
   secret=$DARKLANG_EXECUTOR_SECRET
 else
-  echo "DARKLOAD_EXECUTOR_SECRET not set"
+  echo "DARKLANG_EXECUTOR_SECRET not set"
   exit 1
 fi
 
