@@ -61,67 +61,62 @@ export async function activate(context: vscode.ExtensionContext) {
     latestExecutorHash,
   );
   statusBarItem.text = "dl: downloaded executor";
-  let executorHttpServerPort = "3275";
+  let executorHttpServerPort = 3275;
   console.log(
     `executorPath: ${executorUri}`,
     `executorHttpServerPort: ${executorHttpServerPort}`,
   );
   await Executor.startExecutorHttpServer(executorUri, executorHttpServerPort);
 
-  // LightTODO: for some reason, the HTTP request here fails with
-  // request to http://localhost:3275/api/v0/execute-text failed,
-  // reason: connect ECONNREFUSED 127.0.0.1:3275.
-  // I'm not sure why.
-  //
-  // const z = await Executor.evalSomeCodeAgainstHttpServer(
-  //   executorHttpServerPort,
-  //   "1+2",
+  const z = await Executor.evalSomeCodeAgainstHttpServer(
+    executorHttpServerPort,
+    "1+2",
+  );
+  vscode.window.showInformationMessage(`eval response: ${z}`);
+
+  // // register command
+  // let codeGenPromptCommand = vscode.commands.registerCommand(
+  //   "darklang-vscode-editor.evalCode",
+  //   async () => {
+  //     const test = await vscode.window.showInputBox({
+  //       prompt: "Enter your Dark code to evaluate",
+  //     });
+  //     // const response = await Executor.evalSomeCodeAgainstHttpServer(
+  //     //   executorHttpServerPort,
+  //     //   test || "",
+  //     // );
+  //     // vscode.window.showInformationMessage(`eval response: ${response}`);
+  //   },
   // );
-  // vscode.window.showInformationMessage(`eval response: ${z}`);
+  // context.subscriptions.push(codeGenPromptCommand);
 
-  // register command
-  let codeGenPromptCommand = vscode.commands.registerCommand(
-    "darklang-vscode-editor.evalCode",
-    async () => {
-      const test = await vscode.window.showInputBox({
-        prompt: "Enter your Dark code to evaluate",
-      });
-      // const response = await Executor.evalSomeCodeAgainstHttpServer(
-      //   executorHttpServerPort,
-      //   test || "",
-      // );
-      // vscode.window.showInformationMessage(`eval response: ${response}`);
-    },
-  );
-  context.subscriptions.push(codeGenPromptCommand);
+  // globalState.mainRepl = { id: "123", name: "", code: "1+2" };
 
-  globalState.mainRepl = { id: "123", name: "", code: "1+2" };
+  // // show handler panel
+  // context.subscriptions.push(
+  //   vscode.commands.registerCommand("darklang.showHandlerPanel", () => {
+  //     DarkHandlerPanel.createOrShow(context.extensionUri);
+  //   }),
+  // );
 
-  // show handler panel
-  context.subscriptions.push(
-    vscode.commands.registerCommand("darklang.showHandlerPanel", () => {
-      DarkHandlerPanel.createOrShow(context.extensionUri);
-    }),
-  );
+  // if (vscode.window.registerWebviewPanelSerializer) {
+  //   // Make sure we register a serializer in activation event
+  //   vscode.window.registerWebviewPanelSerializer(viewTypes.darkHandlerPanel, {
+  //     async deserializeWebviewPanel(
+  //       webviewPanel: vscode.WebviewPanel,
+  //       state: any,
+  //     ) {
+  //       console.log(`Got state: ${state}`);
+  //       // Reset the webview options so we use latest uri for `localResourceRoots`.
+  //       webviewPanel.webview.options = getWebviewOptions(context.extensionUri);
+  //       DarkHandlerPanel.revive(webviewPanel, context.extensionUri);
+  //     },
+  //   });
+  // }
 
-  if (vscode.window.registerWebviewPanelSerializer) {
-    // Make sure we register a serializer in activation event
-    vscode.window.registerWebviewPanelSerializer(viewTypes.darkHandlerPanel, {
-      async deserializeWebviewPanel(
-        webviewPanel: vscode.WebviewPanel,
-        state: any,
-      ) {
-        console.log(`Got state: ${state}`);
-        // Reset the webview options so we use latest uri for `localResourceRoots`.
-        webviewPanel.webview.options = getWebviewOptions(context.extensionUri);
-        DarkHandlerPanel.revive(webviewPanel, context.extensionUri);
-      },
-    });
-  }
-
-  vscode.window.showInformationMessage(
-    "Darklang extension has been activated!",
-  );
+  // vscode.window.showInformationMessage(
+  //   "Darklang extension has been activated!",
+  // );
 }
 
 export async function deactivate() {

@@ -3,6 +3,8 @@ import fetch from "node-fetch";
 import * as childProcess from "node:child_process";
 import * as fs from "fs/promises";
 
+import * as net from "net";
+
 import * as vscode from "vscode";
 import { Readable } from "node:stream";
 import { finished } from "stream/promises";
@@ -26,7 +28,8 @@ export async function downloadExecutor(
   latestExecutorHash: string,
 ): Promise<vscode.Uri> {
   // TODO: this URL should be a function of the host OS
-  let fileToDownload = `darklang-executor-${latestExecutorHash}-linux-x64`;
+  let rid = getRuntimeIdentifier();
+  let fileToDownload = `darklang-executor-${latestExecutorHash}-${rid}`;
 
   // Fetch, save, and start the interpreter
   const url = `https://downloads.darklang.com/${fileToDownload}`;
@@ -45,49 +48,103 @@ export async function downloadExecutor(
 
 let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
 
+// Match the dotnet runtime identifier which we use in our download string
+function getRuntimeIdentifier(): string {
+  let platform = "";
+  if (process.platform === "win32") {
+    platform = "win";
+  } else if (process.platform === "darwin") {
+    platform = "osx";
+  } else if (process.platform === "linux") {
+    platform = "linux";
+  } else {
+    throw new Error("unknown platform");
+  }
+  let arch = "";
+  if (process.arch === "x64") {
+    arch = "x64";
+  } else if (process.arch === "arm64") {
+    arch = "arm64";
+  } else {
+    throw new Error("unknown arch");
+  }
+
+  return `${platform}-${arch}`;
+}
+
+async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
+  const host = "localhost";
+  let retryCount = 0;
+
+  let checkConnection = async () => {
+    return new Promise((resolve, reject) => {
+      const client = net.connect(port, host, () => {
+        console.log(`connected to server! ${retryCount}`);
+        resolve(true);
+      });
+      client.on("error", () => {
+        retryCount++;
+        if (retryCount > 100) {
+          console.error(`not connected after 10s, fail: ${retryCount}`);
+          reject(false);
+        } else {
+          let callback = async () => {
+            resolve(await checkConnection());
+          };
+          setTimeout(callback, 100);
+        }
+      });
+    });
+  };
+
+  console.log("waiting for cvonnection");
+  let result = await checkConnection();
+  console.log("waited for cvonnection");
+  if (result) {
+    console.log("tcp connected");
+    return;
+  }
+  throw new Error("tcp connection failed");
+}
+
 // returns the pid?
 export async function startExecutorHttpServer(
   executorUri: vscode.Uri,
-  port: string,
+  port: number,
 ): Promise<void> {
-  // const pwd = exec("pwd");
-  // pwd.stdout?.on("data", data => {
-  //   vscode.window.showInformationMessage(`pwd: ${data}`);
-  // });
-
-  console.log(`executorLocation: ${executorUri}`);
-  console.log(`port: ${port}`);
   executorSubprocess = childProcess.spawn(executorUri.fsPath, [
     "serve",
     `--port=${port}`,
   ]);
 
   executorSubprocess.stdout?.on("data", data => {
-    vscode.window.showInformationMessage(`stdout: ${data}`);
+    console.log(`darklang-executor stdout: ${data}`);
   });
 
   executorSubprocess.stderr?.on("data", data => {
-    vscode.window.showInformationMessage(`stderr: ${data}`);
+    vscode.window.showInformationMessage(`darklang-executor stderr: ${data}`);
   });
 
   executorSubprocess.on("error", error => {
-    vscode.window.showInformationMessage(`error: ${error.message}`);
+    vscode.window.showInformationMessage(
+      `darklang-executor error: ${error.message}`,
+    );
   });
 
   executorSubprocess.on("close", code => {
-    vscode.window.showInformationMessage(
-      `child process exited with code ${code}`,
-    );
+    vscode.window.showInformationMessage(`darklang executor exited: ${code}`);
   });
+
+  await waitUntilTCPConnectionIsReady(port);
 }
 
 export async function evalSomeCodeAgainstHttpServer(
-  port: string,
+  port: number,
   code: string,
 ): Promise<string> {
   const apiResponse = await fetch(
     `http://localhost:${port}/api/v0/execute-text`,
-    { method: "POST", body: code },
+    { method: "POST", body: { code: code, symtable: {} } },
   );
 
   return await apiResponse.text();
