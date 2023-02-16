@@ -12,8 +12,6 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-type Position = { x : int; y : int }
-
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 

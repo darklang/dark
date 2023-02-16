@@ -661,12 +661,7 @@ module RoundtripTests =
 
   module ProgramTypes =
     let tests =
-      [ testRoundtrip
-          "PT.Position"
-          V.ProgramTypes.pos
-          CT2Program.Position.toCT
-          CT2Program.Position.fromCT
-        testRoundtripList
+      [ testRoundtripList
           "PT.FQFnName"
           V.ProgramTypes.fqFnNames
           CT2Program.FQFnName.toCT

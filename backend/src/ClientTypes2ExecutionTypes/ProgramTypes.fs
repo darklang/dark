@@ -10,12 +10,6 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-module Position =
-  let fromCT (pos : CTPT.Position) : PT.Position = { x = pos.x; y = pos.y }
-
-  let toCT (pos : PT.Position) : CTPT.Position = { x = pos.x; y = pos.y }
-
-
 module FQFnName =
   module StdlibFnName =
     let fromCT (name : CTPT.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
