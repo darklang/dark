@@ -138,7 +138,7 @@ export async function evalSomeCodeAgainstHttpServer(
 ): Promise<string> {
   const apiResponse = await fetch(
     `http://localhost:${port}/api/v0/execute-text`,
-    { method: "POST", body: { code: code, symtable: {} } },
+    { method: "POST", body: JSON.stringify({ code: code, symtable: {} }) },
   );
 
   return await apiResponse.text();
