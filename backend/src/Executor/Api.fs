@@ -34,7 +34,7 @@ type HttpContextExtensions() =
       with
       | e ->
         System.Console.WriteLine("Error deserializing json: " + e.Message)
-        System.Console.WriteLine("JSON is: " + e.Message)
+        System.Console.WriteLine("JSON is: " + body)
         e.Reraise()
         return Unchecked.defaultof<'T>
     }
