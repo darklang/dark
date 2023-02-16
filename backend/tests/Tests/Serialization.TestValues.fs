@@ -159,8 +159,6 @@ module ProgramTypes =
           function_ = "sms"
           version = 1 } ]
 
-  let pos : PT.Position = { x = 6; y = 6 }
-
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPConstructor(7471263UL, "None", [])

@@ -5,8 +5,6 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-type Position = { x : int; y : int }
-
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =

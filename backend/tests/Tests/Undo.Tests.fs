@@ -86,7 +86,6 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     let nameID = gid ()
     let dbID2 = gid ()
     let nameID2 = gid ()
-    let pos : PT.Position = { x = 0; y = 0 }
     let! meta = createTestCanvas (Randomized "undo-verification")
 
     let ops1 =

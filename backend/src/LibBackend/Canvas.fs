@@ -549,7 +549,7 @@ let saveTLIDs
 
         let pos =
           match tl with
-          | PT.Toplevel.TLHandler _ -> Some(Json.Vanilla.serialize {x = 0; y = 0 })
+          | PT.Toplevel.TLHandler _ -> Some(Json.Vanilla.serialize { x = 0; y = 0 })
           | PT.Toplevel.TLDB _ -> None
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None

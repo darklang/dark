@@ -164,7 +164,6 @@ let initSerializers () =
   // we probably don't need most of these, but it's key that ExecHost doesn't ever
   // fail, so we're extra-cautious, and include _everything_.
   Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
   Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"

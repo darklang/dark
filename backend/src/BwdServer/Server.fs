@@ -625,7 +625,6 @@ let initSerializers () =
   Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
   Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
   Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"

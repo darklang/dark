@@ -151,8 +151,6 @@ module PersistedSerializations =
               description = "" }
             { name = "obj"; tipe = LibBackend.PackageManager.TObj; description = "" } ]
 
-        v<PT.Position> "simple" { x = 10; y = -16 }
-
         v<LibBackend.TraceCloudStorage.CloudStorageFormat>
           "simple"
           { storageFormatVersion = 0

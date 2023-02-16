@@ -45,13 +45,6 @@ type Sign = Prelude.Sign
 // - change the type of a field in a record
 // - removing a field from a variant (eg remove b to X(a,b))
 
-[<MessagePack.MessagePackObject>]
-type Position =
-  { [<MessagePack.Key 0>]
-    x : int
-    [<MessagePack.Key 1>]
-    y : int }
-
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
