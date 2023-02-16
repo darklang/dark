@@ -152,9 +152,6 @@ module Handler =
     | Worker of name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
-    // If there's no module
-    // CLEANUP: convert these into repl and get rid of this case
-    | UnknownHandler of string * string * ids
 
   type T = { tlid : tlid; pos : Position; ast : Expr; spec : Spec }
 

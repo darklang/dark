@@ -527,7 +527,6 @@ let saveTLIDs
               )
             | PT.Handler.Worker _
             | PT.Handler.Cron _
-            | PT.Handler.UnknownHandler _
             | PT.Handler.REPL _ ->
               Some(
                 PTParser.Handler.Spec.toModule spec,

@@ -225,7 +225,6 @@ module Handler =
       | PT.Handler.Worker (name, _ids) -> name
       | PT.Handler.Cron (name, _interval, _ids) -> name
       | PT.Handler.REPL (name, _ids) -> name
-      | PT.Handler.UnknownHandler (name, _modifier, _ids) -> name
 
     let toModifier (s : PT.Handler.Spec) =
       match s with
@@ -235,7 +234,6 @@ module Handler =
       | PT.Handler.Cron (_name, interval, _ids) ->
         interval |> Option.map CronInterval.toString |> Option.defaultValue ""
       | PT.Handler.REPL (_name, _ids) -> "_"
-      | PT.Handler.UnknownHandler (name, modifier, ids) -> modifier
 
     let toModule (s : PT.Handler.Spec) =
       match s with
@@ -244,7 +242,6 @@ module Handler =
       | PT.Handler.Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
       | PT.Handler.Cron _ -> "CRON" // CLEANUP the DB relies on the casing
       | PT.Handler.REPL _ -> "REPL"
-      | PT.Handler.UnknownHandler (name, modifier, ids) -> ""
 
     let isComplete (s : PT.Handler.Spec) : bool =
       match s with
@@ -256,7 +253,6 @@ module Handler =
       | PT.Handler.Cron ("", _, _) -> false
       | PT.Handler.Cron (_, None, _) -> false
       | PT.Handler.REPL ("", _) -> false
-      | PT.Handler.UnknownHandler _ -> false
       | _ -> true
 
     // Same as a TraceInput.EventDesc

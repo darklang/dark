@@ -499,7 +499,6 @@ module ProgramTypes =
         PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
 
       let repl = PT.Handler.REPL("name", ids)
-      let unknown = PT.Handler.UnknownHandler("name", "", ids)
 
     let specs : List<PT.Handler.Spec> =
       [ Spec.http
@@ -507,8 +506,7 @@ module ProgramTypes =
         Spec.worker
         Spec.cronWithoutInterval
         Spec.cronWithInterval
-        Spec.repl
-        Spec.unknown ]
+        Spec.repl ]
 
     let http : PT.Handler.T =
       { spec = Spec.http; tlid = 92987663UL; ast = expr; pos = pos }
@@ -528,16 +526,12 @@ module ProgramTypes =
     let cronWithInterval : PT.Handler.T =
       { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr; pos = pos }
 
-    let unknown : PT.Handler.T =
-      { spec = Spec.unknown; tlid = 13633UL; ast = expr; pos = pos }
-
     let handlersWithName : List<string * PT.Handler.T> =
       [ "Http", http
         "Worker", worker
         "Cron1", cronWithoutInterval
         "Cron2", cronWithInterval
         "REPL", repl
-        "Unknown", unknown
         "HttpBasic", httpBasic ]
 
     let handlers = List.map snd handlersWithName

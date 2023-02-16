@@ -696,8 +696,6 @@ module Handler =
 
     | REPL of name : string
 
-    | UnknownHandler // no useful info here
-
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 module DB =

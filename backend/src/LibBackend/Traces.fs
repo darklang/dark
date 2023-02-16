@@ -46,9 +46,6 @@ let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   | PT.Handler.HTTPBasic _ -> sampleHttpBasicRequestInputVars
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
-  | PT.Handler.UnknownHandler _ ->
-    // HttpBasicHandlerTODO should this include sampleHttpBasicRequestInputVars?
-    sampleHttpRequestInputVars @ sampleEventInputVars
   | PT.Handler.Worker _ -> sampleEventInputVars
 
 let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
@@ -96,7 +93,6 @@ let savedInputVars
     [ ("request", event) ] @ boundRouteVariables
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
-  | PT.Handler.UnknownHandler _ -> []
   | PT.Handler.REPL _ -> []
 
 
@@ -176,8 +172,7 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID.
               if matching.tlid = h.tlid then Some traceID else None)
           | PT.Handler.Spec.Worker _
           | PT.Handler.Spec.Cron _
-          | PT.Handler.Spec.REPL _
-          | PT.Handler.Spec.UnknownHandler _ ->
+          | PT.Handler.Spec.REPL _ ->
             // Don't use HTTP filtering stack for non-HTTP traces
             Some traceID)
         // If there's no matching traces, add the default trace

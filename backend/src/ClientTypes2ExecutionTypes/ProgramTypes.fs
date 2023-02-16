@@ -342,8 +342,6 @@ module Handler =
       | CTPT.Handler.Spec.Cron (name, interval, i) ->
         PT.Handler.Cron(name, Option.map CronInterval.fromCT interval, ids.fromCT i)
       | CTPT.Handler.Spec.REPL (name, i) -> PT.Handler.REPL(name, ids.fromCT i)
-      | CTPT.Handler.Spec.UnknownHandler (name, modifier, i) ->
-        PT.Handler.UnknownHandler(name, modifier, ids.fromCT i)
 
     let toCT (spec : PT.Handler.Spec) : CTPT.Handler.Spec =
       match spec with
@@ -359,8 +357,6 @@ module Handler =
           ids.toCT i
         )
       | PT.Handler.REPL (name, i) -> CTPT.Handler.Spec.REPL(name, ids.toCT i)
-      | PT.Handler.UnknownHandler (name, modifier, i) ->
-        CTPT.Handler.Spec.UnknownHandler(name, modifier, ids.toCT i)
 
   let fromCT (h : CTPT.Handler.T) : PT.Handler.T =
     { tlid = h.tlid

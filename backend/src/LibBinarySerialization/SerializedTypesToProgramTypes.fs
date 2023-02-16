@@ -207,8 +207,6 @@ module Handler =
       | ST.Handler.Cron (name, interval, ids) ->
         PT.Handler.Cron(name, interval |> Option.map CronInterval.toPT, IDs.toPT ids)
       | ST.Handler.REPL (name, ids) -> PT.Handler.REPL(name, IDs.toPT ids)
-      | ST.Handler.UnknownHandler (name, modifier, ids) ->
-        PT.Handler.UnknownHandler(name, modifier, IDs.toPT ids)
 
   let toPT (h : ST.Handler.T) : PT.Handler.T =
     { tlid = h.tlid

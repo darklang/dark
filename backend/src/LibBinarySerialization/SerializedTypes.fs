@@ -209,9 +209,6 @@ module Handler =
     // check if they're unique first though)
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
-    // If there's no module
-    // CLEANUP: convert these into repl and get rid of this case
-    | UnknownHandler of string * string * ids
     | HTTPBasic of route : string * method : string * ids : ids
 
   [<MessagePack.MessagePackObject>]

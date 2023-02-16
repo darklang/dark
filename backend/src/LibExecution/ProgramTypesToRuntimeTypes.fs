@@ -218,8 +218,6 @@ module Handler =
       | PT.Handler.Cron (name, interval, _ids) ->
         RT.Handler.Cron(name, interval |> Option.map CronInterval.toRT)
       | PT.Handler.REPL (name, _ids) -> RT.Handler.REPL(name)
-      | PT.Handler.UnknownHandler (_name, _modifier, _ids) ->
-        RT.Handler.UnknownHandler
 
   let toRT (h : PT.Handler.T) : RT.Handler.T =
     { tlid = h.tlid; ast = Expr.toRT h.ast; spec = Spec.toRT h.spec }
