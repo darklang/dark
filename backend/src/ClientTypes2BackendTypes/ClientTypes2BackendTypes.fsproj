@@ -17,7 +17,6 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Ops.fs" />
-    <Compile Include="StaticDeploy.fs" />
     <Compile Include="Authorization.fs" />
     <Compile Include="Worker.fs" />
     <Compile Include="Pusher.fs" />

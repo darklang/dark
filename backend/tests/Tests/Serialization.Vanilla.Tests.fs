@@ -317,7 +317,6 @@ module PersistedSerializations =
         //     userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
         //     deletedUserTypes =
         //       V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
-        //     staticDeploys = [ CV.staticDeploy ]
         //     opCtrs = Map [ V.uuid, 7 ]
         //     canvasList = [ "test"; "test-canvas2" ]
         //     orgCanvasList = [ "testorg"; "testorg-canvas2" ]

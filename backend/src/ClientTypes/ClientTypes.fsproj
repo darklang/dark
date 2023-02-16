@@ -19,7 +19,6 @@
     <Compile Include="ClientWorkerTypes.fs" />
     <Compile Include="ClientTraceTypes.fs" />
     <Compile Include="ClientOpsTypes.fs" />
-    <Compile Include="ClientStaticDeployTypes.fs" />
     <Compile Include="ClientSecretTypes.fs" />
     <Compile Include="ClientAuthorizationTypes.fs" />
     <Compile Include="ClientPusherTypes.fs" />
