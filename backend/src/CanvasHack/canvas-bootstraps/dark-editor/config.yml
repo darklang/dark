@@ -1,7 +1,7 @@
 http-handlers:
-  - basic-http-handler
-    - method: GET
-    - path: /yolo/:varNameYolo
+  - basic-http-handler:
+    method: GET
+    path: /yolo/:varNameYolo
 
   # - initial-load
   #   - method: GET

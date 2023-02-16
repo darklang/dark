@@ -60,3 +60,6 @@ nuget Google.Cloud.Storage.V1 = 3.7.0
 
 // Benchmarks
 nuget Argu = 6.1.1
+
+// CanvasHack
+nuget Legivel = 0.4.6
