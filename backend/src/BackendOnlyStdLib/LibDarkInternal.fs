@@ -835,68 +835,6 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "startStaticAssetDeploy" 0
-      parameters = [ Param.make "username" TStr ""; Param.make "canvasID" TUuid "" ]
-      returnType = TResult(TStr, TStr)
-      description =
-        "Records an in-progress static asset deployment, returning the deployHash"
-      fn =
-        internalFn (function
-          | _, [ DStr username; DUuid canvasID ] ->
-            uply {
-              match! Account.getUser (UserName.create username) with
-              | None -> return DResult(Error(DStr "User not found"))
-              | Some user ->
-                let! deployHash = StaticAssets.startStaticAssetDeploy user canvasID
-                return DResult(Ok(DStr deployHash))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "finishStaticAssetDeploy" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
-      returnType = TResult(TNull, TStr)
-      description = "Marks an in-progress static asset deployment as finished"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID; DStr deployHash ] ->
-            uply {
-              let! canvasMeta = Canvas.getMetaFromID canvasID
-              let! _updatedAt =
-                StaticAssets.finishStaticAssetDeploy
-                  canvasID
-                  canvasMeta.name
-                  deployHash
-              return DResult(Ok DNull)
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "deleteStaticAssetDeploy" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
-      returnType = TNull
-      description = "Deletes references to a now-deleted static asset deploy"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID; DStr deployHash ] ->
-            uply {
-              do! StaticAssets.deleteStaticAssetDeploy canvasID deployHash
-              return DNull
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "serverBuildHash" 0
       parameters = []
       returnType = TStr
@@ -1161,42 +1099,6 @@ human-readable data."
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
       fn = modifySchedule EventQueueV2.unblockWorker
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    // ---------------------
-    // Apis - parts of initialLoad
-    // ---------------------
-    { name = fn "DarkInternal" "staticAssetsDeploys" 0
-      parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType =
-        TList(
-          TRecord [ "deployHash", TStr
-                    "url", TStr
-                    "status", TStr
-                    "lastUpdate", TDate ]
-        )
-      description = "Returns a list of deploys on this canvas"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID ] ->
-            uply {
-              let! meta = Canvas.getMetaFromID canvasID
-              let! deploys = StaticAssets.allDeploysInCanvas meta.name canvasID
-              return
-                deploys
-                |> List.map (fun d ->
-                  DObj(
-                    Map [ "deployHash", DStr d.deployHash
-                          "url", DStr d.url
-                          "status", DStr(string d.status)
-                          "lastUpdate", DDate(DDateTime.fromInstant d.lastUpdate) ]
-                  ))
-                |> DList
-            }
-          | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

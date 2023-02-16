@@ -251,62 +251,6 @@ DarkInternal.unlockedDBs Test.getCanvasID = [1]
 
 
 // ---------------
-// static assets
-// ---------------
-[test.no static assets without deploys]
-DarkInternal.staticAssetsDeploys Test.getCanvasID = []
-
-[test.static assets non-empty after starting a deploy]
-(let _deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-List.length_v0 deploys) = 1
-
-[test.starting a static asset deploy for a non-existant user fails]
-(DarkInternal.startStaticAssetDeploy "fake_username" Test.getCanvasID) = Error "User not found"
-
-[test.static assets contains as many elements as deploys]
-(let _firstDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let _secondDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-List.length_v0 deploys) = 2
-
-[test.static assets deploy is 'deploying' after just started]
-(let _deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deploying"]
-
-[test.finishing an invalid static asset deploy fails EXPECTED_EXCEPTION_COUNT: 1]
-DarkInternal.finishStaticAssetDeploy Test.getCanvasID "fakeHash" = Test.typeError_v0 "Unknown error"
-
-[test.finishing a started static asset deploy is OK]
-(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-match deployHashMaybe with
-| Error -> []
-| Ok deployHash ->
-  DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash) = Ok null
-
-[test.finishing a started static asset deploy changes the status]
-(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-match deployHashMaybe with
-| Error -> []
-| Ok deployHash ->
-  let _ = DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash in
-  let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-  deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deployed"]
-
-[test.static asset deploys can be deleted]
-(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-match deployHashMaybe with
-| Error -> ["not deployed"]
-| Ok deployHash ->
-  let _ = DarkInternal.deleteStaticAssetDeploy Test.getCanvasID deployHash in
-  DarkInternal.staticAssetsDeploys Test.getCanvasID) = []
-
-[test.trying to delete a non-existant static asset deploy doesn't fail]
-(DarkInternal.deleteStaticAssetDeploy Test.getCanvasID "fake-deployhash") = null
-
-
-// ---------------
 // Tunnels
 // ---------------
 [test.tunnel is unset]

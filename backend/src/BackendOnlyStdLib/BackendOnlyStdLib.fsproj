@@ -40,7 +40,6 @@
     <Compile Include="LibHttpBaseClient.fs" />
     <Compile Include="LibJwt.fs" />
     <Compile Include="LibPassword.fs" />
-    <Compile Include="LibStaticAssets.fs" />
     <Compile Include="LibX509.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>

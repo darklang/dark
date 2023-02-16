@@ -33,7 +33,6 @@ let fns : List<RT.BuiltInFn> =
     LibHttpBaseClient.fns
     LibJwt.fns
     LibPassword.fns
-    LibStaticAssets.fns
     LibX509.fns ]
   |> List.concat
   |> RT.renameFunctions renames

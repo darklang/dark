@@ -24,8 +24,6 @@ else
     -o -path "./backend/paket-files" -prune \
     -o -path "backend/Build" -prune \
     -o -path "./backend/Build" -prune \
-    -o -path "backend/tests/staticassets-tests" \
-    -o -path "./backend/tests/staticassets-tests" \
     -o -type f \
     -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
     | xargs shellcheck -e SC2002 -e SC2044 -e SC2086

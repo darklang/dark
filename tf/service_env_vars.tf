@@ -92,9 +92,6 @@ variable "service_env_vars" {
     # Heap analytics
     "DARK_CONFIG_HEAPIO_ID" = "477722926"
 
-    # Static assets
-    "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX" = "production"
-
     # Other
     "DARK_CONFIG_BROWSER_RELOAD_ENABLED"           = "n"
     "DARK_CONFIG_HASH_STATIC_FILENAMES"            = "y"

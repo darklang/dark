@@ -89,8 +89,6 @@ all_prettier_files() {
     -o -path "./backend/.paket" \
     -o -path "backend/Build" \
     -o -path "./backend/Build" \
-    -o -path "backend/tests/staticassets-tests" \
-    -o -path "./backend/tests/staticassets-tests" \
     \) -prune -false \
     \
     -o -type f \

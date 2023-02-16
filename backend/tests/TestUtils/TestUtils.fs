@@ -77,11 +77,6 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
-    let staticAssetDeploys =
-      Sql.query "DELETE FROM static_asset_deploys where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
     let storedEventsV2 =
       Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
@@ -106,7 +101,6 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
                      functionResultsV3
                      schedulingRules
                      secrets
-                     staticAssetDeploys
                      storedEventsV2
                      tracesV0
                      toplevelOplists
@@ -117,7 +111,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
 
 type TestCanvasName =
   /// Use exactly this canvas name for the test. This is needed to test some features
-  /// which use the canvas name within them, such as static assets.
+  /// which use the canvas name within them.
   | Exact of string
   /// Randomized test name using the provided base. This allows tests to avoid
   /// sharing the same canvas so they can be parallelized, etc

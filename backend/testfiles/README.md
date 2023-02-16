@@ -18,7 +18,6 @@ within the subdirectories on how to write types of tests.
 ### Accessory/data
 
 - `data` houses static assets useful in tests
-- `staticassets` files ... TODO
 
 ## Syntax (Parser.fs)
 
