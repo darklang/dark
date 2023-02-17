@@ -18,16 +18,40 @@ const globalState: GlobalState = {
   mainRepl: undefined,
 };
 
+export async function startExecutor(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  // LightTODO: it's possible for us to end in a state where the spawned dark-executor
+  // process hasn't been properly cleaned up. You may have to manually kill this running process.
+  // I'm not sure why the spawned process isn't always cleaned up properly - thought
+  // the deactivate() fn would clear that up. If you're trying to work on something else
+  // and are hitting issues here, comment out the next few (~3) lines of code.
+
+  let executorUri = await Executor.downloadLatestExecutor(
+    context.globalStorageUri,
+  );
+
+  let executorHttpServerPort = 3275;
+  await Executor.startExecutorHttpServer(executorUri, executorHttpServerPort);
+
+  const z = await Executor.evalSomeCodeAgainstHttpServer(
+    executorHttpServerPort,
+    "1+2",
+  );
+  vscode.window.showInformationMessage(`eval response: ${z}`);
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   // fetch config vals
   // const extensionConfig = vscode.workspace.getConfiguration('darklang');
   // const chatGptKey = extensionConfig.get("chatGptKey");
 
+  await startExecutor(context);
+
   var statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     100,
   );
-  statusBarItem.text = "todo: remove some darkness";
   statusBarItem.command = "darklang-vscode-editor.codeGenPrompt";
   statusBarItem.show();
 
@@ -41,38 +65,6 @@ export async function activate(context: vscode.ExtensionContext) {
   vscode.window.createTreeView(canvasExplorerId, {
     treeDataProvider: new CanvasElementsTreeProvider(),
   });
-  statusBarItem.text = "dl: created tree view";
-
-  // faking this until Paul tidies something up
-  let latestExecutorHash = await Executor.latestExecutorHash();
-  statusBarItem.text = "dl: latest executor is " + latestExecutorHash;
-
-  // LightTODO: it's possible for us to end in a state where the spawned dark-executor
-  // process hasn't been properly cleaned up. You may have to manually kill this running process.
-  // I'm not sure why the spawned process isn't always cleaned up properly - thought
-  // the deactivate() fn would clear that up. If you're trying to work on something else
-  // and are hitting issues here, comment out the next few (~3) lines of code.
-  //
-
-  vscode.workspace.fs.createDirectory(context.globalStorageUri);
-
-  let executorUri = await Executor.downloadExecutor(
-    context.globalStorageUri,
-    latestExecutorHash,
-  );
-  statusBarItem.text = "dl: downloaded executor";
-  let executorHttpServerPort = 3275;
-  console.log(
-    `executorPath: ${executorUri}`,
-    `executorHttpServerPort: ${executorHttpServerPort}`,
-  );
-  await Executor.startExecutorHttpServer(executorUri, executorHttpServerPort);
-
-  const z = await Executor.evalSomeCodeAgainstHttpServer(
-    executorHttpServerPort,
-    "1+2",
-  );
-  vscode.window.showInformationMessage(`eval response: ${z}`);
 
   // // register command
   // let codeGenPromptCommand = vscode.commands.registerCommand(
@@ -89,8 +81,6 @@ export async function activate(context: vscode.ExtensionContext) {
   //   },
   // );
   // context.subscriptions.push(codeGenPromptCommand);
-
-  // globalState.mainRepl = { id: "123", name: "", code: "1+2" };
 
   // // show handler panel
   // context.subscriptions.push(
@@ -113,10 +103,6 @@ export async function activate(context: vscode.ExtensionContext) {
   //     },
   //   });
   // }
-
-  // vscode.window.showInformationMessage(
-  //   "Darklang extension has been activated!",
-  // );
 }
 
 export async function deactivate() {

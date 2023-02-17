@@ -22,31 +22,6 @@ export async function latestExecutorHash(): Promise<string> {
   return responseBody.hash;
 }
 
-/** returns: path (on disk) to downloaded executor */
-export async function downloadExecutor(
-  storageUri: vscode.Uri,
-  latestExecutorHash: string,
-): Promise<vscode.Uri> {
-  let rid = getRuntimeIdentifier();
-  let fileToDownload = `darklang-executor-${latestExecutorHash}-${rid}`;
-
-  // Fetch, save, and start the interpreter
-  const url = `https://downloads.darklang.com/${fileToDownload}`;
-
-  const apiResponse = await fetch(url);
-  const buffer = await apiResponse.arrayBuffer();
-  const array = new Uint8Array(buffer);
-
-  let destPathUri = vscode.Uri.parse(`${storageUri}/${fileToDownload}`);
-
-  await vscode.workspace.fs.writeFile(destPathUri, array);
-  await fs.chmod(destPathUri.fsPath, "755"); // executable
-
-  return destPathUri;
-}
-
-let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
-
 // Match the dotnet runtime identifier which we use in our download string
 function getRuntimeIdentifier(): string {
   let platform = "";
@@ -72,7 +47,51 @@ function getRuntimeIdentifier(): string {
   return `${platform}-${arch}`;
 }
 
+export function getFilename(hash: string): string {
+  let rid = getRuntimeIdentifier();
+  return `darklang-executor-${hash}-${rid}`;
+}
+
+/** returns: path (on disk) to downloaded executor */
+export async function downloadExecutor(
+  filename: string,
+  destination: vscode.Uri,
+): Promise<void> {
+  // Fetch, save, and start the interpreter
+  const url = `https://downloads.darklang.com/${filename}`;
+
+  const apiResponse = await fetch(url);
+  const buffer = await apiResponse.arrayBuffer();
+  const array = new Uint8Array(buffer);
+
+  await vscode.workspace.fs.writeFile(destination, array);
+}
+
+export async function downloadLatestExecutor(
+  storageUri: vscode.Uri,
+): Promise<vscode.Uri> {
+  vscode.workspace.fs.createDirectory(storageUri);
+
+  let hash = await latestExecutorHash();
+  let filename = getFilename(hash);
+  let destination = vscode.Uri.parse(`${storageUri}/${filename}`);
+
+  // Only download if it's not already there
+  try {
+    await fs.access(destination.fsPath, fs.constants.F_OK);
+  } catch {
+    await downloadExecutor(filename, destination);
+  }
+  // Do this regardless in case something went wrong somewhere
+  await fs.chmod(destination.fsPath, "755");
+  return destination;
+}
+
+let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
+
 async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
+  // I've observed it taking 1.5 seconds to start the server up, let's set it to 10s
+  // for slow machines
   const host = "localhost";
   let retryCount = 0;
 
@@ -98,7 +117,7 @@ async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
 
   let result = await checkConnection();
   if (!result) {
-    throw new Error(" connection to dark-executor failed");
+    throw new Error("connection to dark-executor failed");
   }
 }
 
