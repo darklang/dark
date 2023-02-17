@@ -87,8 +87,6 @@ export async function downloadLatestExecutor(
   return destination;
 }
 
-let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
-
 async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
   // I've observed it taking 1.5 seconds to start the server up, let's set it to 10s
   // for slow machines
@@ -121,10 +119,13 @@ async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
   }
 }
 
+let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
+
 export async function startExecutorHttpServer(
   executorUri: vscode.Uri,
   port: number,
 ): Promise<void> {
+  // TODO: kill all existing processes
   executorSubprocess = childProcess.spawn(executorUri.fsPath, [
     "serve",
     `--port=${port}`,
@@ -151,18 +152,29 @@ export async function startExecutorHttpServer(
   await waitUntilTCPConnectionIsReady(port);
 }
 
-export async function evalSomeCodeAgainstHttpServer(
+export async function stopExecutor(): Promise<void> {
+  executorSubprocess.kill();
+}
+
+export async function evalDarklang(
   port: number,
-  code: string,
+  main: string,
+  vars: string[],
+  functions: string,
+  types: string,
 ): Promise<string> {
   const apiResponse = await fetch(
     `http://localhost:${port}/api/v0/execute-text`,
-    { method: "POST", body: JSON.stringify({ code: code, symtable: {} }) },
+    {
+      method: "POST",
+      body: JSON.stringify({
+        code: code,
+        symtable: symtable,
+        functions: functions,
+        types: types,
+      }),
+    },
   );
 
   return await apiResponse.text();
-}
-
-export async function stopExecutor(): Promise<void> {
-  executorSubprocess.kill();
 }
