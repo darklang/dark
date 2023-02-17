@@ -46,7 +46,6 @@ let main (args : string array) : int =
         Tests.Execution.tests
         Tests.Parser.tests
         Tests.HttpQueryEncoding.tests
-        Tests.HttpClient.tests
         Tests.HttpBaseClient.tests
         Tests.LibExecution.tests.Force()
         Tests.Prelude.tests
@@ -65,7 +64,6 @@ let main (args : string array) : int =
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     let httpBaseClientTestsTask =
       Tests.HttpBaseClient.init cancelationTokenSource.Token
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
@@ -81,7 +79,6 @@ let main (args : string array) : int =
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
-    httpClientTestsTask.Wait()
     httpBaseClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
     exitCode

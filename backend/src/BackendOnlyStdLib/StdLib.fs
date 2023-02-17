@@ -24,12 +24,6 @@ let fns : List<RT.BuiltInFn> =
     LibCrypto.fns
     LibDarkInternal.fns
     LibEvent.fns
-    LibHttpClient0.fns
-    LibHttpClient1.fns
-    LibHttpClient2.fns
-    LibHttpClient3.fns
-    LibHttpClient4.fns
-    LibHttpClient5.fns
     LibHttpBaseClient.fns
     LibJwt.fns
     LibPassword.fns
