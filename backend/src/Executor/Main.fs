@@ -203,9 +203,6 @@ let readFiles (files : string list) : unit =
   System.Console.Out.WriteLine output
 
 
-
-
-
 // Generally speaking, this should be a superset of BwdServer's list.
 let initSerializers () =
   // universally-serializable types
@@ -281,7 +278,7 @@ module Arguments =
           | Some (Execute files), [ file ] ->
             (Some(Execute(files @ [ file ])), config)
           | _ ->
-            print "Invalid argument {{cliArg}}, in state {{state}}"
+            print $"Invalid argument {cliArg}, in mode {mode}"
             (Some Help, config))
         cliArgs
     match result with
@@ -307,6 +304,6 @@ let main (args : string []) =
   // LibService.Init.shutdown name 0
   with
   | e ->
-    System.Console.WriteLine $"Error starting Executor: {{e}}"
+    System.Console.WriteLine $"Error starting Executor: {e}"
     1
 //  LibService.Rollbar.lastDitchBlockAndPage "Error starting ApiServer" e
