@@ -132,49 +132,6 @@ let testPreviousDateSerializionCompatibility =
     Expect.equal expected actual "not deserializing correctly"
   }
 
-let testToPrettyRequestJson =
-  testMany
-    "toPrettyRequestJson"
-    (fun v ->
-      try
-        BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson v
-      with
-      | e -> e.Message)
-    [ RT.DErrorRail(RT.DResult(Ok RT.DNull)),
-      "Unknown Err: (Failure \"printing an unprintable value:<result>\")"
-
-      RT.DError(RT.SourceNone, "some message"), "<error: error>"
-
-      RT.DIncomplete RT.SourceNone, "<incomplete: <incomplete>>"
-
-      RT.DDB "my dbstore", "<datastore: my dbstore>"
-
-      RT.DUuid(System.Guid.Parse "1271ebde-7d15-327d-9a36-f9bee0ac22e7"),
-      "<uuid: 1271ebde-7d15-327d-9a36-f9bee0ac22e7>"
-
-      RT.DPassword(Password [| 76uy; 13uy |]), "<password: <password>>"
-
-      RT.DBytes [||],
-      "Unknown Err: (Failure \"printing an unprintable value:<bytes>\")"
-
-      RT.DDate(
-        NodaTime.Instant.parse "2019-07-28T22:42:36Z" |> RT.DDateTime.fromInstant
-      ),
-      "<date: 2019-07-28T22:42:36Z>"
-
-      (RT.DErrorRail(RT.DHttpResponse(RT.Redirect("some url"))),
-       "ErrorRail: 302 some url\n  null")
-
-      (RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull")
-
-      (RT.DHttpResponse(RT.Response(200L, [], RT.DStr "some url"))),
-      "200 {  }\n\"some url\""
-
-      (RT.DHttpResponse(RT.Response(200L, [ "header", "value" ], RT.DStr "some url"))),
-      "200 { header: value }\n\"some url\""
-
-      RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)" ]
-
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
 
@@ -431,9 +388,6 @@ module Password =
         "toPrettyMachineJsonStringV1"
         DvalReprLegacyExternal.toPrettyMachineJsonStringV1
       doesRedact
-        "toPrettyRequestJsonV0"
-        BackendOnlyStdLib.LibHttpClient0.PrettyRequestJson.toPrettyRequestJson
-      doesRedact
         "toPrettyResponseJsonV1"
         LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
       doesRedact "Json.Vanilla.serialize" (fun dv ->
@@ -503,7 +457,6 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
-      testToPrettyRequestJson
       testToPrettyResponseJson
       testDateMigrationHasCorrectFormats
       ToHashableRepr.tests
