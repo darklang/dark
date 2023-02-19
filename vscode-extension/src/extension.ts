@@ -18,26 +18,37 @@ const globalState: GlobalState = {
   mainRepl: undefined,
 };
 
-export async function startExecutor(
+export async function connectToExecutor(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  let executorHttpServerPort = 3275;
+  let downloadExecutor = false;
+  if (vscode.ExtensionMode.Development === context.extensionMode) {
+    await Executor.waitUntilTCPConnectionIsReady(executorHttpServerPort);
+    let versionInfo = await Executor.getVersion(executorHttpServerPort);
+    vscode.window.showInformationMessage(
+      `Using development darklang-executor, version:${JSON.stringify(
+        versionInfo,
+      )}`,
+    );
+  } else {
+    downloadExecutor = true;
+  }
+  // In development mode, we use the local dark-executor binary, if present
   // LightTODO: it's possible for us to end in a state where the spawned dark-executor
   // process hasn't been properly cleaned up. You may have to manually kill this running process.
   // I'm not sure why the spawned process isn't always cleaned up properly - thought
   // the deactivate() fn would clear that up. If you're trying to work on something else
   // and are hitting issues here, comment out the next few (~3) lines of code.
+  if (downloadExecutor) {
+    let executorUri = await Executor.downloadLatestExecutor(
+      context.globalStorageUri,
+    );
 
-  let executorUri = await Executor.downloadLatestExecutor(
-    context.globalStorageUri,
-  );
+    await Executor.startExecutorHttpServer(executorUri, executorHttpServerPort);
+  }
 
-  let executorHttpServerPort = 3275;
-  await Executor.startExecutorHttpServer(executorUri, executorHttpServerPort);
-
-  const z = await Executor.evalSomeCodeAgainstHttpServer(
-    executorHttpServerPort,
-    "1+2",
-  );
+  const z = await Executor.evalCode(executorHttpServerPort, "1+2", [], "", "");
   vscode.window.showInformationMessage(`eval response: ${z}`);
 }
 
@@ -46,25 +57,25 @@ export async function activate(context: vscode.ExtensionContext) {
   // const extensionConfig = vscode.workspace.getConfiguration('darklang');
   // const chatGptKey = extensionConfig.get("chatGptKey");
 
-  await startExecutor(context);
+  await connectToExecutor(context);
 
   var statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     100,
   );
-  statusBarItem.command = "darklang-vscode-editor.codeGenPrompt";
+  // statusBarItem.command = "darklang-vscode-editor.codeGenPrompt";
   statusBarItem.show();
 
   // Set up fakey tree view of canvas elements
-  const canvasExplorerId = "tree-canvas-explorer";
+  // const canvasExplorerId = "tree-canvas-explorer";
   // todo: what's the difference between these two?
   // vscode.window.registerTreeDataProvider(
   // 	canvasExplorerId,
   // 	new CanvasElementsTreeProvider()
   // );
-  vscode.window.createTreeView(canvasExplorerId, {
-    treeDataProvider: new CanvasElementsTreeProvider(),
-  });
+  // vscode.window.createTreeView(canvasExplorerId, {
+  //   treeDataProvider: new CanvasElementsTreeProvider(),
+  // });
 
   // // register command
   // let codeGenPromptCommand = vscode.commands.registerCommand(
