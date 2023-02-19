@@ -178,3 +178,16 @@ export async function evalDarklang(
 
   return await apiResponse.text();
 }
+type ExecutorVersion = {
+  hash: string;
+  buildDate: Date;
+  inDevelopment: boolean;
+};
+
+export async function getVersion(port: number): Promise<ExecutorVersion> {
+  const apiResponse = await fetch(`http://localhost:${port}/version`, {
+    method: "GET",
+  });
+
+  return (await apiResponse.json()) as ExecutorVersion;
+}

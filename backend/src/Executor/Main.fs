@@ -91,6 +91,7 @@ let clientJsonHandler (f : HttpContext -> Task<'a>) : HttpHandler =
 // --------------------
 // Handlers
 // --------------------
+
 let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   let ab = app
   let app = app :?> WebApplication
@@ -100,13 +101,17 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
   let addRoute (pattern : string) (handler : HttpHandler) =
     builder.MapPost(pattern, handler) |> ignore<IRouteBuilder>
 
-  let clientJsonApi name version (f : HttpContext -> Task<'a>) =
+  let clientJsonApi (name : string) (version : int) (f : HttpContext -> Task<'a>) =
     let handler = clientJsonHandler f
     let route = $"/api/v{version}/{name}"
     addRoute route handler
 
   clientJsonApi "execute-text" 0 API.ExecuteText.post
   clientJsonApi "execute-json" 0 API.ExecuteJson.post
+
+  let versionHandler : (HttpContext -> Task) =
+    clientJsonHandler (fun _ -> task { return VersionInfo.info () })
+  builder.MapGet("/api/v0/version", versionHandler) |> ignore<IRouteBuilder>
 
   app.UseRouter(builder.Build())
 
@@ -153,11 +158,7 @@ let configureServices (services : IServiceCollection) : unit =
   // |> fun s -> s.AddServerTiming()
   |> ignore<IServiceCollection>
 
-let webserver
-  (loggerSetup : ILoggingBuilder -> unit)
-  (httpPort : int)
-  (healthCheckPort : int)
-  : WebApplication =
+let webserver (httpPort : int) (healthCheckPort : int) : WebApplication =
   // let hcUrl = Kubernetes.url healthCheckPort
 
   let builder = WebApplication.CreateBuilder()
@@ -165,7 +166,7 @@ let webserver
   // Kubernetes.registerServerTimeout builder.WebHost
 
   builder.WebHost
-  |> fun wh -> wh.ConfigureLogging(loggerSetup)
+  // |> fun wh -> wh.ConfigureLogging(loggerSetup)
   // |> fun wh -> wh.UseKestrel(LibService.Kestrel.configureKestrel)
   // |> fun wh -> wh.UseUrls(hcUrl, $"http://localhost:{httpPort}")
   |> fun wh -> wh.UseUrls($"http://localhost:{httpPort}")
@@ -176,15 +177,9 @@ let webserver
   app
 
 let runServer (debug : bool) (port : int) (hcPort : int) : unit =
-  let logger =
-    // LIGHTTODO
-    // if debug then LibService.Logging.debugLogger else
-    // LibService.Logging.noLogger
-    fun (builder : ILoggingBuilder) ->
-      (builder.ClearProviders() |> ignore<ILoggingBuilder>)
   System.Console.WriteLine
     $"Starting server on port {port}, health check on {hcPort}"
-  (webserver logger port hcPort).Run()
+  (webserver port hcPort).Run()
 
 let readFiles (files : string list) : unit =
   let expr =
@@ -228,9 +223,11 @@ module Arguments =
     | Serve of port : int * healthCheckPort : int
     | Execute of List<string>
     | Help
+    | Version
 
   type Config = { debug : bool }
   let defaultConfig = { debug = false }
+
 
   let printHelp () : unit =
     System.Console.Out.WriteLine
@@ -249,10 +246,18 @@ module Arguments =
     POST /api/v0/execute-json
       Request Body (json): { expr: Expr, symtable: Map<string, Dval> }
       Response body (json): Dval
+
+    GET /api/v0/version
+      Response body (json): { version: string, date: datetime-string, inDevelopment: bool }
 "
     System.Console.Out.WriteLine "  --debug  Enable debug logging"
     System.Console.Out.WriteLine "  --help  Print this help message"
+    System.Console.Out.WriteLine "  --version  Print version information"
 
+  let printVersion () : unit =
+    let i = VersionInfo.info ()
+    System.Console.Out.WriteLine
+      $"darklang-executor\nhash: {i.hash}\nbuild-date: {i.buildDate}\ndevelopment version? : {i.inDevelopment}"
 
   let parse (cliArgs : List<string>) : (Mode * Config) =
     let result =
@@ -263,20 +268,30 @@ module Arguments =
           // help
           | Some Help, _ -> (Some Help, config)
           | _, [ "--help" ] -> (Some Help, config)
+
+          // version
+          | Some Version, _ -> (Some Version, config)
+          | _, [ "--version" ] -> (Some Version, config)
+
+          // debug
           | mode, [ "--debug" ] -> (mode, { config with debug = true })
+
           // serve
           | None, [ "serve" ] ->
             (Some(Serve(port = 3275, healthCheckPort = 3276)), config)
-          // server --port
+          // serve --port
           | Some (Serve (_, hcPort)), [ "--port"; port ] ->
             (Some(Serve(port = int port, healthCheckPort = hcPort)), config)
-          // server --healthCheckPort
+          // serve --healthCheckPort
           | Some (Serve (port, _)), [ "--healthCheckPort"; hcPort ] ->
             (Some(Serve(port = port, healthCheckPort = int hcPort)), config)
+
           // file list
           | None, [ file ] -> (Some(Execute [ file ]), config)
           | Some (Execute files), [ file ] ->
             (Some(Execute(files @ [ file ])), config)
+
+          // other
           | _ ->
             print $"Invalid argument {cliArg}, in mode {mode}"
             (Some Help, config))
@@ -295,6 +310,7 @@ let main (args : string []) =
     | Arguments.Serve (port, hcPort) -> runServer config.debug port hcPort
     | Arguments.Execute files -> readFiles files
     | Arguments.Help -> Arguments.printHelp ()
+    | Arguments.Version -> Arguments.printVersion ()
 
     // LibService.Init.init name
     // (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
