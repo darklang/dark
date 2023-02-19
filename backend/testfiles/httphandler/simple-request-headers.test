@@ -1,4 +1,4 @@
-[http-bytes-handler GET /]
+[http-handler GET /]
 Http.response (request.headers |> toString |> String.toBytes_v0) 200
 
 [request]

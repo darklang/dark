@@ -1,4 +1,4 @@
-[http-bytes-handler POST /]
+[http-handler POST /]
 Http.response request.body 200
 
 [request]

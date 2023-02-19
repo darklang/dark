@@ -20,7 +20,7 @@ syntax we use elsewhere (see `testfiles/README.md` for a guide).
 
 Multiple handlers may be defined within a single test file.
 
-`[http-bytes-handler POST /]` syntax is also available, to test a new (thinner)
+`[http-handler POST /]` syntax is also available, to test a new (thinner)
 HTTP handler and middleware. It behaves the same way has `http-handler`, apart
 from setting up the new type of HTTP handler.
 

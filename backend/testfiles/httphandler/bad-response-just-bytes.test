@@ -1,4 +1,4 @@
-[http-bytes-handler POST /]
+[http-handler POST /]
 request.body |> Bytes.length_v0 |> toString |> String.toBytes_v0
 
 [request]

@@ -113,7 +113,7 @@ module ParseTest =
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
 
-        | Regex "\[http-bytes-handler (\S+) (\S+)\]" [ method; route ] ->
+        | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
           (InHttpHandler,
            { result with
                handlers =
