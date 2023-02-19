@@ -173,7 +173,7 @@ let testHttpRouteHandler
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.HTTPBasic(route, method, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method, ids) }
 
 let testCron
   (name : string)

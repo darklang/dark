@@ -663,7 +663,7 @@
         ]
       ],
       "spec": [
-        "HTTPBasic",
+        "HTTP",
         "/path-bytes",
         "GET",
         {

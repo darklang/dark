@@ -328,8 +328,8 @@ module Handler =
   module Spec =
     let fromCT (spec : CTPT.Handler.Spec) : PT.Handler.Spec =
       match spec with
-      | CTPT.Handler.Spec.HTTPBasic (route, method, i) ->
-        PT.Handler.HTTPBasic(route, method, ids.fromCT i)
+      | CTPT.Handler.Spec.HTTP (route, method, i) ->
+        PT.Handler.HTTP(route, method, ids.fromCT i)
       | CTPT.Handler.Spec.Worker (name, i) -> PT.Handler.Worker(name, ids.fromCT i)
       | CTPT.Handler.Spec.Cron (name, interval, i) ->
         PT.Handler.Cron(name, Option.map CronInterval.fromCT interval, ids.fromCT i)
@@ -337,8 +337,8 @@ module Handler =
 
     let toCT (spec : PT.Handler.Spec) : CTPT.Handler.Spec =
       match spec with
-      | PT.Handler.HTTPBasic (route, method, i) ->
-        CTPT.Handler.Spec.HTTPBasic(route, method, ids.toCT i)
+      | PT.Handler.HTTP (route, method, i) ->
+        CTPT.Handler.Spec.HTTP(route, method, ids.toCT i)
       | PT.Handler.Worker (name, i) -> CTPT.Handler.Spec.Worker(name, ids.toCT i)
       | PT.Handler.Cron (name, interval, i) ->
         CTPT.Handler.Spec.Cron(

@@ -6,9 +6,6 @@ response, and may also include one or more handler.
 
 The implementation of the tests is in `BwdServer.Tests.fs`.
 
-The `http` subdirectory tests the current HTTP handler+middleware, while the
-`httpbasic` subdirectory corresponds to a new handler+middleware, `HttpBasic`.
-
 # HTTP handlers
 
 An example HTTP handler looks like this:
@@ -128,7 +125,7 @@ request or response are replaced with a space character (` `).
 
 Additionally, any usages of `<IMPORT_DATA_FROM_FILE=name>` will result in the
 test runner replacing this string with the contents of the referenced binary
-file - a file with the corresponding name should exist in `httpbasictestfiles/data`.
+file - a file with the corresponding name should exist in `../data`.
 
 # Adjusting for minor differences
 

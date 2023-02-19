@@ -488,7 +488,7 @@ module ProgramTypes =
       { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
     module Spec =
-      let httpBasic = PT.Handler.HTTPBasic("/path-bytes", "GET", ids)
+      let http = PT.Handler.HTTP("/path-bytes", "GET", ids)
       let worker = PT.Handler.Worker("name", ids)
       let cronWithoutInterval = PT.Handler.Cron("name", None, ids)
 
@@ -498,14 +498,13 @@ module ProgramTypes =
       let repl = PT.Handler.REPL("name", ids)
 
     let specs : List<PT.Handler.Spec> =
-      [ Spec.httpBasic
+      [ Spec.http
         Spec.worker
         Spec.cronWithoutInterval
         Spec.cronWithInterval
         Spec.repl ]
 
-    let httpBasic : PT.Handler.T =
-      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr }
+    let http : PT.Handler.T = { spec = Spec.http; tlid = 42280663UL; ast = expr }
 
     let worker : PT.Handler.T = { spec = Spec.worker; tlid = 19930486UL; ast = expr }
 
@@ -522,7 +521,7 @@ module ProgramTypes =
         "Cron1", cronWithoutInterval
         "Cron2", cronWithInterval
         "REPL", repl
-        "HttpBasic", httpBasic ]
+        "Http", http ]
 
     let handlers = List.map snd handlersWithName
 
@@ -608,7 +607,7 @@ module ProgramTypes =
   let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(Handler.httpBasic.tlid, Handler.httpBasic)
+    [ PT.SetHandler(Handler.http.tlid, Handler.http)
       PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")

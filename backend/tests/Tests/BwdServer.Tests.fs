@@ -25,12 +25,12 @@ module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
 
-module LegacyHttpMiddleware = HttpMiddleware.Http
+module LegacyHttpMiddleware = HttpMiddleware.HttpLegacy
 
 open Tests
 open TestUtils.TestUtils
 
-type HandlerVersion = | HttpBasic
+type HandlerVersion = | Http
 
 type TestHandler =
   { Version : HandlerVersion
@@ -123,7 +123,7 @@ module ParseTest =
           (InHttpHandler,
            { result with
                handlers =
-                 { Version = HttpBasic; Route = route; Method = method; Code = "" }
+                 { Version = Http; Route = route; Method = method; Code = "" }
                  :: result.handlers })
 
         | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
@@ -216,8 +216,8 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
 
         let spec =
           match handler.Version with
-          | HttpBasic ->
-            PT.Handler.HTTPBasic(
+          | Http ->
+            PT.Handler.HTTP(
               route = handler.Route,
               method = handler.Method,
               ids = ids
@@ -264,7 +264,7 @@ module Execution =
     (hs : (string * string) list)
     : (string * string) list =
     match handlerVersion with
-    | HttpBasic ->
+    | Http ->
       hs
       |> List.filterMap (fun (k, v) ->
         match k, v with
@@ -279,7 +279,7 @@ module Execution =
     (actualBody : byte array)
     : (string * string) list =
     match handlerVersion with
-    | HttpBasic ->
+    | Http ->
       headers
       |> List.map (fun (k, v) ->
         match k, v with
@@ -500,13 +500,7 @@ let tests =
             test.expectedResponse
     }
 
-  // TODO support tests with more than one type of handler
-  // (the parser is ready, but the execution is not)
-
-  // TODO merge these directories into a `tests/httphandlertestfiles`
-  // directory, with a subfolder per handler/middleware type.
-
-  [ ($"{basePath}/httpbasic", "httpbasic", HttpBasic) ]
+  [ ($"{basePath}", "http", Http) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")

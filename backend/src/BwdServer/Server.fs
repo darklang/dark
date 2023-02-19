@@ -35,8 +35,8 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module LegacyHttpMiddleware = HttpMiddleware.Http
-module HttpBasicMiddleware = HttpMiddleware.HttpBasic
+module LegacyHttpMiddleware = HttpMiddleware.HttpLegacy
+module HttpMiddleware = HttpMiddleware.Http
 
 module RealExe = LibRealExecution.RealExecution
 
@@ -47,7 +47,7 @@ module Telemetry = LibService.Telemetry
 
 module CTPusher = ClientTypes.Pusher
 
-// HttpBasicTODO there are still a number of things in this file that were
+// HttpHandlerTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
 // HttpMiddleware.Http.fs - for example, getHeadersMergingKeys.
@@ -358,7 +358,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTPBasic (route = route); tlid = tlid } as handler ] ->
+      | [ { spec = PT.Handler.HTTP (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         let routeVars = Routing.routeInputVars route requestPath
@@ -373,8 +373,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request =
-            HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
+          let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -386,7 +385,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
 
-          let result = HttpBasicMiddleware.Response.toHttpResponse result
+          let result = HttpMiddleware.Response.toHttpResponse result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
@@ -395,8 +394,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
-            let request =
-              HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
+            let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
             TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
@@ -457,7 +455,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // included in HTTP Reponses as a result of these efforts. Here, we manually
       // work around this by setting it manually.
       // CLEANUP: replace this with the more traditional approach, if possible
-      // HttpBasicHandlerTODO lowercase keys for HttpBasic handler responses
+      // HttpHandlerTODO lowercase keys for Http handler responses
       setResponseHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
       setResponseHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())
