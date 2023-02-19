@@ -4,28 +4,15 @@ import { DarkHandlerPanel } from "./DarkHandlerPanel";
 import { getWebviewOptions } from "./utils";
 import { viewTypes } from "./ViewTypes";
 import * as Executor from "./Executor";
-
-type Repl = {
-  id: string;
-  name: string;
-  code: string;
-};
-type GlobalState = {
-  mainRepl: Repl | undefined;
-};
-
-const globalState: GlobalState = {
-  mainRepl: undefined,
-};
+import * as Editor from "./Editor";
 
 export async function connectToExecutor(
   context: vscode.ExtensionContext,
 ): Promise<void> {
-  let executorHttpServerPort = 3275;
   let downloadExecutor = false;
   if (vscode.ExtensionMode.Development === context.extensionMode) {
-    await Executor.waitUntilTCPConnectionIsReady(executorHttpServerPort);
-    let versionInfo = await Executor.getVersion(executorHttpServerPort);
+    await Executor.waitUntilTCPConnectionIsReady();
+    let versionInfo = await Executor.getVersion();
     vscode.window.showInformationMessage(
       `Using development darklang-executor, version:${JSON.stringify(
         versionInfo,
@@ -45,11 +32,8 @@ export async function connectToExecutor(
       context.globalStorageUri,
     );
 
-    await Executor.startExecutorHttpServer(executorUri, executorHttpServerPort);
+    await Executor.startExecutorHttpServer(executorUri);
   }
-
-  const z = await Executor.evalCode(executorHttpServerPort, "1+2", [], "", "");
-  vscode.window.showInformationMessage(`eval response: ${z}`);
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -58,6 +42,8 @@ export async function activate(context: vscode.ExtensionContext) {
   // const chatGptKey = extensionConfig.get("chatGptKey");
 
   await connectToExecutor(context);
+
+  await Editor.initialLoad();
 
   var statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,

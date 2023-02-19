@@ -42,24 +42,24 @@ type HttpContextExtensions() =
 
 module ExecuteText =
   // TODO add ClientTypes
-  type Request = { code : string; symtable : Map<string, RT.Dval> }
+  type Request = { code : string }
 
   let post (ctx : HttpContext) : Task<LibExecution.RuntimeTypes.Dval> =
     task {
       let! ps = ctx.ReadVanillaJsonAsync<Request>()
       let expr = Parser.parseRTExpr ps.code
-      let! result = Execute.execute expr ps.symtable
+      let! result = Execute.execute expr Map.empty
       return result
     }
 
 module ExecuteJson =
   // TODO add ClientTypes
-  type Request = { expr : PT.Expr; symtable : Map<string, RT.Dval> }
+  type Request = { expr : PT.Expr  }
 
   let post (ctx : HttpContext) : Task<LibExecution.RuntimeTypes.Dval> =
     task {
       let! ps = ctx.ReadVanillaJsonAsync<Request>()
       let expr = PT2RT.Expr.toRT ps.expr
-      let! result = Execute.execute expr ps.symtable
+      let! result = Execute.execute expr Map.empty
       return result
     }

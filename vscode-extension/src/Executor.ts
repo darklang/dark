@@ -87,9 +87,9 @@ export async function downloadLatestExecutor(
   return destination;
 }
 
-export async function waitUntilTCPConnectionIsReady(
-  port: number,
-): Promise<void> {
+let executorPort = 3275;
+
+export async function waitUntilTCPConnectionIsReady(): Promise<void> {
   // I've observed it taking 1.5 seconds to start the server up, let's set it to 10s
   // for slow machines
   const host = "localhost";
@@ -97,7 +97,7 @@ export async function waitUntilTCPConnectionIsReady(
 
   let checkConnection = async () => {
     return new Promise((resolve, reject) => {
-      const client = net.connect(port, host, () => {
+      const client = net.connect(executorPort, host, () => {
         resolve(true);
       });
       client.on("error", () => {
@@ -125,12 +125,11 @@ let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
 
 export async function startExecutorHttpServer(
   executorUri: vscode.Uri,
-  port: number,
 ): Promise<void> {
   // TODO: kill all existing processes
   executorSubprocess = childProcess.spawn(executorUri.fsPath, [
     "serve",
-    `--port=${port}`,
+    `--port=${executorPort}`,
   ]);
 
   executorSubprocess.stdout?.on("data", data => {
@@ -151,7 +150,7 @@ export async function startExecutorHttpServer(
     vscode.window.showInformationMessage(`darklang executor exited: ${code}`);
   });
 
-  await waitUntilTCPConnectionIsReady(port);
+  await waitUntilTCPConnectionIsReady();
 }
 
 export async function stopExecutor(): Promise<void> {
@@ -159,21 +158,14 @@ export async function stopExecutor(): Promise<void> {
 }
 
 export async function evalCode(
-  port: number,
-  main: string,
-  vars: Map<string, string>,
-  functions: string,
-  types: string,
+  code: string, // code to run. Should include all contexts and definitions
 ): Promise<string> {
   const apiResponse = await fetch(
-    `http://localhost:${port}/api/v0/execute-text`,
+    `http://localhost:${executorPort}/api/v0/execute-text`,
     {
       method: "POST",
       body: JSON.stringify({
-        code: main,
-        symtable: Object.fromEntries(vars),
-        functions: functions,
-        types: types,
+        code: code,
       }),
     },
   );
@@ -186,10 +178,13 @@ type ExecutorVersion = {
   inDevelopment: boolean;
 };
 
-export async function getVersion(port: number): Promise<ExecutorVersion> {
-  const apiResponse = await fetch(`http://localhost:${port}/api/v0/version`, {
-    method: "GET",
-  });
+export async function getVersion(): Promise<ExecutorVersion> {
+  const apiResponse = await fetch(
+    `http://localhost:${executorPort}/api/v0/version`,
+    {
+      method: "GET",
+    },
+  );
 
   return (await apiResponse.json()) as ExecutorVersion;
 }
