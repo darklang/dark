@@ -30,9 +30,7 @@ module LegacyHttpMiddleware = HttpMiddleware.Http
 open Tests
 open TestUtils.TestUtils
 
-type HandlerVersion =
-  | Http
-  | HttpBasic
+type HandlerVersion = | HttpBasic
 
 type TestHandler =
   { Version : HandlerVersion
@@ -120,13 +118,6 @@ module ParseTest =
           (Limbo, { result with canvasName = Some canvasName })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
-
-        | Regex "\[http-handler (\S+) (\S+)\]" [ method; route ] ->
-          (InHttpHandler,
-           { result with
-               handlers =
-                 { Version = Http; Route = route; Method = method; Code = "" }
-                 :: result.handlers })
 
         | Regex "\[http-bytes-handler (\S+) (\S+)\]" [ method; route ] ->
           (InHttpHandler,
@@ -225,12 +216,6 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
 
         let spec =
           match handler.Version with
-          | Http ->
-            PT.Handler.HTTP(
-              route = handler.Route,
-              method = handler.Method,
-              ids = ids
-            )
           | HttpBasic ->
             PT.Handler.HTTPBasic(
               route = handler.Route,
@@ -279,21 +264,6 @@ module Execution =
     (hs : (string * string) list)
     : (string * string) list =
     match handlerVersion with
-    | Http ->
-      hs
-      |> List.filterMap (fun (k, v) ->
-        match k, v with
-        | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-        | "expires", _
-        | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-        | "x-darklang-execution-id", _ -> Some(k, "0123456789")
-        | "age", _
-        | "Age", _ -> None
-        | "X-GUploader-UploadID", _
-        | "x-guploader-uploadid", _ -> Some(k, "xxxx")
-        | "x-goog-generation", _ -> Some(k, "xxxx")
-        | _other -> Some(k, v))
-      |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
     | HttpBasic ->
       hs
       |> List.filterMap (fun (k, v) ->
@@ -309,7 +279,6 @@ module Execution =
     (actualBody : byte array)
     : (string * string) list =
     match handlerVersion with
-    | Http
     | HttpBasic ->
       headers
       |> List.map (fun (k, v) ->
@@ -537,8 +506,7 @@ let tests =
   // TODO merge these directories into a `tests/httphandlertestfiles`
   // directory, with a subfolder per handler/middleware type.
 
-  [ ($"{basePath}/http", "http", Http)
-    ($"{basePath}/httpbasic", "httpbasic", HttpBasic) ]
+  [ ($"{basePath}/httpbasic", "httpbasic", HttpBasic) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")

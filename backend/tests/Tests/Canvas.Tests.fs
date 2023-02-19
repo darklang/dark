@@ -125,7 +125,7 @@ let testUndoTooFarDoesntBreak =
 
     Expect.equal
       dbRow
-      (Some "/path", Some "HTTP", Some "GET", Some false)
+      (Some "/path", Some "HTTP_BASIC", Some "GET", Some false)
       "Row should be there"
   }
 

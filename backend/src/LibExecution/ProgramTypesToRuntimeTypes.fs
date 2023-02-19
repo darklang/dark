@@ -211,7 +211,6 @@ module Handler =
   module Spec =
     let toRT (s : PT.Handler.Spec) : RT.Handler.Spec =
       match s with
-      | PT.Handler.HTTP (route, method, _ids) -> RT.Handler.HTTP(route, method)
       | PT.Handler.HTTPBasic (route, method, _ids) ->
         RT.Handler.HTTPBasic(route, method)
       | PT.Handler.Worker (name, _ids) -> RT.Handler.Worker(name)

@@ -517,7 +517,6 @@ let saveTLIDs
           match tl with
           | PT.Toplevel.TLHandler ({ spec = spec }) ->
             match spec with
-            | PT.Handler.HTTP _
             | PT.Handler.HTTPBasic _ ->
               Some(
                 PTParser.Handler.Spec.toModule spec,

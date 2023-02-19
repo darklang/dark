@@ -1,9 +1,9 @@
 [
   [
     "SetHandler",
-    92987663,
+    42280663,
     {
-      "tlid": 92987663,
+      "tlid": 42280663,
       "ast": [
         "ELet",
         "14219007199254740992",
@@ -662,8 +662,8 @@
         ]
       ],
       "spec": [
-        "HTTP",
-        "/path",
+        "HTTPBasic",
+        "/path-bytes",
         "GET",
         {
           "moduleID": 129952,

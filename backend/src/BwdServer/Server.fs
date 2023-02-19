@@ -358,63 +358,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP (route = route); tlid = tlid } as handler ] ->
-        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
-
-        // TODO: I think we could put this into the middleware
-        let routeVars = Routing.routeInputVars route requestPath
-
-        let! reqBody = getBody ctx
-        let reqHeaders = getHeadersMergingKeys ctx
-        let reqQuery = getQuery ctx
-
-        match routeVars with
-        | Some routeVars ->
-          Telemetry.addTag "handler.routeVars" routeVars
-
-          // Do request
-          use _ = Telemetry.child "executeHandler" []
-
-          let request =
-            LegacyHttpMiddleware.Request.fromRequest
-              false
-              url
-              reqHeaders
-              reqQuery
-              reqBody
-          let inputVars = routeVars |> Map |> Map.add "request" request
-          let! (result, _) =
-            RealExe.executeHandler
-              ClientTypes2BackendTypes.Pusher.eventSerializer
-              canvas.meta
-              (PT2RT.Handler.toRT handler)
-              (Canvas.toProgram canvas)
-              traceID
-              inputVars
-              (RealExe.InitialExecution(desc, "request", request))
-
-          let result = LegacyHttpMiddleware.Response.toHttpResponse result
-          let result =
-            LegacyHttpMiddleware.Cors.addCorsHeaders reqHeaders meta.name result
-
-          do! writeResponseToContext ctx result.statusCode result.headers result.body
-          Telemetry.addTag "http.completion_reason" "success"
-
-          return ctx
-
-        | None -> // vars didnt parse
-          FireAndForget.fireAndForgetTask "store-event" (fun () ->
-            let request =
-              LegacyHttpMiddleware.Request.fromRequest
-                false
-                url
-                reqHeaders
-                reqQuery
-                reqBody
-            TI.storeEvent meta.id traceID desc request)
-
-          return! unmatchedRouteResponse ctx requestPath route
-
       | [ { spec = PT.Handler.HTTPBasic (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 

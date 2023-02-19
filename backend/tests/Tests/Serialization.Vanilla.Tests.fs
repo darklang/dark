@@ -120,7 +120,7 @@ module PersistedSerializations =
         v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
         v<ClientTypes.Program.Handler.T>
           "simple"
-          (CT2Program.Handler.toCT V.ProgramTypes.Handler.http)
+          (CT2Program.Handler.toCT V.ProgramTypes.Handler.httpBasic)
 
         // ------------------
         // LibBackend
@@ -407,7 +407,7 @@ module PersistedSerializations =
           (ClientTypes.Analysis.AnalyzeHandler
             { requestID = 2
               requestTime = NodaTime.Instant.UnixEpoch
-              handler = CT2Program.Handler.toCT V.ProgramTypes.Handler.http
+              handler = CT2Program.Handler.toCT V.ProgramTypes.Handler.httpBasic
               traceID = V.uuid
               traceData =
                 { input = [ "var", CV.dval ]

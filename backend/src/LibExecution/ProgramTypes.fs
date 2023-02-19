@@ -145,7 +145,6 @@ module Handler =
   type ids = { moduleID : id; nameID : id; modifierID : id }
 
   type Spec =
-    | HTTP of route : string * method : string * ids : ids
     | HTTPBasic of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
