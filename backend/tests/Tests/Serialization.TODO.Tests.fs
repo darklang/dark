@@ -19,7 +19,6 @@
 // DvalReprInternalNew
 // - toRoundtrippableJsonV0
 // - parseRoundtrippableJsonV0
-// toStringPairs (LegacyBaseHttpClient)
 // toStringPairs (HttpClient)
 // LibJwt LegacySerializer.toYojson
 // LibJwt LegacySerializer.ofYojson
