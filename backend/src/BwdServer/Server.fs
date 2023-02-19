@@ -35,7 +35,6 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module LegacyHttpMiddleware = HttpMiddleware.HttpLegacy
 module HttpMiddleware = HttpMiddleware.Http
 
 module RealExe = LibRealExecution.RealExecution
@@ -50,14 +49,7 @@ module CTPusher = ClientTypes.Pusher
 // HttpHandlerTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
-// HttpMiddleware.Http.fs - for example, getHeadersMergingKeys.
-// Beyond those obvious things, there are also discussions to be had around
-// more ambiguous topics - for example, what should happen when we get a
-// request that doesn't match any handler. As a side effect, we can store a 404
-// in binary format such that it can be deserialized according to a middleware
-// chosen later, but what do we return? A legacy-style response (with extra
-// headers and such) or something else? Backwards compatibility here may be
-// tricky.
+// HttpMiddleware.Http.fs.
 
 // ---------------
 // Read from HttpContext
@@ -67,16 +59,6 @@ let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   match hs.TryGetValue name with
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
-
-/// Reads the incoming headers and simplifies into a list of key*values pairs
-///
-/// If 2 headers come in with the same key, it results in only one header, with
-/// the values concatonated (joined by commas)
-let getHeadersMergingKeys (ctx : HttpContext) : List<string * string> =
-  ctx.Request.Headers
-  |> Seq.map Tuple2.fromKeyValuePair
-  |> Seq.map (fun (k, v) -> (k, v.ToArray() |> Array.toList |> String.concat ","))
-  |> Seq.toList
 
 /// Reads the incoming headers and simplifies into a list of key*value pairs
 let getHeadersWithoutMergingKeys (ctx : HttpContext) : List<string * string> =
@@ -405,15 +387,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       // no matching route found - store as 404
       | [] ->
         let! reqBody = getBody ctx
-        let reqHeaders = getHeadersMergingKeys ctx
+        let reqHeaders = getHeadersWithoutMergingKeys ctx
         let reqQuery = getQuery ctx
-        let event =
-          LegacyHttpMiddleware.Request.fromRequest
-            true
-            url
-            reqHeaders
-            reqQuery
-            reqBody
+        let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
         // CLEANUP: move pusher into storeEvent

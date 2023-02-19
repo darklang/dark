@@ -25,8 +25,6 @@ module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
 
-module LegacyHttpMiddleware = HttpMiddleware.HttpLegacy
-
 open Tests
 open TestUtils.TestUtils
 

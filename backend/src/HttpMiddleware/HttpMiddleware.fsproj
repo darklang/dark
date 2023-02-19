@@ -14,7 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="HttpLegacy.fs" />
     <Compile Include="Http.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
