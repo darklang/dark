@@ -684,16 +684,9 @@ module Handler =
     | EveryMinute
 
   type Spec =
-    /// Corresponds with HttpMiddlewareV0
     | HTTP of path : string * method : string
-
-    /// Corresponds with HttpMiddlewareV1
-    | HTTPBasic of path : string * method : string
-
     | Worker of name : string
-
     | Cron of name : string * interval : Option<CronInterval>
-
     | REPL of name : string
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }

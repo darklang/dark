@@ -1,0 +1,21 @@
+[http-handler POST /]
+request.body |> Bytes.length_v0 |> toString |> String.toBytes_v0
+
+[request]
+POST / HTTP/1.1
+Host: HOST
+Date: Sun, 08 Nov 2020 15:38:01 GMT
+Content-Length: 13
+
+13 characters
+
+[response]
+HTTP/1.1 500 Internal Server Error
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+x-darklang-execution-id: 0123456789
+Content-Type: text/plain; charset=utf-8
+Server: darklang
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Content-Length: 84
+
+Application error: the executed code did not result in a redirect or bytes response.
