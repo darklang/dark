@@ -87,7 +87,9 @@ export async function downloadLatestExecutor(
   return destination;
 }
 
-async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
+export async function waitUntilTCPConnectionIsReady(
+  port: number,
+): Promise<void> {
   // I've observed it taking 1.5 seconds to start the server up, let's set it to 10s
   // for slow machines
   const host = "localhost";
@@ -153,13 +155,13 @@ export async function startExecutorHttpServer(
 }
 
 export async function stopExecutor(): Promise<void> {
-  executorSubprocess.kill();
+  executorSubprocess?.kill();
 }
 
-export async function evalDarklang(
+export async function evalCode(
   port: number,
   main: string,
-  vars: string[],
+  vars: Map<string, string>,
   functions: string,
   types: string,
 ): Promise<string> {
@@ -168,8 +170,8 @@ export async function evalDarklang(
     {
       method: "POST",
       body: JSON.stringify({
-        code: code,
-        symtable: symtable,
+        code: main,
+        symtable: Object.fromEntries(vars),
         functions: functions,
         types: types,
       }),
@@ -185,7 +187,7 @@ type ExecutorVersion = {
 };
 
 export async function getVersion(port: number): Promise<ExecutorVersion> {
-  const apiResponse = await fetch(`http://localhost:${port}/version`, {
+  const apiResponse = await fetch(`http://localhost:${port}/api/v0/version`, {
     method: "GET",
   });
 
