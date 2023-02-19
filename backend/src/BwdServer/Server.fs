@@ -402,21 +402,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
 
-      | [] when ctx.Request.Method = "OPTIONS" ->
-        let reqHeaders = getHeadersMergingKeys ctx
-
-        match LegacyHttpMiddleware.Cors.optionsResponse reqHeaders meta.name with
-        | Some response ->
-          Telemetry.addTag "http.completion_reason" "options response"
-          do!
-            writeResponseToContext
-              ctx
-              response.statusCode
-              response.headers
-              response.body
-        | None -> Telemetry.addTag "http.completion_reason" "options none"
-        return ctx
-
       // no matching route found - store as 404
       | [] ->
         let! reqBody = getBody ctx

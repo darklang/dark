@@ -42,8 +42,6 @@ type TestSecret = string * string
 
 type Test =
   { handlers : List<TestHandler>
-    /// Feature only supported for v1 handlers; intended to be deprecated
-    cors : Option<string>
     secrets : List<TestSecret>
     /// Allow testing of a specific canvas name
     canvasName : Option<string>
@@ -85,7 +83,6 @@ module ParseTest =
 
     let emptyTest =
       { handlers = []
-        cors = None
         secrets = []
         customDomain = None
         canvasName = None
@@ -98,7 +95,6 @@ module ParseTest =
       (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
         let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
         match asString with
-        | Regex "\[cors (\S+)]" [ cors ] -> (Limbo, { result with cors = Some cors })
         | Regex "\[secrets (\S+)]" [ secrets ] ->
           let secrets =
             secrets
@@ -231,15 +227,6 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
          Canvas.NotDeleted))
 
     do! Canvas.saveTLIDs meta oplists
-
-    // CORS
-    match test.cors with
-    | None -> ()
-    | Some "" -> ()
-    | Some "*" -> LegacyHttpMiddleware.Cors.Test.addAllOrigins meta.name
-    | Some domains ->
-      let domains = String.split "," domains
-      LegacyHttpMiddleware.Cors.Test.addOrigins meta.name domains
 
     // Custom domains
     match test.customDomain with
@@ -513,9 +500,6 @@ let tests =
 open Microsoft.Extensions.Hosting
 
 let init (token : System.Threading.CancellationToken) : Task =
-  // Make sure cors tests work
-  LegacyHttpMiddleware.Cors.Test.initialize ()
-
   // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort
