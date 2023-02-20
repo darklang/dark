@@ -22,6 +22,8 @@
     <Compile Include="Execute.fs" />
     <Compile Include="VersionInfo.fs" />
     <Compile Include="Api.fs" />
+    <Compile Include="WebServer.fs" />
+    <Compile Include="Arguments.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
