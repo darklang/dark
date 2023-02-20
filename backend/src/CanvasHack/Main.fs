@@ -85,7 +85,7 @@ let main (args : string []) =
                 System.IO.File.ReadAllText $"{baseDir}/{name}.dark"
                 |> Parser.parsePTExpr
               spec =
-                PT.Handler.Spec.HTTPBasic(
+                PT.Handler.Spec.HTTP(
                   details.Path,
                   details.Method,
                   { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
