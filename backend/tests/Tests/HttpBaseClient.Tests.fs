@@ -268,7 +268,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
         // Gather status, headers, and body from the actual request
         let actualStatus =
           $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
-        let actualHeaders = BwdServer.Server.getHeadersMergingKeys ctx
+        let actualHeaders = BwdServer.Server.getHeadersWithoutMergingKeys ctx
         let! actualBody = BwdServer.Server.getBody ctx
         let actualRequest : Http.T =
           { status = actualStatus; headers = actualHeaders; body = actualBody }

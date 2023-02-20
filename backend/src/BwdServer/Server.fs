@@ -25,8 +25,6 @@ type StringValues = Microsoft.Extensions.Primitives.StringValues
 open Prelude
 open Tablecloth
 
-open LibService.Exception
-
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -37,8 +35,7 @@ module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
 module TI = LibBackend.TraceInputs
 
-module LegacyHttpMiddleware = HttpMiddleware.Http
-module HttpBasicMiddleware = HttpMiddleware.HttpBasic
+module HttpMiddleware = HttpMiddleware.Http
 
 module RealExe = LibRealExecution.RealExecution
 
@@ -49,17 +46,10 @@ module Telemetry = LibService.Telemetry
 
 module CTPusher = ClientTypes.Pusher
 
-// HttpBasicTODO there are still a number of things in this file that were
+// HttpHandlerTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
-// HttpMiddleware.Http.fs - for example, getHeadersMergingKeys.
-// Beyond those obvious things, there are also discussions to be had around
-// more ambiguous topics - for example, what should happen when we get a
-// request that doesn't match any handler. As a side effect, we can store a 404
-// in binary format such that it can be deserialized according to a middleware
-// chosen later, but what do we return? A legacy-style response (with extra
-// headers and such) or something else? Backwards compatibility here may be
-// tricky.
+// HttpMiddleware.Http.fs.
 
 // ---------------
 // Read from HttpContext
@@ -69,16 +59,6 @@ let getHeader (hs : IHeaderDictionary) (name : string) : string option =
   match hs.TryGetValue name with
   | true, vs -> vs.ToArray() |> Array.toSeq |> String.concat "," |> Some
   | false, _ -> None
-
-/// Reads the incoming headers and simplifies into a list of key*values pairs
-///
-/// If 2 headers come in with the same key, it results in only one header, with
-/// the values concatonated (joined by commas)
-let getHeadersMergingKeys (ctx : HttpContext) : List<string * string> =
-  ctx.Request.Headers
-  |> Seq.map Tuple2.fromKeyValuePair
-  |> Seq.map (fun (k, v) -> (k, v.ToArray() |> Array.toList |> String.concat ","))
-  |> Seq.toList
 
 /// Reads the incoming headers and simplifies into a list of key*value pairs
 let getHeadersWithoutMergingKeys (ctx : HttpContext) : List<string * string> =
@@ -363,63 +343,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [ { spec = PT.Handler.HTTP (route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
-        // TODO: I think we could put this into the middleware
-        let routeVars = Routing.routeInputVars route requestPath
-
-        let! reqBody = getBody ctx
-        let reqHeaders = getHeadersMergingKeys ctx
-        let reqQuery = getQuery ctx
-
-        match routeVars with
-        | Some routeVars ->
-          Telemetry.addTag "handler.routeVars" routeVars
-
-          // Do request
-          use _ = Telemetry.child "executeHandler" []
-
-          let request =
-            LegacyHttpMiddleware.Request.fromRequest
-              false
-              url
-              reqHeaders
-              reqQuery
-              reqBody
-          let inputVars = routeVars |> Map |> Map.add "request" request
-          let! (result, _) =
-            RealExe.executeHandler
-              ClientTypes2BackendTypes.Pusher.eventSerializer
-              canvas.meta
-              (PT2RT.Handler.toRT handler)
-              (Canvas.toProgram canvas)
-              traceID
-              inputVars
-              (RealExe.InitialExecution(desc, "request", request))
-
-          let result = LegacyHttpMiddleware.Response.toHttpResponse result
-          let result =
-            LegacyHttpMiddleware.Cors.addCorsHeaders reqHeaders meta.name result
-
-          do! writeResponseToContext ctx result.statusCode result.headers result.body
-          Telemetry.addTag "http.completion_reason" "success"
-
-          return ctx
-
-        | None -> // vars didnt parse
-          FireAndForget.fireAndForgetTask "store-event" (fun () ->
-            let request =
-              LegacyHttpMiddleware.Request.fromRequest
-                false
-                url
-                reqHeaders
-                reqQuery
-                reqBody
-            TI.storeEvent meta.id traceID desc request)
-
-          return! unmatchedRouteResponse ctx requestPath route
-
-      | [ { spec = PT.Handler.HTTPBasic (route = route); tlid = tlid } as handler ] ->
-        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
-
         let routeVars = Routing.routeInputVars route requestPath
 
         let! reqBody = getBody ctx
@@ -432,8 +355,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request =
-            HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
+          let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -445,7 +367,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
 
-          let result = HttpBasicMiddleware.Response.toHttpResponse result
+          let result = HttpMiddleware.Response.toHttpResponse result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
@@ -454,8 +376,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
-            let request =
-              HttpBasicMiddleware.Request.fromRequest url reqHeaders reqBody
+            let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
             TI.storeEvent meta.id traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
@@ -463,33 +384,12 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [] when string ctx.Request.Path = "/favicon.ico" ->
         return! faviconResponse ctx
 
-      | [] when ctx.Request.Method = "OPTIONS" ->
-        let reqHeaders = getHeadersMergingKeys ctx
-
-        match LegacyHttpMiddleware.Cors.optionsResponse reqHeaders meta.name with
-        | Some response ->
-          Telemetry.addTag "http.completion_reason" "options response"
-          do!
-            writeResponseToContext
-              ctx
-              response.statusCode
-              response.headers
-              response.body
-        | None -> Telemetry.addTag "http.completion_reason" "options none"
-        return ctx
-
       // no matching route found - store as 404
       | [] ->
         let! reqBody = getBody ctx
-        let reqHeaders = getHeadersMergingKeys ctx
+        let reqHeaders = getHeadersWithoutMergingKeys ctx
         let reqQuery = getQuery ctx
-        let event =
-          LegacyHttpMiddleware.Request.fromRequest
-            true
-            url
-            reqHeaders
-            reqQuery
-            reqBody
+        let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
         // CLEANUP: move pusher into storeEvent
@@ -516,7 +416,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       // included in HTTP Reponses as a result of these efforts. Here, we manually
       // work around this by setting it manually.
       // CLEANUP: replace this with the more traditional approach, if possible
-      // HttpBasicHandlerTODO lowercase keys for HttpBasic handler responses
+      // HttpHandlerTODO lowercase keys for Http handler responses
       setResponseHeader ctx "Strict-Transport-Security" LibService.HSTS.stringConfig
 
       setResponseHeader ctx "x-darklang-execution-id" (Telemetry.rootID ())

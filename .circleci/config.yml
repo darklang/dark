@@ -423,4 +423,3 @@ workflows:
             # - gcp-containers-test
             - static-checks
             - predeployment-checks
-            - build-multiplatform-executor

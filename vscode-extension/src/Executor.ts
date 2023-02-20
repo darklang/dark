@@ -1,12 +1,9 @@
 // bootstrapping the interpreter
 import fetch from "node-fetch";
-import {
-  ChildProcess,
-  spawn,
-  exec,
-  ChildProcessWithoutNullStreams,
-} from "node:child_process";
+import * as childProcess from "node:child_process";
 import * as fs from "fs/promises";
+
+import * as net from "net";
 
 import * as vscode from "vscode";
 import { Readable } from "node:stream";
@@ -27,72 +24,121 @@ export async function latestExecutorHash(): Promise<string> {
 
 /** returns: path (on disk) to downloaded executor */
 export async function downloadExecutor(
+  storageUri: vscode.Uri,
   latestExecutorHash: string,
-): Promise<string> {
-  // TODO: this URL should be a function of the host OS
-  let fileToDownload = `darklang-executor-${latestExecutorHash}-linux-x64`;
+): Promise<vscode.Uri> {
+  let rid = getRuntimeIdentifier();
+  let fileToDownload = `darklang-executor-${latestExecutorHash}-${rid}`;
 
   // Fetch, save, and start the interpreter
   const url = `https://downloads.darklang.com/${fileToDownload}`;
 
   const apiResponse = await fetch(url);
+  const buffer = await apiResponse.arrayBuffer();
+  const array = new Uint8Array(buffer);
 
-  let destPath = `./${fileToDownload}`;
+  let destPathUri = vscode.Uri.parse(`${storageUri}/${fileToDownload}`);
 
-  const blob = await apiResponse.blob();
-  const bos = blob.stream();
+  await vscode.workspace.fs.writeFile(destPathUri, array);
+  await fs.chmod(destPathUri.fsPath, "755"); // executable
 
-  await fs.writeFile(destPath, bos);
-  await fs.chmod(destPath, "755"); // executable
-
-  return destPath;
+  return destPathUri;
 }
 
-export async function downloadLatestExecutor(): Promise<string> {
-  const hash = await latestExecutorHash();
-  return downloadExecutor(hash);
+let executorSubprocess: childProcess.ChildProcessWithoutNullStreams;
+
+// Match the dotnet runtime identifier which we use in our download string
+function getRuntimeIdentifier(): string {
+  let platform = "";
+  if (process.platform === "win32") {
+    platform = "win";
+  } else if (process.platform === "darwin") {
+    platform = "osx";
+  } else if (process.platform === "linux") {
+    // TODO: linux-musl
+    platform = "linux";
+  } else {
+    throw new Error("unknown platform");
+  }
+  let arch = "";
+  if (process.arch === "x64") {
+    arch = "x64";
+  } else if (process.arch === "arm64") {
+    arch = "arm64";
+  } else {
+    throw new Error("unknown arch");
+  }
+
+  return `${platform}-${arch}`;
 }
 
-let executorSubprocess: ChildProcessWithoutNullStreams;
+async function waitUntilTCPConnectionIsReady(port: number): Promise<void> {
+  const host = "localhost";
+  let retryCount = 0;
 
-// returns the pid?
+  let checkConnection = async () => {
+    return new Promise((resolve, reject) => {
+      const client = net.connect(port, host, () => {
+        resolve(true);
+      });
+      client.on("error", () => {
+        retryCount++;
+        if (retryCount > 100) {
+          console.error(`not connected after 10s, fail: ${retryCount}`);
+          reject(false);
+        } else {
+          let callback = async () => {
+            resolve(await checkConnection());
+          };
+          setTimeout(callback, 100);
+        }
+      });
+    });
+  };
+
+  let result = await checkConnection();
+  if (!result) {
+    throw new Error(" connection to dark-executor failed");
+  }
+}
+
 export async function startExecutorHttpServer(
-  executorLocation: string,
-  port: string,
+  executorUri: vscode.Uri,
+  port: number,
 ): Promise<void> {
-  // const pwd = exec("pwd");
-  // pwd.stdout?.on("data", data => {
-  //   vscode.window.showInformationMessage(`pwd: ${data}`);
-  // });
-
-  executorSubprocess = spawn(executorLocation, ["serve", `--port=${port}`]);
+  executorSubprocess = childProcess.spawn(executorUri.fsPath, [
+    "serve",
+    `--port=${port}`,
+  ]);
 
   executorSubprocess.stdout?.on("data", data => {
-    vscode.window.showInformationMessage(`stdout: ${data}`);
+    console.log(`darklang-executor stdout: ${data}`);
   });
 
   executorSubprocess.stderr?.on("data", data => {
-    vscode.window.showInformationMessage(`stderr: ${data}`);
+    vscode.window.showInformationMessage(`darklang-executor stderr: ${data}`);
   });
 
   executorSubprocess.on("error", error => {
-    vscode.window.showInformationMessage(`error: ${error.message}`);
+    vscode.window.showInformationMessage(
+      `darklang-executor error: ${error.message}`,
+    );
   });
 
   executorSubprocess.on("close", code => {
-    vscode.window.showInformationMessage(
-      `child process exited with code ${code}`,
-    );
+    vscode.window.showInformationMessage(`darklang executor exited: ${code}`);
   });
+
+  await waitUntilTCPConnectionIsReady(port);
 }
 
 export async function evalSomeCodeAgainstHttpServer(
-  port: string,
+  port: number,
   code: string,
 ): Promise<string> {
   const apiResponse = await fetch(
     `http://localhost:${port}/api/v0/execute-text`,
-    { method: "POST", body: code },
+    { method: "POST", body: JSON.stringify({ code: code, symtable: {} }) },
   );
 
   return await apiResponse.text();

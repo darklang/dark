@@ -488,8 +488,7 @@ module ProgramTypes =
       { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
     module Spec =
-      let http = PT.Handler.HTTP("/path", "GET", ids)
-      let httpBasic = PT.Handler.HTTPBasic("/path-bytes", "GET", ids)
+      let http = PT.Handler.HTTP("/path-bytes", "GET", ids)
       let worker = PT.Handler.Worker("name", ids)
       let cronWithoutInterval = PT.Handler.Cron("name", None, ids)
 
@@ -500,16 +499,12 @@ module ProgramTypes =
 
     let specs : List<PT.Handler.Spec> =
       [ Spec.http
-        Spec.httpBasic
         Spec.worker
         Spec.cronWithoutInterval
         Spec.cronWithInterval
         Spec.repl ]
 
-    let http : PT.Handler.T = { spec = Spec.http; tlid = 92987663UL; ast = expr }
-
-    let httpBasic : PT.Handler.T =
-      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr }
+    let http : PT.Handler.T = { spec = Spec.http; tlid = 42280663UL; ast = expr }
 
     let worker : PT.Handler.T = { spec = Spec.worker; tlid = 19930486UL; ast = expr }
 
@@ -522,12 +517,11 @@ module ProgramTypes =
       { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr }
 
     let handlersWithName : List<string * PT.Handler.T> =
-      [ "Http", http
-        "Worker", worker
+      [ "Worker", worker
         "Cron1", cronWithoutInterval
         "Cron2", cronWithInterval
         "REPL", repl
-        "HttpBasic", httpBasic ]
+        "Http", http ]
 
     let handlers = List.map snd handlersWithName
 

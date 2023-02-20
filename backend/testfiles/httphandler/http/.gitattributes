@@ -1,7 +1,0 @@
-favicon-fallback.test binary
-request-header-transfer-encoding-bad-size.test binary
-request-header-transfer-encoding-incomplete.test binary
-request-header-transfer-encoding-json.test binary
-request-header-transfer-encoding-slow.test binary
-request-header-transfer-encoding-valid.test binary
-request-path-start-0-to-3.test binary

@@ -201,8 +201,6 @@ module Handler =
       match s with
       | ST.Handler.HTTP (route, method, ids) ->
         PT.Handler.HTTP(route, method, IDs.toPT ids)
-      | ST.Handler.HTTPBasic (route, method, ids) ->
-        PT.Handler.HTTPBasic(route, method, IDs.toPT ids)
       | ST.Handler.Worker (name, ids) -> PT.Handler.Worker(name, IDs.toPT ids)
       | ST.Handler.Cron (name, interval, ids) ->
         PT.Handler.Cron(name, interval |> Option.map CronInterval.toPT, IDs.toPT ids)

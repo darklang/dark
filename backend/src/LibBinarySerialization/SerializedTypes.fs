@@ -195,14 +195,10 @@ module Handler =
 
   [<MessagePack.MessagePackObject>]
   type Spec =
-    | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
-    // Deprecated but still supported form
-    // CLEANUP: convert these into regular workers (change module name to WORKER,
-    // check if they're unique first though)
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
-    | HTTPBasic of route : string * method : string * ids : ids
+    | HTTP of route : string * method : string * ids : ids
 
   [<MessagePack.MessagePackObject>]
   type T =

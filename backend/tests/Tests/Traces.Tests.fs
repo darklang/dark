@@ -71,11 +71,11 @@ let testRouteVariablesWorkWithStoredEvents =
     // store an event that matches the handler
     let t1 = AT.TraceID.create ()
     let httpRequestPath = "/some/vars/and/such"
-    let desc = ("HTTP", httpRequestPath, "GET")
+    let desc = ("HTTP_BASIC", httpRequestPath, "GET")
     let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
 
     // check we get back the data we put into it
-    let! events = TI.loadEvents c.meta.id ("HTTP", httpRoute, "GET")
+    let! events = TI.loadEvents c.meta.id ("HTTP_BASIC", httpRoute, "GET")
 
     let (loadedPaths, loadedDvals) =
       events

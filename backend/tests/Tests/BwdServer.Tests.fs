@@ -25,14 +25,10 @@ module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
 
-module LegacyHttpMiddleware = HttpMiddleware.Http
-
 open Tests
 open TestUtils.TestUtils
 
-type HandlerVersion =
-  | Http
-  | HttpBasic
+type HandlerVersion = | Http
 
 type TestHandler =
   { Version : HandlerVersion
@@ -44,8 +40,6 @@ type TestSecret = string * string
 
 type Test =
   { handlers : List<TestHandler>
-    /// Feature only supported for v1 handlers; intended to be deprecated
-    cors : Option<string>
     secrets : List<TestSecret>
     /// Allow testing of a specific canvas name
     canvasName : Option<string>
@@ -87,7 +81,6 @@ module ParseTest =
 
     let emptyTest =
       { handlers = []
-        cors = None
         secrets = []
         customDomain = None
         canvasName = None
@@ -100,7 +93,6 @@ module ParseTest =
       (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
         let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
         match asString with
-        | Regex "\[cors (\S+)]" [ cors ] -> (Limbo, { result with cors = Some cors })
         | Regex "\[secrets (\S+)]" [ secrets ] ->
           let secrets =
             secrets
@@ -126,13 +118,6 @@ module ParseTest =
            { result with
                handlers =
                  { Version = Http; Route = route; Method = method; Code = "" }
-                 :: result.handlers })
-
-        | Regex "\[http-bytes-handler (\S+) (\S+)\]" [ method; route ] ->
-          (InHttpHandler,
-           { result with
-               handlers =
-                 { Version = HttpBasic; Route = route; Method = method; Code = "" }
                  :: result.handlers })
 
         | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
@@ -231,12 +216,6 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
               method = handler.Method,
               ids = ids
             )
-          | HttpBasic ->
-            PT.Handler.HTTPBasic(
-              route = handler.Route,
-              method = handler.Method,
-              ids = ids
-            )
 
         let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 
@@ -246,15 +225,6 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
          Canvas.NotDeleted))
 
     do! Canvas.saveTLIDs meta oplists
-
-    // CORS
-    match test.cors with
-    | None -> ()
-    | Some "" -> ()
-    | Some "*" -> LegacyHttpMiddleware.Cors.Test.addAllOrigins meta.name
-    | Some domains ->
-      let domains = String.split "," domains
-      LegacyHttpMiddleware.Cors.Test.addOrigins meta.name domains
 
     // Custom domains
     match test.customDomain with
@@ -284,21 +254,6 @@ module Execution =
       |> List.filterMap (fun (k, v) ->
         match k, v with
         | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-        | "expires", _
-        | "Expires", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-        | "x-darklang-execution-id", _ -> Some(k, "0123456789")
-        | "age", _
-        | "Age", _ -> None
-        | "X-GUploader-UploadID", _
-        | "x-guploader-uploadid", _ -> Some(k, "xxxx")
-        | "x-goog-generation", _ -> Some(k, "xxxx")
-        | _other -> Some(k, v))
-      |> List.sortBy Tuple2.first // CLEANUP ocaml headers are sorted, inexplicably
-    | HttpBasic ->
-      hs
-      |> List.filterMap (fun (k, v) ->
-        match k, v with
-        | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
         | "x-darklang-execution-id", _ -> Some(k, "0123456789")
         | _other -> Some(k, v))
       |> List.sortBy Tuple2.first
@@ -309,8 +264,7 @@ module Execution =
     (actualBody : byte array)
     : (string * string) list =
     match handlerVersion with
-    | Http
-    | HttpBasic ->
+    | Http ->
       headers
       |> List.map (fun (k, v) ->
         match k, v with
@@ -531,14 +485,7 @@ let tests =
             test.expectedResponse
     }
 
-  // TODO support tests with more than one type of handler
-  // (the parser is ready, but the execution is not)
-
-  // TODO merge these directories into a `tests/httphandlertestfiles`
-  // directory, with a subfolder per handler/middleware type.
-
-  [ ($"{basePath}/http", "http", Http)
-    ($"{basePath}/httpbasic", "httpbasic", HttpBasic) ]
+  [ ($"{basePath}", "http", Http) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")
@@ -551,9 +498,6 @@ let tests =
 open Microsoft.Extensions.Hosting
 
 let init (token : System.Threading.CancellationToken) : Task =
-  // Make sure cors tests work
-  LegacyHttpMiddleware.Cors.Test.initialize ()
-
   // run our own webserver instead of relying on the dev webserver
   let port = TestConfig.bwdServerBackendPort
   let k8sPort = TestConfig.bwdServerKubernetesPort

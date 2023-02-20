@@ -9,7 +9,6 @@ open Microsoft.AspNetCore.Http.Extensions
 
 open Prelude
 open Tablecloth
-open LibService.Exception
 
 /// Logs various Rollbar-related configuration options to Rollbar,
 /// at the debug level

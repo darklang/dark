@@ -41,7 +41,6 @@
     <Compile Include="EventQueueV2.Tests.fs" />
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="Parser.Tests.fs" />
-    <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="HttpBaseClient.Tests.fs" />
     <Compile Include="HttpQueryEncoding.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
