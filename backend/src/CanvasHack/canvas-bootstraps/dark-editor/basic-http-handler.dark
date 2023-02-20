@@ -1,2 +1,0 @@
-"YOLO" ++ request.varNameYolo
-|> String.toBytes_v0

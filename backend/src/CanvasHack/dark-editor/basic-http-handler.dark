@@ -1,0 +1,2 @@
+(let body = ("Hello, " ++ varFromRequestPath) |> String.toBytes_v0
+ Http.response body 200)
