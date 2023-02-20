@@ -1,6 +1,0 @@
-pyyaml==6.0
-jsonschema==4.4.0
-rich==12.1.0
-mypy==0.942
-types-PyYAML==6.0.5
-types-jsonschema==4.4.2

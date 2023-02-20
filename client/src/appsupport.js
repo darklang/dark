@@ -144,7 +144,7 @@ window.getBrowserPlatform = getBrowserPlatform;
 var rollbar = require("rollbar");
 
 rollbarConfig.payload = rollbarConfig.payload || {};
-rollbarConfig.payload.person = { id: userID, username: username };
+//rollbarConfig.payload.person = { id: userID, username: username };
 
 let searchParams = new URL(window.location.href).searchParams;
 if (searchParams.get("use-assets-tunnel") !== null)
@@ -431,8 +431,8 @@ function addWheelListener(elem) {
     "onwheel" in document.createElement("div")
       ? "wheel" // Modern browsers support "wheel"
       : document.onmousewheel !== undefined
-      ? "mousewheel" // Webkit and IE support at least "mousewheel"
-      : "DOMMouseScroll"; // let's assume that remaining browsers are older Firefox
+        ? "mousewheel" // Webkit and IE support at least "mousewheel"
+        : "DOMMouseScroll"; // let's assume that remaining browsers are older Firefox
 
   var listener = function (elem, useCapture) {
     _addWheelListener(elem, support, useCapture);
@@ -495,7 +495,7 @@ setTimeout(function () {
   // ---------------------------
   // Load the client
   // ---------------------------
-  const canvasName = new URL(window.location).pathname.split("/")[2];
+  const canvasName = "stachu-scratch";
   const params = JSON.stringify({
     complete: complete,
     canvasName: canvasName,
@@ -550,7 +550,7 @@ setTimeout(function () {
   // ---------------------------
   // Initialize blazorworker
   // ---------------------------
-  window.Dark.analysis.initializeBlazorWorker();
+  //window.Dark.analysis.initializeBlazorWorker();
 
   // ---------------------------
   // Detect window focus change

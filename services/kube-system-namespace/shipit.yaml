@@ -1,7 +1,0 @@
-k8s:
-  namespace: kube-system
-  manually-deployed:
-    configs:
-      - kube-system-namespace.yaml
-      # This policy is active but for some reason always errors on the diff.
-      # - networkpolicy-default-deny.yaml

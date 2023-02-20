@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-# List the deploy locks currently held
-
-set -euo pipefail
-
-./scripts/deployment/_deploy-lock-request / GET | jq -r .[]

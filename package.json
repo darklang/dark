@@ -43,10 +43,13 @@
   "scripts": {
     "clean": "./scripts/build/_rescript-wrapper.sh clean",
     "build:rescript": "./scripts/build/_rescript-wrapper.sh build -with-deps",
-    "build:app": "browserifyinc --cachefile lib/browserify-app-cache.json lib/js/client/src/app/Main.bs.js client/src/appsupport.js backend/src/Wasm/static/BlazorWorker.js --standalone app -o backend/static/app.js",
+    "build:app": "browserifyinc --cachefile lib/browserify-app-cache.json lib/js/client/src/app/Main.bs.js client/src/appsupport.js --standalone app -o backend/static/app.js",
     "build:fetcher": "browserifyinc --cachefile lib/browserify-fetcher-cache.json lib/js/client/workers/Fetcher.bs.js --standalone fetcher -o backend/static/fetcher.js",
     "copy:static": "rsync -a client/static/* backend/static/",
-    "build": "npm-run-all --sequential build:rescript --parallel build:app build:fetcher copy:static",
+    "copy:html": "rsync client/ui.html backend/static/ui.html",
+    "build:styles": "npx sass client/styles/app.scss > backend/static/app.css && npx postcss --map --output backend/static/app.css backend/static/app.css",
+    "build": "npm-run-all --sequential build:rescript --parallel build:app build:fetcher copy:static build:styles copy:html",
+    "start": "npx serve backend/static",
     "test": "scripts/run-client-tests --dom"
   }
 }

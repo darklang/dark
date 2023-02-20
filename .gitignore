@@ -19,15 +19,6 @@ node_modules/
 .merlin
 /backend/static
 
-# F#
-backend/packages/
-backend/paket-files/
-backend/Build/
-backend/src/**/obj
-backend/tests/**/obj
-backend/.paket/load/
-.fake
-
 # Terraform
 **/.terraform/*
 *.tfstate

@@ -1,7 +1,0 @@
-k8s:
-  namespace: darklang
-  manually-deployed:
-    configs:
-      - darklang-namespace.yaml
-      # This policy is active but for some reason always errors on the diff.
-      # - networkpolicy-default-deny.yaml

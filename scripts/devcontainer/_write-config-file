@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-set -euo pipefail
-
-env | grep DARK_CONFIG | sed 's/^/export /' >> /home/dark/.bashrc
-

@@ -1,10 +1,6 @@
-# Dark
+# Fluid
 
-This is the main repo for [Dark](https://darklang.com), a combined language, editor,
-and infrastructure to make it easy to build backends.
-
-This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
-[source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
+TODO
 
 See also:
 
@@ -18,15 +14,11 @@ See our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) 
 
 ## Contributing
 
-We are committed to make Dark easy to contribute to. Our
-[contributor docs](https://docs.darklang.com/contributing/getting-started)
-will help guide you through your first PR, find good projects to contribute to,
-and learn about the code base.
+TODO
 
 ## Getting started
 
-We try to make it really easy to get started. If you have any problems, please ask in
-[Discord](https://darklang.com/discord-invite) and we'll work to fix any issues you have.
+TODO
 
 ### Install dependencies
 
@@ -110,18 +102,6 @@ If you've gotten this far, you're now ready to [contribute your first PR](https:
 Unit tests run when you specify `--test` to `scripts/builder`. You can run them as a once off using:
 
 - `scripts/run-client-tests`
-- `scripts/run-backend-tests`
-
-Integration tests:
-
-- `scripts/run-in-docker ./integration-tests/run.sh`
-
-You can also run integration tests on your (host) machine, which gives you some debugging ability, and typically runs faster:
-
-- `./integration-tests/run.sh`
-
-There are good debugging options for integration testing. See
-[integration-tests/README.md](integration-tests/README.md).
 
 ## Running unix commands in the container
 
@@ -148,55 +128,6 @@ Chrome Dev Tools instead of their JS representation. From within Chrome
 Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
 Formatters".
 
-## Debugging dotnet
-
-### Debugger
-
-The VSCode debugger works out of the box with Dark, supporting stepping, breakpoints,
-inspecting the stack, etc. You must launch the executable from VSCode for this to
-work--attaching does not currently seem to work. You can edit
-[`launch.json`](.vscode/launch.json) to change what tests are run or how other
-binaries are started up, which should be straightforward.
-
-### REPL (fsi)
-
-You can get a REPL with all of the Dark libraries loaded by running:
-
-- [`scripts/build/dotnet-fsi`](scripts/build/dotnet-fsi)
-
-### Segfaults and crashes
-
-When dotnet crashes, you can debug it by running:
-
-- `lldb -- [your command]`
-
-In LLDB, you can use [dotnet's SOS
-plugin](https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension)
-to read the stack, values, etc. The plugin is automatically loaded in lldb in
-the dev container.
-
-## Production Services
-
-The app is split into [backend](backend) and [client/](client).
-Part of the backend is used in the client ([Wasm](backend/src/Wasm)).
-
-These are compiled to create libraries and binaries.
-
-These are put into containers, whose definitions are in [containers/](containers). We also
-have some containers which are defined entirely in their directory (typically,
-these have a self-contained codebase).
-
-The containers are deployed via Kubernetes. A group of containers are deployed
-together, which is called a pod. Those pods, and how they are run (for example,
-how many of them, what secrets they have access to, how to check if they are
-still alive) are defined by a set of Yaml files which is called a _deployment_.
-Our deployments are all defined in the [services](services) directory.
-
-A _service_ in our repo typically wraps a deployment, but it can sometimes mean
-other things, so we also have a number of other services, defined via yaml
-files, in [services](services). Some of the services are deployments that use
-3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
-Google Cloud services.
 
 ## Other important docs
 

@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-set -uo pipefail
-
-rm -Rf backend/Build/*
-echo "To build backend/ from scratch, save backend/global.json"

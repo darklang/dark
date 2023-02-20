@@ -20,12 +20,6 @@ updates:
 #     interval: daily
 #   open-pull-requests-limit: 10
 
-- package-ecosystem: nuget
-  directory: "/backend"
-  schedule:
-    interval: daily
-  open-pull-requests-limit: 10
-
 - package-ecosystem: terraform
   directory: "/tf"
   schedule:
