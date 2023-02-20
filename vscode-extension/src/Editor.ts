@@ -2,6 +2,10 @@ import * as vscode from "vscode";
 
 import * as Executor from "./Executor";
 
+import * as path from "path";
+import * as fs from "fs/promises";
+import * as glob from "glob-promise";
+
 // Types to communicate with the editor
 type Commands = { name: "InitialLoad"; args: string[] };
 
@@ -9,14 +13,13 @@ type Commands = { name: "InitialLoad"; args: string[] };
 //   | { name: "SetHandlers", handlers: Handler[], functions: Function[], types: Type[] }
 
 async function readDarkFiles(): Promise<string[]> {
-  const darkFiles = await vscode.workspace.findFiles("**/*.dark");
-  const darkFileContents = await Promise.all(
-    darkFiles.map(async file => {
-      const textDocument = await vscode.workspace.openTextDocument(file);
-      return textDocument.getText();
-    }),
-  );
-  return darkFileContents;
+  const files = await glob(__dirname + "/*.dark");
+  const contents = [];
+  for (const file of files) {
+    const content = await fs.readFile(file, "utf-8");
+    contents.push(content);
+  }
+  return contents;
 }
 
 export async function evalCommand(
@@ -24,14 +27,11 @@ export async function evalCommand(
   args: string,
 ): Promise<string> {
   let program = (await readDarkFiles()).join("\n");
-  let code = `
-    let command = "${command}"
-    let args = ${args}
-    main command args
-  `;
-  let full = program + code;
-  console.log(full);
-  return await Executor.evalCode(full);
+  let code = `let command = "${command}" in \nlet args = ${args} in\n`;
+  // Parens around it so that it's a single expression
+  let full = `(${code}${program})`;
+  let response = await Executor.evalCode(full);
+  return response;
 }
 
 export async function initialLoad() {

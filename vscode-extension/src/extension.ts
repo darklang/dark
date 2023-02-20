@@ -43,7 +43,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   await connectToExecutor(context);
 
-  await Editor.initialLoad();
+  let initialLoadResponse = await Editor.initialLoad();
+  vscode.window.showInformationMessage(initialLoadResponse);
 
   var statusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
