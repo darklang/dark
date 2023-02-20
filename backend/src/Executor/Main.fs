@@ -115,6 +115,53 @@ let addRoutes (app : IApplicationBuilder) : IApplicationBuilder =
 
   app.UseRouter(builder.Build())
 
+// --------------------
+// Web stack
+// --------------------
+
+open System
+open System.Net
+open System.Threading.Tasks
+open Microsoft.AspNetCore.Http
+
+type ExceptionOutput = { msgs : string list; metadata : Metadata }
+
+type ErrorHandlingMiddleware(next : RequestDelegate) =
+  member this.Invoke(context : HttpContext) : Task =
+    task {
+      try
+        // Make sure to await the response here so that try/catch works
+        let! response = next.Invoke(context)
+        return response
+      with
+      | e -> return! this.HandleException(context, e)
+    }
+
+  member private this.HandleException(context : HttpContext, e : exn) : Task =
+    task {
+      let result =
+        try
+          let metadata = Exception.toMetadata e
+          let msgs = Exception.getMessages e
+          "An exception occurred in the web stack: \n\n"
+          + "Message(s): \n"
+          + (msgs |> String.concat "\n")
+          + "\n\nMetadata: \n"
+          + (string metadata)
+        with
+        | e -> $"Exception while handling exception: {e}"
+
+      // Add to the log
+      print result
+
+      // Return to the caller
+      context.Response.ContentType <- "application/json"
+      context.Response.StatusCode <- 500
+
+      return context.Response.WriteAsync(result)
+    }
+
+
 
 // let rollbarCtxToMetadata (ctx : HttpContext) : (Rollbar.Person * Metadata) =
 //   let person =
@@ -141,8 +188,8 @@ let configureApp (appBuilder : WebApplication) =
   appBuilder
   // |> fun app -> app.UseServerTiming() // must go early or this is dropped
   // |> fun app -> Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
+  |> fun app -> app.UseMiddleware<ErrorHandlingMiddleware>()
   |> fun app -> app.UseRouting()
-  |> fun app -> app.UseDeveloperExceptionPage()
   // must go after UseRouting
   // |> Kubernetes.configureApp LibService.Config.apiServerKubernetesPort
   |> addRoutes
