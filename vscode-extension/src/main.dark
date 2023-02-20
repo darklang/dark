@@ -1,8 +1,0 @@
-let initialLoad(args : List<string>) : string =
-  "initialLoad"
-
-
-let main() : string =
-  match command with
-  | "initialLoad" -> initialLoad(args)
-  | command -> "Unknown command" ++ command

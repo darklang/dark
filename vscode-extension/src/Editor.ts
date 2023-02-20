@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-
 import * as Executor from "./Executor";
 
 import * as path from "path";
@@ -13,7 +12,7 @@ type Commands = { name: "InitialLoad"; args: string[] };
 //   | { name: "SetHandlers", handlers: Handler[], functions: Function[], types: Type[] }
 
 async function readDarkFiles(): Promise<string[]> {
-  const files = await glob(__dirname + "/*.dark");
+  const files = await glob(__dirname + "/src/editor/*.dark");
   const contents = [];
   for (const file of files) {
     const content = await fs.readFile(file, "utf-8");
