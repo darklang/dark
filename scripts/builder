@@ -99,10 +99,6 @@ echo "Run the build"
 # docker, and
 # https://docs.docker.com/engine/reference/run/#specify-an-init-process
 # for documentation of --init.
-# -p 5433:5432 to expose the postgres DB to outside the container
-# -p 2345:2345 to expose the cloud_sql_proxy to outside the container
-# -p 9000:9000 to expose the F# api server
-# -p 11001:11001 to expose the F# bwd server
 # -cap-add & -security-opt to attach a gdb/strace to .net code
 # --ulimit=nofile=65536:65536 to match CI
 docker run \
@@ -122,10 +118,18 @@ docker run \
   -v pgdata:/var/lib/postgresql \
   -v cloudstorage:/home/dark/cloud-storage \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -p 3275:3275 \
+  -p 3276:3276 \
   -p 9000:9000 \
+  -p 9001:9001 \
+  -p 9002:9002 \
+  -p 10011:10011 \
+  -p 10012:10012 \
+  -p 10030:10030 \
   -p 11001:11001 \
-  -p 5433:5432 \
-  -p 2345:2345 \
+  -p 11002:11002 \
+  -p 12002:12002 \
+  -p 13002:13002 \
   --security-opt seccomp=scripts/devcontainer/chrome-seccomp.json \
   -w /home/dark/app \
   --user "$(id -u):$gid" \

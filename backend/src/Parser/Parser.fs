@@ -14,7 +14,7 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
-let parse (input) : SynExpr =
+let parse (input : string) : SynExpr =
   let file = "test.fs"
   let checker = FSharpChecker.Create()
 
@@ -42,12 +42,10 @@ let parse (input) : SynExpr =
                                                                         _,
                                                                         _,
                                                                         _) ],
-                                                _))) ->
-    // Extract declarations and walk over them
-    expr
+                                                _))) -> expr
   | _ ->
     Exception.raiseInternal
-      $"wrong shape tree"
+      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
       [ "parseTree", results.ParseTree; "input", input ]
 
 // A placeholder is used to indicate what still needs to be filled
