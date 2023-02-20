@@ -7,6 +7,8 @@ open FSharp.Control.Tasks
 open Legivel.Serialization
 open Legivel.Attributes
 
+module PT = LibExecution.ProgramTypes
+
 let initSerializers () = ()
 
 let print (s : string) = System.Console.WriteLine(s)
@@ -20,13 +22,15 @@ module CommandNames =
 
 type CanvasHackConfig =
   { [<YamlField("http-handlers")>]
-    HttpHandlers : List<CanvasHackHttpHandler> }
+    HttpHandlers : Map<string, CanvasHackHttpHandler> }
 and CanvasHackHttpHandler =
   { [<YamlField("method")>]
     Method : string
 
     [<YamlField("path")>]
     Path : string }
+
+let baseDir = $"{LibBackend.Config.backendDir}/src/CanvasHack/dark-editor"
 
 [<EntryPoint>]
 let main (args : string []) =
@@ -36,19 +40,13 @@ let main (args : string []) =
     match args with
     | [||] ->
       print
-        $"`canvas-hack {CommandNames.import} [canvas-name]` or
-          `canvas-hack {CommandNames.export} [canvas-name]`"
+        $"`canvas-hack {CommandNames.import}` to load dark-editor from disk or
+          `canvas-hack {CommandNames.export}' to save dark-editor to disk"
 
-    | [| CommandNames.import; canvasName |] ->
-      // 1. Make sure canvasName is OK
-      print "TODO make sure canvas name is OK"
-
-      // 2. Read+parse the config.yml file in the `canvas-bootstraps` dir
-      //  - it should just list/describe `http-handlers` for now
-      // todo: read the actual file
+    | [| CommandNames.import |] ->
+      // Read+parse the config.yml file
       let configFileContents : string =
-        $"{LibBackend.Config.backendDir}/src/CanvasHack/canvas-bootstraps/{canvasName}/config.yml"
-        |> System.IO.File.ReadAllText
+        $"{baseDir}/config.yml" |> System.IO.File.ReadAllText
 
       let config = Deserialize<CanvasHackConfig> configFileContents
 
@@ -58,34 +56,65 @@ let main (args : string []) =
         | Success s -> s.Data
         | _ -> failwith "couldn't parse config file for canvas"
 
-      print (sprintf "%A" config)
-
-      // 3. Purge any existing canvas under the name
-      print "TODO - purge canvas"
+      // Purge any existing canvas under the name
+      print "TODO - purge dark-editor canvas"
 
 
+      let canvasName =
+        match Prelude.CanvasName.create "dark-editor" with
+        | Ok (c) -> c
+        | Result.Error (_) -> failwith "yolo"
+      let c =
+        LibBackend.Canvas.getMetaAndCreate canvasName
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
 
-      // 4. For each of the handlers defined in `config.yml`,
+      // For each of the handlers defined in `config.yml`,
+      // produce a set of Ops to add.
+      // TODO: I'm not sure why I can't seem to omit the
+      // `TLSavepoint` or decrease the opCtr and still have this work.
+      let createHttpHandlerOps =
+        config.HttpHandlers
+        |> Map.toList
+        |> List.map (fun (name, details) ->
+          let handlerId = Prelude.gid ()
 
-      //   a. Read+parse the corresponding .dark file from the `canvas-bootstraps` dir
-      //     (get to an AST)
+          let handler : PT.Handler.T =
+            { tlid = handlerId
+              ast =
+                System.IO.File.ReadAllText $"{baseDir}/{name}.dark"
+                |> Parser.parsePTExpr
+              spec =
+                PT.Handler.Spec.HTTP(
+                  details.Path,
+                  details.Method,
+                  { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
+                ) }
 
-      //   b. create the corresponding http handler (so it's live)
-      //     (AddOp)
+          [ PT.Op.TLSavepoint(140418122UL); PT.Op.SetHandler(handlerId, handler) ])
 
-      print "TODO"
+      let addOpsParams : LibBackend.Op.AddOpParamsV1 =
+        { ops = List.collect Prelude.identity createHttpHandlerOps
+          opCtr = 2
+          clientOpCtrID = "4803612a-cf8c-4aa0-8f87-0a82daa923c4" }
 
-    | [| CommandNames.export; _canvasName |] ->
-      // 1. Find the canvas
+      let addOpsResponse =
+        CanvasHack.AddOps.addOp c addOpsParams
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
 
-      // 2. Get the list of HTTP Handlers configured
-      //   (later, we can expand this to REPLs and other things)
-      //   (maybe for now, we can at least raise an error if other things somehow exist (via an AddOp somehow))
+      ()
 
-      // 3. purge .dark files from disk
-      //    (keep the config.yml)
+    | [| CommandNames.export |] ->
+      // Find the canvas
+      print "TODO: get context of the canvas"
 
-      // 4. For each of the current HTTP handlers
+      // Get the list of HTTP Handlers configured
+      print "TODO: get list of http handlers, incl. code, path, method"
+
+      // Replace the .dark files on disk
+
+      // For each of the current HTTP handlers
       //    - serialize it (`let a = 1 + 2`)
       //      (write serializer in dark?)
       //    - save to disk
