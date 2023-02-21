@@ -342,66 +342,6 @@ let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
 let private unsafeDvalToJsonValueV1 (w : JsonWriter) (dv : Dval) : unit =
   unsafeDvalToJsonValueV0 w dv
 
-// -------------------------
-// Roundtrippable - for events and traces
-// -------------------------
-
-// This is a format used for roundtripping dvals internally. v0 has bugs due to
-// a legacy of trying to make one function useful for everything. Does not
-// redact.
-let toInternalRoundtrippableV0 (dval : Dval) : string =
-  writeJson (fun w -> unsafeDvalToJsonValueV1 w dval)
-
-// Used for fuzzing and to document what's supported. There are a number of
-// known bugs in our roundtripping in OCaml - we actually want to reproduce
-// these in the F# implementation to make sure nothing changes. We return false
-// if any of these appear unless "allowKnownBuggyValues" is true.
-let isRoundtrippableDval (allowKnownBuggyValues : bool) (dval : Dval) : bool =
-  match dval with
-  | DChar c when c.Length = 1 -> true
-  | DChar _ -> false // invalid
-  | DStr _ -> true
-  | DInt i -> i > -4611686018427387904L && i < 4611686018427387904L
-  | DNull _ -> true
-  | DBool _ -> true
-  | DFloat _ -> true
-  | DList ls when not allowKnownBuggyValues ->
-    // CLEANUP: Bug where Lists containing fake dvals will be replaced with
-    // the fakeval
-    not (List.any Dval.isFake ls)
-  | DList _ -> true
-  | DTuple _ -> true
-  | DObj _ -> true
-  | DDate _ -> true
-  | DPassword _ -> true
-  | DUuid _ -> true
-  | DBytes _ -> true
-  | DHttpResponse _ -> true
-  | DOption (Some DNull) when not allowKnownBuggyValues ->
-    // CLEANUP: Bug where Lists containing fake dvals will be replaced with
-    // the fakeval
-    false
-  | DOption _ -> true
-  | DResult _ -> true
-  | DDB _ -> true
-  | DError _ -> true
-  | DIncomplete _ -> true
-  | DErrorRail _ -> true
-  | DFnVal _ -> false // not supported
-
-// This is a format used for roundtripping dvals internally. There are some
-// rare cases where it will parse incorrectly without error. Throws on Json
-// bugs.
-let ofInternalRoundtrippableJsonV0 (j : JToken) : Result<Dval, string> =
-  (* Switched to v1 cause it was a bug fix *)
-  try
-    unsafeDvalOfJsonV1 j |> Ok
-  with
-  | e -> Error(string e)
-
-let ofInternalRoundtrippableV0 (str : string) : Dval =
-  // cleanup: we know the types here, so we should probably do type directed parsing and simplify what's stored
-  str |> parseJson |> unsafeDvalOfJsonV1
 
 // -------------------------
 // Queryable - for the DB

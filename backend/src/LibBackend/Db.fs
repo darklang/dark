@@ -129,17 +129,14 @@ module Sql =
   let roundtrippableDval (dval : RT.Dval) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
     let param = NpgsqlParameter("dval", typ)
-    param.Value <-
-      LibExecution.DvalReprInternalDeprecated.toInternalRoundtrippableV0 dval
+    param.Value <- LibExecution.DvalReprInternalNew.toRoundtrippableJsonV0 dval
     Sql.parameter param
 
   let roundtrippableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
     let param = NpgsqlParameter("dvalmap", typ)
     param.Value <-
-      LibExecution.DvalReprInternalDeprecated.toInternalRoundtrippableV0 (
-        RT.DObj dvalmap
-      )
+      LibExecution.DvalReprInternalNew.toRoundtrippableJsonV0 (RT.DObj dvalmap)
     Sql.parameter param
 
   // We sometimes erroneously store these as timestamps that are not Utc. But we mean them to be Utc.
@@ -189,12 +186,6 @@ type RowReader with
   member this.instantOrNone(name : string) : Option<NodaTime.Instant> =
     this.dateTimeOrNone (name) |> Option.map NodaTime.Instant.FromDateTimeUtc
 
-
-
-// member this.queryableDval(name : string) =
-//   this.string name |> LibExecution.DvalReprLegacyExternal.ofInternalQueryableV1
-// member this.roundtrippableDval(name : string) =
-//   this.string name |> LibExecution.DvalReprLegacyExternal.ofInternalRoundtrippableV0
 
 
 type TableStatsRow =

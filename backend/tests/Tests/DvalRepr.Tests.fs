@@ -21,24 +21,6 @@ module DvalReprInternalNew = LibExecution.DvalReprInternalNew
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Errors = LibExecution.Errors
 
-let testInternalRoundtrippableDoesntCareAboutOrder =
-  test "internal_roundtrippable doesn't care about key order" {
-    Expect.equal
-      (DvalReprInternalDeprecated.ofInternalRoundtrippableV0
-        "{
-           \"type\": \"option\",
-           \"value\": 5
-          }")
-      (DvalReprInternalDeprecated.ofInternalRoundtrippableV0
-        "{
-           \"value\": 5,
-           \"type\": \"option\"
-          }")
-      ""
-  }
-
-
-
 
 let testDvalRoundtrippableRoundtrips =
   testMany
@@ -231,7 +213,7 @@ let allRoundtrips =
     [ t
         "roundtrippable"
         FuzzTests.InternalJson.Roundtrippable.roundtripsSuccessfully
-        (dvs (DvalReprInternalDeprecated.isRoundtrippableDval false))
+        (dvs (fun _ -> true))
       t
         "queryable v0"
         FuzzTests.InternalJson.Queryable.canV1Roundtrip
@@ -241,38 +223,14 @@ let allRoundtrips =
         (fun dv ->
           dv
           |> CT2Runtime.Dval.toCT
-          |> Prelude.Json.Vanilla.serialize
-          |> Prelude.Json.Vanilla.deserialize
+          |> Json.Vanilla.serialize
+          |> Json.Vanilla.deserialize
           |> CT2Runtime.Dval.fromCT
           |> Expect.dvalEquality dv)
         (dvs (function
           | RT.DPassword _ -> false
           | _ -> true)) ]
 
-
-let testInternalRoundtrippableV0 =
-  testList
-    "tuples"
-    [ test "serializes correctly" {
-        let expected = """{"type":"tuple","first":1,"second":2,"theRest":[3]}"""
-
-        let actual =
-          RT.Dval.DTuple(RT.Dval.DInt 1, RT.Dval.DInt 2, [ RT.Dval.DInt 3 ])
-          |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-
-        Expect.equal actual expected ""
-      }
-
-      test "roundtrips successfully" {
-        let tpl = RT.Dval.DTuple(RT.Dval.DInt 1, RT.Dval.DInt 2, [ RT.Dval.DInt 3 ])
-
-        let roundtripped =
-          tpl
-          |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-          |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
-
-        Expect.equal tpl roundtripped ""
-      } ]
 
 let testInternalRoundtrippableNew =
   testList
@@ -307,10 +265,10 @@ module Password =
       Expect.equalDval
         password
         (password
-         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-         |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
-         |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-         |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0)
+         |> DvalReprInternalNew.toRoundtrippableJsonV0
+         |> DvalReprInternalNew.parseRoundtrippableJsonV0
+         |> DvalReprInternalNew.toRoundtrippableJsonV0
+         |> DvalReprInternalNew.parseRoundtrippableJsonV0)
         "Passwords serialize and deserialize if there's no redaction."
     }
 
@@ -348,13 +306,13 @@ module Password =
       // doesn't redact
       doesntRedact
         "toInternalRoundtrippableV0"
-        DvalReprInternalDeprecated.toInternalRoundtrippableV0
+        DvalReprInternalNew.toRoundtrippableJsonV0
 
       // roundtrips
       roundtrips
         "toInternalRoundtrippableV0 roundtrips"
-        DvalReprInternalDeprecated.toInternalRoundtrippableV0
-        DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+        DvalReprInternalNew.toRoundtrippableJsonV0
+        DvalReprInternalNew.parseRoundtrippableJsonV0
 
       // redacting
       doesRedact
@@ -427,7 +385,6 @@ let tests =
   testList
     "dvalRepr"
     [ testDvalRoundtrippableRoundtrips
-      testInternalRoundtrippableDoesntCareAboutOrder
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
@@ -435,6 +392,5 @@ let tests =
       testInternalRoundtrippableNew
       testToPrettyMachineJsonStringV1
       Password.tests
-      testInternalRoundtrippableV0
       testPreviousDateSerializionCompatibility
       allRoundtrips ]
