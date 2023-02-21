@@ -39,6 +39,7 @@ let typeToSqlType (t : DType) : string =
   | TFloat -> "double precision"
   | TBool -> "bool"
   | TDate -> "timestamp with time zone"
+  | TChar -> "character"
   | _ -> error $"We do not support this type of DB field yet: {t}"
 
 // This canonicalizes an expression, meaning it removes multiple ways of
@@ -263,6 +264,11 @@ let rec lambdaToSql
 
   | EString (_, v) ->
     typecheck $"string \"{v}\"" TStr expectedType
+    let name = randomString 10
+    $"(@{name})", [ name, Sql.string v ]
+
+  | ECharacter (_, v) ->
+    typecheck $"char '{v}'" TChar expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ]
 
