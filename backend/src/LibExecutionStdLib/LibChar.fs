@@ -119,4 +119,31 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    { name = fn "Char" "isLessThan" 0
+      parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c1> is less than <param c2>"
+      fn =
+        function
+        | _, [ DChar c1; DChar c2 ] ->
+          (if c1 < c2 then true else false) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Char" "isGreaterThan" 0
+      parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c1> is greater than <param c2>"
+      fn =
+        function
+        | _, [ DChar c1; DChar c2 ] ->
+          (if c1 > c2 then true else false) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }]
+
