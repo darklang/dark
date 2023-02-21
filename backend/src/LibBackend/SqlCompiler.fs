@@ -39,7 +39,7 @@ let typeToSqlType (t : DType) : string =
   | TFloat -> "double precision"
   | TBool -> "bool"
   | TDate -> "timestamp with time zone"
-  | TChar -> "character"
+  | TChar -> "text"
   | _ -> error $"We do not support this type of DB field yet: {t}"
 
 // This canonicalizes an expression, meaning it removes multiple ways of
@@ -380,6 +380,7 @@ let partiallyEvaluate
               | EUnit _
               | EFloat _
               | EString _
+              | ECharacter _
               | EVariable _ -> true
               | _ -> false)
             args
