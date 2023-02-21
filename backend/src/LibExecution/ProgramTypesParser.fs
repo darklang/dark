@@ -23,21 +23,11 @@ module FQFnName =
   /// Standard Library Function Name
   let oneWordFunctions =
     Set [ "toString"
-          "toRepr"
           "equals"
           "notEquals"
-          "assoc"
-          "dissoc"
-          "toForm"
-          "emit"
           "toString_v0"
-          "toRepr_v0"
           "equals_v0"
           "notEquals_v0"
-          "assoc_v0"
-          "dissoc_v0"
-          "toForm_v0"
-          "emit_v0"
           "emit_v1" ]
 
   let namePat = @"^[a-z][a-z0-9_]*$"

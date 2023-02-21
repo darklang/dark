@@ -93,22 +93,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpClient" "bearerToken" 0
-      parameters = [ Param.make "token" TStr "" ]
-      returnType = TDict TStr
-      description =
-        "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
-      fn =
-        (function
-        | _, [ DStr token ] ->
-          let authString = "Bearer " + token
-          Ply(DObj(Map.ofList [ "Authorization", DStr authString ]))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "HttpClient" "bearerToken" 1) }
-
-
     { name = fn "HttpClient" "bearerToken" 1
       parameters = [ Param.make "token" TStr "" ]
       returnType = TDict TStr

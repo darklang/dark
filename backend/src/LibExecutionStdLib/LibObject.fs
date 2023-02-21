@@ -152,18 +152,3 @@ module PrettyResponseJsonV0 =
 
   let toPrettyResponseJsonV0 (dval : Dval) : string =
     writePrettyJson (fun w -> unsafeDvalToJsonValueV0 w dval)
-
-
-let fns : List<BuiltInFn> =
-  [ { name = fn "Object" "toJSON" 0
-      parameters = [ Param.make "obj" (TDict varA) "" ]
-      returnType = TStr
-      description = "Dumps <param obj> to a JSON string"
-      fn =
-        (function
-        | _, [ DObj o ] ->
-          DObj o |> PrettyResponseJsonV0.toPrettyResponseJsonV0 |> DStr |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Object" "toJSON" 1) } ]

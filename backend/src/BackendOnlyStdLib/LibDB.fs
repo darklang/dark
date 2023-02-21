@@ -59,26 +59,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "add" 0
-      parameters = [ ocamlCompatibleValParam; tableParam ]
-      returnType = TStr
-      description =
-        "Add <param val> as a new entry into <param table>, using a newly generated key. Returns the generated key."
-      fn =
-        (function
-        | state, [ DObj value; DDB dbname ] ->
-          uply {
-            let key = System.Guid.NewGuid() |> string
-            let db = state.program.dbs[dbname]
-            let! _id = UserDB.set state true db key value
-            return DStr(key)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "set" 1) }
-
-
     { name = fn "DB" "get" 2
       parameters = [ keyParam; tableParam ]
       returnType = TOption varA
@@ -95,61 +75,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "getMany" 1
-      parameters = [ keysParam; tableParam ]
-      returnType = TList varA
-      description =
-        "Finds many values in <param table> by <param keys>, returning a {{ [[key, value]] }} list of lists"
-      fn =
-        (function
-        | state, [ DList keys; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-
-            let skeys =
-              List.map
-                (function
-                | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                keys
-
-            let! result = UserDB.getMany state db skeys
-
-            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "getMany" 2) }
-
-
-    { name = fn "DB" "getMany" 2
-      parameters = [ keysParam; tableParam ]
-      returnType = TList varA
-      description =
-        "Finds many values in <param table> by <param keys>, returning a {{ [value] }} list of values"
-      fn =
-        (function
-        | state, [ DList keys; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-
-            let skeys =
-              List.map
-                (function
-                | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                keys
-
-            let! result = UserDB.getMany state db skeys
-            return result |> List.map snd |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "getMany" 3) }
 
 
     { name = fn "DB" "getMany" 3
@@ -208,34 +133,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "getManyWithKeys" 0
-      parameters = [ keysParam; tableParam ]
-      returnType = TList varA
-      description =
-        "Finds many values in <param table> by <param keys>, returning a {{ [[key, value]] }} list of lists"
-      fn =
-        (function
-        | state, [ DList keys; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-
-            let skeys =
-              List.map
-                (function
-                | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
-                keys
-
-            let! result = UserDB.getManyWithKeys state db skeys
-
-            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "getManyWithKeys" 1) }
 
 
     { name = fn "DB" "getManyWithKeys" 1
@@ -301,27 +198,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "query" 1
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TList varA // heterogenous list
-      description =
-        "Fetch all the values from <param table> which have the same fields and values that <param spec> has,
-         returning a {{ [[key, value]] }} list of lists"
-      fn =
-        (function
-        | state, [ DObj fields; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryExactFields state db fields
-
-            return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "query" 2) }
-
-
     { name = fn "DB" "queryExactFields" 0
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA
@@ -339,28 +215,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "queryWithKey" 1
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TList varA
-      description =
-        "Fetch all the values from <param table> which have the same fields and values that <param spec> has
-          , returning a [[key, value]] list of lists"
-      fn =
-        (function
-        | state, [ DObj fields; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-
-            let! result = UserDB.queryExactFields state db fields
-
-            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryExactFieldsWithKey" 0) }
 
 
     { name = fn "DB" "queryExactFieldsWithKey" 0
@@ -381,28 +235,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "queryOne" 1
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TOption varA
-      description =
-        "Fetch exactly one value from <param table> which have the same fields and values that <param spec> has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
-      fn =
-        (function
-        | state, [ DObj fields; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryExactFields state db fields
-
-            match results with
-            | [ (_, v) ] -> return DOption(Some v)
-            | _ -> return DOption None
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryOne" 2) }
 
 
     { name = fn "DB" "queryOneWithExactFields" 0
@@ -427,28 +259,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "queryOneWithKey" 1
-      parameters = [ ocamlCompatibleSpecParam; tableParam ]
-      returnType = TOption varA
-      description =
-        "Fetch exactly one value from <param table> which have the same fields and values that <param spec> has. Returns Nothing if none or more than 1 found"
-      fn =
-        (function
-        | state, [ DObj fields; DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.queryExactFields state db fields
-
-            match results with
-            | [ (k, v) ] -> return (DOption(Some(DList [ DStr k; v ])))
-            | _ -> return (DOption None)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryOneWithKey" 2) }
-
-
     { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
@@ -471,45 +281,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getAll" 1
-      parameters = [ tableParam ]
-      returnType = TList varA
-      description =
-        "Fetch all the values in <param table>. Returns a list of lists such that the inner
-          lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
-      fn =
-        (function
-        | state, [ DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.getAll state db
-
-            return results |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "getAll" 2) }
-
-
-    { name = fn "DB" "getAll" 2
-      parameters = [ tableParam ]
-      returnType = TList varA
-      description = "Fetch all the values in <param table>"
-      fn =
-        (function
-        | state, [ DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.getAll state db
-            return results |> List.map snd |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "getAll" 3) }
-
-
     { name = fn "DB" "getAll" 3
       parameters = [ tableParam ]
       returnType = TList varA
@@ -526,27 +297,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "getAllWithKeys" 1
-      parameters = [ tableParam ]
-      returnType = TList varA
-      description =
-        "Fetch all the values in <param table>. Returns a list of lists such that the inner
-                     lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
-      fn =
-        (function
-        | state, [ DDB dbname ] ->
-          uply {
-            let db = state.program.dbs[dbname]
-            let! result = UserDB.getAll state db
-
-            return result |> List.map (fun (k, v) -> DList [ DStr k; v ]) |> DList
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "getAllWithKeys" 2) }
 
 
     { name = fn "DB" "getAllWithKeys" 2
@@ -702,31 +452,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = QueryFunction
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "queryOne" 3
-      parameters = [ tableParam; queryParam ]
-      returnType = TList varA
-      description =
-        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
-      fn =
-        (function
-        | state, [ DDB dbname; DFnVal (Lambda b) ] ->
-          uply {
-            try
-              let db = state.program.dbs[dbname]
-              let! results = UserDB.query state db b
-
-              match results with
-              | [ (_, v) ] -> return Dval.optionJust v
-              | _ -> return DOption None
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = QueryFunction
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DB" "queryOne" 4) }
 
 
     { name = fn "DB" "queryOne" 4

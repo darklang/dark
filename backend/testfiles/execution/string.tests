@@ -13,7 +13,6 @@ Test.toChar_v0_ster arg
 "Είναι προικισμένοι με λογική" = "Είναι προικισμένοι με λογική"
 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
-((String.append_v0 "a" "̂") |> String.base64Encode_v0) = "YcyC" // broken, not first quote in second arg
 String.append_v1 "a" "̂" = "â"
 String.append_v1 "hello" " world" = "hello world"
 String.append_v1 "hello" "world" = "helloworld" // String.append_v1 works for ASCII range
@@ -23,7 +22,6 @@ String.append_v1 "🧑🏼‍💻" "🧑🏻‍🍼" = "🧑🏼‍💻🧑🏻�
 String.append_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 String.append_v1 "🧟‍♂️🧟‍♀️" "🧟‍♂️" = "🧟‍♂️🧟‍♀️🧟‍♂️"
 String.append_v1  "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "👨‍❤️‍💋‍👨"= "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨"
-String.append_v0 "a" "" = "a"
 
 (String.join_v0 ["a"; "̂"] "") |> String.base64Encode_v0 = "YcyC"
 String.join_v0 ["hello"; " world"] "" = "hello world"
@@ -34,17 +32,17 @@ String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "
 String.join_v0 ["🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
 String.join_v0 ["🧑🏽‍🦰‍", "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strs, but the list contained `0`"
-Bytes.length_v0 (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
-Bytes.length_v0 (String.toBytes_v0 "😄APPLE🍏") = 13
-Bytes.length_v0 (String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53
-Bytes.length_v0 (String.toBytes_v0 "") = 0
-Bytes.length_v0 (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
-Bytes.length_v0 (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
-Bytes.length_v0 (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
-Bytes.length_v0 (String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
-Bytes.length_v0 (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
-Bytes.length_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
-Bytes.length_v0 (String.toBytes_v0 "") = 0
+Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
+Bytes.length (String.toBytes_v0 "😄APPLE🍏") = 13
+Bytes.length (String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53
+Bytes.length (String.toBytes_v0 "") = 0
+Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
+Bytes.length (String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48
+Bytes.length (String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44
+Bytes.length (String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26
+Bytes.length (String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82
+Bytes.length (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49
+Bytes.length (String.toBytes_v0 "") = 0
 
 String.startsWith_v0 "a string" "a s" = true
 String.startsWith_v0 "a string" " s" = false
@@ -126,6 +124,7 @@ String.base64Decode_v0 "-p" = "�"
 String.base64Decode_v0 "lI" = "�"
 String.base64Decode_v0 "5Sk" = "�)"
 
+
 String.base64Encode_v0 "+" = "Kw"
 String.base64Encode_v0 "Ⱥ" = "yLo"
 String.base64Encode_v0 "żółw" = "xbzDs8WCdw"
@@ -141,6 +140,7 @@ String.base64Encode_v0 "Hello World" = "SGVsbG8gV29ybGQ"
 String.base64Encode_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"" = "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig"
 String.base64Encode_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78"
 
+
 String.digest_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
 String.digest_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
 String.digest_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
@@ -151,45 +151,6 @@ String.digest_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbU
 String.digest_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
 String.digest_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
 String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
-
-String.sha384_v0 "" = "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
-String.sha384_v0 "😄" = "Z2Y7YuyYHR9miKrg6mLtxSTaHRpGZuaenmGQl3QFY58pwhPCK2bIYxJQ728ChJwA"
-String.sha384_v0 "ελπίδα" = "j4uJEeBe6g8QrzbuxoI2roUgapGQiExE8CWEQqZao61eZVN1iSZ8cV39IM1nGqsa"
-String.sha384_v0 "/*-+(&@98521" = "wSGXFkLMpPufNoF2mUBAjT4YlUEb9cl0Iliy4qohwt1XFpg51PRJVTWndn5PewSr"
-String.sha384_v0 "👩🏻‍🚀🍇" = "hVrNUSbFOfYXwZe6zQRUFFfGPe90qr-aROG2n-hMk8kAC-xodOyHOqecLWb9HIKJ"
-String.sha384_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = "7Fo0ImavUzoUM_9kdjucgh6pYAHk5VovpTOUObvxacS31QoCTkcE4rpcQbJJpshE"
-String.sha384_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "U2v72uGbUR_UIiD5qF6L21pKzYi4B6OB76HGtbpM0o-2_4YB3ytPjJ7w9png3L9k"
-String.sha384_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "c1Wm67axXlBaejcJZxct80MvexdTtyyrTK9J9-_4RqgP1pf4Bk9SoMZpsnXpvLIx"
-String.sha384_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5WejO5XtJWa81qCxcD6cZ4A_WAB0ZJzhOErc"
-String.sha384_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
-String.sha384_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "LG7K5mKmxhZtrXnduzMqxmAXhkbEpJwBdEagHeGQIEquA1Ggn9d-cCcx73mGJE07"
-
-String.sha256_v0 "" = "47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU="
-String.sha256_v0 "😄" = "JQME7QhZCYN_m3giiRc9GbdVDVQqtRZG6UwPOEOEpQI="
-String.sha256_v0 "ελπίδα" = "v9JGQTLCr2YCjR5CWDh2Il-ZjVZeQRdU5lZ7xlVKuZM="
-String.sha256_v0 "/*-+(&@98521" = "nein0Hm1h0t_G0Uap2unSIMj06hYVr-xYHCWeo-VRyw="
-String.sha256_v0 "👩🏻‍🚀🍇" = "ZI3NDYn6EVKAxsQlsDzfUNu35MJyGt6QIKOj_FkZB04="
-String.sha256_v0 "👩🏻‍🚀🍇" = "ZI3NDYn6EVKAxsQlsDzfUNu35MJyGt6QIKOj_FkZB04="
-String.sha256_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = "6SCI_NfDJ9HaaJ3gCte-NDMQAOjOLpjqelG4iOMJDHA="
-String.sha256_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "NTh4YG349Oa7YKJzH4Ry4QLE2CzRh15gx3pr05nkz4E="
-String.sha256_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "Jh2ny_FeYu6TRbZSj3RxDgjwV3IDwgbcWIjCmWColQQ="
-String.sha256_v0 "🧟‍♀️🧟‍♂️" = "3_ie3_0nyJzd4UpBhdcHI4xSO4wu8Qbl9di7SqfLXdA="
-String.sha256_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "4fkcC7KZ-mOXSWpIW3BLOqZx_WDduKyLyaOLQc1A3Lk="
-String.sha256_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "DikVVJkkCXt8o0yzHG9-Lpiuk_x6ET6DYAtPCNWJgi0="
-
-// Random v0
-String.length_v1 (String.random_v0 10) = 10
-String.length_v1 (String.random_v0 5) = 5
-String.length_v1 (String.random_v0 0) = 0
-String.random_v0 -1 = Test.typeError_v0 "l should be a positive integer"
-String.random_v0 5 != String.random_v0 5 = true
-
-// Random v1
-String.length_v1 (String.random_v1_ster 10) = 10
-String.length_v1 (String.random_v1_ster 5) = 5
-String.length_v1 (String.random_v1_ster 0) = 0
-String.random_v1 -1 = Error "l should be a positive integer"
-(String.random_v1 5) == (String.random_v1 5) = false
 
 // Random v2
 String.length_v1 (String.random_v2_ster 10) = 10
@@ -209,6 +170,7 @@ String.htmlEscape_v0 "<html><head></head><body><h1>﷽﷽﷽﷽﷽</h1></body></
 String.htmlEscape_v0 "<head>🧟‍♀️🧟‍♂️</head>" = "&lt;head&gt;🧟‍♀️🧟‍♂️&lt;/head&gt;"
 String.htmlEscape_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
+
 String.isEmpty_v0 "" = true
 String.isEmpty_v0 "a" = false
 String.isEmpty_v0 "🧑🏼‍💻🧑🏻‍🍼" = false
@@ -218,18 +180,17 @@ String.isEmpty_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = false
 String.isEmpty_v0 "🧟‍♀️🧟‍♂️" = false
 String.isEmpty_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= false
 
+
 String.newline_v0 = "\n"
 
-// length v0
-String.length_v0 "😄" = 4
-String.length_v0 "abcdef" = 6
-String.length_v0 "" = 0
-String.length_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" = 62
-String.length_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = 49
-String.length_v0 "﷽﷽﷽﷽﷽" = 15
-String.length_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = 44
-String.length_v0 "🧟‍♀️🧟‍♂️" = 26
-String.length_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= 82
+
+// Random v1
+String.length_v1 (String.random_v2_ster 10) = 10
+String.length_v1 (String.random_v2_ster 5) = 5
+String.length_v1 (String.random_v2_ster 0) = 0
+String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`"
+(String.random_v2 5) == (String.random_v2 5) = false
+
 
 // length v1
 String.length_v1 "😄" = 1
@@ -241,6 +202,7 @@ String.length_v1 "﷽﷽﷽﷽﷽" = 5
 String.length_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = 6
 String.length_v1 "🧟‍♀️🧟‍♂️" = 2
 String.length_v1  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= 4
+
 
 String.prepend_v0 "hello" "world" = "worldhello" // String.prepend works for ASCII range
 String.prepend_v0 "hello" "" = "hello"
@@ -256,6 +218,7 @@ String.prepend_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = "🧟‍♂️�
 String.prepend_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.prepend_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧟‍♂️"= "🧟‍♂️żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
 
+
 String.replaceAll_v0 "abcABCcbaCBA" "b" "x" = "axcABCcxaCBA"
 String.replaceAll_v0 "abcABCcbaCBA" "" "x" = "xaxbxcxAxBxCxcxbxaxCxBxAx"
 String.replaceAll_v0 "" "" "&" = "&"
@@ -267,43 +230,6 @@ String.replaceAll_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" "🧑🏽‍�
 String.replaceAll_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨" "👨‍❤️‍💋‍👨" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.replaceAll_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" "🧟‍♂️"= "żółw🧑🏽‍🦰🧟‍♂️✋✋🏻✋🏿"
 
-String.slugify_v0 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭! " = "m@y-'super'-really-excellent-*uber_-amazing*-~very-~-\"clever\"-thing:-coffee!"
-String.slugify_v0 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "m@y-'super'-really-exce+llent-*uber_-ama\"zing*-~very-5x5-~-\"clever\"-thing:-coffee!"
-String.slugify_v0 "" = ""
-String.slugify_v0 "ABCD-45646sassa" = "abcd-45646sassa"
-String.slugify_v0 "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
-String.slugify_v0 "q=\u0002$\u001a<+MC" = "q$+mc"
-String.slugify_v0 "🎁🎄Ǣʚ231" = "231"
-String.slugify_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
-String.slugify_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
-String.slugify_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
-String.slugify_v0 "🧟‍♀️🧟‍♂️" = ""
-String.slugify_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
-String.slugify_v0 "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
-String.slugify_v0 "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
-String.slugify_v0 "!\"#$%&'()*+,-./" = "!\"$'()*+-."
-String.slugify_v0 ":;<=>?@" = ":@"
-String.slugify_v0 "[\\]^_`" = "_"
-String.slugify_v0 "{|}~\x7F" = "~"
-
-String.slugify_v1 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee"
-String.slugify_v1 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee"
-String.slugify_v1 "" = ""
-String.slugify_v1 "ABCD-45646sassa" = "abcd-45646sassa"
-String.slugify_v1 "ddsd516ds125sd12sd12Ü" = "ddsd516ds125sd12sd12"
-String.slugify_v1 "q=\u0002$\u001a<+MC" = "qmc"
-String.slugify_v1 "🎁🎄Ǣʚ231" = "231"
-String.slugify_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = ""
-String.slugify_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "zlo"
-String.slugify_v1 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = ""
-String.slugify_v1 "🧟‍♀️🧟‍♂️" = ""
-String.slugify_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = ""
-String.slugify_v1 "b\x01c\x02d\x03e\x04f\x05g\x06h\x07i\x08j\x09k\x0Al\x0Bm\x0Cn\x0Do\x0Ep\x0Fq" = "bcdefghij-k-lm-n-opq"
-String.slugify_v1 "a\x10b\x11c\x12d\x13e\x14f\x15g\x16h\x17i\x18j\x19k\x1Al\x1Bm\x1Cn\x1Do\x1Ep\x1Fq" = "abcdefghijklmnopq"
-String.slugify_v1 "!\"#$%&'()*+,-./" = "-"
-String.slugify_v1 ":;<=>?@" = ""
-String.slugify_v1 "[\\]^_`" = "-"
-String.slugify_v1 "{|}~\x7F" = ""
 
 String.slugify_v2 "  M@y  'super'  Really- exce+llent *Uber_ ama\"zing* ~very   5x5 ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-5x5-clever-thing-coffee"
 String.slugify_v2 "  m@y  'super'  really- excellent *uber_ amazing* ~very  ~ \"clever\" thing: coffee😭!" = "my-super-really-excellent-uber-amazing-very-clever-thing-coffee"
@@ -324,14 +250,16 @@ String.slugify_v2 ":;<=>?@" = ""
 String.slugify_v2 "[\\]^_`" = "-"
 String.slugify_v2 "{|}~\x7F" = ""
 
+
 // toList and fromList
 String.fromList_v1 [] = ""
 String.fromList_v1 [c "a"] = "a"
 String.fromList_v1 [c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`"
 String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`"
-String.toList_v1 "" = []
 
+
+String.toList_v1 "" = []
 String.toList_v1 "ab" = ['a', 'b']
 String.toList_v1 "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
 String.toList_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ c "Z̤͔ͧ̑̓", c "ä͖̭̈̇", c "lͮ̒ͫ", c "ǧ̗͚̚", c "o̙̔ͮ̇͐̇" ]
@@ -340,48 +268,6 @@ String.toList_v1 "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Zͧ̑̓
 ("@Ǣá1" |> String.toList_v1 |> String.fromList_v1) = "@Ǣá1"
 ("👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓" |> String.toList_v1 |> String.fromList_v1) = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
-String.split_v0 "hello😄world" "😄" = [ "hello", "world" ]
-String.split_v0 "hello&&&&world" "&&&&" = [ "hello", "world" ]
-String.split_v0 "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]
-String.split_v0 "hello34564world34564sun" "34564" = [ "hello", "world", "sun" ]
-String.split_v0 "" "34564" = []
-String.split_v0 "34564" "" = [ "3"; "4"; "5"; "6"; "4" ]
-String.split_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏻‍🍼" = [ "🧑🏽‍🦰🧑🏼‍💻", "✋✋🏻✋🏿" ]
-String.split_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = []
-String.split_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = [ "", "", "" ]
-String.split_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = [ "👱👱🏻", "👱🏾👱🏿" ]
-String.split_v0 "🧟‍♀️🧟‍♂️" "👱🏽" = [ "🧟‍♀️🧟‍♂️" ]
-String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦"= [ "👨‍❤️‍💋‍👨", "🏳️‍⚧️‍️🇵🇷" ]
-String.split_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = [ "żółw", "🧑🏻‍🍼✋✋🏻✋🏿" ]
-String.split_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫ" = [ "ǧ̗͚̚o̙̔ͮ̇͐̇" ]
-String.split_v0 "666666" "6" = [""; ""; ""; ""; ""]
-String.split_v0 "55555" "5" = [""; ""; ""; ""]
-String.split_v0 "4444" "4" = [""; ""; ""]
-String.split_v0 "333" "3" = [""; ""]
-String.split_v0 "22" "2" = [""]
-String.split_v0 "1" "1" = []
-String.split_v0 "" "" = []
-String.split_v0 "666666x" "6" = [""; ""; ""; ""; ""; "x"]
-String.split_v0 "55555x" "5" = [""; ""; ""; ""; "x"]
-String.split_v0 "4444x" "4" = [""; ""; ""; "x"]
-String.split_v0 "333x" "3" = [""; ""; "x"]
-String.split_v0 "22x" "2" = [""; "x"]
-String.split_v0 "1x" "1" = ["x"]
-String.split_v0 "x666666" "6" = ["x"; ""; ""; ""; ""; ""]
-String.split_v0 "x55555" "5" = ["x"; ""; ""; ""; ""]
-String.split_v0 "x4444" "4" = ["x"; ""; ""; ""]
-String.split_v0 "x333" "3" = ["x"; ""; ""]
-String.split_v0 "x22" "2" = ["x"; ""]
-String.split_v0 "x1" "1" = ["x"]
-String.split_v0 "x666666y" "6" = ["x"; ""; ""; ""; ""; ""; "y"]
-String.split_v0 "x55555y" "5" = ["x"; ""; ""; ""; ""; "y"]
-String.split_v0 "x4444y" "4" = ["x"; ""; ""; ""; "y"]
-String.split_v0 "x333y" "3" = ["x"; ""; ""; "y"]
-String.split_v0 "x22y" "2" = ["x"; ""; "y"]
-String.split_v0 "x1y" "1" = ["x"; "y"]
-String.split_v0 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""]
-String.split_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
-String.split_v0 "👨‍👩‍👧‍👦" "👩" = ["👨‍"; "‍👧‍👦"]
 
 String.split_v1 "hello😄world" "😄" = [ "hello"; "world" ]
 String.split_v1 "hello&&&&world" "&&&&" = [ "hello"; "world" ]
@@ -426,83 +312,6 @@ String.split_v1 "6a6aa6aaa6aaaa" "a" = ["6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; 
 String.split_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = ["👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷"]
 String.split_v1 "👨‍👩‍👧‍👦" "👩" = ["👨‍👩‍👧‍👦"]
 
-// Note: these have been replaced by Int.parse
-String.toInt_v0 "" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"\"`"
-String.toInt_v0 "-4611686018427387903" = -4611686018427387903I
-String.toInt_v0 "-4611686018427387904" = -4611686018427387904I
-String.toInt_v0 "-4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"-4611686018427387905\"`"
-String.toInt_v0 "4611686018427387903" = 4611686018427387903I
-String.toInt_v0 "4611686018427387904" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387904\"`"
-String.toInt_v0 "4611686018427387905" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"4611686018427387905\"`"
-String.toInt_v0 "+333" = 333
-String.toInt_v0 "-11111" = -11111
-String.toInt_v0 "0" = 0
-String.toInt_v0 "1" = 1
-String.toInt_v0 "55555555" = 55555555
-String.toInt_v0 " 1" = 1
-String.toInt_v0 "1 " = 1
-String.toInt_v0 " +1 " = 1
-String.toInt_v0 "078" = 78 // "octal" format ignored
-String.toInt_v0 "-00001" = -1
-String.toInt_v0 "1 2 3" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"1 2 3\"`"
-String.toInt_v0 "+ 1" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"+ 1\"`"
-String.toInt_v0 "- 1" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"- 1\"`"
-String.toInt_v0 "0xA" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"0xA\"`"
-String.toInt_v0 "0x123" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"0x123\"`"
-String.toInt_v0 "0b0100" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"0b0100\"`"
-String.toInt_v0 "pi" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"pi\"`"
-String.toInt_v0 "Math.pi" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"Math.pi\"`"
-String.toInt_v0 "1.23E+04" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"1.23E+04\"`"
-String.toInt_v0 "1I" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"1I\"`"
-String.toInt_v0 "one" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"one\"`"
-String.toInt_v0 "XIV" = Test.typeError_v0 "Expected the argument `s` to be numeric, but it was `\"XIV\"`"
-
-String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\""
-String.toInt_v1 "-00001" = Ok -1
-String.toInt_v1 "-10001" = Ok -10001
-String.toInt_v1 "-4611686018427387903" = Ok -4611686018427387903I
-String.toInt_v1 "-4611686018427387904" = Ok -4611686018427387904I
-String.toInt_v1 "-4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"-4611686018427387905\""
-String.toInt_v1 "4611686018427387903" = Ok 4611686018427387903I
-String.toInt_v1 "4611686018427387904" = Error "Expected to parse string with only numbers, instead got \"4611686018427387904\""
-String.toInt_v1 "4611686018427387905" = Error "Expected to parse string with only numbers, instead got \"4611686018427387905\""
-String.toInt_v1 "" = Error "Expected to parse string with only numbers, instead got \"\""
-String.toInt_v1 "0" = Ok 0
-String.toInt_v1 "1" = Ok 1
-String.toInt_v1 " 1" = Ok 1
-String.toInt_v1 "1 " = Ok 1
-String.toInt_v1 " +1 " = Ok 1
-String.toInt_v1 "078" = Ok 78 // "octal" format ignored
-String.toInt_v1 "-00001" = Ok -1
-String.toInt_v1 "1 2 3" = Error "Expected to parse string with only numbers, instead got \"1 2 3\""
-String.toInt_v1 "+ 1" = Error "Expected to parse string with only numbers, instead got \"+ 1\""
-String.toInt_v1 "- 1" = Error "Expected to parse string with only numbers, instead got \"- 1\""
-String.toInt_v1 "0xA" = Error "Expected to parse string with only numbers, instead got \"0xA\""
-String.toInt_v1 "0x123" = Error "Expected to parse string with only numbers, instead got \"0x123\""
-String.toInt_v1 "0b0100" = Error "Expected to parse string with only numbers, instead got \"0b0100\""
-String.toInt_v1 "pi" = Error "Expected to parse string with only numbers, instead got \"pi\""
-String.toInt_v1 "Math.pi" = Error "Expected to parse string with only numbers, instead got \"Math.pi\""
-String.toInt_v1 "1.23E+04" = Error "Expected to parse string with only numbers, instead got \"1.23E+04\""
-String.toInt_v1 "1I" = Error "Expected to parse string with only numbers, instead got \"1I\""
-String.toInt_v1 "one" = Error "Expected to parse string with only numbers, instead got \"one\""
-String.toInt_v1 "XIV" = Error "Expected to parse string with only numbers, instead got \"XIV\""
-
-String.toFloat_v0 "1.5" = 1.5
-String.toFloat_v0 "0.0" = 0.0
-String.toFloat_v0 "-0.5" = -0.5
-String.toFloat_v0 "+0.5" = 0.5
-String.toFloat_v0 ".5" = 0.5
-String.toFloat_v0 "-9999999999999999999999999998.9" = -9999999999999999999999999998.9
-
-String.toFloat_v1 "1.5" = Ok 1.5
-String.toFloat_v1 "0.0" = Ok 0.0
-String.toFloat_v1 "-0.5" = Ok -0.5
-String.toFloat_v1 "+0.5" = Ok 0.5
-String.toFloat_v1 ".5" = Ok 0.5
-String.toFloat_v1 "-55555555555555555555555555555.5" = Ok -55555555555555555555555555555.5
-String.toFloat_v1 "-141s" = Error "Expected a string representation of an IEEE float"
-String.toFloat_v1 "" = Error "Expected a string representation of an IEEE float"
-//String.toFloat_v1 "0xffffffffffffffff" = Ok 1.844674407e+19
 
 String.toList_v1 "" = []
 String.toList_v1 "abc" = [ 'a'; 'b'; 'c']
@@ -513,25 +322,6 @@ String.toList_v1 "🧟‍♀️🧟‍♂️" = [ c "🧟‍♀️"; c "🧟‍�
 String.toList_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = [ c "👨‍❤️‍💋‍👨"; c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "🇵🇷" ]
 String.toList_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ c "ż"; c "ó"; c "ł"; c "w"; c "🧑🏽‍🦰"; c "🧑🏻‍🍼"; c "✋"; c "✋🏻"; c "✋🏿" ]
 
-String.toLowercase_v0 "HELLO😄WORLD" = "hello😄world"
-String.toLowercase_v0 "" = ""
-String.toLowercase_v0 "ABCDEF" = "abcdef" // String.toLowercase_v0 works for ASCII range
-String.toLowercase_v0 "AB323CDEF" = "ab323cdef"
-String.toLowercase_v0 "SÁNCHEZ" = "sÁnchez" // note uppercase a
-String.toLowercase_v0 "sánchez" = "sánchez"
-String.toLowercase_v0 "żółW" = "żółw"
-String.toLowercase_v0 "😄ORANGE" = "😄orange"
-String.toLowercase_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toLowercase_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.toLowercase_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.toLowercase_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
-String.toLowercase_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.toLowercase_v0 "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toLowercase_v0 "Ჾ" = "Ჾ"
-
-String.toLowercase_v0 "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓Ä͖̭̈̇lͮ̒ͫǦ̗͚̚o̙̔ͮ̇͐̇"
-
-String.toLowercase_v0 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "h̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈w̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠b̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅt͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝w͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕"
 
 String.toLowercase_v1 "HELLO😄WORLD" = "hello😄world"
 String.toLowercase_v1 "" = ""
@@ -552,28 +342,6 @@ String.toLowercase_v1 "Ჾ" = "ჾ"
 String.toLowercase_v1 "Z̤͔ͧ̑̓Ä͖̭̈̇Lͮ̒ͫǦ̗͚̚O̙̔ͮ̇͐̇" = "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
 
 String.toLowercase_v1 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "h̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈w̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠b̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅt͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝w͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕"
-
-
-String.toUppercase_v0 "hello😄world" = "HELLO😄WORLD"
-String.toUppercase_v0 "" = ""
-String.toUppercase_v0 "abcdef" = "ABCDEF"
-String.toUppercase_v0 "ab323cdef" = "AB323CDEF"
-String.toUppercase_v0 "sánchez" = "SáNCHEZ" // note lowercase a
-String.toUppercase_v0 "SÁNChEZ" = "SÁNCHEZ"
-String.toUppercase_v0 "żółw" = "żółW"
-String.toUppercase_v0 "😄orange" = "😄ORANGE"
-String.toUppercase_v0 "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toUppercase_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.toUppercase_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.toUppercase_v0 "🧟‍♀️🧟‍♂️" = "🧟‍♀️🧟‍♂️"
-String.toUppercase_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-String.toUppercase_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółW🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.toUppercase_v0 "`⁄€‹›ﬁﬂ‡°·‚—±" = "`⁄€‹›ﬁﬂ‡°·‚—±"
-String.toUppercase_v0 "ჾ" = "ჾ"
-
-String.toUppercase_v0 "z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = "Z̤͔ͧ̑̓ä͖̭̈̇Lͮ̒ͫǧ̗͚̚O̙̔ͮ̇͐̇"
-
-String.toUppercase_v0 "H̬̤̗̤͝e͜ ̜̥̝̻͍̟́w̕h̖̯͓o̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭a̺̪͍į͈͕̭͙̯̜t̶̼̮s̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅe̵h̵̬͇̫͙i̹͓̳̳̮͎̫̕n͟d̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢h͏͓̮̻e̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅa͏͓͔̹̼̣l̴͔̰̤̟͔ḽ̫.͕" = "H̬̤̗̤͝E͜ ̜̥̝̻͍̟́W̕H̖̯͓O̝͙̖͎̱̮ ҉̺̙̞̟͈W̷̼̭A̺̪͍į͈͕̭͙̯̜T̶̼̮S̘͙͖̕ ̠̫̠B̻͍͙͉̳ͅE̵H̵̬͇̫͙I̹͓̳̳̮͎̫̕N͟D̴̪̜̖ ̰͉̩͇͙̲͞ͅT͖̼͓̪͢H͏͓̮̻E̬̝̟ͅ ̤̹̝W͙̞̝͔͇͝ͅA͏͓͔̹̼̣L̴͔̰̤̟͔ḽ̫.͕"
 
 
 String.toUppercase_v1 "" = ""
@@ -808,49 +576,6 @@ String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = "👱�
 String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = "🧟‍♀️🧟‍♂️000"
 String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
 String.padEnd_v0 "鷝" "觌഻" 0 = "鷝"
-
-// String.toUUID
-String.toUUID_v0 "👱🏼" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v0 "1111111🍇-2222-3333-4444-555555555555" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v0 "psp-soslsls==" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v0 "123456" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v0 "d388ff30-667f-11eb-ae93" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v0 "d388ff30-667f-11eb-ae93-0242ac13000" = Test.typeError_v0 "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-String.toUUID_v0 "11111111-2222-3333-4444-555555555555" = String.toUUID_v0 "11111111-2222-3333-4444-555555555555"
-
-String.toUUID_v1 "👱🏼" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v1 "1111111🍇-2222-3333-4444-555555555555" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v1 "psp-soslsls==" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v1 "123456" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v1 "d388ff30-667f-11eb-ae93" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v1 "d388ff30-667f-11eb-ae93-0242ac13000" = Error "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-String.toUUID_v1 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = Ok (String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
-String.toUUID_v1 "11111111-2222-3333-4444-555555555555" = Ok (String.toUUID_v0 "11111111-2222-3333-4444-555555555555")
-
-
-// String.isSubstring
-String.isSubstring_v0 "in" "a string" = true
-String.isSubstring_v0 "" "a string" = true
-String.isSubstring_v0 "x" "a string"= false
-String.isSubstring_v0 "✋🏻" "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" = false
-String.isSubstring_v0 "اختبار" "اختبار النص" = true // these inputs are actually flipped over because of the language, that is why the result is true
-String.isSubstring_v0 "اختبار النص" "اختبار النص" = true
-String.isSubstring_v0  "🧟‍🧟‍♂️" "🧟‍♀️🧟‍♂️" = false
-String.isSubstring_v0 "﷽﷽﷽﷽" "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = true
-String.isSubstring_v0 "ǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = true
-String.isSubstring_v0 "🧟‍🧟‍♂️" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" = false
-
-String.isSubstring_v1 "a string" "in" = true
-String.isSubstring_v1 "a string" "" = true
-String.isSubstring_v1 "a string" "x" = false
-String.isSubstring_v1 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏿0" "✋🏻" = false
-String.isSubstring_v1 "اختبار النص" "اختبار" = true //these inputs are actually fliped over because of the language, that is why result is true
-String.isSubstring_v1 "اختبار النص" "اختبار النص" = true
-String.isSubstring_v1 "🧟‍♀️🧟‍♂️" "🧟‍🧟‍♂️" = false
-String.isSubstring_v1 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
-String.isSubstring_v1 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
-String.isSubstring_v1 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "🧟‍🧟‍♂️" = false
 
 
 [test.stringForeach]
