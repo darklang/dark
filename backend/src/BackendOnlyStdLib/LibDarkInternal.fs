@@ -101,15 +101,14 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "username" TStr ""
           Param.make "email" TStr ""
-          Param.make "name" TStr ""
-          Param.make "analyticsMetadata" (TDict TStr) "" ]
+          Param.make "name" TStr "" ]
       returnType = TResult(TStr, TStr)
       description =
         "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
+          | _, [ DStr username; DStr email; DStr name ] ->
             uply {
               let username =
                 Exception.catchError (fun () ->
@@ -118,8 +117,7 @@ that's already taken, returns an error."
                   UserName.create username)
               match username with
               | Ok username ->
-                let! _user =
-                  Account.insertUser username email name (Some analyticsMetadata)
+                let! _user = Account.insertUser username email name
                 Analytics.identifyUser username
                 let toCanvasName =
                   $"{username}-{LibService.Config.gettingStartedCanvasName}"

@@ -97,7 +97,6 @@ let insertUser
   (username : UserName.T)
   (email : string)
   (name : string)
-  (analyticsMetadata : Option<RT.DvalMap>)
   : Task<Result<unit, string>> =
   task {
     let account =
@@ -113,27 +112,21 @@ let insertUser
 
     match validateAccount account with
     | Ok () ->
-      let analyticsMetadata = analyticsMetadata |> Option.unwrap Map.empty
 
       try
         // insert
         do!
           Sql.query
             "INSERT INTO accounts
-              (id, username, name, email, admin, password, segment_metadata)
+              (id, username, name, email, admin, password)
               VALUES
-              (@id, @username, @name, @email, false, @password, @metadata)
+              (@id, @username, @name, @email, false, @password)
               ON CONFLICT DO NOTHING"
           |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
                               "username", Sql.string (string username)
                               "name", Sql.string name
                               "email", Sql.string email
-                              ("password", Sql.string (string Password.invalid))
-                              ("metadata",
-                               Sql.jsonb (
-                                 DvalReprInternalDeprecated.toInternalQueryableV1
-                                   analyticsMetadata
-                               )) ]
+                              ("password", Sql.string (string Password.invalid)) ]
           |> Sql.executeStatementAsync
 
         // verify insert worked
@@ -214,11 +207,11 @@ let getUserCreatedAt (username : UserName.T) : Task<NodaTime.Instant> =
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
 
-let getUserAndCreatedAtAndAnalyticsMetadata
+let getUserAndCreatedAt
   (username : UserName.T)
-  : Task<Option<UserInfoAndCreatedAt * Option<string>>> =
+  : Task<Option<UserInfoAndCreatedAt>> =
   Sql.query
-    "SELECT name, email, admin, created_at, id, segment_metadata
+    "SELECT name, email, admin, created_at, id
      FROM accounts
      WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
@@ -228,8 +221,7 @@ let getUserAndCreatedAtAndAnalyticsMetadata
       email = read.string "email"
       admin = read.bool "admin"
       id = read.uuid "id"
-      createdAt = read.instantWithoutTimeZone "created_at" },
-    read.stringOrNone "segment_metadata")
+      createdAt = read.instantWithoutTimeZone "created_at" })
 
 let getUserByEmail (email : string) : Task<Option<UserInfo>> =
   Sql.query
