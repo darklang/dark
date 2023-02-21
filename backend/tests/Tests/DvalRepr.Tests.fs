@@ -94,34 +94,11 @@ let testToEnduserReadable =
       RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
       "0 { a header: something }\nnull" ]
 
-let testToPrettyResponseJson =
-  testMany
-    "toPrettyResponseJson"
-    LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
-    [ RT.DBytes [| 00uy |], "{\n  \"type\": \"bytes\",\n  \"value\": \"\\u0000\"\n}"
-
-      RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "[\n  1,\n  2,\n  3\n]" ]
-
-
-let testDateMigrationHasCorrectFormats =
-  test "date migration has correct formats" {
-    let str = "2019-03-08T08:26:14Z"
-    let date =
-      str |> NodaTime.Instant.ofIsoString |> RT.DDateTime.fromInstant |> RT.DDate
-    let oldActual =
-      LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0 date
-    let oldExpected =
-      "{\n  \"type\": \"date\",\n  \"value\": \"2019-03-08T08:26:14Z\"\n}"
-    Expect.equal oldActual oldExpected "old format"
-    let newActual = DvalReprLegacyExternal.toPrettyMachineJsonStringV1 date
-    Expect.equal newActual $"\"{str}\"" "old format"
-  }
-
 // We used a System.Text.Json converter supplied by a NuGet package for a bit,
 // but found that it was incompatible with the OCamlCompatible serializer. We
 // have since adjusted `Vanilla` to use a custom converter, and this test is to
 // ensure values serialized during the time where the NuGet package's converter
-// are able to be deserialized. The value here
+// are able to be deserialized.
 let testPreviousDateSerializionCompatibility =
   test "previous date serialization compatible" {
     let expected =
@@ -387,9 +364,6 @@ module Password =
       doesRedact
         "toPrettyMachineJsonStringV1"
         DvalReprLegacyExternal.toPrettyMachineJsonStringV1
-      doesRedact
-        "toPrettyResponseJsonV1"
-        LibExecutionStdLib.LibObject.PrettyResponseJsonV0.toPrettyResponseJsonV0
       doesRedact "Json.Vanilla.serialize" (fun dv ->
         dv |> CT2Runtime.Dval.toCT |> Json.Vanilla.serialize)
       ()
@@ -457,8 +431,6 @@ let tests =
       testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
-      testToPrettyResponseJson
-      testDateMigrationHasCorrectFormats
       ToHashableRepr.tests
       testInternalRoundtrippableNew
       testToPrettyMachineJsonStringV1
