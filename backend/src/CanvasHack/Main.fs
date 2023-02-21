@@ -7,7 +7,12 @@ open FSharp.Control.Tasks
 open Legivel.Serialization
 open Legivel.Attributes
 
+open Prelude
+open Tablecloth
+
 module PT = LibExecution.ProgramTypes
+module Op = LibBackend.Op
+module C = LibBackend.Canvas
 
 let initSerializers () = ()
 
@@ -53,8 +58,8 @@ let main (args : string []) =
       // TODO: better error-handling here
       let config : CanvasHackConfig =
         match List.head config with
-        | Success s -> s.Data
-        | _ -> failwith "couldn't parse config file for canvas"
+        | Some (Success s) -> s.Data
+        | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
       // Purge any existing canvas under the name
       print "TODO - purge dark-editor canvas"
@@ -63,7 +68,7 @@ let main (args : string []) =
       let canvasName =
         match Prelude.CanvasName.create "dark-editor" with
         | Ok (c) -> c
-        | Result.Error (_) -> failwith "yolo"
+        | Result.Error (_) -> Exception.raiseInternal "yolo" []
       let c =
         LibBackend.Canvas.getMetaAndCreate canvasName
         |> Async.AwaitTask
@@ -93,17 +98,19 @@ let main (args : string []) =
 
           [ PT.Op.TLSavepoint(140418122UL); PT.Op.SetHandler(handlerId, handler) ])
 
-      let addOpsParams : LibBackend.Op.AddOpParamsV1 =
-        { ops = List.collect Prelude.identity createHttpHandlerOps
-          opCtr = 2
-          clientOpCtrID = "4803612a-cf8c-4aa0-8f87-0a82daa923c4" }
+      let ops = List.collect identity createHttpHandlerOps
 
-      let addOpsResponse =
-        CanvasHack.AddOps.addOp c addOpsParams
-        |> Async.AwaitTask
-        |> Async.RunSynchronously
+      let cWithTopLevels = C.fromOplist c [] ops
 
-      ()
+      let oplists =
+        ops
+        |> Op.oplist2TLIDOplists
+        |> List.filterMap (fun (tlid, oplists) ->
+          match Map.get tlid (C.toplevels cWithTopLevels) with
+          | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
+          | None -> None)
+
+      C.saveTLIDs c oplists |> Async.AwaitTask |> Async.RunSynchronously
 
     | [| CommandNames.export |] ->
       // Find the canvas
@@ -127,8 +134,7 @@ let main (args : string []) =
     | _ ->
       print
         $"CanvasHack isn't sure what to do with these arguments.
-        Currently expecting just '{CommandNames.import} [canvasName]'
-                              or '{CommandNames.export} [canvasName]'"
+        Currently expecting just '{CommandNames.import}' or '{CommandNames.export}'"
 
     0
   with

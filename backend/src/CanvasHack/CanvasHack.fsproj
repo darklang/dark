@@ -14,7 +14,6 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="AddOp.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
