@@ -116,25 +116,6 @@ let (|JNonStandard|_|) (j : JToken) : Option<unit> =
   | JTokenType.Date -> Some()
   | _ -> None
 
-let ocamlStringOfFloat (f : float) : string =
-  // We used OCaml's string_of_float in lots of different places and now we're
-  // reliant on it. Ugh.  string_of_float in OCaml is C's sprintf with the
-  // format "%.12g".
-  // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
-
-  // CLEANUP We should move on to a nicer format. See DvalReprLegacyExternal.tests for edge cases. See:
-  if System.Double.IsPositiveInfinity f then
-    "inf"
-  else if System.Double.IsNegativeInfinity f then
-    "-inf"
-  else if System.Double.IsNaN f then
-    "nan"
-  else
-    let result = sprintf "%.12g" f
-    if result.Contains "." then result else $"{result}."
-
-
-
 let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
   let writeDval = unsafeDvalToJsonValueV0 w
 
@@ -145,20 +126,6 @@ let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
       w.WritePropertyName "value"
       w.WriteValue(str))
 
-  let wrapNullValue (typ : string) =
-    w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue(typ)
-      w.WritePropertyName "value"
-      w.WriteNull())
-
-  let wrapNestedDvalValue (typ : string) (dv : Dval) =
-    w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue(typ)
-      w.WritePropertyName "value"
-      writeDval dv)
-
   match dv with
   // basic types
   | DInt i -> w.WriteValue i
@@ -167,20 +134,6 @@ let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
   | DNull -> w.WriteNull()
   | DStr s -> w.WriteValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
-  | DTuple (first, second, theRest) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue("tuple")
-
-      w.WritePropertyName "first"
-      writeDval first
-
-      w.WritePropertyName "second"
-      writeDval second
-
-      w.WritePropertyName "theRest"
-      w.writeArray (fun () -> List.iter writeDval theRest))
-
   | DObj o ->
     w.writeObject (fun () ->
       Map.iter
@@ -188,72 +141,22 @@ let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
           w.WritePropertyName k
           writeDval v)
         o)
-  | DFnVal _ ->
-    // See docs/dblock-serialization.md
-    wrapNullValue "block"
-  | DIncomplete _ -> wrapNullValue "incomplete"
   | DChar c -> wrapStringValue "character" c
-  | DError (_, msg) ->
-    // Only used internally, so this is safe to save here
-    wrapStringValue "error" msg
-  | DHttpResponse (h) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteValue "response"
-      w.WritePropertyName "value"
-      w.writeArray (fun () ->
-        match h with
-        | Redirect str ->
-          w.writeArray (fun () ->
-            w.WriteValue "Redirect"
-            w.WriteValue str)
-
-          writeDval DNull
-        | Response (code, headers, hdv) ->
-          w.writeArray (fun () ->
-            w.WriteValue "Response"
-            w.WriteValue code
-
-            w.writeArray (fun () ->
-              List.iter
-                (fun (k : string, v : string) ->
-                  w.writeArray (fun () ->
-                    w.WriteValue k
-                    w.WriteValue v))
-                headers))
-
-          writeDval hdv))
-  | DDB dbname -> wrapStringValue "datastore" dbname
   | DDate date -> wrapStringValue "date" (DDateTime.toIsoString date)
   | DPassword (Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (string uuid)
-  | DOption opt ->
-    (match opt with
-     | None -> wrapNullValue "option"
-     | Some ndv -> wrapNestedDvalValue "option" ndv)
-  | DErrorRail erdv -> wrapNestedDvalValue "errorrail" erdv
-  | DResult res ->
-    (match res with
-     | Ok rdv ->
-       w.writeObject (fun () ->
-         w.WritePropertyName "type"
-         w.WriteValue("result")
-         w.WritePropertyName "constructor"
-         w.WriteValue("Ok")
-         w.WritePropertyName "values"
-         w.writeArray (fun () -> writeDval rdv))
-     | Error rdv ->
-       w.writeObject (fun () ->
-         w.WritePropertyName "type"
-         w.WriteValue("result")
-         w.WritePropertyName "constructor"
-         w.WriteValue("Error")
-         w.WritePropertyName "values"
-         w.writeArray (fun () -> writeDval rdv)))
-  | DBytes bytes ->
-    // Note that the OCaml version uses the non-url-safe b64 encoding here
-    bytes |> Base64.defaultEncodeToString |> wrapStringValue "bytes"
+  // Not supported
+  | DTuple _
+  | DFnVal _
+  | DError _
+  | DIncomplete _
+  | DHttpResponse _
+  | DDB _
+  | DOption _
+  | DErrorRail _
+  | DResult _
+  | DBytes _ -> Exception.raiseInternal "Not supported in queryable" []
 
 
 
@@ -275,15 +178,15 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
         unsafeDvalToJsonValueV0 w dval)))
 
 // The only formats allowed in the DB so far:
-// String
 // Int
-// Boolean
 // Float
-// Password
-// Date
-// UUID
-// Dict
+// Boolean
+// String
 // List
+// Dict
+// Date
+// Password
+// UUID
 
 // This is a format used for roundtripping dvals internally, while still being
 // queryable using jsonb in our DB. There are some rare cases where it will
