@@ -119,10 +119,8 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
       | DList l ->
         if l = [] then
           "[]"
-        // CLEANUP no good reason to have the space before the newline
         else
-          // CLEANUP no good reason to have the space before the newline
-          "[ " + inl + String.concat ", " (List.map recurse l) + nl + "]"
+          "[" + inl + String.concat ", " (List.map recurse l) + nl + "]"
       | DObj o ->
         if o = Map.empty then
           "{}"
@@ -130,8 +128,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
           let strs =
             Map.fold [] (fun l key value -> (key + ": " + recurse value) :: l) o
 
-          // CLEANUP no good reason to have the space before the newline
-          "{ " + inl + String.concat ("," + inl) strs + nl + "}"
+          "{" + inl + String.concat ("," + inl) strs + nl + "}"
       | _ -> nestedreprfn dv
 
     inner 0 dv
