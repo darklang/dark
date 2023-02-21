@@ -169,3 +169,5 @@ Char.isGreaterThan_v0 'a' '\t' = true
 Char.isGreaterThan_v0 'a' '1' = true
 Char.isGreaterThan_v0 'a' (smiley null) = false
 Char.isGreaterThan_v0 'a' (hand null) = false
+Char.isGreaterThan_v0 'a' (family null) = false
+
