@@ -24,6 +24,7 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Errors = LibExecution.Errors
+module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // Bump this if you make a breaking change to the underlying data format, and
 // are migrating user data to the new version
@@ -52,7 +53,10 @@ let rec queryExactFields
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion
                           "canvasID", Sql.uuid state.program.canvasID
-                          "fields", Sql.queryableDvalMap queryObj ]
+                          "fields",
+                          Sql.jsonb (
+                            DvalReprInternalDeprecated.toInternalQueryableV1 queryObj
+                          ) ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
     return results |> List.map (fun (key, data) -> (key, toObj db data))
   }
@@ -61,7 +65,7 @@ let rec queryExactFields
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
-    match LibExecution.DvalReprInternalDeprecated.ofInternalQueryableV1 obj with
+    match DvalReprInternalDeprecated.ofInternalQueryableV1 obj with
     | RT.DObj o ->
       // <HACK 1>: some legacy objects were allowed to be saved with `id`
       // keys _in_ the data object itself. they got in the datastore on
@@ -176,7 +180,10 @@ and set
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion
                       "key", Sql.string key
-                      "data", Sql.queryableDvalMap merged ]
+                      "data",
+                      Sql.jsonb (
+                        DvalReprInternalDeprecated.toInternalQueryableV1 merged
+                      ) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
 

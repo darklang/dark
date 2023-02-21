@@ -118,27 +118,6 @@ module Sql =
     Sql.parameter idParam
 
 
-
-  let queryableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
-    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
-    let param = NpgsqlParameter("dvalmap", typ)
-    param.Value <-
-      LibExecution.DvalReprInternalDeprecated.toInternalQueryableV1 dvalmap
-    Sql.parameter param
-
-  let roundtrippableDval (dval : RT.Dval) : SqlValue =
-    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
-    let param = NpgsqlParameter("dval", typ)
-    param.Value <- LibExecution.DvalReprInternalNew.toRoundtrippableJsonV0 dval
-    Sql.parameter param
-
-  let roundtrippableDvalMap (dvalmap : RT.DvalMap) : SqlValue =
-    let typ = NpgsqlTypes.NpgsqlDbType.Jsonb
-    let param = NpgsqlParameter("dvalmap", typ)
-    param.Value <-
-      LibExecution.DvalReprInternalNew.toRoundtrippableJsonV0 (RT.DObj dvalmap)
-    Sql.parameter param
-
   // We sometimes erroneously store these as timestamps that are not Utc. But we mean them to be Utc.
   let instantWithoutTimeZone (i : NodaTime.Instant) : SqlValue =
     Sql.timestamp (i.toUtcLocalTimeZone().ToDateTimeUnspecified())
