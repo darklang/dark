@@ -9,13 +9,8 @@
 // DvalReprInternalDeprecated
 // - unsafeDvalOfJsonV1
 // - unsafeDvalToJsonValueV0
-// - unsafeDvalToJsonValueV1
-// - toInternalRoundtrippableV0
-// - ofIntertnalRoundtrippableJsonV0
 // - toInternalQueryableV1
 // - ofInternalQueryableV1
-// - hash 0
-// - hash 1
 // DvalReprInternalNew
 // - toRoundtrippableJsonV0
 // - parseRoundtrippableJsonV0
