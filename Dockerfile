@@ -258,11 +258,11 @@ esac
 mkdir -p $DIR
 wget -P $DIR $URL
 echo "$CHECKSUM $DIR/$FILENAME" | sha256sum -c -
-EXT=$(file --mime-type $DIR/$FILENAME | cut -d "/" -f 3)
+EXT=$(file --mime-type $DIR/$FILENAME | awk -F "/" '{print $NF}')
 echo "Archive type: $EXT"
 case $EXT in
   zip)  unzip $DIR/$FILENAME -d $DIR;;
-  gzip) tar xvf $DIR/$FILENAME -C $DIR;;
+  gzip | x-xz) tar xvf $DIR/$FILENAME -C $DIR;;
   *) exit 1;;
 esac
 ls -l $DIR
