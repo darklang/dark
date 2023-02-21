@@ -33,18 +33,6 @@ let testDvalRoundtrippableRoundtrips =
       true ]
 
 
-let testDvalOptionQueryableSpecialCase =
-  test "dval Option Queryable Special Case" {
-    let dvm = Map.ofList [ ("type", RT.DStr "option"); ("value", RT.DInt 5L) ]
-
-    Expect.equal
-      (RT.DObj dvm)
-      (dvm
-       |> DvalReprInternalDeprecated.toInternalQueryableV1
-       |> DvalReprInternalDeprecated.ofInternalQueryableV1)
-      "extra"
-  }
-
 let testToDeveloperRepr =
   testList
     "toDeveloperRepr"
@@ -161,18 +149,6 @@ let testInternalRoundtrippableNew =
         Expect.equal actual expected ""
       } ]
 
-let testToPrettyMachineJsonStringV1 =
-  testList
-    "toPrettyMachineJsonStringV1"
-    [ test "tuples serialize correctly" {
-        let expected = "[1,2,3\n]"
-
-        let actual =
-          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
-          |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1
-        Expect.equal actual expected ""
-      } ]
-
 module Password =
   let testJsonRoundtripForwards =
     test "json roundtrips forward" {
@@ -235,9 +211,6 @@ module Password =
         "toEnduserReadableTextV0"
         DvalReprLegacyExternal.toEnduserReadableTextV0
       doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
-      doesRedact
-        "toPrettyMachineJsonStringV1"
-        DvalReprLegacyExternal.toPrettyMachineJsonStringV1
       doesRedact "Json.Vanilla.serialize" (fun dv ->
         dv |> CT2Runtime.Dval.toCT |> Json.Vanilla.serialize)
       ()
@@ -301,12 +274,10 @@ let tests =
   testList
     "dvalRepr"
     [ testDvalRoundtrippableRoundtrips
-      testDvalOptionQueryableSpecialCase
       testToDeveloperRepr
       testToEnduserReadable
       ToHashableRepr.tests
       testInternalRoundtrippableNew
-      testToPrettyMachineJsonStringV1
       Password.tests
       testPreviousDateSerializionCompatibility
       allRoundtrips ]
