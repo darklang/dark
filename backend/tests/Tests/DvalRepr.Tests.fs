@@ -94,89 +94,6 @@ let testPreviousDateSerializionCompatibility =
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
 
-  let testToHashableRepr =
-    let t (dv : Dval) (expected : string) : Test =
-      testTask $"toHashableRepr: {dv}" {
-        let fsharpVersion =
-          DvalReprInternalDeprecated.toHashableRepr 0 false dv |> UTF8.ofBytesUnsafe
-
-        Expect.equal fsharpVersion expected "bad fsharp impl"
-      }
-
-
-    testList
-      "toHashableRepr string"
-      [ t (DHttpResponse(Redirect "")) "302 \nnull"
-        t (DFloat 0.0) "0."
-        t (DTuple(DInt 1, DStr "two", [ DFloat 3.14 ])) "(\n  1, \"two\", 3.14\n)"
-        t
-          (DObj(
-            Map.ofList [ ("", DNull)
-                         ("-", DInt 0L)
-                         ("j", DFloat -1.797693135e+308) ]
-          ))
-          "{ \n  j: -inf,\n  -: 0,\n  : null\n}"
-        t (DIncomplete(SourceID(2UL, 1UL))) "<incomplete: <incomplete>>"
-        t (DOption(Some(DPassword(Password [||])))) "Just <password: <password>>"
-        t
-          (DResult(Error(DResult(Error(DFloat -0.03902435513)))))
-          "ResultError ResultError -0.03902435513"
-        t
-          (DList [ DUuid(System.Guid.Parse "3e64631e-f455-5d61-30f7-2be5794ebb19")
-                   DStr "6"
-                   DResult(Ok(DHttpResponse(Response(0L, [], DChar "")))) ])
-          "[ \n  <uuid: 3e64631e-f455-5d61-30f7-2be5794ebb19>, \"6\", ResultOk 0 {  }\n    ''\n]"
-        t
-          (DBytes [| 148uy; 96uy; 130uy; 71uy |])
-          "HnXEOfyd6X-BKhAPIBY6kHcrYLxO44nHCshZShS12Qy2qbnLc6vvrQnU4bjTiewW" ]
-
-  let testHashV0 =
-    let t (l : List<Dval>) (expected : string) : Test =
-      testTask $"hashV0: {l}" {
-        let actual = DvalReprInternalHash.hash 0 l
-
-        if actual <> expected then
-          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
-          print $"expected: {p expected}"
-          print $"actual  : {p actual}"
-
-        Expect.equal actual expected "bad fsharp impl"
-      }
-
-    testList
-      "hashv0"
-      [ t
-          [ DBytes [||] ]
-          "OLBgp1GsljhM2TJ-sbHjaiH9txEUvgdDTAzHv2P24donTt6_529l-9Ua0vFImLlb"
-        t
-          [ DBytes [| 128uy |] ]
-          "jbYwswNvQOKapMlePAFW9VpZO_AF_EJZNtITSk_AuFW7SrR2fdSwsd0mHNERWY09" ]
-
-  let testHashV1 =
-    let t (l : List<Dval>) (expected : string) : Test =
-      testTask $"hashV1: {l}" {
-        let actual = DvalReprInternalHash.hash 1 l
-
-        if actual <> expected then
-          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
-          print $"expected: {p expected}"
-          print $"fsharp  : {p actual}"
-
-        Expect.equal actual expected "bad fsharp impl"
-      }
-
-    testList
-      "hashv1"
-      [ t
-          [ DBytes [||] ]
-          "JEK8_Gubug09wt7BUWWIPypb2yoMYI4TjzCWqbGWWrK6mNP4I-vszXmZNlDjX2ig"
-        t
-          [ DHttpResponse(Redirect "H"); DStr "\""; DIncomplete SourceNone ]
-          "koFt73igAWTI4-ROoi18TnrSKAN7RDuYjiWD43HGXy7qL9s7LlKbSUjSZeGV6Gt6"
-        t
-          [ DBytes [| 128uy |] ]
-          "EYSh9xozHYAoaIUeS40e25VqvD1K7cA72JhEKbAmMtj6xhN02H7nouKqx4GCtvo_" ]
-
   let testHashV2 =
     let t (l : List<Dval>) (expected : string) : Test =
       testTask $"hashV2: {l}" {
@@ -198,8 +115,7 @@ module ToHashableRepr =
           "lqp206BU8hI"
         t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
 
-  let tests =
-    testList "hashing" [ testToHashableRepr; testHashV0; testHashV1; testHashV2 ]
+  let tests = testList "hashing" [ testHashV2 ]
 
 
 let allRoundtrips =

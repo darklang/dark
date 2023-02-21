@@ -516,23 +516,6 @@ let rec toHashableRepr (indent : int) (oldBytes : bool) (dv : Dval) : byte [] =
       |> UTF8.toBytes
 
 
-
-// Deprecated because it has a collision between [b"a"; b"bc"] and
-// [b"ab"; b"c"]
-let toHashV0 (arglist : List<Dval>) : string =
-  arglist
-  |> List.map (toHashableRepr 0 true)
-  |> Array.concat
-  |> System.Security.Cryptography.SHA384.HashData
-  |> Base64.urlEncodeToString
-
-let toHashV1 (arglist : List<Dval>) : string =
-  DList arglist
-  |> toHashableRepr 0 false
-  |> System.Security.Cryptography.SHA384.HashData
-  |> Base64.urlEncodeToString
-
-
 module Test =
   let rec isQueryableDval (dval : Dval) : bool =
     match dval with
