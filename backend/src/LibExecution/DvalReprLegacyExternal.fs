@@ -67,23 +67,10 @@ type Utf8JsonWriter with
     this.WriteEndArray()
 
 
-let ocamlStringOfFloat (f : float) : string =
-  // Backward compatible way to stringify floats.
-  // We used OCaml's string_of_float in lots of different places and now we're
-  // reliant on it. Ugh.  string_of_float in OCaml is C's sprintf with the
-  // format "%.12g".
-  // https://github.com/ocaml/ocaml/blob/4.07/stdlib/stdlib.ml#L274
-
-  // CLEANUP We should move on to a nicer format. See DvalRepr.Tests for edge cases. See:
-  if System.Double.IsPositiveInfinity f then
-    "inf"
-  else if System.Double.IsNegativeInfinity f then
-    "-inf"
-  else if System.Double.IsNaN f then
-    "nan"
-  else
-    let result = sprintf "%.12g" f
-    if result.Contains "." then result else $"{result}."
+let stringOfFloat (f : float) : string =
+  // See DvalRepr.Tests for edge cases.
+  let result = sprintf "%.12g" f
+  if result.Contains "." then result else $"{result}.0"
 
 
 // -------------------------
@@ -139,7 +126,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
-    | DFloat f -> ocamlStringOfFloat f
+    | DFloat f -> stringOfFloat f
 
     | DChar c -> c
     | DNull -> "null"
