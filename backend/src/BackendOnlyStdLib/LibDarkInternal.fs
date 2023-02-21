@@ -312,35 +312,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "pushStrollerEvent" 1
-      parameters =
-        [ Param.make "canvasID" TStr ""
-          Param.make "event" TStr ""
-          Param.make "payload" varA "" ]
-      returnType = TResult(varB, TStr)
-      description = "Pushes an event to Honeycomb"
-      fn =
-        internalFn (function
-          | _, [ DStr canvasID; DStr event; payload ] ->
-            (try
-              Pusher.push
-                ClientTypes2BackendTypes.Pusher.eventSerializer
-                (canvasID |> System.Guid.Parse)
-                (Pusher.CustomEvent(
-                  event,
-                  payload |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-                ))
-                None
-
-              Ply(DResult(Ok payload))
-             with
-             | e -> Ply(DResult(Error(e |> string |> DStr))))
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "sessionKeyToUsername" 0
       parameters = [ Param.make "sessionKey" TStr "" ]
       returnType = TResult(TStr, TStr)
