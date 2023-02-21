@@ -3,20 +3,12 @@
   let publicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS\nJ9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL\nn9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW\nCV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw\nMlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p\n4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4\n4wIDAQAB\n-----END PUBLIC KEY-----" in
   let headers = { ghi = "jkl" } in
   let expectedHeaders = { ghi = "jkl"; alg = "RS256"; ``type`` = "JWT" } in
-  let withHeaders0 = JWT.verifyAndExtract_v0_ster publicKey (JWT.signAndEncodeWithHeaders_v0 privateKey headers payload) in
-  let noHeaders0   = JWT.verifyAndExtract_v0_ster publicKey (JWT.signAndEncode_v0 privateKey payload) in
   let withHeaders1 = JWT.verifyAndExtract_v1_ster publicKey (JWT.signAndEncodeWithHeaders_v1_ster privateKey headers payload) in
   let noHeaders1   = JWT.verifyAndExtract_v1_ster publicKey (JWT.signAndEncode_v1_ster privateKey payload) in
-  (if (withHeaders0.header <> expectedHeaders)
-   then Error { err = "headers0 not equal"; actual = withHeaders0.header; expected = expectedHeaders }
-   else if (withHeaders1.header <> expectedHeaders)
+  (if (withHeaders1.header <> expectedHeaders)
    then Error { err = "headers1 not equal"; actual = withHeaders1.header; expected = expectedHeaders }
-   else if (withHeaders0.payload <> payload)
-   then Error { err = "payload0 not equal"; actual = withHeaders0.payload; expected = payload }
    else if (withHeaders1.payload <> payload)
    then Error { err = "payload1 not equal"; actual = withHeaders1.payload; expected = payload }
-   else if (noHeaders0.payload <> payload)
-   then Error { err = "noheaders0 payload not equal"; actual = noHeaders0.payload; expected = payload }
    else if (noHeaders1.payload <> payload)
    then Error { err = "noheaders1 payload not equal"; actual = noHeaders1.payload; expected = payload }
    else Ok null))
@@ -33,26 +25,13 @@ roundtripAll ({ x = "X"; y = "Y" }) = Ok null
 roundtripAll ({ x = 15 }) = Ok null
 roundtripAll ({ x = Test.infinity_v0 }) = Ok null
 // NaNs do not compare equal
-roundtripAll ({ x = Test.nan_v0 }) = Error { err = "payload0 not equal"; actual = { x = Test.nan_v0 }; expected = { x = Test.nan_v0 }}
+roundtripAll ({ x = Test.nan_v0 }) = Error { err = "payload1 not equal"; actual = { x = Test.nan_v0 }; expected = { x = Test.nan_v0 }}
 roundtripAll ({ x = [ 4 , 6.7, true, "test", {}] }) = Ok null
 roundtripAll ({ x = { a = "b" ; c = [] } ; y = 6 }) = Ok null
 // CLEANUP: dates should roundtrip via jwt
-roundtripAll (Date.parse_v0 "2022-01-10T21:46:42Z") = Error { actual = "2022-01-10T21:46:42Z"; err = "payload0 not equal"; expected = Date.parse_v0 "2022-01-10T21:46:42Z" }
+roundtripAll (Date.parse_v2 "2022-01-10T21:46:42Z") = Error { actual = "2022-01-10T21:46:42Z"; err = "payload1 not equal"; expected = Date.parse_v2 "2022-01-10T21:46:42Z" }
 // CLEANUP: tuples should roundtrip via jwt
-roundtripAll (1,2,3) = Error { actual = [1,2,3]; err = "payload0 not equal"; expected = (1,2,3) }
-
-[fn.sign0 payload:any]
-(let privateKey = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpQIBAAKCAQEAvxW2wuTTK2d0ob5mu/ASJ9vYDc/SXy06QAIepF9x9eoVZZVZ\nd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqLn9/0Ag9ua4ml/ft7COprfEYA7klN\nc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGWCV7+3DF2RvDV2okk3x1ZKyBy2Rw2\nuUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTwMlHbmVv9QMY5UetA9o05uPaAXH4B\nCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p4Ur22mtma+6ree45gsdnzlj1OASW\nDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ44wIDAQABAoIBAQC+0olj0a3MT5Fa\noNDpZ9JJubLmAB8e6wSbvUIqdiJRKUXa3y2sgNtVjLTzieKfNXhCaHIxUTdH5DWq\np0G7yo+qxbRghlaHz7tTitsQSUGzphjx3YQaewIujQ6EJXbDZZZBsNLqYHfQgbW+\n1eV/qGvzyckLzd1G9OUrSv/mS+GrPQ00kpIJIX+EInFOPQ04DheppGNdlxoAUwQQ\nXUUhE1LifY4DyyK71mNlUoYyCs+0ozLzbxQwr9n8PKnLKdukL6X0g3tlKEbqQWPv\nvz2J8QZeSyhnZM9AjtYdVqTO6qs4l9dyWjdpDRIV9WylasOsIbb8XP8bv2NpH2Ua\n6a54L/RJAoGBAPVWwU1jU6e86WrnocJf3miydkhF5VV1tporiuAi391N84zCG509\nrWZWa0xsD2tq2+yNDry1qdqMGmvBXKoTJAx3cjpvK/uK7Tkd+tnislDLw8Wq/fCz\nNBdSidGIuASXdh4Bo9OK8iYMBgfpUGXRKAs4rO45mwrS/+b0YYZSiX/1AoGBAMdj\namEa5SzXw7tSqtp4Vr4pp4H52YULKI84UKvEDQOROfazQrZMHxbtaSMXG69x7SBr\nr48MuRYWd8KZ3iUkYjQLhr4n4zw5DS4AVJqgrLootVWHgt6Ey29Xa1g+B4pZOre5\nPJcrxNsG0OjIAEUsTb+yeURSphVjYe+xlXlYD0Z3AoGACdxExKF7WUCEeSF6JN/J\nhpe1nU4B259xiVy6piuAp9pcMYoTpgw2jehnQ5kMPZr739QDhZ4fh4MeBLquyL8g\nMcgTNToGoIOC6UrFLECqPgkSgz1OG4B4VX+hvmQqUTTtMGOMfBIXjWPqUiMUciMn\n4tuSR7jU/GhilJu517Y1hIkCgYEAiZ5ypEdd+s+Jx1dNmbEJngM+HJYIrq1+9ytV\nctjEarvoGACugQiVRMvkj1W5xCSMGJ568+9CKJ6lVmnBTD2KkoWKIOGDE+QE1sVf\nn8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9\n5p0DHg0CgYEAg0Wwqo3sDFSyKii25/Sffjr6tf1ab+3gFMpahRslkUvyFE/ZweKb\nT/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I\nFW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=\n-----END RSA PRIVATE KEY-----" in
- JWT.signAndEncode_v0 privateKey payload)
-
-[tests.sign0]
-sign0 "str" = "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.InN0ciI.OvKOH6zTgbzD2o2yDYqCT8OGgsm-toXnuLXrwxmwAkVF5x-TiIBMlq2Eay2nhH-QZjmwa1dFuFdfcK_59uivBa_-XII-WgZqqBv3mmeHypIJoB53Knb-Ui9GaFwstLrDxRSZ3eDOtSzz_5L9qNb7EF1p_Lvaqz64uFNN-VulYaKYs966jN_qtr3_YgNeRCGFkZbvyubrfgtiJKTylw2lI4c5MHhnDSXIDqS2-Ox3f4ifWYGtEHHBAxmBpxFn-PDuZ9KBTGehyp0YddO0dChDGQbLVcngCPJiytn4k_mb4Nb6PHZew4E7EC1-ImBffGNM3WQs77c1scSlp3pTjVO_7w"
-sign0 [] =    "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.W10.MnEWbDQdy9M2IkHNnZnqfyM4-IGtzK8T3ZoWHpAkgG1B8qpsNB8Wst7cJKXVvbT8VubDDPaf17csQzBYg7ZlIXRjofVLfxubQXekP52Yxv-OftclIi7HSpyl-y3z3rTPu0wV4Z6vPy6xBgi31rml2-QB-Wqzautm2t_IfL30MV8leNj62XeZSm82xzgIHgKPx6JojmNil1lffu1ED_oPH2j1rJcmkQElGltpFIFlxC4NkoPbYktTGA6lVIpZ6fZzu-bEXel1g0GqbKOFnt8hYggJV3YTwYbSn2NDH2Vd-5Dw-99trAFWUE4SJXYS0H1v51aU2xXDnL6LJZFejKbF0w"
-sign0 {} =    "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.e30.jHwI4DPvGP4k3XxT5Tauzd-fyJz9hKO_zerDrphlTFp7Se_grrFGFahaGZJb-O-cG76pW3KVqasJQ3AyhrXSvXH46jpfVR34ZBWPkfYdwYa6KlUb_7HekQjQhvAQrwyXJ-wZiQMltz9Lok9jHTlh9pyoahwn2K4BQp6KxvAPV-V3DxD5NqotTduFoy5Qh_NFhjF9866kRRza9yJQlkBYthczDRASBiwNeeDCJxRirw60P-fvTQWYjnON3H4yrR9SeB5kNZMwljbgz0ZgDRpp01mJCWJxRdfaHK2mXZxfIX6qC8Up1AtKvDSMRmn7v_y9KVLgJUMty6DIbcyEm8gAfQ"
-sign0 ({ x = "y" }) =          "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4IjoieSJ9.q_KZ0bd-PUcpw_d8hFPhhYRtZRynIZu1WWQceprn8dIfZyRH27Fk7zM1gjow8Q3CA83ILcxHqSPmhZsUqpl-fwFAKu_d1Yis80ASYFHDSRHi7BTQQOL-d-JV22fBDQ0eo2HmLugXg9kLcTSPH-usrj2U15qR6OmlUr8xWXBlyms8hddNFUWK6-k09_LO_NY9Sn6F33os-GB-5Bcn8ZyX2-sZBLRM9XAy53iEhvf_XQ3B-zNHUs-ultzWW4vZ5cWOsxySQyWrJD_McfTDxSXvBDdFAZNM4OumvWPZSAVD4CZq0_81mvBft1kMpd4qOD1jzgIjqYvEEkLexgx8mIhvjA"
-sign0 ({ x = "X"; y = "Y" }) = "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4IjoiWCIsInkiOiJZIn0.Ic2zSdQ7M-eOG8hikVniwHk8YRaZnUQCiDDn12olJ-rCZ9vvdaDYlNkQDDpGjNBrQ27Dqx1goKaUX1bcyullBY8yu7VLu-SSw0LVTNVxyJLPdDt2xzFXeGocRSep0QltteMsls_C3mKcgh9uDoTrY9cu9VSLE5qQcOI6DUBTM4MWU46WERZMpkHBR-Y6oNBLAHoEc6zT-jQgnC6peJ9IqOJk50aZTbHGBQO_oXWzXWUZDSvHxXi2JFrcWEVgTrdf5vnghH3MhofruyPYvW2OLdRjeR7YLRVLE_zpN_For-uYWNnWcoahXgI8DzwXcL-BMLMC4sY1SzyBaBdYvkzglg"
-sign0 ({ x = 15 }) =           "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4IjoxNX0.PVAD0tOM59zDBLoUQwFD3BYepPZl_4LFdB_0cW__W-4WZNPFpCf9qjJJNy-9X_bCySoqPd6e9X1cv8l2WKmbuWM7H5eEVPFLub4xn-vLVdlFceuAb4NbUOkysnqV5iSpTQebFjqmMkTf7S0JY2wBccYr0DDKYcWLh4PHzYnLSXM6SzHNJwwAItK87OEyOIeOMAYiZy82ZAjlAm5dNOeKzKyKR6uuibOPXUdKlrvKMg286n6wJS8xox0gwCNtrpTgBQeuJWYAyY41QLcemv5vSPzxxZmR-wBkENV6dnKSZUkNm-TnpIHghmY33_bVB7-5JtVSsPKb0KLzvZH5c30K7A"
-sign0 ({ x = { a = "b" ; c = [] } ; y = 6 }) = "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4Ijp7ImEiOiJiIiwiYyI6W119LCJ5Ijo2fQ.Aa0Zcn57xDsuz24W_hO9M7Lj7KGlFBtGQZqrZSiderORZeQZ1RYskJ6nJKRX3uH_46fb-v34mQWD2qiOec9ReMpvsG-prDp1Q-6vdc-9I_7x_I4VLACgDeOv4ySaJf1i6AIEFfwPGQ3TMFr1l2dxNWMWubEQHwgtguhnhgB1TOTVHsnL2DpADWrn4qmyGY0-d3L0ld4C2qba8BovLm5-ebwG8RE4_Tkd6r7gb1cBrWVz35vmcC5Ps1BbK4_P92dVMZSP6AWMoktOvUaX07vWUbHvs5rzi-ywpWVn2oQYamQ9X812TN1pGMe7i9TQSFlMK5mBxAMUashMaQ3g7yqwng"
+roundtripAll (1,2,3) = Error { actual = [1,2,3]; err = "payload1 not equal"; expected = (1,2,3) }
 
 
 [fn.sign1 payload:any]
@@ -67,32 +46,6 @@ sign1 ({ x = "y" }) =          Ok "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4Ij
 sign1 ({ x = "X"; y = "Y" }) = Ok "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4IjoiWCIsInkiOiJZIn0.Ic2zSdQ7M-eOG8hikVniwHk8YRaZnUQCiDDn12olJ-rCZ9vvdaDYlNkQDDpGjNBrQ27Dqx1goKaUX1bcyullBY8yu7VLu-SSw0LVTNVxyJLPdDt2xzFXeGocRSep0QltteMsls_C3mKcgh9uDoTrY9cu9VSLE5qQcOI6DUBTM4MWU46WERZMpkHBR-Y6oNBLAHoEc6zT-jQgnC6peJ9IqOJk50aZTbHGBQO_oXWzXWUZDSvHxXi2JFrcWEVgTrdf5vnghH3MhofruyPYvW2OLdRjeR7YLRVLE_zpN_For-uYWNnWcoahXgI8DzwXcL-BMLMC4sY1SzyBaBdYvkzglg"
 sign1 ({ x = 15 }) =           Ok "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4IjoxNX0.PVAD0tOM59zDBLoUQwFD3BYepPZl_4LFdB_0cW__W-4WZNPFpCf9qjJJNy-9X_bCySoqPd6e9X1cv8l2WKmbuWM7H5eEVPFLub4xn-vLVdlFceuAb4NbUOkysnqV5iSpTQebFjqmMkTf7S0JY2wBccYr0DDKYcWLh4PHzYnLSXM6SzHNJwwAItK87OEyOIeOMAYiZy82ZAjlAm5dNOeKzKyKR6uuibOPXUdKlrvKMg286n6wJS8xox0gwCNtrpTgBQeuJWYAyY41QLcemv5vSPzxxZmR-wBkENV6dnKSZUkNm-TnpIHghmY33_bVB7-5JtVSsPKb0KLzvZH5c30K7A"
 sign1 ({ x = { a = "b" ; c = [] } ; y = 6 }) = Ok "eyJhbGciOiJSUzI1NiIsInR5cGUiOiJKV1QifQ.eyJ4Ijp7ImEiOiJiIiwiYyI6W119LCJ5Ijo2fQ.Aa0Zcn57xDsuz24W_hO9M7Lj7KGlFBtGQZqrZSiderORZeQZ1RYskJ6nJKRX3uH_46fb-v34mQWD2qiOec9ReMpvsG-prDp1Q-6vdc-9I_7x_I4VLACgDeOv4ySaJf1i6AIEFfwPGQ3TMFr1l2dxNWMWubEQHwgtguhnhgB1TOTVHsnL2DpADWrn4qmyGY0-d3L0ld4C2qba8BovLm5-ebwG8RE4_Tkd6r7gb1cBrWVz35vmcC5Ps1BbK4_P92dVMZSP6AWMoktOvUaX07vWUbHvs5rzi-ywpWVn2oQYamQ9X812TN1pGMe7i9TQSFlMK5mBxAMUashMaQ3g7yqwng"
-
-
-[test.single verifyAndExtract0 ok]
-(let publicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS\nJ9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL\nn9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW\nCV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw\nMlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p\n4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4\n4wIDAQAB\n-----END PUBLIC KEY-----" in
- let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ4IjoieSJ9.h3HTMZ8U5bZmWneYPTzzAk4q-b5e6b9CHB4PZWwKS--5a9C9rAq5Mp3DdUmeclPQdeNWxqmkfWjoxrrVs3RqA76Aw07GZvyqel3K9fPQQpHNXciA8CdQbJILmNRDbj23Kc6xOiA78AI2QZ8b9VJS0oSh9yTRj7HwojAGybTrk8sF9eqfdAt_Z0TMRJkFeyS8vsATfJAINAJ-zQCKlAoyYGzYlKmzMIPwkdiu2YvL5StHJdBXzVD7PWMqkbLFUQcfvFRldA-O4YZQ3HMMTwsU3q-P0iMuqFrWm4aQPQ4Vbo_CJzh2Up3PGIcTDCNqIxnv4sho0ZD0xNlCRB2sPWmztw" in
- JWT.verifyAndExtract_v0 publicKey token) = Just {header = {alg = "RS256"; typ = "JWT"}; payload = { x = "y" }}
-
-[test.single verifyAndExtract0 ok more arguments]
-(let publicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS\nJ9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL\nn9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW\nCV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw\nMlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p\n4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4\n4wIDAQAB\n-----END PUBLIC KEY-----" in
- let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImFiYyI6ImEvYi9jIn0.eyJ4IjoieSIsImFiYyI6ImRlZiJ9.STV6eZASPhLMErblMcIHaJswZrYAvYeITv2ct9iTWvm-1ZJkuqfEetJysKUwNgNsm_ixzHAZyd95wqXm0-vvRWDpN6xvEaGxaPJsVQeRhJ-UkQIiPOqdoohXc5Qxw4mUyRhHCMebqJBBiOMDPbFEPNQ-U-usEbyET4eoyypp2oKROT944xnifpU5IGmSE9Njn8u_NhIg3purd4Hsri3ZpBX9CrtGLC4DWbxzInY1rR3GQkr3NmABQB19i7T-A3KNyku7mGfbdE6cPxvbw04JBfcnVWMNsmYtXke1ZwMhDtnArix-YeCh35ClOvNNDLWvgljGpKZenJt-W19QQUVYkQ" in
- JWT.verifyAndExtract_v0 publicKey token) = Just {header = {alg = "RS256"; typ = "JWT"; abc = "a/b/c"}; payload = { x = "y"; abc = "def" }}
-
-[test.single verifyAndExtract0 wrong signature]
-(let publicKey = "invalid public key" in
- let token = "token" in
- JWT.verifyAndExtract_v0 publicKey token) = Test.typeError_v0 "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
-
-[test.single verifyAndExtract0 wrong header]
-(let publicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS\nJ9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL\nn9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW\nCV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw\nMlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p\n4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4\n4wIDAQAB\n-----END PUBLIC KEY-----" in
- let token = "ayJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImFiYyI6ImEvYi9jIn0.eyJ4IjoieSIsImFiYyI6ImRlZiJ9.STV6eZASPhLMErblMcIHaJswZrYAvYeITv2ct9iTWvm-1ZJkuqfEetJysKUwNgNsm_ixzHAZyd95wqXm0-vvRWDpN6xvEaGxaPJsVQeRhJ-UkQIiPOqdoohXc5Qxw4mUyRhHCMebqJBBiOMDPbFEPNQ-U-usEbyET4eoyypp2oKROT944xnifpU5IGmSE9Njn8u_NhIg3purd4Hsri3ZpBX9CrtGLC4DWbxzInY1rR3GQkr3NmABQB19i7T-A3KNyku7mGfbdE6cPxvbw04JBfcnVWMNsmYtXke1ZwMhDtnArix-YeCh35ClOvNNDLWvgljGpKZenJt-W19QQUVYkQ" in
- JWT.verifyAndExtract_v0 publicKey token) = Nothing
-
-[test.single verifyAndExtract0 fails decoding signature]
-(let publicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS\nJ9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL\nn9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW\nCV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw\nMlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p\n4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4\n4wIDAQAB\n-----END PUBLIC KEY-----" in
- let token = "ayJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImFiYyI6ImEvYi9jIn0.eyJ4IjoieSIsImFiYyI6ImRlZiJ9.$TV6eZASPhLMErblMcIHaJswZrYAvYeITv2ct9iTWvm-1ZJkuqfEetJysKUwNgNsm_ixzHAZyd95wqXm0-vvRWDpN6xvEaGxaPJsVQeRhJ-UkQIiPOqdoohXc5Qxw4mUyRhHCMebqJBBiOMDPbFEPNQ-U-usEbyET4eoyypp2oKROT944xnifpU5IGmSE9Njn8u_NhIg3purd4Hsri3ZpBX9CrtGLC4DWbxzInY1rR3GQkr3NmABQB19i7T-A3KNyku7mGfbdE6cPxvbw04JBfcnVWMNsmYtXke1ZwMhDtnArix-YeCh35ClOvNNDLWvgljGpKZenJt-W19QQUVYkQ" in
- JWT.verifyAndExtract_v0 publicKey token) = Nothing
 
 
 [test.single verifyAndExtract1 ok]

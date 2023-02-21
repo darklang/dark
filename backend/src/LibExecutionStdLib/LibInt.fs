@@ -277,20 +277,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "random" 0
-      parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
-      returnType = TInt
-      description =
-        "Returns a random integer between <param a> and <param b> (inclusive)"
-      fn =
-        (function
-        | _, [ DInt a; DInt b ] -> a + randomSeeded().NextInt64(b - a) |> DInt |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "Int" "random" 1) }
-
-
     { name = fn "Int" "random" 1
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt

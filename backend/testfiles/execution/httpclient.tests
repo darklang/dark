@@ -12,16 +12,7 @@ HttpClient.plainTextContentType_v0 = {``Content-Type`` = "text/plain; charset=ut
 
 HttpClient.htmlContentType_v0 = {``Content-Type`` = "text/html; charset=utf-8" }
 
-HttpClient.bearerToken_v0 "YWxhZGRpbjpvcGVuc2VzYW1l" = { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
-
 HttpClient.bearerToken_v1 "YWxhZGRpbjpvcGVuc2VzYW1l" = { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
-
-HttpClient.basicAuth_v0 "username" "password" = { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
-HttpClient.basicAuth_v0 "" "" = { Authorization = "Basic Og==" }
-HttpClient.basicAuth_v0 "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
-HttpClient.basicAuth_v0 "" "-" = { Authorization = "Basic Oi0=" }
-HttpClient.basicAuth_v0 ":" "" = { Authorization = "Basic Ojo=" }
-HttpClient.basicAuth_v0 "" ":" = { Authorization = "Basic Ojo=" }
 
 HttpClient.basicAuth_v1 "username" "password" = { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
 HttpClient.basicAuth_v1 "" "" = { Authorization = "Basic Og==" }

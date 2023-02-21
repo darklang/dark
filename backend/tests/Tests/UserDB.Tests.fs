@@ -36,12 +36,12 @@ let nullsAddedToMissingColumn =
     let state =
       { state with program = { state.program with dbs = (Map [ "MyDB", db2 ]) } }
 
-    let expr = p "(DB.getAllWithKeys_v1 MyDB) |> List.head_v1_ster"
+    let expr = p "(DB.getAllWithKeys_v2 MyDB)"
     let! (result : RT.Dval) = Exe.executeExpr state Map.empty expr
 
     // Check there's a null in there
     Expect.equal
-      (RT.DList [ RT.DStr "i"; RT.DObj(Map [ "x", RT.DStr "v"; "y", RT.DNull ]) ])
+      (RT.DObj(Map [ "i", RT.DObj(Map [ "x", RT.DStr "v"; "y", RT.DNull ]) ]))
       result
       "has nulls"
   }

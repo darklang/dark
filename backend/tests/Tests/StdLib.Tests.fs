@@ -59,7 +59,7 @@ let hardToRepresentTests =
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
       true
 
-      (fnName "Result" "fromOption" 0,
+      (fnName "Result" "fromOption" 2,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -83,7 +83,7 @@ let hardToRepresentTests =
       )),
       true
 
-      (fnName "Result" "fromOption" 0,
+      (fnName "Result" "fromOption" 2,
        [ RT.DOption(
            Some(
              RT.DFnVal(

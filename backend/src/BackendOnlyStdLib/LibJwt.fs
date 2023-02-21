@@ -390,38 +390,7 @@ let ofJson (str : string) : Result<Dval, string> =
     Error msg
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "JWT" "signAndEncode" 0
-      parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
-      returnType = TStr
-      description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unencrypted RSA private key in PEM format."
-      fn =
-        (function
-        | _, [ DStr key; payload ] ->
-          signAndEncode key Map.empty payload |> DStr |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = ImpurePreviewable
-      deprecated = ReplacedBy(fn "JWT" "signAndEncode" 1) }
-
-    { name = fn "JWT" "signAndEncodeWithHeaders" 0
-      parameters =
-        [ Param.make "pemPrivKey" TStr ""
-          Param.make "headers" (TDict varB) ""
-          Param.make "payload" varA "" ]
-      returnType = TStr
-      description =
-        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unencrypted RSA private key in PEM format."
-      fn =
-        (function
-        | _, [ DStr key; DObj headers; payload ] ->
-          signAndEncode key headers payload |> DStr |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "JWT" "signAndEncodeWithHeaders" 1) }
-
-    { name = fn "JWT" "signAndEncode" 1
+  [ { name = fn "JWT" "signAndEncode" 1
       parameters = [ Param.make "pemPrivKey" TStr ""; Param.make "payload" varA "" ]
       returnType = TResult(varB, varErr)
       description =
@@ -458,38 +427,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "JWT" "verifyAndExtract" 0
-      parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]
-      returnType = TOption varA
-      description =
-        "Verify and extract the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
-      fn =
-        (function
-        | _, [ DStr key; DStr token ] ->
-          let result =
-            try
-              let rsa = RSA.Create()
-              rsa.ImportFromPem(System.ReadOnlySpan(key.ToCharArray()))
-              verifyAndExtractV0 rsa token
-            with
-            | _ ->
-              Exception.raiseCode
-                "No supported key formats were found. Check that the input represents the contents of a PEM-encoded key file, not the path to such a file."
-          match result with
-          | Some (headers, payload) ->
-            let unwrap = Exception.unwrapResultCode
-            [ ("header", ofJson headers |> unwrap)
-              ("payload", ofJson payload |> unwrap) ]
-            |> Map.ofList
-            |> DObj
-            |> Some
-            |> DOption
-            |> Ply
-          | None -> Ply(DOption None)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "JWT" "verifyAndExtract" 1) }
 
     { name = fn "JWT" "verifyAndExtract" 1
       parameters = [ Param.make "pemPubKey" TStr ""; Param.make "token" TStr "" ]

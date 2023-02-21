@@ -359,26 +359,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
-      parameters = [ Param.make "canvasName" TStr "" ]
-      returnType = TOption TStr
-      description = "Gives canvasId for a canvasName"
-      fn =
-        internalFn (function
-          | _, [ DStr canvasName ] ->
-            uply {
-              try
-                let! meta = Canvas.getMetaExn (CanvasName.createExn canvasName)
-                return DOption(Some(DStr(string meta.id)))
-              with
-              | e -> return DOption None
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "canvasIDOfCanvasName" 0) }
-
-
     { name = fn "DarkInternal" "canvasIDOfCanvasName" 0
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TResult(TUuid, TStr)
@@ -535,26 +515,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "checkPermission" 0
-      parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
-      returnType = TStr
-      description = "Check a user's permissions for a particular canvas"
-      fn =
-        internalFn (function
-          | _, [ DStr username; DStr canvas ] ->
-            uply {
-              let owner =
-                Account.ownerNameFromCanvasName (CanvasName.createExn canvas)
-              match! Authorization.permission owner (UserName.create username) with
-              | Some perm -> return DStr(string perm)
-              | None -> return DStr ""
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "getPermission" 0) }
-
-
     { name = fn "DarkInternal" "getPermission" 0
       parameters = [ Param.make "userID" TUuid ""; Param.make "canvasID" TUuid "" ]
       returnType = TResult(TStr, TStr)
@@ -665,35 +625,6 @@ that's already taken, returns an error."
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "newSessionForUsername" 0
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TStr, TStr)
-      description =
-        "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
-      fn =
-        internalFn (function
-          | state, [ DStr username ] ->
-            uply {
-              try
-                // This is used by the login.darklang.com/dark-cli callback
-                let username = UserName.create username
-                let! session = Session.insert username
-                return DResult(Ok(DStr session.sessionKey))
-              with
-              | e ->
-                let metadata =
-                  [ "username", username :> obj
-                    "fn", "DarkInternal::newSessionForUserName"
-                    "error", "failed to create session" ]
-                state.reportException state metadata e
-                return DResult(Error(DStr "Failed to create session"))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "newSessionForUsername" 1) }
 
 
     { name = fn "DarkInternal" "newSessionForUsername" 1

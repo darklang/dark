@@ -1,23 +1,9 @@
-Result.andThen_v0 (Error "test") (fun x -> Error "test") = Error "test"
-Result.andThen_v0 (Error "test") (fun x -> Ok 5) = Error "test"
-Result.andThen_v0 (Ok 5) (fun x -> Error "test") = Error "test"
-Result.andThen_v0 (Ok 5) (fun x -> Ok (1 + x)) = Ok 6
-Result.andThen_v0 (Ok 8) (fun x -> Int.divide x 2) = Test.typeError_v0 "Expected `fn` to return a Result, but it returned `4`"
 Result.andThen_v1 (Error "test") (fun x -> Error "test") = Error "test"
 Result.andThen_v1 (Error "test") (fun x -> Ok 5) = Error "test"
 Result.andThen_v1 (Ok 5) (fun x -> Error "test") = Error "test"
 Result.andThen_v1 (Ok 5) (fun x -> Ok (1 + x)) = Ok 6
 Result.andThen_v1 (Ok 8) (fun x -> Int.divide x 2) = Test.typeError_v0 "Expected `fn` to return a Result, but it returned `4`"
 Result.andThen_v1 (Ok 5) (fun x -> [blank]) = Test.typeError_v0 "Expected `fn` to return a Result, but it returned `[]`"
-
-Result.fromOption_v0 (Just 6) "test" = Ok 6
-Result.fromOption_v0 Nothing "test" = Error "test"
-
-Result.fromOption_v1 (Just 6) "test" = Ok 6
-Result.fromOption_v1 Nothing "test" = Error "test"
-Result.fromOption_v1 (Just (Error "test")) "test" = Ok (Error "test")
-Result.fromOption_v1 blank "test" = blank
-Result.fromOption_v1 (Test.justWithTypeError_v0 "err") "msg" = Test.typeError_v0 "err"
 
 Result.fromOption_v2 (Just 6) "test" = Ok 6
 Result.fromOption_v2 Nothing "test" = Error "test"
@@ -35,23 +21,12 @@ Result.map2_v0 (Ok 10) (Error "error2") (fun (a, b) -> a - b) = Error "error2"
 Result.map2_v0 (Ok 10) (Ok 1) (fun (a, b) -> a - b) = Ok 9
 Result.map2_v0 (Test.okWithTypeError_v0 "err") (Ok 1) (fun (a, b) -> a - b) = Test.typeError_v0 "err"
 
-Result.mapError_v0 (Error "test") (fun x -> String.append_v0 x "-appended") = Error "test-appended"
-Result.mapError_v0 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 4
-
-Result.mapError_v1 (Error "test") (fun x -> String.append_v0 x "-appended") = Error "test-appended"
+Result.mapError_v1 (Error "test") (fun x -> String.append_v1 x "-appended") = Error "test-appended"
 Result.mapError_v1 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 4
-
-Result.map_v0 (Error "test") (fun x -> Int.divide_v0 x 2) = Error "test"
-Result.map_v0 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 2
 
 Result.map_v1 (Error "test") (fun x -> Int.divide_v0 x 2) = Error "test"
 Result.map_v1 (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 2
 Result.map_v1 blank (fun x -> Int.divide_v0 x 2) = blank
-
-Result.toOption_v0 (Error "test") = Nothing
-Result.toOption_v0 (Ok 6) = Just 6
-Result.toOption_v0 (Error (Test.errorRailValue_v0 Nothing)) = Test.errorRailValue_v0 Nothing
-Result.toOption_v0 (Ok (Test.errorRailValue_v0 Nothing)) = Test.errorRailValue_v0 Nothing
 
 Result.toOption_v1 (Error "test") = Nothing
 Result.toOption_v1 blank = blank
