@@ -403,21 +403,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: move to LibJson
-    { name = fn "Dict" "toJSON" 0
-      parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = TStr
-      description = "Returns <param dict> as a JSON string"
-      fn =
-        (function
-        | _, [ DObj o ] ->
-          DObj o |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "Dict" "set" 0
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""

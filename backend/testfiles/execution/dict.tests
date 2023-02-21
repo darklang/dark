@@ -60,15 +60,6 @@ Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
 Dict.size_v0 { a = 3; b = 1; c = 1 } = 3
 Dict.size_v0 {} = 0
 
-Dict.toJSON_v0 { key1 = "val1"; key2 = "val2"; } = "{\n  \"key1\": \"val1\",\n  \"key2\": \"val2\"\n}"
-Dict.toJSON_v0 { key1 = Test.infinity_v0 } = "{\n  \"key1\": \"Infinity\"\n}"
-Dict.toJSON_v0 { key1 = Test.negativeInfinity_v0 } = "{\n  \"key1\": \"-Infinity\"\n}"
-Dict.toJSON_v0 { key1 = Test.nan_v0 } = "{\n  \"key1\": \"NaN\"\n}"
-Dict.toJSON_v0 { v = 1 } = "{\n  \"v\": 1\n}"
-Dict.toJSON_v0 { v = 4503599627370497L } = "{\n  \"v\": 4503599627370497\n}"
-Dict.toJSON_v0 { v = 4611686018427387903L } = "{\n  \"v\": 4611686018427387903\n}"
-Dict.toJSON_v0 { v = 4611686018427387904L } = "{\n  \"v\": 4611686018427387904\n}"
-
 Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
 Dict.toList_v0 {} = []
 
