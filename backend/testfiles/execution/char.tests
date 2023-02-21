@@ -152,6 +152,7 @@ Char.isLessThan_v0 '2' '1' = false
 Char.isLessThan_v0 'a' (smiley null) = true
 Char.isLessThan_v0 'a' (hand null) = true
 Char.isLessThan_v0 'a' (family null) = true
+Char.isLessThan_v0 (smiley null) (hand null) = false
 
 
 Char.isGreaterThan_v0 'a' 'b' = false
@@ -170,3 +171,5 @@ Char.isGreaterThan_v0 '2' '1' = true
 Char.isGreaterThan_v0 'a' (smiley null) = false
 Char.isGreaterThan_v0 'a' (hand null) = false
 Char.isGreaterThan_v0 'a' (family null) = false
+Char.isGreaterThan_v0 (smiley null) (hand null) = true
+

@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | _, [ DChar c1; DChar c2 ] ->
-          (if c1 < c2 then true else false) |> DBool |> Ply
+          (c1 < c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -141,7 +141,7 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | _, [ DChar c1; DChar c2 ] ->
-          (if c1 > c2 then true else false) |> DBool |> Ply
+          (c1 > c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
