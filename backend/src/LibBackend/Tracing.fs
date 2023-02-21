@@ -13,7 +13,6 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 module LD = LibService.LaunchDarkly

@@ -14,7 +14,6 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 module ReprHash = LibExecution.DvalReprInternalHash
-module ReprDeprecated = LibExecution.DvalReprInternalDeprecated
 module ReprNew = LibExecution.DvalReprInternalNew
 
 // -------------------------

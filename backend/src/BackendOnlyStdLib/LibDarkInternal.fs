@@ -10,7 +10,6 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry

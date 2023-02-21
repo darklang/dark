@@ -11,7 +11,6 @@ open Tablecloth
 open Db
 
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // **********************
 // Types
