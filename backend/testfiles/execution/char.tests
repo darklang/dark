@@ -149,7 +149,6 @@ Char.isLessThan_v0 'a' ' ' = false
 Char.isLessThan_v0 'a' '\t' = false
 Char.isLessThan_v0 'a' '1' = false
 Char.isLessThan_v0 '2' '1' = false
-Char.isLessThan_v0 '2' '1' = false
 Char.isLessThan_v0 'a' (smiley null) = true
 Char.isLessThan_v0 'a' (hand null) = true
 Char.isLessThan_v0 'a' (family null) = true
@@ -167,7 +166,7 @@ Char.isGreaterThan_v0 'a' 'Ł' = false
 Char.isGreaterThan_v0 'a' ' ' = true
 Char.isGreaterThan_v0 'a' '\t' = true
 Char.isGreaterThan_v0 'a' '1' = true
+Char.isGreaterThan_v0 '2' '1' = true
 Char.isGreaterThan_v0 'a' (smiley null) = false
 Char.isGreaterThan_v0 'a' (hand null) = false
 Char.isGreaterThan_v0 'a' (family null) = false
-
