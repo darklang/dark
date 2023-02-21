@@ -392,7 +392,7 @@ that's already taken, returns an error."
                 let! meta = Canvas.getMetaFromID canvasID
                 return meta.name |> string |> DStr |> Ok |> DResult
               with
-              | e -> return DResult(Error(DStr "Canvas not found"))
+              | _ -> return DResult(Error(DStr "Canvas not found"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -586,7 +586,7 @@ that's already taken, returns an error."
           | TDict _ -> "dict"
           | TRecord _ -> "dict"
           | TFn _ -> "block"
-          | TVariable varname -> "any"
+          | TVariable _ -> "any"
           | TIncomplete -> "incomplete"
           | TError -> "error"
           | THttpResponse _ -> "response"
@@ -895,7 +895,7 @@ human-readable data."
                 do! Secret.insert canvasID secretName secretValue
                 return DResult(Ok DNull)
               with
-              | e -> return DResult(Error(DStr "Error inserting secret"))
+              | _ -> return DResult(Error(DStr "Error inserting secret"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

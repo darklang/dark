@@ -212,7 +212,7 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     extraHeaders
     |> Map.add "alg" (DStr "RS256")
     |> Map.add "type" (DStr "JWT")
-    |> Map.mapWithIndex (fun k v -> LegacySerializer.toYojson v)
+    |> Map.mapWithIndex (fun _ v -> LegacySerializer.toYojson v)
     |> Map.toList
     |> LegacySerializer.Assoc
     |> LegacySerializer.toString
@@ -242,44 +242,6 @@ let signAndEncode (key : string) (extraHeaders : DvalMap) (payload : Dval) : str
     |> Base64.urlEncodeToString
 
   body + "." + signature
-
-/// Verifies the signature of, and extracts data from, a JWT
-///
-/// Deprecated in favor of equivalent v1 function
-let verifyAndExtractV0 (key : RSA) (token : string) : (string * string) option =
-  match Seq.toList (String.split "." token) with
-  | [ header; payload; signature ] ->
-    // do the minimum of parsing and decoding before verifying signature.
-    // c.f. "cryptographic doom principle".
-    try
-      let signature = signature |> Base64.fromUrlEncoded |> Base64.decodeOpt
-
-      match signature with
-      | None -> None
-      | Some signature ->
-        let hash =
-          (header + "." + payload) |> UTF8.toBytes |> SHA256.Create().ComputeHash
-
-        let rsaDeformatter = RSAPKCS1SignatureDeformatter key
-        rsaDeformatter.SetHashAlgorithm "SHA256"
-
-        if rsaDeformatter.VerifySignature(hash, signature) then
-          let header =
-            header
-            |> Base64.fromUrlEncoded
-            |> Base64.decodeOpt
-            |> Option.bind UTF8.ofBytesOpt
-          let payload =
-            payload
-            |> Base64.fromUrlEncoded
-            |> Base64.decodeOpt
-            |> Option.bind UTF8.ofBytesOpt
-          Option.map2 Tuple2.make header payload
-        else
-          None
-    with
-    | e -> None
-  | _ -> None
 
 /// Verifies the signature of, and extracts data from, a JWT
 let verifyAndExtractV1

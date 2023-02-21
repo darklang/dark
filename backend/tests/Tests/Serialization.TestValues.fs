@@ -133,7 +133,7 @@ module RuntimeTypes =
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
     sampleDvals
-    |> List.filter (fun (name, dv) -> name <> "password")
+    |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map Tuple2.second
 
   let dvalFnValImpls : List<RT.FnValImpl> =
@@ -144,7 +144,7 @@ module RuntimeTypes =
 
   let dval : RT.Dval =
     sampleDvals
-    |> List.filter (fun (name, dv) -> name <> "password")
+    |> List.filter (fun (name, _dv) -> name <> "password")
     |> Map
     |> RT.DObj
 

@@ -388,7 +388,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeadersWithoutMergingKeys ctx
-        let reqQuery = getQuery ctx
         let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 

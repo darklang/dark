@@ -139,7 +139,7 @@ module Expr =
                 SendToRail.toRT rail
               )
             // Binops work pretty naturally here
-            | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget ptID, expr2) ->
+            | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget _, expr2) ->
               match op with
               | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
@@ -161,7 +161,7 @@ module Expr =
       )
     | PT.EPipeTarget id ->
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
-    | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
+    | PT.EFeatureFlag (id, _name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
 
 module DType =

@@ -114,12 +114,12 @@ let fns : List<BuiltInFn> =
          This function is the opposite of <fn Dict::toList>."
       fn =
         (function
-        | state, [ DList l ] ->
+        | _, [ DList l ] ->
 
           let f acc e =
             match e with
             | DList [ DStr k; value ] -> Map.add k value acc
-            | DList [ k; value ] ->
+            | DList [ k; _ ] ->
               Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
             | DErrorRail _
@@ -151,7 +151,7 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
           let f acc e =
             match acc, e with
-            | Some acc, DList [ DStr k; value ] when Map.containsKey k acc -> None
+            | Some acc, DList [ DStr k; _ ] when Map.containsKey k acc -> None
             | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
             | _,
               ((DIncomplete _

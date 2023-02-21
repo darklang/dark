@@ -43,8 +43,9 @@ let preprocess (ops : List<OpWithNewness>) : List<OpWithNewness> =
     | [ op ] -> [ op ]
     | (_, PT.UndoTL uid) :: (_, PT.RedoTL rid) :: rest when rid = uid -> rest
     // Step 2: error on solo redos
-    | (_, PT.RedoTL id1) :: (_, PT.RedoTL id2) :: rest when id1 = id2 -> op :: ops
-    | _ :: (_, PT.RedoTL _) :: rest -> Exception.raiseEditor "Already at latest redo"
+    | (_, PT.RedoTL id1) :: (_, PT.RedoTL id2) :: _rest when id1 = id2 -> op :: ops
+    | _ :: (_, PT.RedoTL _) :: _rest ->
+      Exception.raiseEditor "Already at latest redo"
     | ops -> ops)
   // Step 3: remove undos and all the ops up to the savepoint.
   // Go from the front and build the list up. If we hit an undo, drop

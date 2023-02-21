@@ -22,7 +22,7 @@ let rec typeName (t : DType) : string =
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
   | TFn _ -> "Block"
-  | TVariable varname -> "Any"
+  | TVariable _varname -> "Any"
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"

@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr u; DStr p ] ->
           Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuth u p)) ]))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       previewable = Pure
       sqlSpec = NotQueryable
       deprecated = NotDeprecated } ]

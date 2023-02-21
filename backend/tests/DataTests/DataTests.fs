@@ -175,7 +175,7 @@ let validate
     serializeWatch.Stop()
     // debuG $"{name} serialize time  " serializeWatch.ElapsedMilliseconds
     // debuG $"{name} serialized size " (Array.length bytes)
-    let token = System.Threading.CancellationToken()
+    let _token = System.Threading.CancellationToken()
 
     // print (
     //   MessagePack.MessagePackSerializer.SerializeToJson(expected, options, token)

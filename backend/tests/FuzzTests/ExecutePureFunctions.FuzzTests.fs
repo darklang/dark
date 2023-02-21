@@ -366,8 +366,8 @@ type Generator =
           match (argIndex, dv, prevArgs, name.module_, name.function_, name.version)
             with
           // Int Overflow
-          | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
-          | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
+          | 1, RT.DInt i, [ RT.DInt _ ], "Int", "power", 0
+          | 1, RT.DInt i, [ RT.DInt _ ], "", "^", 0 ->
             i <> 1L && i <> (-1L) && i <= 2000L
           | _ -> true)
 

@@ -360,7 +360,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     pipe.idText = "op_PipeRight"
     ->
     match c nestedPipes with
-    | PT.EPipe (id, arg1, Placeholder, []) as pipe ->
+    | PT.EPipe (id, arg1, Placeholder, []) ->
       // when we just built the lowest, the second one goes here
       PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
     | PT.EPipe (id, arg1, arg2, rest) ->
@@ -413,10 +413,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | PT.EFeatureFlag (id, label, condexpr, oldexpr, Placeholder) ->
       PT.EFeatureFlag(id, label, condexpr, oldexpr, c arg)
     // A pipe with one entry
-    | PT.EPipe (id, arg1, Placeholder, []) as pipe ->
+    | PT.EPipe (id, arg1, Placeholder, []) ->
       PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
     // A pipe with more than one entry
-    | PT.EPipe (id, arg1, arg2, rest) as pipe ->
+    | PT.EPipe (id, arg1, arg2, rest) ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
     // Function calls sending to error rail
     | PT.EVariable (id, name) when String.endsWith "_ster" name ->

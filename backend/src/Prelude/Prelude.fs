@@ -92,9 +92,9 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 
 
 // This is for tracing
-let mutable exceptionCallback = (fun (e : exn) -> ())
+let mutable exceptionCallback = (fun (_e : exn) -> ())
 
-let mutable sendRollbarError = (fun (message : string) (metadata : Metadata) -> ())
+let mutable sendRollbarError = (fun (_message : string) (_metadata : Metadata) -> ())
 
 module Exception =
 
@@ -666,7 +666,7 @@ module Uuid =
   let nilNamespace : System.Guid = System.Guid "00000000-0000-0000-0000-000000000000"
 
   let uuidV5 (data : string) (nameSpace : System.Guid) : System.Guid =
-    Faithlife.Utility.GuidUtility.Create(nilNamespace, data, 5)
+    Faithlife.Utility.GuidUtility.Create(nameSpace, data, 5)
 
 module Tuple2 =
   let fromKeyValuePair
@@ -1446,7 +1446,7 @@ module Task =
 
   let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
     task {
-      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
       return ()
     }
 
@@ -1458,7 +1458,7 @@ module Task =
     let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
     let f = execWithSemaphore semaphore f
     task {
-      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
       return ()
     }
 
@@ -1630,7 +1630,7 @@ module UserName =
     match validate name with
     | Ok _ ->
       if Set.contains name reserved then Error "Username is not allowed" else Ok()
-    | Error msg as error -> Error msg
+    | Error msg -> Error msg
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (str : string) : T =
@@ -1735,7 +1735,7 @@ module HttpHeaders =
     headers
     |> List.tryFind (fun ((k : string), (_ : string)) ->
       String.equalsCaseInsensitive headerName k)
-    |> Option.map (fun (k, v) -> v)
+    |> Option.map (fun (_k, v) -> v)
 
   /// Get Dark-style headers from an Asp.Net HttpResponseMessage
   let headersForAspNetResponse (response : HttpResponseMessage) : T =

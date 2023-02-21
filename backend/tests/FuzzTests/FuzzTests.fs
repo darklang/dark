@@ -39,7 +39,7 @@ let main args =
     match args
           |> List.ofArray
           |> List.pairwise
-          |> List.tryFind (fun (l, r) -> l = "--fscheck-max-tests")
+          |> List.tryFind (fun (l, _r) -> l = "--fscheck-max-tests")
       with
     | Some (_l, maxTests) -> { MaxTests = int maxTests }
     | _ -> { MaxTests = 100000 }

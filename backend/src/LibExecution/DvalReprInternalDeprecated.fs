@@ -28,14 +28,6 @@ let writeJson (f : JsonWriter -> unit) : string =
   f w
   string stream
 
-let writePrettyJson (f : JsonWriter -> unit) : string =
-  let stream = new System.IO.StringWriter()
-  let w = new JsonTextWriter(stream)
-  // Match yojson
-  w.FloatFormatHandling <- FloatFormatHandling.Symbol
-  w.Formatting <- Formatting.Indented
-  string stream
-
 type JsonWriter with
 
   member this.writeObject(f : unit -> unit) =

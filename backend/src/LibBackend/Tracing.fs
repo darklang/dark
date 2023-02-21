@@ -253,7 +253,7 @@ let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
                 Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
                 standardTracing.traceTLID tlid } }
 
-let createNonTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
+let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let results = TraceResults.empty ()
   { enabled = false

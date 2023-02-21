@@ -75,7 +75,7 @@ let requiredContextToValidateOplist (oplist : PT.Oplist) : RequiredContext =
       | NoContext -> 0)
 
 
-let isDeprecated (op : PT.Op) : bool = false
+let isDeprecated (_op : PT.Op) : bool = false
 
 let hasEffect (op : PT.Op) : bool =
   match op with

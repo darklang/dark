@@ -269,7 +269,7 @@ let executionStateFor
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =
-          fun tc result ->
+          fun tc _ ->
             // In an effort to find errors in the test suite, we track exceptions
             // that we report in the runtime and check for them after the test
             // completes.  There are a lot of places where exceptions are allowed,
@@ -917,7 +917,7 @@ let naughtyStrings : List<string * string> =
   |> String.splitOnNewline
   |> List.mapWithIndex (fun i s -> $"naughty string line {i + 1}", s)
   // 139 is the Unicode BOM on line 140, which is tough to get .NET to put in a string
-  |> List.filterWithIndex (fun i (doc, str) ->
+  |> List.filterWithIndex (fun i (_, str) ->
     i <> 139 && not (String.startsWith "#" str))
 
 let interestingDvals =

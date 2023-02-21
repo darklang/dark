@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
          a different behavior for negative numbers."
       fn =
         (function
-        | state, [ DInt v; DInt m as mdv ] ->
+        | _, [ DInt v; DInt m as mdv ] ->
           if m <= 0L then
             err (Errors.argumentWasnt "positive" "b" mdv)
           else
@@ -331,7 +331,7 @@ let fns : List<BuiltInFn> =
               (fun i ->
                 match i with
                 | DInt it -> it
-                | t ->
+                | _ ->
                   Exception.raiseCode (Errors.argumentWasnt "a list of ints" "a" ldv))
               l
 

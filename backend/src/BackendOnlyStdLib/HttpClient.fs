@@ -33,7 +33,7 @@ let toStringPairs (dv : Dval) : Result<List<string * string>, string> =
     |> List.map (fun pair ->
       match pair with
       | (k, DStr v) -> Ok(k, v)
-      | (k, v) ->
+      | (_, _) ->
         // CLEANUP: this was just to keep the error messages the same with OCaml. It's safe to change the error message
         // Error $"Expected a string, but got: {toDeveloperReprV0 v}"
         Error "expecting str")
@@ -166,9 +166,9 @@ let httpCall'
         // isn't allowed in .NET.
         let contentLengthHeader : Option<int> =
           reqHeaders
-          |> List.find (fun (k, v) -> String.equalsCaseInsensitive k "content-length")
+          |> List.find (fun (k, _) -> String.equalsCaseInsensitive k "content-length")
           // Note: in ocaml it would send nonsense headers, .NET doesn't allow it
-          |> Option.bind (fun (k, v) -> parseInt v)
+          |> Option.bind (fun (_, v) -> parseInt v)
 
         // content
         let utf8 = System.Text.Encoding.UTF8

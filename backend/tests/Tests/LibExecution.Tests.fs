@@ -123,7 +123,7 @@ let t
         let rtPackageFns =
           packageFns
           |> Map.toList
-          |> List.map (fun (k, v) ->
+          |> List.map (fun (_, v) ->
             let fn = PT2RT.Package.toRT v
             ((RT.FQFnName.Package fn.name), fn))
           |> Map
