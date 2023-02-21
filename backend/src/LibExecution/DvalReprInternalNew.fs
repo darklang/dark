@@ -138,3 +138,33 @@ let toHashV2 (dvals : list<RT.Dval>) : string =
   |> UTF8.toBytes
   |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure
   |> Base64.urlEncodeToString
+
+
+
+module Test =
+  let rec isRoundtrippableDval (dval : RT.Dval) : bool =
+    match dval with
+    | RT.DFnVal _ -> false // not supported
+    | RT.DStr _
+    | RT.DInt _
+    | RT.DFloat _
+    | RT.DNull _
+    | RT.DBool _
+    | RT.DChar _
+    | RT.DBytes _
+    | RT.DDate _
+    | RT.DOption None
+    | RT.DPassword _ -> true
+    | RT.DList dvals -> List.all isRoundtrippableDval dvals
+    | RT.DObj map -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DUuid _ -> true
+    | RT.DTuple (v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
+    | RT.DOption (Some v)
+    | RT.DHttpResponse (RT.Response (_, _, v))
+    | RT.DResult (Error v)
+    | RT.DResult (Ok v) -> isRoundtrippableDval v
+    | RT.DHttpResponse (RT.Redirect _) -> true
+    | RT.DDB _
+    | RT.DError _
+    | RT.DIncomplete _
+    | RT.DErrorRail _ -> true

@@ -129,7 +129,7 @@ let allRoundtrips =
     [ t
         "roundtrippable"
         FuzzTests.InternalJson.Roundtrippable.roundtripsSuccessfully
-        (dvs (fun _ -> true))
+        (dvs (DvalReprInternalNew.Test.isRoundtrippableDval))
       t
         "queryable v0"
         FuzzTests.InternalJson.Queryable.canV1Roundtrip
@@ -202,7 +202,7 @@ module Password =
         Expect.equal
           shouldRedact
           (String.includes
-            ("encryptedbytes" |> UTF8.toBytes |> Base64.defaultEncodeToString)
+            ("encryptedbytes" |> UTF8.toBytes |> Base64.urlEncodeToString)
             (f password)
            |> not)
           $"{name} {allowed}"
