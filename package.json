@@ -20,7 +20,7 @@
     "tailwindcss": "3.2.4"
   },
   "dependencies": {
-    "@fullstory/browser": "1.6.2",
+    "@fullstory/browser": "1.7.0",
     "@glennsl/bs-json": "5.0.3",
     "acorn": "8.8.2",
     "bs-fetch": "0.6.2",
