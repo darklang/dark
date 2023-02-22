@@ -10,7 +10,6 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
@@ -101,15 +100,14 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "username" TStr ""
           Param.make "email" TStr ""
-          Param.make "name" TStr ""
-          Param.make "analyticsMetadata" (TDict TStr) "" ]
+          Param.make "name" TStr "" ]
       returnType = TResult(TStr, TStr)
       description =
         "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
+          | _, [ DStr username; DStr email; DStr name ] ->
             uply {
               let username =
                 Exception.catchError (fun () ->
@@ -118,8 +116,7 @@ that's already taken, returns an error."
                   UserName.create username)
               match username with
               | Ok username ->
-                let! _user =
-                  Account.insertUser username email name (Some analyticsMetadata)
+                let! _user = Account.insertUser username email name
                 Analytics.identifyUser username
                 let toCanvasName =
                   $"{username}-{LibService.Config.gettingStartedCanvasName}"
@@ -312,35 +309,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "pushStrollerEvent" 1
-      parameters =
-        [ Param.make "canvasID" TStr ""
-          Param.make "event" TStr ""
-          Param.make "payload" varA "" ]
-      returnType = TResult(varB, TStr)
-      description = "Pushes an event to Honeycomb"
-      fn =
-        internalFn (function
-          | _, [ DStr canvasID; DStr event; payload ] ->
-            (try
-              Pusher.push
-                ClientTypes2BackendTypes.Pusher.eventSerializer
-                (canvasID |> System.Guid.Parse)
-                (Pusher.CustomEvent(
-                  event,
-                  payload |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-                ))
-                None
-
-              Ply(DResult(Ok payload))
-             with
-             | e -> Ply(DResult(Error(e |> string |> DStr))))
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "sessionKeyToUsername" 0
       parameters = [ Param.make "sessionKey" TStr "" ]
       returnType = TResult(TStr, TStr)
@@ -392,7 +360,7 @@ that's already taken, returns an error."
                 let! meta = Canvas.getMetaFromID canvasID
                 return meta.name |> string |> DStr |> Ok |> DResult
               with
-              | e -> return DResult(Error(DStr "Canvas not found"))
+              | _ -> return DResult(Error(DStr "Canvas not found"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -586,7 +554,7 @@ that's already taken, returns an error."
           | TDict _ -> "dict"
           | TRecord _ -> "dict"
           | TFn _ -> "block"
-          | TVariable varname -> "any"
+          | TVariable _ -> "any"
           | TIncomplete -> "incomplete"
           | TError -> "error"
           | THttpResponse _ -> "response"
@@ -895,7 +863,7 @@ human-readable data."
                 do! Secret.insert canvasID secretName secretValue
                 return DResult(Ok DNull)
               with
-              | e -> return DResult(Error(DStr "Error inserting secret"))
+              | _ -> return DResult(Error(DStr "Error inserting secret"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

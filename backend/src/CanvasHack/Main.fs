@@ -98,7 +98,7 @@ let main (args : string []) =
           opCtr = 2
           clientOpCtrID = "4803612a-cf8c-4aa0-8f87-0a82daa923c4" }
 
-      let addOpsResponse =
+      let _addOpsResponse =
         CanvasHack.AddOps.addOp c addOpsParams
         |> Async.AwaitTask
         |> Async.RunSynchronously

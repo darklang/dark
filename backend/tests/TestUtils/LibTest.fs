@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
       description = "Return an <type ErrorRail> wrapping <param value>"
       fn =
         (function
-        | state, [ value ] -> Ply(DErrorRail(value))
+        | _, [ value ] -> Ply(DErrorRail(value))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | state, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
+        | _, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
       description = "Prints the value into stdout"
       fn =
         (function
-        | state, [ v; DStr msg ] ->
+        | _, [ v; DStr msg ] ->
           print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
@@ -418,7 +418,7 @@ let fns : List<BuiltInFn> =
       description = "Create the named canvas and return the IDgg"
       fn =
         (function
-        | state, [ DStr canvasName ] ->
+        | _, [ DStr canvasName ] ->
           uply {
             let! meta =
               LibBackend.Canvas.getMetaAndCreate (CanvasName.createExn canvasName)

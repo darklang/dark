@@ -45,7 +45,6 @@ let main (args : string array) : int =
         Tests.EventQueueV2.tests
         Tests.Execution.tests
         Tests.Parser.tests
-        Tests.HttpQueryEncoding.tests
         Tests.HttpBaseClient.tests
         Tests.LibExecution.tests.Force()
         Tests.Prelude.tests

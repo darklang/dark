@@ -92,9 +92,9 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 
 
 // This is for tracing
-let mutable exceptionCallback = (fun (e : exn) -> ())
+let mutable exceptionCallback = (fun (_e : exn) -> ())
 
-let mutable sendRollbarError = (fun (message : string) (metadata : Metadata) -> ())
+let mutable sendRollbarError = (fun (_message : string) (_metadata : Metadata) -> ())
 
 module Exception =
 
@@ -666,7 +666,7 @@ module Uuid =
   let nilNamespace : System.Guid = System.Guid "00000000-0000-0000-0000-000000000000"
 
   let uuidV5 (data : string) (nameSpace : System.Guid) : System.Guid =
-    Faithlife.Utility.GuidUtility.Create(nilNamespace, data, 5)
+    Faithlife.Utility.GuidUtility.Create(nameSpace, data, 5)
 
 module Tuple2 =
   let fromKeyValuePair
@@ -1446,7 +1446,7 @@ module Task =
 
   let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
     task {
-      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
       return ()
     }
 
@@ -1458,7 +1458,7 @@ module Task =
     let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
     let f = execWithSemaphore semaphore f
     task {
-      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
       return ()
     }
 
@@ -1630,7 +1630,7 @@ module UserName =
     match validate name with
     | Ok _ ->
       if Set.contains name reserved then Error "Username is not allowed" else Ok()
-    | Error msg as error -> Error msg
+    | Error msg -> Error msg
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (str : string) : T =
@@ -1735,7 +1735,7 @@ module HttpHeaders =
     headers
     |> List.tryFind (fun ((k : string), (_ : string)) ->
       String.equalsCaseInsensitive headerName k)
-    |> Option.map (fun (k, v) -> v)
+    |> Option.map (fun (_k, v) -> v)
 
   /// Get Dark-style headers from an Asp.Net HttpResponseMessage
   let headersForAspNetResponse (response : HttpResponseMessage) : T =
@@ -1745,6 +1745,60 @@ module HttpHeaders =
       |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
       |> Seq.toList
     fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
+
+module STJParser =
+  open System.Text.Json
+
+  let (|JString|_|) (j : JsonElement) : Option<string> =
+    match j.ValueKind with
+    | JsonValueKind.String -> Some(JString(j.GetString()))
+    | _ -> None
+
+  let (|JNull|_|) (j : JsonElement) : Option<unit> =
+    match j.ValueKind with
+    | JsonValueKind.Null -> Some(JNull)
+    | _ -> None
+
+  let (|JInteger|_|) (j : JsonElement) : Option<int64> =
+    match j.ValueKind with
+    | JsonValueKind.Number ->
+      try
+        Some(JInteger(j.GetInt64()))
+      with
+      | :? System.FormatException -> None
+    | _ -> None
+
+  let (|JFloat|_|) (j : JsonElement) : Option<float> =
+    match j.ValueKind with
+    | JsonValueKind.Number -> Some(JFloat(j.GetDouble()))
+    | _ -> None
+
+  let (|JBoolean|_|) (j : JsonElement) : Option<bool> =
+    match j.ValueKind with
+    | JsonValueKind.False -> Some(JBoolean(false))
+    | JsonValueKind.True -> Some(JBoolean(true))
+    | _ -> None
+
+  let (|JList|_|) (j : JsonElement) : Option<List<JsonElement>> =
+    match j.ValueKind with
+    | JsonValueKind.Array -> Some(JList(j.EnumerateArray() |> Seq.toList))
+    | _ -> None
+
+  let (|JObject|_|) (j : JsonElement) : Option<List<string * JsonElement>> =
+    match j.ValueKind with
+    | JsonValueKind.Object ->
+      let list =
+        j.EnumerateObject()
+        |> Seq.toList
+        |> List.map (fun (jp : JsonProperty) -> (jp.Name, jp.Value))
+      Some(JObject(list))
+
+    | _ -> None
+
+  let (|JUndefined|_|) (j : JsonElement) : Option<unit> =
+    match j.ValueKind with
+    | JsonValueKind.Undefined -> Some()
+    | _ -> None
 
 
 

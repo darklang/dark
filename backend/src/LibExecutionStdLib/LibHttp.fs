@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
             |> List.map (fun (k, v) ->
               match k, v with
               | k, DStr v -> k, v
-              | k, v ->
+              | _, v ->
                 Exception.raiseCode (Errors.argumentWasnt "a string" "value" v))
 
           Ply(DHttpResponse(Response(code, pairs, dv)))
@@ -222,7 +222,7 @@ let fns : List<BuiltInFn> =
          and/or {{SameSite}})."
       fn =
         (function
-        | state, [ DStr name; DStr value; DObj o ] ->
+        | _, [ DStr name; DStr value; DObj o ] ->
 
           let fold_cookie_params acc key value =
             match (String.toLowercase key, value) with

@@ -27,18 +27,18 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 25
 
 [test.empty grants]
 (let _ = Test.deleteUser_v0 "empty_grants"
- let _ = DarkInternal.insertUser_v2_ster "emptygrants" "a@eg.com" "test user" {}
+ let _ = DarkInternal.insertUser_v2_ster "emptygrants" "a@eg.com" "test user"
  DarkInternal.orgsFor "empty_grants") = {}
 
 [test.grants and orgs]
-(let _ = DarkInternal.insertUser_v2_ster "gaoorg" "gao-test-org@darklang.com" "gao test org" {}
- let _ = DarkInternal.insertUser_v2_ster "gaouser" "gao-test-user@darklang.com" "gao test user" {}
+(let _ = DarkInternal.insertUser_v2_ster "gaoorg" "gao-test-org@darklang.com" "gao test org"
+ let _ = DarkInternal.insertUser_v2_ster "gaouser" "gao-test-user@darklang.com" "gao test user"
  let _ = DarkInternal.grant_v0_ster "gaouser" "gaoorg" "rw" in
  DarkInternal.orgsFor "gaouser") = { ``gaoorg`` = "rw" }
 
 [test.grants and grants]
-(let _ = DarkInternal.insertUser_v2_ster "gagorg" "gag-test-org@darklang.com" "gag test org" {}
- let _ = DarkInternal.insertUser_v2_ster "gaguser" "gag-test-user@darklang.com" "gag test user" {}
+(let _ = DarkInternal.insertUser_v2_ster "gagorg" "gag-test-org@darklang.com" "gag test org"
+ let _ = DarkInternal.insertUser_v2_ster "gaguser" "gag-test-user@darklang.com" "gag test user"
  let _ = DarkInternal.grant "gaguser" "gagorg" "rw" in
  let result = DarkInternal.grantsFor "gagorg"
  let _ = DarkInternal.grant "gaguser" "gagorg" "" in
@@ -68,8 +68,8 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 25
 DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" {} = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
-DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" {} = Error "Underscores not allowed in usernames"
+DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
+DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" = Error "Underscores not allowed in usernames"
 
 // These could be tested in a much better way, really we're just testing the signatures here
 (List.length (DarkInternal.getCanvasList Test.getUserID) > 0) = true
@@ -89,8 +89,8 @@ DarkInternal.getOrgList Test.getUserID = []
  let user2 = ("gpnuser2" ++ (String.random_v2_ster 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpn test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpn test user2" {}
+ let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpn test user1"
+ let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpn test user2"
  let userID = DarkInternal.getUserID_v0_ster user1
  let canvasID = Test.createCanvas user2
  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
@@ -102,8 +102,8 @@ DarkInternal.getOrgList Test.getUserID = []
  let user2 = ("gpruser2" ++ (String.random_v2_ster 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpr test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpr test user2" {}
+ let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpr test user1"
+ let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpr test user2"
  let userID = DarkInternal.getUserID_v0_ster user1
  let canvasID = Test.createCanvas user2
  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
@@ -115,8 +115,8 @@ DarkInternal.getOrgList Test.getUserID = []
  let user2 = ("gprwuser2" ++ (String.random_v2_ster 5)) |> String.toLowercase_v1
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gprw test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gprw test user2" {}
+ let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gprw test user1"
+ let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gprw test user2"
  let userID = DarkInternal.getUserID_v0_ster user1
  let canvasID = Test.createCanvas user2
  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
@@ -207,19 +207,19 @@ DarkInternal.unlockedDBs Test.getCanvasID = [1]
 // Tunnels
 // ---------------
 [test.tunnel is unset]
-(let _ = DarkInternal.insertUser_v2_ster "tunnel0" "tunnel0-test-user@darklang.com" "tunnel0 test user" {}
+(let _ = DarkInternal.insertUser_v2_ster "tunnel0" "tunnel0-test-user@darklang.com" "tunnel0 test user"
  let userID = DarkInternal.getUserID_v0_ster "tunnel0"
  DarkInternal.getTunnelHost userID) = Nothing
 
 [test.setting tunnel works]
-(let _ = DarkInternal.insertUser_v2_ster "tunnel1" "tunnel1-test-user@darklang.com" "tunnel1 test user" {}
+(let _ = DarkInternal.insertUser_v2_ster "tunnel1" "tunnel1-test-user@darklang.com" "tunnel1 test user"
  let userID = DarkInternal.getUserID_v0_ster "tunnel1"
  let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
  DarkInternal.getTunnelHost userID) = Just "myhost.com"
 
 
 [test.clearing tunnel works]
-(let _ = DarkInternal.insertUser_v2_ster "tunnel2" "tunnel2-test-user@darklang.com" "tunnel2 test user" {}
+(let _ = DarkInternal.insertUser_v2_ster "tunnel2" "tunnel2-test-user@darklang.com" "tunnel2 test user"
  let userID = DarkInternal.getUserID_v0_ster "tunnel2"
  let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
  let _ = DarkInternal.setTunnelHost userID Nothing

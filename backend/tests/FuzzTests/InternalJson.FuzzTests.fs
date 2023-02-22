@@ -19,6 +19,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalNew = LibExecution.DvalReprInternalNew
 module G = Generators
 
 type Generator =
@@ -57,9 +58,7 @@ module Roundtrippable =
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
-    static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive()
-      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval false)
+    static member Dval() : Arbitrary<RT.Dval> = Arb.Default.Derive()
 
   type GeneratorWithBugs =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
@@ -71,14 +70,12 @@ module Roundtrippable =
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
-    static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive()
-      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval true)
+    static member Dval() : Arbitrary<RT.Dval> = Arb.Default.Derive()
 
   let roundtripsSuccessfully (dv : RT.Dval) : bool =
     dv
-    |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-    |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+    |> DvalReprInternalNew.toRoundtrippableJsonV0
+    |> DvalReprInternalNew.parseRoundtrippableJsonV0
     |> Expect.dvalEquality dv
 
   let tests config =

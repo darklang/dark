@@ -16,7 +16,7 @@ let run () : Task<unit> =
   task {
     while not shouldShutdown do
       try
-        use (span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
+        use (_span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
         do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
       with
       | e ->

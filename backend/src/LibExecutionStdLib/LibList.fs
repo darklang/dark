@@ -648,7 +648,7 @@ let fns : List<BuiltInFn> =
                 | DIncomplete _ ->
                   incomplete <- true
                   return false
-                | v ->
+                | _ ->
                   Exception.raiseCode (Errors.expectedLambdaType "fn" TBool dv)
                   return false
               }
@@ -1082,7 +1082,7 @@ let fns : List<BuiltInFn> =
         and <param bs> again."
       fn =
         (function
-        | state, [ DList l1; DList l2 ] ->
+        | _, [ DList l1; DList l2 ] ->
           // We have to do this munging because OCaml's map2
           // and Fsharp's zip enforces lists of the same length
           let len = min (List.length l1) (List.length l2)
@@ -1118,7 +1118,7 @@ let fns : List<BuiltInFn> =
         instead)."
       fn =
         (function
-        | state, [ DList l1; DList l2 ] ->
+        | _, [ DList l1; DList l2 ] ->
           if List.length l1 <> List.length l2 then
             Ply(DOption None)
           else
@@ -1147,7 +1147,7 @@ let fns : List<BuiltInFn> =
          {{[[1,2,3], [\"x\",\"y\",\"z\"]]}}."
       fn =
         (function
-        | state, [ DList l ] ->
+        | _, [ DList l ] ->
 
           let f (acc1, acc2) i =
             match i with
@@ -1160,7 +1160,7 @@ let fns : List<BuiltInFn> =
                 match v with
                 | DList l ->
                   $". It has length {List.length l} but should have length 2"
-                | nonList ->
+                | _ ->
                   $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `List`"
 
               Exception.raiseCode (

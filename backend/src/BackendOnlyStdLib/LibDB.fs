@@ -209,7 +209,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.queryExactFields state db fields
-            return results |> List.map (fun (k, v) -> v) |> Dval.list
+            return results |> List.map (fun (_k, v) -> v) |> Dval.list
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -347,8 +347,8 @@ let fns : List<BuiltInFn> =
           let db = state.program.dbs[dbname]
 
           db.cols
-          |> List.filter (fun (k, v) -> k <> "")
-          |> List.map (fun (k, v) -> DStr k)
+          |> List.filter (fun (k, _v) -> k <> "")
+          |> List.map (fun (k, _v) -> DStr k)
           |> DList
           |> Ply
         | _ -> incorrectArgs ())
@@ -368,7 +368,7 @@ let fns : List<BuiltInFn> =
           let db = state.program.dbs[dbname]
 
           db.cols
-          |> List.filter (fun (k, v) -> k <> "")
+          |> List.filter (fun (k, _v) -> k <> "")
           |> List.map (fun (k, v) -> (k, (v.toOldString () |> DStr)))
           |> Dval.obj
           |> Ply

@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a pair with the given values"
       fn =
         (function
-        | state, [ first; second ] -> Ply(DTuple(first, second, []))
+        | _, [ first; second ] -> Ply(DTuple(first, second, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the first value of a pair"
       fn =
         (function
-        | state, [ DTuple (first, _second, []) ] -> Ply(first)
+        | _, [ DTuple (first, _second, []) ] -> Ply(first)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second value of a pair"
       fn =
         (function
-        | state, [ DTuple (_first, second, []) ] -> Ply(second)
+        | _, [ DTuple (_first, second, []) ] -> Ply(second)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a pair with the elements swapped"
       fn =
         (function
-        | state, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
+        | _, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

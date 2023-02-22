@@ -26,9 +26,6 @@ let ptFQFnName =
 
 let parseTests =
   let p = PTParser.FQFnName.parse
-  let User = RT.FQFnName.User
-  let Stdlib = RT.FQFnName.Stdlib
-  let Package = RT.FQFnName.Package
 
   testList
     "Parsing fn names"

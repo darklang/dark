@@ -220,7 +220,7 @@ let getTraceData
         timestamp = AT.TraceID.toTimestamp traceID
         function_results =
           cloudStorageData.functionResults
-          |> Seq.map (fun (tlid, id, fnName, hashVersion, argHash, dval) ->
+          |> Seq.map (fun (_tlid, id, fnName, hashVersion, argHash, dval) ->
             (fnName, id, argHash, hashVersion, parseDval dval) : AT.FunctionResult)
           |> List.ofSeq }
 

@@ -145,7 +145,6 @@ let testStoredEventRoundtrip =
     do! TI.storeEvent id2 t5 desc2 (DStr "3")
     do! TI.storeEvent id2 t6 desc4 (DStr "3")
     let t4_get4th (_, _, _, x) = x
-    let t5_get5th (_, _, _, _, x) = x
 
     // This is a bit racy
     let! listed = TI.listEvents TI.All id1

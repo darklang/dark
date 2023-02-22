@@ -19,8 +19,6 @@ let addOp
   (p : LibBackend.Op.AddOpParamsV1)
   : Task<LibBackend.Op.AddOpResultV1> =
   task {
-    let canvasID = canvasInfo.id
-
     let! isLatest =
       Serialize.isLatestOpRequest (Some p.clientOpCtrID) p.opCtr canvasInfo.id
 

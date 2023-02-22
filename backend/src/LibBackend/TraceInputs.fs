@@ -24,7 +24,7 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 
-module Repr = LibExecution.DvalReprInternalDeprecated
+module Repr = LibExecution.DvalReprInternalNew
 
 
 type EventRecord = HandlerDesc * NodaTime.Instant * AT.TraceID.T
@@ -83,8 +83,7 @@ let storeEvent
                         "module", Sql.string module_
                         "path", Sql.string path
                         "modifier", Sql.string modifier
-                        ("value",
-                         event |> Repr.toInternalRoundtrippableV0 |> Sql.string) ]
+                        ("value", event |> Repr.toRoundtrippableJsonV0 |> Sql.string) ]
     |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
@@ -179,7 +178,7 @@ let loadEvents
     return
       results
       |> List.map (fun (path, trace_id, timestamp, value_json) ->
-        (path, trace_id, timestamp, Repr.ofInternalRoundtrippableV0 value_json))
+        (path, trace_id, timestamp, Repr.parseRoundtrippableJsonV0 value_json))
   }
 
 
@@ -201,7 +200,7 @@ let loadEventForTrace
     return
       results
       |> Option.map (fun (path, timestamp, value) ->
-        (path, timestamp, Repr.ofInternalRoundtrippableV0 value))
+        (path, timestamp, Repr.parseRoundtrippableJsonV0 value))
   }
 
 

@@ -205,7 +205,7 @@ let configureServices (services : IServiceCollection) : unit =
   // |> fun s -> s.AddServerTiming()
   |> ignore<IServiceCollection>
 
-let webserver (httpPort : int) (healthCheckPort : int) : WebApplication =
+let webserver (httpPort : int) (_healthCheckPort : int) : WebApplication =
   // let hcUrl = Kubernetes.url healthCheckPort
 
   let builder = WebApplication.CreateBuilder()
@@ -223,7 +223,7 @@ let webserver (httpPort : int) (healthCheckPort : int) : WebApplication =
   configureApp app
   app
 
-let runServer (debug : bool) (port : int) (hcPort : int) : unit =
+let runServer (_debug : bool) (port : int) (hcPort : int) : unit =
   System.Console.WriteLine
     $"Starting server on port {port}, health check on {hcPort}"
   (webserver port hcPort).Run()

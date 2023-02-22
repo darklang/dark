@@ -14,7 +14,7 @@ open Tablecloth
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 module ReprHash = LibExecution.DvalReprInternalHash
-module ReprDeprecated = LibExecution.DvalReprInternalDeprecated
+module ReprNew = LibExecution.DvalReprInternalNew
 
 // -------------------------
 // External
@@ -50,9 +50,7 @@ let store
                          |> Sql.string)
                         "hashVersion", Sql.int ReprHash.currentHashVersion
                         ("value",
-                         result
-                         |> ReprDeprecated.toInternalRoundtrippableV0
-                         |> Sql.string) ]
+                         result |> ReprNew.toRoundtrippableJsonV0 |> Sql.string) ]
     |> Sql.executeStatementAsync
 
 // CLEANUP store these in Cloud Storage instead of the DB
@@ -76,7 +74,7 @@ let storeMany
           "timestamp", Sql.instantWithTimeZone timestamp
           "hash", Sql.string hash
           "hashVersion", Sql.int ReprHash.currentHashVersion
-          ("value", result |> ReprDeprecated.toInternalRoundtrippableV0 |> Sql.string) ])
+          ("value", result |> ReprNew.toRoundtrippableJsonV0 |> Sql.string) ])
     LibService.DBConnection.connect ()
     |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
           (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
@@ -117,9 +115,5 @@ let load
     return
       results
       |> List.map (fun (fnname, id, hash, hashVersion, value) ->
-        (fnname,
-         id,
-         hash,
-         hashVersion,
-         ReprDeprecated.ofInternalRoundtrippableV0 value))
+        (fnname, id, hash, hashVersion, ReprNew.parseRoundtrippableJsonV0 value))
   }

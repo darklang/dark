@@ -141,7 +141,7 @@ let registerShutdownCallback (callback : unit -> unit) : unit =
 /// is for services which need to be managed but do not have HTTP servers of their
 /// own.
 let runKubernetesServer
-  (serviceName : string)
+  (_serviceName : string)
   (healthChecks : List<HealthCheck>)
   (port : int)
   (shutdownCallback : unit -> unit)
