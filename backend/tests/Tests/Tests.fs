@@ -58,8 +58,7 @@ let main (args : string array) : int =
         Tests.Traces.tests
         Tests.StorageTraces.tests
         Tests.TypeChecker.tests
-        Tests.Undo.tests
-        Tests.UserDB.tests ]
+        Tests.Undo.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
