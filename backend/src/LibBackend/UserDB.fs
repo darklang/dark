@@ -66,32 +66,9 @@ let rec queryExactFields
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
     match DvalReprInternalDeprecated.ofInternalQueryableV1 obj with
-    | RT.DObj o ->
-      // <HACK 1>: some legacy objects were allowed to be saved with `id`
-      // keys _in_ the data object itself. they got in the datastore on
-      // the `update` of an already present object as `update` did not
-      // remove the magic `id` field which had been injected on fetch. we
-      // need to remove magic `id` if we fetch them otherwise they will
-      // not type check on the way out any more and will not work.  if
-      // they are re-saved with `update` they will have their ids
-      // removed.  we consider an `id` key on the map to be a "magic" one
-      // if it is present in the map but not in the schema of the object.
-      // this is a deliberate weakening of our schema checker to deal
-      // with this case.
-      if not (List.includes "id" (db.cols |> List.map Tuple2.first)) then
-        Map.remove "id" o
-      else
-        o
-    // </HACK 1>
+    | RT.DObj o -> o
     | _ -> Exception.raiseInternal "failed format, expected DObj" [ "actual", obj ]
-  // <HACK 2>: because it's hard to migrate at the moment, we need to have
-  // default values when someone adds a col. We can remove this when the
-  // migrations work properly. Structured like this so that hopefully we
-  // only have to remove this small part.
-  let defaultKeys = db.cols |> List.map (fun (k, _) -> (k, RT.DNull)) |> Map
-  let merged = Map.mergeFavoringLeft pObj defaultKeys
-  // </HACK 2>
-  let typeChecked = typeCheck db merged
+  let typeChecked = typeCheck db pObj
   RT.DObj typeChecked
 
 

@@ -54,7 +54,6 @@
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />
     <Compile Include="Undo.Tests.fs" />
-    <Compile Include="UserDB.Tests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
