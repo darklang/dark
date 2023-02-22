@@ -39,17 +39,6 @@ let rec typeName (t : DType) : string =
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName
 
 
-let private ocamlStringOfFloat (f : float) : string =
-  if System.Double.IsPositiveInfinity f then
-    "inf"
-  else if System.Double.IsNegativeInfinity f then
-    "-inf"
-  else if System.Double.IsNaN f then
-    "nan"
-  else
-    let result = sprintf "%.12g" f
-    if result.Contains "." then result else $"{result}."
-
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
 /// message, etc. Redacts passwords.
@@ -76,7 +65,9 @@ let toRepr (dv : Dval) : string =
     | DInt i -> string i
     | DBool true -> "true"
     | DBool false -> "false"
-    | DFloat f -> ocamlStringOfFloat f
+    | DFloat f ->
+      let result = sprintf "%.12g" f
+      if result.Contains "." then result else $"{result}.0"
     | DNull -> "null"
     | DFnVal _ ->
       // TODO: we should print this, as this use case is safe
@@ -93,7 +84,7 @@ let toRepr (dv : Dval) : string =
         headers
         |> List.map (fun (k, v) -> k + ": " + v)
         |> String.concat ", "
-        |> fun s -> "{ " + s + " }"
+        |> fun s -> "{" + s + "}"
 
       $"{code} {headerString}" + nl + toRepr_ indent hdv
     | DList l ->

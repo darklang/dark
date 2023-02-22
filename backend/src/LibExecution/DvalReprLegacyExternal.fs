@@ -67,10 +67,6 @@ type Utf8JsonWriter with
     this.WriteEndArray()
 
 
-let stringOfFloat (f : float) : string =
-  // See DvalRepr.Tests for edge cases.
-  let result = sprintf "%.12g" f
-  if result.Contains "." then result else $"{result}.0"
 
 
 // -------------------------
@@ -126,7 +122,10 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
     | DStr s -> s
-    | DFloat f -> stringOfFloat f
+    | DFloat f ->
+      // See DvalRepr.Tests for edge cases.
+      let result = sprintf "%.12g" f
+      if result.Contains "." then result else $"{result}.0"
 
     | DChar c -> c
     | DNull -> "null"

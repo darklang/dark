@@ -51,8 +51,7 @@ let testToEnduserReadable =
   testMany
     "toEnduserReadable string"
     DvalReprLegacyExternal.toEnduserReadableTextV0
-    // Most of this is just the OCaml output and not really what the output should be
-    [ RT.DFloat(0.0), "0.0" // this type of thing in particular is ridic
+    [ RT.DFloat(0.0), "0.0"
       RT.DFloat(-0.0), "-0.0"
       RT.DFloat(5.0), "5.0"
       RT.DFloat(5.1), "5.1"
