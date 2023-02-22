@@ -2,7 +2,7 @@
 ///
 /// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
 /// etc.
-module LibExecution.DvalReprInternalNew
+module LibExecution.DvalReprInternalRoundtrippable
 
 open Prelude
 open VendoredTablecloth
@@ -10,7 +10,7 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 
 
-module RoundtrippableSerializationFormatV0 =
+module FormatV0 =
 
   // In the past, we used bespoke serialization formats, that were terrifying to
   // change. Going forward, if we want to use a format that we want to save and
@@ -122,18 +122,16 @@ module RoundtrippableSerializationFormatV0 =
     | RT.DBytes bytes -> DBytes bytes
 
 
-let toRoundtrippableJsonV0 (dv : RT.Dval) : string =
-  dv |> RoundtrippableSerializationFormatV0.fromRT |> Json.Vanilla.serialize
+let toJsonV0 (dv : RT.Dval) : string =
+  dv |> FormatV0.fromRT |> Json.Vanilla.serialize
 
-let parseRoundtrippableJsonV0 (json : string) : RT.Dval =
-  json
-  |> Json.Vanilla.deserialize<RoundtrippableSerializationFormatV0.Dval>
-  |> RoundtrippableSerializationFormatV0.toRT
+let parseJsonV0 (json : string) : RT.Dval =
+  json |> Json.Vanilla.deserialize<FormatV0.Dval> |> FormatV0.toRT
 
 let toHashV2 (dvals : list<RT.Dval>) : string =
   dvals
-  |> List.map RoundtrippableSerializationFormatV0.fromRT
-  |> RoundtrippableSerializationFormatV0.DList
+  |> List.map FormatV0.fromRT
+  |> FormatV0.DList
   |> Json.Vanilla.serialize
   |> UTF8.toBytes
   |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure

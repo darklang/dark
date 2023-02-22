@@ -4,13 +4,7 @@
 /// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
 /// etc.
 /// </summary>
-/// <remarks>
-/// We're trying to get rid of JSON.NET. However, these format have saved millions
-/// of values using them, so we need to do a migration from the old serialization
-/// to a new one.
-/// If possible, migrate from serializers in here to serializers in DvalReprInternalDeprecatedNew.
-/// </remarks>
-module LibExecution.DvalReprInternalDeprecated
+module LibExecution.DvalReprInternalQueryable
 
 open Prelude
 open VendoredTablecloth
@@ -41,13 +35,7 @@ type JsonWriter with
     this.WriteEnd()
 
 
-
-
-// TODO CLEANUP - remove all the unsafeDval by inlining them into the named
-// functions that use them, such as toQueryable or toRoundtrippable
-
-
-let parseJson (s : string) : JToken =
+let private parseJson (s : string) : JToken =
   let reader = new JsonTextReader(new System.IO.StringReader(s))
   let jls = JsonLoadSettings()
   jls.CommentHandling <- CommentHandling.Load // Load them so we can error later
@@ -116,8 +104,8 @@ let (|JNonStandard|_|) (j : JToken) : Option<unit> =
   | JTokenType.Date -> Some()
   | _ -> None
 
-let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
-  let writeDval = unsafeDvalToJsonValueV0 w
+let rec private toJsonV0 (w : JsonWriter) (dv : Dval) : unit =
+  let writeDval = toJsonV0 w
 
   let wrapStringValue (typ : string) (str : string) =
     w.writeObject (fun () ->
@@ -168,14 +156,14 @@ let rec private unsafeDvalToJsonValueV0 (w : JsonWriter) (dv : Dval) : unit =
 // queryable using jsonb in our DB. This reduces some of the v0 bugs, but at
 // the cost of not supporting many typed that we'll want to put in it.  Also
 // roundtrippable. Does not redact.
-let toInternalQueryableV1 (dvalMap : DvalMap) : string =
+let toJsonStringV0 (dvalMap : DvalMap) : string =
   writeJson (fun w ->
     w.writeObject (fun () ->
       dvalMap
       |> Map.toList
       |> List.iter (fun (k, dval) ->
         w.WritePropertyName k
-        unsafeDvalToJsonValueV0 w dval)))
+        toJsonV0 w dval)))
 
 // The only formats allowed in the DB so far:
 // Int
@@ -191,7 +179,7 @@ let toInternalQueryableV1 (dvalMap : DvalMap) : string =
 // This is a format used for roundtripping dvals internally, while still being
 // queryable using jsonb in our DB. There are some rare cases where it will
 // parse incorrectly without error. Throws on Json bugs.
-let ofInternalQueryableV1 (str : string) : Dval =
+let parseJsonV0 (str : string) : Dval =
   // The first level _must_ be an object at the moment
   let rec convertTopLevel (json : JToken) : Dval =
     match json with
@@ -236,26 +224,26 @@ let ofInternalQueryableV1 (str : string) : Dval =
 module Test =
   let rec isQueryableDval (dval : Dval) : bool =
     match dval with
-    | DStr _ -> true
     | DInt i -> i > -4611686018427387904L && i < 4611686018427387904L
-    | DNull _ -> true
-    | DBool _ -> true
-    | DFloat _ -> true
+    | DStr _
+    | DNull _
+    | DBool _
+    | DFloat _
+    | DDate _
+    | DPassword _
+    | DUuid _ -> true
     | DList dvals -> List.all isQueryableDval dvals
     | DObj map -> map |> Map.values |> List.all isQueryableDval
-    | DDate _ -> true
-    | DPassword _ -> true
-    | DUuid _ -> true
     // TODO support
-    | DTuple _ -> false
-    | DChar _ -> false
-    | DBytes _ -> false
-    | DHttpResponse _ -> false
-    | DOption _ -> false
-    | DResult _ -> false
-    // Not supportable I think
-    | DDB _ -> false
-    | DFnVal _ -> false // not supported
-    | DError _ -> false
-    | DIncomplete _ -> false
+    | DTuple _
+    | DChar _
+    | DBytes _
+    | DHttpResponse _
+    | DOption _
+    | DResult _
+    // Maybe never support
+    | DFnVal _
+    | DError _
+    | DDB _
+    | DIncomplete _
     | DErrorRail _ -> false

@@ -81,8 +81,7 @@ module RT = LibExecution.RuntimeTypes
 // Only do storage here. Anything else needs utility functions that go in
 // LibDarkInternal.
 
-type RoundTrippableDval =
-  LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval
+type RoundTrippableDval = LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval
 
 type FunctionArgHash = string
 type FnName = string
@@ -91,10 +90,10 @@ type InputVars = List<string * RoundTrippableDval>
 type Result = NodaTime.Instant * RoundTrippableDval
 
 let roundtrippableToDval (dval : RoundTrippableDval) : RT.Dval =
-  LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.toRT dval
+  LibExecution.DvalReprInternalRoundtrippable.FormatV0.toRT dval
 
 let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
-  LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT dval
+  LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT dval
 
 
 let currentStorageVersion = 0
@@ -212,8 +211,7 @@ let getTraceData
       |> UTF8.ofBytesUnsafe
       |> Json.Vanilla.deserialize<CloudStorageFormat>
 
-    let parseDval =
-      LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.toRT
+    let parseDval = LibExecution.DvalReprInternalRoundtrippable.FormatV0.toRT
 
     let traceData : AT.TraceData =
       { input = cloudStorageData.input |> List.map (Tuple2.mapSecond parseDval)

@@ -16,8 +16,8 @@ module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
-module DvalReprInternalNew = LibExecution.DvalReprInternalNew
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Errors = LibExecution.Errors
 
@@ -115,11 +115,11 @@ let allRoundtrips =
     [ t
         "roundtrippable"
         FuzzTests.InternalJson.Roundtrippable.roundtripsSuccessfully
-        (dvs (DvalReprInternalNew.Test.isRoundtrippableDval))
+        (dvs (DvalReprInternalRoundtrippable.Test.isRoundtrippableDval))
       t
         "queryable v0"
         FuzzTests.InternalJson.Queryable.canV1Roundtrip
-        (dvs DvalReprInternalDeprecated.Test.isQueryableDval)
+        (dvs DvalReprInternalQueryable.Test.isQueryableDval)
       t
         "vanilla"
         (fun dv ->
@@ -142,7 +142,7 @@ let testInternalRoundtrippableNew =
 
         let actual =
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
-          |> DvalReprInternalNew.toRoundtrippableJsonV0
+          |> DvalReprInternalRoundtrippable.toJsonV0
 
         Expect.equal actual expected ""
       } ]
@@ -155,10 +155,10 @@ module Password =
       Expect.equalDval
         password
         (password
-         |> DvalReprInternalNew.toRoundtrippableJsonV0
-         |> DvalReprInternalNew.parseRoundtrippableJsonV0
-         |> DvalReprInternalNew.toRoundtrippableJsonV0
-         |> DvalReprInternalNew.parseRoundtrippableJsonV0)
+         |> DvalReprInternalRoundtrippable.toJsonV0
+         |> DvalReprInternalRoundtrippable.parseJsonV0
+         |> DvalReprInternalRoundtrippable.toJsonV0
+         |> DvalReprInternalRoundtrippable.parseJsonV0)
         "Passwords serialize and deserialize if there's no redaction."
     }
 
@@ -196,13 +196,13 @@ module Password =
       // doesn't redact
       doesntRedact
         "toInternalRoundtrippableV0"
-        DvalReprInternalNew.toRoundtrippableJsonV0
+        DvalReprInternalRoundtrippable.toJsonV0
 
       // roundtrips
       roundtrips
         "toInternalRoundtrippableV0 roundtrips"
-        DvalReprInternalNew.toRoundtrippableJsonV0
-        DvalReprInternalNew.parseRoundtrippableJsonV0
+        DvalReprInternalRoundtrippable.toJsonV0
+        DvalReprInternalRoundtrippable.parseJsonV0
 
       // redacting
       doesRedact
@@ -239,8 +239,8 @@ module Password =
       // roundtrips
       roundtrips
         "toInternalQueryableV1"
-        DvalReprInternalDeprecated.toInternalQueryableV1
-        DvalReprInternalDeprecated.ofInternalQueryableV1
+        DvalReprInternalQueryable.toJsonStringV0
+        DvalReprInternalQueryable.parseJsonV0
     }
 
   let testNoAutoSerialization =
