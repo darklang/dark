@@ -4,7 +4,7 @@
 module BackendOnlyStdLib.StdLib
 
 // CLEANUP - some of these functions can be run on the client too after the switch to
-// F#, esp LibJwt, LibCrypto and LibX509, plus at least some of LibHttpClient*
+// F#, esp LibCrypto and LibX509, plus at least some of LibHttpClient*
 
 module RT = LibExecution.RuntimeTypes
 
@@ -25,7 +25,6 @@ let fns : List<RT.BuiltInFn> =
     LibDarkInternal.fns
     LibEvent.fns
     LibHttpBaseClient.fns
-    LibJwt.fns
     LibPassword.fns
     LibX509.fns ]
   |> List.concat
