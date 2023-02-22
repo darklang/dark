@@ -19,6 +19,10 @@ do
 done
 echo "Done waiting for compiled binary"
 
+if [ "$1" == "load-from-disk" ]; then
+  ./scripts/clear-dark-editor-canvas.sh
+fi
+
 echo "Running canvashack"
 "${EXE}" "${@}"
 
