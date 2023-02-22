@@ -124,9 +124,15 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DStr s -> s
     | DFloat f ->
       // See DvalRepr.Tests for edge cases.
-      let result = sprintf "%.12g" f
-      if result.Contains "." then result else $"{result}.0"
-
+      if System.Double.IsPositiveInfinity f then
+        "Infinity"
+      else if System.Double.IsNegativeInfinity f then
+        "-Infinity"
+      else if System.Double.IsNaN f then
+        "NaN"
+      else
+        let result = sprintf "%.12g" f
+        if result.Contains "." then result else $"{result}.0"
     | DChar c -> c
     | DNull -> "null"
     | DDate d -> DDateTime.toIsoString d

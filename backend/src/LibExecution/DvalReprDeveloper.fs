@@ -66,8 +66,15 @@ let toRepr (dv : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
     | DFloat f ->
-      let result = sprintf "%.12g" f
-      if result.Contains "." then result else $"{result}.0"
+      if System.Double.IsPositiveInfinity f then
+        "Infinity"
+      else if System.Double.IsNegativeInfinity f then
+        "-Infinity"
+      else if System.Double.IsNaN f then
+        "NaN"
+      else
+        let result = sprintf "%.12g" f
+        if result.Contains "." then result else $"{result}.0"
     | DNull -> "null"
     | DFnVal _ ->
       // TODO: we should print this, as this use case is safe

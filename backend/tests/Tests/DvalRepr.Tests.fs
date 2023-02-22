@@ -39,10 +39,9 @@ let testToDeveloperRepr =
     [ testMany
         "toDeveloperRepr string"
         DvalReprDeveloper.toRepr
-        // Most of this is just the OCaml output and not really what the output should be
-        [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {  }\nnull"
-          RT.DFloat(-0.0), "-0."
-          RT.DFloat(infinity), "inf"
+        [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {}\nnull"
+          RT.DFloat(-0.0), "-0.0"
+          RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
           RT.DObj(Map.ofList [ "", RT.DNull ]), "{\n  : null\n}"
           RT.DList [ RT.DNull ], "[\n  null\n]" ] ]
