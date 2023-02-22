@@ -792,12 +792,6 @@ module Expect =
   let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
     dvalEquality (DObj m1) (DObj m2)
 
-  // Raises a test exception if the two strings do not parse to identical JSON
-  let equalsJson (str1 : string) (str2 : string) : unit =
-    let parsed1 = Newtonsoft.Json.Linq.JToken.Parse str1
-    let parsed2 = Newtonsoft.Json.Linq.JToken.Parse str2
-    Expect.equal parsed1 parsed2 "jsons are equal"
-
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
   let f dv = state <- f dv :: state

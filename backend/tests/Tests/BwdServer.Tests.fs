@@ -418,40 +418,18 @@ module Execution =
         normalizeExpectedHeaders handlerVersion expected.headers actual.body
       let actualHeaders = normalizeActualHeaders handlerVersion actual.headers
 
-      // Test as json or strings
-      let asJson =
-        try
-          Some(
-            LibExecution.DvalReprLegacyExternal.parseJson (
-              UTF8.ofBytesUnsafe actual.body
-            ),
-            LibExecution.DvalReprLegacyExternal.parseJson (
-              UTF8.ofBytesUnsafe expected.body
-            )
-          )
-        with
-        | e -> None
-
-      match asJson with
-      | Some (aJson, eJson) ->
-        let serialize (json : JsonDocument) =
-          LibExecution.DvalReprLegacyExternal.writePrettyJson json.WriteTo
+      // Compare strings
+      match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
+      | Some actualBody, Some expectedBody ->
         Expect.equal
-          (actual.status, actualHeaders, serialize aJson)
-          (expected.status, expectedHeaders, serialize eJson)
-          $"(json)"
-      | None ->
-        match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
-        | Some actualBody, Some expectedBody ->
-          Expect.equal
-            (actual.status, actualHeaders, actualBody)
-            (expected.status, expectedHeaders, expectedBody)
-            $"(string)"
-        | _ ->
-          Expect.equal
-            (actual.status, actualHeaders, actual.body)
-            (expected.status, expectedHeaders, expected.body)
-            $"(bytes)"
+          (actual.status, actualHeaders, actualBody)
+          (expected.status, expectedHeaders, expectedBody)
+          $"(string)"
+      | _ ->
+        Expect.equal
+          (actual.status, actualHeaders, actual.body)
+          (expected.status, expectedHeaders, expected.body)
+          $"(bytes)"
     }
 
 let tests =
