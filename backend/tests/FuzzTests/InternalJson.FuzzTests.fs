@@ -28,12 +28,10 @@ type Generator =
 
   static member String() : Arbitrary<string> = G.SafeUnicodeString
 
-  static member Expr() =
-    Arb.Default.Derive()
+  static member Expr() = Arb.Default.Derive()
 
 
-  static member MatchPattern() =
-    Arb.Default.Derive()
+  static member MatchPattern() = Arb.Default.Derive()
 
 
 

@@ -127,8 +127,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c1> is less than <param c2>"
       fn =
         function
-        | _, [ DChar c1; DChar c2 ] ->
-          (c1 < c2) |> DBool |> Ply
+        | _, [ DChar c1; DChar c2 ] -> (c1 < c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -140,10 +139,8 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c1> is greater than <param c2>"
       fn =
         function
-        | _, [ DChar c1; DChar c2 ] ->
-          (c1 > c2) |> DBool |> Ply
+        | _, [ DChar c1; DChar c2 ] -> (c1 > c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }]
-
+      deprecated = NotDeprecated } ]

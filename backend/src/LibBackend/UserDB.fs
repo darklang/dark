@@ -139,6 +139,7 @@ and set
   : Task<Uuid> =
   let id = System.Guid.NewGuid()
   let merged = typeCheck db vals
+
   let upsertQuery =
     if upsert then
       "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data"
