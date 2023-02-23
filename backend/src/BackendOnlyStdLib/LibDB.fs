@@ -298,7 +298,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-
     { name = fn "DB" "getAllWithKeys" 2
       parameters = [ tableParam ]
       returnType = TDict(varA)
