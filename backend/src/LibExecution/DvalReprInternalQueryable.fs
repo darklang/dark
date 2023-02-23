@@ -81,7 +81,22 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (dv : Dval) : unit =
   match dv with
   // basic types
   | DInt i -> w.WriteNumberValue i
-  | DFloat f -> w.WriteNumberValue f
+  | DFloat f ->
+    // TODO: These can't be parsed as System.Text.Json doesn't allow it. I went ahead
+    // with implementing this anyway as when we use types during serialization, we'll
+    // be able to use `"Infinity"` (a string) and we'll know from the type that we
+    // want a float not a string here. So I've disabled the infinity/NaN tests until
+    // we have this in place.
+    if System.Double.IsNaN f then
+      w.WriteRawValue "NaN"
+    else if System.Double.IsNegativeInfinity f then
+      w.WriteRawValue "-Infinity"
+    else if System.Double.IsPositiveInfinity f then
+      w.WriteRawValue "Infinity"
+    else
+      let result = sprintf "%.12g" f
+      let result = if result.Contains "." then result else $"{result}.0"
+      w.WriteRawValue result
   | DBool b -> w.WriteBooleanValue b
   | DNull -> w.WriteNullValue()
   | DStr s -> w.WriteStringValue s
@@ -167,10 +182,10 @@ module Test =
     | DStr _
     | DNull _
     | DBool _
-    | DFloat _
     | DDate _
     | DPassword _
     | DUuid _ -> true
+    | DFloat f -> System.Double.IsFinite f // See comment above
     | DList dvals -> List.all isQueryableDval dvals
     | DObj map -> map |> Map.values |> List.all isQueryableDval
     // TODO support
