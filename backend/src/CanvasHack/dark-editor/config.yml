@@ -1,16 +1,50 @@
+# types:
+
+# dbs:
+#   domains:
+#     name:
+#       type: String
+#       description: Testing
+
+# functions:
+
+# secrets:
+
 http-handlers:
-  basic-http-handler:
+  get-root:
     method: GET
-    path: /hello/:varFromRequestPath
+    path: /
 
-  # initial-load:
-  #   method: GET
-  #   path: /initial-load
+  get-program:
+    method: GET
+    path: /program
 
-  # add-op:
-  #   method: GET
-  #   path: /add-op
+  add-op:
+    method: POST
+    path: /handler/:tlid/ops
 
-  # handler-traces:
-  #   method: GET
-  #   path: /traces-for-handler/:handlerID
+  get-trace:
+    method: GET
+    path: /traces/:traceId
+
+  delete-trace:
+    method: DELETE
+    path: /trace/:traceId
+
+  get-handler-traces:
+    method: GET
+    path: /handler/:tlid/traces
+
+  get-function-traces:
+    method: GET
+    path: /function/:tlid/traces
+# tests:
+# once we have traces working, we could set up tests
+# to run both before and after the bootstrapping
+#
+# Before, we test that the canvas has no handlers
+# (to ensure that the resetting of the canvas worked).
+#
+# After, we test that the canvas has the handlers we expect,
+# then hit one of the endpoints,
+# and check that we have traces for that endpoint.

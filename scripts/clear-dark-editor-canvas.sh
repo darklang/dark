@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-DBLOG="${DARK_CONFIG_RUNDIR}/clear-dark-editor-canvas.log"
+DBLOG="${DARK_CONFIG_RUNDIR}/logs/clear-dark-editor-canvas.log"
 echo "Clearing dark-editor canvas (logs in ${DBLOG})"
 DB="${DARK_CONFIG_DB_DBNAME}"
 

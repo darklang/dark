@@ -1,0 +1,3 @@
+(// path params present: `handlerId`
+ let responseBody = "TODO" |> String.toBytes_v0
+ Http.response responseBody 200)
