@@ -67,10 +67,6 @@ let main (args : string []) =
         | Some (Success s) -> s.Data
         | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
-      // Purge any existing canvas under the name
-      print "TODO - purge dark-editor canvas"
-
-
       let canvasName =
         match Prelude.CanvasName.create "dark-editor" with
         | Ok (c) -> c
