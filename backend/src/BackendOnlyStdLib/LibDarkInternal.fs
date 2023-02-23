@@ -26,15 +26,17 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let varCanvasMeta = TRecord[("id", TUuid); ("name", TStr)]
-let varCanvasProgram =
-  TRecord[
-    ("dbs", TList(TRecord["tlid", TStr; "name", TStr]))
-    (
-      "httpHandlers",
-      TList(TRecord["tlid", TStr; "method", TStr; "route", TStr])
-    )
-  ]
+// TODO: publish Dark types, and use them rather than these
+// anonymous-ish types
+module Types =
+  module Canvas =
+    let meta = TRecord([ "id", TUuid; "name", TStr ])
+
+    let dbMeta = TRecord([ "tlid", TStr; "name", TStr ])
+    let httpHandlerMeta = TRecord([ "tlid", TStr; "method", TStr; "route", TStr ])
+
+    let program =
+      TRecord([ "dbs", TList(dbMeta); "httpHandlers", TList(httpHandlerMeta) ])
 
 /// Wraps an internal Lib function
 /// and ensures that the appropriate permissions are in place
@@ -1258,7 +1260,7 @@ human-readable data."
 
     { name = fn "DarkInternal" "darkEditorCanvas" 0
       parameters = []
-      returnType = varCanvasMeta
+      returnType = Types.Canvas.meta
       description = "Returns basic details of the dark-editor canvas"
       fn =
         darkEditorFn (function
@@ -1276,16 +1278,12 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    // TODO: avail a `currentCanvas` fn
+    // TODO: avail a `currentCanvas` fn, and remove the above fn
 
     // TODO: this name is bad?
     { name = fn "DarkInternal" "canvasProgram" 0
       parameters = [ Param.make "canvasId" TUuid "" ]
-      returnType =
-        TResult(
-          varCanvasProgram,
-          TStr
-        )
+      returnType = TResult(Types.Canvas.program, TStr)
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =

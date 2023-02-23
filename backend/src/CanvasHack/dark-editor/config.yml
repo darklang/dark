@@ -19,6 +19,10 @@ http-handlers:
     method: GET
     path: /program
 
+  add-op:
+    method: POST
+    path: /handler/:tlid/ops
+
   get-trace:
     method: GET
     path: /traces/:traceId
@@ -27,6 +31,20 @@ http-handlers:
     method: DELETE
     path: /trace/:traceId
 
-  add-op:
-    method: POST
-    path: /handler/:tlid/ops
+  get-handler-traces:
+    method: GET
+    path: /handler/:tlid/traces
+
+  get-function-traces:
+    method: GET
+    path: /function/:tlid/traces
+# tests:
+# once we have traces working, we could set up tests
+# to run both before and after the bootstrapping
+#
+# Before, we test that the canvas has no handlers
+# (to ensure that the resetting of the canvas worked).
+#
+# After, we test that the canvas has the handlers we expect,
+# then hit one of the endpoints,
+# and check that we have traces for that endpoint.
