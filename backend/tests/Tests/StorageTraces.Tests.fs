@@ -55,7 +55,7 @@ let testTraceIDsOfTlidsMatch =
 //     let! (_d : NodaTime.Instant) = TI.storeEvent meta.id t1 desc (DStr "1")
 
 //     // load+check irrelevant trace
-//     let! loaded = Traces.traceIDsForHandler c handler
+//     let! loaded = Traces.traceIDsForHttpHandler c handler
 //     Expect.equal loaded [ Traces.traceIDofTLID handler.tlid ] "ids is the default"
 
 //     return ()
