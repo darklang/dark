@@ -100,13 +100,13 @@ let main (args : string []) =
 
       let ops = List.collect identity createHttpHandlerOps
 
-      let cWithTopLevels = C.fromOplist c [] ops
+      let canvasWithTopLevels = C.fromOplist c [] ops
 
       let oplists =
         ops
         |> Op.oplist2TLIDOplists
         |> List.filterMap (fun (tlid, oplists) ->
-          match Map.get tlid (C.toplevels cWithTopLevels) with
+          match Map.get tlid (C.toplevels canvasWithTopLevels) with
           | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
           | None -> None)
 
