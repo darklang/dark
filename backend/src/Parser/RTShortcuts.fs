@@ -59,7 +59,7 @@ let ePipeApply (fnVal : Expr) (args : List<Expr>) : Expr =
 
 let eStr (str : string) : Expr = EString(gid (), str)
 
-let eChar (c : char) : Expr = ECharacter(gid (), c)
+let eChar (c : string) : Expr = ECharacter(gid (), c)
 
 let eInt (i : int) : Expr = EInteger(gid (), int64 i)
 
