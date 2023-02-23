@@ -76,7 +76,7 @@ module ParseTest =
 
   /// Parse the test line-by-line.
   /// We don't use regex here because we want to test more than strings
-  let parse rootDir (bytes : byte array) : Test =
+  let parse (bytes : byte array) : Test =
     let lines : List<List<byte>> = bytes |> splitAtNewlines
 
     let emptyTest =
@@ -367,7 +367,7 @@ module Execution =
         let parsedTestRequest = Http.split request
         let contentLength =
           parsedTestRequest.headers
-          |> List.find (fun (k, v) -> String.toLowercase k = "content-length")
+          |> List.find (fun (k, _) -> String.toLowercase k = "content-length")
         match contentLength with
         | None -> ()
         | Some (_, v) ->
@@ -418,40 +418,18 @@ module Execution =
         normalizeExpectedHeaders handlerVersion expected.headers actual.body
       let actualHeaders = normalizeActualHeaders handlerVersion actual.headers
 
-      // Test as json or strings
-      let asJson =
-        try
-          Some(
-            LibExecution.DvalReprLegacyExternal.parseJson (
-              UTF8.ofBytesUnsafe actual.body
-            ),
-            LibExecution.DvalReprLegacyExternal.parseJson (
-              UTF8.ofBytesUnsafe expected.body
-            )
-          )
-        with
-        | e -> None
-
-      match asJson with
-      | Some (aJson, eJson) ->
-        let serialize (json : JsonDocument) =
-          LibExecution.DvalReprLegacyExternal.writePrettyJson json.WriteTo
+      // Compare strings
+      match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
+      | Some actualBody, Some expectedBody ->
         Expect.equal
-          (actual.status, actualHeaders, serialize aJson)
-          (expected.status, expectedHeaders, serialize eJson)
-          $"(json)"
-      | None ->
-        match UTF8.ofBytesOpt actual.body, UTF8.ofBytesOpt expected.body with
-        | Some actualBody, Some expectedBody ->
-          Expect.equal
-            (actual.status, actualHeaders, actualBody)
-            (expected.status, expectedHeaders, expectedBody)
-            $"(string)"
-        | _ ->
-          Expect.equal
-            (actual.status, actualHeaders, actual.body)
-            (expected.status, expectedHeaders, expected.body)
-            $"(bytes)"
+          (actual.status, actualHeaders, actualBody)
+          (expected.status, expectedHeaders, expectedBody)
+          $"(string)"
+      | _ ->
+        Expect.equal
+          (actual.status, actualHeaders, actual.body)
+          (expected.status, expectedHeaders, expected.body)
+          $"(bytes)"
     }
 
 let tests =
@@ -464,7 +442,7 @@ let tests =
       let filename = $"{rootDir}/{filename}"
       let! contents = System.IO.File.ReadAllBytesAsync filename
 
-      let test = ParseTest.parse rootDir contents
+      let test = ParseTest.parse contents
       let testName =
         let withoutPrefix =
           if shouldSkip then String.dropLeft 1 filename else filename

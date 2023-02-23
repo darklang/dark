@@ -168,10 +168,6 @@ let rec lambdaToSql
   let lts (typ : DType) (e : Expr) =
     lambdaToSql fns symtable paramName dbFields typ e
 
-  // We don't have good string escaping facilities here,
-  // plus it was always a bit dangerous to have string-escaping as we might miss one.
-  let vars = ref Map.empty
-
   match expr with
   // The correct way to handle null in SQL is "is null" or "is not null"
   // rather than a comparison with null.
@@ -218,7 +214,7 @@ let rec lambdaToSql
         let argSql = argSqls @ fnArgs |> String.concat ", "
         $"({fnName} ({argSql}))", sqlVars
       | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] -> $"({fn arg1 arg2})", sqlVars
-      | fn, args ->
+      | _, _ ->
         error $"This function ({FQFnName.toString name}) is not yet implemented"
     | None ->
       error

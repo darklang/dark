@@ -24,34 +24,7 @@ let varB = TVariable "b"
 let varC = TVariable "c"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Result" "map" 0
-      parameters =
-        [ Param.make "result" (TResult(varOk, varErr)) ""
-          Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
-      returnType = TResult(varB, varErr)
-      description =
-        "If <param result> is {{Ok value}}, returns {{Ok (fn value)}} (the lambda
-         <param fn> is applied to <param value> and the result is wrapped in {{Ok}}).
-         If <var result> is {{Error msg}}, returns {{result}} unchanged."
-      fn =
-        (function
-        | state, [ DResult r; DFnVal b ] ->
-          uply {
-            match r with
-            | Ok dv ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
-
-              return DResult(Ok result)
-            | Error _ -> return DResult r
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Result" "map" 1) }
-
-
-    { name = fn "Result" "map" 1
+  [ { name = fn "Result" "map" 1
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
@@ -77,33 +50,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "Result" "mapError" 0
-      parameters =
-        [ Param.make "result" (TResult(varOk, varErr)) ""
-          Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
-      returnType = (TResult(varB, varErr))
-      description =
-        "If <param result> is <var Error msg>, returns {{Error (fn msg)}} (the lambda
-         <param fn> is applied to <var msg> and the result is wrapped in {{Error}}).
-         If <param result> is {{Ok value}}, returns <param result> unchanged."
-      fn =
-        (function
-        | state, [ DResult r; DFnVal b ] ->
-          uply {
-            match r with
-            | Ok _ -> return DResult r
-            | Error err ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
-
-              return DResult(Error result)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Result" "mapError" 1) }
 
 
     { name = fn "Result" "mapError" 1
@@ -154,47 +100,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "fromOption" 0
-      parameters =
-        [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
-      returnType = (TResult(varB, TStr))
-      description =
-        "Turn an <type option> into a <type result>, using <param error> as the error
-         message for {{Error}}.  Specifically, if <param option> is {{Just value}},
-         returns {{Ok value}}. Returns {{Error error}} otherwise."
-      fn =
-        (function
-        | _, [ DOption o; DStr error ] ->
-          match o with
-          | Some dv -> Ply(DResult(Ok dv))
-          | None -> Ply(DResult(Error(DStr error)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Result" "fromOption" 1) }
-
-
-    { name = fn "Result" "fromOption" 1
-      parameters =
-        [ Param.make "option" (TOption(varOk)) ""; Param.make "error" TStr "" ]
-      returnType = (TResult(varB, TStr))
-      description =
-        "Turn an <type option> into a <type result>, using <param error> as the error
-         message for {{Error}}. Specifically, if <param option> is {{Just <var
-         value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}}
-         otherwise."
-      fn =
-        (function
-        | _, [ DOption o; DStr error ] ->
-          match o with
-          | Some dv -> Ply(Dval.resultOk dv)
-          | None -> Ply(DResult(Error(DStr error)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Result" "fromOption" 2) }
-
-
     { name = fn "Result" "fromOption" 2
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" varErr "" ]
@@ -211,22 +116,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "Result" "toOption" 0
-      parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
-      returnType = TOption varB
-      description = "Turn a result into an option"
-      fn =
-        (function
-        | _, [ DResult o ] ->
-          match o with
-          | Ok dv -> Ply(DOption(Some dv))
-          | Error _ -> Ply(DOption None)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Result" "toOption" 1) }
 
 
     { name = fn "Result" "toOption" 1
@@ -274,40 +163,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "Result" "andThen" 0
-      parameters =
-        [ Param.make "result" (TResult(varOk, varErr)) ""
-          Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
-      returnType = (TResult(varB, varErr))
-      description =
-        "If <param result> is {{Ok value}}, returns {{fn value}} (the lambda <param
-         fn> is applied to <var value> and must return {{Error msg}} or {{Ok
-         newValue}}). If <param result> is {{Error msg}}, returns <param result>
-         unchanged."
-      fn =
-        (function
-        | state, [ DResult o; DFnVal b ] ->
-          uply {
-            match o with
-            | Ok dv ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
-
-              match result with
-              | DResult result -> return (DResult result)
-              | other ->
-                return
-                  Exception.raiseCode (
-                    Errors.expectedLambdaType "fn" (TResult(varOk, varErr)) other
-                  )
-            | Error msg -> return DResult(Error msg)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Result" "andThen" 1) }
 
 
     { name = fn "Result" "andThen" 1

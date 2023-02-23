@@ -59,7 +59,7 @@ let checkSuccess
   =
   task {
     match result with
-    | Ok (event, notification) ->
+    | Ok (event, _notification) ->
       // TODO: is there a way to count/test the number of messages in the queue?
       let! event = EQ.loadEvent event.canvasID event.id
       Expect.isNone event "should have been deleted"
@@ -75,7 +75,7 @@ let checkSuccess
 
     // Saving happens in the background so wait for it
     let mutable functionResults = []
-    for i in 1..10 do
+    for _ in 1..10 do
       if functionResults = [] then
         let! result = TFR.load meta.id traceID tlid
         functionResults <- result
@@ -203,7 +203,7 @@ let testSuccessLockExpired =
 
 let testFailLocked =
   testTask "fail locked" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "fail-locked"
+    let! (meta : Canvas.Meta, _tlid) = initializeCanvas "fail-locked"
     do! enqueue meta
 
     // Delay it
@@ -223,8 +223,8 @@ let testFailLocked =
 
 let testSuccessBlockAndUnblock =
   testTask "block and unblock" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "block-and-unblock"
-    let! id = enqueue meta
+    let! (meta : Canvas.Meta, _tlid) = initializeCanvas "block-and-unblock"
+    let! _id = enqueue meta
 
     // Block it
     do! EQ.blockWorker meta.id "test"
@@ -247,7 +247,7 @@ let testSuccessBlockAndUnblock =
 
 let testSuccessPauseAndUnpause =
   testTask "pause and unpause" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "pause-and-unpause"
+    let! (meta : Canvas.Meta, _tlid) = initializeCanvas "pause-and-unpause"
     do! enqueue meta
 
     // Pause it
@@ -271,7 +271,7 @@ let testSuccessPauseAndUnpause =
 
 let testFailPauseBlockAndUnpause =
   testTask "pause block and unpause" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "pause-block-and-unpause"
+    let! (meta : Canvas.Meta, _tlid) = initializeCanvas "pause-block-and-unpause"
     do! enqueue meta
 
     // Pause it
@@ -297,7 +297,7 @@ let testFailPauseBlockAndUnpause =
 
 let testFailPauseBlockAndUnblock =
   testTask "pause block and unblock" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "pause-block-and-unblock"
+    let! (meta : Canvas.Meta, _tlid) = initializeCanvas "pause-block-and-unblock"
     do! enqueue meta
 
     // Pause it
@@ -322,7 +322,7 @@ let testFailPauseBlockAndUnblock =
 
 let testFailBlockPauseAndUnpause =
   testTask "block pause and unpause" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "block-pause-and-unpause"
+    let! (meta : Canvas.Meta, _tlid) = initializeCanvas "block-pause-and-unpause"
     do! enqueue meta
 
     // Block it
@@ -347,7 +347,7 @@ let testFailBlockPauseAndUnpause =
 
 let testFailBlockPauseAndUnblock =
   testTask "block pause and unblock" {
-    let! (meta : Canvas.Meta, tlid) = initializeCanvas "block-pause-and-unblock"
+    let! (meta : Canvas.Meta, _tlid) = initializeCanvas "block-pause-and-unblock"
     do! enqueue meta
 
     // Block it
@@ -372,7 +372,7 @@ let testFailBlockPauseAndUnblock =
 
 let testUnpauseMulitpleTimesInSequence =
   testTask "unpause multiple times in sequence" {
-    let! (meta : Canvas.Meta, tlid) =
+    let! (meta : Canvas.Meta, _tlid) =
       initializeCanvas "unpaise-multiple-times-in-secquence"
     do! enqueue meta
 
@@ -416,7 +416,7 @@ let testUnpauseMulitpleTimesInSequence =
 
 let testUnpauseMultipleTimesInParallel =
   testTask "unpause multiple times in parallel" {
-    let! (meta : Canvas.Meta, tlid) =
+    let! (meta : Canvas.Meta, _tlid) =
       initializeCanvas "unpause-multiple-times-in-parallel"
     do! enqueue meta
 

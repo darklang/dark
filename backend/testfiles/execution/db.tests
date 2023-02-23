@@ -32,8 +32,9 @@
 
 [test.db roundtrip uuid] with DB Uuid
 (let i = Uuid.generate_v0 in
- let _ = DB.set_v1 { uu = i } "test" Uuid in
- (List.head_v0 (DB.getAll_v2 Uuid)).uu = i) = true
+ let _ = DB.set_v1 { uu = i } "test2" Uuid in
+ let result = DB.getAll_v3 Uuid in
+ (result |> List.head_v2_ster).uu = i) = true
 
 [test.db roundtrip lists] with DB Lists
 (let _ = DB.set_v1 { strs = ["str1"; "str2"]; ints = [-1,6,0]} "lists" Lists in
@@ -74,22 +75,11 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 [test.db.set does upsert] with DB X
 (let old = DB.set_v1 { x = "hello" } "hello" X in
  let newval = DB.set_v1 { x = "goodbye" } "hello" X in
- DB.getAllWithKeys_v1 X) = [["hello"; { x = "goodbye"}]]
-
-// DB.add_v0
-[test.db.add_v0 works] with DB X
-(let _ = DB.add_v0 { x = "pancake" } X in
- DB.getAll_v3 X) = [{ x = "pancake" }]
-
+ DB.getAllWithKeys_v2 X) = { hello = { x = "goodbye"} }
 
 // ------------
 // Exact field queries
 // ------------
-[test.query_v1_works] with DB XY
-(let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
- let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY  in
- DB.query_v1 { x = "goodbye" } XY) = [["findme"; { x = "goodbye"; y = "hello" }]]
-
 [test.query_v2_works] with DB XY
 (let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
  let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
@@ -156,26 +146,6 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 
 // DB.getAll
-[test.db.getAll_v1 works] with DB SortedX
-(let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
- let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
- let three = DB.set_v1 { x = "howdy"; sortBy = 2  } "three" SortedX in
- (DB.getAll_v1 SortedX)
- |> List.sortBy_v0 (fun x -> (List.last_v0 x).sortBy)) = (
-   [ ["one" ; { x = "hello"; sortBy = 0}]
-   ; ["two" ; { x = "goodbye"; sortBy = 1}]
-   ; ["three"; { x = "howdy"; sortBy = 2}]])
-
-[test.db.getAll_v2 works] with DB SortedX
-(let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
- let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
- let three = DB.set_v1 { x = "howdy"; sortBy = 2  } "three" SortedX in
- (DB.getAll_v2 SortedX)
- |> List.sortBy_v0 (fun x -> x.sortBy)) = (
-   [ { x = "hello"; sortBy = 0}
-   ; { x = "goodbye"; sortBy = 1}
-   ; { x = "howdy"; sortBy = 2}])
-
 [test.db.getAll_v3 works] with DB SortedX
 (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
  let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
@@ -196,11 +166,6 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 
 // DB.getAllWithKeys
-[test.db.getAllWithKeys_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getAllWithKeys_v1 X) = [["one"; { x = "hello" }];["two"; {x = "goodbye"}]]
-
 [test.db.getAllWithKeys_v2 works] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
  let two = DB.set_v1 { x = "goodbye" } "two" X in
@@ -208,11 +173,6 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 
 // DB.getManyWithKeys
-[test.db.getManyWithKeys works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getManyWithKeys_v0 ["one"; "two"] X) = [["one"; { x = "hello" }];["two"; { x = "goodbye" }]]
-
 [test.db.getManyWithKeys_v1 works] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
  let two = DB.set_v1 { x = "goodbye" } "two" X in
@@ -227,16 +187,6 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 
 // DB.getMany
-[test.db.getMany_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getMany_v1 ["one"; "two"] X) = [["one"; { x = "hello" }];["two"; { x = "goodbye" }]]
-
-[test.db.getMany_v2 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getMany_v2 ["one"; "two"] X) = [ { x = "hello"}; { x = "goodbye"}]
-
 [test.db.getMany_v3 returns nothing] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
  let two = DB.set_v1 { x = "goodbye" } "two" X in
@@ -249,13 +199,6 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 
 // DB.queryWithKey
-[test.db.queryWithKey_v1 works] with DB SortedX
-(let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
- let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
- let three = DB.set_v1 { x = "goodbye"; sortBy = 2  } "three" SortedX in
- (DB.queryWithKey_v1 { x = "goodbye" } SortedX)
- |> List.sortBy_v0 (fun x -> (List.last_v0 x).sortBy)) = [ ["two" ; { x = "goodbye"; sortBy = 1}]; ["three"; { x = "goodbye"; sortBy = 2}]]
-
 [test.db.queryWithKey_v2 works] with DB SortedX
 (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
  let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
@@ -269,63 +212,7 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
  DB.queryExactFieldsWithKey_v0 { x = "goodbye" } SortedX) = { two = { x = "goodbye"; sortBy = 1}; three = { x = "goodbye"; sortBy = 2} }
 
 
-// DB.queryOne
-[test.db.queryOne_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOne_v1 { x = "hello" } X) = Just { x = "hello" }
-
-[test.db.queryOne_v1 returns nothing if none] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOne_v1 { x = "goodbye" } X) = Nothing
-
-[test.db.queryOne_v1 returns nothing if many] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "hello" } "two" X in
- DB.queryOne_v1 { x = "hello" } X) = Nothing
-
-
-[test.db.queryOne_v2 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOne_v2 { x = "hello" } X) = Just { x = "hello" }
-
-[test.db.queryOne_v2 returns nothing if none] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOne_v2 { x = "goodbye" } X) = Nothing
-
-[test.db.queryOne_v2 returns correct if many] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "hello" } "two" X in
- DB.queryOne_v2 { x = "hello" } X) = Nothing
-
-
-[test.db.queryOne_v3 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOne_v3 X (fun v -> v.x = "hello")) = Just { x = "hello" }
-
-[test.db.queryOne_v3 returns nothing if none match] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOne_v3 X (fun v -> v.x = "goodbye")) = Nothing
-
-[test.db.queryOne_v3 returns correct if many] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "hello" } "two" X in
- DB.queryOne_v3 X (fun v -> v.x = "goodbye")) = Nothing
-
-
 // DB.queryOneWithKey
-[test.db.queryOneWithKey_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOneWithKey_v1 { x = "hello" } X) = Just [ "one"; { x = "hello" }]
-
-[test.db.queryOneWithKey_v1 returns none on empty] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOneWithKey_v1 { x = "hello" } X) = Just [ "one"; { x = "hello" }]
-
-[test.db.queryOneWithKey_v1 returns none if many] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "hello" } "two" X in
- DB.queryOneWithKey_v1 { x = "hello" } X) = Nothing
-
 [test.db.queryOneWithKey_v2 works] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
  DB.queryOneWithKey_v2 { x = "goodbye" } X) = Nothing
@@ -343,34 +230,34 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 [test.db.delete_v1 does delete] with DB X
 (let one = DB.set_v1 { x = "hello"} "one" X in
  let delete = DB.delete_v1 "one" X in
- DB.getAllWithKeys_v1 X) = []
+ DB.getAllWithKeys_v2 X) = {}
 
 [test.db.delete_v1 deletes nothing] with DB X
 (let one = DB.set_v1 { x = "hello"} "one" X in
  let delete = DB.delete_v1 "two" X in
- DB.getAllWithKeys_v1 X) = [["one"; { x = "hello"}]]
+ DB.getAllWithKeys_v2 X) = { one = { x = "hello"} }
 
 [test.db.delete_v1 deletes only one] with DB X
 (let one = DB.set_v1 { x = "hello"} "one" X in
  let two = DB.set_v1 { x = "goodbye" } "two" X in
  let delete = DB.delete_v1 "one" X in
- DB.getAllWithKeys_v1 X) = [["two"; { x = "goodbye"}]]
+ DB.getAllWithKeys_v2 X) = { two = { x = "goodbye"} }
 
 // // DB.deleteAll
 [test.db.deleteAll_v1 works] with DB X
 (let one = DB.set_v1 { x = "hello"} "one" X in
  let delete = DB.deleteAll_v1 X in
- DB.getAll_v1 X) = []
+ DB.getAll_v3 X) = []
 
 [test.db.deleteAll_v1 delete all] with DB X
 (let one = DB.set_v1 { x = "hello"} "one" X in
  let two = DB.set_v1 { x = "goodbye" } "two" X in
  let delete = DB.deleteAll_v1 X in
- DB.getAll_v1 X) = []
+ DB.getAll_v3 X) = []
 
 [test.db.deleteAll_v1 works] with DB X
 (let delete = DB.deleteAll_v1 X in
- DB.getAll_v1 X) = []
+ DB.getAll_v3 X) = []
 
 
 [test.db.count works when empty] with DB X
@@ -406,9 +293,9 @@ DB.count X = 0
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
 
 [fn.d datestr:string]
-(Date.parse_v1_ster datestr)
+(Date.parse_v2_ster datestr)
 [fn.rossDOB x:any]
-(Date.parse_v1_ster  "1967-05-12T00:00:00Z")
+(Date.parse_v2_ster  "1967-05-12T00:00:00Z")
 
 [fn.friendsError lambda:any]
 (let _ = prepFriends null in
@@ -503,16 +390,11 @@ friendsError (fun p -> p.dob != Date.now_v0) =
 (friends (fun p -> Int.lessThan_v0 p.height 65)) = ["GrumpyCat"]
 (friends (fun p -> Int.greaterThanOrEqualTo_v0 p.height 65)) =  [" Chandler "; "Rachel"; "Ross" ]
 (friends (fun p -> Int.greaterThan_v0 p.height 65)) =  [" Chandler "; "Ross" ]
-(friends (fun p -> String.toLowercase_v0 p.name = "rachel")) = ["Rachel"]
 (friends (fun p -> String.toLowercase_v1 p.name = "rachel")) = ["Rachel"]
-(friends (fun p -> String.toUppercase_v0 p.name = "RACHEL")) = ["Rachel"]
 (friends (fun p -> String.toUppercase_v1 p.name = "RACHEL")) = ["Rachel"]
 (friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
-(friends (fun p -> String.length_v0 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-(friends (fun p -> String.isSubstring_v1 p.name "ROSS")) = []
-(friends (fun p -> String.isSubstring_v1 p.name "R")) = ["Rachel"; "Ross" ]
-(friends (fun p -> String.isSubstring_v1 p.name "ZZZ")) = []
-(friends (fun p -> String.isSubstring_v1 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+// Not implemented yet
+// (friends (fun p -> String.length_v1 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
 (friends (fun p -> String.contains_v0 p.name "ROSS")) = []
 (friends (fun p -> String.contains_v0 p.name "R")) = ["Rachel"; "Ross" ]
 (friends (fun p -> String.contains_v0 p.name "ZZZ")) = []
@@ -533,45 +415,28 @@ friendsError (fun p -> p.dob != Date.now_v0) =
 (friends (fun p -> Date.(>=) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 (friends (fun p -> Date.(>) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
 (friends (fun p -> Date.(<=) p.dob (Date.add_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
-(friends (fun p -> Date.(<=) p.dob (Date.subtract_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> Date.(<=) p.dob (Date.subtractSeconds_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
 (friends (fun p -> Date.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
-(friends (fun p -> Date.hour_v1 p.dob == 10)) = [" Chandler "]
+(friends (fun p -> Date.hour_v2 p.dob == 10)) = [" Chandler "]
 (friends (fun p -> Date.day_v0 p.dob == 19)) = [" Chandler "]
-(friends (fun p -> Date.minute_v0 p.dob == 13)) = [" Chandler "]
+(friends (fun p -> Date.minute_v1 p.dob == 13)) = [" Chandler "]
 (friends (fun p -> Date.month_v0 p.dob == 8)) = [" Chandler "]
-(friends (fun p -> Date.second_v0 p.dob == 42)) = [" Chandler "]
+(friends (fun p -> Date.second_v1 p.dob == 42)) = [" Chandler "]
 (friends (fun p -> Date.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
 
 [test.db partial evaluation fieldAccesses outside query] with DB Person
 (let _ = prepFriends null
  let x = { y = { z = { a = 5 }}}
- ((DB.query_v4 Person (fun p -> x.y.z.a < (String.length_v0 p.name)))
+ ((DB.query_v4 Person (fun p -> x.y.z.a < p.height))
  |> List.map_v0 (fun p -> p.name)
- |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"]
+ |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 [test.db partial evaluation fieldAccesses inside query] with DB Person
-(friends (fun p -> let x = { y = { z = { a = 5 }}} in x.y.z.a < (String.length_v0 p.name))) = [" Chandler "; "GrumpyCat"; "Rachel"]
+(friends (fun p -> let x = { y = { z = { a = 5 }}} in x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 [test.db partial evaluation fieldAccesses inside query] with DB Person
-(friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}} in (x.y.z.a |> List.length_v0) < (String.length_v0 p.name))) = [" Chandler "; "GrumpyCat"; "Rachel"]
+(friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}} in (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-
-// ------------
-// Other query functions
-// ------------
-// queryOne_v4
-[test.queryOne_v4 works - multiple] with DB Person
-(let _ = prepFriends null in
- DB.queryOne_v4 Person (fun p -> p.human)) = Nothing
-
-[test.queryOne_v4 works - none] with DB Person
-(let _ = prepFriends null in
- DB.queryOne_v4 Person (fun p -> p.name = "bob")) = Nothing
-
-[test.queryOne_v4 works - one] with DB Person
-(let _ = prepFriends null in
- (DB.queryOne_v4 Person (fun p -> p.name = "Rachel"))
- |> Option.map_v0 (fun v -> v.name)) = Just "Rachel"
 
 // queryOneWithKey
 [test.queryOneWithKey works - multiple] with DB Person
@@ -585,7 +450,7 @@ friendsError (fun p -> p.dob != Date.now_v0) =
 [test.queryOne works - one] with DB Person
 (let _ = prepFriends null in
  (DB.queryOneWithKey_v3 Person (fun p -> p.name = "Rachel"))
- |> Option.map_v0 (fun v -> v.rachel.name)) = Just "Rachel"
+ |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
 // queryWithKey
 [test.queryWithKey works - none] with DB Person

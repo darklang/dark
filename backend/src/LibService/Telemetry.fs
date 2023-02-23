@@ -289,6 +289,8 @@ let configureAspNetCore
   options.Enrich <- enrich
   options.RecordException <- true
 
+#nowarn "1182"
+
 /// A sampler is used to reduce the number of events, to not overwhelm the results.
 /// In our case, we want to control costs too - we only have 1.5B honeycomb events
 /// per month, and it's easy to use them very quickly in a loop
@@ -297,6 +299,7 @@ type DarkSampler() =
 
   let keep = SamplingResult(SamplingDecision.RecordAndSample)
   let _drop = SamplingResult(SamplingDecision.Drop)
+
 
   let getInt (name : string) (map : Map<string, obj>) : Option<int> =
     try

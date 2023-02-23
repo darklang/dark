@@ -75,13 +75,13 @@ toString 5 = "5"
 
 
 [tests.if]
-(if true then "correct" else 0) = "correct")
-(if false then "" else "correct") = "correct")
-(if null then "" else "correct") = "correct")
-(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error")
-(if List.head_v1_ster [] then "" else "") = Test.errorRailValue_v0 Nothing)
+(if true then "correct" else 0) = "correct"
+(if false then "" else "correct") = "correct"
+(if null then "" else "") = Test.typeError_v0 "If only supports Booleans"
+(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
+(if List.head_v2_ster [] then "" else "") = Test.errorRailValue_v0 Nothing
 (if blank then "" else "") = blank
-(if 5 then "correct" else "") = "correct"
+(if 5 then "" else "") = Test.typeError_v0 "If only supports Booleans"
 
 [tests.and]
 (true && true) = true
@@ -148,7 +148,7 @@ flag "test" null "old" "new" = "old"
 flag "test" 5 "old" "new" = "old"
 flag "test" blank "old" "new" = "old"
 flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
-flag "test" (List.head_v1_ster []) "old" "new" = "old"
+flag "test" (List.head_v2_ster []) "old" "new" = "old"
 flag "test" {x = true} "old" "new" = "old"
 flag "test" {x = true} "old" "new" = "old"
 flag "test" [true] "old" "new" = "old"
@@ -170,9 +170,9 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 
 [test.lambda2]
 (String.join_v0
-  (List.foreach_v0
+  (List.map_v0
     (String.toList_v1 "some string")
-    (fun var -> String.toUppercase_v0 (String.fromChar_v1 var))) "") = "SOME STRING"
+    (fun var -> String.toUppercase_v1 (String.fromChar_v1 var))) "") = "SOME STRING"
 
 
 
@@ -182,7 +182,7 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 
 [test.pipes]
 ([5]
- |> List.head_v0
+ |> List.head_v2_ster
  |> Int.add_v0 1
  |> (+) 3
  |> blank
@@ -374,8 +374,8 @@ match tpl with
 
 [tests.constructors]
 Nothing = Nothing
-((List.head_v1 []) = Nothing) = true
-(List.head_v1 []) = Nothing
+((List.head_v2 []) = Nothing) = true
+(List.head_v2 []) = Nothing
 
 
 // ---------------------------
@@ -385,12 +385,12 @@ Nothing = Nothing
 // ---------------------------
 
 [tests.incompletePropagation]
-List.head_v0 blank = blank
+List.head_v2 blank = blank
 (if blank then 5 else 6) = blank
-(List.head_v0 blank).field = blank
-[ 5; 6; List.head_v0 blank ] = [ 5; 6 ]
+(List.head_v2 blank).field = blank
+[ 5; 6; List.head_v2 blank ] = [ 5; 6 ]
 [ 5; 6; blank] = [ 5, 6 ]
-{ i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }
+{ i = blank; m = 5; j = List.head_v2 blank; n = 6 } = { n = 6; m = 5 }
 5 |> blank |> (+) 3 = 8
 5 |> (+) blank |> (+) 3564 = 3569
 5 |> (+) blank = 5
@@ -404,13 +404,13 @@ List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments
 Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a Str (\"not an option\"), but `option2` expected a Option."
 
 [tests.errorPropagation]
-List.head_v0 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-(if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "Expected boolean, got error"
-(List.head_v0 (Test.typeError_v0 "test")).field = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
-[ 5; 6; List.head_v0 (Test.typeError_v0 "test") ] = [5;6; Test.typeError_v0 "test"]
+List.head_v2 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+(if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "test"
+(List.head_v2 (Test.typeError_v0 "test")).field = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
+[ 5; 6; List.head_v2 (Test.typeError_v0 "test") ] = [5;6; Test.typeError_v0 "test"]
 [ 5; 6; Test.typeError_v0 "test"] = [ 5; 6; Test.typeError_v0 "test"]
 // CLEANUP - don't support errors in literal lists or records
-{ i = Test.typeError_v0 "test"; m = 5; j = List.head_v0 (Test.typeError_v0 "test"); n = 6 } = { n = 6; m = 5 ; j = Test.typeError_v0 "test"; i = Test.typeError_v0 "test" }
+{ i = Test.typeError_v0 "test"; m = 5; j = List.head_v2 (Test.typeError_v0 "test"); n = 6 } = { n = 6; m = 5 ; j = Test.typeError_v0 "test"; i = Test.typeError_v0 "test" }
 5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
 5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
 (let x = Test.typeError_v0 "test" in (5 |> x)) = 5
@@ -424,25 +424,25 @@ Ok (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
 
 
 [fn.errorRailFn arg:any]
-([] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x)))
+([] |> List.head_v2_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x)))
 
 [tests.errorrail]
-Dict.get_v1 {} "i" = Nothing
-Dict.get_v1_ster {} "i" = Test.errorRailValue_v0_ster Nothing
-([5] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 8
-([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailValue_v0 Nothing
+Dict.get_v2 {} "i" = Nothing
+Dict.get_v2_ster {} "i" = Test.errorRailValue_v0_ster Nothing
+([5] |> List.head_v2_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 8
+([ ] |> List.head_v2_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailValue_v0 Nothing
 (blank == Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-(let x = Dict.get_v1_ster {} "i" in 1) = Test.errorRailValue_v0 Nothing
+(let x = Dict.get_v2_ster {} "i" in 1) = Test.errorRailValue_v0 Nothing
 (errorRailFn null) = Nothing
 
 [tests.errorRailPropagation]
-List.head_v0 (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
+List.head_v2 (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
 (if (Test.errorRailValue Nothing) then 5 else 6) = (Test.errorRailValue Nothing)
-(List.head_v0 (Test.errorRailValue Nothing)).field = (Test.errorRailValue Nothing)
-[ 5; 6; List.head_v0 (Test.errorRailValue Nothing) ] = [5;6; (Test.errorRailValue Nothing)]
+(List.head_v2 (Test.errorRailValue Nothing)).field = (Test.errorRailValue Nothing)
+[ 5; 6; List.head_v2 (Test.errorRailValue Nothing) ] = [5;6; (Test.errorRailValue Nothing)]
 [ 5; 6; (Test.errorRailValue Nothing)] = [ 5; 6; (Test.errorRailValue Nothing)]
 // CLEANUP - don't support errors in literal lists or records
-{ i = (Test.errorRailValue Nothing); j = List.head_v0 (Test.errorRailValue Nothing); n = 6 } = { n = 6; m = 5 ; j = (Test.errorRailValue Nothing); i = (Test.errorRailValue Nothing) }
+{ i = (Test.errorRailValue Nothing); j = List.head_v2 (Test.errorRailValue Nothing); n = 6 } = { n = 6; m = 5 ; j = (Test.errorRailValue Nothing); i = (Test.errorRailValue Nothing) }
 5 |> (+) (Test.errorRailValue Nothing) |> (+) 3564 = (Test.errorRailValue Nothing)
 5 |> (+) (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
 (let x = (Test.errorRailValue Nothing) in (5 |> x)) = (Test.errorRailValue Nothing)
@@ -451,7 +451,7 @@ Error (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
 Ok (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
 
 List.push_v0 [1;2;3;4] (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-List.filter_v1 [1;2;3;4] (fun x -> Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
+List.filter_v2 [1;2;3;4] (fun x -> Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 List.map_v0 [1;2;3;4] (fun x -> Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 List.fold_v0 [1;2;3;4] 1 (fun x y -> Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 List.map_v0 [1;2;3;4] (fun x -> blank) = blank
@@ -514,8 +514,8 @@ DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // EXPECTE
 ("asd" <> "sad") = true
 ((Date.parse_v2 "2019-07-28T22:42:36Z") = (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
 ((Date.parse_v2 "2019-07-28T22:42:37Z") <> (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
-(String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
-(String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+(Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+(Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 (Nothing = Nothing) = true
 (Nothing <> Just Nothing) = true
 (Just 5 = Just 5) = true
@@ -567,7 +567,7 @@ Error false
 Test.errorRailValue_v0 Nothing
 
 [fn.returnsOptionUnwrappedViaErrorRail v:any]
-List.head_v1_ster [5]
+List.head_v2_ster [5]
 
 [fn.throwsException v:any]
 Test.raiseException "throwsException message"
@@ -636,7 +636,7 @@ Error false
 Test.errorRailValue_v0 Nothing
 
 [packagefn.returnsOptionUnwrappedViaErrorRail v:any]
-List.head_v1_ster [5]
+List.head_v2_ster [5]
 
 [packagefn.throwsException v:any]
 Test.raiseException "package throwsException message"

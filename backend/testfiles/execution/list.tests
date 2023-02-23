@@ -4,14 +4,12 @@ List.all_v0 [1; 2] (fun item -> item < 3) = true
 List.all_v0 [4] (fun item -> item < 3) = false
 List.all_v0 [1; 4] (fun item -> item < 3) = false
 
+
 List.append_v0 [1; 2; 3] [4; 5; 6] = [1; 2; 3; 4; 5; 6]
 List.append_v0 [3;4] [5;6] = [3;4;5;6]
 List.append_v0 [1] [2] = [1;2]
 List.append_v0 [] [] = []
 
-List.contains_v0 [1;2;3] 2 = true
-List.contains_v0 [1;2;3] 4 = false
-List.contains_v0 [] 1 = false
 
 List.drop_v0 ["a"; "b"; "c"; "d"] -3 = ["a"; "b"; "c"; "d"]
 List.drop_v0 ["a"; "b"; "c"; "d"] 3 = ["d"]
@@ -35,28 +33,6 @@ List.dropWhile_v0 [] (fun item -> item < 3) = []
 
 List.empty_v0 = []
 
-List.filter_v0 [-20; 5; 9;] (fun x -> x < 1) = [-20]
-List.filter_v0 [-20; 5; 9;] (fun x -> x > 1) = [5; 9]
-List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3]
-List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > -2 then true else false)) = [1; -1; 2; 3; 4]
-List.filter_v0 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3; 4]
-List.filter_v0 [1;2;3] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3]
-List.filter_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = [1; 3]
-List.filter_v0 [1;2;3] (fun item -> 2) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `2`"
-List.filter_v0 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
-List.filter_v0 [] (fun item -> "a") = []
-
-List.filter_v1 [-20; 5; 9;] (fun x -> x < 1) = [-20]
-List.filter_v1 [-20; 5; 9;] (fun x -> x > 20) = []
-List.filter_v1 [-20; 5; 9;] (fun x -> true) = [-20; 5; 9]
-List.filter_v1 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > -2 then true else false)) = [1; -1; 2; 3; 4]
-List.filter_v1 [1;-1;-2;-3;2;3;4] (fun item -> (match item with | item -> if item > 2 then true else false)) = [3; 4]
-List.filter_v1 [] (fun x -> x < 20) = []
-List.filter_v1 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
-List.filter_v1 [1;2;3] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
-List.filter_v1 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
-List.filter_v1 [] (fun item -> "a") = []
-
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`"
 List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
@@ -69,18 +45,6 @@ List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then Nothing else (Just (ite
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then blank else (Just (item * 2))) = blank
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected `fn` to return a Option, but it returned `false`"
 List.filterMap_v0 [] (fun item -> 0) = []
-
-List.findFirst_v0 [1;2;3] (fun x -> x > 5) = null
-List.findFirst_v0 [] (fun x -> x) = null
-List.findFirst_v0 [1;2;3;1;4] (fun x -> x > 1 ) =  2
-List.findFirst_v0 [0; 5; -6; -10; ] (fun x -> x < 0) = -6
-List.findFirst_v0 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 = 0)) = -2
-
-List.findFirst_v1 [1;2;3] (fun x -> x > 5) = Nothing
-List.findFirst_v1 [] (fun x -> x) = Nothing
-List.findFirst_v1 [1;2;3;1;4] (fun x -> x > 1 ) = Just 2
-List.findFirst_v1 [0; 5; -6; -10; ] (fun x -> x < 0) = Just -6
-List.findFirst_v1 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 = 0)) = Just -2
 
 List.findFirst_v2 [1;2;3] (fun x -> x > 5) = Nothing
 List.findFirst_v2 [] (fun x -> x) = Nothing
@@ -99,18 +63,6 @@ List.fold_v0 ["a"; "b"; "c"; "d"] "x" (fun accum curr -> accum ++ curr) = "xabcd
 List.fold_v0 [1;2;3;4;5] [] (fun accum curr -> List.pushBack_v0 accum (curr + 1)) = [2;3;4;5;6]
 List.fold_v0 [] [] (fun accum curr -> 5) = []
 
-List.foreach_v0 [1;2;3] (fun x -> x + 1) = [2;3;4]
-List.foreach_v0 [] (fun x -> x + 1) = []
-List.foreach_v0 [Test.typeError_v0 "test"] (fun x -> x) = [Test.typeError_v0 "test"]
-
-List.getAt_v0 ["a"; "b"; "c"; "d"] -1 = Nothing
-List.getAt_v0 [1; 2; 3; 4] 4611686018427387902I = Nothing
-List.getAt_v0 [1;2;3;4] 0 = Just 1
-List.getAt_v0 [1;2;3;4] 4 = Nothing
-List.getAt_v0 [3; 3; 3] -5 = Nothing
-List.getAt_v0 [] 5 = Nothing
-List.getAt_v0 [3; 3; 3] 2147483648I = Nothing
-
 List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
 List.getAt_v1 [0] 1 = Nothing
 List.getAt_v1 [] 1 = Nothing
@@ -119,15 +71,6 @@ List.getAt_v1 [1; 2; 3; 4] 4611686018427387902I = Nothing
 List.getAt_v1 [1;2;3;4] 0 = Just 1
 List.getAt_v1 [3; 3; 3] -5 = Nothing
 List.getAt_v1 [3; 3; 3] 2147483648I = Nothing
-
-List.head_v0 [1; 2; 3] = 1
-List.head_v0 [Test.typeError_v0 "test"] = Test.typeError_v0 "test"
-List.head_v0 [] = null
-
-
-List.head_v1 [Test.typeError_v0 "test"] = ((Just 5) |> Option.map_v0 (fun x -> Test.typeError_v0 "test"))
-List.head_v1 [1; 2; 3] = Just 1
-List.head_v1 [] = Nothing
 
 List.head_v2 [1; 2; 3] = Just 1
 List.head_v2 [Test.typeError_v0 "test"] = Test.typeError_v0 "test"
@@ -152,14 +95,6 @@ List.interpose_v0 ["a"; "b"; "c"] 0 = ["a"; 0; "b"; 0; "c"]
 
 List.isEmpty_v0 [1] = false
 List.isEmpty_v0 [] = true
-
-List.last_v0 [1; 2; 3] = 3
-List.last_v0 [Test.typeError_v0 "test"] = Test.typeError_v0 "test"
-List.last_v0 [] = null
-
-List.last_v1 [Test.typeError_v0 "test"] = ((Just 5) |> Option.map_v0 (fun x -> Test.typeError_v0 "test"))
-List.last_v1 [1; 2; 3] = Just 3
-List.last_v1 [] = Nothing
 
 List.last_v2 [1; 2; 3] = Just 3
 List.last_v2 [Test.typeError_v0 "test"] = Test.typeError_v0 "test"

@@ -2,7 +2,7 @@
 ///
 /// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
 /// etc.
-module LibExecution.DvalReprInternalNew
+module LibExecution.DvalReprInternalRoundtrippable
 
 open Prelude
 open VendoredTablecloth
@@ -10,7 +10,7 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 
 
-module RoundtrippableSerializationFormatV0 =
+module FormatV0 =
 
   // In the past, we used bespoke serialization formats, that were terrifying to
   // change. Going forward, if we want to use a format that we want to save and
@@ -122,19 +122,47 @@ module RoundtrippableSerializationFormatV0 =
     | RT.DBytes bytes -> DBytes bytes
 
 
-let toRoundtrippableJsonV0 (dv : RT.Dval) : string =
-  dv |> RoundtrippableSerializationFormatV0.fromRT |> Json.Vanilla.serialize
+let toJsonV0 (dv : RT.Dval) : string =
+  dv |> FormatV0.fromRT |> Json.Vanilla.serialize
 
-let parseRoundtrippableJsonV0 (json : string) : RT.Dval =
-  json
-  |> Json.Vanilla.deserialize<RoundtrippableSerializationFormatV0.Dval>
-  |> RoundtrippableSerializationFormatV0.toRT
+let parseJsonV0 (json : string) : RT.Dval =
+  json |> Json.Vanilla.deserialize<FormatV0.Dval> |> FormatV0.toRT
 
 let toHashV2 (dvals : list<RT.Dval>) : string =
   dvals
-  |> List.map RoundtrippableSerializationFormatV0.fromRT
-  |> RoundtrippableSerializationFormatV0.DList
+  |> List.map FormatV0.fromRT
+  |> FormatV0.DList
   |> Json.Vanilla.serialize
   |> UTF8.toBytes
   |> System.IO.Hashing.XxHash64.Hash // fastest in .NET, does not need to be secure
   |> Base64.urlEncodeToString
+
+
+
+module Test =
+  let rec isRoundtrippableDval (dval : RT.Dval) : bool =
+    match dval with
+    | RT.DFnVal _ -> false // not supported
+    | RT.DStr _
+    | RT.DInt _
+    | RT.DFloat _
+    | RT.DNull _
+    | RT.DBool _
+    | RT.DChar _
+    | RT.DBytes _
+    | RT.DDate _
+    | RT.DOption None
+    | RT.DPassword _ -> true
+    | RT.DList dvals -> List.all isRoundtrippableDval dvals
+    | RT.DObj map -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DUuid _ -> true
+    | RT.DTuple (v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
+    | RT.DOption (Some v)
+    | RT.DHttpResponse (RT.Response (_, _, v))
+    | RT.DResult (Error v)
+    | RT.DResult (Ok v) -> isRoundtrippableDval v
+    | RT.DHttpResponse (RT.Redirect _) -> true
+    | RT.DDB _
+    | RT.DError _
+    | RT.DIncomplete _
+    | RT.DErrorRail _ -> true

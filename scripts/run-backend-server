@@ -27,6 +27,7 @@ RUNNING=true
 if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
+if [[ $(pgrep Executor -c) -eq 0 ]]; then RUNNING=false; fi
 # TODO pubsub and tunnel
 
 
@@ -36,27 +37,37 @@ if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
 fi
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/"
-  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/"
-  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/"
-  EXECHOST_BINPATH="backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/"
+  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish"
+  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish"
+  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish"
+  EXECHOST_BINPATH="backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish"
+  EXECUTOR_BINPATH="backend/Build/out/Executor/Release/net6.0/linux-x64/publish"
 else
-  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net6.0/linux-x64/"
-  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net6.0/linux-x64/"
-  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net6.0/linux-x64/"
-  EXECHOST_BINPATH="backend/Build/out/ExecHost/Debug/net6.0/linux-x64/"
+  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net6.0/linux-x64"
+  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net6.0/linux-x64"
+  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net6.0/linux-x64"
+  EXECHOST_BINPATH="backend/Build/out/ExecHost/Debug/net6.0/linux-x64"
+  EXECUTOR_BINPATH="backend/Build/out/Executor/Debug/net6.0/"
 fi
+
+LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
 BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
 CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
 QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 EXECHOST_EXE="${EXECHOST_BINPATH}/ExecHost"
+EXECUTOR_EXE="${EXECUTOR_BINPATH}/Executor"
 
 # Stop the server processes
 echo "Stopping servers"
 sudo pkill -f "BwdServer" || true
 sudo pkill -f "CronChecker" || true
 sudo pkill -f "QueueWorker" || true
+sudo pkill -f "Executor" || true
+
+# Executor doesn't need all the other stuff
+echo "Running Executor"
+"${EXECUTOR_EXE}" serve --port=3275 --debug > "$LOGS/executor.log" 2>&1 &
 
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
@@ -75,7 +86,6 @@ do
 done
 echo "Done waiting for compiled servers"
 
-LOGS="${DARK_CONFIG_RUNDIR}/logs"
 echo "Running migrations"
 "${EXECHOST_EXE}" migrations run > "$LOGS/migrations.log" 2>&1
 echo "Running bwdserver"

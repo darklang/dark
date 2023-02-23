@@ -7,29 +7,32 @@
   },
 
   // Set *default* container specific settings.json values on container create.
-  "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash",
-    "FSharp.dotNetRoot": "/usr/share/dotnet",
-    "FSharp.useSdkScripts": true,
-    "FSharp.workspaceModePeekDeepLevel": 5,
-    "FSharp.workspacePath": "/home/dark/app/backend/fsdark.sln",
-    "remote.containers.cacheVolume": true,
-    "remote.containers.workspaceMountConsistency": "delegated",
-    "editor.tabSize": 2,
-    "files.trimTrailingWhitespace": true,
-    "python.formatting.provider": "yapf"
-  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "FSharp.dotNetRoot": "/usr/share/dotnet",
+        "FSharp.useSdkScripts": true,
+        "FSharp.workspaceModePeekDeepLevel": 5,
+        "FSharp.workspacePath": "/home/dark/app/backend/fsdark.sln",
+        "remote.containers.cacheVolume": true,
+        "remote.containers.workspaceMountConsistency": "delegated",
+        "editor.tabSize": 2,
+        "files.trimTrailingWhitespace": true,
+        "python.formatting.provider": "yapf"
+      },
 
-  // Add the IDs of extensions you want installed when the container is created.
-  "extensions": [
-    "ionide.ionide-fsharp@5.10.1",
-    "esbenp.prettier-vscode",
-    "ms-python.python",
-    "ms-azuretools.vscode-docker",
-    "editorconfig.editorconfig",
-    "chenglou92.rescript-vscode@1.1.3",
-    "hashicorp.terraform"
-  ],
+      // Add the IDs of extensions you want installed when the container is created.
+      "extensions": [
+        "ionide.ionide-fsharp",
+        "esbenp.prettier-vscode",
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "editorconfig.editorconfig",
+        "hashicorp.terraform"
+      ]
+    }
+  },
 
   /////////////////////////////////////////////////
   // From here down, the contents are supposed to represent the exact same
@@ -38,7 +41,8 @@
 
   // Ports are loaded in the build process
   "forwardPorts": [
-    9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002, 13002
+    3275, 3276, 9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002,
+    13002
   ],
 
   "containerEnv": {

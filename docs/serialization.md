@@ -6,18 +6,12 @@ Dark has a lot of serializers. At time of writing:
 - many, many dval serializers to show code to users, save code in the DB, respond to
   API requests, etc. These are mostly handwritten formats (and are often buggy as a result).
 - the "Vanilla" Json serializer which serializes arbitrary types
-- the "OCamlCompatible" Json serializer which is used in situations where it needs to
-  be compatible with the old OCaml json serializers - we would like to replace this
-  with the Vanilla serializer in all cases
 
 ## Goals
 
 Our goals with serializers are:
 
 - never change a serialization format in a way that could break users' code
-- deprecate and remove old/broken serialization formats
-- remove the OCamlCompatible serializer (slow and uses Newtonsoft, which we'd
-  like to remove)
 
 ## Testing
 
@@ -34,9 +28,9 @@ this: if we change something, there's a git diff to tell us something changed, a
 can choose to commit it if that's a backward-compatible change or we determine that
 it's otherwise OK.
 
-#### Vanilla / OCamlCompatible
+#### Vanilla
 
-It's especially easy to accidentally change the format in Vanilla/OCamlCompatible
+It's especially easy to accidentally change the format in Vanilla
 serializers, as those formats just use existing types. To ensure backward
 compatibility, we:
 
@@ -57,17 +51,3 @@ compatibility, we:
 #### Binary Serialization
 
 There is a serialized file for an extensive test case.
-
-#### Other serializers
-
-TBD
-
-### Goal: removing the OCamlCompatible serializer
-
-The serialized test data will allow us to see places in which we can change the
-serializer directly over to the Vanilla one.
-
-### Goal: deprecating old formats
-
-By listing all the formats, we can occasionally go through them to see if any case be
-removed.

@@ -38,22 +38,7 @@ let encodeBasicAuth (u : string) (p : string) : string =
   $"Basic {Base64.defaultEncodeToString input}"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "HttpClient" "basicAuth" 0
-      parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
-      returnType = TDict TStr
-      description =
-        "Returns a header <type Dict> with {{'Authorization'}} created using HTTP basic auth"
-      fn =
-        (function
-        | _, [ DStr u; DStr p ] ->
-          Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuthBroken u p)) ]))
-        | args -> incorrectArgs ())
-      previewable = Pure
-      sqlSpec = NotQueryable
-      deprecated = ReplacedBy(fn "HttpClient" "basicAuth" 1) }
-
-
-    { name = fn "HttpClient" "basicAuth" 1
+  [ { name = fn "HttpClient" "basicAuth" 1
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
       returnType = TDict TStr
       description =
@@ -62,7 +47,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DStr u; DStr p ] ->
           Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuth u p)) ]))
-        | args -> incorrectArgs ())
+        | _ -> incorrectArgs ())
       previewable = Pure
       sqlSpec = NotQueryable
       deprecated = NotDeprecated } ]

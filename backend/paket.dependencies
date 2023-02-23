@@ -5,7 +5,6 @@ framework: net6.0
 storage: none
 
 // Basics
-nuget Newtonsoft.Json = 13.0.1
 nuget Tablecloth.FSharp = 0.0.8-alpha1
 nuget Ply = 0.3.1
 nuget FSharpPlus = 1.2.2

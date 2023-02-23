@@ -54,7 +54,7 @@ let testBasicTypecheckWorks : Test =
 
 let testErrorNotWrappedByErrorRail =
   testTask "error not wrapped by errorRail" {
-    let expr = Parser.parseRTExpr "Dict.get_v1 (List.empty_v0 []) \"hello\""
+    let expr = Parser.parseRTExpr "Dict.get_v2 (List.empty_v0 []) \"hello\""
     let! meta = createTestCanvas (Randomized "error-not-wrapper-rail")
 
     let! state = executionStateFor meta Map.empty Map.empty

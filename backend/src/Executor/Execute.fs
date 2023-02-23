@@ -30,12 +30,16 @@ let execute (expr : RT.Expr) (symtable : Map<string, RT.Dval>) : Task<RT.Dval> =
 
     let tracing = Exe.noTracing RT.Real
 
-    let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
+    let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
       // let metadata = extraMetadata state @ metadata
       // LibService.Rollbar.notify msg metadata
       ()
 
-    let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+    let sendException
+      (_state : RT.ExecutionState)
+      (_metadata : Metadata)
+      (_exn : exn)
+      =
       // let metadata = extraMetadata state @ metadata
       // let person : LibService.Rollbar.Person =
       //   Some { id = program.accountID; username = Some(username ()) }

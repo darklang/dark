@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a triple with the given values"
       fn =
         (function
-        | state, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
+        | _, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the first value of a triple"
       fn =
         (function
-        | state, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
+        | _, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second value of a triple"
       fn =
         (function
-        | state, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
+        | _, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the third value of a triple"
       fn =
         (function
-        | state, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
+        | _, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

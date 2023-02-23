@@ -100,7 +100,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
   task {
     match! executionCheck cron with
     | Some check ->
-      use span = Telemetry.child "cron.enqueue" []
+      use _span = Telemetry.child "cron.enqueue" []
 
       // trigger execution
       if Config.triggerCrons then

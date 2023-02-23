@@ -4,9 +4,6 @@ Option.andThen_v0 Nothing (fun x -> Just 5) = Nothing
 Option.andThen_v0 Nothing (fun x -> Nothing) = Nothing
 Option.andThen_v0 (Just 8) (fun x -> Just (Int.divide_v0 x 2)) = Just 4
 
-Option.map_v0 (Just 4) (fun x -> Int.divide_v0 x 2) = Just 2
-Option.map_v0 Nothing (fun x -> Int.divide_v0 x 2) = Nothing
-
 Option.map_v1 (Just 4) (fun x -> Int.divide_v0 x 2) = Just 2
 Option.map_v1 Nothing (fun x -> Int.divide_v0 x 2) = Nothing
 Option.map_v1 blank (fun x -> Int.divide_v0 x 2) = blank

@@ -26,9 +26,6 @@ let ptFQFnName =
 
 let parseTests =
   let p = PTParser.FQFnName.parse
-  let User = RT.FQFnName.User
-  let Stdlib = RT.FQFnName.Stdlib
-  let Package = RT.FQFnName.Package
 
   testList
     "Parsing fn names"
@@ -61,10 +58,6 @@ let parseTests =
            Some(
              PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 }
            ))
-          ("toRepr",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "toRepr"; version = 0 }
-           ))
           ("equals",
            Some(
              PT.FQFnName.Stdlib { module_ = ""; function_ = "equals"; version = 0 }
@@ -74,24 +67,8 @@ let parseTests =
              PT.FQFnName.Stdlib
                { module_ = ""; function_ = "notEquals"; version = 0 }
            ))
-          ("assoc",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "assoc"; version = 0 }
-           ))
-          ("dissoc",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }
-           ))
-          ("dissoc_v0",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }
-           ))
           ("emit_v1",
            Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "emit"; version = 1 }))
-          ("toForm",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "toForm"; version = 0 }
-           ))
           ("myFunction_v2", Some(PT.FQFnName.User "myFunction_v2"))
           ("myFunction_v0", Some(PT.FQFnName.User "myFunction_v0"))
           ("++",

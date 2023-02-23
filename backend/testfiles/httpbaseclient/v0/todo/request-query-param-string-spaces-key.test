@@ -17,7 +17,7 @@ Content-Length: LENGTH
 [test]
 (let query = { "with spaces" = "x" }
  let response = HttpBaseClient.request_ster "get" "http://URL" query HttpClient.jsonContentType_v0
- let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "\"Hello back\""
      statusCode = 200

@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
             |> List.map (fun (k, v) ->
               match k, v with
               | k, DStr v -> k, v
-              | k, v ->
+              | _, v ->
                 Exception.raiseCode (Errors.argumentWasnt "a string" "value" v))
 
           Ply(DHttpResponse(Response(code, pairs, dv)))
@@ -208,109 +208,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Http" "setCookie" 0
-      parameters =
-        [ Param.make "name" TStr ""
-          Param.make "value" TStr ""
-          Param.make "params" (TDict varA) "" ]
-      returnType = TDict varA
-      description =
-        "Generate an HTTP Set-Cookie header value suitable for <fn
-         Http::responseWithHeaders> given a cookie name, a string value for it, and a
-         <type dict> of Set-Cookie parameters."
-      fn =
-        (function
-        | _, [ DStr name; DStr value; DObj o ] ->
-          o
-          // Transform a DOBj into a cookie list of individual cookie params
-          |> Map.toList
-          |> List.map (fun (x, y) ->
-            match (String.toLowercase x, y) with
-            // Single boolean set-cookie params
-            | "secure", DBool b
-            | "httponly", DBool b -> if b then [ x ] else []
-            // X=y set-cookie params
-            | "path", DStr str
-            | "domain", DStr str
-            | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
-            | "max-age", DInt i
-            | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
-            // Throw if there's not a good way to transform the k/v pair
-            | _ ->
-              Exception.raiseCode
-                $"Unknown set-cookie param: {x}: {DvalReprDeveloper.toRepr y}")
-          // Combine it into a set-cookie header
-          |> List.concat
-          |> String.concat "; "
-          |> sprintf
-               "%s=%s; %s"
-               (Uri.EscapeDataString name)
-               (Uri.EscapeDataString value)
-          |> DStr
-          |> fun x -> Map.add "Set-Cookie" x Map.empty
-          |> DObj
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "setCookie" 1) }
-
-
-    { name = fn "Http" "setCookie" 1
-      parameters =
-        [ Param.make "name" TStr ""
-          Param.make "value" TStr ""
-          Param.make "params" (TDict varA) "" ]
-      returnType = TDict varA
-      description =
-        "Generate an HTTP Set-Cookie header value suitable for <fn
-         Http::responseWithHeaders> given a cookie name, a string value for it, and an
-         <type dict> of Set-Cookie parameters."
-      fn =
-        (function
-        | _, [ DStr name; DStr value; DObj o ] ->
-          o
-          // Transform a DOBj into a cookie list of individual cookie params
-          |> Map.toList
-          |> List.map (fun (x, y) ->
-            match (String.toLowercase x, y) with
-            // Single boolean set-cookie params
-            | "secure", DBool b
-            | "httponly", DBool b -> if b then [ x ] else []
-            // X=y set-cookie params
-            | "path", DStr str
-            | "domain", DStr str
-            | "samesite", DStr str -> [ sprintf "%s=%s" x str ]
-            | "max-age", DInt i
-            | "expires", DInt i -> [ sprintf "%s=%s" x (string i) ]
-            // Throw if there's not a good way to transform the k/v pair
-            | _ ->
-              Exception.raiseCode
-                $"Unknown set-cookie param: {x}: {DvalReprDeveloper.toRepr y}")
-          // Combine it into a set-cookie header
-          |> List.concat
-          |> String.concat "; "
-          |> sprintf "%s=%s; %s" name value
-          // DO NOT ESCAPE THESE VALUES; pctencoding is tempting (see
-          // the implicit _v0, and
-          // https://github.com/darklang/dark/pull/1917 for a
-          // discussion of the bug), but incorrect. By the time it's
-          // reached Http::setCookie_v1,  you've probably already
-          // stored the cookie value as-is in a datastore somewhere, so
-          // any changes will break attempts to look up the session.
-          //
-          // If you really want to shield against invalid
-          // cookie-name/cookie-value strings, go read RFC6265 first.
-          |> DStr
-          |> fun x -> Map.add "Set-Cookie" x Map.empty
-          |> DObj
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Http" "setCookie" 2) }
-
-
     { name = fn "Http" "setCookie" 2
       parameters =
         [ Param.make "name" TStr ""
@@ -325,7 +222,7 @@ let fns : List<BuiltInFn> =
          and/or {{SameSite}})."
       fn =
         (function
-        | state, [ DStr name; DStr value; DObj o ] ->
+        | _, [ DStr name; DStr value; DObj o ] ->
 
           let fold_cookie_params acc key value =
             match (String.toLowercase key, value) with

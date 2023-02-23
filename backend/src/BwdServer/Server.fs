@@ -388,7 +388,6 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       | [] ->
         let! reqBody = getBody ctx
         let reqHeaders = getHeadersWithoutMergingKeys ctx
-        let reqQuery = getQuery ctx
         let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
         let! timestamp = TI.storeEvent meta.id traceID desc event
 
@@ -522,7 +521,7 @@ let initSerializers () =
   Json.Vanilla.allow<pos> "Prelude"
 
   // one-off types used internally
-  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"

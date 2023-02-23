@@ -252,7 +252,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
         |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
       applyToDB (UserDB.setColType id typ) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
-    | PT.SetExpr (tlid, id, e) ->
+    | PT.SetExpr (_tlid, _id, _e) ->
       // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
       // applyToAllToplevels (TL.set_expr id e) tlid c
       c

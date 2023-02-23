@@ -198,11 +198,11 @@ let testRecursionInEditor : Test =
   }
 
 let testIfPreview : Test =
+  let ifID = gid ()
+  let thenID = gid ()
+  let elseID = gid ()
   let f cond =
     task {
-      let ifID = gid ()
-      let thenID = gid ()
-      let elseID = gid ()
       let ast = EIf(ifID, cond, EString(thenID, "then"), EString(elseID, "else"))
       let! results = execSaveDvals "if-preview" [] [] ast
 
@@ -224,7 +224,7 @@ let testIfPreview : Test =
   //
   // - the first part is "what does the if/then expression evaluate to?"
   //   If the condition is 'truthy', then the expression will return "then"
-  //   Otherwise it willll turn "else"
+  //   Otherwise it will turn "else"
   //
   // - the other two parts correspond to the `then` and `else` branches of the if condition.
   //   if the first is an `ExecutedResult` and the second is a `NonExecutedResult`,
@@ -238,9 +238,9 @@ let testIfPreview : Test =
         AT.NonExecutedResult(DStr "then"),
         AT.ExecutedResult(DStr "else")))
       (eNull (),
-       (AT.ExecutedResult(DStr "else"),
+       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
         AT.NonExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "else")))
+        AT.NonExecutedResult(DStr "else")))
       // fakevals
       (eFn "Test" "errorRailValue" 0 [ eConstructor "Nothing" [] ],
        (AT.ExecutedResult(DErrorRail(DOption None)),
@@ -250,18 +250,22 @@ let testIfPreview : Test =
        (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
         AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
+      (eFn "Test" "typeError" 0 [ eStr "test" ],
+       (AT.ExecutedResult(DError(SourceNone, "test")),
+        AT.NonExecutedResult(DStr "then"),
+        AT.NonExecutedResult(DStr "else")))
       // others are true
       (eBool true,
        (AT.ExecutedResult(DStr "then"),
         AT.ExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
       (eInt 5,
-       (AT.ExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "then"),
+       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+        AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
       (eStr "test",
-       (AT.ExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "then"),
+       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+        AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else"))) ]
 
 let testOrPreview : Test =

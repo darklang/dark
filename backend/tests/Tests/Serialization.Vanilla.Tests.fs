@@ -112,10 +112,10 @@ module PersistedSerializations =
         // ------------------
         v<CTRuntime.Dval.T> "complete" CV.dval
 
-        v<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+        v<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
           "complete"
           (V.RuntimeTypes.dval
-           |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT)
+           |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT)
 
         v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
         v<ClientTypes.Program.Handler.T>
@@ -151,12 +151,12 @@ module PersistedSerializations =
             input =
               [ "request",
                 V.RuntimeTypes.dval
-                |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT ]
+                |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT ]
             functionArguments =
               [ V.tlid,
                 [ "testParam",
                   V.RuntimeTypes.dval
-                  |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT ] ]
+                  |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT ] ]
             functionResults =
               [ (V.tlid,
                  7UL,
@@ -166,7 +166,7 @@ module PersistedSerializations =
                  |> LibExecution.DvalReprInternalHash.hash
                       LibExecution.DvalReprInternalHash.currentHashVersion,
                  V.RuntimeTypes.dval
-                 |> LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.fromRT) ] }
+                 |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT) ] }
 
 
 

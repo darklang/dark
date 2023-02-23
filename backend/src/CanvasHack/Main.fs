@@ -110,6 +110,10 @@ let main (args : string []) =
           match Map.get tlid (C.toplevels canvasWithTopLevels) with
           | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
           | None -> None)
+      // let _addOpsResponse =
+      //   CanvasHack.AddOps.addOp c addOpsParams
+      //   |> Async.AwaitTask
+      //   |> Async.RunSynchronously
 
       C.saveTLIDs c oplists |> Async.AwaitTask |> Async.RunSynchronously
 

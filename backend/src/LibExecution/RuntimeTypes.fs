@@ -556,7 +556,7 @@ module Dval =
     | DObj _, TUserType _ -> false // not used
     | DFnVal (Lambda l), TFn (parameters, _) ->
       List.length parameters = List.length l.parameters
-    | DFnVal (FnName fnName), TFn _ -> false // not used
+    | DFnVal (FnName _fnName), TFn _ -> false // not used
     | DOption None, TOption _ -> true
     | DOption (Some v), TOption t
     | DResult (Ok v), TResult (t, _) -> typeMatches t v
@@ -610,14 +610,14 @@ module Dval =
       (fun m (k, v) ->
         match m, k, v with
         // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-        | m, k, v when isFake m -> m
+        | m, _k, _v when isFake m -> m
         // Skip empty rows
         | _, "", _ -> m
         | _, _, DIncomplete _ -> m
         // Errors and Errorrail should propagate (but only if we're not already propagating an error)
         | DObj _, _, v when isFake v -> v
         // Error if the key appears twice
-        | DObj m, k, v when Map.containsKey k m ->
+        | DObj m, k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
         | DObj m, k, v -> DObj(Map.add k v m)
@@ -642,7 +642,7 @@ module Dval =
         // NOTE: we do not propagate DError here! That's the ONLY difference with the version above
         | DObj _, _, (DErrorRail _ as v) -> v
         // Error if the key appears twice
-        | DObj m, k, v when Map.containsKey k m ->
+        | DObj m, k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
         | DObj m, k, v -> DObj(Map.add k v m)
@@ -967,11 +967,11 @@ and ExecutionState =
     onExecutionPath : bool }
 
 let consoleReporter : ExceptionReporter =
-  fun state (metadata : Metadata) (exn : exn) ->
+  fun _state (metadata : Metadata) (exn : exn) ->
     printException "runtime-error" metadata exn
 
 let consoleNotifier : Notifier =
-  fun state msg tags ->
+  fun _state msg tags ->
     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =

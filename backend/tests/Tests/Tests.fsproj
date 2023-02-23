@@ -42,7 +42,6 @@
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="Parser.Tests.fs" />
     <Compile Include="HttpBaseClient.Tests.fs" />
-    <Compile Include="HttpQueryEncoding.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Prelude.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
@@ -55,7 +54,6 @@
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />
     <Compile Include="Undo.Tests.fs" />
-    <Compile Include="UserDB.Tests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
