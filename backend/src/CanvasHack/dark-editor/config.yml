@@ -1,3 +1,15 @@
+# types:
+
+# dbs:
+#   domains:
+#     name:
+#       type: String
+#       description: Testing
+
+# functions:
+
+# secrets:
+
 http-handlers:
   basic-http-handler:
     method: GET
