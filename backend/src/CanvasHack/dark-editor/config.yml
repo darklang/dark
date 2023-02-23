@@ -15,6 +15,10 @@ http-handlers:
     method: GET
     path: /
 
+  get-program:
+    method: GET
+    path: /program
+
   get-trace:
     method: GET
     path: /traces/:traceId

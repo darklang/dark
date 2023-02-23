@@ -10,6 +10,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
+module PT = LibExecution.ProgramTypes
 module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Errors = LibExecution.Errors
@@ -24,6 +25,16 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
+
+let varCanvasMeta = TRecord[("id", TUuid); ("name", TStr)]
+let varCanvasProgram =
+  TRecord[
+    ("dbs", TList(TRecord["tlid", TStr; "name", TStr]))
+    (
+      "httpHandlers",
+      TList(TRecord["tlid", TStr; "method", TStr; "route", TStr])
+    )
+  ]
 
 /// Wraps an internal Lib function
 /// and ensures that the appropriate permissions are in place
@@ -57,6 +68,18 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
               [ "username", username ]
     })
 
+// only accessible to the `dark-editor canvas`
+let darkEditorFn (f : BuiltInFnSig) : BuiltInFnSig =
+  (fun (state, args) ->
+    uply {
+      if state.program.canvasName.ToString() = "dark-editor" then
+        return! f (state, args)
+      else
+        return
+          Exception.raiseInternal
+            "dark-editor-only internal function attempted to be used in another canvas"
+            [ "canavasId", state.program.canvasID ]
+    })
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   internalFn (function
@@ -1220,6 +1243,86 @@ human-readable data."
                 do! Account.setTunnelHostFor userID None
                 return DNull
               | _ -> return incorrectArgs ()
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Fns available only to the `dark-editor` canvas.
+    // Slowly, functions above (only available to admins) should be moved here,
+    // with the darkEditorFn wrapper used in place of the internalFn wrapper.
+
+    // TODO: any tlids below should somehow really be uint64s
+
+    { name = fn "DarkInternal" "darkEditorCanvas" 0
+      parameters = []
+      returnType = varCanvasMeta
+      description = "Returns basic details of the dark-editor canvas"
+      fn =
+        darkEditorFn (function
+          | state, [] ->
+            uply {
+              return
+                [ "id", DUuid(state.program.canvasID)
+                  "name", DStr(state.program.canvasName.ToString()) ]
+                |> Map
+                |> DObj // TODO: DRecord
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // TODO: avail a `currentCanvas` fn
+
+    // TODO: this name is bad?
+    { name = fn "DarkInternal" "canvasProgram" 0
+      parameters = [ Param.make "canvasId" TUuid "" ]
+      returnType =
+        TResult(
+          varCanvasProgram,
+          TStr
+        )
+      description =
+        "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
+      fn =
+        darkEditorFn (function
+          | _, [ DUuid canvasId ] ->
+            uply {
+              let! meta = Canvas.getMetaFromID canvasId
+              let! canvas = Canvas.loadAll meta
+
+              let dbs =
+                Map.values canvas.dbs
+                |> Seq.toList
+                |> List.map (fun db ->
+                  [ "tlid", DStr(db.tlid.ToString()); "name", DStr db.name ]
+                  |> Map
+                  |> DObj)
+                |> DList
+
+              let httpHandlers =
+                Map.values canvas.handlers
+                |> Seq.toList
+                |> List.choose (fun handler ->
+                  match handler.spec with
+                  | PT.Handler.Worker _
+                  | PT.Handler.Cron _
+                  | PT.Handler.REPL _ -> None
+                  | PT.Handler.HTTP (route, method, _ids) ->
+                    [ "tlid", DStr(handler.tlid.ToString())
+                      "method", DStr method
+                      "route", DStr route ]
+                    |> Map
+                    |> DObj
+                    |> Some)
+                |> DList
+
+              return
+                DResult(Ok(DObj(Map [ "dbs", dbs; "httpHandlers", httpHandlers ])))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
