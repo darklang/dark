@@ -2,11 +2,10 @@
 
 ## Usage
 
-- `./scripts/run-canvas-hack load-from-disk canvas-name`
-  before running this, run
-  `./scripts/clear-dark-editor-canvas.sh`
+- `./scripts/run-canvas-hack load-from-disk`
+  This will clear the `dark-editor` canvas prior to import, via `./scripts/clear-dark-editor-canvas.sh`
 
-  after loading from disk, access endpoint via
-  http://dark-editor.builtwithdark.localhost:11001/hello/jason
+  after loading from disk, you may access the new endpoints at
+  http://dark-editor.builtwithdark.localhost:11001/
 
-- `./scripts/run-canvas-hack save-to-disk canvas-name`
+- `./scripts/run-canvas-hack save-from-disk`
