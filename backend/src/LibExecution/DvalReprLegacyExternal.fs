@@ -27,48 +27,6 @@ open VendoredTablecloth
 
 open RuntimeTypes
 
-open System.Text.Json
-
-let jsonWriterOptions : JsonWriterOptions =
-  let mutable options = new JsonWriterOptions()
-  options.Indented <- true
-  options.SkipValidation <- true
-  let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-  options.Encoder <- encoder
-  options
-
-let writePrettyJson (f : Utf8JsonWriter -> unit) : string =
-  let stream = new System.IO.MemoryStream()
-  let w = new Utf8JsonWriter(stream, jsonWriterOptions)
-  f w
-  w.Flush()
-  UTF8.ofBytesUnsafe (stream.ToArray())
-
-let jsonDocumentOptions : JsonDocumentOptions =
-  let mutable options = new JsonDocumentOptions()
-  options.CommentHandling <- JsonCommentHandling.Skip
-  options.MaxDepth <- System.Int32.MaxValue // infinite
-  options
-
-let parseJson (s : string) : JsonDocument =
-  JsonDocument.Parse(s, jsonDocumentOptions)
-
-
-type Utf8JsonWriter with
-
-  member this.writeObject(f : unit -> unit) =
-    this.WriteStartObject()
-    f ()
-    this.WriteEndObject()
-
-  member this.writeArray(f : unit -> unit) =
-    this.WriteStartArray()
-    f ()
-    this.WriteEndArray()
-
-
-
-
 // -------------------------
 // Runtime Types
 // -------------------------

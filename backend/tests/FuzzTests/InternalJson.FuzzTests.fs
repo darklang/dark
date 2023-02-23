@@ -18,8 +18,8 @@ open FuzzTests.Utils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
-module DvalReprInternalNew = LibExecution.DvalReprInternalNew
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module G = Generators
 
 type Generator =
@@ -74,8 +74,8 @@ module Roundtrippable =
 
   let roundtripsSuccessfully (dv : RT.Dval) : bool =
     dv
-    |> DvalReprInternalNew.toRoundtrippableJsonV0
-    |> DvalReprInternalNew.parseRoundtrippableJsonV0
+    |> DvalReprInternalRoundtrippable.toJsonV0
+    |> DvalReprInternalRoundtrippable.parseJsonV0
     |> Expect.dvalEquality dv
 
   let tests config =
@@ -101,14 +101,14 @@ module Queryable =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter DvalReprInternalDeprecated.Test.isQueryableDval
+      |> Arb.filter DvalReprInternalQueryable.Test.isQueryableDval
 
   let canV1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])
 
     dvm
-    |> DvalReprInternalDeprecated.toInternalQueryableV1
-    |> DvalReprInternalDeprecated.ofInternalQueryableV1
+    |> DvalReprInternalQueryable.toJsonStringV0
+    |> DvalReprInternalQueryable.parseJsonV0
     |> Expect.dvalEquality (RT.DObj dvm)
 
   let tests config =

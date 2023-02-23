@@ -30,7 +30,7 @@ let initSerializers () =
 
 // one-off types used internally
 // Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
-// Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+// Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
 //   "RoundtrippableSerializationFormatV0.Dval"
 // Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
 // Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"

@@ -19,7 +19,7 @@ open Tablecloth
 
 module Telemetry = LibService.Telemetry
 
-module DvalReprInternalNew = LibExecution.DvalReprInternalNew
+module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
@@ -92,7 +92,7 @@ let createEvent
                       "name", Sql.string name
                       "modifier", Sql.string modifier
                       "value",
-                      Sql.string (DvalReprInternalNew.toRoundtrippableJsonV0 value) ]
+                      Sql.string (DvalReprInternalRoundtrippable.toJsonV0 value) ]
   |> Sql.executeStatementAsync
 
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
@@ -110,7 +110,7 @@ let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
       modifier = read.string "modifier"
       enqueuedAt = read.instant "enqueued_at"
       lockedAt = read.instantOrNone "locked_at"
-      value = read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0 })
+      value = read.string "value" |> DvalReprInternalRoundtrippable.parseJsonV0 })
 
 let loadEventIDs
   (canvasID : CanvasID)
@@ -148,7 +148,7 @@ module Test =
                         "name", Sql.string name
                         "modifier", Sql.string modifier ]
     |> Sql.executeAsync (fun read ->
-      read.string "value" |> DvalReprInternalNew.parseRoundtrippableJsonV0)
+      read.string "value" |> DvalReprInternalRoundtrippable.parseJsonV0)
 
 
 

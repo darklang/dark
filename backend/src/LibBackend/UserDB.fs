@@ -24,7 +24,7 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Errors = LibExecution.Errors
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 
 // Bump this if you make a breaking change to the underlying data format, and
 // are migrating user data to the new version
@@ -55,7 +55,7 @@ let rec queryExactFields
                           "canvasID", Sql.uuid state.program.canvasID
                           "fields",
                           Sql.jsonb (
-                            DvalReprInternalDeprecated.toInternalQueryableV1 queryObj
+                            DvalReprInternalQueryable.toJsonStringV0 queryObj
                           ) ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
     return results |> List.map (fun (key, data) -> (key, toObj db data))
@@ -65,7 +65,7 @@ let rec queryExactFields
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
-    match DvalReprInternalDeprecated.ofInternalQueryableV1 obj with
+    match DvalReprInternalQueryable.parseJsonV0 obj with
     | RT.DObj o -> o
     | _ -> Exception.raiseInternal "failed format, expected DObj" [ "actual", obj ]
   let typeChecked = typeCheck db pObj
@@ -158,9 +158,7 @@ and set
                       "darkVersion", Sql.int currentDarkVersion
                       "key", Sql.string key
                       "data",
-                      Sql.jsonb (
-                        DvalReprInternalDeprecated.toInternalQueryableV1 merged
-                      ) ]
+                      Sql.jsonb (DvalReprInternalQueryable.toJsonStringV0 merged) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
 
