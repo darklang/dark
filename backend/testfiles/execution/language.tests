@@ -75,13 +75,13 @@ toString 5 = "5"
 
 
 [tests.if]
-(if true then "correct" else 0) = "correct")
-(if false then "" else "correct") = "correct")
-(if null then "" else "correct") = "correct")
-(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error")
-(if List.head_v2_ster [] then "" else "") = Test.errorRailValue_v0 Nothing)
+(if true then "correct" else 0) = "correct"
+(if false then "" else "correct") = "correct"
+(if null then "" else "") = Test.typeError_v0 "If only supports Booleans"
+(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error"
+(if List.head_v2_ster [] then "" else "") = Test.errorRailValue_v0 Nothing
 (if blank then "" else "") = blank
-(if 5 then "correct" else "") = "correct"
+(if 5 then "" else "") = Test.typeError_v0 "If only supports Booleans"
 
 [tests.and]
 (true && true) = true
