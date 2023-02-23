@@ -91,6 +91,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TInt, RT.DInt _ -> value
         | RT.TFloat, RT.DFloat _ -> value
         | RT.TStr, RT.DStr _ -> value
+        | RT.TChar, RT.DChar _ -> value
         | RT.TBool, RT.DBool _ -> value
         | RT.TDate, RT.DDate _ -> value
         // CLEANUP use the inner type
@@ -138,7 +139,6 @@ and set
   : Task<Uuid> =
   let id = System.Guid.NewGuid()
   let merged = typeCheck db vals
-
   let upsertQuery =
     if upsert then
       "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data"
