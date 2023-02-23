@@ -14,3 +14,15 @@ http-handlers:
   get-root:
     method: GET
     path: /
+
+  get-trace:
+    method: GET
+    path: /traces/:traceId
+
+  delete-trace:
+    method: DELETE
+    path: /trace/:traceId
+
+  add-op:
+    method: POST
+    path: /handler/:tlid/ops

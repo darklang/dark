@@ -131,7 +131,10 @@ let userfnTrace
 let traceIDofTLID (tlid : tlid) : AT.TraceID.T =
   AT.TraceID.fromUUID (Uuid.uuidV5 (string tlid) (Uuid.nilNamespace))
 
-let traceIDsForHttpHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID.T>> =
+let traceIDsForHttpHandler
+  (c : Canvas.T)
+  (h : PT.Handler.T)
+  : Task<List<AT.TraceID.T>> =
   task {
     match PTParser.Handler.Spec.toEventDesc h.spec with
     | Some desc ->

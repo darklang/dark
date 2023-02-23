@@ -1,0 +1,5 @@
+(let requestBody = request.body |> Bytes.base64Decode |> Json.parse
+ //DarkInternal.addOp ...
+
+ let responseBody = "TODO" |> String.toBytes_v0
+ Http.response responseBody 200)
