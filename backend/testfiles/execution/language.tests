@@ -78,7 +78,7 @@ toString 5 = "5"
 (if true then "correct" else 0) = "correct"
 (if false then "" else "correct") = "correct"
 (if null then "" else "") = Test.typeError_v0 "If only supports Booleans"
-(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error"
+(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
 (if List.head_v2_ster [] then "" else "") = Test.errorRailValue_v0 Nothing
 (if blank then "" else "") = blank
 (if 5 then "" else "") = Test.typeError_v0 "If only supports Booleans"
@@ -405,7 +405,7 @@ Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 
 
 [tests.errorPropagation]
 List.head_v2 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-(if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "Expected boolean, got error"
+(if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "test"
 (List.head_v2 (Test.typeError_v0 "test")).field = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
 [ 5; 6; List.head_v2 (Test.typeError_v0 "test") ] = [5;6; Test.typeError_v0 "test"]
 [ 5; 6; Test.typeError_v0 "test"] = [ 5; 6; Test.typeError_v0 "test"]
