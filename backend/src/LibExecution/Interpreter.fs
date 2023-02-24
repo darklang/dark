@@ -56,7 +56,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
-    | ENull _id -> return DNull
+    | EUnit _id -> return DUnit
     | ECharacter (_id, s) -> return DChar s
 
 
@@ -177,7 +177,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           if field = "" then
             DIncomplete(sourceID id)
           else
-            Map.tryFind field o |> Option.defaultValue DNull
+            Map.tryFind field o |> Option.defaultValue DUnit
         | DIncomplete _ -> obj
         | DErrorRail _ -> obj
         // CLEANUP: we should propagate DErrors too
@@ -289,7 +289,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPCharacter (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
         | MPString (id, s) -> (dv = DStr s), [], [ (id, DStr s) ]
         | MPFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
-        | MPNull (id) -> (dv = DNull), [], [ (id, DNull) ]
+        | MPUnit (id) -> (dv = DUnit), [], [ (id, DUnit) ]
 
         | MPBlank (id) -> false, [], [ (id, incomplete id) ]
 

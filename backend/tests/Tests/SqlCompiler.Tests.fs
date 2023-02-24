@@ -141,7 +141,7 @@ let partialEvaluation =
         | EVariable (_, name) -> return (Map.find name dvals)
         | _ ->
           Expect.isTrue false "didn't match"
-          return DNull
+          return DUnit
       })
     [ (("false && false", []), DBool false)
       (("false && true", []), DBool false)

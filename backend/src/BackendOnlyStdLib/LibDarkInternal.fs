@@ -47,7 +47,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
       match! state.program.accountID |> Account.usernameForUserID with
       | None ->
         Exception.raiseInternal $"User not found" [ "id", state.program.accountID ]
-        return DNull
+        return DUnit
       | Some username ->
         let! canAccess = Account.canAccessOperations username
         if canAccess then
@@ -93,7 +93,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
           canvasID
           (Pusher.UpdateWorkerStates s)
           None
-        return DNull
+        return DUnit
       }
     | _ -> incorrectArgs ())
 
@@ -238,7 +238,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "setAdmin" 0
       parameters = [ Param.make "username" TStr ""; Param.make "admin" TBool "" ]
-      returnType = TNull
+      returnType = TUnit
       description = "Set whether a user is an admin. Returns null"
       fn =
         internalFn (function
@@ -250,7 +250,7 @@ that's already taken, returns an error."
                 "setAdmin called"
                 [ "username", username; "admin", admin ]
               Analytics.identifyUser username
-              return DNull
+              return DUnit
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -571,7 +571,7 @@ that's already taken, returns an error."
           | TInt -> "int"
           | TFloat -> "float"
           | TBool -> "bool"
-          | TNull -> "null"
+          | TUnit -> "unit"
           | TChar -> "character"
           | TStr -> "string"
           | TList _ -> "list"
@@ -743,7 +743,7 @@ human-readable data."
 
     { name = fn "DarkInternal" "raiseInternalException" 0
       parameters = [ Param.make "argument" varA "Added as a tag" ]
-      returnType = TNull
+      returnType = TUnit
       description =
         "Raise an internal exception inside Dark. This is intended to test exceptions
         and exception tracking, not for any real use."
@@ -781,7 +781,7 @@ human-readable data."
           Param.make "space" TStr ""
           Param.make "path" TStr ""
           Param.make "modifier" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description = "Deletes a specific 404 for a canvas"
       fn =
         internalFn (function
@@ -791,7 +791,7 @@ human-readable data."
                                   "path", path
                                   "modifier", modifier ]
               do! TraceInputs.delete404s canvasID space path modifier
-              return DNull
+              return DUnit
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -858,14 +858,14 @@ human-readable data."
     { name = fn "DarkInternal" "deleteSecret" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description = "Delete a secret"
       fn =
         internalFn (function
           | _, [ DUuid canvasID; DStr secretName ] ->
             uply {
               do! Secret.delete canvasID secretName
-              return DNull
+              return DUnit
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -878,7 +878,7 @@ human-readable data."
         [ Param.make "canvasID" TUuid ""
           Param.make "secretName" TStr ""
           Param.make "secretValue" TStr "" ]
-      returnType = TResult(TNull, TStr)
+      returnType = TResult(TUnit, TStr)
       description = "Add a secret"
       fn =
         internalFn (function
@@ -886,7 +886,7 @@ human-readable data."
             uply {
               try
                 do! Secret.insert canvasID secretName secretValue
-                return DResult(Ok DNull)
+                return DResult(Ok DUnit)
               with
               | _ -> return DResult(Error(DStr "Error inserting secret"))
             }
@@ -1007,7 +1007,7 @@ human-readable data."
     { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
       fn = modifySchedule EventQueueV2.blockWorker
@@ -1019,7 +1019,7 @@ human-readable data."
     { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
       fn = modifySchedule EventQueueV2.unblockWorker
@@ -1130,7 +1130,7 @@ human-readable data."
     { name = fn "DarkInternal" "setTunnelHost" 0
       parameters =
         [ Param.make "userID" TUuid ""; Param.make "host" (TOption TStr) "" ]
-      returnType = TNull
+      returnType = TUnit
       description = "Sets the tunnelhost for this user"
       fn =
         internalFn (function
@@ -1139,10 +1139,10 @@ human-readable data."
               match v with
               | Some (DStr host) ->
                 do! Account.setTunnelHostFor userID (Some host)
-                return DNull
+                return DUnit
               | None ->
                 do! Account.setTunnelHostFor userID None
-                return DNull
+                return DUnit
               | _ -> return incorrectArgs ()
             }
           | _ -> incorrectArgs ())

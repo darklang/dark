@@ -206,7 +206,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "deleteUser" 0
       parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TNull, varB)
+      returnType = TResult(TUnit, varB)
       description = "Delete a user (test only)"
       fn =
         (function
@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
               Sql.query "DELETE from ACCOUNTS WHERE username = @username"
               |> Sql.parameters [ "username", Sql.string (string username) ]
               |> Sql.executeStatementAsync
-            return DNull
+            return DUnit
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

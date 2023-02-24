@@ -92,7 +92,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
         let result = sprintf "%.12g" f
         if result.Contains "." then result else $"{result}.0"
     | DChar c -> c
-    | DNull -> "null"
+    | DUnit -> "unit"
     | DDate d -> DDateTime.toIsoString d
     | DUuid uuid -> string uuid
     | DDB dbname -> $"<DB: {dbname}>"
@@ -111,7 +111,7 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
       // We don't print error here, because the errorrail value will know
       // whether it's an error or not.
       reprfn d
-    | DHttpResponse (Redirect url) -> $"302 {url}\n" + nestedreprfn DNull
+    | DHttpResponse (Redirect url) -> $"302 {url}\n" + nestedreprfn DUnit
     | DHttpResponse (Response (code, headers, body)) ->
       let headerString =
         headers

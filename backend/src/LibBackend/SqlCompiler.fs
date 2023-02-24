@@ -66,7 +66,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DInt i -> Sql.int64 i
   | DFloat v -> Sql.double v
   | DBool b -> Sql.bool b
-  | DNull -> Sql.dbnull
+  | DUnit -> Sql.dbnull
   | DStr s -> Sql.string s
   | DUuid id -> Sql.uuid id
 
@@ -171,13 +171,13 @@ let rec lambdaToSql
   match expr with
   // The correct way to handle null in SQL is "is null" or "is not null"
   // rather than a comparison with null.
-  | Fn "" "==" 0 [ ENull _; e ]
-  | Fn "" "==" 0 [ e; ENull _ ] ->
-    let sql, vars = lts TNull e
+  | Fn "" "==" 0 [ EUnit _; e ]
+  | Fn "" "==" 0 [ e; EUnit _ ] ->
+    let sql, vars = lts TUnit e
     $"({sql} is null)", vars
-  | Fn "" "!=" 0 [ ENull _; e ]
-  | Fn "" "!=" 0 [ e; ENull _ ] ->
-    let sql, vars = lts TNull e
+  | Fn "" "!=" 0 [ EUnit _; e ]
+  | Fn "" "!=" 0 [ e; EUnit _ ] ->
+    let sql, vars = lts TUnit e
     $"({sql} is not null)", vars
 
   | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
@@ -251,8 +251,8 @@ let rec lambdaToSql
     let name = randomString 10
     $"(@{name})", [ name, Sql.bool v ]
 
-  | ENull _ ->
-    typecheck "value null" TNull expectedType
+  | EUnit _ ->
+    typecheck "value null" TUnit expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.dbnull ]
 
@@ -272,7 +272,7 @@ let rec lambdaToSql
       | Some v -> v
       | None -> error2 "The datastore does not have a field named" fieldname
 
-    if expectedType <> TNull // Fields are allowed to be null
+    if expectedType <> TUnit // Fields are allowed to be null
     then
       typecheck fieldname dbFieldType expectedType
 
@@ -371,7 +371,7 @@ let partiallyEvaluate
               match expr with
               | EInteger _
               | EBool _
-              | ENull _
+              | EUnit _
               | EFloat _
               | EString _
               | EVariable _ -> true
@@ -398,7 +398,7 @@ let partiallyEvaluate
             | ECharacter _
             | EFQFnValue _
             | EBool _
-            | ENull _
+            | EUnit _
             | EFloat _ -> return expr
             | ELet (id, name, rhs, next) ->
               let! rhs = r rhs

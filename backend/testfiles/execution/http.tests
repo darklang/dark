@@ -43,10 +43,10 @@ Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 45035996
 
 ((Http.response_v0 "" 4503599627370496I) |> toString) = "4503599627370496 {  }\n\"\""
 
-(Http.redirectTo_v0 "") |> toString = "302 \nnull"
-(Http.redirectTo_v0 "bad url") |> toString = "302 bad url\nnull"
-(Http.redirectTo_v0 "http://someothersite.com/") |> toString = "302 http://someothersite.com/\nnull"
-(Http.redirectTo_v0 "/relativeUrl") |> toString = "302 /relativeUrl\nnull"
+(Http.redirectTo_v0 "") |> toString = "302 \nunit"
+(Http.redirectTo_v0 "bad url") |> toString = "302 bad url\nunit"
+(Http.redirectTo_v0 "http://someothersite.com/") |> toString = "302 http://someothersite.com/\nunit"
+(Http.redirectTo_v0 "/relativeUrl") |> toString = "302 /relativeUrl\nunit"
 
 Http.responseWithHeaders_v0 null {} 200 = Http.response_v0 null 200
 Http.responseWithHeaders_v0 "" {} 200 = Http.response_v0 "" 200

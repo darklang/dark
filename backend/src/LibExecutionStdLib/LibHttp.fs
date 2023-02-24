@@ -171,7 +171,7 @@ let fns : List<BuiltInFn> =
          respond with {{404}} status code (not found)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(Response(404L, [], DNull)))
+        | _, [] -> Ply(DHttpResponse(Response(404L, [], DUnit)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -186,7 +186,7 @@ let fns : List<BuiltInFn> =
          respond with {{401}} status code (unauthorized)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(Response(401L, [], DNull)))
+        | _, [] -> Ply(DHttpResponse(Response(401L, [], DUnit)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -201,7 +201,7 @@ let fns : List<BuiltInFn> =
          respond with {{403}} status code (forbidden)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(Response(403L, [], DNull)))
+        | _, [] -> Ply(DHttpResponse(Response(403L, [], DUnit)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

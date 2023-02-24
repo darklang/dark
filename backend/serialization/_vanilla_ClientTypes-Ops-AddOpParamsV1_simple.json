@@ -17,85 +17,47 @@
           "ELet",
           "14219007199254740992",
           "x1",
-          [
-            "EInteger",
-            929452387,
-            5
-          ],
+          ["EInteger", 929452387, 5],
           [
             "ELet",
             620028536,
             "x2",
-            [
-              "EInteger",
-              452247642,
-              "9223372036854775807"
-            ],
+            ["EInteger", 452247642, "9223372036854775807"],
             [
               "ELet",
               68205955,
               "bool",
-              [
-                "EBool",
-                43581311,
-                true
-              ],
+              ["EBool", 43581311, true],
               [
                 "ELet",
                 755798860,
                 "bool",
-                [
-                  "EBool",
-                  97054530,
-                  false
-                ],
+                ["EBool", 97054530, false],
                 [
                   "ELet",
                   244891515,
                   "str",
-                  [
-                    "EString",
-                    446488682,
-                    "a string"
-                  ],
+                  ["EString", 446488682, "a string"],
                   [
                     "ELet",
                     537517627,
                     "char",
-                    [
-                      "ECharacter",
-                      1031176330,
-                      "a"
-                    ],
+                    ["ECharacter", 1031176330, "a"],
                     [
                       "ELet",
                       399526184,
                       "float",
-                      [
-                        "EFloat",
-                        770715427,
-                        [
-                          "Negative"
-                        ],
-                        "6",
-                        "5"
-                      ],
+                      ["EFloat", 770715427, ["Negative"], "6", "5"],
                       [
                         "ELet",
                         975263310,
                         "n",
-                        [
-                          "ENull",
-                          923644248
-                        ],
+                        ["EUnit", 923644248],
                         [
                           "ELet",
                           468988830,
                           "b",
-                          [
-                            "EBlank",
-                            133368677
-                          ],
+                          ["EBlank", 133368677],
                           [
                             "ELet",
                             43886336,
@@ -114,16 +76,8 @@
                                     "version": 0
                                   }
                                 ],
-                                [
-                                  [
-                                    "EInteger",
-                                    160106123,
-                                    6
-                                  ]
-                                ],
-                                [
-                                  "Rail"
-                                ]
+                                [["EInteger", 160106123, 6]],
+                                ["Rail"]
                               ],
                               [
                                 "EIf",
@@ -137,20 +91,10 @@
                                       "module_": null,
                                       "function_": "!="
                                     },
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
-                                  [
-                                    "EInteger",
-                                    264400705,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    335743639,
-                                    6
-                                  ]
+                                  ["EInteger", 264400705, 5],
+                                  ["EInteger", 335743639, 6]
                                 ],
                                 [
                                   "EInfix",
@@ -161,30 +105,15 @@
                                       "module_": null,
                                       "function_": "\u002B"
                                     },
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
-                                  [
-                                    "EInteger",
-                                    803876589,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    219131014,
-                                    2
-                                  ]
+                                  ["EInteger", 803876589, 5],
+                                  ["EInteger", 219131014, 2]
                                 ],
                                 [
                                   "ELambda",
                                   947647446,
-                                  [
-                                    [
-                                      180359194,
-                                      "y"
-                                    ]
-                                  ],
+                                  [[180359194, "y"]],
                                   [
                                     "EInfix",
                                     140609068,
@@ -194,20 +123,10 @@
                                         "module_": null,
                                         "function_": "\u002B"
                                       },
-                                      [
-                                        "NoRail"
-                                      ]
+                                      ["NoRail"]
                                     ],
-                                    [
-                                      "EInteger",
-                                      450951790,
-                                      2
-                                    ],
-                                    [
-                                      "EVariable",
-                                      402203255,
-                                      "y"
-                                    ]
+                                    ["EInteger", 450951790, 2],
+                                    ["EVariable", 402203255, "y"]
                                   ]
                                 ]
                               ],
@@ -220,9 +139,7 @@
                                     "module_": null,
                                     "function_": "\u002B"
                                   },
-                                  [
-                                    "NoRail"
-                                  ]
+                                  ["NoRail"]
                                 ],
                                 [
                                   "EInfix",
@@ -233,18 +150,12 @@
                                       "module_": null,
                                       "function_": "\u002B"
                                     },
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
                                   [
                                     "EFieldAccess",
                                     974664608,
-                                    [
-                                      "EVariable",
-                                      1002893266,
-                                      "x"
-                                    ],
+                                    ["EVariable", 1002893266, "x"],
                                     "y"
                                   ],
                                   [
@@ -259,41 +170,19 @@
                                       }
                                     ],
                                     [
-                                      [
-                                        "EInteger",
-                                        250221144,
-                                        6
-                                      ],
-                                      [
-                                        "EInteger",
-                                        298149318,
-                                        2
-                                      ]
+                                      ["EInteger", 250221144, 6],
+                                      ["EInteger", 298149318, 2]
                                     ],
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ]
                                 ],
                                 [
                                   "EList",
                                   539797095,
                                   [
-                                    [
-                                      "EInteger",
-                                      267797631,
-                                      5
-                                    ],
-                                    [
-                                      "EInteger",
-                                      352138743,
-                                      6
-                                    ],
-                                    [
-                                      "EInteger",
-                                      430871955,
-                                      7
-                                    ]
+                                    ["EInteger", 267797631, 5],
+                                    ["EInteger", 352138743, 6],
+                                    ["EInteger", 430871955, 7]
                                   ]
                                 ]
                               ]
@@ -311,11 +200,7 @@
                                     [
                                       "EPipe",
                                       786862131,
-                                      [
-                                        "EInteger",
-                                        555880460,
-                                        5
-                                      ],
+                                      ["EInteger", 555880460, 5],
                                       [
                                         "EInfix",
                                         1021880969,
@@ -325,19 +210,10 @@
                                             "module_": null,
                                             "function_": "\u002B"
                                           },
-                                          [
-                                            "NoRail"
-                                          ]
+                                          ["NoRail"]
                                         ],
-                                        [
-                                          "EPipeTarget",
-                                          936577032
-                                        ],
-                                        [
-                                          "EInteger",
-                                          962393769,
-                                          2
-                                        ]
+                                        ["EPipeTarget", 936577032],
+                                        ["EInteger", 962393769, 2]
                                       ],
                                       []
                                     ]
@@ -393,9 +269,7 @@
                                       }
                                     ],
                                     [],
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
                                   [
                                     [
@@ -403,26 +277,12 @@
                                         "MPConstructor",
                                         1015986188,
                                         "Ok",
-                                        [
-                                          [
-                                            "MPVariable",
-                                            334386852,
-                                            "x"
-                                          ]
-                                        ]
+                                        [["MPVariable", 334386852, "x"]]
                                       ],
-                                      [
-                                        "EVariable",
-                                        863810169,
-                                        "v"
-                                      ]
+                                      ["EVariable", 863810169, "v"]
                                     ],
                                     [
-                                      [
-                                        "MPInteger",
-                                        928253813,
-                                        5
-                                      ],
+                                      ["MPInteger", 928253813, 5],
                                       [
                                         "EInteger",
                                         342670561,
@@ -430,57 +290,23 @@
                                       ]
                                     ],
                                     [
-                                      [
-                                        "MPBool",
-                                        435227293,
-                                        true
-                                      ],
-                                      [
-                                        "EInteger",
-                                        232748650,
-                                        7
-                                      ]
+                                      ["MPBool", 435227293, true],
+                                      ["EInteger", 232748650, 7]
                                     ],
                                     [
-                                      [
-                                        "MPCharacter",
-                                        387662539,
-                                        "c"
-                                      ],
-                                      [
-                                        "ECharacter",
-                                        657848009,
-                                        "c"
-                                      ]
+                                      ["MPCharacter", 387662539, "c"],
+                                      ["ECharacter", 657848009, "c"]
                                     ],
                                     [
-                                      [
-                                        "MPString",
-                                        491115870,
-                                        "string"
-                                      ],
-                                      [
-                                        "EString",
-                                        820329949,
-                                        "string"
-                                      ]
+                                      ["MPString", 491115870, "string"],
+                                      ["EString", 820329949, "string"]
                                     ],
                                     [
-                                      [
-                                        "MPNull",
-                                        701616052
-                                      ],
-                                      [
-                                        "ENull",
-                                        731162955
-                                      ]
+                                      ["MPUnit", 701616052],
+                                      ["EUnit", 731162955]
                                     ],
                                     [
-                                      [
-                                        "MPVariable",
-                                        722099983,
-                                        "var"
-                                      ],
+                                      ["MPVariable", 722099983, "var"],
                                       [
                                         "EInfix",
                                         275666765,
@@ -490,80 +316,41 @@
                                             "module_": null,
                                             "function_": "\u002B"
                                           },
-                                          [
-                                            "NoRail"
-                                          ]
+                                          ["NoRail"]
                                         ],
-                                        [
-                                          "EInteger",
-                                          739193732,
-                                          6
-                                        ],
-                                        [
-                                          "EVariable",
-                                          880556562,
-                                          "var"
-                                        ]
+                                        ["EInteger", 739193732, 6],
+                                        ["EVariable", 880556562, "var"]
                                       ]
                                     ],
                                     [
                                       [
                                         "MPFloat",
                                         409097457,
-                                        [
-                                          "Positive"
-                                        ],
+                                        ["Positive"],
                                         "5",
                                         "6"
                                       ],
                                       [
                                         "EFloat",
                                         131187958,
-                                        [
-                                          "Positive"
-                                        ],
+                                        ["Positive"],
                                         "5",
                                         "6"
                                       ]
                                     ],
                                     [
-                                      [
-                                        "MPBlank",
-                                        858594159
-                                      ],
-                                      [
-                                        "EInteger",
-                                        135348705,
-                                        6
-                                      ]
+                                      ["MPBlank", 858594159],
+                                      ["EInteger", 135348705, 6]
                                     ],
                                     [
                                       [
                                         "MPTuple",
                                         1285610,
-                                        [
-                                          "MPVariable",
-                                          17823641,
-                                          "a"
-                                        ],
-                                        [
-                                          "MPVariable",
-                                          58123641,
-                                          "b"
-                                        ],
-                                        [
-                                          [
-                                            "MPVariable",
-                                            95723641,
-                                            "c"
-                                          ]
-                                        ]
+                                        ["MPVariable", 17823641, "a"],
+                                        ["MPVariable", 58123641, "b"],
+                                        [["MPVariable", 95723641, "c"]]
                                       ],
-                                      [
-                                        "EBool",
-                                        123716747,
-                                        true
-                                      ]
+                                      ["EBool", 123716747, true]
                                     ]
                                   ]
                                 ],
@@ -575,21 +362,9 @@
                                     "EFeatureFlag",
                                     882488977,
                                     "test",
-                                    [
-                                      "EBool",
-                                      349352147,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      578528886,
-                                      5
-                                    ],
-                                    [
-                                      "EInteger",
-                                      562930224,
-                                      6
-                                    ]
+                                    ["EBool", 349352147, true],
+                                    ["EInteger", 578528886, 5],
+                                    ["EInteger", 562930224, 6]
                                   ],
                                   [
                                     "ELet",
@@ -603,31 +378,19 @@
                                           "EPartial",
                                           2949606,
                                           "some \uD83E\uDD2C string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
+                                          ["EInteger", 34545, 5]
                                         ],
                                         [
                                           "ERightPartial",
                                           9239755,
                                           "some \uD83D\uDE2D string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
+                                          ["EInteger", 34545, 5]
                                         ],
                                         [
                                           "ELeftPartial",
                                           234885,
                                           "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
+                                          ["EInteger", 34545, 5]
                                         ]
                                       ]
                                     ],
@@ -638,23 +401,9 @@
                                       [
                                         "ETuple",
                                         72333,
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
-                                        ]
+                                        ["EInteger", 34545, 5],
+                                        ["EInteger", 34545, 5],
+                                        [["EInteger", 34545, 5]]
                                       ],
                                       [
                                         "ELet",
@@ -663,28 +412,11 @@
                                         [
                                           "EInfix",
                                           234234,
-                                          [
-                                            "BinOp",
-                                            [
-                                              "BinOpAnd"
-                                            ]
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            true
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            false
-                                          ]
+                                          ["BinOp", ["BinOpAnd"]],
+                                          ["EBool", 234234, true],
+                                          ["EBool", 234234, false]
                                         ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
+                                        ["EInteger", 34545, 5]
                                       ]
                                     ]
                                   ]
@@ -722,28 +454,10 @@
       },
       "name"
     ],
-    [
-      "AddDBCol",
-      94934534,
-      923832423,
-      923832423
-    ],
-    [
-      "SetDBColName",
-      94934534,
-      923832423,
-      "name"
-    ],
-    [
-      "SetDBColType",
-      94934534,
-      923832423,
-      "int"
-    ],
-    [
-      "DeleteTL",
-      94934534
-    ],
+    ["AddDBCol", 94934534, 923832423, 923832423],
+    ["SetDBColName", 94934534, 923832423, "name"],
+    ["SetDBColType", 94934534, 923832423, "int"],
+    ["DeleteTL", 94934534],
     [
       "SetFunction",
       {
@@ -780,20 +494,8 @@
                               "TDbList",
                               [
                                 "TResult",
-                                [
-                                  "TInt"
-                                ],
-                                [
-                                  "TFn",
-                                  [
-                                    [
-                                      "TFloat"
-                                    ]
-                                  ],
-                                  [
-                                    "TNull"
-                                  ]
-                                ]
+                                ["TInt"],
+                                ["TFn", [["TFloat"]], ["TUnit"]]
                               ]
                             ]
                           ]
@@ -802,197 +504,30 @@
                     ]
                   ]
                 ],
-                [
-                  "int",
-                  [
-                    "TInt"
-                  ]
-                ],
-                [
-                  "float",
-                  [
-                    "TFloat"
-                  ]
-                ],
-                [
-                  "bool",
-                  [
-                    "TBool"
-                  ]
-                ],
-                [
-                  "null",
-                  [
-                    "TNull"
-                  ]
-                ],
-                [
-                  "str",
-                  [
-                    "TStr"
-                  ]
-                ],
-                [
-                  "list",
-                  [
-                    "TList",
-                    [
-                      "TInt"
-                    ]
-                  ]
-                ],
-                [
-                  "tuple",
-                  [
-                    "TTuple",
-                    [
-                      "TInt"
-                    ],
-                    [
-                      "TStr"
-                    ],
-                    []
-                  ]
-                ],
-                [
-                  "dict",
-                  [
-                    "TDict",
-                    [
-                      "TInt"
-                    ]
-                  ]
-                ],
-                [
-                  "incomplete",
-                  [
-                    "TIncomplete"
-                  ]
-                ],
-                [
-                  "error",
-                  [
-                    "TError"
-                  ]
-                ],
-                [
-                  "httpresponse",
-                  [
-                    "THttpResponse",
-                    [
-                      "TInt"
-                    ]
-                  ]
-                ],
-                [
-                  "db",
-                  [
-                    "TDB",
-                    [
-                      "TInt"
-                    ]
-                  ]
-                ],
-                [
-                  "date",
-                  [
-                    "TDate"
-                  ]
-                ],
-                [
-                  "char",
-                  [
-                    "TChar"
-                  ]
-                ],
-                [
-                  "password",
-                  [
-                    "TPassword"
-                  ]
-                ],
-                [
-                  "uuid",
-                  [
-                    "TUuid"
-                  ]
-                ],
-                [
-                  "option",
-                  [
-                    "TOption",
-                    [
-                      "TInt"
-                    ]
-                  ]
-                ],
-                [
-                  "errorRail",
-                  [
-                    "TErrorRail"
-                  ]
-                ],
-                [
-                  "usertype",
-                  [
-                    "TUserType",
-                    "name",
-                    0
-                  ]
-                ],
-                [
-                  "bytes",
-                  [
-                    "TBytes"
-                  ]
-                ],
-                [
-                  "result",
-                  [
-                    "TResult",
-                    [
-                      "TInt"
-                    ],
-                    [
-                      "TStr"
-                    ]
-                  ]
-                ],
-                [
-                  "variable",
-                  [
-                    "TVariable",
-                    "v"
-                  ]
-                ],
-                [
-                  "fn",
-                  [
-                    "TFn",
-                    [
-                      [
-                        "TInt"
-                      ]
-                    ],
-                    [
-                      "TInt"
-                    ]
-                  ]
-                ],
-                [
-                  "record",
-                  [
-                    "TRecord",
-                    [
-                      [
-                        "field1",
-                        [
-                          "TInt"
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
+                ["int", ["TInt"]],
+                ["float", ["TFloat"]],
+                ["bool", ["TBool"]],
+                ["null", ["TUnit"]],
+                ["str", ["TStr"]],
+                ["list", ["TList", ["TInt"]]],
+                ["tuple", ["TTuple", ["TInt"], ["TStr"], []]],
+                ["dict", ["TDict", ["TInt"]]],
+                ["incomplete", ["TIncomplete"]],
+                ["error", ["TError"]],
+                ["httpresponse", ["THttpResponse", ["TInt"]]],
+                ["db", ["TDB", ["TInt"]]],
+                ["date", ["TDate"]],
+                ["char", ["TChar"]],
+                ["password", ["TPassword"]],
+                ["uuid", ["TUuid"]],
+                ["option", ["TOption", ["TInt"]]],
+                ["errorRail", ["TErrorRail"]],
+                ["usertype", ["TUserType", "name", 0]],
+                ["bytes", ["TBytes"]],
+                ["result", ["TResult", ["TInt"], ["TStr"]]],
+                ["variable", ["TVariable", "v"]],
+                ["fn", ["TFn", [["TInt"]], ["TInt"]]],
+                ["record", ["TRecord", [["field1", ["TInt"]]]]]
               ]
             ],
             "typeID": 239232,
@@ -1018,20 +553,8 @@
                           "TDbList",
                           [
                             "TResult",
-                            [
-                              "TInt"
-                            ],
-                            [
-                              "TFn",
-                              [
-                                [
-                                  "TFloat"
-                                ]
-                              ],
-                              [
-                                "TNull"
-                              ]
-                            ]
+                            ["TInt"],
+                            ["TFn", [["TFloat"]], ["TUnit"]]
                           ]
                         ]
                       ]
@@ -1040,197 +563,30 @@
                 ]
               ]
             ],
-            [
-              "int",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "float",
-              [
-                "TFloat"
-              ]
-            ],
-            [
-              "bool",
-              [
-                "TBool"
-              ]
-            ],
-            [
-              "null",
-              [
-                "TNull"
-              ]
-            ],
-            [
-              "str",
-              [
-                "TStr"
-              ]
-            ],
-            [
-              "list",
-              [
-                "TList",
-                [
-                  "TInt"
-                ]
-              ]
-            ],
-            [
-              "tuple",
-              [
-                "TTuple",
-                [
-                  "TInt"
-                ],
-                [
-                  "TStr"
-                ],
-                []
-              ]
-            ],
-            [
-              "dict",
-              [
-                "TDict",
-                [
-                  "TInt"
-                ]
-              ]
-            ],
-            [
-              "incomplete",
-              [
-                "TIncomplete"
-              ]
-            ],
-            [
-              "error",
-              [
-                "TError"
-              ]
-            ],
-            [
-              "httpresponse",
-              [
-                "THttpResponse",
-                [
-                  "TInt"
-                ]
-              ]
-            ],
-            [
-              "db",
-              [
-                "TDB",
-                [
-                  "TInt"
-                ]
-              ]
-            ],
-            [
-              "date",
-              [
-                "TDate"
-              ]
-            ],
-            [
-              "char",
-              [
-                "TChar"
-              ]
-            ],
-            [
-              "password",
-              [
-                "TPassword"
-              ]
-            ],
-            [
-              "uuid",
-              [
-                "TUuid"
-              ]
-            ],
-            [
-              "option",
-              [
-                "TOption",
-                [
-                  "TInt"
-                ]
-              ]
-            ],
-            [
-              "errorRail",
-              [
-                "TErrorRail"
-              ]
-            ],
-            [
-              "usertype",
-              [
-                "TUserType",
-                "name",
-                0
-              ]
-            ],
-            [
-              "bytes",
-              [
-                "TBytes"
-              ]
-            ],
-            [
-              "result",
-              [
-                "TResult",
-                [
-                  "TInt"
-                ],
-                [
-                  "TStr"
-                ]
-              ]
-            ],
-            [
-              "variable",
-              [
-                "TVariable",
-                "v"
-              ]
-            ],
-            [
-              "fn",
-              [
-                "TFn",
-                [
-                  [
-                    "TInt"
-                  ]
-                ],
-                [
-                  "TInt"
-                ]
-              ]
-            ],
-            [
-              "record",
-              [
-                "TRecord",
-                [
-                  [
-                    "field1",
-                    [
-                      "TInt"
-                    ]
-                  ]
-                ]
-              ]
-            ]
+            ["int", ["TInt"]],
+            ["float", ["TFloat"]],
+            ["bool", ["TBool"]],
+            ["null", ["TUnit"]],
+            ["str", ["TStr"]],
+            ["list", ["TList", ["TInt"]]],
+            ["tuple", ["TTuple", ["TInt"], ["TStr"], []]],
+            ["dict", ["TDict", ["TInt"]]],
+            ["incomplete", ["TIncomplete"]],
+            ["error", ["TError"]],
+            ["httpresponse", ["THttpResponse", ["TInt"]]],
+            ["db", ["TDB", ["TInt"]]],
+            ["date", ["TDate"]],
+            ["char", ["TChar"]],
+            ["password", ["TPassword"]],
+            ["uuid", ["TUuid"]],
+            ["option", ["TOption", ["TInt"]]],
+            ["errorRail", ["TErrorRail"]],
+            ["usertype", ["TUserType", "name", 0]],
+            ["bytes", ["TBytes"]],
+            ["result", ["TResult", ["TInt"], ["TStr"]]],
+            ["variable", ["TVariable", "v"]],
+            ["fn", ["TFn", [["TInt"]], ["TInt"]]],
+            ["record", ["TRecord", [["field1", ["TInt"]]]]]
           ]
         ],
         "returnTypeID": 23923423,
@@ -1240,85 +596,47 @@
           "ELet",
           "14219007199254740992",
           "x1",
-          [
-            "EInteger",
-            929452387,
-            5
-          ],
+          ["EInteger", 929452387, 5],
           [
             "ELet",
             620028536,
             "x2",
-            [
-              "EInteger",
-              452247642,
-              "9223372036854775807"
-            ],
+            ["EInteger", 452247642, "9223372036854775807"],
             [
               "ELet",
               68205955,
               "bool",
-              [
-                "EBool",
-                43581311,
-                true
-              ],
+              ["EBool", 43581311, true],
               [
                 "ELet",
                 755798860,
                 "bool",
-                [
-                  "EBool",
-                  97054530,
-                  false
-                ],
+                ["EBool", 97054530, false],
                 [
                   "ELet",
                   244891515,
                   "str",
-                  [
-                    "EString",
-                    446488682,
-                    "a string"
-                  ],
+                  ["EString", 446488682, "a string"],
                   [
                     "ELet",
                     537517627,
                     "char",
-                    [
-                      "ECharacter",
-                      1031176330,
-                      "a"
-                    ],
+                    ["ECharacter", 1031176330, "a"],
                     [
                       "ELet",
                       399526184,
                       "float",
-                      [
-                        "EFloat",
-                        770715427,
-                        [
-                          "Negative"
-                        ],
-                        "6",
-                        "5"
-                      ],
+                      ["EFloat", 770715427, ["Negative"], "6", "5"],
                       [
                         "ELet",
                         975263310,
                         "n",
-                        [
-                          "ENull",
-                          923644248
-                        ],
+                        ["EUnit", 923644248],
                         [
                           "ELet",
                           468988830,
                           "b",
-                          [
-                            "EBlank",
-                            133368677
-                          ],
+                          ["EBlank", 133368677],
                           [
                             "ELet",
                             43886336,
@@ -1337,16 +655,8 @@
                                     "version": 0
                                   }
                                 ],
-                                [
-                                  [
-                                    "EInteger",
-                                    160106123,
-                                    6
-                                  ]
-                                ],
-                                [
-                                  "Rail"
-                                ]
+                                [["EInteger", 160106123, 6]],
+                                ["Rail"]
                               ],
                               [
                                 "EIf",
@@ -1360,20 +670,10 @@
                                       "module_": null,
                                       "function_": "!="
                                     },
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
-                                  [
-                                    "EInteger",
-                                    264400705,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    335743639,
-                                    6
-                                  ]
+                                  ["EInteger", 264400705, 5],
+                                  ["EInteger", 335743639, 6]
                                 ],
                                 [
                                   "EInfix",
@@ -1384,30 +684,15 @@
                                       "module_": null,
                                       "function_": "\u002B"
                                     },
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
-                                  [
-                                    "EInteger",
-                                    803876589,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    219131014,
-                                    2
-                                  ]
+                                  ["EInteger", 803876589, 5],
+                                  ["EInteger", 219131014, 2]
                                 ],
                                 [
                                   "ELambda",
                                   947647446,
-                                  [
-                                    [
-                                      180359194,
-                                      "y"
-                                    ]
-                                  ],
+                                  [[180359194, "y"]],
                                   [
                                     "EInfix",
                                     140609068,
@@ -1417,20 +702,10 @@
                                         "module_": null,
                                         "function_": "\u002B"
                                       },
-                                      [
-                                        "NoRail"
-                                      ]
+                                      ["NoRail"]
                                     ],
-                                    [
-                                      "EInteger",
-                                      450951790,
-                                      2
-                                    ],
-                                    [
-                                      "EVariable",
-                                      402203255,
-                                      "y"
-                                    ]
+                                    ["EInteger", 450951790, 2],
+                                    ["EVariable", 402203255, "y"]
                                   ]
                                 ]
                               ],
@@ -1443,9 +718,7 @@
                                     "module_": null,
                                     "function_": "\u002B"
                                   },
-                                  [
-                                    "NoRail"
-                                  ]
+                                  ["NoRail"]
                                 ],
                                 [
                                   "EInfix",
@@ -1456,18 +729,12 @@
                                       "module_": null,
                                       "function_": "\u002B"
                                     },
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
                                   [
                                     "EFieldAccess",
                                     974664608,
-                                    [
-                                      "EVariable",
-                                      1002893266,
-                                      "x"
-                                    ],
+                                    ["EVariable", 1002893266, "x"],
                                     "y"
                                   ],
                                   [
@@ -1482,41 +749,19 @@
                                       }
                                     ],
                                     [
-                                      [
-                                        "EInteger",
-                                        250221144,
-                                        6
-                                      ],
-                                      [
-                                        "EInteger",
-                                        298149318,
-                                        2
-                                      ]
+                                      ["EInteger", 250221144, 6],
+                                      ["EInteger", 298149318, 2]
                                     ],
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ]
                                 ],
                                 [
                                   "EList",
                                   539797095,
                                   [
-                                    [
-                                      "EInteger",
-                                      267797631,
-                                      5
-                                    ],
-                                    [
-                                      "EInteger",
-                                      352138743,
-                                      6
-                                    ],
-                                    [
-                                      "EInteger",
-                                      430871955,
-                                      7
-                                    ]
+                                    ["EInteger", 267797631, 5],
+                                    ["EInteger", 352138743, 6],
+                                    ["EInteger", 430871955, 7]
                                   ]
                                 ]
                               ]
@@ -1534,11 +779,7 @@
                                     [
                                       "EPipe",
                                       786862131,
-                                      [
-                                        "EInteger",
-                                        555880460,
-                                        5
-                                      ],
+                                      ["EInteger", 555880460, 5],
                                       [
                                         "EInfix",
                                         1021880969,
@@ -1548,19 +789,10 @@
                                             "module_": null,
                                             "function_": "\u002B"
                                           },
-                                          [
-                                            "NoRail"
-                                          ]
+                                          ["NoRail"]
                                         ],
-                                        [
-                                          "EPipeTarget",
-                                          936577032
-                                        ],
-                                        [
-                                          "EInteger",
-                                          962393769,
-                                          2
-                                        ]
+                                        ["EPipeTarget", 936577032],
+                                        ["EInteger", 962393769, 2]
                                       ],
                                       []
                                     ]
@@ -1616,9 +848,7 @@
                                       }
                                     ],
                                     [],
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
                                   [
                                     [
@@ -1626,26 +856,12 @@
                                         "MPConstructor",
                                         1015986188,
                                         "Ok",
-                                        [
-                                          [
-                                            "MPVariable",
-                                            334386852,
-                                            "x"
-                                          ]
-                                        ]
+                                        [["MPVariable", 334386852, "x"]]
                                       ],
-                                      [
-                                        "EVariable",
-                                        863810169,
-                                        "v"
-                                      ]
+                                      ["EVariable", 863810169, "v"]
                                     ],
                                     [
-                                      [
-                                        "MPInteger",
-                                        928253813,
-                                        5
-                                      ],
+                                      ["MPInteger", 928253813, 5],
                                       [
                                         "EInteger",
                                         342670561,
@@ -1653,57 +869,23 @@
                                       ]
                                     ],
                                     [
-                                      [
-                                        "MPBool",
-                                        435227293,
-                                        true
-                                      ],
-                                      [
-                                        "EInteger",
-                                        232748650,
-                                        7
-                                      ]
+                                      ["MPBool", 435227293, true],
+                                      ["EInteger", 232748650, 7]
                                     ],
                                     [
-                                      [
-                                        "MPCharacter",
-                                        387662539,
-                                        "c"
-                                      ],
-                                      [
-                                        "ECharacter",
-                                        657848009,
-                                        "c"
-                                      ]
+                                      ["MPCharacter", 387662539, "c"],
+                                      ["ECharacter", 657848009, "c"]
                                     ],
                                     [
-                                      [
-                                        "MPString",
-                                        491115870,
-                                        "string"
-                                      ],
-                                      [
-                                        "EString",
-                                        820329949,
-                                        "string"
-                                      ]
+                                      ["MPString", 491115870, "string"],
+                                      ["EString", 820329949, "string"]
                                     ],
                                     [
-                                      [
-                                        "MPNull",
-                                        701616052
-                                      ],
-                                      [
-                                        "ENull",
-                                        731162955
-                                      ]
+                                      ["MPUnit", 701616052],
+                                      ["EUnit", 731162955]
                                     ],
                                     [
-                                      [
-                                        "MPVariable",
-                                        722099983,
-                                        "var"
-                                      ],
+                                      ["MPVariable", 722099983, "var"],
                                       [
                                         "EInfix",
                                         275666765,
@@ -1713,80 +895,41 @@
                                             "module_": null,
                                             "function_": "\u002B"
                                           },
-                                          [
-                                            "NoRail"
-                                          ]
+                                          ["NoRail"]
                                         ],
-                                        [
-                                          "EInteger",
-                                          739193732,
-                                          6
-                                        ],
-                                        [
-                                          "EVariable",
-                                          880556562,
-                                          "var"
-                                        ]
+                                        ["EInteger", 739193732, 6],
+                                        ["EVariable", 880556562, "var"]
                                       ]
                                     ],
                                     [
                                       [
                                         "MPFloat",
                                         409097457,
-                                        [
-                                          "Positive"
-                                        ],
+                                        ["Positive"],
                                         "5",
                                         "6"
                                       ],
                                       [
                                         "EFloat",
                                         131187958,
-                                        [
-                                          "Positive"
-                                        ],
+                                        ["Positive"],
                                         "5",
                                         "6"
                                       ]
                                     ],
                                     [
-                                      [
-                                        "MPBlank",
-                                        858594159
-                                      ],
-                                      [
-                                        "EInteger",
-                                        135348705,
-                                        6
-                                      ]
+                                      ["MPBlank", 858594159],
+                                      ["EInteger", 135348705, 6]
                                     ],
                                     [
                                       [
                                         "MPTuple",
                                         1285610,
-                                        [
-                                          "MPVariable",
-                                          17823641,
-                                          "a"
-                                        ],
-                                        [
-                                          "MPVariable",
-                                          58123641,
-                                          "b"
-                                        ],
-                                        [
-                                          [
-                                            "MPVariable",
-                                            95723641,
-                                            "c"
-                                          ]
-                                        ]
+                                        ["MPVariable", 17823641, "a"],
+                                        ["MPVariable", 58123641, "b"],
+                                        [["MPVariable", 95723641, "c"]]
                                       ],
-                                      [
-                                        "EBool",
-                                        123716747,
-                                        true
-                                      ]
+                                      ["EBool", 123716747, true]
                                     ]
                                   ]
                                 ],
@@ -1798,21 +941,9 @@
                                     "EFeatureFlag",
                                     882488977,
                                     "test",
-                                    [
-                                      "EBool",
-                                      349352147,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      578528886,
-                                      5
-                                    ],
-                                    [
-                                      "EInteger",
-                                      562930224,
-                                      6
-                                    ]
+                                    ["EBool", 349352147, true],
+                                    ["EInteger", 578528886, 5],
+                                    ["EInteger", 562930224, 6]
                                   ],
                                   [
                                     "ELet",
@@ -1826,31 +957,19 @@
                                           "EPartial",
                                           2949606,
                                           "some \uD83E\uDD2C string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
+                                          ["EInteger", 34545, 5]
                                         ],
                                         [
                                           "ERightPartial",
                                           9239755,
                                           "some \uD83D\uDE2D string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
+                                          ["EInteger", 34545, 5]
                                         ],
                                         [
                                           "ELeftPartial",
                                           234885,
                                           "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
+                                          ["EInteger", 34545, 5]
                                         ]
                                       ]
                                     ],
@@ -1861,23 +980,9 @@
                                       [
                                         "ETuple",
                                         72333,
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
-                                          [
-                                            "EInteger",
-                                            34545,
-                                            5
-                                          ]
-                                        ]
+                                        ["EInteger", 34545, 5],
+                                        ["EInteger", 34545, 5],
+                                        [["EInteger", 34545, 5]]
                                       ],
                                       [
                                         "ELet",
@@ -1886,28 +991,11 @@
                                         [
                                           "EInfix",
                                           234234,
-                                          [
-                                            "BinOp",
-                                            [
-                                              "BinOpAnd"
-                                            ]
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            true
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            false
-                                          ]
+                                          ["BinOp", ["BinOpAnd"]],
+                                          ["EBool", 234234, true],
+                                          ["EBool", 234234, false]
                                         ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
+                                        ["EInteger", 34545, 5]
                                       ]
                                     ]
                                   ]
@@ -1926,26 +1014,10 @@
         ]
       }
     ],
-    [
-      "ChangeDBColName",
-      94934534,
-      923832423,
-      "name"
-    ],
-    [
-      "ChangeDBColType",
-      94934534,
-      923832423,
-      "int"
-    ],
-    [
-      "UndoTL",
-      94934534
-    ],
-    [
-      "RedoTL",
-      94934534
-    ],
+    ["ChangeDBColName", 94934534, 923832423, "name"],
+    ["ChangeDBColType", 94934534, 923832423, "int"],
+    ["UndoTL", 94934534],
+    ["RedoTL", 94934534],
     [
       "SetExpr",
       94934534,
@@ -1954,85 +1026,47 @@
         "ELet",
         "14219007199254740992",
         "x1",
-        [
-          "EInteger",
-          929452387,
-          5
-        ],
+        ["EInteger", 929452387, 5],
         [
           "ELet",
           620028536,
           "x2",
-          [
-            "EInteger",
-            452247642,
-            "9223372036854775807"
-          ],
+          ["EInteger", 452247642, "9223372036854775807"],
           [
             "ELet",
             68205955,
             "bool",
-            [
-              "EBool",
-              43581311,
-              true
-            ],
+            ["EBool", 43581311, true],
             [
               "ELet",
               755798860,
               "bool",
-              [
-                "EBool",
-                97054530,
-                false
-              ],
+              ["EBool", 97054530, false],
               [
                 "ELet",
                 244891515,
                 "str",
-                [
-                  "EString",
-                  446488682,
-                  "a string"
-                ],
+                ["EString", 446488682, "a string"],
                 [
                   "ELet",
                   537517627,
                   "char",
-                  [
-                    "ECharacter",
-                    1031176330,
-                    "a"
-                  ],
+                  ["ECharacter", 1031176330, "a"],
                   [
                     "ELet",
                     399526184,
                     "float",
-                    [
-                      "EFloat",
-                      770715427,
-                      [
-                        "Negative"
-                      ],
-                      "6",
-                      "5"
-                    ],
+                    ["EFloat", 770715427, ["Negative"], "6", "5"],
                     [
                       "ELet",
                       975263310,
                       "n",
-                      [
-                        "ENull",
-                        923644248
-                      ],
+                      ["EUnit", 923644248],
                       [
                         "ELet",
                         468988830,
                         "b",
-                        [
-                          "EBlank",
-                          133368677
-                        ],
+                        ["EBlank", 133368677],
                         [
                           "ELet",
                           43886336,
@@ -2051,16 +1085,8 @@
                                   "version": 0
                                 }
                               ],
-                              [
-                                [
-                                  "EInteger",
-                                  160106123,
-                                  6
-                                ]
-                              ],
-                              [
-                                "Rail"
-                              ]
+                              [["EInteger", 160106123, 6]],
+                              ["Rail"]
                             ],
                             [
                               "EIf",
@@ -2074,20 +1100,10 @@
                                     "module_": null,
                                     "function_": "!="
                                   },
-                                  [
-                                    "NoRail"
-                                  ]
+                                  ["NoRail"]
                                 ],
-                                [
-                                  "EInteger",
-                                  264400705,
-                                  5
-                                ],
-                                [
-                                  "EInteger",
-                                  335743639,
-                                  6
-                                ]
+                                ["EInteger", 264400705, 5],
+                                ["EInteger", 335743639, 6]
                               ],
                               [
                                 "EInfix",
@@ -2098,30 +1114,15 @@
                                     "module_": null,
                                     "function_": "\u002B"
                                   },
-                                  [
-                                    "NoRail"
-                                  ]
+                                  ["NoRail"]
                                 ],
-                                [
-                                  "EInteger",
-                                  803876589,
-                                  5
-                                ],
-                                [
-                                  "EInteger",
-                                  219131014,
-                                  2
-                                ]
+                                ["EInteger", 803876589, 5],
+                                ["EInteger", 219131014, 2]
                               ],
                               [
                                 "ELambda",
                                 947647446,
-                                [
-                                  [
-                                    180359194,
-                                    "y"
-                                  ]
-                                ],
+                                [[180359194, "y"]],
                                 [
                                   "EInfix",
                                   140609068,
@@ -2131,20 +1132,10 @@
                                       "module_": null,
                                       "function_": "\u002B"
                                     },
-                                    [
-                                      "NoRail"
-                                    ]
+                                    ["NoRail"]
                                   ],
-                                  [
-                                    "EInteger",
-                                    450951790,
-                                    2
-                                  ],
-                                  [
-                                    "EVariable",
-                                    402203255,
-                                    "y"
-                                  ]
+                                  ["EInteger", 450951790, 2],
+                                  ["EVariable", 402203255, "y"]
                                 ]
                               ]
                             ],
@@ -2157,9 +1148,7 @@
                                   "module_": null,
                                   "function_": "\u002B"
                                 },
-                                [
-                                  "NoRail"
-                                ]
+                                ["NoRail"]
                               ],
                               [
                                 "EInfix",
@@ -2170,18 +1159,12 @@
                                     "module_": null,
                                     "function_": "\u002B"
                                   },
-                                  [
-                                    "NoRail"
-                                  ]
+                                  ["NoRail"]
                                 ],
                                 [
                                   "EFieldAccess",
                                   974664608,
-                                  [
-                                    "EVariable",
-                                    1002893266,
-                                    "x"
-                                  ],
+                                  ["EVariable", 1002893266, "x"],
                                   "y"
                                 ],
                                 [
@@ -2196,41 +1179,19 @@
                                     }
                                   ],
                                   [
-                                    [
-                                      "EInteger",
-                                      250221144,
-                                      6
-                                    ],
-                                    [
-                                      "EInteger",
-                                      298149318,
-                                      2
-                                    ]
+                                    ["EInteger", 250221144, 6],
+                                    ["EInteger", 298149318, 2]
                                   ],
-                                  [
-                                    "NoRail"
-                                  ]
+                                  ["NoRail"]
                                 ]
                               ],
                               [
                                 "EList",
                                 539797095,
                                 [
-                                  [
-                                    "EInteger",
-                                    267797631,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    352138743,
-                                    6
-                                  ],
-                                  [
-                                    "EInteger",
-                                    430871955,
-                                    7
-                                  ]
+                                  ["EInteger", 267797631, 5],
+                                  ["EInteger", 352138743, 6],
+                                  ["EInteger", 430871955, 7]
                                 ]
                               ]
                             ]
@@ -2248,11 +1209,7 @@
                                   [
                                     "EPipe",
                                     786862131,
-                                    [
-                                      "EInteger",
-                                      555880460,
-                                      5
-                                    ],
+                                    ["EInteger", 555880460, 5],
                                     [
                                       "EInfix",
                                       1021880969,
@@ -2262,19 +1219,10 @@
                                           "module_": null,
                                           "function_": "\u002B"
                                         },
-                                        [
-                                          "NoRail"
-                                        ]
+                                        ["NoRail"]
                                       ],
-                                      [
-                                        "EPipeTarget",
-                                        936577032
-                                      ],
-                                      [
-                                        "EInteger",
-                                        962393769,
-                                        2
-                                      ]
+                                      ["EPipeTarget", 936577032],
+                                      ["EInteger", 962393769, 2]
                                     ],
                                     []
                                   ]
@@ -2330,9 +1278,7 @@
                                     }
                                   ],
                                   [],
-                                  [
-                                    "NoRail"
-                                  ]
+                                  ["NoRail"]
                                 ],
                                 [
                                   [
@@ -2340,26 +1286,12 @@
                                       "MPConstructor",
                                       1015986188,
                                       "Ok",
-                                      [
-                                        [
-                                          "MPVariable",
-                                          334386852,
-                                          "x"
-                                        ]
-                                      ]
+                                      [["MPVariable", 334386852, "x"]]
                                     ],
-                                    [
-                                      "EVariable",
-                                      863810169,
-                                      "v"
-                                    ]
+                                    ["EVariable", 863810169, "v"]
                                   ],
                                   [
-                                    [
-                                      "MPInteger",
-                                      928253813,
-                                      5
-                                    ],
+                                    ["MPInteger", 928253813, 5],
                                     [
                                       "EInteger",
                                       342670561,
@@ -2367,57 +1299,23 @@
                                     ]
                                   ],
                                   [
-                                    [
-                                      "MPBool",
-                                      435227293,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      232748650,
-                                      7
-                                    ]
+                                    ["MPBool", 435227293, true],
+                                    ["EInteger", 232748650, 7]
                                   ],
                                   [
-                                    [
-                                      "MPCharacter",
-                                      387662539,
-                                      "c"
-                                    ],
-                                    [
-                                      "ECharacter",
-                                      657848009,
-                                      "c"
-                                    ]
+                                    ["MPCharacter", 387662539, "c"],
+                                    ["ECharacter", 657848009, "c"]
                                   ],
                                   [
-                                    [
-                                      "MPString",
-                                      491115870,
-                                      "string"
-                                    ],
-                                    [
-                                      "EString",
-                                      820329949,
-                                      "string"
-                                    ]
+                                    ["MPString", 491115870, "string"],
+                                    ["EString", 820329949, "string"]
                                   ],
                                   [
-                                    [
-                                      "MPNull",
-                                      701616052
-                                    ],
-                                    [
-                                      "ENull",
-                                      731162955
-                                    ]
+                                    ["MPUnit", 701616052],
+                                    ["EUnit", 731162955]
                                   ],
                                   [
-                                    [
-                                      "MPVariable",
-                                      722099983,
-                                      "var"
-                                    ],
+                                    ["MPVariable", 722099983, "var"],
                                     [
                                       "EInfix",
                                       275666765,
@@ -2427,80 +1325,41 @@
                                           "module_": null,
                                           "function_": "\u002B"
                                         },
-                                        [
-                                          "NoRail"
-                                        ]
+                                        ["NoRail"]
                                       ],
-                                      [
-                                        "EInteger",
-                                        739193732,
-                                        6
-                                      ],
-                                      [
-                                        "EVariable",
-                                        880556562,
-                                        "var"
-                                      ]
+                                      ["EInteger", 739193732, 6],
+                                      ["EVariable", 880556562, "var"]
                                     ]
                                   ],
                                   [
                                     [
                                       "MPFloat",
                                       409097457,
-                                      [
-                                        "Positive"
-                                      ],
+                                      ["Positive"],
                                       "5",
                                       "6"
                                     ],
                                     [
                                       "EFloat",
                                       131187958,
-                                      [
-                                        "Positive"
-                                      ],
+                                      ["Positive"],
                                       "5",
                                       "6"
                                     ]
                                   ],
                                   [
-                                    [
-                                      "MPBlank",
-                                      858594159
-                                    ],
-                                    [
-                                      "EInteger",
-                                      135348705,
-                                      6
-                                    ]
+                                    ["MPBlank", 858594159],
+                                    ["EInteger", 135348705, 6]
                                   ],
                                   [
                                     [
                                       "MPTuple",
                                       1285610,
-                                      [
-                                        "MPVariable",
-                                        17823641,
-                                        "a"
-                                      ],
-                                      [
-                                        "MPVariable",
-                                        58123641,
-                                        "b"
-                                      ],
-                                      [
-                                        [
-                                          "MPVariable",
-                                          95723641,
-                                          "c"
-                                        ]
-                                      ]
+                                      ["MPVariable", 17823641, "a"],
+                                      ["MPVariable", 58123641, "b"],
+                                      [["MPVariable", 95723641, "c"]]
                                     ],
-                                    [
-                                      "EBool",
-                                      123716747,
-                                      true
-                                    ]
+                                    ["EBool", 123716747, true]
                                   ]
                                 ]
                               ],
@@ -2512,21 +1371,9 @@
                                   "EFeatureFlag",
                                   882488977,
                                   "test",
-                                  [
-                                    "EBool",
-                                    349352147,
-                                    true
-                                  ],
-                                  [
-                                    "EInteger",
-                                    578528886,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    562930224,
-                                    6
-                                  ]
+                                  ["EBool", 349352147, true],
+                                  ["EInteger", 578528886, 5],
+                                  ["EInteger", 562930224, 6]
                                 ],
                                 [
                                   "ELet",
@@ -2540,31 +1387,19 @@
                                         "EPartial",
                                         2949606,
                                         "some \uD83E\uDD2C string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
+                                        ["EInteger", 34545, 5]
                                       ],
                                       [
                                         "ERightPartial",
                                         9239755,
                                         "some \uD83D\uDE2D string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
+                                        ["EInteger", 34545, 5]
                                       ],
                                       [
                                         "ELeftPartial",
                                         234885,
                                         "some \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 string",
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
+                                        ["EInteger", 34545, 5]
                                       ]
                                     ]
                                   ],
@@ -2575,23 +1410,9 @@
                                     [
                                       "ETuple",
                                       72333,
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        5
-                                      ],
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        5
-                                      ],
-                                      [
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
-                                      ]
+                                      ["EInteger", 34545, 5],
+                                      ["EInteger", 34545, 5],
+                                      [["EInteger", 34545, 5]]
                                     ],
                                     [
                                       "ELet",
@@ -2600,28 +1421,11 @@
                                       [
                                         "EInfix",
                                         234234,
-                                        [
-                                          "BinOp",
-                                          [
-                                            "BinOpAnd"
-                                          ]
-                                        ],
-                                        [
-                                          "EBool",
-                                          234234,
-                                          true
-                                        ],
-                                        [
-                                          "EBool",
-                                          234234,
-                                          false
-                                        ]
+                                        ["BinOp", ["BinOpAnd"]],
+                                        ["EBool", 234234, true],
+                                        ["EBool", 234234, false]
                                       ],
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        5
-                                      ]
+                                      ["EInteger", 34545, 5]
                                     ]
                                   ]
                                 ]
@@ -2639,24 +1443,10 @@
         ]
       ]
     ],
-    [
-      "TLSavepoint",
-      94934534
-    ],
-    [
-      "DeleteFunction",
-      94934534
-    ],
-    [
-      "DeleteDBCol",
-      94934534,
-      923832423
-    ],
-    [
-      "RenameDBname",
-      94934534,
-      "newname"
-    ],
+    ["TLSavepoint", 94934534],
+    ["DeleteFunction", 94934534],
+    ["DeleteDBCol", 94934534, 923832423],
+    ["RenameDBname", 94934534, "newname"],
     [
       "CreateDBWithBlankOr",
       94934534,
@@ -2704,20 +1494,8 @@
                                 "TDbList",
                                 [
                                   "TResult",
-                                  [
-                                    "TInt"
-                                  ],
-                                  [
-                                    "TFn",
-                                    [
-                                      [
-                                        "TFloat"
-                                      ]
-                                    ],
-                                    [
-                                      "TNull"
-                                    ]
-                                  ]
+                                  ["TInt"],
+                                  ["TFn", [["TFloat"]], ["TUnit"]]
                                 ]
                               ]
                             ]
@@ -2726,197 +1504,30 @@
                       ]
                     ]
                   ],
-                  [
-                    "int",
-                    [
-                      "TInt"
-                    ]
-                  ],
-                  [
-                    "float",
-                    [
-                      "TFloat"
-                    ]
-                  ],
-                  [
-                    "bool",
-                    [
-                      "TBool"
-                    ]
-                  ],
-                  [
-                    "null",
-                    [
-                      "TNull"
-                    ]
-                  ],
-                  [
-                    "str",
-                    [
-                      "TStr"
-                    ]
-                  ],
-                  [
-                    "list",
-                    [
-                      "TList",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "tuple",
-                    [
-                      "TTuple",
-                      [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ],
-                      []
-                    ]
-                  ],
-                  [
-                    "dict",
-                    [
-                      "TDict",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "incomplete",
-                    [
-                      "TIncomplete"
-                    ]
-                  ],
-                  [
-                    "error",
-                    [
-                      "TError"
-                    ]
-                  ],
-                  [
-                    "httpresponse",
-                    [
-                      "THttpResponse",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "db",
-                    [
-                      "TDB",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "date",
-                    [
-                      "TDate"
-                    ]
-                  ],
-                  [
-                    "char",
-                    [
-                      "TChar"
-                    ]
-                  ],
-                  [
-                    "password",
-                    [
-                      "TPassword"
-                    ]
-                  ],
-                  [
-                    "uuid",
-                    [
-                      "TUuid"
-                    ]
-                  ],
-                  [
-                    "option",
-                    [
-                      "TOption",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "errorRail",
-                    [
-                      "TErrorRail"
-                    ]
-                  ],
-                  [
-                    "usertype",
-                    [
-                      "TUserType",
-                      "name",
-                      0
-                    ]
-                  ],
-                  [
-                    "bytes",
-                    [
-                      "TBytes"
-                    ]
-                  ],
-                  [
-                    "result",
-                    [
-                      "TResult",
-                      [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ]
-                    ]
-                  ],
-                  [
-                    "variable",
-                    [
-                      "TVariable",
-                      "v"
-                    ]
-                  ],
-                  [
-                    "fn",
-                    [
-                      "TFn",
-                      [
-                        [
-                          "TInt"
-                        ]
-                      ],
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "record",
-                    [
-                      "TRecord",
-                      [
-                        [
-                          "field1",
-                          [
-                            "TInt"
-                          ]
-                        ]
-                      ]
-                    ]
-                  ]
+                  ["int", ["TInt"]],
+                  ["float", ["TFloat"]],
+                  ["bool", ["TBool"]],
+                  ["null", ["TUnit"]],
+                  ["str", ["TStr"]],
+                  ["list", ["TList", ["TInt"]]],
+                  ["tuple", ["TTuple", ["TInt"], ["TStr"], []]],
+                  ["dict", ["TDict", ["TInt"]]],
+                  ["incomplete", ["TIncomplete"]],
+                  ["error", ["TError"]],
+                  ["httpresponse", ["THttpResponse", ["TInt"]]],
+                  ["db", ["TDB", ["TInt"]]],
+                  ["date", ["TDate"]],
+                  ["char", ["TChar"]],
+                  ["password", ["TPassword"]],
+                  ["uuid", ["TUuid"]],
+                  ["option", ["TOption", ["TInt"]]],
+                  ["errorRail", ["TErrorRail"]],
+                  ["usertype", ["TUserType", "name", 0]],
+                  ["bytes", ["TBytes"]],
+                  ["result", ["TResult", ["TInt"], ["TStr"]]],
+                  ["variable", ["TVariable", "v"]],
+                  ["fn", ["TFn", [["TInt"]], ["TInt"]]],
+                  ["record", ["TRecord", [["field1", ["TInt"]]]]]
                 ]
               ],
               "nameID": 698978,
@@ -2926,10 +1537,7 @@
         ]
       }
     ],
-    [
-      "DeleteType",
-      94934534
-    ]
+    ["DeleteType", 94934534]
   ],
   "opCtr": 0,
   "clientOpCtrID": "31d72f73-0f99-5a9b-949c-b95705ae7c4d"

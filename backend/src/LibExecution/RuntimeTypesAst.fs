@@ -18,7 +18,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EString _
   | EVariable _
   | EBool _
-  | ENull _
+  | EUnit _
   | ECharacter _
   | EFQFnValue _
   | EFloat _ -> expr
@@ -53,7 +53,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | ECharacter _
     | EFQFnValue _
     | EBool _
-    | ENull _
+    | EUnit _
     | EFloat _ -> expr
     | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
     | EApply (id, name, exprs, inPipe, ster) ->

@@ -452,7 +452,7 @@ module Expect =
     | DDate _
     | DBool _
     | DFloat _
-    | DNull
+    | DUnit
     | DPassword _
     | DFnVal _
     | DError _
@@ -520,7 +520,7 @@ module Expect =
     | MPFloat (_, d), MPFloat (_, d') -> check path d d'
     | MPBool (_, l), MPBool (_, l') -> check path l l'
     | MPCharacter (_, c), MPCharacter (_, c') -> check path c c'
-    | MPNull (_), MPNull (_) -> ()
+    | MPUnit (_), MPUnit (_) -> ()
     | MPBlank (_), MPBlank (_) -> ()
     | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
@@ -532,7 +532,7 @@ module Expect =
     | MPFloat _, _
     | MPBool _, _
     | MPCharacter _, _
-    | MPNull _, _
+    | MPUnit _, _
     | MPBlank _, _
     | MPTuple _, _ -> check path actual expected
 
@@ -557,7 +557,7 @@ module Expect =
 
     match actual, expected with
     // expressions with no values
-    | ENull _, ENull _
+    | EUnit _, EUnit _
     | EBlank _, EBlank _ -> ()
     // expressions with single string values
     | EString (_, v), EString (_, v')
@@ -630,7 +630,7 @@ module Expect =
       eq ("right" :: path) r r'
 
     // exhaustiveness check
-    | ENull _, _
+    | EUnit _, _
     | EBlank _, _
     | EInteger _, _
     | EString _, _
@@ -747,7 +747,7 @@ module Expect =
     | DDate _, _
     | DBool _, _
     | DFloat _, _
-    | DNull, _
+    | DUnit, _
     | DChar _, _
     | DPassword _, _
     | DFnVal _, _
@@ -814,7 +814,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DDate _
     | DBool _
     | DFloat _
-    | DNull
+    | DUnit
     | DChar _
     | DPassword _
     | DFnVal _
@@ -922,7 +922,7 @@ let interestingDvals =
     ("int5", DInt 5L)
     ("true", DBool true)
     ("false", DBool false)
-    ("null", DNull)
+    ("null", DUnit)
     ("datastore", DDB "Visitors")
     ("string", DStr "incredibly this was broken")
     // Json.NET has a habit of converting things automatically based on the type in the string
@@ -935,7 +935,7 @@ let interestingDvals =
     ("list with derror",
      DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
     ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
-    ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
+    ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DUnit) ]))
     ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
     // More Json.NET tests
     ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
@@ -1003,7 +1003,7 @@ let interestingDvals =
      ))
     ("errorrail", DErrorRail(Dval.int 5))
     ("errorrail with float",
-     DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
+     DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DUnit) ]))))
     ("redirect", DHttpResponse(Redirect "/home"))
     ("httpresponse",
      DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
@@ -1034,7 +1034,7 @@ let interestingDvals =
 
     ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []))
     ("simple3Tuple", DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]))
-    ("tupleWithNull", DTuple(Dval.int 1, Dval.int 2, [ DNull ]))
+    ("tupleWithUnit", DTuple(Dval.int 1, Dval.int 2, [ DUnit ]))
     ("tupleWithError", DTuple(Dval.int 1, DResult(Error(DStr "error")), [])) ]
 
 let sampleDvals : List<string * Dval> =

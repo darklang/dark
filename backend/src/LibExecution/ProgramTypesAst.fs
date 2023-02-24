@@ -13,7 +13,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EBool _
   | EString _
   | ECharacter _
-  | ENull _
+  | EUnit _
   | EBlank _
   | EVariable _
   | EPipeTarget _
@@ -62,7 +62,7 @@ let rec matchPatternPreTraversal
   | MPBool _
   | MPString _
   | MPBlank _
-  | MPNull _
+  | MPUnit _
   | MPFloat _ -> pattern
   | MPConstructor (patternID, name, patterns) ->
     MPConstructor(patternID, name, List.map (fun p -> r p) patterns)
@@ -83,7 +83,7 @@ let rec matchPatternPostTraversal
     | MPBool _
     | MPString _
     | MPBlank _
-    | MPNull _
+    | MPUnit _
     | MPFloat _ -> pattern
     | MPConstructor (patternID, name, patterns) ->
       MPConstructor(patternID, name, List.map r patterns)

@@ -99,7 +99,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TUuid, RT.DUuid _ -> value
         | RT.TDict _, RT.DObj _ -> value
         | RT.TRecord _, RT.DObj _ -> value
-        | _, RT.DNull -> value // allow nulls for now
+        | _, RT.DUnit -> value // allow nulls for now
         | expectedType, valueOfActualType ->
           Exception.raiseCode (
             Errors.typeErrorMsg key expectedType valueOfActualType

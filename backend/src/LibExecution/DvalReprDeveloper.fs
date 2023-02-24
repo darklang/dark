@@ -14,7 +14,7 @@ let rec typeName (t : DType) : string =
   | TInt -> "Int"
   | TFloat -> "Float"
   | TBool -> "Bool"
-  | TNull -> "Null"
+  | TUnit -> "Unit"
   | TChar -> "Character"
   | TStr -> "Str" // CLEANUP change to String
   | TList _ -> "List"
@@ -75,7 +75,7 @@ let toRepr (dv : Dval) : string =
       else
         let result = sprintf "%.12g" f
         if result.Contains "." then result else $"{result}.0"
-    | DNull -> "null"
+    | DUnit -> "unit"
     | DFnVal _ ->
       // TODO: we should print this, as this use case is safe
       // See docs/dblock-serialization.ml

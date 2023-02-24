@@ -52,7 +52,7 @@ module MatchPattern =
     | PT.MPCharacter (id, c) -> ST.MPCharacter(id, c)
     | PT.MPString (id, s) -> ST.MPString(id, s)
     | PT.MPFloat (id, s, w, f) -> ST.MPFloat(id, s, w, f)
-    | PT.MPNull id -> ST.MPNull id
+    | PT.MPUnit id -> ST.MPUnit id
     | PT.MPBlank id -> ST.MPBlank id
     | PT.MPTuple (id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
@@ -68,7 +68,7 @@ module Expr =
     | PT.EString (id, str) -> ST.EString(id, str)
     | PT.EFloat (id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool (id, b) -> ST.EBool(id, b)
-    | PT.ENull id -> ST.ENull id
+    | PT.EUnit id -> ST.EUnit id
     | PT.EVariable (id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       ST.EFieldAccess(id, toST obj, fieldname)
@@ -111,7 +111,7 @@ module DType =
     | PT.TInt -> ST.TInt
     | PT.TFloat -> ST.TFloat
     | PT.TBool -> ST.TBool
-    | PT.TNull -> ST.TNull
+    | PT.TUnit -> ST.TUnit
     | PT.TStr -> ST.TStr
     | PT.TList typ -> ST.TList(toST typ)
     | PT.TTuple (first, second, theRest) ->

@@ -141,7 +141,7 @@ module DType =
     | "float" -> Some PT.TFloat
     | "bool" -> Some PT.TBool
     | "boolean" -> Some PT.TBool
-    | "nothing" -> Some PT.TNull
+    | "nothing" -> Some PT.TUnit
     | "character"
     | "char" -> Some PT.TChar
     | "str" -> Some PT.TStr

@@ -36,7 +36,7 @@ module FormatV0 =
     | DInt of int64
     | DFloat of double
     | DBool of bool
-    | DNull
+    | DUnit
     | DStr of string
     | DChar of string
     | DList of List<Dval>
@@ -62,7 +62,7 @@ module FormatV0 =
     | DInt i -> RT.DInt i
     | DBool b -> RT.DBool b
     | DFloat f -> RT.DFloat f
-    | DNull -> RT.DNull
+    | DUnit -> RT.DUnit
     | DLambda ->
       RT.DFnVal(
         RT.Lambda { parameters = []; symtable = Map []; body = RT.Expr.EBlank 0UL }
@@ -97,7 +97,7 @@ module FormatV0 =
     | RT.DInt i -> DInt i
     | RT.DBool b -> DBool b
     | RT.DFloat f -> DFloat f
-    | RT.DNull -> DNull
+    | RT.DUnit -> DUnit
     | RT.DFnVal _ -> DLambda
     | RT.DIncomplete RT.SourceNone -> DIncomplete SourceNone
     | RT.DIncomplete (RT.SourceID (tlid, id)) -> DIncomplete(SourceID(tlid, id))
@@ -146,7 +146,7 @@ module Test =
     | RT.DStr _
     | RT.DInt _
     | RT.DFloat _
-    | RT.DNull _
+    | RT.DUnit _
     | RT.DBool _
     | RT.DChar _
     | RT.DBytes _

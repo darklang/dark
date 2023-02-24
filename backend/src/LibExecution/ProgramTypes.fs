@@ -43,7 +43,7 @@ type MatchPattern =
   | MPCharacter of id * string
   | MPString of id * string
   | MPFloat of id * Sign * string * string
-  | MPNull of id
+  | MPUnit of id
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
@@ -73,7 +73,7 @@ type Expr =
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
-  | ENull of id
+  | EUnit of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
@@ -103,7 +103,7 @@ type DType =
   | TInt
   | TFloat
   | TBool
-  | TNull
+  | TUnit
   | TStr
   | TList of DType
   | TTuple of DType * DType * List<DType>

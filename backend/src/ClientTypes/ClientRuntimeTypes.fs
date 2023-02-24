@@ -31,7 +31,7 @@ type DType =
   | TInt
   | TFloat
   | TBool
-  | TNull
+  | TUnit
   | TStr
   | TList of DType
   | TTuple of DType * DType * List<DType>
@@ -61,7 +61,7 @@ type MatchPattern =
   | MPCharacter of id * string
   | MPString of id * string
   | MPFloat of id * double
-  | MPNull of id
+  | MPUnit of id
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
@@ -72,7 +72,7 @@ module Expr =
     | EString of id * string
     | ECharacter of id * string
     | EFloat of id * double
-    | ENull of id
+    | EUnit of id
     | EBlank of id
     | ELet of id * string * T * T
     | EIf of id * T * T * T
@@ -123,7 +123,7 @@ module Dval =
     | DInt of int64
     | DFloat of double
     | DBool of bool
-    | DNull
+    | DUnit
     | DStr of string
     | DChar of string
     | DList of List<T>

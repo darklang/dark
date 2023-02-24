@@ -47,7 +47,7 @@ module MatchPattern =
     | PT.MPFloat (id, s, w, f) ->
       let w = if w = "" then "0" else w
       RT.MPFloat(id, makeFloat s w f)
-    | PT.MPNull id -> RT.MPNull id
+    | PT.MPUnit id -> RT.MPUnit id
     | PT.MPBlank id -> RT.MPBlank id
     | PT.MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, toRT first, toRT second, List.map toRT theRest)
@@ -66,7 +66,7 @@ module Expr =
       let fraction = if fraction = "" then "0" else fraction
       RT.EFloat(id, makeFloat sign whole fraction)
     | PT.EBool (id, b) -> RT.EBool(id, b)
-    | PT.ENull id -> RT.ENull id
+    | PT.EUnit id -> RT.EUnit id
     | PT.EVariable (id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       RT.EFieldAccess(id, toRT obj, fieldname)
@@ -170,7 +170,7 @@ module DType =
     | PT.TInt -> RT.TInt
     | PT.TFloat -> RT.TFloat
     | PT.TBool -> RT.TBool
-    | PT.TNull -> RT.TNull
+    | PT.TUnit -> RT.TUnit
     | PT.TStr -> RT.TStr
     | PT.TList typ -> RT.TList(toRT typ)
     | PT.TTuple (firstType, secondType, otherTypes) ->

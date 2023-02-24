@@ -137,7 +137,7 @@ type Expr =
   /// A single Extended Grapheme Cluster
   | ECharacter of id * string
   | EFloat of id * double
-  | ENull of id
+  | EUnit of id
   | EBlank of id
 
   /// <summary>
@@ -206,7 +206,7 @@ and MatchPattern =
   | MPCharacter of id * string
   | MPString of id * string
   | MPFloat of id * double
-  | MPNull of id
+  | MPUnit of id
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
@@ -227,7 +227,7 @@ and Dval =
   | DInt of int64
   | DFloat of double
   | DBool of bool
-  | DNull
+  | DUnit
   | DStr of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
@@ -310,7 +310,7 @@ and DType =
   | TInt
   | TFloat
   | TBool
-  | TNull
+  | TUnit
   | TStr
   | TList of DType
   | TTuple of DType * DType * List<DType>
@@ -346,7 +346,7 @@ and DType =
     | TInt -> "Int"
     | TFloat -> "Float"
     | TBool -> "Bool"
-    | TNull -> "Nothing"
+    | TUnit -> "Nothing"
     | TChar -> "Character"
     | TStr -> "Str"
     | TList _ -> "List"
@@ -406,7 +406,7 @@ module Expr =
     | EString (id, _)
     | ECharacter (id, _)
     | EBool (id, _)
-    | ENull id
+    | EUnit id
     | EFloat (id, _)
     | EVariable (id, _)
     | EFieldAccess (id, _, _)
@@ -433,7 +433,7 @@ module MatchPattern =
     | MPString (id, _)
     | MPCharacter (id, _)
     | MPBool (id, _)
-    | MPNull id
+    | MPUnit id
     | MPFloat (id, _)
     | MPVariable (id, _)
     | MPBlank id
@@ -486,7 +486,7 @@ module Dval =
     | DInt _ -> TInt
     | DFloat _ -> TFloat
     | DBool _ -> TBool
-    | DNull -> TNull
+    | DUnit -> TUnit
     | DChar _ -> TChar
     | DStr _ -> TStr
     | DList (head :: _) -> TList(toType head)
@@ -500,7 +500,7 @@ module Dval =
     | DIncomplete _ -> TIncomplete
     | DErrorRail _ -> TErrorRail
     | DHttpResponse (Response (_, _, dv)) -> THttpResponse(toType dv)
-    | DHttpResponse (Redirect _) -> THttpResponse TNull
+    | DHttpResponse (Redirect _) -> THttpResponse TUnit
     | DDB _ -> TDB any
     | DDate _ -> TDate
     | DPassword _ -> TPassword
@@ -528,7 +528,7 @@ module Dval =
     | DInt _, TInt
     | DFloat _, TFloat
     | DBool _, TBool
-    | DNull, TNull
+    | DUnit, TUnit
     | DStr _, TStr
     | DDate _, TDate
     | DPassword _, TPassword
@@ -571,7 +571,7 @@ module Dval =
     | DInt _, _
     | DFloat _, _
     | DBool _, _
-    | DNull, _
+    | DUnit, _
     | DStr _, _
     | DDate _, _
     | DPassword _, _
