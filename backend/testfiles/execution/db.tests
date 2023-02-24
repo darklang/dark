@@ -232,7 +232,7 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
  let two = DB.set_v1 { x = "hello" } "two" X in
  DB.queryOneWithKey_v2 { x = "hello" } X) = Nothing
 
-[test.db.queryOneWithKey_v2 works] with DB Z
+[test.db.queryOneWithKey_v2 char works] with DB Z
 (let one = DB.set_v1 { x = 'a' } "one" Z in
  DB.queryOneWithKey_v2 { x = 'b' } Z) = Nothing
 
