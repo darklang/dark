@@ -114,7 +114,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
-      terraform \
       jq \
       vim \
       unzip \
@@ -247,8 +246,14 @@ esac
 mkdir -p $DIR
 wget -P $DIR $URL
 echo "$CHECKSUM $DIR/$FILENAME" | sha256sum -c -
-tar xvf $DIR/$FILENAME -C $DIR
-ls $DIR
+ARCHIVE_TYPE=$(file --mime-type $DIR/$FILENAME | awk -F "/" '{print $NF}')
+echo "Archive type: $ARCHIVE_TYPE"
+case $ARCHIVE_TYPE in
+  zip)  unzip $DIR/$FILENAME -d $DIR;;
+  gzip | x-xz) tar xvf $DIR/$FILENAME -C $DIR;;
+  *) exit 1;;
+esac
+ls -l $DIR
 sudo cp $DIR/${EXTRACT_FILE} ${TARGET}
 sudo chmod +x ${TARGET}
 rm -Rf $DIR
@@ -297,6 +302,16 @@ RUN sudo chown dark:dark /home/dark/install-targz-file
 RUN chmod +x /home/dark/install-targz-file
 RUN sudo chown dark:dark /home/dark/install-exe-file
 RUN chmod +x /home/dark/install-exe-file
+
+############################
+# Terraform
+############################
+RUN /home/dark/install-targz-file \
+  --arm64-sha256=da571087268c5faf884912c4239c6b9c8e1ed8e8401ab1dcb45712df70f42f1b \
+  --amd64-sha256=53048fa573effdd8f2a59b726234c6f450491fe0ded6931e9f4c6e3df6eece56 \
+  --url=https://releases.hashicorp.com/terraform/1.3.9/terraform_1.3.9_linux_${TARGETARCH}.zip \
+  --extract-file=terraform \
+  --target=/usr/bin/terraform
 
 ############################
 # Google cloud
