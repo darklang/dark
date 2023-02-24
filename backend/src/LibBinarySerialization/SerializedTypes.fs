@@ -116,7 +116,7 @@ type BinaryOperation =
 
 [<MessagePack.MessagePackObject>]
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | InfixFnCall of FQFnName.InfixStdlibFnName
   | BinOp of BinaryOperation
 
 [<MessagePack.MessagePackObject>]

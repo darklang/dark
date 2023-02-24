@@ -120,17 +120,14 @@ module BinaryOperation =
 module Infix =
   let fromCT (infix : CTPT.Infix) : PT.Infix =
     match infix with
-    | CTPT.InfixFnCall (name, ster) ->
-      PT.InfixFnCall(
-        FQFnName.InfixStdlibFnName.fromCT (name),
-        SendToRail.fromCT ster
-      )
+    | CTPT.InfixFnCall (name) ->
+      PT.InfixFnCall(FQFnName.InfixStdlibFnName.fromCT (name))
     | CTPT.BinOp (op) -> PT.BinOp(BinaryOperation.fromCT op)
 
   let toCT (infix : PT.Infix) : CTPT.Infix =
     match infix with
-    | PT.InfixFnCall (name, ster) ->
-      CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT (name), SendToRail.toCT ster)
+    | PT.InfixFnCall (name) ->
+      CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT (name))
     | PT.BinOp (op) -> CTPT.BinOp(BinaryOperation.toCT op)
 
 module Expr =
@@ -192,10 +189,10 @@ module Expr =
       CTPT.Expr.ELet(id, name, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
-    | PT.EInfix (id, PT.InfixFnCall (name, str), first, second) ->
+    | PT.EInfix (id, PT.InfixFnCall (name), first, second) ->
       CTPT.Expr.EInfix(
         id,
-        CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT name, SendToRail.toCT str),
+        CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT name),
         toCT first,
         toCT second
       )

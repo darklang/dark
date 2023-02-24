@@ -74,12 +74,12 @@ module Expr =
       ST.EFieldAccess(id, toST obj, fieldname)
     | PT.EFnCall (id, name, args, ster) ->
       ST.EFnCall(id, FQFnName.toST name, List.map toST args, SendToRail.toST ster)
-    | PT.EInfix (id, PT.InfixFnCall (name, ster), arg1, arg2) ->
+    | PT.EInfix (id, PT.InfixFnCall (name), arg1, arg2) ->
       let isInfix = LibExecutionStdLib.StdLib.isInfixName
       assertFn2 "is a binop" isInfix (Option.unwrap "" name.module_) name.function_
       let name : ST.FQFnName.InfixStdlibFnName =
         { module_ = name.module_; function_ = name.function_ }
-      ST.EInfix(id, ST.InfixFnCall(name, SendToRail.toST ster), toST arg1, toST arg2)
+      ST.EInfix(id, ST.InfixFnCall(name), toST arg1, toST arg2)
     | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)

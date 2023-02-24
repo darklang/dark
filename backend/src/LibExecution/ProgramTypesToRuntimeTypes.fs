@@ -78,14 +78,14 @@ module Expr =
         RT.NotInPipe,
         SendToRail.toRT ster
       )
-    | PT.EInfix (id, PT.InfixFnCall (fnName, ster), arg1, arg2) ->
+    | PT.EInfix (id, PT.InfixFnCall (fnName), arg1, arg2) ->
       let name =
         PT.FQFnName.Stdlib(
           { module_ = Option.unwrap "" fnName.module_
             function_ = fnName.function_
             version = 0 }
         )
-      toRT (PT.EFnCall(id, name, [ arg1; arg2 ], ster))
+      toRT (PT.EFnCall(id, name, [ arg1; arg2 ], PT.NoRail))
     | PT.EInfix (id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix (id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
@@ -121,10 +121,7 @@ module Expr =
                 SendToRail.toRT rail
               )
             // TODO: support currying
-            | PT.EInfix (id,
-                         PT.InfixFnCall (fnName, rail),
-                         PT.EPipeTarget ptID,
-                         expr2) ->
+            | PT.EInfix (id, PT.InfixFnCall (fnName), PT.EPipeTarget ptID, expr2) ->
               let name =
                 PT.FQFnName.Stdlib(
                   { module_ = Option.unwrap "" fnName.module_
@@ -136,7 +133,7 @@ module Expr =
                 RT.EFQFnValue(ptID, FQFnName.toRT name),
                 [ prev; toRT expr2 ],
                 RT.InPipe pipeID,
-                SendToRail.toRT rail
+                RT.NoRail
               )
             // Binops work pretty naturally here
             | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget _, expr2) ->
