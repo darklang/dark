@@ -98,7 +98,7 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (dv : Dval) : unit =
       let result = if result.Contains "." then result else $"{result}.0"
       w.WriteRawValue result
   | DBool b -> w.WriteBooleanValue b
-  | DNull -> w.WriteNullValue()
+  | DUnit -> w.WriteNullValue()
   | DStr s -> w.WriteStringValue s
   | DList l -> w.writeArray (fun () -> List.iter writeDval l)
   | DObj o ->
@@ -146,7 +146,7 @@ let parseJsonV0 (str : string) : Dval =
     | JsonValueKind.True -> DBool true
     | JsonValueKind.False -> DBool false
     | JsonValueKind.String -> DStr(j.GetString())
-    | JsonValueKind.Null -> DNull
+    | JsonValueKind.Null -> DUnit
     | JsonValueKind.Array ->
       j.EnumerateArray() |> Seq.map convert |> Seq.toList |> DList
     | JsonValueKind.Object ->
@@ -180,7 +180,7 @@ module Test =
     match dval with
     | DInt _
     | DStr _
-    | DNull _
+    | DUnit _
     | DBool _
     | DDate _
     | DPassword _

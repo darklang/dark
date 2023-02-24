@@ -237,7 +237,7 @@ let testIfPreview : Test =
        (AT.ExecutedResult(DStr "else"),
         AT.NonExecutedResult(DStr "then"),
         AT.ExecutedResult(DStr "else")))
-      (eNull (),
+      (eUnit (),
        (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
         AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
@@ -461,7 +461,7 @@ let testFeatureFlagPreview : Test =
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new")))
-      (eNull (),
+      (eUnit (),
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new"))) ]
@@ -508,7 +508,7 @@ let testMatchPreview : Test =
   let pFloatId, floatRhsId = gid (), gid ()
   let pBoolId, boolRhsId = gid (), gid ()
   let pStrId, strRhsId = gid (), gid ()
-  let pNullId, nullRhsId = gid (), gid ()
+  let pUnitId, unitRhsId = gid (), gid ()
   let pBlankId, blankRhsId = gid (), gid ()
   let pOkBlankOkId, pOkBlankBlankId, okBlankRhsId = gid (), gid (), gid ()
 
@@ -536,8 +536,8 @@ let testMatchPreview : Test =
       // | "myStr" -> "str"
       (MPString(pStrId, "myStr"), EString(strRhsId, "str"))
 
-      // | null -> "null"
-      (MPNull(pNullId), EString(nullRhsId, "null"))
+      // | () -> "unit"
+      (MPUnit(pUnitId), EString(unitRhsId, "unit"))
 
       // | _ -> "blank" (should never been matched)
       (MPBlank(pBlankId), EString(blankRhsId, "blank"))
@@ -657,8 +657,8 @@ let testMatchPreview : Test =
           (pBoolId, "bool pat", ner (DBool false))
           (boolRhsId, "bool rhs", ner (DStr "bool"))
 
-          (pNullId, "null pat", ner DNull)
-          (nullRhsId, "null rhs", ner (DStr "null"))
+          (pUnitId, "unit pat", ner DUnit)
+          (unitRhsId, "unit rhs", ner (DStr "unit"))
 
           (pOkVarOkId, "ok var pat ok", ner (inc pOkVarOkId))
           (pOkVarVarId, "ok var pat var", ner (inc pOkVarVarId))
@@ -688,9 +688,9 @@ let testMatchPreview : Test =
         [ (pBoolId, "pat", er (DBool false)); (boolRhsId, "rhs", er (DStr "bool")) ]
 
       t
-        "null"
-        (eNull ())
-        [ (pNullId, "pat", er DNull); (nullRhsId, "rhs", er (DStr "null")) ]
+        "unit"
+        (eUnit ())
+        [ (pUnitId, "pat", er DUnit); (unitRhsId, "rhs", er (DStr "unit")) ]
 
       t
         "ok: y"

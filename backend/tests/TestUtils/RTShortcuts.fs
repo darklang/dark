@@ -68,7 +68,7 @@ let eBool (b : bool) : Expr = EBool(gid (), b)
 let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
   EFloat(gid (), makeFloat sign whole fraction)
 
-let eNull () : Expr = ENull(gid ())
+let eUnit () : Expr = EUnit(gid ())
 
 let eList (elems : Expr list) : Expr = EList(gid (), elems)
 

@@ -93,8 +93,8 @@ let hardToRepresentTests =
                    body =
                      RT.EMatch(
                        gid (),
-                       RT.ENull(gid ()),
-                       [ (RT.MPFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
+                       RT.EUnit(gid ()),
+                       [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
                      ) }
              )
            )
@@ -110,8 +110,8 @@ let hardToRepresentTests =
                 body =
                   RT.EMatch(
                     gid (),
-                    RT.ENull(gid ()),
-                    [ (RT.MPFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
+                    RT.EUnit(gid ()),
+                    [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
                   ) }
           )
         )

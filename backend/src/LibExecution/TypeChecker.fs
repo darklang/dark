@@ -81,7 +81,7 @@ let rec unify
   | TInt, DInt _ -> Ok()
   | TFloat, DFloat _ -> Ok()
   | TBool, DBool _ -> Ok()
-  | TNull, DNull -> Ok()
+  | TUnit, DUnit -> Ok()
   | TStr, DStr _ -> Ok()
   | TList _, DList _ -> Ok()
   // TODO: support Tuple type-checking.

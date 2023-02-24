@@ -71,7 +71,7 @@ module Generators =
         | RT.TBool ->
           let! v = Arb.generate<bool>
           return RT.EBool(gid (), v)
-        | RT.TNull -> return RT.ENull(gid ())
+        | RT.TUnit -> return RT.EUnit(gid ())
         | RT.TList typ ->
           let! typ = generateTypeToMatchCollection typ
           let! v = Gen.listOfLength size (genExpr' typ (size / 2))
@@ -205,7 +205,7 @@ module Generators =
           let! v = Arb.generate<float>
           return RT.DFloat v
         | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
-        | RT.TNull -> return RT.DNull
+        | RT.TUnit -> return RT.DUnit
         | RT.TList typ ->
           let! typ = generateTypeToMatchCollection typ
           return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))

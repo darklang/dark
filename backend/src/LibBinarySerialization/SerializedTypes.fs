@@ -100,7 +100,7 @@ type MatchPattern =
   | MPCharacter of id * string
   | MPString of id * string
   | MPFloat of id * Sign * string * string
-  | MPNull of id
+  | MPUnit of id
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
@@ -126,7 +126,7 @@ type Expr =
   | EString of id * string
   | ECharacter of id * string
   | EFloat of id * Sign * string * string
-  | ENull of id
+  | EUnit of id
   | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
@@ -150,7 +150,7 @@ type DType =
   | TInt
   | TFloat
   | TBool
-  | TNull
+  | TUnit
   | TStr
   | TList of DType
   | TDict of DType

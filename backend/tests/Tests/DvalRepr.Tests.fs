@@ -39,12 +39,12 @@ let testToDeveloperRepr =
     [ testMany
         "toDeveloperRepr string"
         DvalReprDeveloper.toRepr
-        [ RT.DHttpResponse(RT.Response(0L, [], RT.DNull)), "0 {}\nnull"
+        [ RT.DHttpResponse(RT.Response(0L, [], RT.DUnit)), "0 {}\nunit"
           RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
-          RT.DObj(Map.ofList [ "", RT.DNull ]), "{\n  : null\n}"
-          RT.DList [ RT.DNull ], "[\n  null\n]" ] ]
+          RT.DObj(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
+          RT.DList [ RT.DUnit ], "[\n  unit\n]" ] ]
 
 let testToEnduserReadable =
   testMany
@@ -58,9 +58,9 @@ let testToEnduserReadable =
       RT.DFloat(-5.1), "-5.1"
       RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
       RT.DError(RT.SourceNone, "Some message"), "Error"
-      RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nnull"
-      RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DNull)),
-      "0 { a header: something }\nnull" ]
+      RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nunit"
+      RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DUnit)),
+      "0 { a header: something }\nunit" ]
 
 // We used a System.Text.Json converter supplied by a NuGet package for a bit,
 // but found that it was incompatible with the OCamlCompatible serializer. We

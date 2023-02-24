@@ -103,7 +103,7 @@
             "NaN"
           ],
           "\u007F": [
-            "DNull"
+            "DUnit"
           ]
         }
       ]
@@ -2909,7 +2909,7 @@
       1
     ],
     "null": [
-      "DNull"
+      "DUnit"
     ],
     "obj": [
       "DObj",
@@ -2940,7 +2940,7 @@
           "weird"
         ],
         "value": [
-          "DNull"
+          "DUnit"
         ]
       }
     ],
@@ -3110,7 +3110,7 @@
       ],
       []
     ],
-    "tupleWithNull": [
+    "tupleWithUnit": [
       "DTuple",
       [
         "DInt",
@@ -3122,7 +3122,7 @@
       ],
       [
         [
-          "DNull"
+          "DUnit"
         ]
       ]
     ],

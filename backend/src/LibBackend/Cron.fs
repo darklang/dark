@@ -110,7 +110,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
             "CRON"
             cron.cronName
             (PTParser.Handler.CronInterval.toString cron.interval)
-            RT.DNull
+            RT.DUnit
         do! recordExecution cron
 
       // record the execution

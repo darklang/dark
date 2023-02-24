@@ -181,7 +181,7 @@ let createCloudStorageTracer
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
   let results = { TraceResults.empty () with tlids = touchedTLIDs }
-  let mutable storedInput : (string * RT.Dval) = ("", RT.DNull)
+  let mutable storedInput : (string * RT.Dval) = ("", RT.DUnit)
   { enabled = true
     results = results
     executionTracing =

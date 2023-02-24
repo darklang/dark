@@ -164,7 +164,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DB" "delete" 1
       parameters = [ keyParam; tableParam ]
-      returnType = TNull
+      returnType = TUnit
       description = "Delete <param key> from <param table>"
       fn =
         (function
@@ -172,7 +172,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! _result = UserDB.delete state db key
-            return DNull
+            return DUnit
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -182,7 +182,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DB" "deleteAll" 1
       parameters = [ tableParam ]
-      returnType = TNull
+      returnType = TUnit
       description = "Delete everything from <param table>"
       fn =
         (function
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! _result = UserDB.deleteAll state db
-            return DNull
+            return DUnit
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

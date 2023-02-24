@@ -58,7 +58,7 @@ module DType =
     | RT.TInt -> TInt
     | RT.TFloat -> TFloat
     | RT.TBool -> TBool
-    | RT.TNull -> TNull
+    | RT.TUnit -> TUnit
     | RT.TStr -> TStr
     | RT.TList t -> TList(r t)
     | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
@@ -88,7 +88,7 @@ module DType =
     | TInt -> RT.TInt
     | TFloat -> RT.TFloat
     | TBool -> RT.TBool
-    | TNull -> RT.TNull
+    | TUnit -> RT.TUnit
     | TStr -> RT.TStr
     | TList t -> RT.TList(r t)
     | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
@@ -121,7 +121,7 @@ module MatchPattern =
     | MPCharacter (id, c) -> RT.MPCharacter(id, c)
     | MPString (id, s) -> RT.MPString(id, s)
     | MPFloat (id, f) -> RT.MPFloat(id, f)
-    | MPNull id -> RT.MPNull id
+    | MPUnit id -> RT.MPUnit id
     | MPBlank id -> RT.MPBlank id
     | MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
@@ -136,7 +136,7 @@ module MatchPattern =
     | RT.MPCharacter (id, c) -> MPCharacter(id, c)
     | RT.MPString (id, s) -> MPString(id, s)
     | RT.MPFloat (id, f) -> MPFloat(id, f)
-    | RT.MPNull id -> MPNull id
+    | RT.MPUnit id -> MPUnit id
     | RT.MPBlank id -> MPBlank id
     | RT.MPTuple (id, first, second, theRest) ->
       MPTuple(id, r first, r second, List.map r theRest)
@@ -173,7 +173,7 @@ module Expr =
     | Expr.EFloat (id, f) -> RT.EFloat(id, f)
 
     | Expr.EBool (id, b) -> RT.EBool(id, b)
-    | Expr.ENull id -> RT.ENull id
+    | Expr.EUnit id -> RT.EUnit id
     | Expr.EVariable (id, var) -> RT.EVariable(id, var)
     | Expr.EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | Expr.ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
@@ -212,7 +212,7 @@ module Expr =
     | RT.EFloat (id, f) -> Expr.EFloat(id, f)
 
     | RT.EBool (id, b) -> Expr.EBool(id, b)
-    | RT.ENull id -> Expr.ENull id
+    | RT.EUnit id -> Expr.EUnit id
     | RT.EVariable (id, var) -> Expr.EVariable(id, var)
     | RT.EFieldAccess (id, obj, fieldname) -> Expr.EFieldAccess(id, r obj, fieldname)
     | RT.ELambda (id, vars, body) -> Expr.ELambda(id, vars, r body)
@@ -270,7 +270,7 @@ module Dval =
     | Dval.DInt i -> RT.DInt i
     | Dval.DBool b -> RT.DBool b
     | Dval.DFloat f -> RT.DFloat f
-    | Dval.DNull -> RT.DNull
+    | Dval.DUnit -> RT.DUnit
     | Dval.DFnVal (Dval.Lambda (impl)) ->
       let symtable = Map.map r impl.symtable
       RT.DFnVal(
@@ -307,7 +307,7 @@ module Dval =
     | RT.DInt i -> Dval.DInt i
     | RT.DBool b -> Dval.DBool b
     | RT.DFloat f -> Dval.DFloat f
-    | RT.DNull -> Dval.DNull
+    | RT.DUnit -> Dval.DUnit
     | RT.DFnVal (RT.Lambda (impl)) ->
       let symtable = Map.map r impl.symtable
       Dval.DFnVal(

@@ -32,7 +32,7 @@ module RuntimeTypes =
     [ RT.TInt
       RT.TFloat
       RT.TBool
-      RT.TNull
+      RT.TUnit
       RT.TStr
       RT.TList RT.TInt
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
@@ -57,10 +57,10 @@ module RuntimeTypes =
       RT.MPCharacter(4875843UL, "8jgkdjsfg")
       RT.MPString(857395UL, "iklfijo13294")
       RT.MPBlank(71284374UL)
-      RT.MPNull(812394UL)
+      RT.MPUnit(812394UL)
       RT.MPTuple(
         487129457124UL,
-        RT.MPNull(1234124UL),
+        RT.MPUnit(1234124UL),
         RT.MPString(128734857124UL, "1243sdfsadf"),
         [ RT.MPVariable(12748124UL, "var2") ]
       )
@@ -76,39 +76,39 @@ module RuntimeTypes =
       RT.EString(86749UL, "asdfasedf")
       RT.ECharacter(7683UL, "c")
       RT.EFloat(5495UL, 444.333)
-      RT.ENull(59485UL)
+      RT.EUnit(59485UL)
       RT.EBlank(495839UL)
       RT.ELet(
         49583UL,
         "binding",
-        RT.ENull(12355555UL),
+        RT.EUnit(12355555UL),
         RT.EVariable(68496UL, "binding")
       )
       RT.EIf(
         8975872314UL,
-        RT.ENull(747123UL),
-        RT.ENull(747123UL),
-        RT.ENull(747123UL)
+        RT.EUnit(747123UL),
+        RT.EUnit(747123UL),
+        RT.EUnit(747123UL)
       )
-      RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.ENull(17384UL))
-      RT.EFieldAccess(74875UL, RT.ENull(737463UL), "field")
+      RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.EUnit(17384UL))
+      RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
       RT.EApply(
         128384UL,
-        RT.ENull(1235123UL),
-        [ RT.ENull(7756UL) ],
+        RT.EUnit(1235123UL),
+        [ RT.EUnit(7756UL) ],
         RT.NotInPipe,
         RT.Rail
       )
       RT.EFQFnValue(8737481UL, RT.FQFnName.User "sadflkjwerp")
-      RT.EList(737481UL, [ RT.ENull(74618UL) ])
+      RT.EList(737481UL, [ RT.EUnit(74618UL) ])
       RT.ETuple(
         73847UL,
-        RT.ENull(8474UL),
-        RT.ENull(84718341UL),
-        [ RT.ENull(7167384UL) ]
+        RT.EUnit(8474UL),
+        RT.EUnit(84718341UL),
+        [ RT.EUnit(7167384UL) ]
       )
-      RT.ERecord(8167384UL, [ "a9df8", RT.ENull(71631UL) ])
+      RT.ERecord(8167384UL, [ "a9df8", RT.EUnit(71631UL) ])
       RT.EConstructor(64617UL, "Just", [ RT.EBlank(8173UL) ])
       RT.EMatch(
         712743UL,
@@ -128,7 +128,7 @@ module RuntimeTypes =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
 
   let dvalHttpResponses : List<RT.DHTTP> =
-    [ RT.Redirect "http://darklang.io"; RT.Response(8123, [ "a", "b" ], RT.DNull) ]
+    [ RT.Redirect "http://darklang.io"; RT.Response(8123, [ "a", "b" ], RT.DUnit) ]
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
@@ -139,8 +139,8 @@ module RuntimeTypes =
   let dvalFnValImpls : List<RT.FnValImpl> =
     [ RT.Lambda
         { parameters = []
-          symtable = [ ("val1", RT.DNull); ("val2", RT.DInt(173648)) ] |> Map.ofList
-          body = RT.ENull(1235123UL) } ]
+          symtable = [ ("val1", RT.DUnit); ("val2", RT.DInt(173648)) ] |> Map.ofList
+          body = RT.EUnit(1235123UL) } ]
 
   let dval : RT.Dval =
     sampleDvals
@@ -167,13 +167,13 @@ module ProgramTypes =
       PT.MPCharacter(83749178UL, "w")
       PT.MPString(817201237UL, "testing testing 123")
       PT.MPFloat(012037123UL, Positive, "123", "456")
-      PT.MPNull(9123871238UL)
+      PT.MPUnit(9123871238UL)
       PT.MPBlank(8123818247123UL)
       PT.MPTuple(
         91298UL,
         PT.MPInteger(812831UL, 123),
         PT.MPBool(81871UL, true),
-        [ PT.MPNull(17123UL) ]
+        [ PT.MPUnit(17123UL) ]
       ) ]
 
   let sendToRails : List<PT.SendToRail> = [ PT.Rail; PT.NoRail ]
@@ -213,7 +213,7 @@ module ProgramTypes =
                   PT.ELet(
                     975263310UL,
                     "n",
-                    PT.ENull 923644248UL,
+                    PT.EUnit 923644248UL,
                     PT.ELet(
                       468988830UL,
                       "b",
@@ -367,7 +367,7 @@ module ProgramTypes =
                                  PT.ECharacter(657848009UL, "c"))
                                 (PT.MPString(491115870UL, "string"),
                                  PT.EString(820329949UL, "string"))
-                                (PT.MPNull 701616052UL, PT.ENull 731162955UL)
+                                (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
                                 (PT.MPVariable(722099983UL, "var"),
                                  PT.EInfix(
                                    275666765UL,
@@ -443,7 +443,7 @@ module ProgramTypes =
                         PT.THttpResponse(
                           PT.TOption(
                             PT.TDbList(
-                              PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TNull))
+                              PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit))
                             )
                           )
                         )
@@ -453,7 +453,7 @@ module ProgramTypes =
                  ("int", PT.TInt)
                  ("float", PT.TFloat)
                  ("bool", PT.TBool)
-                 ("null", PT.TNull)
+                 ("null", PT.TUnit)
                  ("str", PT.TStr)
                  ("list", PT.TList(PT.TInt))
                  ("tuple", PT.TTuple(PT.TInt, PT.TStr, []))

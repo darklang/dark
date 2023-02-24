@@ -64,22 +64,4 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Bool" "isNull" 0
-      parameters = [ Param.make "check" varA "" ]
-      returnType = TBool
-      description = "Returns {{true}} if the <param check> parameter is {{null}}"
-      fn =
-        (function
-        | _, [ value ] ->
-          Ply(
-            match value with
-            | DNull -> DBool true
-            | _ -> DBool false
-          )
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
       deprecated = NotDeprecated } ]
