@@ -53,7 +53,7 @@ type BinaryOperation =
   | BinOpOr
 
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | InfixFnCall of FQFnName.InfixStdlibFnName
   | BinOp of BinaryOperation
 
 type Expr =

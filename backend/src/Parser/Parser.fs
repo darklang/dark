@@ -151,7 +151,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
            "can't find operation"
            [ "name", ident.idText ]
     let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
-    PT.EInfix(id, PT.InfixFnCall(fn, PT.NoRail), placeholder, placeholder)
+    PT.EInfix(id, PT.InfixFnCall(fn), placeholder, placeholder)
 
   | SynExpr.Ident ident when
     List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]

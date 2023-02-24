@@ -61,8 +61,7 @@ module BinaryOperation =
 module Infix =
   let toPT (infix : ST.Infix) : PT.Infix =
     match infix with
-    | ST.InfixFnCall (fn, ster) ->
-      PT.InfixFnCall(FQFnName.InfixStdlibFnName.toPT fn, SendToRail.toPT ster)
+    | ST.InfixFnCall (fn) -> PT.InfixFnCall(FQFnName.InfixStdlibFnName.toPT fn)
     | ST.BinOp binop -> PT.BinOp(BinaryOperation.toPT binop)
 
 module MatchPattern =
@@ -110,10 +109,7 @@ module Expr =
       let module_ = if fn.module_ = "" then None else Some fn.module_
       PT.EInfix(
         id,
-        PT.InfixFnCall(
-          { module_ = module_; function_ = fn.function_ },
-          SendToRail.toPT ster
-        ),
+        PT.InfixFnCall({ module_ = module_; function_ = fn.function_ }),
         toPT arg1,
         toPT arg2
       )
