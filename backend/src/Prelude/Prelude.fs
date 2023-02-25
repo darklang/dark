@@ -321,18 +321,25 @@ let debugString (msg : string) (s : string) : string =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
-let debugByteArray (msg : string) (a : byte array) : byte array =
+let debuGByteArray (msg : string) (a : byte array) : unit =
   let bytes = a |> System.BitConverter.ToString
   NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
+
+
+let debugByteArray (msg : string) (a : byte array) : byte array =
+  debuGByteArray msg a
   a
 
-let debugList (msg : string) (list : List<'a>) : List<'a> =
+let debuGList (msg : string) (list : List<'a>) : unit =
   if list = [] then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
   else
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {List.length list}, ["
     List.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}") list
     NonBlockingConsole.WriteLine $"])"
+
+let debugList (msg : string) (list : List<'a>) : List<'a> =
+  debuGList msg list
   list
 
 
@@ -863,6 +870,8 @@ module Dictionary =
     let result = empty ()
     List.iter (fun (k, v) -> result[k] <- v) l
     result
+
+  let toMap (d : T<'k, 'v>) : Map<'k, 'v> = d |> toList |> Map.ofList
 
 module ResizeArray =
   type T<'v> = ResizeArray<'v>
