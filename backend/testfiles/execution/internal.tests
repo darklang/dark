@@ -6,7 +6,7 @@
 [tests.misc]
 
 [test.correct number of tables]
-Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 25
+Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 24
 
 [test.allFunctions has many functions]
 (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
@@ -204,29 +204,6 @@ DarkInternal.unlockedDBs Test.getCanvasID = [1]
 [test.unlocked, one but locked] with DB X
 (let _ = DB.set_v1 { x = "str" } "test" X in
  DarkInternal.unlockedDBs Test.getCanvasID) = []
-
-
-// ---------------
-// Tunnels
-// ---------------
-[test.tunnel is unset]
-(let _ = DarkInternal.insertUser_v2 "tunnel0" "tunnel0-test-user@darklang.com" "tunnel0 test user"
- let userID = (DarkInternal.getUserID_v0 "tunnel0") |> Test.unwrap
- DarkInternal.getTunnelHost userID) = Nothing
-
-[test.setting tunnel works]
-(let _ = DarkInternal.insertUser_v2 "tunnel1" "tunnel1-test-user@darklang.com" "tunnel1 test user"
- let userID = (DarkInternal.getUserID_v0 "tunnel1") |> Test.unwrap
- let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
- DarkInternal.getTunnelHost userID) = Just "myhost.com"
-
-
-[test.clearing tunnel works]
-(let _ = DarkInternal.insertUser_v2 "tunnel2" "tunnel2-test-user@darklang.com" "tunnel2 test user"
- let userID = (DarkInternal.getUserID_v0 "tunnel2") |> Test.unwrap
- let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
- let _ = DarkInternal.setTunnelHost userID Nothing
- DarkInternal.getTunnelHost userID) = Nothing
 
 
 // ---------------
