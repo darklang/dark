@@ -334,24 +334,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "sessionKeyToUsername" 0
-      parameters = [ Param.make "sessionKey" TStr "" ]
-      returnType = TResult(TStr, TStr)
-      description = "Looks up the username for a session_key"
-      fn =
-        internalFn (function
-          | _, [ DStr sessionKey ] ->
-            uply {
-              match! Session.getNoCSRF sessionKey with
-              | None -> return DResult(Error(DStr "No session for cookie"))
-              | Some session -> return DResult(Ok(DStr(string session.username)))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "canvasIDOfCanvasName" 0
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TResult(TUuid, TStr)
@@ -613,64 +595,6 @@ that's already taken, returns an error."
               Dval.obj alist)
             |> DList
             |> Ply
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "newSessionForUsername" 1
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TStr, TStr)
-      description =
-        (* We need the csrf token for dark-cli to use *)
-        "If username is an existing user, puts a new session in the DB and returns the new sessionKey and csrfToken."
-      fn =
-        internalFn (function
-          | state, [ DStr username ] ->
-            uply {
-              try
-                let username = UserName.create username
-                let! session = Session.insert username
-                return
-                  DResult(
-                    Ok(
-                      DObj(
-                        Map [ ("sessionKey", DStr session.sessionKey)
-                              ("csrfToken", DStr session.csrfToken) ]
-                      )
-                    )
-                  )
-              with
-              | e ->
-                let metadata =
-                  [ "username", username :> obj
-                    "fn", "DarkInternal::newSessionForUserName"
-                    "error", "failed to create session" ]
-                state.reportException state metadata e
-                return DResult(Error(DStr "Failed to create session"))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "deleteSession" 0
-      parameters = [ Param.make "sessionKey" TStr "" ]
-      returnType = TInt
-      description =
-        "Delete session by session_key; return number of sessions deleted."
-      fn =
-        internalFn (function
-          | _, [ DStr sessionKey ] ->
-            uply {
-              let! count =
-                Sql.query "DELETE FROM session WHERE session_key = @key"
-                |> Sql.parameters [ "key", Sql.string sessionKey ]
-                |> Sql.executeNonQueryAsync
-              return DInt count
-            }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -44,22 +44,6 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 24
  let _ = DarkInternal.grant "gaguser" "gagorg" "" in
  result) = { gaguser = "rw" }
 
-// ---------------
-// Sessions
-// ---------------
-[tests.sessions]
-
-// It allows these, just puts them in the DB
-// [test.newSessionForUsername_v1 invalid user]
-// (DarkInternal.newSessionForUsername_v1 "not a user") = Error "No user 'not a user'"
-
-[test.newSessionForUsername_v1 real user]
-(let session = (DarkInternal.newSessionForUsername_v1 "test") |> Test.unwrap in
- DarkInternal.sessionKeyToUsername session.sessionKey) = Ok "test"
-
-[test.deleteSession]
-(let session1 = (DarkInternal.newSessionForUsername_v1 "test") |> Test.unwrap in
- DarkInternal.deleteSession_v0 session1.sessionKey) = 1
 
 // ---------------
 // users
