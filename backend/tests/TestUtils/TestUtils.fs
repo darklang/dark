@@ -476,7 +476,6 @@ module Expect =
 
     | DResult (Ok v)
     | DResult (Error v)
-    | DErrorRail v
     | DOption (Some v) -> check v
 
     | DList vs -> List.all check vs
@@ -580,8 +579,7 @@ module Expect =
       eq ("second" :: path) second second'
       eqList path theRest theRest'
     | EFQFnValue (_, v), EFQFnValue (_, v') -> check path v v'
-    | EApply (_, name, args, inPipe, toRail),
-      EApply (_, name', args', inPipe', toRail') ->
+    | EApply (_, name, args, inPipe), EApply (_, name', args', inPipe') ->
       let path = (string name :: path)
       eq path name name'
       eqList path args args'
@@ -589,8 +587,6 @@ module Expect =
       match (inPipe, inPipe') with
       | InPipe id, InPipe id' -> if checkIDs then check path id id'
       | _ -> check path inPipe inPipe'
-
-      check path toRail toRail'
 
     | ERecord (_, pairs), ERecord (_, pairs') ->
       List.iter2
@@ -727,7 +723,6 @@ module Expect =
     | DIncomplete _, DIncomplete _ -> ()
     | DError (_, msg1), DError (_, msg2) ->
       check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
-    | DErrorRail l, DErrorRail r -> de ("ErrorRail" :: path) l r
     | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
       let vals l = List.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
@@ -740,7 +735,6 @@ module Expect =
     | DList _, _
     | DTuple _, _
     | DResult _, _
-    | DErrorRail _, _
     | DOption _, _
     | DStr _, _
     | DInt _, _
@@ -805,7 +799,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DHttpResponse (Response (_, _, v))
     | DResult (Error v)
     | DResult (Ok v)
-    | DErrorRail v
     | DOption (Some v) -> visit v
     | DHttpResponse (Redirect _)
     | DOption None
@@ -984,26 +977,19 @@ let interestingDvals =
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
                            [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
-                           NotInPipe,
-                           NoRail
+                           NotInPipe
                          )
                          EInteger(648327618UL, 7) ],
-                       InPipe(312312798UL),
-                       NoRail
+                       InPipe(312312798UL)
                      )
                      EInteger(325843618UL, 8) ],
-                   NotInPipe,
-                   NoRail
+                   NotInPipe
                  ) ],
-               NotInPipe,
-               NoRail
+               NotInPipe
              )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
-    ("errorrail", DErrorRail(Dval.int 5))
-    ("errorrail with float",
-     DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DUnit) ]))))
     ("redirect", DHttpResponse(Redirect "/home"))
     ("httpresponse",
      DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))

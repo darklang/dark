@@ -28,11 +28,6 @@ module FQFnName =
     | PT.FQFnName.Package p -> RT.FQFnName.Package(PackageFnName.toRT p)
 
 
-module SendToRail =
-  let toRT (ster : PT.SendToRail) : RT.SendToRail =
-    match ster with
-    | PT.Rail -> RT.Rail
-    | PT.NoRail -> RT.NoRail
 
 module MatchPattern =
   let rec toRT (p : PT.MatchPattern) : RT.MatchPattern =
@@ -70,13 +65,12 @@ module Expr =
     | PT.EVariable (id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       RT.EFieldAccess(id, toRT obj, fieldname)
-    | PT.EFnCall (id, name, args, ster) ->
+    | PT.EFnCall (id, name, args) ->
       RT.EApply(
         id,
         RT.EFQFnValue(gid (), FQFnName.toRT name),
         List.map toRT args,
-        RT.NotInPipe,
-        SendToRail.toRT ster
+        RT.NotInPipe
       )
     | PT.EInfix (id, PT.InfixFnCall (fnName), arg1, arg2) ->
       let name =
@@ -85,7 +79,7 @@ module Expr =
             function_ = fnName.function_
             version = 0 }
         )
-      toRT (PT.EFnCall(id, name, [ arg1; arg2 ], PT.NoRail))
+      toRT (PT.EFnCall(id, name, [ arg1; arg2 ]))
     | PT.EInfix (id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix (id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
@@ -112,13 +106,12 @@ module Expr =
           let rec convert thisExpr =
             match thisExpr with
             // TODO: support currying
-            | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs, rail) ->
+            | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs) ->
               RT.EApply(
                 id,
                 RT.EFQFnValue(ptID, FQFnName.toRT name),
                 prev :: List.map toRT exprs,
-                RT.InPipe pipeID,
-                SendToRail.toRT rail
+                RT.InPipe pipeID
               )
             // TODO: support currying
             | PT.EInfix (id, PT.InfixFnCall (fnName), PT.EPipeTarget ptID, expr2) ->
@@ -132,8 +125,7 @@ module Expr =
                 id,
                 RT.EFQFnValue(ptID, FQFnName.toRT name),
                 [ prev; toRT expr2 ],
-                RT.InPipe pipeID,
-                RT.NoRail
+                RT.InPipe pipeID
               )
             // Binops work pretty naturally here
             | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget _, expr2) ->
@@ -142,8 +134,7 @@ module Expr =
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
             // If there's a hole, run the computation right through it as if it wasn't there
             | PT.EBlank _ -> prev
-            | other ->
-              RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID, RT.NoRail)
+            | other -> RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID)
           convert next)
 
         (expr2 :: rest)
@@ -182,7 +173,6 @@ module DType =
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
     | PT.TOption typ -> RT.TOption(toRT typ)
-    | PT.TErrorRail -> RT.TErrorRail
     | PT.TUserType (name, version) -> RT.TUserType(name, version)
     | PT.TBytes -> RT.TBytes
     | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)

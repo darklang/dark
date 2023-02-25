@@ -72,7 +72,6 @@ module DType =
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
     | RT.TOption t -> TOption(r t)
-    | RT.TErrorRail -> TErrorRail
     | RT.TUserType (str, version) -> TUserType(str, version)
     | RT.TBytes -> TBytes
     | RT.TResult (ok, error) -> TResult(r ok, r error)
@@ -102,7 +101,6 @@ module DType =
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid
     | TOption t -> RT.TOption(r t)
-    | TErrorRail -> RT.TErrorRail
     | TUserType (str, version) -> RT.TUserType(str, version)
     | TBytes -> RT.TBytes
     | TResult (ok, error) -> RT.TResult(r ok, r error)
@@ -152,16 +150,6 @@ module Expr =
     | RT.InPipe (id) -> Expr.InPipe(id)
     | RT.NotInPipe -> Expr.NotInPipe
 
-  let sterToRT (ster : Expr.SendToRail) : RT.SendToRail =
-    match ster with
-    | Expr.Rail -> RT.Rail
-    | Expr.NoRail -> RT.NoRail
-
-  let sterFromRT (ster : RT.SendToRail) : Expr.SendToRail =
-    match ster with
-    | RT.Rail -> Expr.Rail
-    | RT.NoRail -> Expr.NoRail
-
   let rec fromCT (e : Expr.T) : RT.Expr =
     let r = fromCT
 
@@ -180,8 +168,8 @@ module Expr =
     | Expr.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | Expr.EApply (id, expr, exprs, pipe, ster) ->
-      RT.EApply(id, r expr, List.map r exprs, pipeToRT pipe, sterToRT ster)
+    | Expr.EApply (id, expr, exprs, pipe) ->
+      RT.EApply(id, r expr, List.map r exprs, pipeToRT pipe)
     | Expr.EFQFnValue (id, name) -> RT.EFQFnValue(id, FQFnName.fromCT name)
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | Expr.ETuple (id, first, second, theRest) ->
@@ -219,8 +207,8 @@ module Expr =
     | RT.ELet (id, lhs, rhs, body) -> Expr.ELet(id, lhs, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EApply (id, expr, exprs, pipe, ster) ->
-      Expr.EApply(id, r expr, List.map r exprs, pipeFromRT pipe, sterFromRT ster)
+    | RT.EApply (id, expr, exprs, pipe) ->
+      Expr.EApply(id, r expr, List.map r exprs, pipeFromRT pipe)
     | RT.EFQFnValue (id, name) -> Expr.EFQFnValue(id, FQFnName.toCT name)
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
     | RT.ETuple (id, first, second, theRest) ->
@@ -295,7 +283,6 @@ module Dval =
     | Dval.DOption (Some dv) -> RT.DOption(Some(r dv))
     | Dval.DResult (Ok dv) -> RT.DResult(Ok(r dv))
     | Dval.DResult (Error dv) -> RT.DResult(Error(r dv))
-    | Dval.DErrorRail dv -> RT.DErrorRail(r dv)
     | Dval.DBytes bytes -> RT.DBytes bytes
 
   and toCT (dv : RT.Dval) : Dval.T =
@@ -332,5 +319,4 @@ module Dval =
     | RT.DOption (Some dv) -> Dval.DOption(Some(r dv))
     | RT.DResult (Ok dv) -> Dval.DResult(Ok(r dv))
     | RT.DResult (Error dv) -> Dval.DResult(Error(r dv))
-    | RT.DErrorRail dv -> Dval.DErrorRail(r dv)
     | RT.DBytes bytes -> Dval.DBytes bytes

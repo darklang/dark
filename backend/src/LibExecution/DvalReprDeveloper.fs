@@ -31,7 +31,6 @@ let rec typeName (t : DType) : string =
   | TPassword -> "Password"
   | TUuid -> "UUID"
   | TOption _ -> "Option"
-  | TErrorRail -> "ErrorRail"
   | TResult _ -> "Result"
   | TUserType (name, _) -> name
   | TBytes -> "Bytes"
@@ -119,7 +118,6 @@ let toRepr (dv : Dval) : string =
     | DOption (Some dv) -> "Just " + toRepr_ indent dv
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
-    | DErrorRail dv -> "ErrorRail: " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
 
   toRepr_ 0 dv

@@ -31,7 +31,7 @@ let hardToRepresentTests =
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
       let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
-      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
+      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList)
 
       let symtable = Map.ofList args
 
@@ -49,7 +49,7 @@ let hardToRepresentTests =
     "hardToRepresent"
     execute
     [ (fnName "List" "fold" 0,
-       [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
+       [ RT.DList [ RT.DBool true; RT.DInt 0L ]
 
          RT.DList []
 

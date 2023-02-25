@@ -1,4 +1,4 @@
-/// Conversion functions from SerializedTypes to ProgramTypes
+// Conversion functions from SerializedTypes to ProgramTypes
 module LibBinarySerialization.SerializedTypesToProgramTypes
 
 open Prelude
@@ -45,12 +45,6 @@ module FQFnName =
     | ST.FQFnName.Package p -> PT.FQFnName.Package(PackageFnName.toPT p)
 
 
-module SendToRail =
-  let toPT (ster : ST.SendToRail) : PT.SendToRail =
-    match ster with
-    | ST.Rail -> PT.Rail
-    | ST.NoRail -> PT.NoRail
-
 module BinaryOperation =
   let toPT (binop : ST.BinaryOperation) : PT.BinaryOperation =
     match binop with
@@ -95,29 +89,8 @@ module Expr =
     | ST.EVariable (id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess (id, obj, fieldname) ->
       PT.EFieldAccess(id, toPT obj, fieldname)
-    | ST.EFnCall (id, name, args, ster) ->
-      PT.EFnCall(id, FQFnName.toPT name, List.map toPT args, SendToRail.toPT ster)
-    | ST.EDeprecatedBinOp (id, ST.FQFnName.Stdlib fn, arg1, arg2, ster) ->
-      // CLEANUP remove Date by making Date not allowed anymore
-      assertIn
-        "serialized binop should have blank/Date module"
-        [ ""; "Date" ]
-        fn.module_
-      assertEq "serialized binop should have zero version" 0 fn.version
-      let isInfix = LibExecutionStdLib.StdLib.isInfixName
-      assertFn2 "serialized binop should be infix" isInfix fn.module_ fn.function_
-      let module_ = if fn.module_ = "" then None else Some fn.module_
-      PT.EInfix(
-        id,
-        PT.InfixFnCall({ module_ = module_; function_ = fn.function_ }),
-        toPT arg1,
-        toPT arg2
-      )
-    // CLEANUP remove from format
-    | ST.EDeprecatedBinOp (_, ST.FQFnName.User name, _, _, _) ->
-      Exception.raiseInternal "userfn serialized as a binop" [ "name", name ]
-    | ST.EDeprecatedBinOp (_, ST.FQFnName.Package name, _, _, _) ->
-      Exception.raiseInternal "package serialized as a binop" [ "name", name ]
+    | ST.EFnCall (id, name, args) ->
+      PT.EFnCall(id, FQFnName.toPT name, List.map toPT args)
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
     | ST.EIf (id, cond, thenExpr, elseExpr) ->
@@ -165,7 +138,6 @@ module DType =
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TOption typ -> PT.TOption(toPT typ)
-    | ST.TErrorRail -> PT.TErrorRail
     | ST.TUserType (name, version) -> PT.TUserType(name, version)
     | ST.TBytes -> PT.TBytes
     | ST.TResult (okType, errType) -> PT.TResult(toPT okType, toPT errType)

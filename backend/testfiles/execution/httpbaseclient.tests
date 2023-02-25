@@ -33,7 +33,7 @@ HttpBaseClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empt
 HttpBaseClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
 
 [test.basic request works including headers]
-(let response = HttpBaseClient.request_ster "get" "https://httpbin.org/status/200" [] Bytes.empty
+(let response = (HttpBaseClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { statusCode = 200

@@ -48,8 +48,7 @@ let rec canonicalize (expr : Expr) : Expr = expr
 let dvalToSql (dval : Dval) : SqlValue =
   match dval with
   | DError _
-  | DIncomplete _
-  | DErrorRail _ -> Errors.foundFakeDval dval
+  | DIncomplete _ -> Errors.foundFakeDval dval
   | DObj _
   | DList _
   | DHttpResponse _
@@ -149,7 +148,7 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
-  | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _, NoRail) when
+  | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _) when
     std.module_ = mName && std.function_ = fName && std.version = v
     ->
     Some args
@@ -180,7 +179,7 @@ let rec lambdaToSql
     let sql, vars = lts TUnit e
     $"({sql} is not null)", vars
 
-  | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
+  | EApply (_, EFQFnValue (_, name), args, _) ->
     match Map.get name fns with
     | Some fn ->
       typecheck (FQFnName.toString name) fn.returnType expectedType
@@ -364,7 +363,7 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EApply (_, EFQFnValue _, args, _, _) when
+        | EApply (_, EFQFnValue _, args, _) when
           // functions that are fully specified
           List.all
             (fun expr ->
@@ -404,9 +403,9 @@ let partiallyEvaluate
               let! rhs = r rhs
               let! next = r next
               return ELet(id, name, rhs, next)
-            | EApply (id, name, exprs, inPipe, ster) ->
+            | EApply (id, name, exprs, inPipe) ->
               let! exprs = Ply.List.mapSequentially r exprs
-              return EApply(id, name, exprs, inPipe, ster)
+              return EApply(id, name, exprs, inPipe)
             | EIf (id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr

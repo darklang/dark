@@ -13,7 +13,7 @@ Location: /v0/response-redirect-dest-post-with-json-content-type-with-body
 
 
 [test]
-(let response = HttpBaseClient.request_ster "post" "http://URL" "body" {} {"Content-Type" = "application/json" }
+(let response = (HttpBaseClient.request "post" "http://URL" "body" {} {"Content-Type" = "application/json" }) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"

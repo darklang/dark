@@ -23,9 +23,8 @@ let eFn'
   (function_ : string)
   (version : int)
   (args : List<Expr>)
-  (ster : SendToRail)
   : Expr =
-  EApply(gid (), (eStdFnVal module_ function_ version), args, NotInPipe, ster)
+  EApply(gid (), (eStdFnVal module_ function_ version), args, NotInPipe)
 
 let eFn
   (module_ : string)
@@ -33,29 +32,15 @@ let eFn
   (version : int)
   (args : List<Expr>)
   : Expr =
-  eFn' module_ function_ version args NoRail
+  eFn' module_ function_ version args
 
-let eFnRail
-  (module_ : string)
-  (function_ : string)
-  (version : int)
-  (args : List<Expr>)
-  : Expr =
-  eFn' module_ function_ version args Rail
+let eApply' (fnVal : Expr) (args : List<Expr>) (isInPipe : IsInPipe) : Expr =
+  EApply(gid (), fnVal, args, isInPipe)
 
-let eApply'
-  (fnVal : Expr)
-  (args : List<Expr>)
-  (isInPipe : IsInPipe)
-  (ster : SendToRail)
-  : Expr =
-  EApply(gid (), fnVal, args, isInPipe, ster)
-
-let eApply (fnVal : Expr) (args : List<Expr>) : Expr =
-  eApply' fnVal args NotInPipe NoRail
+let eApply (fnVal : Expr) (args : List<Expr>) : Expr = eApply' fnVal args NotInPipe
 
 let ePipeApply (fnVal : Expr) (args : List<Expr>) : Expr =
-  eApply' fnVal args (InPipe(gid ())) NoRail
+  eApply' fnVal args (InPipe(gid ()))
 
 let eStr (str : string) : Expr = EString(gid (), str)
 

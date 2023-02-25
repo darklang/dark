@@ -13,7 +13,7 @@ Location: https://httpbin.org/status/200
 
 
 [test]
-(let response = HttpBaseClient.request_ster "get" "http://URL" [] Bytes.empty
+(let response = (HttpBaseClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> Dict.remove_v0 "date"
  Dict.set_v0 response "headers" respHeaders) =
     { body = ""

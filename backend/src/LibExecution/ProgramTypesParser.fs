@@ -158,7 +158,6 @@ module DType =
     | "password" -> Some PT.TPassword
     | "uuid" -> Some PT.TUuid
     | "option" -> Some(PT.TOption any)
-    | "errorrail" -> Some PT.TErrorRail
     | "result" -> Some(PT.TResult(PT.TVariable "a", PT.TVariable "b"))
     | "dict" -> Some(PT.TDict any)
     | _ ->

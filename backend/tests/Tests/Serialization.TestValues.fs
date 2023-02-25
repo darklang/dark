@@ -41,7 +41,6 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TErrorRail
       RT.TUserType("test", 1)
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
@@ -68,8 +67,6 @@ module RuntimeTypes =
 
   let isInPipes : List<RT.IsInPipe> = [ RT.NotInPipe; RT.InPipe(18274UL) ]
 
-  let sendToRails : List<RT.SendToRail> = [ RT.Rail; RT.NoRail ]
-
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
@@ -93,13 +90,7 @@ module RuntimeTypes =
       RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.EUnit(17384UL))
       RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
-      RT.EApply(
-        128384UL,
-        RT.EUnit(1235123UL),
-        [ RT.EUnit(7756UL) ],
-        RT.NotInPipe,
-        RT.Rail
-      )
+      RT.EApply(128384UL, RT.EUnit(1235123UL), [ RT.EUnit(7756UL) ], RT.NotInPipe)
       RT.EFQFnValue(8737481UL, RT.FQFnName.User "sadflkjwerp")
       RT.EList(737481UL, [ RT.EUnit(74618UL) ])
       RT.ETuple(
@@ -176,8 +167,6 @@ module ProgramTypes =
         [ PT.MPUnit(17123UL) ]
       ) ]
 
-  let sendToRails : List<PT.SendToRail> = [ PT.Rail; PT.NoRail ]
-
   // Note: this is aimed to contain all cases of `Expr`
   // When updating this, also update `FluidTestData.complexExpr` in the client
   let expr =
@@ -229,8 +218,7 @@ module ProgramTypes =
                               { module_ = "Bool"
                                 function_ = "isError"
                                 version = 0 },
-                            [ PT.EInteger(160106123UL, 6L) ],
-                            PT.Rail
+                            [ PT.EInteger(160106123UL, 6L) ]
                           ),
                           PT.EIf(
                             729246077UL,
@@ -273,8 +261,7 @@ module ProgramTypes =
                                 PT.FQFnName.Stdlib
                                   { module_ = "Int"; function_ = "add"; version = 0 },
                                 [ PT.EInteger(250221144UL, 6L)
-                                  PT.EInteger(298149318UL, 2L) ],
-                                PT.NoRail
+                                  PT.EInteger(298149318UL, 2L) ]
                               )
                             ),
                             PT.EList(
@@ -334,8 +321,7 @@ module ProgramTypes =
                                   { module_ = "Mod"
                                     function_ = "function"
                                     version = 2 },
-                                [],
-                                PT.NoRail
+                                []
                               ),
                               [ (PT.MPConstructor(
                                   1015986188UL,
@@ -450,7 +436,6 @@ module ProgramTypes =
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
-                 ("errorRail", PT.TErrorRail)
                  ("usertype", PT.TUserType("name", 0))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))

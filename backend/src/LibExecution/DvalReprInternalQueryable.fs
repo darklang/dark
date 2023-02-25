@@ -117,7 +117,6 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DTuple _
   | DFnVal _
   | DError _
-  | DErrorRail _
   | DIncomplete _
   | DHttpResponse _
   | DDB _
@@ -199,5 +198,4 @@ module Test =
     | DFnVal _
     | DError _
     | DDB _
-    | DIncomplete _
-    | DErrorRail _ -> false
+    | DIncomplete _ -> false

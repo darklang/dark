@@ -107,10 +107,6 @@ let toEnduserReadableTextV0 (dval : Dval) : string =
     | DObj _
     | DList _
     | DTuple _ -> toNestedString dv
-    | DErrorRail d ->
-      // We don't print error here, because the errorrail value will know
-      // whether it's an error or not.
-      reprfn d
     | DHttpResponse (Redirect url) -> $"302 {url}\n" + nestedreprfn DUnit
     | DHttpResponse (Response (code, headers, body)) ->
       let headerString =

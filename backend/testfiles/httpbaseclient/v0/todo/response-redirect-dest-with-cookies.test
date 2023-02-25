@@ -18,7 +18,7 @@ Redirect destination reached with cookies
 [test]
 // This is here to be a destination for valid redirect tests with cookies
 (let reqHeaders = { Cookie = "yummy_cookie=choco; tasty_cookie=strawberry" }
- let response = HttpBaseClient.request_ster "get" "http://URL" {} reqHeaders
+ let response = (HttpBaseClient.request "get" "http://URL" {} reqHeaders) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached with cookies"

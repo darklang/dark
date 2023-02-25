@@ -149,38 +149,6 @@ let testProgramTypesToRuntimeTypes =
       (PT.EMatch(9UL, b, [ PT.MPFloat(5UL, Positive, "", "0"), b ]),
        RT.EMatch(9UL, rb, [ RT.MPFloat(5UL, 0.0), rb ])) ]
 
-// We didn't use a special infix type in serialized types, so check it converts OK
-let testInfixSerializedTypesToProgramTypes =
-  testMany
-    "serialized infix types to program types"
-    ST2PT.Expr.toPT
-    [ (ST.EDeprecatedBinOp(
-        8UL,
-        ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
-        ST.EInteger(9UL, 6),
-        ST.EInteger(10UL, 6),
-        ST.NoRail
-       ),
-       PT.EInfix(
-         8UL,
-         PT.InfixFnCall({ module_ = None; function_ = "+" }),
-         PT.EInteger(9UL, 6),
-         PT.EInteger(10UL, 6)
-       ))
-      (ST.EDeprecatedBinOp(
-        8UL,
-        ST.FQFnName.Stdlib { module_ = "Date"; function_ = "<"; version = 0 },
-        ST.EInteger(9UL, 6),
-        ST.EInteger(10UL, 6),
-        ST.NoRail
-       ),
-       PT.EInfix(
-         8UL,
-         PT.InfixFnCall({ module_ = Some "Date"; function_ = "<" }),
-         PT.EInteger(9UL, 6),
-         PT.EInteger(10UL, 6)
-       )) ]
-
 let testInfixProgramTypesToSerializedTypes =
   testMany
     "infix program types to serialized types"
@@ -229,6 +197,5 @@ let tests =
       testPipesToRuntimeTypes
       testProgramTypesToRuntimeTypes
       ptFQFnName
-      testInfixSerializedTypesToProgramTypes
       testInfixProgramTypesToSerializedTypes
       testVersionedSerializedTypesToProgramTypes ]

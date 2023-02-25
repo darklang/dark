@@ -112,9 +112,6 @@
                                   160106123,
                                   6
                                 ]
-                              ],
-                              [
-                                "Rail"
                               ]
                             ],
                             [
@@ -246,9 +243,6 @@
                                       298149318,
                                       2
                                     ]
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ]
                               ],
@@ -366,10 +360,7 @@
                                       "version": 2
                                     }
                                   ],
-                                  [],
-                                  [
-                                    "NoRail"
-                                  ]
+                                  []
                                 ],
                                 [
                                   [
@@ -792,9 +783,6 @@
                                   ],
                                   [
                                     "NotInPipe"
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
@@ -806,9 +794,6 @@
                               [
                                 "InPipe",
                                 312312798
-                              ],
-                              [
-                                "NoRail"
                               ]
                             ],
                             [
@@ -819,17 +804,11 @@
                           ],
                           [
                             "NotInPipe"
-                          ],
-                          [
-                            "NoRail"
                           ]
                         ]
                       ],
                       [
                         "NotInPipe"
-                      ],
-                      [
-                        "NoRail"
                       ]
                     ]
                   }
@@ -889,28 +868,6 @@
                   "SourceNone"
                 ],
                 "some error string"
-              ],
-              "errorrail": [
-                "DErrorRail",
-                [
-                  "DInt",
-                  5
-                ]
-              ],
-              "errorrail with float": [
-                "DErrorRail",
-                [
-                  "DObj",
-                  {
-                    "": [
-                      "DFloat",
-                      "NaN"
-                    ],
-                    "\u007F": [
-                      "DUnit"
-                    ]
-                  }
-                ]
               ],
               "escaped": [
                 "DStr",
@@ -4104,9 +4061,6 @@
                                   ],
                                   [
                                     "NotInPipe"
-                                  ],
-                                  [
-                                    "NoRail"
                                   ]
                                 ],
                                 [
@@ -4118,9 +4072,6 @@
                               [
                                 "InPipe",
                                 312312798
-                              ],
-                              [
-                                "NoRail"
                               ]
                             ],
                             [
@@ -4131,17 +4082,11 @@
                           ],
                           [
                             "NotInPipe"
-                          ],
-                          [
-                            "NoRail"
                           ]
                         ]
                       ],
                       [
                         "NotInPipe"
-                      ],
-                      [
-                        "NoRail"
                       ]
                     ]
                   }
@@ -4201,28 +4146,6 @@
                   "SourceNone"
                 ],
                 "some error string"
-              ],
-              "errorrail": [
-                "DErrorRail",
-                [
-                  "DInt",
-                  5
-                ]
-              ],
-              "errorrail with float": [
-                "DErrorRail",
-                [
-                  "DObj",
-                  {
-                    "": [
-                      "DFloat",
-                      "NaN"
-                    ],
-                    "\u007F": [
-                      "DUnit"
-                    ]
-                  }
-                ]
               ],
               "escaped": [
                 "DStr",
@@ -7475,12 +7398,6 @@
                   ]
                 ],
                 [
-                  "errorRail",
-                  [
-                    "TErrorRail"
-                  ]
-                ],
-                [
                   "usertype",
                   [
                     "TUserType",
@@ -7713,12 +7630,6 @@
               ]
             ],
             [
-              "errorRail",
-              [
-                "TErrorRail"
-              ]
-            ],
-            [
               "usertype",
               [
                 "TUserType",
@@ -7891,9 +7802,6 @@
                                     160106123,
                                     6
                                   ]
-                                ],
-                                [
-                                  "Rail"
                                 ]
                               ],
                               [
@@ -8025,9 +7933,6 @@
                                         298149318,
                                         2
                                       ]
-                                    ],
-                                    [
-                                      "NoRail"
                                     ]
                                   ]
                                 ],
@@ -8145,10 +8050,7 @@
                                         "version": 2
                                       }
                                     ],
-                                    [],
-                                    [
-                                      "NoRail"
-                                    ]
+                                    []
                                   ],
                                   [
                                     [
@@ -8605,12 +8507,6 @@
                     ]
                   ],
                   [
-                    "errorRail",
-                    [
-                      "TErrorRail"
-                    ]
-                  ],
-                  [
                     "usertype",
                     [
                       "TUserType",
@@ -8796,9 +8692,6 @@
                                     160106123,
                                     6
                                   ]
-                                ],
-                                [
-                                  "Rail"
                                 ]
                               ],
                               [
@@ -8930,9 +8823,6 @@
                                         298149318,
                                         2
                                       ]
-                                    ],
-                                    [
-                                      "NoRail"
                                     ]
                                   ]
                                 ],
@@ -9050,10 +8940,7 @@
                                         "version": 2
                                       }
                                     ],
-                                    [],
-                                    [
-                                      "NoRail"
-                                    ]
+                                    []
                                   ],
                                   [
                                     [
@@ -9494,12 +9381,6 @@
                   ]
                 ],
                 [
-                  "errorRail",
-                  [
-                    "TErrorRail"
-                  ]
-                ],
-                [
                   "usertype",
                   [
                     "TUserType",
@@ -9728,12 +9609,6 @@
                 [
                   "TInt"
                 ]
-              ]
-            ],
-            [
-              "errorRail",
-              [
-                "TErrorRail"
               ]
             ],
             [

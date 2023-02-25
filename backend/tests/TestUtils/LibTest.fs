@@ -21,20 +21,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Test" "errorRailValue" 0
-      parameters = [ Param.make "value" varA "" ]
-      returnType = varA
-      description = "Return an <type ErrorRail> wrapping <param value>"
-      fn =
-        (function
-        | _, [ value ] -> Ply(DErrorRail(value))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Test" "typeError" 0
+  [ { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
       description = "Return a value representing a type error"
@@ -415,7 +402,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Test" "createCanvas" 0
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TUuid
-      description = "Create the named canvas and return the IDgg"
+      description = "Create the named canvas and return the ID"
       fn =
         (function
         | _, [ DStr canvasName ] ->
@@ -423,6 +410,36 @@ let fns : List<BuiltInFn> =
             let! meta =
               LibBackend.Canvas.getMetaAndCreate (CanvasName.createExn canvasName)
             return DUuid meta.id
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Test" "unwrap" 0
+      parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
+      returnType = TVariable "a"
+      description =
+        "Unwrap an Option or Result, returning the value or a DError if Nothing"
+
+      fn =
+        (function
+        | _, [ DOption opt ] ->
+          uply {
+            match opt with
+            | Some value -> return value
+            | None -> return (DError(SourceNone, "Nothing"))
+          }
+        | _, [ DResult res ] ->
+          uply {
+            match res with
+            | Ok value -> return value
+            | Error e ->
+              return
+                (DError(
+                  SourceNone,
+                  ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
+                ))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

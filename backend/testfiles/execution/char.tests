@@ -1,8 +1,8 @@
 [fn.smiley null:any]
-((String.toList_v1 "😂") |> List.head_v2_ster)
+((String.toList_v1 "😂") |> List.head_v2 |> Test.unwrap)
 
 [fn.hand null:any]
-((String.toList_v1 "✋🏿") |> List.head_v2_ster)
+((String.toList_v1 "✋🏿") |> List.head_v2 |> Test.unwrap)
 
 [tests.all]
 

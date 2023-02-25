@@ -229,7 +229,6 @@ let fns : List<BuiltInFn> =
             // Bubble up errors for values that are invalid for all params
             | _,
               ((DIncomplete _
-              | DErrorRail _
               | DError _) as dv) -> Errors.foundFakeDval dv
             // Single boolean set-cookie params
             | "secure", v

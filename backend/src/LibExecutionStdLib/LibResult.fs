@@ -40,8 +40,7 @@ let fns : List<BuiltInFn> =
           uply {
             match r with
             | Ok dv ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) d [ dv ] NotInPipe NoRail
+              let! result = Interpreter.applyFnVal state (id 0) d [ dv ] NotInPipe
 
               return Dval.resultOk result
             | Error _ -> return DResult r
@@ -69,8 +68,7 @@ let fns : List<BuiltInFn> =
             match r with
             | Ok _ -> return DResult r
             | Error err ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe NoRail
+              let! result = Interpreter.applyFnVal state (id 0) b [ err ] NotInPipe
 
               return Dval.resultError result
           }
@@ -155,7 +153,7 @@ let fns : List<BuiltInFn> =
             | Ok _, Error e2 -> return DResult(Error e2)
             | Ok dv1, Ok dv2 ->
               let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail
+                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
 
               return Dval.resultOk result
           }
@@ -181,8 +179,7 @@ let fns : List<BuiltInFn> =
           uply {
             match o with
             | Ok dv ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+              let! result = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
               match result with
               | DResult (Ok result) -> return Dval.resultOk result

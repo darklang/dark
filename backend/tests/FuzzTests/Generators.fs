@@ -144,8 +144,7 @@ module RuntimeTypes =
       // FSTODO: support all types
       | RT.TDB _
       | RT.TIncomplete
-      | RT.TPassword
-      | RT.TErrorRail -> false
+      | RT.TPassword -> false
 
     Arb.Default.Derive() |> Arb.filter isSupportedType
 

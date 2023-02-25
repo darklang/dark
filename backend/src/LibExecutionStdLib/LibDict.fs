@@ -122,7 +122,6 @@ let fns : List<BuiltInFn> =
             | DList [ k; _ ] ->
               Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
-            | DErrorRail _
             | DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `[key, value]`"
 
@@ -155,7 +154,6 @@ let fns : List<BuiltInFn> =
             | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
             | _,
               ((DIncomplete _
-              | DErrorRail _
               | DError _) as dv) -> Errors.foundFakeDval dv
             | Some _, DList [ k; _ ] ->
               Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
@@ -224,13 +222,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.Map.mapSequentially
                 (fun ((key, dv) : string * Dval) ->
-                  Interpreter.applyFnVal
-                    state
-                    (id 0)
-                    b
-                    [ DStr key; dv ]
-                    NotInPipe
-                    NoRail)
+                  Interpreter.applyFnVal state (id 0) b [ DStr key; dv ] NotInPipe)
                 mapped
 
             return DObj result
@@ -270,7 +262,6 @@ let fns : List<BuiltInFn> =
                       b
                       [ DStr key; data ]
                       NotInPipe
-                      NoRail
 
                   match result with
                   | DBool true -> return Ok(Map.add key data m)
@@ -329,13 +320,11 @@ let fns : List<BuiltInFn> =
                       b
                       [ DStr key; data ]
                       NotInPipe
-                      NoRail
 
                   match result with
                   | DOption (Some o) -> return Some o
                   | DOption None -> return None
                   | (DIncomplete _
-                  | DErrorRail _
                   | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
