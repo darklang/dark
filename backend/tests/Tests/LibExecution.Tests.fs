@@ -155,7 +155,19 @@ let t
               test =
                 { state.test with expectedExceptionCount = expectedExceptionCount } }
 
+
+        let results, traceDvalFn = Exe.traceDvals ()
+        let state =
+          if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
+            { state with tracing = { state.tracing with traceDval = traceDvalFn } }
+          else
+            state
+
+        // Run the actual program
         let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualProg)
+
+        if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
+          debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
         let actual = normalizeDvalResult actual
 
