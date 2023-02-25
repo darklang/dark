@@ -14,7 +14,7 @@ Content-Length: LENGTH
 Hello back
 
 [test]
-(let response = HttpBaseClient.request_ster "patch" "http://URL" [("Content-Type", "application/json; charset=utf-8")] ("5" |> String.toBytes)
+(let response = (HttpBaseClient.request "patch" "http://URL" [("Content-Type", "application/json; charset=utf-8")] ("5" |> String.toBytes)) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { statusCode = 200

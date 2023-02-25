@@ -13,7 +13,7 @@ Location: /v0/response-redirect-dest-with-query-params?value=x
 
 
 [test]
-(let response = HttpBaseClient.request_ster "get" "http://URL" { value = "x" } {}
+(let response = (HttpBaseClient.request "get" "http://URL" { value = "x" } {}) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached with params"

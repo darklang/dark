@@ -15,7 +15,7 @@ Content-Length: LENGTH
 
 [test]
 (let reqHeaders = { "Content-type" = "multipart/form-data" }
- let response = HttpBaseClient.request_ster "post" "http://URL" [] {} reqHeaders
+ let response = (HttpBaseClient.request "post" "http://URL" [] {} reqHeaders) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
 Dict.set_v0 response "headers" respHeaders) =
    { body = ""
