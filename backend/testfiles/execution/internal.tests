@@ -6,7 +6,7 @@
 [tests.misc]
 
 [test.correct number of tables]
-Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 24
+Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 
 [test.allFunctions has many functions]
 (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
