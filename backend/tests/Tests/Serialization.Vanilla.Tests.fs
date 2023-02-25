@@ -612,12 +612,6 @@ module RoundtripTests =
           CT2Runtime.MatchPattern.fromCT
           None
         testRoundtripList
-          "RT.SendToRail"
-          V.RuntimeTypes.sendToRails
-          CT2Runtime.Expr.sterFromRT
-          CT2Runtime.Expr.sterToRT
-          None
-        testRoundtripList
           "RT.IsInPipe"
           V.RuntimeTypes.isInPipes
           CT2Runtime.Expr.pipeFromRT
@@ -662,12 +656,6 @@ module RoundtripTests =
           V.ProgramTypes.matchPatterns
           CT2Program.MatchPattern.toCT
           CT2Program.MatchPattern.fromCT
-          None
-        testRoundtripList
-          "PT.SendToRail"
-          V.ProgramTypes.sendToRails
-          CT2Program.SendToRail.toCT
-          CT2Program.SendToRail.fromCT
           None
         testRoundtrip
           "PT.Expr"

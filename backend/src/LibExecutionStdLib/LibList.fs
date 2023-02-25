@@ -258,8 +258,7 @@ let fns : List<BuiltInFn> =
           uply {
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! result =
-                  Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+                let! result = Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe
 
                 return result = DBool true
               }
@@ -367,7 +366,6 @@ let fns : List<BuiltInFn> =
                     b
                     [ accum; item ]
                     NotInPipe
-                    NoRail
               }
 
             return! List.fold f (Ply init) l
@@ -465,8 +463,7 @@ let fns : List<BuiltInFn> =
               Ply.List.mapSequentially
                 (fun dv ->
                   uply {
-                    let! key =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                    let! key = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                     return (dv, key)
                   })
@@ -532,7 +529,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList list; DFnVal b ] ->
           uply {
-            let fn dv = Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe NoRail
+            let fn dv = Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe
             // NOTE: This isn't exactly the same as the ocaml one. We get all the
             // keys in one pass.
             let! withKeys =
@@ -572,7 +569,7 @@ let fns : List<BuiltInFn> =
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
               let! result =
-                Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe NoRail
+                Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
@@ -635,13 +632,7 @@ let fns : List<BuiltInFn> =
             let f (dv : Dval) : Ply<bool> =
               uply {
                 let! r =
-                  LibExecution.Interpreter.applyFnVal
-                    state
-                    (id 0)
-                    b
-                    [ dv ]
-                    NotInPipe
-                    NoRail
+                  LibExecution.Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                 match r with
                 | DBool b -> return b
@@ -688,12 +679,11 @@ let fns : List<BuiltInFn> =
 
                 if run then
                   let! result =
-                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe
 
                   match result with
                   | DBool b -> return b
                   | (DIncomplete _
-                  | DErrorRail _
                   | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return false
@@ -744,13 +734,12 @@ let fns : List<BuiltInFn> =
 
                 if run then
                   let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                   match result with
                   | DOption (Some o) -> return Some o
                   | DOption None -> return None
                   | (DIncomplete _
-                  | DErrorRail _
                   | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
@@ -813,13 +802,12 @@ let fns : List<BuiltInFn> =
 
                   if run then
                     let! result =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                     match result with
                     | DBool true -> return! f dvs
                     | DBool false -> return dv :: dvs
                     | (DIncomplete _
-                    | DErrorRail _
                     | DError _) as dv ->
                       abortReason <- Some dv
                       return []
@@ -880,7 +868,7 @@ let fns : List<BuiltInFn> =
 
                   if run then
                     let! result =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                     match result with
                     | DBool true ->
@@ -888,7 +876,6 @@ let fns : List<BuiltInFn> =
                       return dv :: tail
                     | DBool false -> return []
                     | (DIncomplete _
-                    | DErrorRail _
                     | DError _) as dv ->
                       abortReason <- Some dv
                       return []
@@ -927,8 +914,7 @@ let fns : List<BuiltInFn> =
           uply {
             let! result =
               Ply.List.mapSequentially
-                (fun dv ->
-                  Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
+                (fun dv -> Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe)
                 l
 
             return Dval.list result
@@ -963,8 +949,7 @@ let fns : List<BuiltInFn> =
                     (id 0)
                     b
                     [ DInt(int64 i); dv ]
-                    NotInPipe
-                    NoRail)
+                    NotInPipe)
                 list
 
             return Dval.list result
@@ -1005,7 +990,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
-                  Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail)
+                  Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe)
                 list
 
             return Dval.list result
@@ -1046,13 +1031,7 @@ let fns : List<BuiltInFn> =
               let! result =
                 Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
-                    Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ dv1; dv2 ]
-                      NotInPipe
-                      NoRail)
+                    Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe)
                   list
 
               return DOption(Some(Dval.list result))
@@ -1153,7 +1132,6 @@ let fns : List<BuiltInFn> =
             match i with
             | DList [ a; b ] -> (a :: acc1, b :: acc2)
             | (DIncomplete _
-            | DErrorRail _
             | DError _) as dv -> Errors.foundFakeDval dv
             | v ->
               let errDetails =
@@ -1234,7 +1212,7 @@ let fns : List<BuiltInFn> =
           uply {
             let partition l =
               let applyFn dval =
-                Interpreter.applyFnVal state (id 0) fn [ dval ] NotInPipe NoRail
+                Interpreter.applyFnVal state (id 0) fn [ dval ] NotInPipe
 
               let rec loop acc l =
                 uply {
@@ -1247,7 +1225,6 @@ let fns : List<BuiltInFn> =
                     | DBool false -> return! loop (a, item :: b) tail
 
                     | (DIncomplete _
-                    | DErrorRail _
                     | DError _) as dv ->
                       // fake dvals
                       return Error dv

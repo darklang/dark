@@ -57,8 +57,7 @@ let fns : List<BuiltInFn> =
                (id 0)
                b
                [ DChar te ]
-               NotInPipe
-               NoRail))
+               NotInPipe))
            |> (fun dvals ->
              (uply {
                let! (dvals : List<Dval>) = dvals

@@ -47,12 +47,6 @@ type MatchPattern =
   | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
-/// Whether a function's result is unwrapped automatically (and, in the case of
-/// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
-type SendToRail =
-  | Rail
-  | NoRail
-
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr
@@ -83,7 +77,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * List<Expr> * SendToRail
+  | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
@@ -117,7 +111,6 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TErrorRail
   | TUserType of string * int
   | TBytes
   | TResult of DType * DType

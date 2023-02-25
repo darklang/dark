@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, []) ] ->
           uply {
             let! newFirst =
-              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe
             return DTuple(newFirst, second, [])
           }
         | _ -> incorrectArgs ())
@@ -112,7 +112,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, []) ] ->
           uply {
             let! newSecond =
-              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe
             return DTuple(first, newSecond, [])
           }
         | _ -> incorrectArgs ())
@@ -143,10 +143,10 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fnFst; DFnVal fnSnd; DTuple (first, second, []) ] ->
           uply {
             let! newFirst =
-              Interpreter.applyFnVal state (id 0) fnFst [ first ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fnFst [ first ] NotInPipe
 
             let! newSecond =
-              Interpreter.applyFnVal state (id 0) fnSnd [ second ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fnSnd [ second ] NotInPipe
 
             return DTuple(newFirst, newSecond, [])
           }

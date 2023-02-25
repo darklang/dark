@@ -101,7 +101,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newFirst =
-              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe
             return DTuple(newFirst, second, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newSecond =
-              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe
             return DTuple(first, newSecond, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newThird =
-              Interpreter.applyFnVal state (id 0) fn [ third ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ third ] NotInPipe
             return DTuple(first, second, [ newThird ])
           }
         | _ -> incorrectArgs ())
@@ -199,19 +199,13 @@ let fns : List<BuiltInFn> =
             DTuple (first, second, [ third ]) ] ->
           uply {
             let! newFirst =
-              Interpreter.applyFnVal state (id 0) fnFirst [ first ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fnFirst [ first ] NotInPipe
 
             let! newSecond =
-              Interpreter.applyFnVal
-                state
-                (id 0)
-                fnSecond
-                [ second ]
-                NotInPipe
-                NoRail
+              Interpreter.applyFnVal state (id 0) fnSecond [ second ] NotInPipe
 
             let! newThird =
-              Interpreter.applyFnVal state (id 0) fnThird [ third ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fnThird [ third ] NotInPipe
 
             return DTuple(newFirst, newSecond, [ newThird ])
           }

@@ -588,7 +588,6 @@ that's already taken, returns an error."
           | TPassword -> "password"
           | TUuid -> "uuid"
           | TOption _ -> "option"
-          | TErrorRail -> "errorrail"
           | TResult _ -> "result"
           | TUserType (name, _) -> name.ToLower()
           | TBytes -> "bytes"

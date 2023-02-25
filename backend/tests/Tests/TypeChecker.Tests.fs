@@ -52,22 +52,6 @@ let testBasicTypecheckWorks : Test =
 
       ("toString_v0", [ ("v", RT.DInt 5L) ]), Ok() ]
 
-let testErrorNotWrappedByErrorRail =
-  testTask "error not wrapped by errorRail" {
-    let expr = Parser.parseRTExpr "Dict.get_v2 (List.empty_v0 []) \"hello\""
-    let! meta = createTestCanvas (Randomized "error-not-wrapper-rail")
-
-    let! state = executionStateFor meta Map.empty Map.empty
-
-    let! result = Exe.executeExpr state Map.empty expr
-
-    Expect.isTrue
-      (match result with
-       | RT.DError _ -> true
-       | _ -> false)
-      ""
-  }
-
 let testArguments : Test =
   let t (name, returnType, body) =
     task {
@@ -102,7 +86,4 @@ let testArguments : Test =
 
 
 
-let tests =
-  testList
-    "typeChecker"
-    [ testBasicTypecheckWorks; testErrorNotWrappedByErrorRail; testArguments ]
+let tests = testList "typeChecker" [ testBasicTypecheckWorks; testArguments ]

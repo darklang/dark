@@ -32,8 +32,7 @@ let parserTests =
             PT.EFnCall(
               id,
               PTParser.FQFnName.stdlibFqName "List" "map" 0,
-              [ (PT.EPipeTarget id); PT.EInteger(id, 5) ],
-              PT.NoRail
+              [ (PT.EPipeTarget id); PT.EInteger(id, 5) ]
             ),
             []
           )
@@ -75,10 +74,6 @@ let parserTests =
           "099999999999994315658113919198513031005859375"
         ))
       t "zero" "0.0" (PT.EFloat(id, Positive, "0", "0"))
-      t "negative 180" "-180.0" (PT.EFloat(id, Negative, "180", "0"))
-      t
-        "user-defined function with send-to-rail"
-        "myFnCall_ster 5"
-        (PT.EFnCall(id, PT.FQFnName.User "myFnCall", [ PT.EInteger(id, 5) ], PT.Rail)) ]
+      t "negative 180" "-180.0" (PT.EFloat(id, Negative, "180", "0")) ]
 
 let tests = testList "Parser" [ parserTests ]

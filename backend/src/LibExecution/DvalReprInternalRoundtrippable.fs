@@ -45,7 +45,6 @@ module FormatV0 =
     | DObj of DvalMap
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DErrorRail of Dval
     | DHttpResponse of DHTTP
     | DDB of string
     | DDate of NodaTime.LocalDateTime
@@ -86,7 +85,6 @@ module FormatV0 =
     | DOption (Some dv) -> RT.DOption(Some(toRT dv))
     | DResult (Ok dv) -> RT.DResult(Ok(toRT dv))
     | DResult (Error dv) -> RT.DResult(Error(toRT dv))
-    | DErrorRail dv -> RT.DErrorRail(toRT dv)
     | DBytes bytes -> RT.DBytes bytes
 
 
@@ -118,7 +116,6 @@ module FormatV0 =
     | RT.DOption (Some dv) -> DOption(Some(fromRT dv))
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
-    | RT.DErrorRail dv -> DErrorRail(fromRT dv)
     | RT.DBytes bytes -> DBytes bytes
 
 
@@ -164,5 +161,4 @@ module Test =
     | RT.DHttpResponse (RT.Redirect _) -> true
     | RT.DDB _
     | RT.DError _
-    | RT.DIncomplete _
-    | RT.DErrorRail _ -> true
+    | RT.DIncomplete _ -> true

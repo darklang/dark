@@ -103,8 +103,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   // Add a pipetarget after creating it
   let cPlusPipeTarget (e : SynExpr) : PT.Expr =
     match c e with
-    | PT.EFnCall (id, name, args, ster) ->
-      PT.EFnCall(id, name, PT.EPipeTarget(gid ()) :: args, ster)
+    | PT.EFnCall (id, name, args) ->
+      PT.EFnCall(id, name, PT.EPipeTarget(gid ()) :: args)
     | PT.EInfix (id, op, Placeholder, arg2) ->
       PT.EInfix(id, op, PT.EPipeTarget(gid ()), arg2)
     | PT.EInfix (id, op, arg1, Placeholder) ->
@@ -166,12 +166,12 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
     let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
-    PT.EFnCall(id, name, [], PT.NoRail)
+    PT.EFnCall(id, name, [])
 
   | SynExpr.Ident ident when
     Set.contains ident.idText PTParser.FQFnName.oneWordFunctions
     ->
-    PT.EFnCall(id, PTParser.FQFnName.parse ident.idText, [], PT.NoRail)
+    PT.EFnCall(id, PTParser.FQFnName.parse ident.idText, [])
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
@@ -207,13 +207,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     ->
     let module_ = modName.idText
 
-    let name, ster =
+    let name =
       match fnName.idText with
-      // ster = send to error
-      | Regex "(.+)_v(\d+)_ster" [ name; version ] ->
-        ($"{module_}::{name}_v{int version}", PT.Rail)
       | Regex "(.+)_v(\d+)" [ name; version ] ->
-        ($"{module_}::{name}_v{int version}", PT.NoRail)
+        ($"{module_}::{name}_v{int version}")
       | Regex "(.*)" [ name ] when Map.containsKey name ops ->
         // Things like `Date::<`, written `Date.(<)`
         let name =
@@ -221,15 +218,14 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
           |> Exception.unwrapOptionInternal
                "can't find function name"
                [ "name", name ]
-        ($"{module_}::{name}", PT.NoRail)
-      | Regex "(.+)_ster" [ name ] -> ($"{module_}::{name}", PT.Rail)
-      | Regex "(.+)" [ name ] -> ($"{module_}::{name}", PT.NoRail)
+        ($"{module_}::{name}")
+      | Regex "(.+)" [ name ] -> ($"{module_}::{name}")
       | _ ->
         Exception.raiseInternal
           $"Bad format in function name"
           [ "name", fnName.idText ]
 
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [])
 
   // Preliminary support for package manager functions
   | SynExpr.LongIdent (_,
@@ -238,14 +234,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                        _) when
     owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
     ->
-    let fnName = fnName.idText
-    let name, ster =
-      if String.endsWith "_ster" fnName then
-        String.dropRight 5 fnName, PT.Rail
-      else
-        fnName, PT.NoRail
-    let name = $"test/test/Test::{name}_v0"
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [], ster)
+    let name = $"test/test/Test::{fnName.idText}_v0"
+    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [])
 
   | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
     let obj1 =
@@ -401,8 +391,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   // Callers with multiple args are encoded as apps wrapping other apps.
   | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
     match c funcExpr with
-    | PT.EFnCall (id, name, args, ster) ->
-      PT.EFnCall(id, name, args @ [ c arg ], ster)
+    | PT.EFnCall (id, name, args) -> PT.EFnCall(id, name, args @ [ c arg ])
     | PT.EInfix (id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
     | PT.EInfix (id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
     // Fill in the feature flag fields (back to front)
@@ -418,12 +407,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     // A pipe with more than one entry
     | PT.EPipe (id, arg1, arg2, rest) ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
-    // Function calls sending to error rail
-    | PT.EVariable (id, name) when String.endsWith "_ster" name ->
-      let name = String.dropRight 5 name
-      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.Rail)
     | PT.EVariable (id, name) ->
-      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ], PT.NoRail)
+      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ])
     | e ->
       Exception.raiseInternal
         "Unsupported expression in app"

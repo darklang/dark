@@ -86,28 +86,6 @@
       ],
       "some error string"
     ],
-    "errorrail": [
-      "DErrorRail",
-      [
-        "DInt",
-        5
-      ]
-    ],
-    "errorrail with float": [
-      "DErrorRail",
-      [
-        "DObj",
-        {
-          "": [
-            "DFloat",
-            "NaN"
-          ],
-          "\u007F": [
-            "DUnit"
-          ]
-        }
-      ]
-    ],
     "escaped": [
       "DStr",
       "\u0014\u0004"

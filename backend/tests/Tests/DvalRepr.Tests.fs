@@ -26,10 +26,7 @@ let testDvalRoundtrippableRoundtrips =
   testMany
     "special roundtrippable dvals roundtrip"
     FuzzTests.InternalJson.Roundtrippable.roundtripsSuccessfully
-    [ RT.DObj(
-        Map.ofList [ ("", RT.DFloat 1.797693135e+308)
-                     ("a", RT.DErrorRail(RT.DFloat nan)) ]
-      ),
+    [ RT.DObj(Map.ofList [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]),
       true ]
 
 

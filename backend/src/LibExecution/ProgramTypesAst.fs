@@ -23,7 +23,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
-  | EFnCall (id, name, exprs, ster) -> EFnCall(id, name, List.map f exprs, ster)
+  | EFnCall (id, name, exprs) -> EFnCall(id, name, List.map f exprs)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)
   | EList (id, exprs) -> EList(id, List.map f exprs)
   | ETuple (id, first, second, theRest) ->

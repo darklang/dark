@@ -47,7 +47,7 @@ module Generators =
             RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName mod_ fn version)
           )
 
-        RT.EApply(gid (), call, args, RT.NotInPipe, RT.NoRail)
+        RT.EApply(gid (), call, args, RT.NotInPipe)
 
       gen {
         match typ with
@@ -168,8 +168,7 @@ module Generators =
 
         // FSTODO support all types
         | RT.TIncomplete
-        | RT.TPassword
-        | RT.TErrorRail ->
+        | RT.TPassword ->
           return Exception.raiseInternal $"Unsupported type (yet!)" [ "typ", typ ]
       }
 
@@ -291,9 +290,6 @@ module Generators =
           return!
             Gen.elements [ RT.Response(code, headers, body); RT.Redirect url ]
             |> Gen.map RT.DHttpResponse
-        | RT.TErrorRail ->
-          let! typ = Arb.generate<RT.DType>
-          return! Gen.map RT.DErrorRail (genDval' typ s)
 
         // FSTODO: support all types
         | RT.TPassword
@@ -422,7 +418,7 @@ let isOk ((fn, args) : FnAndArgs) : bool =
             RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName mod_ fn version)
           )
 
-        RT.EApply(gid (), call, args, RT.NotInPipe, RT.NoRail)
+        RT.EApply(gid (), call, args, RT.NotInPipe)
 
       let fnArgList = List.map (fun (name, _) -> RT.EVariable(gid (), name)) args
       callFn fn.module_ fn.function_ fn.version fnArgList

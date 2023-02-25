@@ -29,12 +29,6 @@ module FQFnName =
     | PT.FQFnName.Package p -> ST.FQFnName.Package(PackageFnName.toST p)
 
 
-module SendToRail =
-  let toST (ster : PT.SendToRail) : ST.SendToRail =
-    match ster with
-    | PT.Rail -> ST.Rail
-    | PT.NoRail -> ST.NoRail
-
 module BinaryOperation =
   let toST (op : PT.BinaryOperation) : ST.BinaryOperation =
     match op with
@@ -72,8 +66,8 @@ module Expr =
     | PT.EVariable (id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       ST.EFieldAccess(id, toST obj, fieldname)
-    | PT.EFnCall (id, name, args, ster) ->
-      ST.EFnCall(id, FQFnName.toST name, List.map toST args, SendToRail.toST ster)
+    | PT.EFnCall (id, name, args) ->
+      ST.EFnCall(id, FQFnName.toST name, List.map toST args)
     | PT.EInfix (id, PT.InfixFnCall (name), arg1, arg2) ->
       let isInfix = LibExecutionStdLib.StdLib.isInfixName
       assertFn2 "is a binop" isInfix (Option.unwrap "" name.module_) name.function_
@@ -126,7 +120,6 @@ module DType =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TErrorRail -> ST.TErrorRail
     | PT.TUserType (name, version) -> ST.TUserType(name, version)
     | PT.TBytes -> ST.TBytes
     | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)

@@ -21,20 +21,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Test" "errorRailValue" 0
-      parameters = [ Param.make "value" varA "" ]
-      returnType = varA
-      description = "Return an <type ErrorRail> wrapping <param value>"
-      fn =
-        (function
-        | _, [ value ] -> Ply(DErrorRail(value))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Test" "typeError" 0
+  [ { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
       description = "Return a value representing a type error"
