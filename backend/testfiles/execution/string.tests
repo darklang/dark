@@ -1,5 +1,5 @@
 [fn.c arg:string]
-Test.toChar_v0_ster arg
+(Test.toChar_v0 arg) |> Test.unwrap
 
 [tests.tests]
 "a" ++ "̂" = "â"
@@ -153,9 +153,9 @@ String.digest_v0 "🧟‍♀️🧟‍♂️" = "FBnrDureCzgPeGP9qOuW1BIiF2Wz5We
 String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"= "3QFqrhTPpxeje6XUNObFt2eJZZ1t0pAcX42AFdFVv42hco0bTOopQK3py4KMBT0m"
 
 // Random v2
-String.length_v1 (String.random_v2_ster 10) = 10
-String.length_v1 (String.random_v2_ster 5) = 5
-String.length_v1 (String.random_v2_ster 0) = 0
+String.length_v1 ((String.random_v2 10) |> Test.unwrap) = 10
+String.length_v1 ((String.random_v2 5) |> Test.unwrap) = 5
+String.length_v1 ((String.random_v2 0) |> Test.unwrap) = 0
 String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`"
 (String.random_v2 5) == (String.random_v2 5) = false
 
@@ -184,15 +184,6 @@ String.isEmpty_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 String.newline_v0 = "\n"
 
 
-// Random v1
-String.length_v1 (String.random_v2_ster 10) = 10
-String.length_v1 (String.random_v2_ster 5) = 5
-String.length_v1 (String.random_v2_ster 0) = 0
-String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`"
-(String.random_v2 5) == (String.random_v2 5) = false
-
-
-// length v1
 String.length_v1 "😄" = 1
 String.length_v1 "" = 0
 String.length_v1 "abcdef" = 6

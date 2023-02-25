@@ -17,28 +17,28 @@
 // ------------
 [test.db null roundtrip] with DB X
 (let _ = DB.set_v1 { x = null } "hello" X in
- DB.get_v1_ster "hello" X) = { x = null }
+ DB.get_v1 "hello" X) = Just { x = null }
 
 [test.db roundtrip case insensitive] with DB Insensitive
 (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
- DB.get_v1_ster "hello" Insensitive) = { cOlUmNnAmE = "some value" }
+ DB.get_v1 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
 
 [test.db roundtrip password] with DB Passwords
 // Each call to hash gets a different but compatible answer
 (let pw = Password.hash_v0 "password" in
  let x = DB.set_v1 { password = pw } "test" Passwords in
- let y = DB.queryOneWithExactFields_v0_ster { password = pw } Passwords in
+ let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
  Password.check_v0 y.password "password") = true
 
 [test.db roundtrip uuid] with DB Uuid
 (let i = Uuid.generate_v0 in
  let _ = DB.set_v1 { uu = i } "test2" Uuid in
  let result = DB.getAll_v3 Uuid in
- (result |> List.head_v2_ster).uu = i) = true
+ (result |> List.head_v2 |> Test.unwrap).uu = i) = true
 
 [test.db roundtrip lists] with DB Lists
 (let _ = DB.set_v1 { strs = ["str1"; "str2"]; ints = [-1,6,0]} "lists" Lists in
- DB.get_v1_ster "lists" Lists) = { strs = ["str1"; "str2"]; ints = [-1,6,0]}
+ DB.get_v1 "lists" Lists) = Just { strs = ["str1"; "str2"]; ints = [-1,6,0]}
 
 
 // ------------
@@ -280,7 +280,7 @@ DB.count X = 0
 [db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 
 [fn.addFriend key:string name:string height:int human:bool dob:string income:float]
-(let dob = Date.parse_v2_ster dob in
+(let dob = (Date.parse_v2 dob) |> Test.unwrap in
  let obj = { height = height; name = name; human = human; dob = dob; income = income } in
  DB.set_v1 obj key Person)
 
@@ -293,9 +293,10 @@ DB.count X = 0
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
 
 [fn.d datestr:string]
-(Date.parse_v2_ster datestr)
+(Date.parse_v2 datestr) |> Test.unwrap
+
 [fn.rossDOB x:any]
-(Date.parse_v2_ster  "1967-05-12T00:00:00Z")
+(d "1967-05-12T00:00:00Z")
 
 [fn.friendsError lambda:any]
 (let _ = prepFriends null in
@@ -476,11 +477,11 @@ friendsError (fun p -> p.dob != Date.now_v0) =
 // ------------
 
 [fn.beforeDate null:any]
-Date.parse_v2_ster "1900-01-01T00:00:00Z"
+d "1900-01-01T00:00:00Z"
 [fn.middleDate null:any]
-Date.parse_v2_ster "2000-01-01T00:00:00Z"
+d "2000-01-01T00:00:00Z"
 [fn.afterDate null:any]
-Date.parse_v2_ster "2100-01-01T00:00:00Z"
+d "2100-01-01T00:00:00Z"
 
 [fn.prepDates null:any]
 (let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in

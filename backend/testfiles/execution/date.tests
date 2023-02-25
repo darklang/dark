@@ -1,5 +1,5 @@
 [fn.d datestr:string]
-(Date.parse_v2_ster datestr)
+(Date.parse_v2 datestr) |> Test.unwrap
 
 [fn.p datestr:string]
 (Date.parse_v2 datestr) |> Result.map_v1 (fun x -> Date.toString_v0 x)
