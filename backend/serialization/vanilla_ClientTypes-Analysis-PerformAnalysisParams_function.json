@@ -558,118 +558,57 @@
                       ],
                       [
                         "ELet",
-                        468988830,
-                        "b",
+                        43886336,
+                        "i",
                         [
-                          "EBlank",
-                          133368677
-                        ],
-                        [
-                          "ELet",
-                          43886336,
-                          "i",
+                          "EIf",
+                          46231874,
+                          [
+                            "EFnCall",
+                            898531080,
+                            [
+                              "Stdlib",
+                              {
+                                "module_": "Bool",
+                                "function_": "isError",
+                                "version": 0
+                              }
+                            ],
+                            [
+                              [
+                                "EInteger",
+                                160106123,
+                                6
+                              ]
+                            ]
+                          ],
                           [
                             "EIf",
-                            46231874,
+                            729246077,
                             [
-                              "EFnCall",
-                              898531080,
+                              "EInfix",
+                              94793109,
                               [
-                                "Stdlib",
+                                "InfixFnCall",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
-                                  "version": 0
+                                  "module_": null,
+                                  "function_": "!="
                                 }
                               ],
                               [
-                                [
-                                  "EInteger",
-                                  160106123,
-                                  6
-                                ]
-                              ]
-                            ],
-                            [
-                              "EIf",
-                              729246077,
-                              [
-                                "EInfix",
-                                94793109,
-                                [
-                                  "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "!="
-                                  }
-                                ],
-                                [
-                                  "EInteger",
-                                  264400705,
-                                  5
-                                ],
-                                [
-                                  "EInteger",
-                                  335743639,
-                                  6
-                                ]
+                                "EInteger",
+                                264400705,
+                                5
                               ],
                               [
-                                "EInfix",
-                                775118986,
-                                [
-                                  "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  }
-                                ],
-                                [
-                                  "EInteger",
-                                  803876589,
-                                  5
-                                ],
-                                [
-                                  "EInteger",
-                                  219131014,
-                                  2
-                                ]
-                              ],
-                              [
-                                "ELambda",
-                                947647446,
-                                [
-                                  [
-                                    180359194,
-                                    "y"
-                                  ]
-                                ],
-                                [
-                                  "EInfix",
-                                  140609068,
-                                  [
-                                    "InfixFnCall",
-                                    {
-                                      "module_": null,
-                                      "function_": "\u002B"
-                                    }
-                                  ],
-                                  [
-                                    "EInteger",
-                                    450951790,
-                                    2
-                                  ],
-                                  [
-                                    "EVariable",
-                                    402203255,
-                                    "y"
-                                  ]
-                                ]
+                                "EInteger",
+                                335743639,
+                                6
                               ]
                             ],
                             [
                               "EInfix",
-                              265463935,
+                              775118986,
                               [
                                 "InfixFnCall",
                                 {
@@ -678,8 +617,28 @@
                                 }
                               ],
                               [
+                                "EInteger",
+                                803876589,
+                                5
+                              ],
+                              [
+                                "EInteger",
+                                219131014,
+                                2
+                              ]
+                            ],
+                            [
+                              "ELambda",
+                              947647446,
+                              [
+                                [
+                                  180359194,
+                                  "y"
+                                ]
+                              ],
+                              [
                                 "EInfix",
-                                312092282,
+                                140609068,
                                 [
                                   "InfixFnCall",
                                   {
@@ -688,127 +647,159 @@
                                   }
                                 ],
                                 [
-                                  "EFieldAccess",
-                                  974664608,
-                                  [
-                                    "EVariable",
-                                    1002893266,
-                                    "x"
-                                  ],
-                                  "y"
+                                  "EInteger",
+                                  450951790,
+                                  2
                                 ],
                                 [
-                                  "EFnCall",
-                                  173079901,
-                                  [
-                                    "Stdlib",
-                                    {
-                                      "module_": "Int",
-                                      "function_": "add",
-                                      "version": 0
-                                    }
-                                  ],
-                                  [
-                                    [
-                                      "EInteger",
-                                      250221144,
-                                      6
-                                    ],
-                                    [
-                                      "EInteger",
-                                      298149318,
-                                      2
-                                    ]
-                                  ]
-                                ]
-                              ],
-                              [
-                                "EList",
-                                539797095,
-                                [
-                                  [
-                                    "EInteger",
-                                    267797631,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    352138743,
-                                    6
-                                  ],
-                                  [
-                                    "EInteger",
-                                    430871955,
-                                    7
-                                  ]
+                                  "EVariable",
+                                  402203255,
+                                  "y"
                                 ]
                               ]
                             ]
                           ],
                           [
-                            "ELet",
-                            831830073,
-                            "r",
+                            "EInfix",
+                            265463935,
                             [
-                              "ERecord",
-                              109539183,
+                              "InfixFnCall",
+                              {
+                                "module_": null,
+                                "function_": "\u002B"
+                              }
+                            ],
+                            [
+                              "EInfix",
+                              312092282,
                               [
+                                "InfixFnCall",
+                                {
+                                  "module_": null,
+                                  "function_": "\u002B"
+                                }
+                              ],
+                              [
+                                "EFieldAccess",
+                                974664608,
                                 [
-                                  "field",
-                                  [
-                                    "EPipe",
-                                    786862131,
-                                    [
-                                      "EInteger",
-                                      555880460,
-                                      5
-                                    ],
-                                    [
-                                      "EInfix",
-                                      1021880969,
-                                      [
-                                        "InfixFnCall",
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        }
-                                      ],
-                                      [
-                                        "EPipeTarget",
-                                        936577032
-                                      ],
-                                      [
-                                        "EInteger",
-                                        962393769,
-                                        2
-                                      ]
-                                    ],
-                                    []
-                                  ]
+                                  "EVariable",
+                                  1002893266,
+                                  "x"
+                                ],
+                                "y"
+                              ],
+                              [
+                                "EFnCall",
+                                173079901,
+                                [
+                                  "Stdlib",
+                                  {
+                                    "module_": "Int",
+                                    "function_": "add",
+                                    "version": 0
+                                  }
                                 ],
                                 [
-                                  "constructor",
                                   [
-                                    "EConstructor",
-                                    567764301,
-                                    "Ok",
+                                    "EInteger",
+                                    250221144,
+                                    6
+                                  ],
+                                  [
+                                    "EInteger",
+                                    298149318,
+                                    2
+                                  ]
+                                ]
+                              ]
+                            ],
+                            [
+                              "EList",
+                              539797095,
+                              [
+                                [
+                                  "EInteger",
+                                  267797631,
+                                  5
+                                ],
+                                [
+                                  "EInteger",
+                                  352138743,
+                                  6
+                                ],
+                                [
+                                  "EInteger",
+                                  430871955,
+                                  7
+                                ]
+                              ]
+                            ]
+                          ]
+                        ],
+                        [
+                          "ELet",
+                          831830073,
+                          "r",
+                          [
+                            "ERecord",
+                            109539183,
+                            [
+                              [
+                                "field",
+                                [
+                                  "EPipe",
+                                  786862131,
+                                  [
+                                    "EInteger",
+                                    555880460,
+                                    5
+                                  ],
+                                  [
+                                    "EInfix",
+                                    1021880969,
                                     [
+                                      "InfixFnCall",
+                                      {
+                                        "module_": null,
+                                        "function_": "\u002B"
+                                      }
+                                    ],
+                                    [
+                                      "EPipeTarget",
+                                      936577032
+                                    ],
+                                    [
+                                      "EInteger",
+                                      962393769,
+                                      2
+                                    ]
+                                  ],
+                                  []
+                                ]
+                              ],
+                              [
+                                "constructor",
+                                [
+                                  "EConstructor",
+                                  567764301,
+                                  "Ok",
+                                  [
+                                    [
+                                      "EConstructor",
+                                      646107057,
+                                      "Error",
                                       [
-                                        "EConstructor",
-                                        646107057,
-                                        "Error",
                                         [
+                                          "EConstructor",
+                                          689802831,
+                                          "Just",
                                           [
-                                            "EConstructor",
-                                            689802831,
-                                            "Just",
                                             [
-                                              [
-                                                "EConstructor",
-                                                957916875,
-                                                "Nothing",
-                                                []
-                                              ]
+                                              "EConstructor",
+                                              957916875,
+                                              "Nothing",
+                                              []
                                             ]
                                           ]
                                         ]
@@ -817,281 +808,270 @@
                                   ]
                                 ]
                               ]
-                            ],
+                            ]
+                          ],
+                          [
+                            "ELet",
+                            745304029,
+                            "m",
                             [
-                              "ELet",
-                              745304029,
-                              "m",
+                              "EMatch",
+                              889712088,
                               [
-                                "EMatch",
-                                889712088,
+                                "EFnCall",
+                                203239466,
                                 [
-                                  "EFnCall",
-                                  203239466,
+                                  "Stdlib",
+                                  {
+                                    "module_": "Mod",
+                                    "function_": "function",
+                                    "version": 2
+                                  }
+                                ],
+                                []
+                              ],
+                              [
+                                [
                                   [
-                                    "Stdlib",
-                                    {
-                                      "module_": "Mod",
-                                      "function_": "function",
-                                      "version": 2
-                                    }
+                                    "MPConstructor",
+                                    1015986188,
+                                    "Ok",
+                                    [
+                                      [
+                                        "MPVariable",
+                                        334386852,
+                                        "x"
+                                      ]
+                                    ]
                                   ],
-                                  []
+                                  [
+                                    "EVariable",
+                                    863810169,
+                                    "v"
+                                  ]
                                 ],
                                 [
                                   [
-                                    [
-                                      "MPConstructor",
-                                      1015986188,
-                                      "Ok",
-                                      [
-                                        [
-                                          "MPVariable",
-                                          334386852,
-                                          "x"
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      "EVariable",
-                                      863810169,
-                                      "v"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPInteger",
-                                      928253813,
-                                      5
-                                    ],
-                                    [
-                                      "EInteger",
-                                      342670561,
-                                      "-9223372036854775808"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPBool",
-                                      435227293,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      232748650,
-                                      7
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPCharacter",
-                                      387662539,
-                                      "c"
-                                    ],
-                                    [
-                                      "ECharacter",
-                                      657848009,
-                                      "c"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPString",
-                                      491115870,
-                                      "string"
-                                    ],
-                                    [
-                                      "EString",
-                                      820329949,
-                                      "string"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPUnit",
-                                      701616052
-                                    ],
-                                    [
-                                      "EUnit",
-                                      731162955
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPVariable",
-                                      722099983,
-                                      "var"
-                                    ],
-                                    [
-                                      "EInfix",
-                                      275666765,
-                                      [
-                                        "InfixFnCall",
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        }
-                                      ],
-                                      [
-                                        "EInteger",
-                                        739193732,
-                                        6
-                                      ],
-                                      [
-                                        "EVariable",
-                                        880556562,
-                                        "var"
-                                      ]
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPFloat",
-                                      409097457,
-                                      [
-                                        "Positive"
-                                      ],
-                                      "5",
-                                      "6"
-                                    ],
-                                    [
-                                      "EFloat",
-                                      131187958,
-                                      [
-                                        "Positive"
-                                      ],
-                                      "5",
-                                      "6"
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPBlank",
-                                      858594159
-                                    ],
-                                    [
-                                      "EInteger",
-                                      135348705,
-                                      6
-                                    ]
-                                  ],
-                                  [
-                                    [
-                                      "MPTuple",
-                                      1285610,
-                                      [
-                                        "MPVariable",
-                                        17823641,
-                                        "a"
-                                      ],
-                                      [
-                                        "MPVariable",
-                                        58123641,
-                                        "b"
-                                      ],
-                                      [
-                                        [
-                                          "MPVariable",
-                                          95723641,
-                                          "c"
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      "EBool",
-                                      123716747,
-                                      true
-                                    ]
-                                  ]
-                                ]
-                              ],
-                              [
-                                "ELet",
-                                927055617,
-                                "f",
-                                [
-                                  "EFeatureFlag",
-                                  882488977,
-                                  "test",
-                                  [
-                                    "EBool",
-                                    349352147,
-                                    true
-                                  ],
-                                  [
-                                    "EInteger",
-                                    578528886,
+                                    "MPInteger",
+                                    928253813,
                                     5
                                   ],
                                   [
                                     "EInteger",
-                                    562930224,
-                                    6
+                                    342670561,
+                                    "-9223372036854775808"
                                   ]
                                 ],
                                 [
-                                  "ELet",
-                                  6345345,
-                                  "partials",
                                   [
-                                    "EList",
-                                    23423423,
-                                    []
+                                    "MPBool",
+                                    435227293,
+                                    true
+                                  ],
+                                  [
+                                    "EInteger",
+                                    232748650,
+                                    7
+                                  ]
+                                ],
+                                [
+                                  [
+                                    "MPCharacter",
+                                    387662539,
+                                    "c"
+                                  ],
+                                  [
+                                    "ECharacter",
+                                    657848009,
+                                    "c"
+                                  ]
+                                ],
+                                [
+                                  [
+                                    "MPString",
+                                    491115870,
+                                    "string"
+                                  ],
+                                  [
+                                    "EString",
+                                    820329949,
+                                    "string"
+                                  ]
+                                ],
+                                [
+                                  [
+                                    "MPUnit",
+                                    701616052
+                                  ],
+                                  [
+                                    "EUnit",
+                                    731162955
+                                  ]
+                                ],
+                                [
+                                  [
+                                    "MPVariable",
+                                    722099983,
+                                    "var"
+                                  ],
+                                  [
+                                    "EInfix",
+                                    275666765,
+                                    [
+                                      "InfixFnCall",
+                                      {
+                                        "module_": null,
+                                        "function_": "\u002B"
+                                      }
+                                    ],
+                                    [
+                                      "EInteger",
+                                      739193732,
+                                      6
+                                    ],
+                                    [
+                                      "EVariable",
+                                      880556562,
+                                      "var"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  [
+                                    "MPFloat",
+                                    409097457,
+                                    [
+                                      "Positive"
+                                    ],
+                                    "5",
+                                    "6"
+                                  ],
+                                  [
+                                    "EFloat",
+                                    131187958,
+                                    [
+                                      "Positive"
+                                    ],
+                                    "5",
+                                    "6"
+                                  ]
+                                ],
+                                [
+                                  [
+                                    "MPTuple",
+                                    1285610,
+                                    [
+                                      "MPVariable",
+                                      17823641,
+                                      "a"
+                                    ],
+                                    [
+                                      "MPVariable",
+                                      58123641,
+                                      "b"
+                                    ],
+                                    [
+                                      [
+                                        "MPVariable",
+                                        95723641,
+                                        "c"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "EBool",
+                                    123716747,
+                                    true
+                                  ]
+                                ]
+                              ]
+                            ],
+                            [
+                              "ELet",
+                              927055617,
+                              "f",
+                              [
+                                "EFeatureFlag",
+                                882488977,
+                                "test",
+                                [
+                                  "EBool",
+                                  349352147,
+                                  true
+                                ],
+                                [
+                                  "EInteger",
+                                  578528886,
+                                  5
+                                ],
+                                [
+                                  "EInteger",
+                                  562930224,
+                                  6
+                                ]
+                              ],
+                              [
+                                "ELet",
+                                6345345,
+                                "partials",
+                                [
+                                  "EList",
+                                  23423423,
+                                  []
+                                ],
+                                [
+                                  "ELet",
+                                  883434,
+                                  "tuples",
+                                  [
+                                    "ETuple",
+                                    72333,
+                                    [
+                                      "EInteger",
+                                      34545,
+                                      5
+                                    ],
+                                    [
+                                      "EInteger",
+                                      34545,
+                                      5
+                                    ],
+                                    [
+                                      [
+                                        "EInteger",
+                                        34545,
+                                        5
+                                      ]
+                                    ]
                                   ],
                                   [
                                     "ELet",
-                                    883434,
-                                    "tuples",
+                                    47462,
+                                    "binopAnd",
                                     [
-                                      "ETuple",
-                                      72333,
+                                      "EInfix",
+                                      234234,
                                       [
-                                        "EInteger",
-                                        34545,
-                                        5
-                                      ],
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        5
-                                      ],
-                                      [
+                                        "BinOp",
                                         [
-                                          "EInteger",
-                                          34545,
-                                          5
+                                          "BinOpAnd"
                                         ]
+                                      ],
+                                      [
+                                        "EBool",
+                                        234234,
+                                        true
+                                      ],
+                                      [
+                                        "EBool",
+                                        234234,
+                                        false
                                       ]
                                     ],
                                     [
-                                      "ELet",
-                                      47462,
-                                      "binopAnd",
-                                      [
-                                        "EInfix",
-                                        234234,
-                                        [
-                                          "BinOp",
-                                          [
-                                            "BinOpAnd"
-                                          ]
-                                        ],
-                                        [
-                                          "EBool",
-                                          234234,
-                                          true
-                                        ],
-                                        [
-                                          "EBool",
-                                          234234,
-                                          false
-                                        ]
-                                      ],
-                                      [
-                                        "EInteger",
-                                        34545,
-                                        5
-                                      ]
+                                      "EInteger",
+                                      34545,
+                                      5
                                     ]
                                   ]
                                 ]
@@ -1154,7 +1134,7 @@
                     ],
                     "symtable": {},
                     "body": [
-                      "EBlank",
+                      "EUnit",
                       1234
                     ]
                   }
@@ -4432,7 +4412,7 @@
                     ],
                     "symtable": {},
                     "body": [
-                      "EBlank",
+                      "EUnit",
                       1234
                     ]
                   }
@@ -8238,118 +8218,57 @@
                         ],
                         [
                           "ELet",
-                          468988830,
-                          "b",
+                          43886336,
+                          "i",
                           [
-                            "EBlank",
-                            133368677
-                          ],
-                          [
-                            "ELet",
-                            43886336,
-                            "i",
+                            "EIf",
+                            46231874,
+                            [
+                              "EFnCall",
+                              898531080,
+                              [
+                                "Stdlib",
+                                {
+                                  "module_": "Bool",
+                                  "function_": "isError",
+                                  "version": 0
+                                }
+                              ],
+                              [
+                                [
+                                  "EInteger",
+                                  160106123,
+                                  6
+                                ]
+                              ]
+                            ],
                             [
                               "EIf",
-                              46231874,
+                              729246077,
                               [
-                                "EFnCall",
-                                898531080,
+                                "EInfix",
+                                94793109,
                                 [
-                                  "Stdlib",
+                                  "InfixFnCall",
                                   {
-                                    "module_": "Bool",
-                                    "function_": "isError",
-                                    "version": 0
+                                    "module_": null,
+                                    "function_": "!="
                                   }
                                 ],
                                 [
-                                  [
-                                    "EInteger",
-                                    160106123,
-                                    6
-                                  ]
-                                ]
-                              ],
-                              [
-                                "EIf",
-                                729246077,
-                                [
-                                  "EInfix",
-                                  94793109,
-                                  [
-                                    "InfixFnCall",
-                                    {
-                                      "module_": null,
-                                      "function_": "!="
-                                    }
-                                  ],
-                                  [
-                                    "EInteger",
-                                    264400705,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    335743639,
-                                    6
-                                  ]
+                                  "EInteger",
+                                  264400705,
+                                  5
                                 ],
                                 [
-                                  "EInfix",
-                                  775118986,
-                                  [
-                                    "InfixFnCall",
-                                    {
-                                      "module_": null,
-                                      "function_": "\u002B"
-                                    }
-                                  ],
-                                  [
-                                    "EInteger",
-                                    803876589,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    219131014,
-                                    2
-                                  ]
-                                ],
-                                [
-                                  "ELambda",
-                                  947647446,
-                                  [
-                                    [
-                                      180359194,
-                                      "y"
-                                    ]
-                                  ],
-                                  [
-                                    "EInfix",
-                                    140609068,
-                                    [
-                                      "InfixFnCall",
-                                      {
-                                        "module_": null,
-                                        "function_": "\u002B"
-                                      }
-                                    ],
-                                    [
-                                      "EInteger",
-                                      450951790,
-                                      2
-                                    ],
-                                    [
-                                      "EVariable",
-                                      402203255,
-                                      "y"
-                                    ]
-                                  ]
+                                  "EInteger",
+                                  335743639,
+                                  6
                                 ]
                               ],
                               [
                                 "EInfix",
-                                265463935,
+                                775118986,
                                 [
                                   "InfixFnCall",
                                   {
@@ -8358,8 +8277,28 @@
                                   }
                                 ],
                                 [
+                                  "EInteger",
+                                  803876589,
+                                  5
+                                ],
+                                [
+                                  "EInteger",
+                                  219131014,
+                                  2
+                                ]
+                              ],
+                              [
+                                "ELambda",
+                                947647446,
+                                [
+                                  [
+                                    180359194,
+                                    "y"
+                                  ]
+                                ],
+                                [
                                   "EInfix",
-                                  312092282,
+                                  140609068,
                                   [
                                     "InfixFnCall",
                                     {
@@ -8368,127 +8307,159 @@
                                     }
                                   ],
                                   [
-                                    "EFieldAccess",
-                                    974664608,
-                                    [
-                                      "EVariable",
-                                      1002893266,
-                                      "x"
-                                    ],
-                                    "y"
+                                    "EInteger",
+                                    450951790,
+                                    2
                                   ],
                                   [
-                                    "EFnCall",
-                                    173079901,
-                                    [
-                                      "Stdlib",
-                                      {
-                                        "module_": "Int",
-                                        "function_": "add",
-                                        "version": 0
-                                      }
-                                    ],
-                                    [
-                                      [
-                                        "EInteger",
-                                        250221144,
-                                        6
-                                      ],
-                                      [
-                                        "EInteger",
-                                        298149318,
-                                        2
-                                      ]
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "EList",
-                                  539797095,
-                                  [
-                                    [
-                                      "EInteger",
-                                      267797631,
-                                      5
-                                    ],
-                                    [
-                                      "EInteger",
-                                      352138743,
-                                      6
-                                    ],
-                                    [
-                                      "EInteger",
-                                      430871955,
-                                      7
-                                    ]
+                                    "EVariable",
+                                    402203255,
+                                    "y"
                                   ]
                                 ]
                               ]
                             ],
                             [
-                              "ELet",
-                              831830073,
-                              "r",
+                              "EInfix",
+                              265463935,
                               [
-                                "ERecord",
-                                109539183,
+                                "InfixFnCall",
+                                {
+                                  "module_": null,
+                                  "function_": "\u002B"
+                                }
+                              ],
+                              [
+                                "EInfix",
+                                312092282,
                                 [
+                                  "InfixFnCall",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  }
+                                ],
+                                [
+                                  "EFieldAccess",
+                                  974664608,
                                   [
-                                    "field",
-                                    [
-                                      "EPipe",
-                                      786862131,
-                                      [
-                                        "EInteger",
-                                        555880460,
-                                        5
-                                      ],
-                                      [
-                                        "EInfix",
-                                        1021880969,
-                                        [
-                                          "InfixFnCall",
-                                          {
-                                            "module_": null,
-                                            "function_": "\u002B"
-                                          }
-                                        ],
-                                        [
-                                          "EPipeTarget",
-                                          936577032
-                                        ],
-                                        [
-                                          "EInteger",
-                                          962393769,
-                                          2
-                                        ]
-                                      ],
-                                      []
-                                    ]
+                                    "EVariable",
+                                    1002893266,
+                                    "x"
+                                  ],
+                                  "y"
+                                ],
+                                [
+                                  "EFnCall",
+                                  173079901,
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Int",
+                                      "function_": "add",
+                                      "version": 0
+                                    }
                                   ],
                                   [
-                                    "constructor",
                                     [
-                                      "EConstructor",
-                                      567764301,
-                                      "Ok",
+                                      "EInteger",
+                                      250221144,
+                                      6
+                                    ],
+                                    [
+                                      "EInteger",
+                                      298149318,
+                                      2
+                                    ]
+                                  ]
+                                ]
+                              ],
+                              [
+                                "EList",
+                                539797095,
+                                [
+                                  [
+                                    "EInteger",
+                                    267797631,
+                                    5
+                                  ],
+                                  [
+                                    "EInteger",
+                                    352138743,
+                                    6
+                                  ],
+                                  [
+                                    "EInteger",
+                                    430871955,
+                                    7
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ],
+                          [
+                            "ELet",
+                            831830073,
+                            "r",
+                            [
+                              "ERecord",
+                              109539183,
+                              [
+                                [
+                                  "field",
+                                  [
+                                    "EPipe",
+                                    786862131,
+                                    [
+                                      "EInteger",
+                                      555880460,
+                                      5
+                                    ],
+                                    [
+                                      "EInfix",
+                                      1021880969,
                                       [
+                                        "InfixFnCall",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        }
+                                      ],
+                                      [
+                                        "EPipeTarget",
+                                        936577032
+                                      ],
+                                      [
+                                        "EInteger",
+                                        962393769,
+                                        2
+                                      ]
+                                    ],
+                                    []
+                                  ]
+                                ],
+                                [
+                                  "constructor",
+                                  [
+                                    "EConstructor",
+                                    567764301,
+                                    "Ok",
+                                    [
+                                      [
+                                        "EConstructor",
+                                        646107057,
+                                        "Error",
                                         [
-                                          "EConstructor",
-                                          646107057,
-                                          "Error",
                                           [
+                                            "EConstructor",
+                                            689802831,
+                                            "Just",
                                             [
-                                              "EConstructor",
-                                              689802831,
-                                              "Just",
                                               [
-                                                [
-                                                  "EConstructor",
-                                                  957916875,
-                                                  "Nothing",
-                                                  []
-                                                ]
+                                                "EConstructor",
+                                                957916875,
+                                                "Nothing",
+                                                []
                                               ]
                                             ]
                                           ]
@@ -8497,281 +8468,270 @@
                                     ]
                                   ]
                                 ]
-                              ],
+                              ]
+                            ],
+                            [
+                              "ELet",
+                              745304029,
+                              "m",
                               [
-                                "ELet",
-                                745304029,
-                                "m",
+                                "EMatch",
+                                889712088,
                                 [
-                                  "EMatch",
-                                  889712088,
+                                  "EFnCall",
+                                  203239466,
                                   [
-                                    "EFnCall",
-                                    203239466,
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "function_": "function",
+                                      "version": 2
+                                    }
+                                  ],
+                                  []
+                                ],
+                                [
+                                  [
                                     [
-                                      "Stdlib",
-                                      {
-                                        "module_": "Mod",
-                                        "function_": "function",
-                                        "version": 2
-                                      }
+                                      "MPConstructor",
+                                      1015986188,
+                                      "Ok",
+                                      [
+                                        [
+                                          "MPVariable",
+                                          334386852,
+                                          "x"
+                                        ]
+                                      ]
                                     ],
-                                    []
+                                    [
+                                      "EVariable",
+                                      863810169,
+                                      "v"
+                                    ]
                                   ],
                                   [
                                     [
-                                      [
-                                        "MPConstructor",
-                                        1015986188,
-                                        "Ok",
-                                        [
-                                          [
-                                            "MPVariable",
-                                            334386852,
-                                            "x"
-                                          ]
-                                        ]
-                                      ],
-                                      [
-                                        "EVariable",
-                                        863810169,
-                                        "v"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPInteger",
-                                        928253813,
-                                        5
-                                      ],
-                                      [
-                                        "EInteger",
-                                        342670561,
-                                        "-9223372036854775808"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPBool",
-                                        435227293,
-                                        true
-                                      ],
-                                      [
-                                        "EInteger",
-                                        232748650,
-                                        7
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPCharacter",
-                                        387662539,
-                                        "c"
-                                      ],
-                                      [
-                                        "ECharacter",
-                                        657848009,
-                                        "c"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPString",
-                                        491115870,
-                                        "string"
-                                      ],
-                                      [
-                                        "EString",
-                                        820329949,
-                                        "string"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPUnit",
-                                        701616052
-                                      ],
-                                      [
-                                        "EUnit",
-                                        731162955
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPVariable",
-                                        722099983,
-                                        "var"
-                                      ],
-                                      [
-                                        "EInfix",
-                                        275666765,
-                                        [
-                                          "InfixFnCall",
-                                          {
-                                            "module_": null,
-                                            "function_": "\u002B"
-                                          }
-                                        ],
-                                        [
-                                          "EInteger",
-                                          739193732,
-                                          6
-                                        ],
-                                        [
-                                          "EVariable",
-                                          880556562,
-                                          "var"
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPFloat",
-                                        409097457,
-                                        [
-                                          "Positive"
-                                        ],
-                                        "5",
-                                        "6"
-                                      ],
-                                      [
-                                        "EFloat",
-                                        131187958,
-                                        [
-                                          "Positive"
-                                        ],
-                                        "5",
-                                        "6"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPBlank",
-                                        858594159
-                                      ],
-                                      [
-                                        "EInteger",
-                                        135348705,
-                                        6
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPTuple",
-                                        1285610,
-                                        [
-                                          "MPVariable",
-                                          17823641,
-                                          "a"
-                                        ],
-                                        [
-                                          "MPVariable",
-                                          58123641,
-                                          "b"
-                                        ],
-                                        [
-                                          [
-                                            "MPVariable",
-                                            95723641,
-                                            "c"
-                                          ]
-                                        ]
-                                      ],
-                                      [
-                                        "EBool",
-                                        123716747,
-                                        true
-                                      ]
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "ELet",
-                                  927055617,
-                                  "f",
-                                  [
-                                    "EFeatureFlag",
-                                    882488977,
-                                    "test",
-                                    [
-                                      "EBool",
-                                      349352147,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      578528886,
+                                      "MPInteger",
+                                      928253813,
                                       5
                                     ],
                                     [
                                       "EInteger",
-                                      562930224,
-                                      6
+                                      342670561,
+                                      "-9223372036854775808"
                                     ]
                                   ],
                                   [
-                                    "ELet",
-                                    6345345,
-                                    "partials",
                                     [
-                                      "EList",
-                                      23423423,
-                                      []
+                                      "MPBool",
+                                      435227293,
+                                      true
+                                    ],
+                                    [
+                                      "EInteger",
+                                      232748650,
+                                      7
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPCharacter",
+                                      387662539,
+                                      "c"
+                                    ],
+                                    [
+                                      "ECharacter",
+                                      657848009,
+                                      "c"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPString",
+                                      491115870,
+                                      "string"
+                                    ],
+                                    [
+                                      "EString",
+                                      820329949,
+                                      "string"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPUnit",
+                                      701616052
+                                    ],
+                                    [
+                                      "EUnit",
+                                      731162955
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPVariable",
+                                      722099983,
+                                      "var"
+                                    ],
+                                    [
+                                      "EInfix",
+                                      275666765,
+                                      [
+                                        "InfixFnCall",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        }
+                                      ],
+                                      [
+                                        "EInteger",
+                                        739193732,
+                                        6
+                                      ],
+                                      [
+                                        "EVariable",
+                                        880556562,
+                                        "var"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPFloat",
+                                      409097457,
+                                      [
+                                        "Positive"
+                                      ],
+                                      "5",
+                                      "6"
+                                    ],
+                                    [
+                                      "EFloat",
+                                      131187958,
+                                      [
+                                        "Positive"
+                                      ],
+                                      "5",
+                                      "6"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPTuple",
+                                      1285610,
+                                      [
+                                        "MPVariable",
+                                        17823641,
+                                        "a"
+                                      ],
+                                      [
+                                        "MPVariable",
+                                        58123641,
+                                        "b"
+                                      ],
+                                      [
+                                        [
+                                          "MPVariable",
+                                          95723641,
+                                          "c"
+                                        ]
+                                      ]
+                                    ],
+                                    [
+                                      "EBool",
+                                      123716747,
+                                      true
+                                    ]
+                                  ]
+                                ]
+                              ],
+                              [
+                                "ELet",
+                                927055617,
+                                "f",
+                                [
+                                  "EFeatureFlag",
+                                  882488977,
+                                  "test",
+                                  [
+                                    "EBool",
+                                    349352147,
+                                    true
+                                  ],
+                                  [
+                                    "EInteger",
+                                    578528886,
+                                    5
+                                  ],
+                                  [
+                                    "EInteger",
+                                    562930224,
+                                    6
+                                  ]
+                                ],
+                                [
+                                  "ELet",
+                                  6345345,
+                                  "partials",
+                                  [
+                                    "EList",
+                                    23423423,
+                                    []
+                                  ],
+                                  [
+                                    "ELet",
+                                    883434,
+                                    "tuples",
+                                    [
+                                      "ETuple",
+                                      72333,
+                                      [
+                                        "EInteger",
+                                        34545,
+                                        5
+                                      ],
+                                      [
+                                        "EInteger",
+                                        34545,
+                                        5
+                                      ],
+                                      [
+                                        [
+                                          "EInteger",
+                                          34545,
+                                          5
+                                        ]
+                                      ]
                                     ],
                                     [
                                       "ELet",
-                                      883434,
-                                      "tuples",
+                                      47462,
+                                      "binopAnd",
                                       [
-                                        "ETuple",
-                                        72333,
+                                        "EInfix",
+                                        234234,
                                         [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
+                                          "BinOp",
                                           [
-                                            "EInteger",
-                                            34545,
-                                            5
+                                            "BinOpAnd"
                                           ]
+                                        ],
+                                        [
+                                          "EBool",
+                                          234234,
+                                          true
+                                        ],
+                                        [
+                                          "EBool",
+                                          234234,
+                                          false
                                         ]
                                       ],
                                       [
-                                        "ELet",
-                                        47462,
-                                        "binopAnd",
-                                        [
-                                          "EInfix",
-                                          234234,
-                                          [
-                                            "BinOp",
-                                            [
-                                              "BinOpAnd"
-                                            ]
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            true
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            false
-                                          ]
-                                        ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
+                                        "EInteger",
+                                        34545,
+                                        5
                                       ]
                                     ]
                                   ]
@@ -9128,118 +9088,57 @@
                         ],
                         [
                           "ELet",
-                          468988830,
-                          "b",
+                          43886336,
+                          "i",
                           [
-                            "EBlank",
-                            133368677
-                          ],
-                          [
-                            "ELet",
-                            43886336,
-                            "i",
+                            "EIf",
+                            46231874,
+                            [
+                              "EFnCall",
+                              898531080,
+                              [
+                                "Stdlib",
+                                {
+                                  "module_": "Bool",
+                                  "function_": "isError",
+                                  "version": 0
+                                }
+                              ],
+                              [
+                                [
+                                  "EInteger",
+                                  160106123,
+                                  6
+                                ]
+                              ]
+                            ],
                             [
                               "EIf",
-                              46231874,
+                              729246077,
                               [
-                                "EFnCall",
-                                898531080,
+                                "EInfix",
+                                94793109,
                                 [
-                                  "Stdlib",
+                                  "InfixFnCall",
                                   {
-                                    "module_": "Bool",
-                                    "function_": "isError",
-                                    "version": 0
+                                    "module_": null,
+                                    "function_": "!="
                                   }
                                 ],
                                 [
-                                  [
-                                    "EInteger",
-                                    160106123,
-                                    6
-                                  ]
-                                ]
-                              ],
-                              [
-                                "EIf",
-                                729246077,
-                                [
-                                  "EInfix",
-                                  94793109,
-                                  [
-                                    "InfixFnCall",
-                                    {
-                                      "module_": null,
-                                      "function_": "!="
-                                    }
-                                  ],
-                                  [
-                                    "EInteger",
-                                    264400705,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    335743639,
-                                    6
-                                  ]
+                                  "EInteger",
+                                  264400705,
+                                  5
                                 ],
                                 [
-                                  "EInfix",
-                                  775118986,
-                                  [
-                                    "InfixFnCall",
-                                    {
-                                      "module_": null,
-                                      "function_": "\u002B"
-                                    }
-                                  ],
-                                  [
-                                    "EInteger",
-                                    803876589,
-                                    5
-                                  ],
-                                  [
-                                    "EInteger",
-                                    219131014,
-                                    2
-                                  ]
-                                ],
-                                [
-                                  "ELambda",
-                                  947647446,
-                                  [
-                                    [
-                                      180359194,
-                                      "y"
-                                    ]
-                                  ],
-                                  [
-                                    "EInfix",
-                                    140609068,
-                                    [
-                                      "InfixFnCall",
-                                      {
-                                        "module_": null,
-                                        "function_": "\u002B"
-                                      }
-                                    ],
-                                    [
-                                      "EInteger",
-                                      450951790,
-                                      2
-                                    ],
-                                    [
-                                      "EVariable",
-                                      402203255,
-                                      "y"
-                                    ]
-                                  ]
+                                  "EInteger",
+                                  335743639,
+                                  6
                                 ]
                               ],
                               [
                                 "EInfix",
-                                265463935,
+                                775118986,
                                 [
                                   "InfixFnCall",
                                   {
@@ -9248,8 +9147,28 @@
                                   }
                                 ],
                                 [
+                                  "EInteger",
+                                  803876589,
+                                  5
+                                ],
+                                [
+                                  "EInteger",
+                                  219131014,
+                                  2
+                                ]
+                              ],
+                              [
+                                "ELambda",
+                                947647446,
+                                [
+                                  [
+                                    180359194,
+                                    "y"
+                                  ]
+                                ],
+                                [
                                   "EInfix",
-                                  312092282,
+                                  140609068,
                                   [
                                     "InfixFnCall",
                                     {
@@ -9258,127 +9177,159 @@
                                     }
                                   ],
                                   [
-                                    "EFieldAccess",
-                                    974664608,
-                                    [
-                                      "EVariable",
-                                      1002893266,
-                                      "x"
-                                    ],
-                                    "y"
+                                    "EInteger",
+                                    450951790,
+                                    2
                                   ],
                                   [
-                                    "EFnCall",
-                                    173079901,
-                                    [
-                                      "Stdlib",
-                                      {
-                                        "module_": "Int",
-                                        "function_": "add",
-                                        "version": 0
-                                      }
-                                    ],
-                                    [
-                                      [
-                                        "EInteger",
-                                        250221144,
-                                        6
-                                      ],
-                                      [
-                                        "EInteger",
-                                        298149318,
-                                        2
-                                      ]
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "EList",
-                                  539797095,
-                                  [
-                                    [
-                                      "EInteger",
-                                      267797631,
-                                      5
-                                    ],
-                                    [
-                                      "EInteger",
-                                      352138743,
-                                      6
-                                    ],
-                                    [
-                                      "EInteger",
-                                      430871955,
-                                      7
-                                    ]
+                                    "EVariable",
+                                    402203255,
+                                    "y"
                                   ]
                                 ]
                               ]
                             ],
                             [
-                              "ELet",
-                              831830073,
-                              "r",
+                              "EInfix",
+                              265463935,
                               [
-                                "ERecord",
-                                109539183,
+                                "InfixFnCall",
+                                {
+                                  "module_": null,
+                                  "function_": "\u002B"
+                                }
+                              ],
+                              [
+                                "EInfix",
+                                312092282,
                                 [
+                                  "InfixFnCall",
+                                  {
+                                    "module_": null,
+                                    "function_": "\u002B"
+                                  }
+                                ],
+                                [
+                                  "EFieldAccess",
+                                  974664608,
                                   [
-                                    "field",
-                                    [
-                                      "EPipe",
-                                      786862131,
-                                      [
-                                        "EInteger",
-                                        555880460,
-                                        5
-                                      ],
-                                      [
-                                        "EInfix",
-                                        1021880969,
-                                        [
-                                          "InfixFnCall",
-                                          {
-                                            "module_": null,
-                                            "function_": "\u002B"
-                                          }
-                                        ],
-                                        [
-                                          "EPipeTarget",
-                                          936577032
-                                        ],
-                                        [
-                                          "EInteger",
-                                          962393769,
-                                          2
-                                        ]
-                                      ],
-                                      []
-                                    ]
+                                    "EVariable",
+                                    1002893266,
+                                    "x"
+                                  ],
+                                  "y"
+                                ],
+                                [
+                                  "EFnCall",
+                                  173079901,
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Int",
+                                      "function_": "add",
+                                      "version": 0
+                                    }
                                   ],
                                   [
-                                    "constructor",
                                     [
-                                      "EConstructor",
-                                      567764301,
-                                      "Ok",
+                                      "EInteger",
+                                      250221144,
+                                      6
+                                    ],
+                                    [
+                                      "EInteger",
+                                      298149318,
+                                      2
+                                    ]
+                                  ]
+                                ]
+                              ],
+                              [
+                                "EList",
+                                539797095,
+                                [
+                                  [
+                                    "EInteger",
+                                    267797631,
+                                    5
+                                  ],
+                                  [
+                                    "EInteger",
+                                    352138743,
+                                    6
+                                  ],
+                                  [
+                                    "EInteger",
+                                    430871955,
+                                    7
+                                  ]
+                                ]
+                              ]
+                            ]
+                          ],
+                          [
+                            "ELet",
+                            831830073,
+                            "r",
+                            [
+                              "ERecord",
+                              109539183,
+                              [
+                                [
+                                  "field",
+                                  [
+                                    "EPipe",
+                                    786862131,
+                                    [
+                                      "EInteger",
+                                      555880460,
+                                      5
+                                    ],
+                                    [
+                                      "EInfix",
+                                      1021880969,
                                       [
+                                        "InfixFnCall",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        }
+                                      ],
+                                      [
+                                        "EPipeTarget",
+                                        936577032
+                                      ],
+                                      [
+                                        "EInteger",
+                                        962393769,
+                                        2
+                                      ]
+                                    ],
+                                    []
+                                  ]
+                                ],
+                                [
+                                  "constructor",
+                                  [
+                                    "EConstructor",
+                                    567764301,
+                                    "Ok",
+                                    [
+                                      [
+                                        "EConstructor",
+                                        646107057,
+                                        "Error",
                                         [
-                                          "EConstructor",
-                                          646107057,
-                                          "Error",
                                           [
+                                            "EConstructor",
+                                            689802831,
+                                            "Just",
                                             [
-                                              "EConstructor",
-                                              689802831,
-                                              "Just",
                                               [
-                                                [
-                                                  "EConstructor",
-                                                  957916875,
-                                                  "Nothing",
-                                                  []
-                                                ]
+                                                "EConstructor",
+                                                957916875,
+                                                "Nothing",
+                                                []
                                               ]
                                             ]
                                           ]
@@ -9387,281 +9338,270 @@
                                     ]
                                   ]
                                 ]
-                              ],
+                              ]
+                            ],
+                            [
+                              "ELet",
+                              745304029,
+                              "m",
                               [
-                                "ELet",
-                                745304029,
-                                "m",
+                                "EMatch",
+                                889712088,
                                 [
-                                  "EMatch",
-                                  889712088,
+                                  "EFnCall",
+                                  203239466,
                                   [
-                                    "EFnCall",
-                                    203239466,
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "function_": "function",
+                                      "version": 2
+                                    }
+                                  ],
+                                  []
+                                ],
+                                [
+                                  [
                                     [
-                                      "Stdlib",
-                                      {
-                                        "module_": "Mod",
-                                        "function_": "function",
-                                        "version": 2
-                                      }
+                                      "MPConstructor",
+                                      1015986188,
+                                      "Ok",
+                                      [
+                                        [
+                                          "MPVariable",
+                                          334386852,
+                                          "x"
+                                        ]
+                                      ]
                                     ],
-                                    []
+                                    [
+                                      "EVariable",
+                                      863810169,
+                                      "v"
+                                    ]
                                   ],
                                   [
                                     [
-                                      [
-                                        "MPConstructor",
-                                        1015986188,
-                                        "Ok",
-                                        [
-                                          [
-                                            "MPVariable",
-                                            334386852,
-                                            "x"
-                                          ]
-                                        ]
-                                      ],
-                                      [
-                                        "EVariable",
-                                        863810169,
-                                        "v"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPInteger",
-                                        928253813,
-                                        5
-                                      ],
-                                      [
-                                        "EInteger",
-                                        342670561,
-                                        "-9223372036854775808"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPBool",
-                                        435227293,
-                                        true
-                                      ],
-                                      [
-                                        "EInteger",
-                                        232748650,
-                                        7
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPCharacter",
-                                        387662539,
-                                        "c"
-                                      ],
-                                      [
-                                        "ECharacter",
-                                        657848009,
-                                        "c"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPString",
-                                        491115870,
-                                        "string"
-                                      ],
-                                      [
-                                        "EString",
-                                        820329949,
-                                        "string"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPUnit",
-                                        701616052
-                                      ],
-                                      [
-                                        "EUnit",
-                                        731162955
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPVariable",
-                                        722099983,
-                                        "var"
-                                      ],
-                                      [
-                                        "EInfix",
-                                        275666765,
-                                        [
-                                          "InfixFnCall",
-                                          {
-                                            "module_": null,
-                                            "function_": "\u002B"
-                                          }
-                                        ],
-                                        [
-                                          "EInteger",
-                                          739193732,
-                                          6
-                                        ],
-                                        [
-                                          "EVariable",
-                                          880556562,
-                                          "var"
-                                        ]
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPFloat",
-                                        409097457,
-                                        [
-                                          "Positive"
-                                        ],
-                                        "5",
-                                        "6"
-                                      ],
-                                      [
-                                        "EFloat",
-                                        131187958,
-                                        [
-                                          "Positive"
-                                        ],
-                                        "5",
-                                        "6"
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPBlank",
-                                        858594159
-                                      ],
-                                      [
-                                        "EInteger",
-                                        135348705,
-                                        6
-                                      ]
-                                    ],
-                                    [
-                                      [
-                                        "MPTuple",
-                                        1285610,
-                                        [
-                                          "MPVariable",
-                                          17823641,
-                                          "a"
-                                        ],
-                                        [
-                                          "MPVariable",
-                                          58123641,
-                                          "b"
-                                        ],
-                                        [
-                                          [
-                                            "MPVariable",
-                                            95723641,
-                                            "c"
-                                          ]
-                                        ]
-                                      ],
-                                      [
-                                        "EBool",
-                                        123716747,
-                                        true
-                                      ]
-                                    ]
-                                  ]
-                                ],
-                                [
-                                  "ELet",
-                                  927055617,
-                                  "f",
-                                  [
-                                    "EFeatureFlag",
-                                    882488977,
-                                    "test",
-                                    [
-                                      "EBool",
-                                      349352147,
-                                      true
-                                    ],
-                                    [
-                                      "EInteger",
-                                      578528886,
+                                      "MPInteger",
+                                      928253813,
                                       5
                                     ],
                                     [
                                       "EInteger",
-                                      562930224,
-                                      6
+                                      342670561,
+                                      "-9223372036854775808"
                                     ]
                                   ],
                                   [
-                                    "ELet",
-                                    6345345,
-                                    "partials",
                                     [
-                                      "EList",
-                                      23423423,
-                                      []
+                                      "MPBool",
+                                      435227293,
+                                      true
+                                    ],
+                                    [
+                                      "EInteger",
+                                      232748650,
+                                      7
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPCharacter",
+                                      387662539,
+                                      "c"
+                                    ],
+                                    [
+                                      "ECharacter",
+                                      657848009,
+                                      "c"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPString",
+                                      491115870,
+                                      "string"
+                                    ],
+                                    [
+                                      "EString",
+                                      820329949,
+                                      "string"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPUnit",
+                                      701616052
+                                    ],
+                                    [
+                                      "EUnit",
+                                      731162955
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPVariable",
+                                      722099983,
+                                      "var"
+                                    ],
+                                    [
+                                      "EInfix",
+                                      275666765,
+                                      [
+                                        "InfixFnCall",
+                                        {
+                                          "module_": null,
+                                          "function_": "\u002B"
+                                        }
+                                      ],
+                                      [
+                                        "EInteger",
+                                        739193732,
+                                        6
+                                      ],
+                                      [
+                                        "EVariable",
+                                        880556562,
+                                        "var"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPFloat",
+                                      409097457,
+                                      [
+                                        "Positive"
+                                      ],
+                                      "5",
+                                      "6"
+                                    ],
+                                    [
+                                      "EFloat",
+                                      131187958,
+                                      [
+                                        "Positive"
+                                      ],
+                                      "5",
+                                      "6"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPTuple",
+                                      1285610,
+                                      [
+                                        "MPVariable",
+                                        17823641,
+                                        "a"
+                                      ],
+                                      [
+                                        "MPVariable",
+                                        58123641,
+                                        "b"
+                                      ],
+                                      [
+                                        [
+                                          "MPVariable",
+                                          95723641,
+                                          "c"
+                                        ]
+                                      ]
+                                    ],
+                                    [
+                                      "EBool",
+                                      123716747,
+                                      true
+                                    ]
+                                  ]
+                                ]
+                              ],
+                              [
+                                "ELet",
+                                927055617,
+                                "f",
+                                [
+                                  "EFeatureFlag",
+                                  882488977,
+                                  "test",
+                                  [
+                                    "EBool",
+                                    349352147,
+                                    true
+                                  ],
+                                  [
+                                    "EInteger",
+                                    578528886,
+                                    5
+                                  ],
+                                  [
+                                    "EInteger",
+                                    562930224,
+                                    6
+                                  ]
+                                ],
+                                [
+                                  "ELet",
+                                  6345345,
+                                  "partials",
+                                  [
+                                    "EList",
+                                    23423423,
+                                    []
+                                  ],
+                                  [
+                                    "ELet",
+                                    883434,
+                                    "tuples",
+                                    [
+                                      "ETuple",
+                                      72333,
+                                      [
+                                        "EInteger",
+                                        34545,
+                                        5
+                                      ],
+                                      [
+                                        "EInteger",
+                                        34545,
+                                        5
+                                      ],
+                                      [
+                                        [
+                                          "EInteger",
+                                          34545,
+                                          5
+                                        ]
+                                      ]
                                     ],
                                     [
                                       "ELet",
-                                      883434,
-                                      "tuples",
+                                      47462,
+                                      "binopAnd",
                                       [
-                                        "ETuple",
-                                        72333,
+                                        "EInfix",
+                                        234234,
                                         [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ],
-                                        [
+                                          "BinOp",
                                           [
-                                            "EInteger",
-                                            34545,
-                                            5
+                                            "BinOpAnd"
                                           ]
+                                        ],
+                                        [
+                                          "EBool",
+                                          234234,
+                                          true
+                                        ],
+                                        [
+                                          "EBool",
+                                          234234,
+                                          false
                                         ]
                                       ],
                                       [
-                                        "ELet",
-                                        47462,
-                                        "binopAnd",
-                                        [
-                                          "EInfix",
-                                          234234,
-                                          [
-                                            "BinOp",
-                                            [
-                                              "BinOpAnd"
-                                            ]
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            true
-                                          ],
-                                          [
-                                            "EBool",
-                                            234234,
-                                            false
-                                          ]
-                                        ],
-                                        [
-                                          "EInteger",
-                                          34545,
-                                          5
-                                        ]
+                                        "EInteger",
+                                        34545,
+                                        5
                                       ]
                                     ]
                                   ]

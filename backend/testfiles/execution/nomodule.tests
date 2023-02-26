@@ -34,8 +34,6 @@ notEquals_v0 (Date.parse_v2 "2021-07-28T22:42:36Z") (Date.parse_v2 "2019-07-28T2
 (Date.parse_v2 "2021-07-28T22:42:36Z") != (Date.parse_v2 "2019-07-28T22:42:36Z") = true
 
 
-Error.toString_v0 blank = blank
-
 AWS.urlencode_v0 "%" = ""
 AWS.urlencode_v0 "%%" = ""
 AWS.urlencode_v0 "%A" = "A"

@@ -3,7 +3,6 @@
 // ---------------------------
 
 [tests.let]
-(let x = blank in 5) = 5
 (let x = Test.typeError_v0 "" in 5) = 5
 (let x = 5 in x) = 5
 (let x = 5 in let x = 6 in x) = 6
@@ -12,8 +11,7 @@
 [tests.list]
 [] = []
 [1] = [1]
-[ 5; blank; 0 ] = [5;0]
-[ 5; Int.add_v0 blank 5; 0 ] = [5;0]
+[ 5; Int.add_v0 1 5; 0 ] = [5; 6; 0]
 [ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ]
 
 [tests.tuple]
@@ -22,17 +20,13 @@
 (1, 2+3, 4) = (1, 5, 4)
 // note: there is no upper limit set on Tuple size
 (1, 2, 3, 4, 5, 6, 7, 8, 9) = (1, 2, 3, 4, 5, 6, 7, 8, 9)
-(1, blank, 3) = blank
 (1, Test.typeError_v0 "test", 3) = Test.typeError_v0 "test"
 (1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
-(1, blank, Test.typeError_v0 "err", 4) = blank
-(1, Test.typeError_v0 "err", blank, 4) = Test.typeError_v0 "err"
 
 
 [tests.records]
 { col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key: col1"
 { col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
-{ col1 = 2 ; col2 = blank } = { col1 = 2 }
 { col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
 { col1 = 2 ; ___ = 3 } = { col1 = 2 }
 (let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 2 } in Test.sideEffectCount_v0) = 1
@@ -40,9 +34,7 @@
 
 [tests.fieldAccess]
 (let x = { col1 = 1 } in x.col1) = 1
-(let x = { col1 = 1 } in x.___) = blank
 (let x = { col1 = 1 } in x.fieldName) = null
-(let x = blank in x.fieldName) = blank
 (let x = Test.typeError_v0 "error" in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
 (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
 (let x = { col1 = 1 } in x.fieldName) = null
@@ -54,7 +46,6 @@ myvar = Test.typeError_v0 "There is no variable named: myvar"
 
 [tests.fncall]
 5 + 3 = 8
-5 + blank = blank
 5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
 "xx" ++ "yy" = "xxyy"
 (5 + (3)) = 8
@@ -69,7 +60,6 @@ toString 5 = "5"
 (if false then "" else "correct") = "correct"
 (if null then "" else "") = Test.typeError_v0 "If only supports Booleans"
 (if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
-(if blank then "" else "") = blank
 (if 5 then "" else "") = Test.typeError_v0 "If only supports Booleans"
 
 [tests.and]
@@ -77,22 +67,16 @@ toString 5 = "5"
 (true && false) = false
 (false && true) = false
 (false && false) = false
-(true && blank) = blank
 (true && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
 (true && 5) = Test.typeError_v0 "&& only supports Booleans"
-(false && blank) = false
 (false && Test.typeError_v0 "msg") = false
 (false && 5) = false
-(blank && blank) = blank
-(blank && Test.typeError_v0 "msg") = blank
 (Test.typeError_v0 "msg" && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
 (5 && true) = Test.typeError_v0 "&& only supports Booleans"
 (true |> (&&) true) = true
 (true |> (&&) false) = false
 (false |> (&&) true) = false
 (false |> (&&) false) = false
-(true |> (&&) blank) = blank
-(false |> (&&) blank) = false
 
 
 [tests.or]
@@ -100,22 +84,16 @@ toString 5 = "5"
 (true || false) = true
 (false || true) = true
 (false || false) = false
-(true || blank) = true
 (true || Test.typeError_v0 "msg") = true
 (true || 5) = true
-(false || blank) = blank
 (false || Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
 (false || 5) = Test.typeError_v0 "|| only supports Booleans"
-(blank || blank) = blank
-(blank || Test.typeError_v0 "msg") = blank
 (Test.typeError_v0 "msg1" || Test.typeError_v0 "msg2") = Test.typeError_v0 "msg1"
 (5 || true) = Test.typeError_v0 "|| only supports Booleans"
 (true |> (||) true) = true
 (true |> (||) false) = true
 (false |> (||) true) = true
 (false |> (||) false) = false
-(true |> (||) blank) = true
-(false |> (||) blank) = blank
 
 
 [tests.featureflag]
@@ -125,7 +103,6 @@ flag "test" false "old" "new" = "old"
 flag "" [true] "old" "new" = "old"
 flag "test" null "old" "new" = "old"
 flag "test" 5 "old" "new" = "old"
-flag "test" blank "old" "new" = "old"
 flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
 flag "test" (List.head_v2_ster []) "old" "new" = "old"
 flag "test" {x = true} "old" "new" = "old"
@@ -162,7 +139,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  |> Test.unwrap
  |> Int.add_v0 1
  |> (+) 3
- |> blank
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
 
 [test.pipevariable]
@@ -170,8 +146,7 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  (5
  |> x
  |> x
- |> (+) 3
- |> blank)) = 10
+ |> (+) 3)) = 10
 
 
 [tests.match]
@@ -180,13 +155,10 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 (match true with | false -> "fail" | true -> "pass" | var -> "fail") = "pass"
 (match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
 (match null with | null -> "pass" | var -> "fail") = "pass"
-(match 2.0 with | blank -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
 (match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
-(match "nothing matches" with | "not this" -> "fail") = blank
+(match "nothing matches" with | "not this" -> "fail") = Test.incomplete // CLEANUP
 
-(match blank with | 5 -> 5 | _ -> 6) = blank
-// CLEANUP: mistake
-(match Test.typeError_v0 "msg"  with | 5 -> 5 | _ -> 6) = blank
+(match Test.typeError_v0 "msg" with | 5 -> 5 | _ -> 6) = Test.incomplete // CLEANUP
 
 
 [test.matchInt]
@@ -195,7 +167,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 | false -> "bool"
 | "myStr" -> "string"
 | null -> "null"
-| blank -> "blank"
 | Ok x -> "ok: " ++ x
 | Nothing -> "constructor nothing"
 | 5 -> "int"
@@ -207,7 +178,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | 5.6 -> "float"
@@ -219,7 +189,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | 1.1 -> "float"
@@ -231,7 +200,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | false -> "bool"
@@ -243,7 +211,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | false -> "bool"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | "myStr" -> "string"
@@ -256,7 +223,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "otherStrvar"
@@ -267,7 +233,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | false -> "bool"
  | "myStr" -> "string"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | null -> "null"
@@ -280,7 +245,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Nothing -> "constructor nothing"
  | Ok x -> "ok: " ++ x
  | name -> name ++ "var") = "ok: x"
@@ -293,7 +257,6 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Nothing -> "constructor nothing"
  | (1, 1) -> "1 and 1"
  | (1, 2) -> "1 and 2"
@@ -308,7 +271,6 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Nothing -> "constructor nothing"
  | (1, 1) -> "1 and 1"
  | (1, 2, (Ok "one", "four"), 5) -> "non-matching pattern chosen"
@@ -330,7 +292,6 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "constructor nothing"
@@ -342,7 +303,6 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "not matched: var"
@@ -352,27 +312,6 @@ Nothing = Nothing
 ((List.head_v2 []) = Nothing) = true
 (List.head_v2 []) = Nothing
 
-
-// ---------------------------
-// Fakeval propagation and handling
-// This should also should be tested above for all cases
-// No harm in repeating tests
-// ---------------------------
-
-[tests.incompletePropagation]
-List.head_v2 blank = blank
-(if blank then 5 else 6) = blank
-(List.head_v2 blank).field = blank
-[ 5; 6; List.head_v2 blank ] = [ 5; 6 ]
-[ 5; 6; blank] = [ 5, 6 ]
-{ i = blank; m = 5; j = List.head_v2 blank; n = 6 } = { n = 6; m = 5 }
-5 |> blank |> (+) 3 = 8
-5 |> (+) blank |> (+) 3564 = 3569
-5 |> (+) blank = 5
-(let x = blank in (5 |> x)) = 5
-Just blank = blank
-Error blank = blank
-Ok blank = blank
 
 [tests.error]
 List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
@@ -430,7 +369,6 @@ DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // EXPECTE
 (5.6 <> 5.7) = true
 (5.7 <> 6) = true
 (5.7 <> 5) = true
-(blank = blank) = blank
 (Test.typeError_v0 "test" <> Test.typeError_v0 "different msg") = Test.typeError_v0 "test"
 (true = true) = true
 (false = false) = true
@@ -512,7 +450,7 @@ returnsResultOk 6 = Ok 5
 (returnsResultOk 6) |> Test.unwrap = 5
 
 [tests.invalid function calls]
-functionWhichDoesntExist 6 = blank
+functionWhichDoesntExist 6 = Test.incomplete // CLEANUP
 stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
 stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
 throwsException 6 = Test.typeError "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1

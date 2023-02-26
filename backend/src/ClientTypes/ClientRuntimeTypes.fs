@@ -61,7 +61,6 @@ type MatchPattern =
   | MPString of id * string
   | MPFloat of id * double
   | MPUnit of id
-  | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 module Expr =
@@ -72,7 +71,6 @@ module Expr =
     | ECharacter of id * string
     | EFloat of id * double
     | EUnit of id
-    | EBlank of id
     | ELet of id * string * T * T
     | EIf of id * T * T * T
     | ELambda of id * List<id * string> * T

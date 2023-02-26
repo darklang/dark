@@ -43,7 +43,7 @@ let testFilterSlash =
     // set up handler with route param
     let! meta = initializeTestCanvas (Randomized "test-filter_slash")
     let route = "/:rest"
-    let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
+    let handler = testHttpRouteHandler route "GET" (PT.EUnit 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // make irrelevant request
@@ -65,7 +65,7 @@ let testRouteVariablesWorkWithStoredEvents =
 
     // set up handler
     let httpRoute = "/some/:vars/:and/such"
-    let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
+    let handler = testHttpRouteHandler httpRoute "GET" (PT.EUnit 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event that matches the handler
@@ -102,7 +102,7 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards =
     let requestPath = "/api/create-token"
 
     // set up handler
-    let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
+    let handler = testHttpRouteHandler route "GET" (PT.EUnit 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event

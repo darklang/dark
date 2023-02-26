@@ -33,6 +33,18 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+    { name = fn "Test" "incomplete" 0
+      parameters = []
+      returnType = TVariable "a"
+      description = "Return a DIncomplet"
+      fn =
+        (function
+        | _, [] -> Ply(DIncomplete(SourceNone))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
 
     { name = fn "Test" "sqlError" 0
       parameters = [ Param.make "errorString" TStr "" ]

@@ -520,7 +520,6 @@ module Expect =
     | MPBool (_, l), MPBool (_, l') -> check path l l'
     | MPCharacter (_, c), MPCharacter (_, c') -> check path c c'
     | MPUnit (_), MPUnit (_) -> ()
-    | MPBlank (_), MPBlank (_) -> ()
     | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
     // exhaustiveness check
@@ -532,7 +531,6 @@ module Expect =
     | MPBool _, _
     | MPCharacter _, _
     | MPUnit _, _
-    | MPBlank _, _
     | MPTuple _, _ -> check path actual expected
 
 
@@ -556,8 +554,7 @@ module Expect =
 
     match actual, expected with
     // expressions with no values
-    | EUnit _, EUnit _
-    | EBlank _, EBlank _ -> ()
+    | EUnit _, EUnit _ -> ()
     // expressions with single string values
     | EString (_, v), EString (_, v')
     | ECharacter (_, v), ECharacter (_, v')
@@ -627,7 +624,6 @@ module Expect =
 
     // exhaustiveness check
     | EUnit _, _
-    | EBlank _, _
     | EInteger _, _
     | EString _, _
     | ECharacter _, _
@@ -941,7 +937,7 @@ let interestingDvals =
     ("block",
      DFnVal(
        Lambda
-         { body = RT.EBlank(id 1234)
+         { body = RT.EUnit(id 1234)
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))

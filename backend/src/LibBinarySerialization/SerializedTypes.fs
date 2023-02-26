@@ -101,7 +101,6 @@ type MatchPattern =
   | MPString of id * string
   | MPFloat of id * Sign * string * string
   | MPUnit of id
-  | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 [<MessagePack.MessagePackObject>]
@@ -122,7 +121,6 @@ type Expr =
   | ECharacter of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | ELambda of id * List<id * string> * Expr

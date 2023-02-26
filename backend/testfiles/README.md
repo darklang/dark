@@ -28,13 +28,6 @@ this are not very good, but there are a few things to be careful of:
 - be explicit around pipes, wrapping them in parens to make sure the right
   expression is being piped. Otherwise you will typically get type errors.
 
-- by default, function calls are not sent to the errorRail (the opposite of the
-  Dark editor). You can send them to the errorRail by calling the function with
-  the suffix `_ster`. For example, write `DB.get_v1_ster` instead of
-  `DB.get_v1`.
-
-- to get a blank, use the word `blank`
-
 - to produce results that are hard to otherwise create, you can add functions
   to LibTest.fs. For example, `Test.nan_v0` produces a `NaN` float, and
   `Test.typeError` produces a built-in error.

@@ -42,7 +42,7 @@
                 ],
                 "symtable": {},
                 "body": [
-                  "EBlank",
+                  "EUnit",
                   1234
                 ]
               }
@@ -3320,7 +3320,7 @@
                 ],
                 "symtable": {},
                 "body": [
-                  "EBlank",
+                  "EUnit",
                   1234
                 ]
               }

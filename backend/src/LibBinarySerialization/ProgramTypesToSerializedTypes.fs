@@ -47,7 +47,6 @@ module MatchPattern =
     | PT.MPString (id, s) -> ST.MPString(id, s)
     | PT.MPFloat (id, s, w, f) -> ST.MPFloat(id, s, w, f)
     | PT.MPUnit id -> ST.MPUnit id
-    | PT.MPBlank id -> ST.MPBlank id
     | PT.MPTuple (id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
 
@@ -56,7 +55,6 @@ module MatchPattern =
 module Expr =
   let rec toST (e : PT.Expr) : ST.Expr =
     match e with
-    | PT.EBlank id -> ST.EBlank id
     | PT.ECharacter (id, char) -> ST.ECharacter(id, char)
     | PT.EInteger (id, num) -> ST.EInteger(id, num)
     | PT.EString (id, str) -> ST.EString(id, str)

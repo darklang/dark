@@ -44,7 +44,6 @@ type MatchPattern =
   | MPString of id * string
   | MPFloat of id * Sign * string * string
   | MPUnit of id
-  | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 type BinaryOperation =
@@ -68,7 +67,6 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | EBlank of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr

@@ -14,7 +14,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EString _
   | ECharacter _
   | EUnit _
-  | EBlank _
   | EVariable _
   | EPipeTarget _
   | EFloat _ -> expr
@@ -61,7 +60,6 @@ let rec matchPatternPreTraversal
   | MPInteger _
   | MPBool _
   | MPString _
-  | MPBlank _
   | MPUnit _
   | MPFloat _ -> pattern
   | MPConstructor (patternID, name, patterns) ->
@@ -82,7 +80,6 @@ let rec matchPatternPostTraversal
     | MPInteger _
     | MPBool _
     | MPString _
-    | MPBlank _
     | MPUnit _
     | MPFloat _ -> pattern
     | MPConstructor (patternID, name, patterns) ->
