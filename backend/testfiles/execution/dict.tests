@@ -56,7 +56,7 @@ Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
 Dict.size_v0 { a = 3; b = 1; c = 1 } = 3
 Dict.size_v0 {} = 0
 
-Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
+Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ ("a", 1 ), ("b", 2), ("c", 3)]
 Dict.toList_v0 {} = []
 
 Dict.values_v0 { key1 = "val1" } = ["val1"]

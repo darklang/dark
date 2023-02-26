@@ -84,14 +84,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Dict" "toList" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = (TList varA)
+      returnType = (TList (TTuple (varA, varB, [])))
       description =
-        "Returns <param dict>'s entries as a list of {{[key, value]}} lists, in an arbitrary order. This function is the opposite of <fn Dict::fromList>"
+        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict::fromList>"
       fn =
         (function
         | _, [ DObj o ] ->
           Map.toList o
-          |> List.map (fun (k, v) -> DList [ DStr k; v ])
+          |> List.map (fun (k, v) -> DTuple (DStr k, v, []))
           |> DList
           |> Ply
         | _ -> incorrectArgs ())
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
       returnType = TDict varA
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
-         must be a {{(key, value)}} list, where <var key> is a <type String>.
+         must be a {{(key, value)}} tuple, where <var key> is a <type String>.
 
          If <param entries> contains duplicate <var key>s, the last entry with that
          key will be used in the resulting dictionary (use <fn Dict::fromList> if you
@@ -137,7 +137,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "entries" (TTuple (varA, varB, [])) "" ]
       returnType = TOption(TDict varA)
       description =
-        "Each value in <param entries> must be a {{(key, value)}} list, where <var
+        "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
          key> is a <type String>.
 
          If <param entries> contains no duplicate keys, returns {{Just <var dict>}}

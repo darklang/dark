@@ -27,19 +27,19 @@ Http.forbidden_v0 = Http.response_v0 null 403
 
 Http.success_v0 {test = "test1"} = Http.response_v0 {test = "test1"} 200
 Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 {``Content-Length`` = 0; Server = "darklang"} 200
-Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 (Dict.fromListOverwritingDuplicates ([ ["Content-Length";0]; ["Server"; "darklang"] ])) 200
+Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) 200
 
 Http.responseWithHtml_v0 {test = "test1"}  200 = Http.responseWithHeaders_v0 {test = "test1"}  {``Content-Type`` = "text/html"} 200
-Http.responseWithHtml_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ["Content-Length";0]; ["Server";"darklang"] ])) {``Content-Type`` = "text/html"} 200
-Http.responseWithHtml_v0  {``Content-Length`` = 0; Server = "darklang"} 4503599627370496I = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ["Content-Length";0]; ["Server";"darklang"] ])) {``Content-Type`` = "text/html"} 4503599627370496I
+Http.responseWithHtml_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang")] )) {``Content-Type`` = "text/html"} 200
+Http.responseWithHtml_v0  {``Content-Length`` = 0; Server = "darklang"} 4503599627370496I = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) {``Content-Type`` = "text/html"} 4503599627370496I
 
 Http.responseWithText_v0 {Connection = "Keep-Alive"}  200 = Http.responseWithHeaders_v0  {Connection = "Keep-Alive"} {``Content-Type`` = "text/plain"} 200
-Http.responseWithText_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ["Content-Length";0]; ["Server";"darklang"] ])) {``Content-Type`` = "text/plain"} 200
-Http.responseWithText_v0  {``Content-Length`` = 0; Server = "darklang"} 4503599627370496I = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ["Content-Length";0]; ["Server";"darklang"] ])) {``Content-Type`` = "text/plain"} 4503599627370496I
+Http.responseWithText_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) {``Content-Type`` = "text/plain"} 200
+Http.responseWithText_v0  {``Content-Length`` = 0; Server = "darklang"} 4503599627370496I = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang")])) {``Content-Type`` = "text/plain"} 4503599627370496I
 
 Http.responseWithJson_v0 {Connection = "Keep-Alive"}  200 = Http.responseWithHeaders_v0  {Connection = "Keep-Alive"} {``Content-Type`` = "application/json"} 200
-Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ["Content-Length";0]; ["Server";"darklang"] ])) {``Content-Type`` = "application/json"} 200
-Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 4503599627370496I = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ["Content-Length";0]; ["Server";"darklang"] ])) {``Content-Type`` = "application/json"} 4503599627370496I
+Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) {``Content-Type`` = "application/json"} 200
+Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 4503599627370496I = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) {``Content-Type`` = "application/json"} 4503599627370496I
 
 ((Http.response_v0 "" 4503599627370496I) |> toString) = "4503599627370496 {  }\n\"\""
 
