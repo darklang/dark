@@ -35,14 +35,12 @@ List.empty_v0 = []
 
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`"
 List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
-List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3 ]
 List.filter_v2 [] (fun item -> true) = []
 List.filter_v2 [-20; 5; 9;] (fun x -> x > 20) = []
 List.filter_v2 [] (fun item -> "a") = []
 
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then Nothing else (Just (item * 2))) = [ 2; 6 ]
-List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then blank else (Just (item * 2))) = blank
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected `fn` to return a Option, but it returned `false`"
 List.filterMap_v0 [] (fun item -> 0) = []
 
@@ -125,7 +123,6 @@ List.partition_v0 [-20; 5; 9;] (fun x -> x > 0) = ([5; 9], [-20])
 List.partition_v0 [] (fun item -> true) = ([], [])
 List.partition_v0 [] (fun item -> "a") = ([], [])
 List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = ([ 1; 3 ], [2])
-List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> blank | 3 -> true) = blank
 List.partition_v0 [true;false;true] (fun item -> "a") = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`", [])
 List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`", [])
 
@@ -156,7 +153,6 @@ List.reverse_v0 [5; 4; 3; 2; 1] = [1;2;3;4;5]
 List.reverse_v0 [] = []
 
 List.singleton_v0 1 = [ 1 ]
-List.singleton_v0 blank = blank
 
 List.sortBy_v0 [6;2;8;3] (fun x -> 0 - x) = [8;6;3;2]
 List.sortBy_v0 [] (fun x -> 0 - x) = []

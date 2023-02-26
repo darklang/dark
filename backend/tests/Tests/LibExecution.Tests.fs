@@ -38,7 +38,7 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
         PT.SetHandler(
           tlid,
           { tlid = tlid
-            ast = PT.Expr.EBlank(gid ())
+            ast = PT.Expr.EUnit(gid ())
             spec =
               PT.Handler.Worker(
                 worker,

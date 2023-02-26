@@ -75,7 +75,6 @@ module MatchPattern =
     | CTPT.MPString (id, str) -> PT.MPString(id, str)
     | CTPT.MPFloat (id, sign, whole, frac) -> PT.MPFloat(id, sign, whole, frac)
     | CTPT.MPUnit (id) -> PT.MPUnit(id)
-    | CTPT.MPBlank (id) -> PT.MPBlank(id)
     | CTPT.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
@@ -90,7 +89,6 @@ module MatchPattern =
     | PT.MPString (id, str) -> CTPT.MPString(id, str)
     | PT.MPFloat (id, sign, whole, frac) -> CTPT.MPFloat(id, sign, whole, frac)
     | PT.MPUnit (id) -> CTPT.MPUnit(id)
-    | PT.MPBlank (id) -> CTPT.MPBlank(id)
     | PT.MPTuple (id, first, second, theRest) ->
       CTPT.MPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
@@ -128,7 +126,6 @@ module Expr =
     | CTPT.Expr.ECharacter (id, c) -> PT.ECharacter(id, c)
     | CTPT.Expr.EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
     | CTPT.Expr.EUnit (id) -> PT.EUnit(id)
-    | CTPT.Expr.EBlank (id) -> PT.EBlank(id)
     | CTPT.Expr.ELet (id, name, expr, body) ->
       PT.ELet(id, name, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
@@ -168,7 +165,6 @@ module Expr =
     | PT.ECharacter (id, c) -> CTPT.Expr.ECharacter(id, c)
     | PT.EFloat (id, sign, whole, frac) -> CTPT.Expr.EFloat(id, sign, whole, frac)
     | PT.EUnit (id) -> CTPT.Expr.EUnit(id)
-    | PT.EBlank (id) -> CTPT.Expr.EBlank(id)
     | PT.ELet (id, name, expr, body) ->
       CTPT.Expr.ELet(id, name, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->

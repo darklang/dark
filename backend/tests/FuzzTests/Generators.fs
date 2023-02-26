@@ -157,7 +157,6 @@ module RuntimeTypes =
   module MatchPattern =
     let genInt = Arb.generate<int64> |> Gen.map (fun i -> RT.MPInteger(gid (), i))
     let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.MPBool(gid (), b))
-    let genBlank = gen { return RT.MPBlank(gid ()) }
     let genUnit = gen { return RT.MPUnit(gid ()) }
     let genChar = char |> Gen.map (fun c -> RT.MPCharacter(gid (), c))
     let genStr = simpleString |> Gen.map (fun s -> RT.MPString(gid (), s))
@@ -197,8 +196,7 @@ module RuntimeTypes =
     // TODO: consider adding 'weight' such that certain patterns are generated
     // more often than others
     let rec gen' s : Gen<RT.MatchPattern> =
-      let finitePatterns =
-        [ genInt; genBool; genBlank; genUnit; genChar; genStr; genVar ]
+      let finitePatterns = [ genInt; genBool; genUnit; genChar; genStr; genVar ]
 
       let allPatterns = constructor (s, gen') :: finitePatterns
 
@@ -220,7 +218,6 @@ module RuntimeTypes =
     // Non-recursive exprs
     let genInt = Arb.generate<int64> |> Gen.map (fun i -> RT.EInteger(gid (), i))
     let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.EBool(gid (), b))
-    let genBlank = gen { return RT.EBlank(gid ()) }
     let genUnit = gen { return RT.EUnit(gid ()) }
     let genChar = char |> Gen.map (fun c -> RT.ECharacter(gid (), c))
     let genStr = simpleString |> Gen.map (fun s -> RT.EString(gid (), s))
@@ -340,8 +337,7 @@ module RuntimeTypes =
 
   // TODO: consider adding 'weight' such that certain patterns are generated more often than others
   let rec expr' s : Gen<RT.Expr> =
-    let finiteExprs =
-      [ genUnit; genBlank; genBool; genInt; genFloat; genChar; genStr; genVar ]
+    let finiteExprs = [ genUnit; genBool; genInt; genFloat; genChar; genStr; genVar ]
 
     let recursiveExprs =
       [ genConstructor
@@ -384,7 +380,6 @@ module ProgramTypes =
   module MatchPattern =
     let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.MPInteger(gid (), i))
     let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.MPBool(gid (), b))
-    let genBlank = gen { return PT.MPBlank(gid ()) }
     let genUnit = gen { return PT.MPUnit(gid ()) }
     let genChar = char |> Gen.map (fun c -> PT.MPCharacter(gid (), c))
     let genStr = simpleString |> Gen.map (fun s -> PT.MPString(gid (), s))
@@ -425,8 +420,7 @@ module ProgramTypes =
   let matchPattern =
     // TODO: consider adding 'weight' such that certain patterns are generated more often than others
     let rec gen' s : Gen<PT.MatchPattern> =
-      let finitePatterns =
-        [ genInt; genBool; genBlank; genUnit; genChar; genStr; genVar ]
+      let finitePatterns = [ genInt; genBool; genUnit; genChar; genStr; genVar ]
 
       let allPatterns = constructor (s, gen') :: finitePatterns
 
@@ -449,8 +443,6 @@ module ProgramTypes =
     let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.EInteger(gid (), i))
 
     let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.EBool(gid (), b))
-
-    let genBlank = gen { return PT.EBlank(gid ()) }
 
     let genUnit = gen { return PT.EUnit(gid ()) }
 
@@ -569,7 +561,7 @@ module ProgramTypes =
 
   // TODO: consider adding 'weight' such that certain patterns are generated more often than others
   let rec expr' s : Gen<PT.Expr> =
-    let finiteExprs = [ genInt; genBool; genBlank; genUnit; genChar; genStr; genVar ]
+    let finiteExprs = [ genInt; genBool; genUnit; genChar; genStr; genVar ]
 
     let recursiveExprs =
       [ genConstructor

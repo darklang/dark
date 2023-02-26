@@ -55,6 +55,7 @@ let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")
 let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
 
+// CLEANUP - blanks here aren't allowed
 let nameOrBlank (v : string) : string = if v = "___" then "" else v
 
 let rec convertToExpr (ast : SynExpr) : PT.Expr =
@@ -63,7 +64,6 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let rec convertPattern (pat : SynPat) : PT.MatchPattern =
     let id = gid ()
     match pat with
-    | SynPat.Named (name, _, _, _) when name.idText = "blank" -> PT.MPBlank id
     | SynPat.Named (name, _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
     | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInteger(id, n)
@@ -175,8 +175,6 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
-
-  | SynExpr.Ident ident when ident.idText = "blank" -> PT.EBlank id
 
   | SynExpr.Ident name -> PT.EVariable(id, name.idText)
 

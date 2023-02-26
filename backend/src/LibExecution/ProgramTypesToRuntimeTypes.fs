@@ -43,7 +43,6 @@ module MatchPattern =
       let w = if w = "" then "0" else w
       RT.MPFloat(id, makeFloat s w f)
     | PT.MPUnit id -> RT.MPUnit id
-    | PT.MPBlank id -> RT.MPBlank id
     | PT.MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, toRT first, toRT second, List.map toRT theRest)
 
@@ -52,7 +51,6 @@ module MatchPattern =
 module Expr =
   let rec toRT (e : PT.Expr) : RT.Expr =
     match e with
-    | PT.EBlank id -> RT.EBlank id
     | PT.ECharacter (id, char) -> RT.ECharacter(id, char)
     | PT.EInteger (id, num) -> RT.EInteger(id, num)
     | PT.EString (id, str) -> RT.EString(id, str)
@@ -132,8 +130,6 @@ module Expr =
               match op with
               | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
-            // If there's a hole, run the computation right through it as if it wasn't there
-            | PT.EBlank _ -> prev
             | other -> RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID)
           convert next)
 

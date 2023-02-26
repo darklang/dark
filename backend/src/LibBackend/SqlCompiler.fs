@@ -391,7 +391,6 @@ let partiallyEvaluate
           uply {
             match expr with
             | EInteger _
-            | EBlank _
             | EString _
             | EVariable _
             | ECharacter _

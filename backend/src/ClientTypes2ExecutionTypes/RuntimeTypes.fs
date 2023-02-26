@@ -120,7 +120,6 @@ module MatchPattern =
     | MPString (id, s) -> RT.MPString(id, s)
     | MPFloat (id, f) -> RT.MPFloat(id, f)
     | MPUnit id -> RT.MPUnit id
-    | MPBlank id -> RT.MPBlank id
     | MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
 
@@ -135,7 +134,6 @@ module MatchPattern =
     | RT.MPString (id, s) -> MPString(id, s)
     | RT.MPFloat (id, f) -> MPFloat(id, f)
     | RT.MPUnit id -> MPUnit id
-    | RT.MPBlank id -> MPBlank id
     | RT.MPTuple (id, first, second, theRest) ->
       MPTuple(id, r first, r second, List.map r theRest)
 
@@ -154,7 +152,6 @@ module Expr =
     let r = fromCT
 
     match e with
-    | Expr.EBlank id -> RT.EBlank id
     | Expr.ECharacter (id, char) -> RT.ECharacter(id, char)
     | Expr.EInteger (id, num) -> RT.EInteger(id, num)
     | Expr.EString (id, str) -> RT.EString(id, str)
@@ -193,7 +190,6 @@ module Expr =
     let r = toCT
 
     match e with
-    | RT.EBlank id -> Expr.EBlank id
     | RT.ECharacter (id, char) -> Expr.ECharacter(id, char)
     | RT.EInteger (id, num) -> Expr.EInteger(id, num)
     | RT.EString (id, str) -> Expr.EString(id, str)

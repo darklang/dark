@@ -46,8 +46,6 @@ let eStr (str : string) : Expr = EString(gid (), str)
 
 let eInt (i : int) : Expr = EInteger(gid (), int64 i)
 
-let eBlank () : Expr = EBlank(gid ())
-
 let eBool (b : bool) : Expr = EBool(gid (), b)
 
 let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =

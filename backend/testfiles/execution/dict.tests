@@ -2,12 +2,9 @@ Dict.empty_v0 = {}
 
 Dict.filterMap_v0 {} (fun (key, value) -> 0) = {}
 Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then Nothing else (Just (key ++ value))) = { c = "cz"; a = "ax"}
-Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then blank else (Just (key ++ value))) = blank
 Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then false else (Just (key ++ value))) = Test.typeError_v0 "Expected `fn` to return a Option, but it returned `false`"
 Dict.filter_v1 { key1 = "val1"; key2 = "val2" } (fun (k, v) -> k == "key1") = { key1 = "val1"}
-Dict.filter_v1 { key1 = "val1"; key2 = "val2" } (fun (k, v) -> k == blank) = blank
 Dict.filter_v1 { key1 = 1; key2 = 3 }  (fun (k, v) -> v < 2) = { key1 = 1 }
-Dict.filter_v1 { key1 = 1; key2 = blank; key3 = 3 }  (fun (k, v) -> v > 0) = { key3 = 3; key1 = 1}
 Dict.filter_v1 {} (fun (k, v) -> 0) = {}
 Dict.filter_v1 { a = 1; b = 2; c = 3 } (fun (k, v) -> 2) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `2`"
 
@@ -45,7 +42,6 @@ Dict.member_v0 { otherKey = 5 } "someKey" = false
 
 Dict.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
 Dict.merge_v0 { key1 = "val_l" } { key1 = "val_r" } = {key1 = "val_r"}
-Dict.merge_v0 {key1 = "val_l"} {key1 = blank } = {key1 = "val_l"}
 Dict.merge_v0 {} {} = {}
 
 Dict.set_v0 { key1 = "val1before" } "key1" "val1after" = { key1 = "val1after" }

@@ -64,7 +64,7 @@ module FormatV0 =
     | DUnit -> RT.DUnit
     | DLambda ->
       RT.DFnVal(
-        RT.Lambda { parameters = []; symtable = Map []; body = RT.Expr.EBlank 0UL }
+        RT.Lambda { parameters = []; symtable = Map []; body = RT.Expr.EUnit 0UL }
       )
     | DIncomplete SourceNone -> RT.DIncomplete RT.SourceNone
     | DIncomplete (SourceID (tlid, id)) -> RT.DIncomplete(RT.SourceID(tlid, id))

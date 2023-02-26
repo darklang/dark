@@ -51,7 +51,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   uply {
     match e with
-    | EBlank id -> return (incomplete id)
     | EString (_id, s) -> return DStr(String.normalize s)
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
@@ -275,8 +274,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPString (id, s) -> (dv = DStr s), [], [ (id, DStr s) ]
         | MPFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
         | MPUnit (id) -> (dv = DUnit), [], [ (id, DUnit) ]
-
-        | MPBlank (id) -> false, [], [ (id, incomplete id) ]
 
         | MPVariable (id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]

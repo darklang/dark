@@ -138,7 +138,6 @@ type Expr =
   | ECharacter of id * string
   | EFloat of id * double
   | EUnit of id
-  | EBlank of id
 
   /// <summary>
   /// Composed of binding name, the bound expression,
@@ -181,11 +180,6 @@ type Expr =
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
-  member this.isBlank : bool =
-    match this with
-    | EBlank _ -> true
-    | _ -> false
-
 // EApply has slightly different semantics when it is in a pipe. When piping
 // into Incomplete values, we ignore the Incomplete and return the piped-in
 // argument (which is the first parameter). This is to allow editing live code
@@ -203,7 +197,6 @@ and MatchPattern =
   | MPString of id * string
   | MPFloat of id * double
   | MPUnit of id
-  | MPBlank of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
 type DvalMap = Map<string, Dval>
@@ -390,7 +383,6 @@ module Expr =
     | EVariable (id, _)
     | EFieldAccess (id, _, _)
     | ELambda (id, _, _)
-    | EBlank id
     | ELet (id, _, _, _)
     | EIf (id, _, _, _)
     | EApply (id, _, _, _)
@@ -415,7 +407,6 @@ module MatchPattern =
     | MPUnit id
     | MPFloat (id, _)
     | MPVariable (id, _)
-    | MPBlank id
     | MPTuple (id, _, _, _)
     | MPConstructor (id, _, _) -> id
 
