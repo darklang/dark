@@ -198,11 +198,15 @@ List.unzip_v0 [[]] = Test.typeError_v0 "Expected the argument `pairs` to be a li
 List.unzip_v0 [[1;10];[2;20];[3;30]] = [ [ 1; 2; 3 ]; [ 10; 20; 30 ] ]
 List.unzip_v0 [[10;6]] = [[10],[6]]
 
-List.zipShortest_v0 [10;20;30] [1;2;3] = [ [ 10; 1 ]; [ 20; 2 ]; [ 30; 3 ] ]
-List.zipShortest_v0 [10;20] [1;2;3] = [ [ 10; 1 ]; [ 20; 2 ] ]
+List.zipShortest_v0 [10;20;30] [1;2;3] = [ (10, 1); (20, 2); (30, 3) ]
+List.zipShortest_v0 [10;20;30] ["a";"bc";"d"] = [ (10, "a"); (20, "bc"); (30, "d")]
+List.zipShortest_v0 [10;20] [1;2;3] = [ (10, 1); (20, 2) ]
+List.zipShortest_v0 [1;2;3] [10;20] = [ (1, 10); (2, 20) ]
+List.zipShortest_v0 [10;20] ["a";"bc";"d"] = [ (10, "a"); (20, "bc") ]
+List.zipShortest_v0 ["a";"bc";"d"] [10;20] = [ ("a", 10); ("bc", 20) ]
 List.zipShortest_v0 ["b";"v";"z"] [] = []
 List.zipShortest_v0 [] ["b";"v";"z"] = []
-List.zipShortest_v0 [Test.typeError_v0 ""] [Just ""] = Test.typeError_v0 ""
+
 
 List.zip_v0 [10;20;30] [1;2;3] = Just [ [ 10; 1 ]; [ 20; 2 ]; [ 30; 3 ] ]
 List.zip_v0 [10;20] [1;2;3] = Nothing

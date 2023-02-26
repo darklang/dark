@@ -1045,14 +1045,14 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "zipShortest" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
-      returnType = TList varA
+      returnType = TList(TTuple(varA, varB, []))
       description =
         "Returns a list of parallel pairs from <param as> and <param bs>.
 
         If the lists differ in length, values from the longer list are dropped.
 
         For example, if <param as> is {{[1,2]}} and <param bs> is
-        {{[\"x\",\"y\",\"z\"]}}, returns {{[[1,\"x\"], [2,\"y\"]]}}.
+        {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\")]}}.
 
         Use <fn List::zip> if you want to enforce equivalent lengths for <param as>
         and <param bs>.
@@ -1069,7 +1069,7 @@ let fns : List<BuiltInFn> =
           let l2 = List.take (int len) l2
 
           List.zip l1 l2
-          |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+          |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
           |> Dval.list
           |> Ply
         | _ -> incorrectArgs ())
