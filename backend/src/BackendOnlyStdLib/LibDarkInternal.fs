@@ -1105,51 +1105,6 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    // ---------------------
-    // Apis - tunnels
-    // ---------------------
-    { name = fn "DarkInternal" "getTunnelHost" 0
-      parameters = [ Param.make "userID" TUuid "" ]
-      returnType = TOption TStr
-      description = "Returns the tunnelhost for this user"
-      fn =
-        internalFn (function
-          | _, [ DUuid userID ] ->
-            uply {
-              match! Account.tunnelHostFor userID with
-              | None -> return DOption None
-              | Some host -> return DOption(Some(DStr host))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "setTunnelHost" 0
-      parameters =
-        [ Param.make "userID" TUuid ""; Param.make "host" (TOption TStr) "" ]
-      returnType = TUnit
-      description = "Sets the tunnelhost for this user"
-      fn =
-        internalFn (function
-          | _, [ DUuid userID; DOption (v) ] ->
-            uply {
-              match v with
-              | Some (DStr host) ->
-                do! Account.setTunnelHostFor userID (Some host)
-                return DUnit
-              | None ->
-                do! Account.setTunnelHostFor userID None
-                return DUnit
-              | _ -> return incorrectArgs ()
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     // Fns available only to the `dark-editor` canvas.
     // Slowly, functions above (only available to admins) should be moved here,
     // with the darkEditorFn wrapper used in place of the internalFn wrapper.
