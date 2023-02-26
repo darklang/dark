@@ -3,8 +3,8 @@
 // ---------------------------
 
 [tests.let]
-(let x = Test.typeError_v0 "" in 5) = 5 // CLEANUP - should be error
-//(let x = Test.typeError_v0 "a" in Test.typeError_v0 "b") = Test.typeError_v0 "a" // CLEANUP enable
+(let x = Test.typeError_v0 "a" in 5) = Test.typeError "a"
+(let x = Test.typeError_v0 "a" in Test.typeError_v0 "b") = Test.typeError_v0 "a"
 (let x = 5 in x) = 5
 (let x = 5 in let x = 6 in x) = 6
 
@@ -37,7 +37,7 @@
 [tests.fieldAccess]
 (let x = { col1 = 1 } in x.col1) = 1
 (let x = { col1 = 1 } in x.fieldName) = null // CLEANUP: error
-(let x = Test.typeError_v0 "error" in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
+(Test.typeError_v0 "error").fieldName = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
 (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
 
 [tests.variable]
@@ -354,16 +354,14 @@ List.head_v2 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
 { i = Test.typeError_v0 "test"; m = 5; j = List.head_v2 (Test.typeError_v0 "test"); n = 6 } = { n = 6; m = 5 ; j = Test.typeError_v0 "test"; i = Test.typeError_v0 "test" }
 5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
 5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-(let x = Test.typeError_v0 "test" in (5 |> x)) = 5
-//(let x = Test.typeError_v0 "test" in (5 |> x)) = Test.typeError_v0 "test" // CLEANUP
+("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
 Just (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
 Error (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
 Ok (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
 
 
 [test.pipe into error]
-(let e = Test.typeError_v0 "test" in
- 5 |> e |> (+) 3) = 8
+("test" |> Test.typeError_v0 |> (++) "3") = Test.typeError "test"
 
 
 // ---------------------------

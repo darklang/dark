@@ -62,7 +62,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ELet (_id, lhs, rhs, body) ->
       let! rhs = eval state st rhs
       match rhs with
-      // CLEANUP we should still preview the body
+      | DError _
+      | DIncomplete _ ->
+        let st = if lhs <> "" then Map.add lhs rhs st else st
+        do! preview st body
+        return rhs
       | _ ->
         let st = if lhs <> "" then Map.add lhs rhs st else st
         return! eval state st body
