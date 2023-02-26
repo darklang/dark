@@ -101,11 +101,11 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
-      parameters = [ Param.make "entries" (TList varA) "" ]
+      parameters = [ Param.make "entries" (TTuple (varA, varB, [])) "" ]
       returnType = TDict varA
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
-         must be a {{[key, value]}} list, where <var key> is a <type String>.
+         must be a {{(key, value)}} list, where <var key> is a <type String>.
 
          If <param entries> contains duplicate <var key>s, the last entry with that
          key will be used in the resulting dictionary (use <fn Dict::fromList> if you
@@ -118,12 +118,12 @@ let fns : List<BuiltInFn> =
 
           let f acc e =
             match e with
-            | DList [ DStr k; value ] -> Map.add k value acc
-            | DList [ k; _ ] ->
-              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+            | DTuple (DStr k, value, []) -> Map.add k value acc
+            | DTuple (k, _, []) ->
+                Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
             | DError _) as dv -> Errors.foundFakeDval dv
-            | _ -> Exception.raiseCode "All list items must be `[key, value]`"
+            | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
           let result = List.fold Map.empty f l
           Ply(DObj result)
