@@ -73,16 +73,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | EList (_id, exprs) ->
-      // We ignore incompletes but not error rail.
-      // CLEANUP: Other places where lists are created propagate incompletes
-      // instead of ignoring, this is probably a mistake.
       let! results = Ply.List.mapSequentially (eval state st) exprs
-
-      // We filter these out as we want users to be able to add elements to
-      // lists without breaking their code.
-      let filtered = List.filter (not << Dval.isIncomplete) results
-
-      return (DList filtered)
+      return (Dval.list results)
 
 
     | ETuple (_id, first, second, theRest) ->

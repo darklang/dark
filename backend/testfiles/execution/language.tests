@@ -13,8 +13,8 @@
 [] = []
 [1] = [1]
 [ 5; Int.add_v0 1 5; 0 ] = [5; 6; 0]
-[ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ] // CLEANUP - error
-//+[ 5; Test.typeError_v0 "1"; Test.typeError_v0 "2" ] = Test.typeError_v0 "1" // CLEANUP
+[ 5; Test.typeError_v0 "test"; 0 ] = Test.typeError_v0 "test"
+[ 5; Test.typeError_v0 "1"; Test.typeError_v0 "2" ] = Test.typeError_v0 "1"
 
 [tests.tuple]
 (1,2) = (1,2)
