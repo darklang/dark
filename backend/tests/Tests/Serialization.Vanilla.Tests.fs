@@ -129,10 +129,6 @@ module PersistedSerializations =
           "simple"
           { id = V.uuid; canvasID = V.uuid }
 
-        v<LibBackend.Session.JsonData>
-          "simple"
-          { username = "paul"; csrf_token = "abcd1234abdc1234abcd1234abc1234" }
-
         v<LibBackend.PackageManager.ParametersDBFormat>
           "all"
           [ { name = "int"; tipe = LibBackend.PackageManager.TInt; description = "" }
