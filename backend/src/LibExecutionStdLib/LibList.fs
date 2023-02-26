@@ -1081,13 +1081,13 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "zip" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
-      returnType = TOption(TList(TList varA))
+      returnType = TOption(TList(TTuple(varA, varB, [])))
       description =
-        "If the lists have the same length, returns {{Just list}} formed from
+        "If the lists have the same length, returns {{Just list of tuples}} formed from
         parallel pairs in <param as> and <param bs>.
 
         For example, if <param as> is {{[1,2,3]}} and <param bs> is
-        {{[\"x\",\"y\",\"z\"]}}, returns {{[[1,\"x\"], [2,\"y\"], [3,\"z\"]]}}.
+        {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}.
 
         See <fn List::unzip> if you want to deconstruct <var list> into <param as>
         and <param bs> again.
@@ -1102,7 +1102,7 @@ let fns : List<BuiltInFn> =
             Ply(DOption None)
           else
             List.zip l1 l2
-            |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+            |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
             |> Dval.list
             |> Some
             |> DOption
@@ -1114,15 +1114,15 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "unzip" 0
-      parameters = [ Param.make "pairs" (TList(TList varA)) "" ]
+      parameters = [ Param.make "pairs" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TList(TList varA)
       description =
-        "Given a <param pairs> list where each value is a list of two values (such
+        "Given a <param pairs> list where each value is a tuple of two values (such
          lists are constructed by <fn List::zip> and <fn List::zipShortest>), returns
          a list of two lists, one with every first value, and one with every second
          value.
 
-         For example, if <fn pairs> is {{[[1,\"x\"], [2,\"y\"], [3,\"z\"]]}}, returns
+         For example, if <fn pairs> is {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}, returns
          {{[[1,2,3], [\"x\",\"y\",\"z\"]]}}."
       fn =
         (function
@@ -1130,19 +1130,19 @@ let fns : List<BuiltInFn> =
 
           let f (acc1, acc2) i =
             match i with
-            | DList [ a; b ] -> (a :: acc1, b :: acc2)
+            | DTuple (a, b, []) -> (a :: acc1, b :: acc2)
             | (DIncomplete _
             | DError _) as dv -> Errors.foundFakeDval dv
             | v ->
               let errDetails =
                 match v with
-                | DList l ->
-                  $". It has length {List.length l} but should have length 2"
+                | DTuple (_, _, xs) ->
+                    $". It has length {2 + List.length xs} but should have length 2"
                 | _ ->
-                  $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `List`"
+                  $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `Tuple`"
 
               Exception.raiseCode (
-                Errors.argumentWasnt "a list with exactly two values" "pairs" v
+                Errors.argumentWasnt "a tuple with exactly two values" "pairs" v
                 + errDetails
               )
 

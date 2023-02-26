@@ -45,9 +45,6 @@ indicator, are all a single test named "name", and should be parsed as one.
 which say "with DB DBNAME". (Only give DBs to tests which need them, as these
 tests need to be isolated and that's much slower)
 
-`[test.name]` indicates that the following lines, up until the next test
-indicator, are all a single test named "name", and should be parsed as one.
-
 `[test.name] with DB MyDB` is like `[test.name]`, where the DB previously
 defined as MyDB is available to the test. Cannot currently be used with
 `with Worker MyWorker` syntax.
