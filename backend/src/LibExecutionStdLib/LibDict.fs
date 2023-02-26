@@ -134,10 +134,10 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromList" 0
-      parameters = [ Param.make "entries" (TList varA) "" ]
+      parameters = [ Param.make "entries" (TTuple (varA, varB, [])) "" ]
       returnType = TOption(TDict varA)
       description =
-        "Each value in <param entries> must be a {{[key, value]}} list, where <var
+        "Each value in <param entries> must be a {{(key, value)}} list, where <var
          key> is a <type String>.
 
          If <param entries> contains no duplicate keys, returns {{Just <var dict>}}
@@ -150,15 +150,15 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
           let f acc e =
             match acc, e with
-            | Some acc, DList [ DStr k; _ ] when Map.containsKey k acc -> None
-            | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
+            | Some acc, DTuple (DStr k, _, _) when Map.containsKey k acc -> None
+            | Some acc, DTuple (DStr k, value,[]) -> Some(Map.add k value acc)
             | _,
               ((DIncomplete _
               | DError _) as dv) -> Errors.foundFakeDval dv
-            | Some _, DList [ k; _ ] ->
-              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+            | Some _, DTuple (k, _, []) ->
+                Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | Some _, _ ->
-              Exception.raiseCode "All list items must be `[key, value]`"
+                Exception.raiseCode "All list items must be `(key, value)`"
             | None, _ -> None
 
           let result = List.fold (Some Map.empty) f l
