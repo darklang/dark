@@ -253,8 +253,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       /// - new vars (name * value)
       /// - traces
       let rec checkPattern
-        dv
-        pattern
+        (dv : Dval)
+        (pattern : MatchPattern)
         : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
         | MPInteger (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
@@ -281,9 +281,18 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, newVars, traceIncompleteWithArgs id [ p ] @ traces
 
+          // Trace this with incompletes to avoid type errors
+          | "Just", [ p ], _
+          | "Ok", [ p ], _
+          | "Error", [ p ], _ ->
+            let pID = MatchPattern.toID p
+            let (_, newVars, traces) = checkPattern (incomplete pID) p
+            false, newVars, traceIncompleteWithArgs id [] @ traces
+
           | _name, argPatterns, _dv ->
             let traces = traceIncompleteWithArgs id argPatterns
             false, [], traces
+
 
         | MPTuple (id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
