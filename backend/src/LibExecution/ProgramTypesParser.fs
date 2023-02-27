@@ -165,6 +165,8 @@ module DType =
         match String.toLowercase listTyp with
         | "str" -> Some(PT.TDbList PT.TStr)
         | "string" -> Some(PT.TDbList PT.TStr)
+        | "char" -> Some(PT.TDbList PT.TChar)
+        | "character" -> Some(PT.TDbList PT.TChar)
         | "int" -> Some(PT.TDbList PT.TInt)
         | "integer" -> Some(PT.TDbList PT.TInt)
         | "float" -> Some(PT.TDbList PT.TFloat)

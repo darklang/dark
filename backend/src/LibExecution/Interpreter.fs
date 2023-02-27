@@ -59,26 +59,29 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ECharacter (_id, s) -> return DChar s
 
 
-    | ELet (_id, lhs, rhs, body) ->
-      let! rhs = eval state st rhs
-      match rhs with
-      // CLEANUP we should still preview the body
-      | _ ->
-        let st = if lhs <> "" then Map.add lhs rhs st else st
-        return! eval state st body
+    | ELet (id, lhs, rhs, body) ->
+      if lhs = "" then
+        let! _ = preview st rhs
+        return DError(sourceID id, "Variable name in `let` is empty")
+      else
+        let! rhs = eval state st rhs
+        match rhs with
+        | DError _
+        | DIncomplete _ ->
+          let st = Map.add lhs rhs st
+          do! preview st body
+          return rhs
+        | _ ->
+          let st = Map.add lhs rhs st
+          return! eval state st body
 
 
     | EList (_id, exprs) ->
-      // We ignore incompletes but not error rail.
-      // CLEANUP: Other places where lists are created propagate incompletes
-      // instead of ignoring, this is probably a mistake.
       let! results = Ply.List.mapSequentially (eval state st) exprs
 
-      // We filter these out as we want users to be able to add elements to
-      // lists without breaking their code.
-      let filtered = List.filter (not << Dval.isIncomplete) results
-
-      return (DList filtered)
+      match List.tryFind Dval.isFake results with
+      | Some fakeDval -> return fakeDval
+      | None -> return DList results
 
 
     | ETuple (_id, first, second, theRest) ->
@@ -97,41 +100,28 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | EVariable (id, name) ->
-      match (st.TryFind name, state.tracing.realOrPreview) with
-      | None, Preview ->
-        // CLEANUP this feels like giving an error would be an improvement
-        // The trace is wrong/we have a bug -- we guarantee to users that
-        // variables they can lookup have been bound. However, we
-        // shouldn't crash out here when running analysis because it gives
-        // a horrible user experience
-        return incomplete id
-      | None, Real ->
+      match st.TryFind name with
+      | None ->
         return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
-      | Some other, _ -> return other
+      | Some other -> return other
 
 
-    | ERecord (_id, pairs) ->
-      let! evaluated =
-        pairs
-        |> Ply.List.mapSequentially (fun (k, v) ->
-          uply {
-            match (k, v) with
-            | "", v ->
-              let! (_ : Dval) = eval state st v
-              return None
-            | keyname, v ->
-              match! eval state st v with
-              | DIncomplete _ -> return None
-              | dv -> return Some(keyname, dv)
-          })
-
-      let evaluated = List.choose Operators.id evaluated
-
-      // CLEANUP - we should propagate DErrors too
-
-      // CLEANUP - we should propogate blank field names too
-      // (similar to tuples, the other product type)
-      return Dval.interpreterObj evaluated
+    | ERecord (id, pairs) ->
+      return!
+        Ply.List.foldSequentially
+          (fun r (k, expr) ->
+            uply {
+              let! v = eval state st expr
+              match (r, k, v) with
+              | r, _, _ when Dval.isFake r -> return r
+              | _, _, v when Dval.isFake v -> return v
+              | _, "", _ -> return DError(sourceID id, "Record key is empty")
+              | DObj m, k, v -> return (DObj(Map.add k v m))
+              // If we haven't got a DObj we're propagating an error so let it go
+              | r, _, v -> return r
+            })
+          (DObj(Map.empty))
+          pairs
 
 
     | EApply (id, fnVal, exprs, inPipe) ->
@@ -157,16 +147,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EFieldAccess (id, e, field) ->
       let! obj = eval state st e
 
-      let result =
+      if field = "" then
+        return DError(sourceID id, "Field name is empty")
+      else
         match obj with
         | DObj o ->
-          if field = "" then
-            DIncomplete(sourceID id)
-          else
-            Map.tryFind field o |> Option.defaultValue DUnit
-        | DIncomplete _ -> obj
-        // CLEANUP: we should propagate DErrors too
-        // | DError _ -> obj // differs from ocaml, but produces an Error either way
+          match Map.tryFind field o with
+          | Some v -> return v
+          | None -> return DError(sourceID id, $"No field named {field} in record")
+        | _ when Dval.isFake obj -> return obj
         | x ->
           let actualType =
             match Dval.toType x with
@@ -174,12 +163,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
             | tipe -> $"it's a {DvalReprDeveloper.typeName tipe}"
 
-          DError(
-            sourceID id,
-            $"Attempting to access a field of something that isn't a record or dict, ({actualType})."
-          )
+          return
+            DError(
+              sourceID id,
+              $"Attempting to access a field of something that isn't a record or dict, ({actualType})."
+            )
 
-      return result
 
 
     | EFeatureFlag (_id, cond, oldcode, newcode) ->
@@ -264,8 +253,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       /// - new vars (name * value)
       /// - traces
       let rec checkPattern
-        dv
-        pattern
+        (dv : Dval)
+        (pattern : MatchPattern)
         : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
         | MPInteger (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
@@ -292,9 +281,18 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, newVars, traceIncompleteWithArgs id [ p ] @ traces
 
+          // Trace this with incompletes to avoid type errors
+          | "Just", [ p ], _
+          | "Ok", [ p ], _
+          | "Error", [ p ], _ ->
+            let pID = MatchPattern.toID p
+            let (_, newVars, traces) = checkPattern (incomplete pID) p
+            false, newVars, traceIncompleteWithArgs id [] @ traces
+
           | _name, argPatterns, _dv ->
             let traces = traceIncompleteWithArgs id argPatterns
             false, [], traces
+
 
         | MPTuple (id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat

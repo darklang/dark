@@ -56,7 +56,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ClientTypes", "src\ClientTy
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ClientTypes2ExecutionTypes", "src\ClientTypes2ExecutionTypes\ClientTypes2ExecutionTypes.fsproj", "{BB90A7BB-2276-483B-BF83-32B2DE3F4436}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ClientTypes2BackendTypes", "src\ClientTypes2ExecutionTypes\ClientTypes2ExecutionTypes.fsproj", "{45B04553-C8BF-4966-AC17-52C1533f98FB}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ClientTypes2BackendTypes", "src\ClientTypes2BackendTypes\ClientTypes2BackendTypes.fsproj", "{45B04553-C8BF-4966-AC17-52C1533f98FB}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Executor", "src\Executor\Executor.fsproj", "{87135FB2-A6B8-41CB-B220-3349AF31B86D}"
 EndProject

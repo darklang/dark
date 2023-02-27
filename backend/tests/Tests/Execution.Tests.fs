@@ -562,8 +562,8 @@ let testMatchPreview : Test =
 
           (pOkVarOkId, "ok var pat ok", ner (inc pOkVarOkId))
           (pOkVarVarId, "ok var pat var", ner (inc pOkVarVarId))
-          (okVarRhsId, "ok var pat rhs", ner (inc okVarRhsVarId))
-          (okVarRhsVarId, "ok var rhs var", ner (inc okVarRhsVarId))
+          (okVarRhsId, "ok var pat rhs", ner (inc pOkVarVarId))
+          (okVarRhsVarId, "ok var rhs var", ner (inc pOkVarVarId))
           (okVarRhsStrId, "ok var rhs str", ner (DStr "ok: "))
 
           (pNothingId, "nothing pat", ner (DOption None))

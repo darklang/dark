@@ -604,8 +604,7 @@ let fns : List<BuiltInFn> =
          preserving the order."
       fn =
         (function
-        | _, [ DList l1; DList l2 ] ->
-          Ply(DList(List.append l1 l2)) (* no checking for fake cf required *)
+        | _, [ DList l1; DList l2 ] -> Ply(DList(List.append l1 l2)) // no checking for DError required
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

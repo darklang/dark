@@ -4,6 +4,7 @@
 // e.g. DB "x" has column "x" of type "Str"
 // ------------
 [db.X { "x" : "Str" }]
+[db.Z { "x" : "Character" }]
 [db.Lists { "strs" : "[Str]" , "ints" : "[Int]" }]
 [db.Insensitive { "cOlUmNnAmE" : "Str" }]
 [db.XY { "x" : "Str", "y": "Str" }]
@@ -76,6 +77,11 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 (let old = DB.set_v1 { x = "hello" } "hello" X in
  let newval = DB.set_v1 { x = "goodbye" } "hello" X in
  DB.getAllWithKeys_v2 X) = { hello = { x = "goodbye"} }
+
+[test.db.set char upsert] with DB Z
+(let old = DB.set_v1 { x = 'a' } "a" Z in
+ let newval = DB.set_v1 { x = 'b' } "a" Z in
+ DB.getAllWithKeys_v2 Z) = { a = { x = 'b'} }
 
 // ------------
 // Exact field queries
@@ -225,6 +231,10 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 (let one = DB.set_v1 { x = "hello" } "one" X in
  let two = DB.set_v1 { x = "hello" } "two" X in
  DB.queryOneWithKey_v2 { x = "hello" } X) = Nothing
+
+[test.db.queryOneWithKey_v2 char works] with DB Z
+(let one = DB.set_v1 { x = 'a' } "one" Z in
+ DB.queryOneWithKey_v2 { x = 'b' } Z) = Nothing
 
 // DB.delete
 [test.db.delete_v1 does delete] with DB X

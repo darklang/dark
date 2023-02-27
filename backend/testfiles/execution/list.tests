@@ -163,7 +163,7 @@ List.sort_v0 [] = []
 
 List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "Expected `fn` to return -1, 0, 1, but it returned `0.1`"
 List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "Expected `fn` to return -1, 0, 1, but it returned `3`"
-List.sortByComparator_v0 [Test.typeError "㧑༷釺";1;2;3] (fun a b -> 1) = Error "Expected `fn` to return -1, 0, 1, but it returned `<error: 㧑༷釺>`"
+List.sortByComparator_v0 [1;2;3] (fun a b -> "㧑༷釺") = Error "Expected `fn` to return -1, 0, 1, but it returned `\"㧑༷釺\"`"
 List.sortByComparator_v0 [3;1;2] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [ 1; 2; 3 ]
 List.sortByComparator_v0 [] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok []
 List.sortByComparator_v0 [3;1;2;67;3;-1;6;3;5;6;2;5;63;2;3;5;-1;-1;-1] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [-1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67]
@@ -210,3 +210,4 @@ List.zipShortest_v0 [] ["b";"v";"z"] = []
 List.zip_v0 [10;20;30] [1;2;3] = Just [ (10, 1); (20, 2); (30, 3) ]
 List.zip_v0 [10;20] [1;2;3] = Nothing
 List.zip_v0 [] [] = Just []
+List.zip_v0 [Test.typeError_v0 "msg"] [Just ""] = Test.typeError "msg"

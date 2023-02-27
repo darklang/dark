@@ -4,6 +4,9 @@
 [fn.hand null:any]
 ((String.toList_v1 "✋🏿") |> List.head_v2 |> Test.unwrap)
 
+[fn.family null:any]
+((String.toList_v1 "👩‍👩‍👧‍👦") |> List.head_v2 |> Test.unwrap)
+
 [tests.all]
 
 Char.toLowercase_v1 'A' = 'a'
@@ -131,3 +134,42 @@ Char.isASCII_v0 'ჾ' = false
 Char.isASCII_v0 'Ჾ' = false
 Char.isASCII_v0 ' ' = true
 Char.isASCII_v0 '\t' = true
+
+
+Char.isLessThan_v0 'a' 'b' = true
+Char.isLessThan_v0 'a' 'A' = false
+Char.isLessThan_v0 'b' 'A' = false
+Char.isLessThan_v0 'a' 'á' = true
+Char.isLessThan_v0 'b' 'á' = true
+Char.isLessThan_v0 'a' 'ჾ' = true
+Char.isLessThan_v0 'a' 'Ჾ' = true
+Char.isLessThan_v0 'a' 'ł' = true
+Char.isLessThan_v0 'a' 'Ł' = true
+Char.isLessThan_v0 'a' ' ' = false
+Char.isLessThan_v0 'a' '\t' = false
+Char.isLessThan_v0 'a' '1' = false
+Char.isLessThan_v0 '2' '1' = false
+Char.isLessThan_v0 'a' (smiley null) = true
+Char.isLessThan_v0 'a' (hand null) = true
+Char.isLessThan_v0 'a' (family null) = true
+Char.isLessThan_v0 (smiley null) (hand null) = false
+
+
+Char.isGreaterThan_v0 'a' 'b' = false
+Char.isGreaterThan_v0 'a' 'A' = true
+Char.isGreaterThan_v0 'b' 'A' = true
+Char.isGreaterThan_v0 'a' 'á' = false
+Char.isGreaterThan_v0 'b' 'á' = false
+Char.isGreaterThan_v0 'a' 'ჾ' = false
+Char.isGreaterThan_v0 'a' 'Ჾ' = false
+Char.isGreaterThan_v0 'a' 'ł' = false
+Char.isGreaterThan_v0 'a' 'Ł' = false
+Char.isGreaterThan_v0 'a' ' ' = true
+Char.isGreaterThan_v0 'a' '\t' = true
+Char.isGreaterThan_v0 'a' '1' = true
+Char.isGreaterThan_v0 '2' '1' = true
+Char.isGreaterThan_v0 'a' (smiley null) = false
+Char.isGreaterThan_v0 'a' (hand null) = false
+Char.isGreaterThan_v0 'a' (family null) = false
+Char.isGreaterThan_v0 (smiley null) (hand null) = true
+
