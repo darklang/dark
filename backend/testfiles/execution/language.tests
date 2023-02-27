@@ -27,17 +27,17 @@
 
 
 [tests.records]
-{ col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key: col1" // CLEANUP - remove test, allow behaviour, and fix in type checking
+{ col1 = 1 ; col1 = 2 } = { col1 = 2 }
 { col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
-{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" } // CLEANUP - should be error
-{ col1 = 2 ; ___ = 3 } = { col1 = 2 }
-(let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 2 } in Test.sideEffectCount_v0) = 1 // CLEANUP make parser error
+{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
+{ col1 = 2 ; ___ = 3 } = Test.typeError "Record key is empty"
 
 
 [tests.fieldAccess]
 (let x = { col1 = 1 } in x.col1) = 1
-(let x = { col1 = 1 } in x.fieldName) = null // CLEANUP: error
-(Test.typeError_v0 "error").fieldName = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
+(let x = { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
+(let x = { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in record"
+(Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
 (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
 
 [tests.variable]
@@ -347,17 +347,16 @@ Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 
 [tests.errorPropagation]
 List.head_v2 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
 (if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "test"
-(List.head_v2 (Test.typeError_v0 "test")).field = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
-[ 5; 6; List.head_v2 (Test.typeError_v0 "test") ] = [5;6; Test.typeError_v0 "test"]
-[ 5; 6; Test.typeError_v0 "test"] = [ 5; 6; Test.typeError_v0 "test"]
-// CLEANUP - don't support errors in literal lists or records
-{ i = Test.typeError_v0 "test"; m = 5; j = List.head_v2 (Test.typeError_v0 "test"); n = 6 } = { n = 6; m = 5 ; j = Test.typeError_v0 "test"; i = Test.typeError_v0 "test" }
+(List.head_v2 (Test.typeError_v0 "test")).field = Test.typeError_v0 "test"
+[ 5; 6; List.head_v2 (Test.typeError_v0 "test") ] = Test.typeError_v0 "test"
+[ 5; 6; Test.typeError_v0 "test"] = Test.typeError_v0 "test"
+{ i = Test.typeError_v0 "1"; m = 5; j = List.head_v2 (Test.typeError_v0 "2"); n = 6 } = Test.typeError_v0 "1"
 5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
 5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
 ("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
-Just (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
-Error (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
-Ok (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
+Just (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+Error (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+Ok (Test.typeError_v0 "test") = Test.typeError_v0 "test"
 
 
 [test.pipe into error]

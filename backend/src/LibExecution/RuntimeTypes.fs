@@ -582,28 +582,6 @@ module Dval =
         | m, _, _ -> m)
       fields
 
-  // CLEANUP a version of obj that's backward compatible with the OCaml interpreter.
-  // Hopefully we'll get rid of this in the future.
-  let interpreterObj (fields : List<string * Dval>) : Dval =
-    // Give a warning for duplicate keys
-    List.fold
-      (DObj Map.empty)
-      (fun m (k, v) ->
-        match m, k, v with
-        // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
-        | m, _, _ when isFake m -> m
-        // Skip empty rows
-        | _, "", _ -> m
-        | _, _, DIncomplete _ -> m
-        // Error if the key appears twice
-        | DObj m, k, _v when Map.containsKey k m ->
-          DError(SourceNone, $"Duplicate key: {k}")
-        // Otherwise add it
-        | DObj m, k, v -> DObj(Map.add k v m)
-        // If we haven't got a DObj we're propagating an error so let it go
-        | m, _, _ -> m)
-      fields
-
 
 
   let resultOk (dv : Dval) : Dval = if isFake dv then dv else DResult(Ok dv)
