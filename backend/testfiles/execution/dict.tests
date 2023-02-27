@@ -8,20 +8,20 @@ Dict.filter_v1 { key1 = 1; key2 = 3 }  (fun (k, v) -> v < 2) = { key1 = 1 }
 Dict.filter_v1 {} (fun (k, v) -> 0) = {}
 Dict.filter_v1 { a = 1; b = 2; c = 3 } (fun (k, v) -> 2) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `2`"
 
-Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["a";3]] = { b = 2 ; a = 3 }
-Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3]] = { c = 3 ; b = 2 ; a= 1 }
+Dict.fromListOverwritingDuplicates_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = { b = 2 ; duplicate_key = 3 }
+Dict.fromListOverwritingDuplicates_v0 [("a",1); ("b",2); ("c",3)] = { c = 3 ; b = 2 ; a= 1 }
 Dict.fromListOverwritingDuplicates_v0 [] = {}
-Dict.fromListOverwritingDuplicates_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "All list items must be `[key, value]`"
-Dict.fromListOverwritingDuplicates_v0 [[1;1]] = Test.typeError_v0 "Expected the argument `key` to be a string, but it was `1`"
-Dict.fromListOverwritingDuplicates_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "All list items must be `[key, value]`"
+Dict.fromListOverwritingDuplicates_v0 [("a",1); ("b",2); ("c",3,3)]  = Test.typeError_v0 "All list items must be `(key, value)`"
+Dict.fromListOverwritingDuplicates_v0 [(1,1)] = Test.typeError_v0 "Expected the argument `key` to be a string, but it was `1`"
+Dict.fromListOverwritingDuplicates_v0 [("a",1); 2; ("c",3)] = Test.typeError_v0 "All list items must be `(key, value)`"
 Dict.fromListOverwritingDuplicates_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
-Dict.fromList_v0 [["a";1];["b";2];["a";3]] = Nothing // duplicate key
-Dict.fromList_v0 [["a";1];["b";2];["c";3]] = Just { c = 3; b = 2; a = 1 }
-Dict.fromList_v0 [ ["Content-Length";0]; ["Server"; "dark"] ] = Just {``Content-Length`` = 0; Server = "dark"}
-Dict.fromList_v0 [["a";1];["b";2];["c";3;3]] = Test.typeError_v0 "All list items must be `[key, value]`"
-Dict.fromList_v0 [[1;1]] = Test.typeError_v0 "Expected the argument `key` to be a string, but it was `1`"
-Dict.fromList_v0 [["a";1];2;["c";3]] = Test.typeError_v0 "All list items must be `[key, value]`"
+Dict.fromList_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = Nothing
+Dict.fromList_v0 [("a",1); ("b",2); ("c",3)] = Just { c = 3; b = 2; a = 1 }
+Dict.fromList_v0 [("Content-Length",0); ("Server", "dark") ] = Just {``Content-Length`` = 0; Server = "dark"}
+Dict.fromList_v0 [("a",1); ("b",2); ("c",3,3)] = Test.typeError_v0 "All list items must be `(key, value)`"
+Dict.fromList_v0 [(1,1)] = Test.typeError_v0 "Expected the argument `key` to be a string, but it was `1`"
+Dict.fromList_v0 [("a",1); 2; ("c",3)] = Test.typeError_v0 "All list items must be `(key, value)`"
 Dict.fromList_v0 [] = Just {}
 Dict.fromList_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
@@ -56,7 +56,7 @@ Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
 Dict.size_v0 { a = 3; b = 1; c = 1 } = 3
 Dict.size_v0 {} = 0
 
-Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ [ "a"; 1 ], [ "b"; 2 ], [ "c"; 3 ]]
+Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ ("a", 1 ), ("b", 2), ("c", 3)]
 Dict.toList_v0 {} = []
 
 Dict.values_v0 { key1 = "val1" } = ["val1"]
