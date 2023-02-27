@@ -91,6 +91,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TInt, RT.DInt _ -> value
         | RT.TFloat, RT.DFloat _ -> value
         | RT.TStr, RT.DStr _ -> value
+        | RT.TChar, RT.DChar _ -> value
         | RT.TBool, RT.DBool _ -> value
         | RT.TDate, RT.DDate _ -> value
         // CLEANUP use the inner type

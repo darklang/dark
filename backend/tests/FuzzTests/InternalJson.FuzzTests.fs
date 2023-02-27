@@ -28,23 +28,11 @@ type Generator =
 
   static member String() : Arbitrary<string> = G.SafeUnicodeString
 
-  static member Expr() =
-    Arb.Default.Derive()
-    |> Arb.filter (fun expr ->
-      match expr with
-      // characters are not supported in OCaml
-      // CLEANUP can be removed once OCaml gone
-      | PT.ECharacter _ -> false
-      | _ -> true)
+  static member Expr() = Arb.Default.Derive()
 
-  static member MatchPattern() =
-    Arb.Default.Derive()
-    |> Arb.filter (fun pattern ->
-      match pattern with
-      // characters are not supported in OCaml
-      // CLEANUP can be removed once OCaml gone
-      | PT.MPCharacter _ -> false
-      | _ -> true)
+
+  static member MatchPattern() = Arb.Default.Derive()
+
 
 
 module Roundtrippable =
