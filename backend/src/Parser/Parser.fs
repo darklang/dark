@@ -35,13 +35,15 @@ let parse (input : string) : SynExpr =
                                                 [ SynModuleOrNamespace (_,
                                                                         _,
                                                                         _,
-                                                                        [ SynModuleDecl.DoExpr (_,
-                                                                                                expr,
-                                                                                                _) ],
+                                                                        [ SynModuleDecl.Expr (expr,
+                                                                                              _) ],
+                                                                        _,
                                                                         _,
                                                                         _,
                                                                         _,
                                                                         _) ],
+                                                _,
+                                                _,
                                                 _))) -> expr
   | _ ->
     Exception.raiseInternal
@@ -64,7 +66,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let rec convertPattern (pat : SynPat) : PT.MatchPattern =
     let id = gid ()
     match pat with
-    | SynPat.Named (name, _, _, _) -> PT.MPVariable(id, name.idText)
+    | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
     | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInteger(id, n)
     | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInteger(id, int64 n)
@@ -77,8 +79,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       let sign, whole, fraction = readFloat d
       PT.MPFloat(id, sign, whole, fraction)
     | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
-    | SynPat.LongIdent (LongIdentWithDots ([ constructorName ], _),
-                        _,
+    | SynPat.LongIdent (SynLongIdent ([ constructorName ], _, _),
                         _,
                         _,
                         SynArgPats.Pats args,
@@ -144,7 +145,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Const (SynConst.String (s, _, _), _) -> PT.EString(id, s)
 
   // simple identifiers like `==`
-  | SynExpr.Ident ident when Map.containsKey ident.idText ops ->
+  | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
+    Map.containsKey ident.idText ops
+    ->
     let op =
       Map.get ident.idText ops
       |> Exception.unwrapOptionInternal
@@ -153,7 +156,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
     PT.EInfix(id, PT.InfixFnCall(fn), placeholder, placeholder)
 
-  | SynExpr.Ident ident when
+  | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
     List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
     ->
     let op =
@@ -164,7 +167,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
     PT.EInfix(id, PT.BinOp op, placeholder, placeholder)
 
-  | SynExpr.Ident ident when ident.idText = "op_UnaryNegation" ->
+  | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
+    ident.idText = "op_UnaryNegation"
+    ->
     let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [])
 
@@ -200,7 +205,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   // Long Identifiers like Date.now, represented in the form of ["Date"; "now"]
   // (LongIdent = Ident list)
-  | SynExpr.LongIdent (_, LongIdentWithDots ([ modName; fnName ], _), _, _) when
+  | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
     System.Char.IsUpper(modName.idText[0])
     ->
     let module_ = modName.idText
@@ -227,7 +232,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   // Preliminary support for package manager functions
   | SynExpr.LongIdent (_,
-                       LongIdentWithDots ([ owner; package; modName; fnName ], _),
+                       SynLongIdent ([ owner; package; modName; fnName ], _, _),
                        _,
                        _) when
     owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
@@ -235,13 +240,13 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     let name = $"test/test/Test::{fnName.idText}_v0"
     PT.EFnCall(gid (), PTParser.FQFnName.parse name, [])
 
-  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; f1; f2; f3 ], _), _, _) ->
+  | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
     let obj1 =
       PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
     let obj2 = PT.EFieldAccess(id, obj1, nameOrBlank f2.idText)
     PT.EFieldAccess(id, obj2, nameOrBlank f3.idText)
 
-  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field1; field2 ], _), _, _) ->
+  | SynExpr.LongIdent (_, SynLongIdent ([ var; field1; field2 ], _, _), _, _) ->
     let obj1 =
       PT.EFieldAccess(
         id,
@@ -250,10 +255,10 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       )
     PT.EFieldAccess(id, obj1, nameOrBlank field2.idText)
 
-  | SynExpr.LongIdent (_, LongIdentWithDots ([ var; field ], _), _, _) ->
+  | SynExpr.LongIdent (_, SynLongIdent ([ var; field ], _, _), _, _) ->
     PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank field.idText)
 
-  | SynExpr.DotGet (expr, _, LongIdentWithDots ([ field ], _), _) ->
+  | SynExpr.DotGet (expr, _, SynLongIdent ([ field ], _, _), _) ->
     PT.EFieldAccess(id, c expr, nameOrBlank field.idText)
 
   | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (outerVars, _), body, _, _, _) ->
@@ -292,7 +297,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                                     _,
                                     _,
                                     _,
-                                    SynPat.Named (name, _, _, _),
+                                    SynPat.Named (SynIdent (name, _), _, _, _),
                                     _,
                                     rhs,
                                     _,
@@ -321,7 +326,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                       _,
                       _) -> PT.ELet(id, "_", c rhs, c body)
 
-  | SynExpr.Match (_, _, cond, _, clauses, _) ->
+  | SynExpr.Match (_, cond, clauses, _, _) ->
     let convertClause
       (SynMatchClause (pat, _, expr, _, _, _) : SynMatchClause)
       : PT.MatchPattern * PT.Expr =
@@ -332,7 +337,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     fields
     |> List.map (fun field ->
       match field with
-      | SynExprRecordField ((LongIdentWithDots ([ name ], _), _), _, Some expr, _) ->
+      | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
         (nameOrBlank name.idText, c expr)
       | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
     |> fun rows -> PT.ERecord(id, rows)
@@ -341,12 +346,17 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   | SynExpr.Do (expr, _) -> c expr // just unwrap
 
+
+  // handle pipes (|>)
   // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
   // op_PipeRight, and the inner app has two arguments. Those arguments might
   // also be pipes
-  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _) when
-    pipe.idText = "op_PipeRight"
-    ->
+  | SynExpr.App (_, _, SynExpr.Ident pipe, SynExpr.App (_, _, nestedPipes, arg, _), _)
+  | SynExpr.App (_,
+                 _,
+                 SynExpr.LongIdent (_, SynLongIdent ([ pipe ], _, _), _, _),
+                 SynExpr.App (_, _, nestedPipes, arg, _),
+                 _) when pipe.idText = "op_PipeRight" ->
     match c nestedPipes with
     | PT.EPipe (id, arg1, Placeholder, []) ->
       // when we just built the lowest, the second one goes here
@@ -359,24 +369,22 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       // the very bottom on the pipe chain, this is the first and second expressions
       PT.EPipe(id, other, cPlusPipeTarget arg, [])
 
-  | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _) when pipe.idText = "op_PipeRight" ->
+  | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _)
+  | SynExpr.App (_,
+                 _,
+                 SynExpr.LongIdent (_, SynLongIdent ([ pipe ], _, _), _, _),
+                 expr,
+                 _) when pipe.idText = "op_PipeRight" ->
     // the very bottom on the pipe chain, this is just the first expression
     PT.EPipe(id, c expr, placeholder, [])
+
+
+
 
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
     List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
     ->
     PT.EConstructor(id, name.idText, [ c arg ])
-
-  | SynExpr.App (_, _, SynExpr.App (_, _, SynExpr.Ident ident, left, _), right, _) when
-    ident.idText = "op_BooleanAnd"
-    ->
-    PT.EInfix(id, PT.BinOp(PT.BinOpAnd), c left, c right)
-
-  | SynExpr.App (_, _, SynExpr.App (_, _, SynExpr.Ident ident, left, _), right, _) when
-    ident.idText = "op_BooleanOr"
-    ->
-    PT.EInfix(id, PT.BinOp(PT.BinOpOr), c left, c right)
 
   // Feature flag now or else it'll get recognized as a var
   | SynExpr.App (_,
@@ -426,14 +434,29 @@ let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
   match ast with
   | SynExpr.App (_,
                  _,
-                 SynExpr.App (_, _, SynExpr.Ident ident, actual, _),
+                 SynExpr.App (_,
+                              _,
+                              SynExpr.LongIdent (_,
+                                                 SynLongIdent ([ ident ], _, _),
+                                                 _,
+                                                 _),
+                              actual,
+                              _),
                  expected,
                  _) when ident.idText = "op_Equality" ->
     // Exception.raiseInternal $"whole thing: {actual}"
     (true, convert actual, convert expected)
+
   | SynExpr.App (_,
                  _,
-                 SynExpr.App (_, _, SynExpr.Ident ident, actual, _),
+                 SynExpr.App (_,
+                              _,
+                              SynExpr.LongIdent (_,
+                                                 SynLongIdent ([ ident ], _, _),
+                                                 _,
+                                                 _),
+                              actual,
+                              _),
                  expected,
                  _) when ident.idText = "op_Inequality" ->
     // Exception.raiseInternal $"whole thing: {actual}"

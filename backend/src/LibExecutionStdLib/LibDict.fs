@@ -84,14 +84,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Dict" "toList" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = (TList (TTuple (varA, varB, [])))
+      returnType = (TList(TTuple(varA, varB, [])))
       description =
         "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict::fromList>"
       fn =
         (function
         | _, [ DObj o ] ->
           Map.toList o
-          |> List.map (fun (k, v) -> DTuple (DStr k, v, []))
+          |> List.map (fun (k, v) -> DTuple(DStr k, v, []))
           |> DList
           |> Ply
         | _ -> incorrectArgs ())
@@ -101,7 +101,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
-      parameters = [ Param.make "entries" (TTuple (varA, varB, [])) "" ]
+      parameters = [ Param.make "entries" (TTuple(varA, varB, [])) "" ]
       returnType = TDict varA
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
@@ -120,7 +120,7 @@ let fns : List<BuiltInFn> =
             match e with
             | DTuple (DStr k, value, []) -> Map.add k value acc
             | DTuple (k, _, []) ->
-                Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
             | DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
@@ -134,7 +134,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromList" 0
-      parameters = [ Param.make "entries" (TTuple (varA, varB, [])) "" ]
+      parameters = [ Param.make "entries" (TTuple(varA, varB, [])) "" ]
       returnType = TOption(TDict varA)
       description =
         "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
@@ -151,14 +151,14 @@ let fns : List<BuiltInFn> =
           let f acc e =
             match acc, e with
             | Some acc, DTuple (DStr k, _, _) when Map.containsKey k acc -> None
-            | Some acc, DTuple (DStr k, value,[]) -> Some(Map.add k value acc)
+            | Some acc, DTuple (DStr k, value, []) -> Some(Map.add k value acc)
             | _,
               ((DIncomplete _
               | DError _) as dv) -> Errors.foundFakeDval dv
             | Some _, DTuple (k, _, []) ->
-                Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | Some _, _ ->
-                Exception.raiseCode "All list items must be `(key, value)`"
+              Exception.raiseCode "All list items must be `(key, value)`"
             | None, _ -> None
 
           let result = List.fold (Some Map.empty) f l
