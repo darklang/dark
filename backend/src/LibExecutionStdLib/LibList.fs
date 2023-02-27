@@ -1137,7 +1137,7 @@ let fns : List<BuiltInFn> =
               let errDetails =
                 match v with
                 | DTuple (_, _, xs) ->
-                    $". It has length {2 + List.length xs} but should have length 2"
+                  $". It has length {2 + List.length xs} but should have length 2"
                 | _ ->
                   $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `Tuple`"
 
