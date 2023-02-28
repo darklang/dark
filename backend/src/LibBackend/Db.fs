@@ -236,12 +236,6 @@ let tableStats () : Task<List<TableStatsRow>> =
       diskHuman = read.string "disk_human"
       rowsHuman = read.string "rows_human" })
 
-// TODO: this is currently applied to the whole file, which isn't right.
-// We should remove this in favor of the new way to
-// "globally" set up Npgsql+Nodatime, outlined here:
-// https://www.npgsql.org/doc/types/nodatime.html?tabs=global
-#nowarn "44"
-
 let init () : unit =
   NpgsqlConnection.GlobalTypeMapper.UseNodaTime()
   |> ignore<TypeMapping.INpgsqlTypeMapper>

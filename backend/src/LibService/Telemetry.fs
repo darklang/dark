@@ -422,6 +422,4 @@ module AspNet =
         addTelemetry serviceName traceDBQueries builder
         |> ignore<TracerProviderBuilder>
         ())
-    |> ignore<OpenTelemetryBuilder>
-
-    services
+      .Services

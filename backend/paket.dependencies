@@ -40,7 +40,7 @@ nuget LaunchDarkly.ServerSdk = 6.3.2
 
 // Tracing
 nuget Honeycomb.OpenTelemetry = 1.2.1
-nuget Npgsql.OpenTelemetry = 7.0.2
+nuget Npgsql.OpenTelemetry = 6.0.9
 nuget System.Diagnostics.DiagnosticSource = 7.0.1
 nuget OpenTelemetry = 1.4.0
 nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.4.0
@@ -50,9 +50,9 @@ nuget OpenTelemetry.Extensions.Hosting = 1.4.0
 nuget OpenTelemetry.Instrumentation.Http = 1.0.0-rc9.14
 
 // LibBackend
-nuget Npgsql.FSharp = 5.6.0
-nuget Npgsql = 7.0.2
-nuget Npgsql.NodaTime = 7.0.2
+nuget Npgsql.FSharp = 5.5.0
+nuget Npgsql = 6.0.9
+nuget Npgsql.NodaTime = 6.0.9
 nuget Sodium.Core = 1.2.3
 nuget Google.Cloud.PubSub.V1 = 2.9.0
 nuget Google.Cloud.Storage.V1 = 3.7.0
