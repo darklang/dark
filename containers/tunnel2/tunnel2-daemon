@@ -3,8 +3,7 @@
 # DOC: what is this for?
 #
 # We run this as its own k8s deployment (at time of writing, scale=1) and route all
-# outgoing traffic through it by setting it as a SOCKS5 proxy in HttpClient (and
-# LegacyHttpClient)
+# outgoing traffic through it by setting it as a SOCKS5 proxy in HttpClient
 #
 # It currently restricts direct access to the server (you can't hit the server
 # directly; you have to send requests off-pod first, which forces incoming traffic to

@@ -465,7 +465,7 @@ let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<in
 let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be
-  // HTTP/REPL/CRON/WORKER or a legacy space
+  // HTTP/REPL/CRON/WORKER
   // NOTE: the line `AND tl.account_id = ud.account_id` seems redunant, but
   // it's required to hit the index
   Sql.query
