@@ -98,43 +98,7 @@ let ocamlCompatibleDateParser (s : string) : Result<DDateTime.T, unit> =
       Error()
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Date" "parse" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TDate
-      description =
-        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          match ocamlCompatibleDateParser s with
-          | Error () -> Ply(DError(SourceNone, "Invalid date format"))
-          | Ok d -> Ply(DDate d)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "parse" 1) }
-
-
-    { name = fn "Date" "parse" 1
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TDate, TStr)
-      description =
-        "Parses a <type string> representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the <type Date> wrapped in a <type Result>."
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          ocamlCompatibleDateParser s
-          |> Result.map DDate
-          |> Result.mapError (fun () -> DStr "Invalid date format")
-          |> DResult
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "parse" 2) }
-
-
-    { name = fn "Date" "parse" 2
+  [ { name = fn "Date" "parse" 2
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TDate, TStr)
       description =
@@ -242,20 +206,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Date" "sub" 0
-      parameters = [ Param.make "d" TDate ""; Param.make "seconds" TInt "" ]
-      returnType = TDate
-      description = "Returns a <type Date> <param seconds> seconds before <param d>"
-      fn =
-        (function
-        | _, [ DDate d; DInt s ] ->
-          d - (NodaTime.Period.FromSeconds s) |> DDate |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable // As the OCaml one wasn't
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "subtract" 0) }
-
-
     // Note: this was was previously named `Date::subtract_v0`.
     // A new Date::subtract_v1 was created to replace this, and subtract_v0 got
     // replaced with this ::subtractSeconds_v0. "Date::subtract" implies that
@@ -357,59 +307,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Date" "toHumanReadable" 0
-      parameters = [ Param.make "date" TDate "" ]
-      returnType = TStr
-      description = "Turn a <type Date> into a human readable format"
-      fn =
-        (function
-        | _, [ DDate date ] ->
-          let time = (DDateTime.toInstant date).ToUnixTimeSeconds() |> float
-
-          let msPerMinute = 60.0 * 1000.0
-          let msPerHour = msPerMinute * 60.0
-          let msPerDay = msPerHour * 24.0
-          let msPerMonth = msPerDay * 30.0
-          let msPerYear = msPerDay * 365.0
-
-          let rec f time =
-            if time / msPerYear > 1.0 then
-              let suffix = if time / msPerYear > 2.0 then "years" else "year"
-
-              ((time / msPerYear |> int |> string) + " " + suffix + ", ")
-              + f (time % msPerYear)
-            else if time / msPerMonth > 1.0 then
-              let suffix = if time / msPerMonth > 2.0 then "months" else "month"
-
-              ((time / msPerMonth |> int |> string) + " " + suffix + ", ")
-              + f (time % msPerMonth)
-            else if time / msPerDay > 1.0 then
-              let suffix = if time / msPerDay > 2.0 then "days" else "day"
-
-              ((time / msPerDay |> int |> string) + " " + suffix + ", ")
-              + f (time % msPerDay)
-            else if time / msPerHour > 1.0 then
-              let suffix = if time / msPerHour > 2.0 then "hours" else "hour"
-
-              ((time / msPerHour |> int |> string) + " " + suffix + ", ")
-              + f (time % msPerHour)
-            else if time / msPerMinute > 1.0 then
-              let suffix = if time / msPerMinute > 2.0 then "minutes" else "minute"
-
-              ((time / msPerMinute |> int |> string) + " " + suffix)
-              + f (time % msPerMinute)
-            else
-              ""
-
-          let diff = f time
-          let result = if diff = "" then "less than a minute" else diff
-          Ply(DStr result)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = DeprecatedBecause "This function doesn't work" }
-
-
     { name = fn "Date" "year" 0
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -464,38 +361,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Date" "hour" 0
-      parameters = [ Param.make "date" TDate "" ]
-      returnType = TInt
-      description = "Returns the hour portion of <param date> as an <type int>"
-      fn =
-        (function
-        | _, [ DDate d ] ->
-          // This is wrong, hence being replaced
-          let duration = DDateTime.toInstant d - Instant.UnixEpoch
-          (duration.TotalHours % 60.0) |> int |> Dval.int |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "hour" 1) }
-
-
-    { name = fn "Date" "hour" 1
-      parameters = [ Param.make "date" TDate "" ]
-      returnType = TInt
-      description = "Returns the hour portion of <param date> as an <type int>"
-      fn =
-        (function
-        | _, [ DDate d ] ->
-          // this was made bug-for-bug compatible with old OCaml backend
-          let s = if d.Year < 1970 then d.Hour - 23 else d.Hour
-          Ply(Dval.int s)
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "hour" 2) }
-
-
     { name = fn "Date" "hour" 2
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -509,27 +374,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Date" "minute" 0
-      parameters = [ Param.make "date" TDate "" ]
-      returnType = TInt
-      description = "Returns the minute portion of <param date> as an <type int>"
-      fn =
-        (function
-        | _, [ DDate d ] ->
-          // this was made bug-for-bug compatible with the old OCaml backend
-          let s =
-            if d.Year < 1970 then
-              if d.Second = 0 then (d.Minute - 60) % 60 else d.Minute - 59
-            else
-              d.Minute
-
-          Ply(Dval.int s)
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "minute" 1) }
-
-
     { name = fn "Date" "minute" 1
       parameters = [ Param.make "date" TDate "" ]
       returnType = TInt
@@ -541,22 +385,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "Date" "second" 0
-      parameters = [ Param.make "date" TDate "" ]
-      returnType = TInt
-      description = "Returns the second portion of <param date> as an <type int>"
-      fn =
-        (function
-        | _, [ DDate d ] ->
-          // this was made bug-for-bug compatible with the old OCaml backend
-          let s = if d.Year < 1970 then (d.Second - 60) % 60 else d.Second
-          Ply(Dval.int s)
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Date" "second" 1) }
 
 
     { name = fn "Date" "second" 1

@@ -5,43 +5,44 @@ set -euo pipefail
 
 # Deploy Dark to production
 
-MANIFEST=""
+# MANIFEST=""
 
-HELP="$(cat <<EOF
-Usage: $0 [OPTIONS]
+# HELP="$(cat <<EOF
+# Usage: $0 [OPTIONS]
 
-Deployment script for CI
+# Deployment script for CI
 
-Options:
-  --manifest=...    Manifest containing container shas
-  --help            Display this menu.
-EOF
-)"
+# Options:
+#   --manifest=...    Manifest containing container shas
+#   --help            Display this menu.
+# EOF
+# )"
 
-for i in "$@"
-do
-  case "${i}" in
-    --manifest=*)
-      MANIFEST="${i/--manifest=/''}"
-      ;;
-    --help)
-      echo "$HELP"
-      exit 0
-      ;;
-    *)
-      echo "Unexpected argument: $i"
-      echo "$HELP"
-      exit 1
-      ;;
-  esac
-done
+# for i in "$@"
+# do
+#   case "${i}" in
+#     --manifest=*)
+#       MANIFEST="${i/--manifest=/''}"
+#       ;;
+#     --help)
+#       echo "$HELP"
+#       exit 0
+#       ;;
+#     *)
+#       echo "Unexpected argument: $i"
+#       echo "$HELP"
+#       exit 1
+#       ;;
+#   esac
+# done
 
-set -x
+# set -x
 
 #############################
 # Ensure we got a good one
 #############################
-./scripts/deployment/shipit validate
+# LIGHTTODO
+# ./scripts/deployment/shipit validate
 
 #############################
 # Lock before doing a deploy (unlocks on fail or at end of file)
@@ -64,23 +65,14 @@ trap cleanup_deploy_lock INT QUIT TERM ERR
 # Check it's safe to deploy
 #############################
 
-# Check that the prod cluster matches our view of the world, once we have the lock
-./scripts/deployment/shipit manual diff > /dev/null 2>&1
-
+# LIGHTTODO
 # Check that the everything can be deployed
 CHANGE_CAUSE="circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
-
-./scripts/deployment/shipit release push --dry-run=client --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
-./scripts/deployment/shipit release push --dry-run=server --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
 
 #############################
 # Actually do the deploy
 #############################
-
-# CLEANUP: we can remove the `nginx` configmap once the OCaml backend users are long gone
-
-# deploy the config for the newly-created deployment containers
-./scripts/deployment/shipit release push --arg CHANGE_CAUSE="${CHANGE_CAUSE}" --manifest="$MANIFEST"
+# LIGHTTODO
 
 #########################
 # Tell everyone about the deploy

@@ -21,26 +21,25 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Test" "errorRailValue" 0
-      parameters = [ Param.make "value" varA "" ]
-      returnType = varA
-      description = "Return an <type ErrorRail> wrapping <param value>"
-      fn =
-        (function
-        | state, [ value ] -> Ply(DErrorRail(value))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Test" "typeError" 0
+  [ { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
       description = "Return a value representing a type error"
       fn =
         (function
-        | state, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
+        | _, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Test" "incomplete" 0
+      parameters = []
+      returnType = TVariable "a"
+      description = "Return a DIncomplet"
+      fn =
+        (function
+        | _, [] -> Ply(DIncomplete(SourceNone))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -156,7 +155,7 @@ let fns : List<BuiltInFn> =
       description = "Prints the value into stdout"
       fn =
         (function
-        | state, [ v; DStr msg ] ->
+        | _, [ v; DStr msg ] ->
           print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
@@ -206,7 +205,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "deleteUser" 0
       parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TNull, varB)
+      returnType = TResult(TUnit, varB)
       description = "Delete a user (test only)"
       fn =
         (function
@@ -218,7 +217,7 @@ let fns : List<BuiltInFn> =
               Sql.query "DELETE from ACCOUNTS WHERE username = @username"
               |> Sql.parameters [ "username", Sql.string (string username) ]
               |> Sql.executeStatementAsync
-            return DNull
+            return DUnit
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -415,14 +414,44 @@ let fns : List<BuiltInFn> =
     { name = fn "Test" "createCanvas" 0
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TUuid
-      description = "Create the named canvas and return the IDgg"
+      description = "Create the named canvas and return the ID"
       fn =
         (function
-        | state, [ DStr canvasName ] ->
+        | _, [ DStr canvasName ] ->
           uply {
             let! meta =
               LibBackend.Canvas.getMetaAndCreate (CanvasName.createExn canvasName)
             return DUuid meta.id
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Test" "unwrap" 0
+      parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
+      returnType = TVariable "a"
+      description =
+        "Unwrap an Option or Result, returning the value or a DError if Nothing"
+
+      fn =
+        (function
+        | _, [ DOption opt ] ->
+          uply {
+            match opt with
+            | Some value -> return value
+            | None -> return (DError(SourceNone, "Nothing"))
+          }
+        | _, [ DResult res ] ->
+          uply {
+            match res with
+            | Ok value -> return value
+            | Error e ->
+              return
+                (DError(
+                  SourceNone,
+                  ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
+                ))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

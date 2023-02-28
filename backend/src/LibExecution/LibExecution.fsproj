@@ -8,7 +8,6 @@
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
     <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
@@ -16,8 +15,8 @@
     <Compile Include="VendoredTablecloth.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
-    <Compile Include="DvalReprInternalDeprecated.fs" />
-    <Compile Include="DvalReprInternalNew.fs" />
+    <Compile Include="DvalReprInternalQueryable.fs" />
+    <Compile Include="DvalReprInternalRoundtrippable.fs" />
     <Compile Include="DvalReprInternalHash.fs" />
     <Compile Include="DvalReprLegacyExternal.fs" />
     <Compile Include="DvalReprDeveloper.fs" />

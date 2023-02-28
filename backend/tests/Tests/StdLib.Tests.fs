@@ -31,7 +31,7 @@ let hardToRepresentTests =
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
       let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
-      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList, PT.NoRail)
+      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList)
 
       let symtable = Map.ofList args
 
@@ -49,17 +49,17 @@ let hardToRepresentTests =
     "hardToRepresent"
     execute
     [ (fnName "List" "fold" 0,
-       [ RT.DList [ RT.DBool true; RT.DErrorRail(RT.DInt 0L) ]
+       [ RT.DList [ RT.DBool true; RT.DInt 0L ]
 
          RT.DList []
 
          RT.DFnVal(
-           RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EBlank 1UL }
+           RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EUnit 1UL }
          ) ]),
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
       true
 
-      (fnName "Result" "fromOption" 0,
+      (fnName "Result" "fromOption" 2,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -83,7 +83,7 @@ let hardToRepresentTests =
       )),
       true
 
-      (fnName "Result" "fromOption" 0,
+      (fnName "Result" "fromOption" 2,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -93,8 +93,8 @@ let hardToRepresentTests =
                    body =
                      RT.EMatch(
                        gid (),
-                       RT.ENull(gid ()),
-                       [ (RT.MPFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
+                       RT.EUnit(gid ()),
+                       [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
                      ) }
              )
            )
@@ -110,8 +110,8 @@ let hardToRepresentTests =
                 body =
                   RT.EMatch(
                     gid (),
-                    RT.ENull(gid ()),
-                    [ (RT.MPFloat(gid (), -9.223372037e+18), RT.ENull(gid ())) ]
+                    RT.EUnit(gid ()),
+                    [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
                   ) }
           )
         )

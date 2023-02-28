@@ -1,0 +1,11 @@
+(// TODO: eventually this should be the _calling_ / current canvas - right?
+ // e.g. `let canvas = DarkInternal.canvas_v0`
+ let canvas = DarkInternal.darkEditorCanvas_v0
+
+ let program = DarkInternal.canvasProgram canvas.id
+
+ let body =
+   program
+   |> toString // TODO: `serialize` instead?
+   |> String.toBytes_v0
+ Http.response body 200)

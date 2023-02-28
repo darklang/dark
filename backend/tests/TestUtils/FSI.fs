@@ -23,7 +23,7 @@ let execute (code : string) : RT.Dval =
     task {
       let! meta = TestUtils.initializeTestCanvas (TestUtils.Exact "fsi")
       let! state = TestUtils.executionStateFor meta Map.empty Map.empty
-      let prog = FSharpToExpr.parseRTExpr code
+      let prog = Parser.parseRTExpr code
       return! Exe.executeExpr state Map.empty prog
     }
 

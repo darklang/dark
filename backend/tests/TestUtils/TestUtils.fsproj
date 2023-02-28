@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../../src/Parser/Parser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
@@ -18,7 +19,6 @@
   <ItemGroup>
     <Compile Include="RTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
-    <Compile Include="FSharpToExpr.fs" />
     <Compile Include="TestUtils.fs" />
     <Compile Include="FSI.fs" />
   </ItemGroup>

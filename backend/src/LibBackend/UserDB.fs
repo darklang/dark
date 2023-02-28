@@ -24,6 +24,7 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module Errors = LibExecution.Errors
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 
 // Bump this if you make a breaking change to the underlying data format, and
 // are migrating user data to the new version
@@ -52,7 +53,10 @@ let rec queryExactFields
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion
                           "canvasID", Sql.uuid state.program.canvasID
-                          "fields", Sql.queryableDvalMap queryObj ]
+                          "fields",
+                          Sql.jsonb (
+                            DvalReprInternalQueryable.toJsonStringV0 queryObj
+                          ) ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
     return results |> List.map (fun (key, data) -> (key, toObj db data))
   }
@@ -61,33 +65,10 @@ let rec queryExactFields
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let pObj =
-    match LibExecution.DvalReprInternalDeprecated.ofInternalQueryableV1 obj with
-    | RT.DObj o ->
-      // <HACK 1>: some legacy objects were allowed to be saved with `id`
-      // keys _in_ the data object itself. they got in the datastore on
-      // the `update` of an already present object as `update` did not
-      // remove the magic `id` field which had been injected on fetch. we
-      // need to remove magic `id` if we fetch them otherwise they will
-      // not type check on the way out any more and will not work.  if
-      // they are re-saved with `update` they will have their ids
-      // removed.  we consider an `id` key on the map to be a "magic" one
-      // if it is present in the map but not in the schema of the object.
-      // this is a deliberate weakening of our schema checker to deal
-      // with this case.
-      if not (List.includes "id" (db.cols |> List.map Tuple2.first)) then
-        Map.remove "id" o
-      else
-        o
-    // </HACK 1>
-    | x -> Exception.raiseInternal "failed format, expected DObj" [ "actual", obj ]
-  // <HACK 2>: because it's hard to migrate at the moment, we need to have
-  // default values when someone adds a col. We can remove this when the
-  // migrations work properly. Structured like this so that hopefully we
-  // only have to remove this small part.
-  let defaultKeys = db.cols |> List.map (fun (k, _) -> (k, RT.DNull)) |> Map
-  let merged = Map.mergeFavoringLeft pObj defaultKeys
-  // </HACK 2>
-  let typeChecked = typeCheck db merged
+    match DvalReprInternalQueryable.parseJsonV0 obj with
+    | RT.DObj o -> o
+    | _ -> Exception.raiseInternal "failed format, expected DObj" [ "actual", obj ]
+  let typeChecked = typeCheck db pObj
   RT.DObj typeChecked
 
 
@@ -110,6 +91,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TInt, RT.DInt _ -> value
         | RT.TFloat, RT.DFloat _ -> value
         | RT.TStr, RT.DStr _ -> value
+        | RT.TChar, RT.DChar _ -> value
         | RT.TBool, RT.DBool _ -> value
         | RT.TDate, RT.DDate _ -> value
         // CLEANUP use the inner type
@@ -118,7 +100,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TUuid, RT.DUuid _ -> value
         | RT.TDict _, RT.DObj _ -> value
         | RT.TRecord _, RT.DObj _ -> value
-        | _, RT.DNull -> value // allow nulls for now
+        | _, RT.DUnit -> value // allow nulls for now
         | expectedType, valueOfActualType ->
           Exception.raiseCode (
             Errors.typeErrorMsg key expectedType valueOfActualType
@@ -176,7 +158,8 @@ and set
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion
                       "key", Sql.string key
-                      "data", Sql.queryableDvalMap merged ]
+                      "data",
+                      Sql.jsonb (DvalReprInternalQueryable.toJsonStringV0 merged) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
 
@@ -506,17 +489,12 @@ let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
 // DB schema
 // -------------------------
 
-let create (tlid : tlid) (name : string) (pos : PT.Position) : PT.DB.T =
-  { tlid = tlid; pos = pos; name = name; nameID = tlid; cols = []; version = 0 }
+let create (tlid : tlid) (name : string) : PT.DB.T =
+  { tlid = tlid; name = name; nameID = tlid; cols = []; version = 0 }
 
 
-let create2
-  (tlid : tlid)
-  (name : string)
-  (pos : PT.Position)
-  (nameID : id)
-  : PT.DB.T =
-  { tlid = tlid; name = name; nameID = nameID; pos = pos; cols = []; version = 0 }
+let create2 (tlid : tlid) (name : string) (nameID : id) : PT.DB.T =
+  { tlid = tlid; name = name; nameID = nameID; cols = []; version = 0 }
 
 let renameDB (n : string) (db : PT.DB.T) : PT.DB.T = { db with name = n }
 

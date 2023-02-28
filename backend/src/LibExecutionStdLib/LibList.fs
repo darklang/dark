@@ -141,33 +141,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "head" 0
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = varA
-      description =
-        "Returns the head of a list. Returns {{null}} if the empty list is passed."
-      fn =
-        (function
-        | _, [ DList l ] -> List.tryHead l |> Option.defaultValue DNull |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "head" 1) }
-
-
-    { name = fn "List" "head" 1
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TOption varA
-      description = "Fetches the head of the list and returns an <type Option>"
-      fn =
-        (function
-        | _, [ DList l ] -> Ply(DOption(List.tryHead l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "head" 2) }
-
-
     { name = fn "List" "head" 2
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -242,35 +215,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "last" 0
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = varA
-      description =
-        "Returns the last value in <param list>. Returns {{null}} if the list is empty"
-      fn =
-        (function
-        | _, [ DList l ] -> (if List.isEmpty l then DNull else List.last l) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "last" 1) }
-
-
-    { name = fn "List" "last" 1
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TOption varA
-      description =
-        "Returns the last value in <param list>, wrapped in an option ({{Nothing}} if
-         the list is empty)"
-      fn =
-        (function
-        | _, [ DList l ] -> Ply(DOption(List.tryLast l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "last" 2) }
-
-
     { name = fn "List" "last" 2
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -299,64 +243,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "findFirst" 0
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
-      returnType = varA
-      description =
-        "Returns the first value of <param list> for which {{fn val}} returns
-         {{true}}. Returns {{null}} if no such value exists."
-      fn =
-        (function
-        | state, [ DList l; DFnVal fn ] ->
-          uply {
-            let f (dv : Dval) : Ply<bool> =
-              uply {
-                let! result =
-                  Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
-
-                return result = DBool true
-              }
-
-            let! result = Ply.List.findSequentially f l
-            return Option.defaultValue DNull result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "findFirst" 1) }
-
-
-    { name = fn "List" "findFirst" 1
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
-      returnType = TOption varA
-      description =
-        "Returns {{Just}} the first value of <param list> for which {{fn val}}
-         returns {{true}}. Returns {{Nothing}} if no such value exists"
-      fn =
-        (function
-        | state, [ DList l; DFnVal fn ] ->
-          uply {
-            let f (dv : Dval) : Ply<bool> =
-              uply {
-                let! result =
-                  Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
-
-                return result = DBool true
-              }
-
-            let! result = Ply.List.findSequentially f l
-            return DOption result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "findFirst" 2) }
-
-
     { name = fn "List" "findFirst" 2
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -372,8 +258,7 @@ let fns : List<BuiltInFn> =
           uply {
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! result =
-                  Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+                let! result = Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe
 
                 return result = DBool true
               }
@@ -481,7 +366,6 @@ let fns : List<BuiltInFn> =
                     b
                     [ accum; item ]
                     NotInPipe
-                    NoRail
               }
 
             return! List.fold f (Ply init) l
@@ -579,8 +463,7 @@ let fns : List<BuiltInFn> =
               Ply.List.mapSequentially
                 (fun dv ->
                   uply {
-                    let! key =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                    let! key = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                     return (dv, key)
                   })
@@ -646,7 +529,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList list; DFnVal b ] ->
           uply {
-            let fn dv = Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe NoRail
+            let fn dv = Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe
             // NOTE: This isn't exactly the same as the ocaml one. We get all the
             // keys in one pass.
             let! withKeys =
@@ -686,7 +569,7 @@ let fns : List<BuiltInFn> =
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
               let! result =
-                Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe NoRail
+                Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
@@ -721,52 +604,11 @@ let fns : List<BuiltInFn> =
          preserving the order."
       fn =
         (function
-        | _, [ DList l1; DList l2 ] ->
-          Ply(DList(List.append l1 l2)) (* no checking for fake cf required *)
+        | _, [ DList l1; DList l2 ] -> Ply(DList(List.append l1 l2)) // no checking for DError required
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "List" "filter" 0
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
-      returnType = TList varA
-      description =
-        "Return only values in <param list> which meet the function's criteria. The
-         function should return true to keep the entry or false to remove it."
-      fn =
-        (function
-        | state, [ DList l; DFnVal fn ] ->
-          uply {
-            let incomplete = ref false
-
-            let f (dv : Dval) : Ply<bool> =
-              uply {
-                let! result =
-                  Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
-
-                match result with
-                | DBool b -> return b
-                | DIncomplete _ ->
-                  incomplete.Value <- true
-                  return false
-                | v ->
-                  return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
-              }
-
-            if incomplete.Value then
-              return DIncomplete SourceNone
-            else
-              let! result = Ply.List.filterSequentially f l
-              return DList(result)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "filter" 1) }
 
 
     { name = fn "List" "all" 0
@@ -789,20 +631,14 @@ let fns : List<BuiltInFn> =
             let f (dv : Dval) : Ply<bool> =
               uply {
                 let! r =
-                  LibExecution.Interpreter.applyFnVal
-                    state
-                    (id 0)
-                    b
-                    [ dv ]
-                    NotInPipe
-                    NoRail
+                  LibExecution.Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                 match r with
                 | DBool b -> return b
                 | DIncomplete _ ->
                   incomplete <- true
                   return false
-                | v ->
+                | _ ->
                   Exception.raiseCode (Errors.expectedLambdaType "fn" TBool dv)
                   return false
               }
@@ -817,57 +653,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "List" "filter" 1
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
-      returnType = TList varA
-      description =
-        "Calls <param f> on every <var val> in <param list>, returning a list of only
-         those values for which {{fn val}} returns {{true}}.
-
-         Preserves the order of values that were not dropped.
-
-         Consider <fn List::filterMap> if you also want to transform the values."
-      fn =
-        (function
-        | state, [ DList l; DFnVal fn ] ->
-          uply {
-            let fakecf = ref None
-
-            let f (dv : Dval) : Ply<bool> =
-              uply {
-                let run = fakecf.Value = None
-
-                if run then
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
-
-                  match result with
-                  | DBool b -> return b
-                  | (DIncomplete _
-                  | DErrorRail _) as dv ->
-                    fakecf.Value <- Some dv
-                    return false
-                  | v ->
-                    return
-                      Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
-                else
-                  return false
-              }
-
-            let! result = Ply.List.filterSequentially f l
-
-            match fakecf.Value with
-            | None -> return DList(result)
-            | Some v -> return v
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "filter" 2) }
 
 
     { name = fn "List" "filter" 2
@@ -893,12 +678,11 @@ let fns : List<BuiltInFn> =
 
                 if run then
                   let! result =
-                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe NoRail
+                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe
 
                   match result with
                   | DBool b -> return b
                   | (DIncomplete _
-                  | DErrorRail _
                   | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return false
@@ -949,13 +733,12 @@ let fns : List<BuiltInFn> =
 
                 if run then
                   let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                   match result with
                   | DOption (Some o) -> return Some o
                   | DOption None -> return None
                   | (DIncomplete _
-                  | DErrorRail _
                   | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
@@ -1018,13 +801,12 @@ let fns : List<BuiltInFn> =
 
                   if run then
                     let! result =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                     match result with
                     | DBool true -> return! f dvs
                     | DBool false -> return dv :: dvs
                     | (DIncomplete _
-                    | DErrorRail _
                     | DError _) as dv ->
                       abortReason <- Some dv
                       return []
@@ -1085,7 +867,7 @@ let fns : List<BuiltInFn> =
 
                   if run then
                     let! result =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
                     match result with
                     | DBool true ->
@@ -1093,7 +875,6 @@ let fns : List<BuiltInFn> =
                       return dv :: tail
                     | DBool false -> return []
                     | (DIncomplete _
-                    | DErrorRail _
                     | DError _) as dv ->
                       abortReason <- Some dv
                       return []
@@ -1116,32 +897,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "foreach" 0
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
-      returnType = TList varB
-      description =
-        "Call <param fn> on every <param val> in the list, returning a list of the results of
-         those calls"
-      fn =
-        (function
-        | state, [ DList l; DFnVal b ] ->
-          uply {
-            let! result =
-              Ply.List.mapSequentially
-                (fun dv ->
-                  Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
-                l
-
-            return DList result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "map" 0) }
-
-
     { name = fn "List" "map" 0
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
@@ -1158,8 +913,7 @@ let fns : List<BuiltInFn> =
           uply {
             let! result =
               Ply.List.mapSequentially
-                (fun dv ->
-                  Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
+                (fun dv -> Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe)
                 l
 
             return Dval.list result
@@ -1194,8 +948,7 @@ let fns : List<BuiltInFn> =
                     (id 0)
                     b
                     [ DInt(int64 i); dv ]
-                    NotInPipe
-                    NoRail)
+                    NotInPipe)
                 list
 
             return Dval.list result
@@ -1236,7 +989,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
-                  Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail)
+                  Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe)
                 list
 
             return Dval.list result
@@ -1277,13 +1030,7 @@ let fns : List<BuiltInFn> =
               let! result =
                 Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
-                    Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ dv1; dv2 ]
-                      NotInPipe
-                      NoRail)
+                    Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe)
                   list
 
               return DOption(Some(Dval.list result))
@@ -1297,14 +1044,14 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "zipShortest" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
-      returnType = TList varA
+      returnType = TList(TTuple(varA, varB, []))
       description =
         "Returns a list of parallel pairs from <param as> and <param bs>.
 
         If the lists differ in length, values from the longer list are dropped.
 
         For example, if <param as> is {{[1,2]}} and <param bs> is
-        {{[\"x\",\"y\",\"z\"]}}, returns {{[[1,\"x\"], [2,\"y\"]]}}.
+        {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\")]}}.
 
         Use <fn List::zip> if you want to enforce equivalent lengths for <param as>
         and <param bs>.
@@ -1313,7 +1060,7 @@ let fns : List<BuiltInFn> =
         and <param bs> again."
       fn =
         (function
-        | state, [ DList l1; DList l2 ] ->
+        | _, [ DList l1; DList l2 ] ->
           // We have to do this munging because OCaml's map2
           // and Fsharp's zip enforces lists of the same length
           let len = min (List.length l1) (List.length l2)
@@ -1321,7 +1068,7 @@ let fns : List<BuiltInFn> =
           let l2 = List.take (int len) l2
 
           List.zip l1 l2
-          |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+          |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
           |> Dval.list
           |> Ply
         | _ -> incorrectArgs ())
@@ -1333,13 +1080,13 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "zip" 0
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
-      returnType = TOption(TList(TList varA))
+      returnType = TOption(TList(TTuple(varA, varB, [])))
       description =
-        "If the lists have the same length, returns {{Just list}} formed from
+        "If the lists have the same length, returns {{Just list of tuples}} formed from
         parallel pairs in <param as> and <param bs>.
 
         For example, if <param as> is {{[1,2,3]}} and <param bs> is
-        {{[\"x\",\"y\",\"z\"]}}, returns {{[[1,\"x\"], [2,\"y\"], [3,\"z\"]]}}.
+        {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}.
 
         See <fn List::unzip> if you want to deconstruct <var list> into <param as>
         and <param bs> again.
@@ -1349,12 +1096,12 @@ let fns : List<BuiltInFn> =
         instead)."
       fn =
         (function
-        | state, [ DList l1; DList l2 ] ->
+        | _, [ DList l1; DList l2 ] ->
           if List.length l1 <> List.length l2 then
             Ply(DOption None)
           else
             List.zip l1 l2
-            |> List.map (fun (val1, val2) -> Dval.list [ val1; val2 ])
+            |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
             |> Dval.list
             |> Some
             |> DOption
@@ -1366,36 +1113,35 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "unzip" 0
-      parameters = [ Param.make "pairs" (TList(TList varA)) "" ]
+      parameters = [ Param.make "pairs" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TList(TList varA)
       description =
-        "Given a <param pairs> list where each value is a list of two values (such
+        "Given a <param pairs> list where each value is a tuple of two values (such
          lists are constructed by <fn List::zip> and <fn List::zipShortest>), returns
          a list of two lists, one with every first value, and one with every second
          value.
 
-         For example, if <fn pairs> is {{[[1,\"x\"], [2,\"y\"], [3,\"z\"]]}}, returns
+         For example, if <fn pairs> is {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}, returns
          {{[[1,2,3], [\"x\",\"y\",\"z\"]]}}."
       fn =
         (function
-        | state, [ DList l ] ->
+        | _, [ DList l ] ->
 
           let f (acc1, acc2) i =
             match i with
-            | DList [ a; b ] -> (a :: acc1, b :: acc2)
+            | DTuple (a, b, []) -> (a :: acc1, b :: acc2)
             | (DIncomplete _
-            | DErrorRail _
             | DError _) as dv -> Errors.foundFakeDval dv
             | v ->
               let errDetails =
                 match v with
-                | DList l ->
-                  $". It has length {List.length l} but should have length 2"
-                | nonList ->
-                  $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `List`"
+                | DTuple (_, _, xs) ->
+                  $". It has length {2 + List.length xs} but should have length 2"
+                | _ ->
+                  $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `Tuple`"
 
               Exception.raiseCode (
-                Errors.argumentWasnt "a list with exactly two values" "pairs" v
+                Errors.argumentWasnt "a tuple with exactly two values" "pairs" v
                 + errDetails
               )
 
@@ -1408,25 +1154,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       // CLEANUP deprecate and replace with tuples
       deprecated = NotDeprecated }
-
-
-    { name = fn "List" "getAt" 0
-      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
-      returnType = TOption varA
-      description =
-        "Returns {{Just value}} at <param index> in <param list> if <param index> is
-         less than the length of the list. Otherwise returns {{Nothing}}."
-      fn =
-        (function
-        | _, [ DList l; DInt index ] ->
-          if index > int64 (List.length l) then
-            Ply(DOption None)
-          else
-            Ply(DOption(List.tryItem (int index) l))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "List" "getAt" 1) }
 
 
     { name = fn "List" "getAt" 1
@@ -1484,7 +1211,7 @@ let fns : List<BuiltInFn> =
           uply {
             let partition l =
               let applyFn dval =
-                Interpreter.applyFnVal state (id 0) fn [ dval ] NotInPipe NoRail
+                Interpreter.applyFnVal state (id 0) fn [ dval ] NotInPipe
 
               let rec loop acc l =
                 uply {
@@ -1497,7 +1224,6 @@ let fns : List<BuiltInFn> =
                     | DBool false -> return! loop (a, item :: b) tail
 
                     | (DIncomplete _
-                    | DErrorRail _
                     | DError _) as dv ->
                       // fake dvals
                       return Error dv

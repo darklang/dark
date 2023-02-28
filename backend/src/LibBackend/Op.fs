@@ -15,7 +15,6 @@ let eventNameOfOp (op : PT.Op) : string =
   | PT.SetDBColName _ -> "SetDBColName"
   | PT.SetDBColType _ -> "SetDBColType"
   | PT.DeleteTL _ -> "DeleteTL"
-  | PT.MoveTL _ -> "MoveTL"
   | PT.SetFunction _ -> "SetFunction"
   | PT.ChangeDBColName _ -> "ChangeDBColName"
   | PT.ChangeDBColType _ -> "ChangeDBColType"
@@ -55,7 +54,6 @@ let requiredContextToValidate (op : PT.Op) : RequiredContext =
     // Can undo/redo ops on dbs
     AllDatastores
   | PT.DeleteTL _ -> NoContext
-  | PT.MoveTL _ -> NoContext
   | PT.SetFunction _ -> NoContext
   | PT.DeleteFunction _ -> NoContext
   | PT.DeleteDBCol _ -> NoContext
@@ -77,7 +75,7 @@ let requiredContextToValidateOplist (oplist : PT.Oplist) : RequiredContext =
       | NoContext -> 0)
 
 
-let isDeprecated (op : PT.Op) : bool = false
+let isDeprecated (_op : PT.Op) : bool = false
 
 let hasEffect (op : PT.Op) : bool =
   match op with
@@ -87,8 +85,8 @@ let hasEffect (op : PT.Op) : bool =
 
 let tlidOf (op : PT.Op) : tlid =
   match op with
-  | PT.SetHandler (tlid, _, _) -> tlid
-  | PT.CreateDB (tlid, _, _) -> tlid
+  | PT.SetHandler (tlid, _) -> tlid
+  | PT.CreateDB (tlid, _) -> tlid
   | PT.AddDBCol (tlid, _, _) -> tlid
   | PT.SetDBColName (tlid, _, _) -> tlid
   | PT.ChangeDBColName (tlid, _, _) -> tlid
@@ -99,12 +97,11 @@ let tlidOf (op : PT.Op) : tlid =
   | PT.UndoTL tlid -> tlid
   | PT.RedoTL tlid -> tlid
   | PT.DeleteTL tlid -> tlid
-  | PT.MoveTL (tlid, _) -> tlid
   | PT.SetFunction f -> f.tlid
   | PT.DeleteFunction tlid -> tlid
   | PT.DeleteDBCol (tlid, _) -> tlid
   | PT.RenameDBname (tlid, _) -> tlid
-  | PT.CreateDBWithBlankOr (tlid, _, _, _) -> tlid
+  | PT.CreateDBWithBlankOr (tlid, _, _) -> tlid
   | PT.SetType ut -> ut.tlid
   | PT.DeleteType tlid -> tlid
 
@@ -120,13 +117,12 @@ let astOf (op : PT.Op) : PT.Expr option =
   match op with
   | PT.SetFunction f -> Some f.body
   | PT.SetExpr (_, _, ast) -> Some ast
-  | PT.SetHandler (_, _, h) -> Some h.ast
-  | PT.CreateDB (_, _, _)
+  | PT.SetHandler (_, h) -> Some h.ast
+  | PT.CreateDB (_, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)
   | PT.SetDBColType (_, _, _)
   | PT.DeleteTL _
-  | PT.MoveTL (_, _)
   | PT.TLSavepoint _
   | PT.UndoTL _
   | PT.RedoTL _
@@ -135,7 +131,7 @@ let astOf (op : PT.Op) : PT.Expr option =
   | PT.ChangeDBColType (_, _, _)
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
-  | PT.CreateDBWithBlankOr (_, _, _, _)
+  | PT.CreateDBWithBlankOr (_, _, _)
   | PT.SetType _
   | PT.DeleteType _ -> None
 
@@ -144,14 +140,13 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   match op with
   | PT.SetFunction userfn -> PT.SetFunction { userfn with body = newAST }
   | PT.SetExpr (tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
-  | PT.SetHandler (tlid, id, handler) ->
-    PT.SetHandler(tlid, id, { handler with ast = newAST })
-  | PT.CreateDB (_, _, _)
+  | PT.SetHandler (tlid, handler) ->
+    PT.SetHandler(tlid, { handler with ast = newAST })
+  | PT.CreateDB (_, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)
   | PT.SetDBColType (_, _, _)
   | PT.DeleteTL _
-  | PT.MoveTL (_, _)
   | PT.TLSavepoint _
   | PT.UndoTL _
   | PT.RedoTL _
@@ -160,7 +155,7 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   | PT.ChangeDBColType (_, _, _)
   | PT.DeleteDBCol (_, _)
   | PT.RenameDBname (_, _)
-  | PT.CreateDBWithBlankOr (_, _, _, _)
+  | PT.CreateDBWithBlankOr (_, _, _)
   | PT.SetType _
   | PT.DeleteType _ -> op
 
@@ -178,7 +173,6 @@ let filterOpsReceivedOutOfOrder (ops : PT.Oplist) : PT.Oplist =
     | PT.SetHandler _
     | PT.SetFunction _
     | PT.SetType _
-    | PT.MoveTL _
     | PT.SetDBColName _
     | PT.ChangeDBColName _
     | PT.ChangeDBColType _

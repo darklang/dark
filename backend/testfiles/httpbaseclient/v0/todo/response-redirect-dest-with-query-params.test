@@ -15,8 +15,8 @@ Content-Length: LENGTH
 Redirect destination reached with params
 
 [test]
-(let response = HttpBaseClient.request_ster "get" "http://URL" { value = "x" } {}
- let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
+(let response = (HttpBaseClient.request "get" "http://URL" { value = "x" } {}) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached with params"
      statusCode = 200

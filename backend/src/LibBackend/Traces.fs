@@ -18,20 +18,6 @@ let incomplete = RT.DIncomplete RT.SourceNone
 
 let sampleHttpRequestInputVars : AT.InputVars =
   let sampleRequest : RT.Dval =
-    [ ("body", incomplete)
-      ("jsonBody", incomplete)
-      ("formBody", incomplete)
-      ("queryParams", incomplete)
-      ("headers", incomplete)
-      ("fullBody", incomplete)
-      ("url", incomplete) ]
-    |> Map
-    |> RT.Dval.DObj
-
-  [ ("request", sampleRequest) ]
-
-let sampleHttpBasicRequestInputVars : AT.InputVars =
-  let sampleRequest : RT.Dval =
     [ ("body", incomplete); ("headers", incomplete); ("url", incomplete) ]
     |> Map
     |> RT.Dval.DObj
@@ -43,14 +29,9 @@ let sampleEventInputVars : AT.InputVars = [ ("event", RT.DIncomplete RT.SourceNo
 let sampleModuleInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
   | PT.Handler.HTTP _ -> sampleHttpRequestInputVars
-  | PT.Handler.HTTPBasic _ -> sampleHttpBasicRequestInputVars
   | PT.Handler.Cron _ -> []
   | PT.Handler.REPL _ -> []
-  | PT.Handler.UnknownHandler _ ->
-    // HttpBasicHandlerTODO should this include sampleHttpBasicRequestInputVars?
-    sampleHttpRequestInputVars @ sampleEventInputVars
-  | PT.Handler.Worker _
-  | PT.Handler.OldWorker _ -> sampleEventInputVars
+  | PT.Handler.Worker _ -> sampleEventInputVars
 
 let sampleRouteInputVars (h : PT.Handler.T) : AT.InputVars =
   match h.spec with
@@ -73,8 +54,7 @@ let savedInputVars
   (event : RT.Dval)
   : AT.InputVars =
   match h.spec with
-  | PT.Handler.HTTP (route, _method, _)
-  | PT.Handler.HTTPBasic (route, _method, _) ->
+  | PT.Handler.HTTP (route, _method, _) ->
     let boundRouteVariables =
       if route <> "" then
         // Check the trace actually matches the route, if not the client has
@@ -95,10 +75,8 @@ let savedInputVars
         []
 
     [ ("request", event) ] @ boundRouteVariables
-  | PT.Handler.OldWorker _
   | PT.Handler.Worker _ -> [ ("event", event) ]
   | PT.Handler.Cron _ -> []
-  | PT.Handler.UnknownHandler _ -> []
   | PT.Handler.REPL _ -> []
 
 
@@ -153,8 +131,10 @@ let userfnTrace
 let traceIDofTLID (tlid : tlid) : AT.TraceID.T =
   AT.TraceID.fromUUID (Uuid.uuidV5 (string tlid) (Uuid.nilNamespace))
 
-
-let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID.T>> =
+let traceIDsForHttpHandler
+  (c : Canvas.T)
+  (h : PT.Handler.T)
+  : Task<List<AT.TraceID.T>> =
   task {
     match PTParser.Handler.Spec.toEventDesc h.spec with
     | Some desc ->
@@ -164,8 +144,7 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID.
         events
         |> List.filterMap (fun (traceID, path) ->
           match h.spec with
-          | PT.Handler.Spec.HTTP _
-          | PT.Handler.Spec.HTTPBasic _ ->
+          | PT.Handler.Spec.HTTP _ ->
             // Ensure we only return trace_ids that would bind to this
             // handler if the trace was executed for real now. (There
             // may be other handlers which also match the route)
@@ -177,10 +156,8 @@ let traceIDsForHandler (c : Canvas.T) (h : PT.Handler.T) : Task<List<AT.TraceID.
             |> Option.bind (fun matching ->
               if matching.tlid = h.tlid then Some traceID else None)
           | PT.Handler.Spec.Worker _
-          | PT.Handler.Spec.OldWorker _
           | PT.Handler.Spec.Cron _
-          | PT.Handler.Spec.REPL _
-          | PT.Handler.Spec.UnknownHandler _ ->
+          | PT.Handler.Spec.REPL _ ->
             // Don't use HTTP filtering stack for non-HTTP traces
             Some traceID)
         // If there's no matching traces, add the default trace

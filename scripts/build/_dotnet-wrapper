@@ -13,13 +13,13 @@ cd backend && dotnet "$@" 2>&1 | while read -r line; do
   # this error consistently breaks our compile in the build script
   if [[ "$line" == *"warning MSB3026: Could not copy "* ]]; then
     echo "Saw a failed copy, killing servers"
-    killall ApiServer || true
     killall BwdServer || true
     killall CronChecker || true
     killall QueueWorker || true
     killall Tests || true
     killall DataTests || true
     killall FuzzTests || true
+    killall Executor || true
   fi
   echo "$line"
 done

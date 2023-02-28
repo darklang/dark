@@ -12,3 +12,5 @@ Prelude), to sensure no internal domain types are referenced.
 
 Translation between these types and "domain types" is provided via separate
 `ClientTypes2___Types` projects.
+
+## Note

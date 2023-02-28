@@ -18,7 +18,8 @@ open FuzzTests.Utils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module G = Generators
 
 type Generator =
@@ -27,23 +28,11 @@ type Generator =
 
   static member String() : Arbitrary<string> = G.SafeUnicodeString
 
-  static member Expr() =
-    Arb.Default.Derive()
-    |> Arb.filter (fun expr ->
-      match expr with
-      // characters are not supported in OCaml
-      // CLEANUP can be removed once OCaml gone
-      | PT.ECharacter _ -> false
-      | _ -> true)
+  static member Expr() = Arb.Default.Derive()
 
-  static member MatchPattern() =
-    Arb.Default.Derive()
-    |> Arb.filter (fun pattern ->
-      match pattern with
-      // characters are not supported in OCaml
-      // CLEANUP can be removed once OCaml gone
-      | PT.MPCharacter _ -> false
-      | _ -> true)
+
+  static member MatchPattern() = Arb.Default.Derive()
+
 
 
 module Roundtrippable =
@@ -57,9 +46,7 @@ module Roundtrippable =
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
-    static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive()
-      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval false)
+    static member Dval() : Arbitrary<RT.Dval> = Arb.Default.Derive()
 
   type GeneratorWithBugs =
     static member LocalDateTime() : Arbitrary<NodaTime.LocalDateTime> =
@@ -71,14 +58,12 @@ module Roundtrippable =
     static member DvalSource() : Arbitrary<RT.DvalSource> =
       Arb.Default.Derive() |> Arb.filter (fun dvs -> dvs = RT.SourceNone)
 
-    static member Dval() : Arbitrary<RT.Dval> =
-      Arb.Default.Derive()
-      |> Arb.filter (DvalReprInternalDeprecated.isRoundtrippableDval true)
+    static member Dval() : Arbitrary<RT.Dval> = Arb.Default.Derive()
 
   let roundtripsSuccessfully (dv : RT.Dval) : bool =
     dv
-    |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-    |> DvalReprInternalDeprecated.ofInternalRoundtrippableV0
+    |> DvalReprInternalRoundtrippable.toJsonV0
+    |> DvalReprInternalRoundtrippable.parseJsonV0
     |> Expect.dvalEquality dv
 
   let tests config =
@@ -104,14 +89,14 @@ module Queryable =
 
     static member Dval() : Arbitrary<RT.Dval> =
       Arb.Default.Derive()
-      |> Arb.filter DvalReprInternalDeprecated.Test.isQueryableDval
+      |> Arb.filter DvalReprInternalQueryable.Test.isQueryableDval
 
   let canV1Roundtrip (dv : RT.Dval) : bool =
     let dvm = (Map.ofList [ "field", dv ])
 
     dvm
-    |> DvalReprInternalDeprecated.toInternalQueryableV1
-    |> DvalReprInternalDeprecated.ofInternalQueryableV1
+    |> DvalReprInternalQueryable.toJsonStringV0
+    |> DvalReprInternalQueryable.parseJsonV0
     |> Expect.dvalEquality (RT.DObj dvm)
 
   let tests config =

@@ -1,5 +1,4 @@
 /// StdLib functions for building Dark functionality via Dark canvases
-/// instead of the ApiServer or other means
 module BackendOnlyStdLib.LibDarkInternal
 
 open System.Threading.Tasks
@@ -11,7 +10,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module PT = LibExecution.ProgramTypes
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
@@ -26,6 +25,18 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
+// TODO: publish Dark types, and use them rather than these
+// anonymous-ish types
+module Types =
+  module Canvas =
+    let meta = TRecord([ "id", TUuid; "name", TStr ])
+
+    let dbMeta = TRecord([ "tlid", TStr; "name", TStr ])
+    let httpHandlerMeta = TRecord([ "tlid", TStr; "method", TStr; "route", TStr ])
+
+    let program =
+      TRecord([ "dbs", TList(dbMeta); "httpHandlers", TList(httpHandlerMeta) ])
+
 /// Wraps an internal Lib function
 /// and ensures that the appropriate permissions are in place
 ///
@@ -36,7 +47,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
       match! state.program.accountID |> Account.usernameForUserID with
       | None ->
         Exception.raiseInternal $"User not found" [ "id", state.program.accountID ]
-        return DNull
+        return DUnit
       | Some username ->
         let! canAccess = Account.canAccessOperations username
         if canAccess then
@@ -58,6 +69,18 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
               [ "username", username ]
     })
 
+// only accessible to the `dark-editor canvas`
+let darkEditorFn (f : BuiltInFnSig) : BuiltInFnSig =
+  (fun (state, args) ->
+    uply {
+      if state.program.canvasName.ToString() = "dark-editor" then
+        return! f (state, args)
+      else
+        return
+          Exception.raiseInternal
+            "dark-editor-only internal function attempted to be used in another canvas"
+            [ "canavasId", state.program.canvasID ]
+    })
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   internalFn (function
@@ -70,7 +93,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
           canvasID
           (Pusher.UpdateWorkerStates s)
           None
-        return DNull
+        return DUnit
       }
     | _ -> incorrectArgs ())
 
@@ -102,15 +125,14 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "username" TStr ""
           Param.make "email" TStr ""
-          Param.make "name" TStr ""
-          Param.make "analyticsMetadata" (TDict TStr) "" ]
+          Param.make "name" TStr "" ]
       returnType = TResult(TStr, TStr)
       description =
         "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name; DObj analyticsMetadata ] ->
+          | _, [ DStr username; DStr email; DStr name ] ->
             uply {
               let username =
                 Exception.catchError (fun () ->
@@ -119,8 +141,7 @@ that's already taken, returns an error."
                   UserName.create username)
               match username with
               | Ok username ->
-                let! _user =
-                  Account.insertUser username email name (Some analyticsMetadata)
+                let! _user = Account.insertUser username email name
                 Analytics.identifyUser username
                 let toCanvasName =
                   $"{username}-{LibService.Config.gettingStartedCanvasName}"
@@ -217,7 +238,7 @@ that's already taken, returns an error."
 
     { name = fn "DarkInternal" "setAdmin" 0
       parameters = [ Param.make "username" TStr ""; Param.make "admin" TBool "" ]
-      returnType = TNull
+      returnType = TUnit
       description = "Set whether a user is an admin. Returns null"
       fn =
         internalFn (function
@@ -229,7 +250,7 @@ that's already taken, returns an error."
                 "setAdmin called"
                 [ "username", username; "admin", admin ]
               Analytics.identifyUser username
-              return DNull
+              return DUnit
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -313,73 +334,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "pushStrollerEvent" 1
-      parameters =
-        [ Param.make "canvasID" TStr ""
-          Param.make "event" TStr ""
-          Param.make "payload" varA "" ]
-      returnType = TResult(varB, TStr)
-      description = "Pushes an event to Honeycomb"
-      fn =
-        internalFn (function
-          | _, [ DStr canvasID; DStr event; payload ] ->
-            (try
-              Pusher.push
-                ClientTypes2BackendTypes.Pusher.eventSerializer
-                (canvasID |> System.Guid.Parse)
-                (Pusher.CustomEvent(
-                  event,
-                  payload |> DvalReprInternalDeprecated.toInternalRoundtrippableV0
-                ))
-                None
-
-              Ply(DResult(Ok payload))
-             with
-             | e -> Ply(DResult(Error(e |> string |> DStr))))
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "sessionKeyToUsername" 0
-      parameters = [ Param.make "sessionKey" TStr "" ]
-      returnType = TResult(TStr, TStr)
-      description = "Looks up the username for a session_key"
-      fn =
-        internalFn (function
-          | _, [ DStr sessionKey ] ->
-            uply {
-              match! Session.getNoCSRF sessionKey with
-              | None -> return DResult(Error(DStr "No session for cookie"))
-              | Some session -> return DResult(Ok(DStr(string session.username)))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "canvasIdOfCanvasName" 0
-      parameters = [ Param.make "canvasName" TStr "" ]
-      returnType = TOption TStr
-      description = "Gives canvasId for a canvasName"
-      fn =
-        internalFn (function
-          | _, [ DStr canvasName ] ->
-            uply {
-              try
-                let! meta = Canvas.getMetaExn (CanvasName.createExn canvasName)
-                return DOption(Some(DStr(string meta.id)))
-              with
-              | e -> return DOption None
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "canvasIDOfCanvasName" 0) }
-
-
     { name = fn "DarkInternal" "canvasIDOfCanvasName" 0
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TResult(TUuid, TStr)
@@ -413,7 +367,7 @@ that's already taken, returns an error."
                 let! meta = Canvas.getMetaFromID canvasID
                 return meta.name |> string |> DStr |> Ok |> DResult
               with
-              | e -> return DResult(Error(DStr "Canvas not found"))
+              | _ -> return DResult(Error(DStr "Canvas not found"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -536,26 +490,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "checkPermission" 0
-      parameters = [ Param.make "username" TStr ""; Param.make "canvas" TStr "" ]
-      returnType = TStr
-      description = "Check a user's permissions for a particular canvas"
-      fn =
-        internalFn (function
-          | _, [ DStr username; DStr canvas ] ->
-            uply {
-              let owner =
-                Account.ownerNameFromCanvasName (CanvasName.createExn canvas)
-              match! Authorization.permission owner (UserName.create username) with
-              | Some perm -> return DStr(string perm)
-              | None -> return DStr ""
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "getPermission" 0) }
-
-
     { name = fn "DarkInternal" "getPermission" 0
       parameters = [ Param.make "userID" TUuid ""; Param.make "canvasID" TUuid "" ]
       returnType = TResult(TStr, TStr)
@@ -619,7 +553,7 @@ that's already taken, returns an error."
           | TInt -> "int"
           | TFloat -> "float"
           | TBool -> "bool"
-          | TNull -> "null"
+          | TUnit -> "unit"
           | TChar -> "character"
           | TStr -> "string"
           | TList _ -> "list"
@@ -627,7 +561,7 @@ that's already taken, returns an error."
           | TDict _ -> "dict"
           | TRecord _ -> "dict"
           | TFn _ -> "block"
-          | TVariable varname -> "any"
+          | TVariable _ -> "any"
           | TIncomplete -> "incomplete"
           | TError -> "error"
           | THttpResponse _ -> "response"
@@ -636,7 +570,6 @@ that's already taken, returns an error."
           | TPassword -> "password"
           | TUuid -> "uuid"
           | TOption _ -> "option"
-          | TErrorRail -> "errorrail"
           | TResult _ -> "result"
           | TUserType (name, _) -> name.ToLower()
           | TBytes -> "bytes"
@@ -662,93 +595,6 @@ that's already taken, returns an error."
               Dval.obj alist)
             |> DList
             |> Ply
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "newSessionForUsername" 0
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TStr, TStr)
-      description =
-        "If username is an existing user, puts a new session in the DB and returns the new sessionKey."
-      fn =
-        internalFn (function
-          | state, [ DStr username ] ->
-            uply {
-              try
-                // This is used by the login.darklang.com/dark-cli callback
-                let username = UserName.create username
-                let! session = Session.insert username
-                return DResult(Ok(DStr session.sessionKey))
-              with
-              | e ->
-                let metadata =
-                  [ "username", username :> obj
-                    "fn", "DarkInternal::newSessionForUserName"
-                    "error", "failed to create session" ]
-                state.reportException state metadata e
-                return DResult(Error(DStr "Failed to create session"))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = ReplacedBy(fn "DarkInternal" "newSessionForUsername" 1) }
-
-
-    { name = fn "DarkInternal" "newSessionForUsername" 1
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TStr, TStr)
-      description =
-        (* We need the csrf token for dark-cli to use *)
-        "If username is an existing user, puts a new session in the DB and returns the new sessionKey and csrfToken."
-      fn =
-        internalFn (function
-          | state, [ DStr username ] ->
-            uply {
-              try
-                let username = UserName.create username
-                let! session = Session.insert username
-                return
-                  DResult(
-                    Ok(
-                      DObj(
-                        Map [ ("sessionKey", DStr session.sessionKey)
-                              ("csrfToken", DStr session.csrfToken) ]
-                      )
-                    )
-                  )
-              with
-              | e ->
-                let metadata =
-                  [ "username", username :> obj
-                    "fn", "DarkInternal::newSessionForUserName"
-                    "error", "failed to create session" ]
-                state.reportException state metadata e
-                return DResult(Error(DStr "Failed to create session"))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "deleteSession" 0
-      parameters = [ Param.make "sessionKey" TStr "" ]
-      returnType = TInt
-      description =
-        "Delete session by session_key; return number of sessions deleted."
-      fn =
-        internalFn (function
-          | _, [ DStr sessionKey ] ->
-            uply {
-              let! count =
-                Sql.query "DELETE FROM session WHERE session_key = @key"
-                |> Sql.parameters [ "key", Sql.string sessionKey ]
-                |> Sql.executeNonQueryAsync
-              return DInt count
-            }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -820,7 +666,7 @@ human-readable data."
 
     { name = fn "DarkInternal" "raiseInternalException" 0
       parameters = [ Param.make "argument" varA "Added as a tag" ]
-      returnType = TNull
+      returnType = TUnit
       description =
         "Raise an internal exception inside Dark. This is intended to test exceptions
         and exception tracking, not for any real use."
@@ -830,68 +676,6 @@ human-readable data."
             Exception.raiseInternal
               "DarkInternal::raiseInternalException"
               [ "arg", arg ]
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "startStaticAssetDeploy" 0
-      parameters = [ Param.make "username" TStr ""; Param.make "canvasID" TUuid "" ]
-      returnType = TResult(TStr, TStr)
-      description =
-        "Records an in-progress static asset deployment, returning the deployHash"
-      fn =
-        internalFn (function
-          | _, [ DStr username; DUuid canvasID ] ->
-            uply {
-              match! Account.getUser (UserName.create username) with
-              | None -> return DResult(Error(DStr "User not found"))
-              | Some user ->
-                let! deployHash = StaticAssets.startStaticAssetDeploy user canvasID
-                return DResult(Ok(DStr deployHash))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "finishStaticAssetDeploy" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
-      returnType = TResult(TNull, TStr)
-      description = "Marks an in-progress static asset deployment as finished"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID; DStr deployHash ] ->
-            uply {
-              let! canvasMeta = Canvas.getMetaFromID canvasID
-              let! _updatedAt =
-                StaticAssets.finishStaticAssetDeploy
-                  canvasID
-                  canvasMeta.name
-                  deployHash
-              return DResult(Ok DNull)
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "deleteStaticAssetDeploy" 0
-      parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "deployHash" TStr "" ]
-      returnType = TNull
-      description = "Deletes references to a now-deleted static asset deploy"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID; DStr deployHash ] ->
-            uply {
-              do! StaticAssets.deleteStaticAssetDeploy canvasID deployHash
-              return DNull
-            }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -920,7 +704,7 @@ human-readable data."
           Param.make "space" TStr ""
           Param.make "path" TStr ""
           Param.make "modifier" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description = "Deletes a specific 404 for a canvas"
       fn =
         internalFn (function
@@ -930,7 +714,7 @@ human-readable data."
                                   "path", path
                                   "modifier", modifier ]
               do! TraceInputs.delete404s canvasID space path modifier
-              return DNull
+              return DUnit
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -997,14 +781,14 @@ human-readable data."
     { name = fn "DarkInternal" "deleteSecret" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description = "Delete a secret"
       fn =
         internalFn (function
           | _, [ DUuid canvasID; DStr secretName ] ->
             uply {
               do! Secret.delete canvasID secretName
-              return DNull
+              return DUnit
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -1017,7 +801,7 @@ human-readable data."
         [ Param.make "canvasID" TUuid ""
           Param.make "secretName" TStr ""
           Param.make "secretValue" TStr "" ]
-      returnType = TResult(TNull, TStr)
+      returnType = TResult(TUnit, TStr)
       description = "Add a secret"
       fn =
         internalFn (function
@@ -1025,9 +809,9 @@ human-readable data."
             uply {
               try
                 do! Secret.insert canvasID secretName secretValue
-                return DResult(Ok DNull)
+                return DResult(Ok DUnit)
               with
-              | e -> return DResult(Error(DStr "Error inserting secret"))
+              | _ -> return DResult(Error(DStr "Error inserting secret"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -1146,7 +930,7 @@ human-readable data."
     { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
       fn = modifySchedule EventQueueV2.blockWorker
@@ -1158,46 +942,10 @@ human-readable data."
     { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
-      returnType = TNull
+      returnType = TUnit
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
       fn = modifySchedule EventQueueV2.unblockWorker
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    // ---------------------
-    // Apis - parts of initialLoad
-    // ---------------------
-    { name = fn "DarkInternal" "staticAssetsDeploys" 0
-      parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType =
-        TList(
-          TRecord [ "deployHash", TStr
-                    "url", TStr
-                    "status", TStr
-                    "lastUpdate", TDate ]
-        )
-      description = "Returns a list of deploys on this canvas"
-      fn =
-        internalFn (function
-          | _, [ DUuid canvasID ] ->
-            uply {
-              let! meta = Canvas.getMetaFromID canvasID
-              let! deploys = StaticAssets.allDeploysInCanvas meta.name canvasID
-              return
-                deploys
-                |> List.map (fun d ->
-                  DObj(
-                    Map [ "deployHash", DStr d.deployHash
-                          "url", DStr d.url
-                          "status", DStr(string d.status)
-                          "lastUpdate", DDate(DDateTime.fromInstant d.lastUpdate) ]
-                  ))
-                |> DList
-            }
-          | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -1281,20 +1029,25 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    // ---------------------
-    // Apis - tunnels
-    // ---------------------
-    { name = fn "DarkInternal" "getTunnelHost" 0
-      parameters = [ Param.make "userID" TUuid "" ]
-      returnType = TOption TStr
-      description = "Returns the tunnelhost for this user"
+    // Fns available only to the `dark-editor` canvas.
+    // Slowly, functions above (only available to admins) should be moved here,
+    // with the darkEditorFn wrapper used in place of the internalFn wrapper.
+
+    // TODO: any tlids below should somehow really be uint64s
+
+    { name = fn "DarkInternal" "darkEditorCanvas" 0
+      parameters = []
+      returnType = Types.Canvas.meta
+      description = "Returns basic details of the dark-editor canvas"
       fn =
-        internalFn (function
-          | _, [ DUuid userID ] ->
+        darkEditorFn (function
+          | state, [] ->
             uply {
-              match! Account.tunnelHostFor userID with
-              | None -> return DOption None
-              | Some host -> return DOption(Some(DStr host))
+              return
+                [ "id", DUuid(state.program.canvasID)
+                  "name", DStr(state.program.canvasName.ToString()) ]
+                |> Map
+                |> DObj // TODO: DRecord
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -1302,23 +1055,49 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "setTunnelHost" 0
-      parameters =
-        [ Param.make "userID" TUuid ""; Param.make "host" (TOption TStr) "" ]
-      returnType = TNull
-      description = "Sets the tunnelhost for this user"
+    // TODO: avail a `currentCanvas` fn, and remove the above fn
+
+    // TODO: this name is bad?
+    { name = fn "DarkInternal" "canvasProgram" 0
+      parameters = [ Param.make "canvasId" TUuid "" ]
+      returnType = TResult(Types.Canvas.program, TStr)
+      description =
+        "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
-        internalFn (function
-          | _, [ DUuid userID; DOption (v) ] ->
+        darkEditorFn (function
+          | _, [ DUuid canvasId ] ->
             uply {
-              match v with
-              | Some (DStr host) ->
-                do! Account.setTunnelHostFor userID (Some host)
-                return DNull
-              | None ->
-                do! Account.setTunnelHostFor userID None
-                return DNull
-              | _ -> return incorrectArgs ()
+              let! meta = Canvas.getMetaFromID canvasId
+              let! canvas = Canvas.loadAll meta
+
+              let dbs =
+                Map.values canvas.dbs
+                |> Seq.toList
+                |> List.map (fun db ->
+                  [ "tlid", DStr(db.tlid.ToString()); "name", DStr db.name ]
+                  |> Map
+                  |> DObj)
+                |> DList
+
+              let httpHandlers =
+                Map.values canvas.handlers
+                |> Seq.toList
+                |> List.choose (fun handler ->
+                  match handler.spec with
+                  | PT.Handler.Worker _
+                  | PT.Handler.Cron _
+                  | PT.Handler.REPL _ -> None
+                  | PT.Handler.HTTP (route, method, _ids) ->
+                    [ "tlid", DStr(handler.tlid.ToString())
+                      "method", DStr method
+                      "route", DStr route ]
+                    |> Map
+                    |> DObj
+                    |> Some)
+                |> DList
+
+              return
+                DResult(Ok(DObj(Map [ "dbs", dbs; "httpHandlers", httpHandlers ])))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

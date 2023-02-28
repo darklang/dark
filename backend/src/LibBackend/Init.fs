@@ -16,12 +16,12 @@ module Telemetry = LibService.Telemetry
 
 let _waitForDB () : Task<unit> =
   task {
-    use (span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"
+    use (_span : Telemetry.Span.T) = Telemetry.createRoot "wait for db"
     let mutable success = false
     let mutable count = 0
     Telemetry.addEvent "starting to loop to wait for DB" []
     while not success do
-      use (span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
+      use (_span : Telemetry.Span.T) = Telemetry.child "iteration" [ "count", count ]
       try
         count <- count + 1
         do!

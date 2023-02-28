@@ -74,8 +74,6 @@ let tryReadFile (root : Config.Root) (f : string) : string option =
   else
     None
 
-open LibService.Exception
-
 let rec writefileBytes
   (root : Config.Root)
   (f : string)

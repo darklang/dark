@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+dir=$1
+
+# Compress the files in parallel. Using brotli level 5 as 6 doesn't provide much
+# benefit and 7 is much much slower.
+find $dir -type f -print0 \
+  | xargs --null --replace --max-procs 8 --verbose \
+    -- brotli -5 {} -o {}.br
+
+# Remove the .br suffix and the uncompressed files
+for f in "$dir"/*.br; do
+  mv "$f" "${f%.br}"
+done
+
+ls -la $dir

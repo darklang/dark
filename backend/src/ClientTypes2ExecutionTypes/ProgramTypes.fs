@@ -10,12 +10,6 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-module Position =
-  let fromCT (pos : CTPT.Position) : PT.Position = { x = pos.x; y = pos.y }
-
-  let toCT (pos : PT.Position) : CTPT.Position = { x = pos.x; y = pos.y }
-
-
 module FQFnName =
   module StdlibFnName =
     let fromCT (name : CTPT.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
@@ -80,8 +74,7 @@ module MatchPattern =
     | CTPT.MPCharacter (id, str) -> PT.MPCharacter(id, str)
     | CTPT.MPString (id, str) -> PT.MPString(id, str)
     | CTPT.MPFloat (id, sign, whole, frac) -> PT.MPFloat(id, sign, whole, frac)
-    | CTPT.MPNull (id) -> PT.MPNull(id)
-    | CTPT.MPBlank (id) -> PT.MPBlank(id)
+    | CTPT.MPUnit (id) -> PT.MPUnit(id)
     | CTPT.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
@@ -95,22 +88,10 @@ module MatchPattern =
     | PT.MPCharacter (id, str) -> CTPT.MPCharacter(id, str)
     | PT.MPString (id, str) -> CTPT.MPString(id, str)
     | PT.MPFloat (id, sign, whole, frac) -> CTPT.MPFloat(id, sign, whole, frac)
-    | PT.MPNull (id) -> CTPT.MPNull(id)
-    | PT.MPBlank (id) -> CTPT.MPBlank(id)
+    | PT.MPUnit (id) -> CTPT.MPUnit(id)
     | PT.MPTuple (id, first, second, theRest) ->
       CTPT.MPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
-
-module SendToRail =
-  let fromCT (str : CTPT.SendToRail) : PT.SendToRail =
-    match str with
-    | CTPT.SendToRail.Rail -> PT.Rail
-    | CTPT.SendToRail.NoRail -> PT.NoRail
-
-  let toCT (str : PT.SendToRail) : CTPT.SendToRail =
-    match str with
-    | PT.Rail -> CTPT.SendToRail.Rail
-    | PT.NoRail -> CTPT.SendToRail.NoRail
 
 module BinaryOperation =
   let fromCT (op : CTPT.BinaryOperation) : PT.BinaryOperation =
@@ -126,17 +107,14 @@ module BinaryOperation =
 module Infix =
   let fromCT (infix : CTPT.Infix) : PT.Infix =
     match infix with
-    | CTPT.InfixFnCall (name, ster) ->
-      PT.InfixFnCall(
-        FQFnName.InfixStdlibFnName.fromCT (name),
-        SendToRail.fromCT ster
-      )
+    | CTPT.InfixFnCall (name) ->
+      PT.InfixFnCall(FQFnName.InfixStdlibFnName.fromCT (name))
     | CTPT.BinOp (op) -> PT.BinOp(BinaryOperation.fromCT op)
 
   let toCT (infix : PT.Infix) : CTPT.Infix =
     match infix with
-    | PT.InfixFnCall (name, ster) ->
-      CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT (name), SendToRail.toCT ster)
+    | PT.InfixFnCall (name) ->
+      CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT (name))
     | PT.BinOp (op) -> CTPT.BinOp(BinaryOperation.toCT op)
 
 module Expr =
@@ -147,8 +125,7 @@ module Expr =
     | CTPT.Expr.EString (id, s) -> PT.EString(id, s)
     | CTPT.Expr.ECharacter (id, c) -> PT.ECharacter(id, c)
     | CTPT.Expr.EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
-    | CTPT.Expr.ENull (id) -> PT.ENull(id)
-    | CTPT.Expr.EBlank (id) -> PT.EBlank(id)
+    | CTPT.Expr.EUnit (id) -> PT.EUnit(id)
     | CTPT.Expr.ELet (id, name, expr, body) ->
       PT.ELet(id, name, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
@@ -159,18 +136,8 @@ module Expr =
     | CTPT.Expr.EFieldAccess (id, expr, fieldName) ->
       PT.EFieldAccess(id, fromCT expr, fieldName)
     | CTPT.Expr.EVariable (id, name) -> PT.EVariable(id, name)
-    | CTPT.Expr.EFnCall (id, fnName, args, str) ->
-      PT.EFnCall(
-        id,
-        FQFnName.fromCT fnName,
-        List.map fromCT args,
-        SendToRail.fromCT str
-      )
-    | CTPT.Expr.EPartial (id, part, expr) -> PT.EPartial(id, part, fromCT expr)
-    | CTPT.Expr.ERightPartial (id, part, expr) ->
-      PT.ERightPartial(id, part, fromCT expr)
-    | CTPT.Expr.ELeftPartial (id, part, expr) ->
-      PT.ELeftPartial(id, part, fromCT expr)
+    | CTPT.Expr.EFnCall (id, fnName, args) ->
+      PT.EFnCall(id, FQFnName.fromCT fnName, List.map fromCT args)
     | CTPT.Expr.EList (id, exprs) -> PT.EList(id, List.map fromCT exprs)
     | CTPT.Expr.ETuple (id, first, second, theRest) ->
       PT.ETuple(id, fromCT first, fromCT second, List.map fromCT theRest)
@@ -197,16 +164,15 @@ module Expr =
     | PT.EString (id, s) -> CTPT.Expr.EString(id, s)
     | PT.ECharacter (id, c) -> CTPT.Expr.ECharacter(id, c)
     | PT.EFloat (id, sign, whole, frac) -> CTPT.Expr.EFloat(id, sign, whole, frac)
-    | PT.ENull (id) -> CTPT.Expr.ENull(id)
-    | PT.EBlank (id) -> CTPT.Expr.EBlank(id)
+    | PT.EUnit (id) -> CTPT.Expr.EUnit(id)
     | PT.ELet (id, name, expr, body) ->
       CTPT.Expr.ELet(id, name, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
-    | PT.EInfix (id, PT.InfixFnCall (name, str), first, second) ->
+    | PT.EInfix (id, PT.InfixFnCall (name), first, second) ->
       CTPT.Expr.EInfix(
         id,
-        CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT name, SendToRail.toCT str),
+        CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT name),
         toCT first,
         toCT second
       )
@@ -216,17 +182,8 @@ module Expr =
     | PT.EFieldAccess (id, expr, fieldName) ->
       CTPT.Expr.EFieldAccess(id, toCT expr, fieldName)
     | PT.EVariable (id, name) -> CTPT.Expr.EVariable(id, name)
-    | PT.EFnCall (id, fnName, args, str) ->
-      CTPT.Expr.EFnCall(
-        id,
-        FQFnName.toCT fnName,
-        List.map toCT args,
-        SendToRail.toCT str
-      )
-    | PT.EPartial (id, part, expr) -> CTPT.Expr.EPartial(id, part, toCT expr)
-    | PT.ERightPartial (id, part, expr) ->
-      CTPT.Expr.ERightPartial(id, part, toCT expr)
-    | PT.ELeftPartial (id, part, expr) -> CTPT.Expr.ELeftPartial(id, part, toCT expr)
+    | PT.EFnCall (id, fnName, args) ->
+      CTPT.Expr.EFnCall(id, FQFnName.toCT fnName, List.map toCT args)
     | PT.EList (id, exprs) -> CTPT.Expr.EList(id, List.map toCT exprs)
     | PT.ETuple (id, first, second, theRest) ->
       CTPT.Expr.ETuple(id, toCT first, toCT second, List.map toCT theRest)
@@ -256,7 +213,7 @@ module DType =
     | CTPT.DType.TInt -> PT.TInt
     | CTPT.DType.TFloat -> PT.TFloat
     | CTPT.DType.TBool -> PT.TBool
-    | CTPT.DType.TNull -> PT.TNull
+    | CTPT.DType.TUnit -> PT.TUnit
     | CTPT.DType.TStr -> PT.TStr
     | CTPT.DType.TList (t) -> PT.TList(fromCT t)
     | CTPT.DType.TTuple (first, second, theRest) ->
@@ -271,7 +228,6 @@ module DType =
     | CTPT.DType.TPassword -> PT.TPassword
     | CTPT.DType.TUuid -> PT.TUuid
     | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
-    | CTPT.DType.TErrorRail -> PT.TErrorRail
     | CTPT.DType.TUserType (name, v) -> PT.TUserType(name, v)
     | CTPT.DType.TBytes -> PT.TBytes
     | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
@@ -286,7 +242,7 @@ module DType =
     | PT.TInt -> CTPT.DType.TInt
     | PT.TFloat -> CTPT.DType.TFloat
     | PT.TBool -> CTPT.DType.TBool
-    | PT.TNull -> CTPT.DType.TNull
+    | PT.TUnit -> CTPT.DType.TUnit
     | PT.TStr -> CTPT.DType.TStr
     | PT.TList (t) -> CTPT.DType.TList(toCT t)
     | PT.TTuple (first, second, theRest) ->
@@ -301,7 +257,6 @@ module DType =
     | PT.TPassword -> CTPT.DType.TPassword
     | PT.TUuid -> CTPT.DType.TUuid
     | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
-    | PT.TErrorRail -> CTPT.DType.TErrorRail
     | PT.TUserType (name, v) -> CTPT.DType.TUserType(name, v)
     | PT.TBytes -> CTPT.DType.TBytes
     | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
@@ -345,26 +300,16 @@ module Handler =
       match spec with
       | CTPT.Handler.Spec.HTTP (route, method, i) ->
         PT.Handler.HTTP(route, method, ids.fromCT i)
-      | CTPT.Handler.Spec.HTTPBasic (route, method, i) ->
-        PT.Handler.HTTPBasic(route, method, ids.fromCT i)
       | CTPT.Handler.Spec.Worker (name, i) -> PT.Handler.Worker(name, ids.fromCT i)
-      | CTPT.Handler.Spec.OldWorker (modulename, name, i) ->
-        PT.Handler.OldWorker(modulename, name, ids.fromCT i)
       | CTPT.Handler.Spec.Cron (name, interval, i) ->
         PT.Handler.Cron(name, Option.map CronInterval.fromCT interval, ids.fromCT i)
       | CTPT.Handler.Spec.REPL (name, i) -> PT.Handler.REPL(name, ids.fromCT i)
-      | CTPT.Handler.Spec.UnknownHandler (name, modifier, i) ->
-        PT.Handler.UnknownHandler(name, modifier, ids.fromCT i)
 
     let toCT (spec : PT.Handler.Spec) : CTPT.Handler.Spec =
       match spec with
       | PT.Handler.HTTP (route, method, i) ->
         CTPT.Handler.Spec.HTTP(route, method, ids.toCT i)
-      | PT.Handler.HTTPBasic (route, method, i) ->
-        CTPT.Handler.Spec.HTTPBasic(route, method, ids.toCT i)
       | PT.Handler.Worker (name, i) -> CTPT.Handler.Spec.Worker(name, ids.toCT i)
-      | PT.Handler.OldWorker (modulename, name, i) ->
-        CTPT.Handler.Spec.OldWorker(modulename, name, ids.toCT i)
       | PT.Handler.Cron (name, interval, i) ->
         CTPT.Handler.Spec.Cron(
           name,
@@ -372,20 +317,12 @@ module Handler =
           ids.toCT i
         )
       | PT.Handler.REPL (name, i) -> CTPT.Handler.Spec.REPL(name, ids.toCT i)
-      | PT.Handler.UnknownHandler (name, modifier, i) ->
-        CTPT.Handler.Spec.UnknownHandler(name, modifier, ids.toCT i)
 
   let fromCT (h : CTPT.Handler.T) : PT.Handler.T =
-    { tlid = h.tlid
-      pos = Position.fromCT h.pos
-      ast = Expr.fromCT h.ast
-      spec = Spec.fromCT h.spec }
+    { tlid = h.tlid; ast = Expr.fromCT h.ast; spec = Spec.fromCT h.spec }
 
   let toCT (h : PT.Handler.T) : CTPT.Handler.T =
-    { tlid = h.tlid
-      pos = Position.toCT h.pos
-      ast = Expr.toCT h.ast
-      spec = Spec.toCT h.spec }
+    { tlid = h.tlid; ast = Expr.toCT h.ast; spec = Spec.toCT h.spec }
 
 
 module DB =
@@ -404,7 +341,6 @@ module DB =
 
   let fromCT (db : CTPT.DB.T) : PT.DB.T =
     { tlid = db.tlid
-      pos = Position.fromCT db.pos
       name = db.name
       nameID = db.nameID
       version = db.version
@@ -412,7 +348,6 @@ module DB =
 
   let toCT (db : PT.DB.T) : CTPT.DB.T =
     { tlid = db.tlid
-      pos = Position.toCT db.pos
       name = db.name
       nameID = db.nameID
       version = db.version
@@ -520,16 +455,14 @@ module Op =
 
   let fromCT (op : CTPT.Op) : PT.Op =
     match op with
-    | CTPT.Op.SetHandler (tlid, pos, handler) ->
-      PT.Op.SetHandler(tlid, Position.fromCT pos, Handler.fromCT handler)
-    | CTPT.Op.CreateDB (tlid, pos, name) ->
-      PT.Op.CreateDB(tlid, Position.fromCT pos, name)
+    | CTPT.Op.SetHandler (tlid, handler) ->
+      PT.Op.SetHandler(tlid, Handler.fromCT handler)
+    | CTPT.Op.CreateDB (tlid, name) -> PT.Op.CreateDB(tlid, name)
     | CTPT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       PT.Op.AddDBCol(dbid, colNameID, colTypeID)
     | CTPT.Op.SetDBColName (tlid, id, name) -> PT.Op.SetDBColName(tlid, id, name)
     | CTPT.Op.SetDBColType (tlid, id, tipe) -> PT.Op.SetDBColType(tlid, id, tipe)
     | CTPT.Op.DeleteTL (tlid) -> PT.Op.DeleteTL(tlid)
-    | CTPT.Op.MoveTL (tlid, pos) -> PT.Op.MoveTL(tlid, Position.fromCT pos)
     | CTPT.Op.SetFunction (uf) -> PT.Op.SetFunction(UserFunction.fromCT uf)
     | CTPT.Op.ChangeDBColName (tlid, id, name) ->
       PT.Op.ChangeDBColName(tlid, id, name)
@@ -542,23 +475,21 @@ module Op =
     | CTPT.Op.DeleteFunction (tlid) -> PT.Op.DeleteFunction(tlid)
     | CTPT.Op.DeleteDBCol (tlid, colID) -> PT.Op.DeleteDBCol(tlid, colID)
     | CTPT.Op.RenameDBname (tlid, name) -> PT.Op.RenameDBname(tlid, name)
-    | CTPT.Op.CreateDBWithBlankOr (tlid, pos, id, name) ->
-      PT.Op.CreateDBWithBlankOr(tlid, Position.fromCT pos, id, name)
+    | CTPT.Op.CreateDBWithBlankOr (tlid, id, name) ->
+      PT.Op.CreateDBWithBlankOr(tlid, id, name)
     | CTPT.Op.SetType (ut) -> PT.Op.SetType(UserType.fromCT ut)
     | CTPT.Op.DeleteType (tlid) -> PT.Op.DeleteType(tlid)
 
   let toCT (op : PT.Op) : CTPT.Op =
     match op with
-    | PT.Op.SetHandler (tlid, pos, handler) ->
-      CTPT.Op.SetHandler(tlid, Position.toCT pos, Handler.toCT handler)
-    | PT.Op.CreateDB (tlid, pos, name) ->
-      CTPT.Op.CreateDB(tlid, Position.toCT pos, name)
+    | PT.Op.SetHandler (tlid, handler) ->
+      CTPT.Op.SetHandler(tlid, Handler.toCT handler)
+    | PT.Op.CreateDB (tlid, name) -> CTPT.Op.CreateDB(tlid, name)
     | PT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       CTPT.Op.AddDBCol(dbid, colNameID, colTypeID)
     | PT.Op.SetDBColName (tlid, id, name) -> CTPT.Op.SetDBColName(tlid, id, name)
     | PT.Op.SetDBColType (tlid, id, tipe) -> CTPT.Op.SetDBColType(tlid, id, tipe)
     | PT.Op.DeleteTL (tlid) -> CTPT.Op.DeleteTL(tlid)
-    | PT.Op.MoveTL (tlid, pos) -> CTPT.Op.MoveTL(tlid, Position.toCT pos)
     | PT.Op.SetFunction (uf) -> CTPT.Op.SetFunction(UserFunction.toCT uf)
     | PT.Op.ChangeDBColName (tlid, id, name) ->
       CTPT.Op.ChangeDBColName(tlid, id, name)
@@ -571,8 +502,8 @@ module Op =
     | PT.Op.DeleteFunction (tlid) -> CTPT.Op.DeleteFunction(tlid)
     | PT.Op.DeleteDBCol (tlid, colID) -> CTPT.Op.DeleteDBCol(tlid, colID)
     | PT.Op.RenameDBname (tlid, name) -> CTPT.Op.RenameDBname(tlid, name)
-    | PT.Op.CreateDBWithBlankOr (tlid, pos, id, name) ->
-      CTPT.Op.CreateDBWithBlankOr(tlid, Position.toCT pos, id, name)
+    | PT.Op.CreateDBWithBlankOr (tlid, id, name) ->
+      CTPT.Op.CreateDBWithBlankOr(tlid, id, name)
     | PT.Op.SetType (ut) -> CTPT.Op.SetType(UserType.toCT ut)
     | PT.Op.DeleteType (tlid) -> CTPT.Op.DeleteType(tlid)
 

@@ -15,9 +15,9 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
-let handler code = testHttpRouteHandler "" "GET" (FSharpToExpr.parsePTExpr code)
+let handler code = testHttpRouteHandler "" "GET" (Parser.parsePTExpr code)
 
 let testUndoCount : Test =
   // Creates several save points, (at least as many undos as we will do),
@@ -86,14 +86,13 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     let nameID = gid ()
     let dbID2 = gid ()
     let nameID2 = gid ()
-    let pos : PT.Position = { x = 0; y = 0 }
     let! meta = createTestCanvas (Randomized "undo-verification")
 
     let ops1 =
-      [ PT.CreateDBWithBlankOr(dbID, pos, nameID, "Books")
+      [ PT.CreateDBWithBlankOr(dbID, nameID, "Books")
         PT.TLSavepoint dbID
         PT.DeleteTL dbID
-        PT.CreateDBWithBlankOr(dbID2, pos, nameID2, "Books") ]
+        PT.CreateDBWithBlankOr(dbID2, nameID2, "Books") ]
 
     Canvas.fromOplist meta [] ops1 |> ignore<Canvas.T>
 

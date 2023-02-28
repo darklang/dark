@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
               (fun f ->
                 match f with
                 | DFloat ft -> ft
-                | t ->
+                | _ ->
                   Exception.raiseCode (
                     Errors.argumentWasnt "a list of floats" "a" ldv
                   ))

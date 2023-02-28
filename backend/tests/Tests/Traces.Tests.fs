@@ -43,7 +43,7 @@ let testFilterSlash =
     // set up handler with route param
     let! meta = initializeTestCanvas (Randomized "test-filter_slash")
     let route = "/:rest"
-    let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
+    let handler = testHttpRouteHandler route "GET" (PT.EUnit 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // make irrelevant request
@@ -52,7 +52,7 @@ let testFilterSlash =
     let! (_d : NodaTime.Instant) = TI.storeEvent meta.id t1 desc (DStr "1")
 
     // load+check irrelevant trace
-    let! loaded = Traces.traceIDsForHandler c handler
+    let! loaded = Traces.traceIDsForHttpHandler c handler
     Expect.equal loaded [ Traces.traceIDofTLID handler.tlid ] "ids is the default"
 
     return ()
@@ -65,17 +65,17 @@ let testRouteVariablesWorkWithStoredEvents =
 
     // set up handler
     let httpRoute = "/some/:vars/:and/such"
-    let handler = testHttpRouteHandler httpRoute "GET" (PT.EBlank 0UL)
+    let handler = testHttpRouteHandler httpRoute "GET" (PT.EUnit 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event that matches the handler
     let t1 = AT.TraceID.create ()
     let httpRequestPath = "/some/vars/and/such"
-    let desc = ("HTTP", httpRequestPath, "GET")
+    let desc = ("HTTP_BASIC", httpRequestPath, "GET")
     let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
 
     // check we get back the data we put into it
-    let! events = TI.loadEvents c.meta.id ("HTTP", httpRoute, "GET")
+    let! events = TI.loadEvents c.meta.id ("HTTP_BASIC", httpRoute, "GET")
 
     let (loadedPaths, loadedDvals) =
       events
@@ -102,7 +102,7 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards =
     let requestPath = "/api/create-token"
 
     // set up handler
-    let handler = testHttpRouteHandler route "GET" (PT.EBlank 0UL)
+    let handler = testHttpRouteHandler route "GET" (PT.EUnit 0UL)
     let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
 
     // store an event
@@ -145,7 +145,6 @@ let testStoredEventRoundtrip =
     do! TI.storeEvent id2 t5 desc2 (DStr "3")
     do! TI.storeEvent id2 t6 desc4 (DStr "3")
     let t4_get4th (_, _, _, x) = x
-    let t5_get5th (_, _, _, _, x) = x
 
     // This is a bit racy
     let! listed = TI.listEvents TI.All id1
@@ -218,7 +217,7 @@ let testFunctionTracesAreStored =
         returnType = RT.TInt
         description = ""
         infix = false
-        body = FSharpToExpr.parseRTExpr "DB.generateKey" }
+        body = Parser.parseRTExpr "DB.generateKey" }
 
     let program =
       { canvasID = meta.id
@@ -298,7 +297,7 @@ let testErrorTracesAreStored =
     // the DB has no columns, but the code expects one, causing it to fail
     let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"
 
-    let (ast : Expr) = FSharpToExpr.parseRTExpr code
+    let (ast : Expr) = Parser.parseRTExpr code
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 

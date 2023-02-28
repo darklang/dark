@@ -6,16 +6,10 @@ variable "service_env_vars" {
     "DARK_CONFIG_ROOT_DIR" = "/home/dark"
 
     # Important dirs
-    "DARK_CONFIG_TEMPLATES_DIR"  = "/home/dark/templates"
     "DARK_CONFIG_WEBROOT_DIR"    = "/home/dark/webroot/static"
     "DARK_CONFIG_MIGRATIONS_DIR" = "/home/dark/migrations"
 
     # Ports
-
-    ## ApiServer
-    "DARK_CONFIG_APISERVER_NGINX_PORT"      = "9000"
-    "DARK_CONFIG_APISERVER_BACKEND_PORT"    = "9001"
-    "DARK_CONFIG_APISERVER_KUBERNETES_PORT" = "9002"
 
     ## BwdServer
     "DARK_CONFIG_BWDSERVER_BACKEND_PORT"    = "11001"
@@ -34,16 +28,12 @@ variable "service_env_vars" {
     "DARK_CONFIG_CREATE_ACCOUNTS"       = "n"
     "DARK_CONFIG_USE_HTTPS"             = "y"
 
-    "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT" = "n"
-    "DARK_CONFIG_APISERVER_HOST"                 = "darklang.com"
-    "DARK_CONFIG_APISERVER_STATIC_HOST"          = "static.darklang.com"
-    "DARK_CONFIG_COOKIE_DOMAIN"                  = ".darklang.com"
-    "DARK_CONFIG_BWDSERVER_HOST"                 = "builtwithdark.com"
+    "DARK_CONFIG_BWDSERVER_HOST" = "builtwithdark.com"
 
     # Serialization
     "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA" = "n"
     "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"        = "n"
-    "DARK_CONFIG_SERIALIZATION_HEALTH_CHECK_HOSTS" = "dark-editor,ops-adduser,ops-corpsite,ops-login,sample-crud"
+    "DARK_CONFIG_SERIALIZATION_HEALTH_CHECK_HOSTS" = "dark-editor"
 
     # Logging
     "DARK_CONFIG_ENV_DISPLAY_NAME" = "production"
@@ -101,9 +91,6 @@ variable "service_env_vars" {
 
     # Heap analytics
     "DARK_CONFIG_HEAPIO_ID" = "477722926"
-
-    # Static assets
-    "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX" = "production"
 
     # Other
     "DARK_CONFIG_BROWSER_RELOAD_ENABLED"           = "n"

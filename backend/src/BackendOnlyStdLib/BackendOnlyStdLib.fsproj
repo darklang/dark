@@ -19,30 +19,10 @@
     <None Include="paket.references" />
     <Compile Include="LibCrypto.fs" />
     <Compile Include="LibDB.fs" />
-    <Compile Include="LibDB2.fs" />
     <Compile Include="LibDarkInternal.fs" />
     <Compile Include="LibEvent.fs" />
-    <Compile Include="HttpQueryEncoding.fs" />
-    <Compile Include="LegacyBaseHttpClient.fs" />
-    <!-- LegacyHttpClient0 supports LibHttpClient 0-2 -->
-    <Compile Include="LegacyHttpClient0.fs" />
-    <Compile Include="LibHttpClient0.fs" />
-    <Compile Include="LibHttpClient1.fs" />
-    <Compile Include="LibHttpClient2.fs" />
-    <!-- LegacyHttpClient1 supports LibHttpClient3 -->
-    <Compile Include="LegacyHttpClient1.fs" />
-    <Compile Include="LibHttpClient3.fs" />
-    <!-- LegacyClient2 supports libHttpClient4 -->
-    <Compile Include="LegacyHttpClient2.fs" />
-    <Compile Include="LibHttpClient4.fs" />
-    <!-- "modern" HttpClient supports LibHttpClient5 -->
-    <Compile Include="HttpClient.fs" />
-    <Compile Include="LibHttpClient5.fs" />
     <Compile Include="LibHttpBaseClient.fs" />
-    <Compile Include="LibJwt.fs" />
     <Compile Include="LibPassword.fs" />
-    <Compile Include="LibStaticAssets.fs" />
-    <Compile Include="LibTwilio.fs" />
     <Compile Include="LibX509.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>

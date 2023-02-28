@@ -10,7 +10,6 @@ open LibBackend.Db
 
 open Prelude
 open Tablecloth
-open LibService.Exception
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
@@ -225,21 +224,16 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
   { c with dbs = applyToMap tlid f c.dbs }
 
 
-let moveToplevel (tlid : tlid) (pos : PT.Position) (c : T) : T =
-  { c with
-      handlers = applyToMap tlid (fun h -> { h with pos = pos }) c.handlers
-      dbs = applyToMap tlid (fun db -> { db with pos = pos }) c.dbs }
-
 // -------------------------
 // Build
 // -------------------------
 let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   try
     match op with
-    | PT.SetHandler (_, _, h) -> setHandler h c
-    | PT.CreateDB (tlid, pos, name) ->
+    | PT.SetHandler (_, h) -> setHandler h c
+    | PT.CreateDB (tlid, name) ->
       if isNew && name = "" then Exception.raiseEditor "DB must have a name"
-      let db = UserDB.create tlid name pos
+      let db = UserDB.create tlid name
       setDB db c
     | PT.AddDBCol (tlid, colid, typeid) ->
       applyToDB (UserDB.addCol colid typeid) tlid c
@@ -258,12 +252,11 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
         |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
       applyToDB (UserDB.setColType id typ) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
-    | PT.SetExpr (tlid, id, e) ->
+    | PT.SetExpr (_tlid, _id, _e) ->
       // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
       // applyToAllToplevels (TL.set_expr id e) tlid c
       c
     | PT.DeleteTL tlid -> deleteToplevel tlid c
-    | PT.MoveTL (tlid, pos) -> moveToplevel tlid pos c
     | PT.SetFunction user_fn -> setFunction user_fn c
     | PT.DeleteFunction tlid -> deleteFunction tlid c
     | PT.TLSavepoint _ -> c
@@ -273,8 +266,8 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
         "Undo/Redo op should have been preprocessed out!"
         [ "op", op ]
     | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
-    | PT.CreateDBWithBlankOr (tlid, pos, id, name) ->
-      setDB (UserDB.create2 tlid name pos id) c
+    | PT.CreateDBWithBlankOr (tlid, id, name) ->
+      setDB (UserDB.create2 tlid name id) c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
   with
@@ -524,17 +517,14 @@ let saveTLIDs
           match tl with
           | PT.Toplevel.TLHandler ({ spec = spec }) ->
             match spec with
-            | PT.Handler.HTTP _
-            | PT.Handler.HTTPBasic _ ->
+            | PT.Handler.HTTP _ ->
               Some(
                 PTParser.Handler.Spec.toModule spec,
                 Routing.routeToPostgresPattern (PTParser.Handler.Spec.toName spec),
                 PTParser.Handler.Spec.toModifier spec
               )
             | PT.Handler.Worker _
-            | PT.Handler.OldWorker _
             | PT.Handler.Cron _
-            | PT.Handler.UnknownHandler _
             | PT.Handler.REPL _ ->
               Some(
                 PTParser.Handler.Spec.toModule spec,
@@ -557,8 +547,8 @@ let saveTLIDs
 
         let pos =
           match tl with
-          | PT.Toplevel.TLHandler ({ pos = pos })
-          | PT.Toplevel.TLDB { pos = pos } -> Some(Json.Vanilla.serialize pos)
+          | PT.Toplevel.TLHandler _ -> Some(Json.Vanilla.serialize { x = 0; y = 0 })
+          | PT.Toplevel.TLDB _ -> None
           | PT.Toplevel.TLType _ -> None
           | PT.Toplevel.TLFunction _ -> None
 

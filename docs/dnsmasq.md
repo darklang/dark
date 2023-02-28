@@ -1,7 +1,7 @@
 # Setting up Dnsmasq
 
 Most domains within Dark work just fine. However, if you're working on
-BWDServer or static assets, you may want to set up DNS so that subdomains of
+BWDServer, you may want to set up DNS so that subdomains of
 builtwithdark.localhost work properly.
 
 This is not needed for other development.

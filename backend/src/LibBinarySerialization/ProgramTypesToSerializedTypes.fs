@@ -29,12 +29,6 @@ module FQFnName =
     | PT.FQFnName.Package p -> ST.FQFnName.Package(PackageFnName.toST p)
 
 
-module SendToRail =
-  let toST (ster : PT.SendToRail) : ST.SendToRail =
-    match ster with
-    | PT.Rail -> ST.Rail
-    | PT.NoRail -> ST.NoRail
-
 module BinaryOperation =
   let toST (op : PT.BinaryOperation) : ST.BinaryOperation =
     match op with
@@ -52,8 +46,7 @@ module MatchPattern =
     | PT.MPCharacter (id, c) -> ST.MPCharacter(id, c)
     | PT.MPString (id, s) -> ST.MPString(id, s)
     | PT.MPFloat (id, s, w, f) -> ST.MPFloat(id, s, w, f)
-    | PT.MPNull id -> ST.MPNull id
-    | PT.MPBlank id -> ST.MPBlank id
+    | PT.MPUnit id -> ST.MPUnit id
     | PT.MPTuple (id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
 
@@ -62,34 +55,29 @@ module MatchPattern =
 module Expr =
   let rec toST (e : PT.Expr) : ST.Expr =
     match e with
-    | PT.EBlank id -> ST.EBlank id
     | PT.ECharacter (id, char) -> ST.ECharacter(id, char)
     | PT.EInteger (id, num) -> ST.EInteger(id, num)
     | PT.EString (id, str) -> ST.EString(id, str)
     | PT.EFloat (id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool (id, b) -> ST.EBool(id, b)
-    | PT.ENull id -> ST.ENull id
+    | PT.EUnit id -> ST.EUnit id
     | PT.EVariable (id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       ST.EFieldAccess(id, toST obj, fieldname)
-    | PT.EFnCall (id, name, args, ster) ->
-      ST.EFnCall(id, FQFnName.toST name, List.map toST args, SendToRail.toST ster)
-    | PT.EInfix (id, PT.InfixFnCall (name, ster), arg1, arg2) ->
+    | PT.EFnCall (id, name, args) ->
+      ST.EFnCall(id, FQFnName.toST name, List.map toST args)
+    | PT.EInfix (id, PT.InfixFnCall (name), arg1, arg2) ->
       let isInfix = LibExecutionStdLib.StdLib.isInfixName
       assertFn2 "is a binop" isInfix (Option.unwrap "" name.module_) name.function_
       let name : ST.FQFnName.InfixStdlibFnName =
         { module_ = name.module_; function_ = name.function_ }
-      ST.EInfix(id, ST.InfixFnCall(name, SendToRail.toST ster), toST arg1, toST arg2)
+      ST.EInfix(id, ST.InfixFnCall(name), toST arg1, toST arg2)
     | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)
     | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
-    | PT.EPartial (id, str, expr) -> ST.EPartial(id, str, toST expr)
-    | PT.ERightPartial (id, str, expr) -> ST.ERightPartial(id, str, toST expr)
-    | PT.ELeftPartial (id, str_, expr) -> ST.ELeftPartial(id, str_, toST expr)
-
     | PT.EList (id, exprs) -> ST.EList(id, List.map toST exprs)
     | PT.ETuple (id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
@@ -115,7 +103,7 @@ module DType =
     | PT.TInt -> ST.TInt
     | PT.TFloat -> ST.TFloat
     | PT.TBool -> ST.TBool
-    | PT.TNull -> ST.TNull
+    | PT.TUnit -> ST.TUnit
     | PT.TStr -> ST.TStr
     | PT.TList typ -> ST.TList(toST typ)
     | PT.TTuple (first, second, theRest) ->
@@ -130,7 +118,6 @@ module DType =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TErrorRail -> ST.TErrorRail
     | PT.TUserType (name, version) -> ST.TUserType(name, version)
     | PT.TBytes -> ST.TBytes
     | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
@@ -162,27 +149,17 @@ module Handler =
       match s with
       | PT.Handler.HTTP (route, method, ids) ->
         ST.Handler.HTTP(route, method, IDs.toST ids)
-      | PT.Handler.HTTPBasic (route, method, ids) ->
-        ST.Handler.HTTPBasic(route, method, IDs.toST ids)
       | PT.Handler.Worker (name, ids) -> ST.Handler.Worker(name, IDs.toST ids)
-      | PT.Handler.OldWorker (modulename, name, ids) ->
-        ST.Handler.OldWorker(modulename, name, IDs.toST ids)
       | PT.Handler.Cron (name, interval, ids) ->
         ST.Handler.Cron(name, interval |> Option.map CronInterval.toST, IDs.toST ids)
       | PT.Handler.REPL (name, ids) -> ST.Handler.REPL(name, IDs.toST ids)
-      | PT.Handler.UnknownHandler (name, modifier, ids) ->
-        ST.Handler.UnknownHandler(name, modifier, IDs.toST ids)
 
   let toST (h : PT.Handler.T) : ST.Handler.T =
-    { tlid = h.tlid
-      ast = Expr.toST h.ast
-      spec = Spec.toST h.spec
-      pos = { x = h.pos.x; y = h.pos.y } }
+    { tlid = h.tlid; ast = Expr.toST h.ast; spec = Spec.toST h.spec }
 
 module DB =
   let toST (db : PT.DB.T) : ST.DB.T =
     { tlid = db.tlid
-      pos = { x = db.pos.x; y = db.pos.y }
       name = db.name
       nameID = db.nameID
       version = db.version
@@ -249,19 +226,12 @@ module Toplevel =
 module Op =
   let toST (op : PT.Op) : ST.Op =
     match op with
-    | PT.SetHandler (tlid, pos, handler) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.SetHandler(tlid, position, Handler.toST handler)
-    | PT.CreateDB (tlid, pos, name) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.CreateDB(tlid, position, name)
+    | PT.SetHandler (tlid, handler) -> ST.SetHandler(tlid, Handler.toST handler)
+    | PT.CreateDB (tlid, name) -> ST.CreateDB(tlid, name)
     | PT.AddDBCol (tlid, id1, id2) -> ST.AddDBCol(tlid, id1, id2)
     | PT.SetDBColName (tlid, id, name) -> ST.SetDBColName(tlid, id, name)
     | PT.SetDBColType (tlid, id, string) -> ST.SetDBColType(tlid, id, string)
     | PT.DeleteTL tlid -> ST.DeleteTL tlid
-    | PT.MoveTL (tlid, pos) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.MoveTL(tlid, position)
     | PT.SetFunction fn -> ST.SetFunction(UserFunction.toST fn)
     | PT.ChangeDBColName (tlid, id, string) -> ST.ChangeDBColName(tlid, id, string)
     | PT.ChangeDBColType (tlid, id, string) -> ST.ChangeDBColType(tlid, id, string)
@@ -272,8 +242,7 @@ module Op =
     | PT.DeleteFunction tlid -> ST.DeleteFunction tlid
     | PT.DeleteDBCol (tlid, id) -> ST.DeleteDBCol(tlid, id)
     | PT.RenameDBname (tlid, string) -> ST.RenameDBname(tlid, string)
-    | PT.CreateDBWithBlankOr (tlid, pos, id, string) ->
-      let position : ST.Position = { x = pos.x; y = pos.y }
-      ST.CreateDBWithBlankOr(tlid, position, id, string)
+    | PT.CreateDBWithBlankOr (tlid, id, string) ->
+      ST.CreateDBWithBlankOr(tlid, id, string)
     | PT.SetType tipe -> ST.SetType(UserType.toST tipe)
     | PT.DeleteType tlid -> ST.DeleteType tlid

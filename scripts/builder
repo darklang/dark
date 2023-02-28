@@ -17,8 +17,6 @@ fi
 
 # Sometimes these dirs leak out of the container, causing confusion and
 # slowness
-rm -Rf node_modules
-rm -Rf lib
 rm -Rf backend/src/*/obj
 rm -Rf backend/tests/*/obj
 rm -Rf backend/Build
@@ -36,9 +34,8 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   echo "Building docker image"
   # Always build for linux/amd64 (new OSX arm machines have emulation). This is
   # slow on MacOS but it gets there eventually.
-  # Most of the work is done to enable arm64 builds, but rescript 9.1.4 won't
-  # build on arm64 (10 supposedly does), and dotnet won't support building wasm
-  # until dotnet 8 at the earliest.
+  # Most of the work is done to enable arm64 builds
+  # LightTODO revisit this
   docker buildx build --platform linux/amd64 -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
 
   echo "Removing running containers"
@@ -48,24 +45,6 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   fi
 fi
 
-# --------------
-# --------------
-echo "watching for local changes"
-RELOAD_BROWSER=""
-for i in "$@"
-do
-  case $i in
-      --watch)
-	  RELOAD_BROWSER=true
-    ;;
-  esac
-done
-
-if [ -n "$RELOAD_BROWSER" ]; then
-    echo "Starting the browser reload script"
-    mkdir -p rundir/logs
-    scripts/build/_reload-browser > rundir/logs/browser.log 2>&1 &
-fi
 
 # --------------
 # Mounts
@@ -74,9 +53,7 @@ fi
 MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
 
 # Avoid docker syncing everything to the host, slowing compiles down by 5x
-MOUNTS+=" --mount type=volume,src=dark_fsharp_build,dst=/home/dark/app/backend/Build"
-MOUNTS+=" --mount type=volume,src=dark_lib,dst=/home/dark/app/lib"
-MOUNTS+=" --mount type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules"
+MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/backend/Build"
 MOUNTS+=" --mount type=volume,src=dark_nuget,dst=/home/dark/.nuget"
 
 if [[ -e "$HOME/.config/gcloud" ]]; then
@@ -122,10 +99,6 @@ echo "Run the build"
 # docker, and
 # https://docs.docker.com/engine/reference/run/#specify-an-init-process
 # for documentation of --init.
-# -p 5433:5432 to expose the postgres DB to outside the container
-# -p 2345:2345 to expose the cloud_sql_proxy to outside the container
-# -p 9000:9000 to expose the F# api server
-# -p 11001:11001 to expose the F# bwd server
 # -cap-add & -security-opt to attach a gdb/strace to .net code
 # --ulimit=nofile=65536:65536 to match CI
 docker run \
@@ -145,10 +118,18 @@ docker run \
   -v pgdata:/var/lib/postgresql \
   -v cloudstorage:/home/dark/cloud-storage \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -p 3275:3275 \
+  -p 3276:3276 \
   -p 9000:9000 \
+  -p 9001:9001 \
+  -p 9002:9002 \
+  -p 10011:10011 \
+  -p 10012:10012 \
+  -p 10030:10030 \
   -p 11001:11001 \
-  -p 5433:5432 \
-  -p 2345:2345 \
+  -p 11002:11002 \
+  -p 12002:12002 \
+  -p 13002:13002 \
   --security-opt seccomp=scripts/devcontainer/chrome-seccomp.json \
   -w /home/dark/app \
   --user "$(id -u):$gid" \

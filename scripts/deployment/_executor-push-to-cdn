@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+BUCKET="gs://darklang-downloads"
+dir=$1
+
+ls -la $dir
+
+gcloud storage cp \
+  --verbosity debug \
+  --content-type "application/octet-stream" \
+  --cache-control "public, no-transform" \
+  --content-encoding br \
+  "$dir/*" "$BUCKET"

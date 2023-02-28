@@ -3,47 +3,11 @@
 
 set -euo pipefail
 
-function check {
-  if [[ "$1" == *"services/"* && "$1" != *"/services/honeycomb-agent/config.yaml" && $(basename "$1") != "shipit.yaml" ]]; then
-    echo "kubeconform $1"
-    echo "$1" | check_k8s_files
-  else
-    echo "not kubernetes so no kubeconform: $1"
-  fi
-}
-
-all_k8s_files() {
-  find services/* \
-    -path services/honeycomb-agent/config.yaml -prune \
-    -o -name "shipit.yaml" -prune \
-    -o -type f -name "*.yaml" -print
-}
-
-check_k8s_files() {
-  xargs \
-    kubeconform \
-      -strict \
-      -kubernetes-version 1.22.9 \
-      -skip CustomResourceDefinition \
-      -schema-location default \
-      -schema-location 'scripts/linting/crd-schemas/{{ .ResourceKind }}_{{ .ResourceAPIVersion }}.json'
-}
-
 all_yaml_files() {
   find ./* -type f \
     \( -name "*.yml" \
     -o -name "*.yaml" \) -print \
     -o -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "lib" -prune \
-    -o -path "./lib" -prune \
-    -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune \
     -o -path "rundir" -prune \
     -o -path "./rundir" -prune \
     -o -path "backend/paket-files" -prune \
@@ -52,10 +16,8 @@ all_yaml_files() {
 }
 
 if [[ "$#" -eq 1 ]]; then
-  check "$1"
+  yamllint "$1"
 else
-  echo "checking k8s files ..."
-  all_k8s_files | check_k8s_files
   echo "linting yaml files ..."
   all_yaml_files | xargs yamllint
 fi

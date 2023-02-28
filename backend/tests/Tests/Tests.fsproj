@@ -18,7 +18,6 @@
     <ProjectReference Include="../../src/ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
     <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
     <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
-    <ProjectReference Include="../../src/ApiServer/ApiServer.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
@@ -33,7 +32,6 @@
     <Compile Include="Traces.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />
     <Compile Include="StorageTraces.Tests.fs" />
-    <Compile Include="ApiServer.Tests.fs" />
     <Compile Include="Authorization.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
@@ -42,10 +40,8 @@
     <Compile Include="EventQueue.Tests.fs" />
     <Compile Include="EventQueueV2.Tests.fs" />
     <Compile Include="Execution.Tests.fs" />
-    <Compile Include="FSharpToExpr.Tests.fs" />
-    <Compile Include="HttpClient.Tests.fs" />
+    <Compile Include="Parser.Tests.fs" />
     <Compile Include="HttpBaseClient.Tests.fs" />
-    <Compile Include="HttpQueryEncoding.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Prelude.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
@@ -58,7 +54,6 @@
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="TypeChecker.Tests.fs" />
     <Compile Include="Undo.Tests.fs" />
-    <Compile Include="UserDB.Tests.fs" />
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

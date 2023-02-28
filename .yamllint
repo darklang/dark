@@ -5,8 +5,6 @@ rules:
   document-start: disable
   indentation:
     spaces: 2
-    # The k8s examples use it, but this is ridiculous (and half our yaml does
-    # it the other way)
     indent-sequences: true
   key-duplicates: enable
   brackets:

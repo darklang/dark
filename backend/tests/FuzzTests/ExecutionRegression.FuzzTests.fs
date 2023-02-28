@@ -36,13 +36,8 @@ let errorOnTraceDifferences = false
 /// Patterns that will match them.
 let rec patternFromExpr (expr : RT.Expr) : Gen<RT.MatchPattern> =
   match expr with
-  | RT.EBlank (id) ->
-    Gen.frequency [ (1, Gen.constant <| RT.MPBlank(id))
-                    (1, G.RuntimeTypes.MatchPattern.genVar)
-                    (1, G.RuntimeTypes.matchPattern) ]
-
-  | RT.ENull (id) ->
-    Gen.frequency [ (1, Gen.constant <| RT.MPNull(id))
+  | RT.EUnit (id) ->
+    Gen.frequency [ (1, Gen.constant <| RT.MPUnit(id))
                     (1, G.RuntimeTypes.MatchPattern.genVar)
                     (1, G.RuntimeTypes.matchPattern) ]
 

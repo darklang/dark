@@ -17,7 +17,7 @@ open TestUtils.TestUtils
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 
 
 let (.=.) actual expected : bool =

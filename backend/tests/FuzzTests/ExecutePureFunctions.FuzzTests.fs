@@ -47,7 +47,7 @@ module Generators =
             RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName mod_ fn version)
           )
 
-        RT.EApply(gid (), call, args, RT.NotInPipe, RT.NoRail)
+        RT.EApply(gid (), call, args, RT.NotInPipe)
 
       gen {
         match typ with
@@ -71,7 +71,7 @@ module Generators =
         | RT.TBool ->
           let! v = Arb.generate<bool>
           return RT.EBool(gid (), v)
-        | RT.TNull -> return RT.ENull(gid ())
+        | RT.TUnit -> return RT.EUnit(gid ())
         | RT.TList typ ->
           let! typ = generateTypeToMatchCollection typ
           let! v = Gen.listOfLength size (genExpr' typ (size / 2))
@@ -168,8 +168,7 @@ module Generators =
 
         // FSTODO support all types
         | RT.TIncomplete
-        | RT.TPassword
-        | RT.TErrorRail ->
+        | RT.TPassword ->
           return Exception.raiseInternal $"Unsupported type (yet!)" [ "typ", typ ]
       }
 
@@ -205,7 +204,7 @@ module Generators =
           let! v = Arb.generate<float>
           return RT.DFloat v
         | RT.TBool -> return! Gen.map RT.DBool Arb.generate<bool>
-        | RT.TNull -> return RT.DNull
+        | RT.TUnit -> return RT.DUnit
         | RT.TList typ ->
           let! typ = generateTypeToMatchCollection typ
           return! Gen.map RT.DList (Gen.listOfLength s (genDval' typ (s / 2)))
@@ -291,9 +290,6 @@ module Generators =
           return!
             Gen.elements [ RT.Response(code, headers, body); RT.Redirect url ]
             |> Gen.map RT.DHttpResponse
-        | RT.TErrorRail ->
-          let! typ = Arb.generate<RT.DType>
-          return! Gen.map RT.DErrorRail (genDval' typ s)
 
         // FSTODO: support all types
         | RT.TPassword
@@ -366,8 +362,8 @@ type Generator =
           match (argIndex, dv, prevArgs, name.module_, name.function_, name.version)
             with
           // Int Overflow
-          | 1, RT.DInt i, [ RT.DInt e ], "Int", "power", 0
-          | 1, RT.DInt i, [ RT.DInt e ], "", "^", 0 ->
+          | 1, RT.DInt i, [ RT.DInt _ ], "Int", "power", 0
+          | 1, RT.DInt i, [ RT.DInt _ ], "", "^", 0 ->
             i <> 1L && i <> (-1L) && i <= 2000L
           | _ -> true)
 
@@ -422,7 +418,7 @@ let isOk ((fn, args) : FnAndArgs) : bool =
             RT.FQFnName.Stdlib(RT.FQFnName.stdlibFnName mod_ fn version)
           )
 
-        RT.EApply(gid (), call, args, RT.NotInPipe, RT.NoRail)
+        RT.EApply(gid (), call, args, RT.NotInPipe)
 
       let fnArgList = List.map (fun (name, _) -> RT.EVariable(gid (), name)) args
       callFn fn.module_ fn.function_ fn.version fnArgList

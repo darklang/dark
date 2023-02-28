@@ -84,14 +84,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Dict" "toList" 0
       parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = (TList varA)
+      returnType = (TList(TTuple(varA, varB, [])))
       description =
-        "Returns <param dict>'s entries as a list of {{[key, value]}} lists, in an arbitrary order. This function is the opposite of <fn Dict::fromList>"
+        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict::fromList>"
       fn =
         (function
         | _, [ DObj o ] ->
           Map.toList o
-          |> List.map (fun (k, v) -> DList [ DStr k; v ])
+          |> List.map (fun (k, v) -> DTuple(DStr k, v, []))
           |> DList
           |> Ply
         | _ -> incorrectArgs ())
@@ -101,11 +101,11 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
-      parameters = [ Param.make "entries" (TList varA) "" ]
+      parameters = [ Param.make "entries" (TTuple(varA, varB, [])) "" ]
       returnType = TDict varA
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
-         must be a {{[key, value]}} list, where <var key> is a <type String>.
+         must be a {{(key, value)}} tuple, where <var key> is a <type String>.
 
          If <param entries> contains duplicate <var key>s, the last entry with that
          key will be used in the resulting dictionary (use <fn Dict::fromList> if you
@@ -114,17 +114,16 @@ let fns : List<BuiltInFn> =
          This function is the opposite of <fn Dict::toList>."
       fn =
         (function
-        | state, [ DList l ] ->
+        | _, [ DList l ] ->
 
           let f acc e =
             match e with
-            | DList [ DStr k; value ] -> Map.add k value acc
-            | DList [ k; value ] ->
+            | DTuple (DStr k, value, []) -> Map.add k value acc
+            | DTuple (k, _, []) ->
               Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | (DIncomplete _
-            | DErrorRail _
             | DError _) as dv -> Errors.foundFakeDval dv
-            | _ -> Exception.raiseCode "All list items must be `[key, value]`"
+            | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
           let result = List.fold Map.empty f l
           Ply(DObj result)
@@ -135,10 +134,10 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromList" 0
-      parameters = [ Param.make "entries" (TList varA) "" ]
+      parameters = [ Param.make "entries" (TTuple(varA, varB, [])) "" ]
       returnType = TOption(TDict varA)
       description =
-        "Each value in <param entries> must be a {{[key, value]}} list, where <var
+        "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
          key> is a <type String>.
 
          If <param entries> contains no duplicate keys, returns {{Just <var dict>}}
@@ -151,16 +150,15 @@ let fns : List<BuiltInFn> =
         | _, [ DList l ] ->
           let f acc e =
             match acc, e with
-            | Some acc, DList [ DStr k; value ] when Map.containsKey k acc -> None
-            | Some acc, DList [ DStr k; value ] -> Some(Map.add k value acc)
+            | Some acc, DTuple (DStr k, _, _) when Map.containsKey k acc -> None
+            | Some acc, DTuple (DStr k, value, []) -> Some(Map.add k value acc)
             | _,
               ((DIncomplete _
-              | DErrorRail _
               | DError _) as dv) -> Errors.foundFakeDval dv
-            | Some _, DList [ k; _ ] ->
+            | Some _, DTuple (k, _, []) ->
               Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
             | Some _, _ ->
-              Exception.raiseCode "All list items must be `[key, value]`"
+              Exception.raiseCode "All list items must be `(key, value)`"
             | None, _ -> None
 
           let result = List.fold (Some Map.empty) f l
@@ -172,37 +170,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "Dict" "get" 0
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
-      returnType = varA
-      description =
-        "Looks up <param key> in <param dict> and returns the value if found, and an error otherwise"
-      fn =
-        (function
-        | _, [ DObj o; DStr s ] ->
-          (match Map.tryFind s o with
-           | Some d -> Ply(d)
-           | None -> Ply(DNull))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Dict" "get" 1) }
-
-
-    { name = fn "Dict" "get" 1
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
-      returnType = TOption varA
-      description =
-        "Looks up <param key> in <param dict> and returns an <type Option>"
-      fn =
-        (function
-        | _, [ DObj o; DStr s ] -> Ply(DOption(Map.tryFind s o))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Dict" "get" 2) }
 
 
     { name = fn "Dict" "get" 2
@@ -235,33 +202,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "foreach" 0
-      parameters =
-        [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
-      returnType = TDict varB
-      description =
-        "Returns a <type Dict> that contains the same keys as the original <param
-         dict> with values that have been transformed by {{fn}}, which operates on
-         each value."
-      fn =
-        (function
-        | state, [ DObj o; DFnVal b ] ->
-          uply {
-            let! result =
-              Ply.Map.mapSequentially
-                (fun dv ->
-                  Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail)
-                o
-
-            return DObj result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Dict" "map" 0) }
-
-
     { name = fn "Dict" "map" 0
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -282,13 +222,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.Map.mapSequentially
                 (fun ((key, dv) : string * Dval) ->
-                  Interpreter.applyFnVal
-                    state
-                    (id 0)
-                    b
-                    [ DStr key; dv ]
-                    NotInPipe
-                    NoRail)
+                  Interpreter.applyFnVal state (id 0) b [ DStr key; dv ] NotInPipe)
                 mapped
 
             return DObj result
@@ -297,54 +231,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "Dict" "filter" 0
-      parameters =
-        [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
-      returnType = TDict varA
-      description =
-        "Calls <param fn> on every entry in <param dict>, returning a <type dict> of
-         only those entries for which {{fn key value}} returns {{true}}.
-
-         Consider <fn Dict::filterMap> if you also want to transform the entries."
-      fn =
-        (function
-        | state, [ DObj o; DFnVal b ] ->
-          uply {
-            let incomplete = ref false
-
-            let f (key : string) (dv : Dval) : Ply<bool> =
-              uply {
-                let! result =
-                  Interpreter.applyFnVal
-                    state
-                    (id 0)
-                    b
-                    [ DStr key; dv ]
-                    NotInPipe
-                    NoRail
-
-                match result with
-                | DBool b -> return b
-                | DIncomplete _ ->
-                  incomplete.Value <- true
-                  return false
-                | v ->
-                  return Exception.raiseCode (Errors.expectedLambdaType "fn" TBool v)
-              }
-
-            if incomplete.Value then
-              return DIncomplete SourceNone (*TODO(ds) source info *)
-            else
-              let! result = Ply.Map.filterSequentially f o
-              return DObj result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Dict" "filter" 1) }
 
 
     { name = fn "Dict" "filter" 1
@@ -376,7 +262,6 @@ let fns : List<BuiltInFn> =
                       b
                       [ DStr key; data ]
                       NotInPipe
-                      NoRail
 
                   match result with
                   | DBool true -> return Ok(Map.add key data m)
@@ -435,13 +320,11 @@ let fns : List<BuiltInFn> =
                       b
                       [ DStr key; data ]
                       NotInPipe
-                      NoRail
 
                   match result with
                   | DOption (Some o) -> return Some o
                   | DOption None -> return None
                   | (DIncomplete _
-                  | DErrorRail _
                   | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
@@ -503,21 +386,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DObj l; DObj r ] -> Ply(DObj(Map.mergeFavoringRight l r))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    // TODO: move to LibJson
-    { name = fn "Dict" "toJSON" 0
-      parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = TStr
-      description = "Returns <param dict> as a JSON string"
-      fn =
-        (function
-        | _, [ DObj o ] ->
-          DObj o |> DvalReprLegacyExternal.toPrettyMachineJsonStringV1 |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

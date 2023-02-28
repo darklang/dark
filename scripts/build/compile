@@ -89,23 +89,6 @@ def copy_static():
   return run_frontend(start, "npm run copy:static")
 
 
-def copy_backend_static():
-  start = time.time()
-  blazor = run_backend(
-      start, "cp -f backend/src/Wasm/static/BlazorWorker.js backend/static/")
-  if optimize:
-    wwwroot = run_backend(
-        start,
-        "rsync -a backend/Build/out/Wasm/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/"
-    )
-  else:
-    wwwroot = run_backend(
-        start,
-        "rsync -a backend/Build/out/Wasm/Debug/net6.0/wwwroot/_framework/ backend/static/blazor/"
-    )
-  return blazor and wwwroot
-
-
 def client_build():
   start = time.time()
   build = "./scripts/build/_npm-run-build-with-retry"
@@ -117,15 +100,6 @@ def npm_install():
   start = time.time()
   build = "./scripts/build/_npm-install-with-retry"
   return run_frontend(start, build)
-
-
-def client_test():
-  start = time.time()
-  flags = ""
-  if in_ci:
-    flags = "--verbose --dom"
-  result = run_test(start, f"./scripts/run-client-tests {flags}")
-  return result
 
 
 def shellcheck(f):
@@ -146,35 +120,9 @@ def terraform_validate():
   return result
 
 
-def shipit_validate(f):
-  start = time.time()
-  return run_backend(start, f"scripts/deployment/shipit validate {f}")
-
-
-def pip_install():
-  start = time.time()
-  return run_backend(start, f"pip3 install -r scripts/deployment/requirements.txt")
-
-
-def mypy_shipit():
-  start = time.time()
-  args = [
-      "--disallow-any-unimported", "--disallow-untyped-calls",
-      "--disallow-untyped-defs", "--no-implicit-optional", "--warn-redundant-casts",
-      "--warn-unused-ignores", "--warn-return-any"
-  ]
-  argstr = " ".join(args)
-  return run_backend(start, f"mypy {argstr} scripts/deployment/shipit")
-
-
 def circleci_validate():
   start = time.time()
   return run_backend(start, "circleci config validate")
-
-
-def test_nginx():
-  start = time.time()
-  return run_backend(start, "sudo nginx -t -c /etc/nginx-apiserver/nginx.conf")
 
 
 ###########
@@ -280,12 +228,6 @@ def backend_full_build():
   return result
 
 
-def reload_nginx_server():
-  start = time.time()
-  runserver = "scripts/run-nginx-server"
-  return run_backend(start, runserver)
-
-
 def reload_backend_server():
   start = time.time()
   if optimize:
@@ -295,16 +237,6 @@ def reload_backend_server():
   runserver = f"scripts/run-backend-server {configuration}"
   return run_backend(start, runserver)
 
-
-def generate_etags():
-  start = time.time()
-  return run_frontend(start, "./scripts/build/_generate-etags")
-
-
-def reload_browser():
-  start = time.time()
-  # Sends a signal to another fswatch on your mac
-  return run_frontend(start, "touch .browser-trigger")
 
 
 class Should:
@@ -317,22 +249,10 @@ class Should:
     self.backend_full_build = False
     self.backend_test = False
     self.npm_install = False
-    self.client_build = False
-    self.client_test = False
-    self.sass_compile = False
-    self.copy_static = False
-    self.copy_backend_static = False
     self.circleci_validate = False
-    self.pip_install = False
-    self.mypy_shipit = False
-    self.test_nginx = False
-    self.reload_browser = False
-    self.reload_nginx_server = False
     self.reload_backend_server = False
-    self.generate_etags = False
     self.shellcheck = []
     self.yamllint = []
-    self.shipit_validate = []
     self.terraform_validate = False
 
 
@@ -355,74 +275,19 @@ def execute(should):
   if should.backend_full_build:
     should.backend_quick_build = False  # no need to do both
     if not backend_full_build(): success = False
-    should.copy_backend_static |= success
     should.backend_test |= success
     should.reload_backend_server |= success
 
   if should.circleci_validate:
     if not circleci_validate(): success = False
 
-  if should.pip_install:
-    if not pip_install(): success = False
-
-  if should.mypy_shipit:
-    if not mypy_shipit(): success = False
-
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
-    should.copy_backend_static |= success
     should.backend_test |= success
     should.reload_backend_server |= success
 
-  if should.npm_install:
-    if not npm_install(): success = False
-    should.sass_compile |= success
-
-  # The generated css file is an input to the rescript build (via the res_tailwind ppx),
-  # so we do that first
-  if should.sass_compile:
-    if not sass_compile(): success = False
-    should.client_build |= success
-
-  if should.client_build:
-    if not client_build(): success = False
-    should.client_test |= success
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.copy_static:
-    if not copy_static(): success = False
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.copy_backend_static:
-    if not copy_backend_static(): success = False
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.generate_etags:
-    if not generate_etags(): success = False
-    should.reload_browser |= success
-    # This should probably cause a restart, but it breaks CI atm
-    # should.reload_backend_server |= success
-
-  if should.reload_nginx_server:
-    if not reload_nginx_server(): success = False
-    should.reload_browser |= success
-
-  if should.test_nginx:
-    if not test_nginx(): success = False
-
   if should.reload_backend_server:
     if not reload_backend_server(): success = False
-    should.reload_browser |= success
-
-  if should.reload_browser:
-    if not reload_browser(): success = False
-
-  # After the fast path get tests run
-  if should.client_test:
-    if not client_test(): success = False
 
   if should.backend_test:
     if not backend_test(): success = False
@@ -435,10 +300,6 @@ def execute(should):
     if not all([yamllint(f) for f in should.yamllint]):
       success = False
 
-  if should.shipit_validate != []:
-    if not all([shipit_validate(f) for f in should.shipit_validate]):
-      success = False
-
   if should.terraform_validate:
     if not terraform_validate(): success = False
 
@@ -446,10 +307,7 @@ def execute(should):
 
 
 def mark(should, f):
-  if ("/backend/src/ApiServer/Templates/" in f) and (".html" in f):
-    should.reload_backend_server = True
-
-  elif ("/backend/global.json" in f or \
+  if ("/backend/global.json" in f or \
         "/backend/.config/dotnet-tools.json" in f or \
         "/backend/Directory.Build.props" in f):
     should.fsharp_tool_restore = True
@@ -477,70 +335,21 @@ def mark(should, f):
   elif ("/backend/" in f) and ("/tests/" in f):
     should.backend_test = True
 
-  elif "run-nginx-server" in f:
-    should.shellcheck += [f]
-    should.reload_nginx_server = True
-    should.test_nginx = True
-
-  elif (("/containers/fsharp-nginx/" in f and ".conf" in f)
-        or ("/services/" in f and "nginx" in f and ".conf" in f)):
-    should.reload_nginx_server = True
-    should.test_nginx = True
-
   elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]
     should.reload_backend_server = True
-    should.generate_etags = True
-
-  # JS
-  elif "/package.json" in f:
-    should.npm_install = True
-
-  elif ("/client/" in f) and (".res" in f):
-    # tailwind reads source files to produce the right css, which is the an input to
-    # the rescript buikd via the twc ppx
-    should.sass_compile = True
-
-  elif ("/client/" in f) and ((".resi" in f) or (".js" in f)):
-    # This correctly handles tests and other dirs, which need to be built
-    # as part of this step.
-    should.client_build = True
-
-  elif "/bsconfig.json" in f:
-    should.client_build = True
-
-  elif ".scss" in f or "tailwind.config.js" in f:
-    should.sass_compile = True
-
-  elif "/client/static/" in f:
-    should.copy_static = True
-
-  elif "/backend/src/Wasm/static/" in f:
-    should.copy_backend_static = True
 
   elif (".circleci/config.yml" in f):
     should.circleci_validate = True
 
-  elif ("/services/" in f and "shipit.yaml" in f):
-    should.shipit_validate += [f]
-
   elif ("/tf/" in f and ".tf" in f):
     should.terraform_validate = True
-
-  elif ("/scripts/deployment/requirements.txt" in f):
-    should.pip_install = True
-
-  elif ("/scripts/deployment/shipit" in f):
-    should.mypy_shipit = True
 
   elif ("/scripts/" in f or ".sh" in f) and is_script(f):
     should.shellcheck += [f]
 
   elif (".yml" in f or ".yaml" in f):
     should.yamllint += [f]
-
-  elif ".html" in f:
-    should.reload_browser = True
 
   else:
     print("non-build file: " + f, end='')
@@ -553,20 +362,12 @@ def ignore(filename):
   ignores = [
       ".git",
       ".ionide",
-      ".browser-trigger",
       "scripts/build/compile",
-      "integration-tests/tests.js",
       "rundir/",
-      ".mypy_cache/",
       "backend/serialization/",
-      "backend/static/",
-      "node_modules",
       "backend/Build",
       "paket-files",
       ".paket/load",
-      ".bs.js",
-      ".bsdeps",
-      ".bsbuild",
       "/obj/fsac.cache",
       "/backend/packages/analysis",
       ".sourcedirs.json",

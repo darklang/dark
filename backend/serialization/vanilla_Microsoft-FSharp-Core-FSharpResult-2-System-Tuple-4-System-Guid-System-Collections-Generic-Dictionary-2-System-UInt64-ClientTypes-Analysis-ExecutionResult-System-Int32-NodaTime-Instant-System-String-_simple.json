@@ -45,7 +45,7 @@
                   ],
                   "symtable": {},
                   "body": [
-                    "EBlank",
+                    "EUnit",
                     1234
                   ]
                 }
@@ -140,9 +140,6 @@
                                 ],
                                 [
                                   "NotInPipe"
-                                ],
-                                [
-                                  "NoRail"
                                 ]
                               ],
                               [
@@ -154,9 +151,6 @@
                             [
                               "InPipe",
                               312312798
-                            ],
-                            [
-                              "NoRail"
                             ]
                           ],
                           [
@@ -167,17 +161,11 @@
                         ],
                         [
                           "NotInPipe"
-                        ],
-                        [
-                          "NoRail"
                         ]
                       ]
                     ],
                     [
                       "NotInPipe"
-                    ],
-                    [
-                      "NoRail"
                     ]
                   ]
                 }
@@ -237,28 +225,6 @@
                 "SourceNone"
               ],
               "some error string"
-            ],
-            "errorrail": [
-              "DErrorRail",
-              [
-                "DInt",
-                5
-              ]
-            ],
-            "errorrail with float": [
-              "DErrorRail",
-              [
-                "DObj",
-                {
-                  "": [
-                    "DFloat",
-                    "NaN"
-                  ],
-                  "\u007F": [
-                    "DNull"
-                  ]
-                }
-              ]
             ],
             "escaped": [
               "DStr",
@@ -3061,7 +3027,7 @@
               1
             ],
             "null": [
-              "DNull"
+              "DUnit"
             ],
             "obj": [
               "DObj",
@@ -3092,7 +3058,7 @@
                   "weird"
                 ],
                 "value": [
-                  "DNull"
+                  "DUnit"
                 ]
               }
             ],
@@ -3262,7 +3228,7 @@
               ],
               []
             ],
-            "tupleWithNull": [
+            "tupleWithUnit": [
               "DTuple",
               [
                 "DInt",
@@ -3274,7 +3240,7 @@
               ],
               [
                 [
-                  "DNull"
+                  "DUnit"
                 ]
               ]
             ],

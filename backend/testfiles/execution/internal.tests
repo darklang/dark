@@ -6,7 +6,7 @@
 [tests.misc]
 
 [test.correct number of tables]
-Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 25
+Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 
 [test.allFunctions has many functions]
 (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
@@ -27,47 +27,23 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 25
 
 [test.empty grants]
 (let _ = Test.deleteUser_v0 "empty_grants"
- let _ = DarkInternal.insertUser_v2_ster "emptygrants" "a@eg.com" "test user" {}
+ let _ = DarkInternal.insertUser_v2 "emptygrants" "a@eg.com" "test user"
  DarkInternal.orgsFor "empty_grants") = {}
 
 [test.grants and orgs]
-(let _ = DarkInternal.insertUser_v2_ster "gaoorg" "gao-test-org@darklang.com" "gao test org" {}
- let _ = DarkInternal.insertUser_v2_ster "gaouser" "gao-test-user@darklang.com" "gao test user" {}
- let _ = DarkInternal.grant_v0_ster "gaouser" "gaoorg" "rw" in
+(let _ = DarkInternal.insertUser_v2 "gaoorg" "gao-test-org@darklang.com" "gao test org"
+ let _ = DarkInternal.insertUser_v2 "gaouser" "gao-test-user@darklang.com" "gao test user"
+ let _ = DarkInternal.grant_v0 "gaouser" "gaoorg" "rw" in
  DarkInternal.orgsFor "gaouser") = { ``gaoorg`` = "rw" }
 
 [test.grants and grants]
-(let _ = DarkInternal.insertUser_v2_ster "gagorg" "gag-test-org@darklang.com" "gag test org" {}
- let _ = DarkInternal.insertUser_v2_ster "gaguser" "gag-test-user@darklang.com" "gag test user" {}
+(let _ = DarkInternal.insertUser_v2 "gagorg" "gag-test-org@darklang.com" "gag test org"
+ let _ = DarkInternal.insertUser_v2 "gaguser" "gag-test-user@darklang.com" "gag test user"
  let _ = DarkInternal.grant "gaguser" "gagorg" "rw" in
  let result = DarkInternal.grantsFor "gagorg"
  let _ = DarkInternal.grant "gaguser" "gagorg" "" in
  result) = { gaguser = "rw" }
 
-// ---------------
-// Sessions
-// ---------------
-[tests.sessions]
-
-// It allows these, just puts them in the DB
-// [test.newSessionForUsername_v0 invalid user]
-// (DarkInternal.newSessionForUsername_v0 "not a user") = Error "No user 'not a user'"
-
-// It allows these, just puts them in the DB
-// [test.newSessionForUsername_v1 invalid user]
-// (DarkInternal.newSessionForUsername_v1 "not a user") = Error "No user 'not a user'"
-
-[test.newSessionForUsername_v0 real user]
-(let session = DarkInternal.newSessionForUsername_v0_ster "test" in
- DarkInternal.sessionKeyToUsername_v0 session) = Ok "test"
-
-[test.newSessionForUsername_v1 real user]
-(let session = DarkInternal.newSessionForUsername_v1_ster "test" in
- DarkInternal.sessionKeyToUsername session.sessionKey) = Ok "test"
-
-[test.deleteSession]
-(let session1 = DarkInternal.newSessionForUsername_v1_ster "test" in
- DarkInternal.deleteSession_v0 session1.sessionKey) = 1
 
 // ---------------
 // users
@@ -76,8 +52,8 @@ Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 25
 DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
 DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" {} = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
-DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" {} = Error "Underscores not allowed in usernames"
+DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
+DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" = Error "Underscores not allowed in usernames"
 
 // These could be tested in a much better way, really we're just testing the signatures here
 (List.length (DarkInternal.getCanvasList Test.getUserID) > 0) = true
@@ -90,81 +66,48 @@ DarkInternal.getOrgList Test.getUserID = []
 // DarkInternal.getAllCanvases = []
 
 // ---------------
-// check permission
-// ---------------
-[test.checkPermission with none]
-(let user1 = ("cpnuser1" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("cpnuser2" ++ (String.random 5)) |> String.toLowercase_v1
- let user1Email = user1 ++ "-test@darklang.com"
- let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "cpn test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "cpn test user2" {}
- let startingPermission = DarkInternal.checkPermission_v0 user1 user2
- let _ = DarkInternal.grant_v0_ster user1 user2 "" in
- (DarkInternal.checkPermission_v0 user1 user2, startingPermission) ) = ("" , "")
-
-[test.checkPermission with r]
-(let user1 = ("cpruser1" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("cpruser2" ++ (String.random 5)) |> String.toLowercase_v1
- let user1Email = user1 ++ "-test@darklang.com"
- let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "cpr test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "cpr test user2" {}
- let startingPermission = DarkInternal.checkPermission_v0 user1 user2
- let _ = DarkInternal.grant_v0_ster user1 user2 "r" in
- (DarkInternal.checkPermission_v0 user1 user2, startingPermission) ) = ("r" , "")
-
-[test.checkPermission with rw]
-(let user1 = ("cprwuser1" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("cprwuser2" ++ (String.random 5)) |> String.toLowercase_v1
- let user1Email = user1 ++ "-test@darklang.com"
- let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "cprw test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "cprw test user2" {}
- let startingPermission = DarkInternal.checkPermission_v0 user1 user2
- let _ = DarkInternal.grant_v0_ster user1 user2 "rw" in
- (DarkInternal.checkPermission_v0 user1 user2, startingPermission) ) = ("rw" , "")
-
-// ---------------
 // get permission
 // ---------------
+[fn.username prefix:str]
+(String.random_v2 5) |> Test.unwrap |> (fun v -> prefix ++ v) |> String.toLowercase_v1
+
 [test.getPermission with none]
-(let user1 = ("gpnuser1" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("gpnuser2" ++ (String.random 5)) |> String.toLowercase_v1
+(let user1 = username "gpnuser1"
+ let user2 = username "gpnuser2"
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpn test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpn test user2" {}
- let userID = DarkInternal.getUserID_v0_ster user1
+ let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpn test user1") |> Test.unwrap
+ let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpn test user2") |> Test.unwrap
+ let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
  let canvasID = Test.createCanvas user2
  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
- let _ = DarkInternal.grant_v0_ster user1 user2 "" in
+ let _ = (DarkInternal.grant_v0 user1 user2 "") |> Test.unwrap in
  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "" , Ok "")
 
 [test.getPermission with r]
-(let user1 = ("gpruser1" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("gpruser2" ++ (String.random 5)) |> String.toLowercase_v1
+(let user1 = username "gpruser1"
+ let user2 = username "gpruser2"
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gpr test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gpr test user2" {}
- let userID = DarkInternal.getUserID_v0_ster user1
+ let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpr test user1") |> Test.unwrap
+ let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpr test user2") |> Test.unwrap
+ let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
  let canvasID = Test.createCanvas user2
  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
- let _ = DarkInternal.grant_v0_ster user1 user2 "r" in
+ let _ = (DarkInternal.grant_v0 user1 user2 "r") |> Test.unwrap in
  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "r" , Ok "")
 
 [test.getPermission with rw]
-(let user1 = ("gprwuser1" ++ (String.random 5)) |> String.toLowercase_v1
- let user2 = ("gprwuser2" ++ (String.random 5)) |> String.toLowercase_v1
+(let user1 = username "gprwuser1"
+ let user2 = username "gprwuser2"
  let user1Email = user1 ++ "-test@darklang.com"
  let user2Email = user2 ++ "-test@darklang.com"
- let _ = DarkInternal.insertUser_v2_ster user1 user1Email "gprw test user1" {}
- let _ = DarkInternal.insertUser_v2_ster user2 user2Email "gprw test user2" {}
- let userID = DarkInternal.getUserID_v0_ster user1
+ let _ = (DarkInternal.insertUser_v2 user1 user1Email "gprw test user1") |> Test.unwrap
+ let _ = (DarkInternal.insertUser_v2 user2 user2Email "gprw test user2") |> Test.unwrap
+ let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
  let canvasID = Test.createCanvas user2
  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
- let _ = DarkInternal.grant_v0_ster user1 user2 "rw" in
+ let _ = (DarkInternal.grant_v0 user1 user2 "rw") |> Test.unwrap in
  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "rw" , Ok "")
 
 
@@ -174,16 +117,13 @@ DarkInternal.getOrgList Test.getUserID = []
 // canvasID
 // ---------------
 [tests.canvasIDOfCanvasName]
-DarkInternal.canvasIdOfCanvasName_v0 "not-a-canvas" = Nothing
-DarkInternal.canvasIdOfCanvasName_v0_ster Test.getCanvasName = toString Test.getCanvasID
-
 DarkInternal.canvasIDOfCanvasName_v0 Test.getCanvasName = Ok (Test.getCanvasID)
 DarkInternal.canvasIDOfCanvasName_v0 "invalid name" = Error "Invalid username 'invalid name' - must be 2-20 lowercase characters, and must start with a letter."
 DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not found"
 
 [tests.canvasNameOfCanvasID]
 DarkInternal.canvasNameOfCanvasID_v0 (Test.getCanvasID) = Ok (Test.getCanvasName)
-DarkInternal.canvasNameOfCanvasID_v0 (Uuid.parse_v0_ster "7d9e5495-b068-4364-a2cc-3633ab4d13e6") = Error "Canvas not found"
+DarkInternal.canvasNameOfCanvasID_v0 ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = Error "Canvas not found"
 
 
 // ---------------
@@ -195,7 +135,7 @@ DarkInternal.canvasNameOfCanvasID_v0 (Uuid.parse_v0_ster "7d9e5495-b068-4364-a2c
 DarkInternal.getSecrets Test.getCanvasID = {}
 
 [test.insertSecret]
-(let _ = DarkInternal.insertSecret_ster Test.getCanvasID "SECRET" "VALUE"
+(let _ = (DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE")
  DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
 
 [test.insertSecret twice]
@@ -248,85 +188,6 @@ DarkInternal.unlockedDBs Test.getCanvasID = [1]
 [test.unlocked, one but locked] with DB X
 (let _ = DB.set_v1 { x = "str" } "test" X in
  DarkInternal.unlockedDBs Test.getCanvasID) = []
-
-
-// ---------------
-// static assets
-// ---------------
-[test.no static assets without deploys]
-DarkInternal.staticAssetsDeploys Test.getCanvasID = []
-
-[test.static assets non-empty after starting a deploy]
-(let _deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-List.length_v0 deploys) = 1
-
-[test.starting a static asset deploy for a non-existant user fails]
-(DarkInternal.startStaticAssetDeploy "fake_username" Test.getCanvasID) = Error "User not found"
-
-[test.static assets contains as many elements as deploys]
-(let _firstDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let _secondDeployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-List.length_v0 deploys) = 2
-
-[test.static assets deploy is 'deploying' after just started]
-(let _deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deploying"]
-
-[test.finishing an invalid static asset deploy fails EXPECTED_EXCEPTION_COUNT: 1]
-DarkInternal.finishStaticAssetDeploy Test.getCanvasID "fakeHash" = Test.typeError_v0 "Unknown error"
-
-[test.finishing a started static asset deploy is OK]
-(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-match deployHashMaybe with
-| Error -> []
-| Ok deployHash ->
-  DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash) = Ok null
-
-[test.finishing a started static asset deploy changes the status]
-(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-match deployHashMaybe with
-| Error -> []
-| Ok deployHash ->
-  let _ = DarkInternal.finishStaticAssetDeploy Test.getCanvasID deployHash in
-  let deploys = DarkInternal.staticAssetsDeploys Test.getCanvasID in
-  deploys |> List.map_v0 (fun d -> Dict.get_v2 d "status")) = [Just "Deployed"]
-
-[test.static asset deploys can be deleted]
-(let deployHashMaybe = DarkInternal.startStaticAssetDeploy "test" Test.getCanvasID in
-match deployHashMaybe with
-| Error -> ["not deployed"]
-| Ok deployHash ->
-  let _ = DarkInternal.deleteStaticAssetDeploy Test.getCanvasID deployHash in
-  DarkInternal.staticAssetsDeploys Test.getCanvasID) = []
-
-[test.trying to delete a non-existant static asset deploy doesn't fail]
-(DarkInternal.deleteStaticAssetDeploy Test.getCanvasID "fake-deployhash") = null
-
-
-// ---------------
-// Tunnels
-// ---------------
-[test.tunnel is unset]
-(let _ = DarkInternal.insertUser_v2_ster "tunnel0" "tunnel0-test-user@darklang.com" "tunnel0 test user" {}
- let userID = DarkInternal.getUserID_v0_ster "tunnel0"
- DarkInternal.getTunnelHost userID) = Nothing
-
-[test.setting tunnel works]
-(let _ = DarkInternal.insertUser_v2_ster "tunnel1" "tunnel1-test-user@darklang.com" "tunnel1 test user" {}
- let userID = DarkInternal.getUserID_v0_ster "tunnel1"
- let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
- DarkInternal.getTunnelHost userID) = Just "myhost.com"
-
-
-[test.clearing tunnel works]
-(let _ = DarkInternal.insertUser_v2_ster "tunnel2" "tunnel2-test-user@darklang.com" "tunnel2 test user" {}
- let userID = DarkInternal.getUserID_v0_ster "tunnel2"
- let _ = DarkInternal.setTunnelHost userID (Just "myhost.com")
- let _ = DarkInternal.setTunnelHost userID Nothing
- DarkInternal.getTunnelHost userID) = Nothing
 
 
 // ---------------

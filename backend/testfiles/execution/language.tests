@@ -3,9 +3,8 @@
 // ---------------------------
 
 [tests.let]
-(let x = Test.errorRailValue_v0 Nothing in 5) = Test.errorRailValue_v0 Nothing
-(let x = blank in 5) = 5
-(let x = Test.typeError_v0 "" in 5) = 5
+(let x = Test.typeError_v0 "a" in 5) = Test.typeError "a"
+(let x = Test.typeError_v0 "a" in Test.typeError_v0 "b") = Test.typeError_v0 "a"
 (let x = 5 in x) = 5
 (let x = 5 in let x = 6 in x) = 6
 
@@ -13,10 +12,9 @@
 [tests.list]
 [] = []
 [1] = [1]
-[ 5; blank; 0 ] = [5;0]
-[ 5; Int.add_v0 blank 5; 0 ] = [5;0]
-[ 5; Test.typeError_v0 "test"; 0 ] = [ 5; Test.typeError_v0 "test"; 0 ]
-[ 5; Test.errorRailValue_v0 Nothing; 0 ] = Test.errorRailValue_v0 Nothing
+[ 5; Int.add_v0 1 5; 0 ] = [5; 6; 0]
+[ 5; Test.typeError_v0 "test"; 0 ] = Test.typeError_v0 "test"
+[ 5; Test.typeError_v0 "1"; Test.typeError_v0 "2" ] = Test.typeError_v0 "1"
 
 [tests.tuple]
 (1,2) = (1,2)
@@ -24,37 +22,23 @@
 (1, 2+3, 4) = (1, 5, 4)
 // note: there is no upper limit set on Tuple size
 (1, 2, 3, 4, 5, 6, 7, 8, 9) = (1, 2, 3, 4, 5, 6, 7, 8, 9)
-(1, blank, 3) = blank
 (1, Test.typeError_v0 "test", 3) = Test.typeError_v0 "test"
 (1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
-(1, Test.errorRailValue_v0 Nothing, 3) = Test.errorRailValue_v0 Nothing
-(1, blank, Test.typeError_v0 "err", 4) = blank
-(1, Test.typeError_v0 "err", blank, 4) = Test.typeError_v0 "err"
-(1, Test.errorRailValue_v0 Nothing, blank, 4) = Test.errorRailValue_v0 Nothing
-(1, blank, Test.typeError_v0 "err", Test.errorRailValue_v0 Nothing, 4) = blank
 
 
 [tests.records]
-{ col1 = 1 ; col1 = 2 } = Test.typeError_v0 "Duplicate key: col1"
+{ col1 = 1 ; col1 = 2 } = { col1 = 2 }
 { col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
-{ col1 = 2 ; col2 = blank } = { col1 = 2 }
-{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = { col1 = 2; col2 = Test.typeError_v0 "test" }
-{ col1 = 2 ; col2 = Test.errorRailValue_v0 Nothing } = Test.errorRailValue_v0 Nothing
-{ col1 = 2 ; ___ = 3 } = { col1 = 2 }
-(let _ = { col1 = 2 ; ___ = Test.incrementSideEffectCounter_v0 2 } in Test.sideEffectCount_v0) = 1
+{ col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
+{ col1 = 2 ; ___ = 3 } = Test.typeError "Record key is empty"
 
 
 [tests.fieldAccess]
 (let x = { col1 = 1 } in x.col1) = 1
-(let x = { col1 = 1 } in x.___) = blank
-(let x = { col1 = 1 } in x.fieldName) = null
-(let x = blank in x.fieldName) = blank
-(let x = Test.typeError_v0 "error" in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
-(let x = Test.errorRailValue_v0 Nothing in x.fieldName) = Test.errorRailValue_v0 Nothing
-(let x = { col1 = Test.errorRailValue_v0 Nothing } in x.col1) = Test.errorRailValue_v0 Nothing
-(let x = { col1 = Test.errorRailValue_v0 Nothing; col2 = 5 } in x.col2) = Test.errorRailValue_v0 Nothing
+(let x = { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
+(let x = { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in record"
+(Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
 (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
-(let x = { col1 = 1 } in x.fieldName) = null
 
 [tests.variable]
 myvar = Test.typeError_v0 "There is no variable named: myvar"
@@ -63,11 +47,11 @@ myvar = Test.typeError_v0 "There is no variable named: myvar"
 
 [tests.fncall]
 5 + 3 = 8
-5 + blank = blank
-5 + (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
+//(Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error" // CLEANUP
+//(Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
 "xx" ++ "yy" = "xxyy"
-(5 + (partial "three" 3)) = 8
+(5 + (3)) = 8
 Int.add_v0 5 3 = 8
 
 [tests.fqfnname]
@@ -75,42 +59,31 @@ toString 5 = "5"
 
 
 [tests.if]
-(if true then "correct" else 0) = "correct")
-(if true then partial "" "correct" else 0) = "correct")
-(if false then "" else "correct") = "correct")
-(if false then "" else partial "" "correct") = "correct")
-(if null then "" else "correct") = "correct")
-(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "Expected boolean, got error")
-(if List.head_v1_ster [] then "" else "") = Test.errorRailValue_v0 Nothing)
-(if blank then "" else "") = blank
-(if 5 then "correct" else "") = "correct"
+(if true then "correct" else 0) = "correct"
+//(if true then Test.typeError_v0 "a" else 0) = Test.typeError_v0 "a" // CLEANUP
+//(if false then 0 else Test.typeError_v0 "a") = Test.typeError_v0 "a" // CLEANUP
+//(if false then Test.typeError_v0 "a" else 0) = 0 // CLEANUP
+//(if true then 0 else Test.typeError_v0 "a") = 0 // CLEANUP
+(if false then "" else "correct") = "correct"
+(if null then "" else "") = Test.typeError_v0 "If only supports Booleans"
+(if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
+(if 5 then "" else "") = Test.typeError_v0 "If only supports Booleans"
 
 [tests.and]
 (true && true) = true
 (true && false) = false
 (false && true) = false
 (false && false) = false
-(true && blank) = blank
 (true && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
-(true && Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 (true && 5) = Test.typeError_v0 "&& only supports Booleans"
-(false && blank) = false
 (false && Test.typeError_v0 "msg") = false
-(false && Test.errorRailValue_v0 Nothing) = false
 (false && 5) = false
-(blank && blank) = blank
-(blank && Test.typeError_v0 "msg") = blank
-(blank && Test.errorRailValue_v0 Nothing) = blank
 (Test.typeError_v0 "msg" && Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
-(Test.typeError_v0 "msg" && Test.errorRailValue_v0 Nothing) = Test.typeError_v0 "msg"
-(Test.errorRailValue_v0 Nothing && Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 (5 && true) = Test.typeError_v0 "&& only supports Booleans"
 (true |> (&&) true) = true
 (true |> (&&) false) = false
 (false |> (&&) true) = false
 (false |> (&&) false) = false
-(true |> (&&) blank) = blank
-(false |> (&&) blank) = false
 
 
 [tests.or]
@@ -118,52 +91,40 @@ toString 5 = "5"
 (true || false) = true
 (false || true) = true
 (false || false) = false
-(true || blank) = true
 (true || Test.typeError_v0 "msg") = true
-(true || Test.errorRailValue_v0 Nothing) = true
 (true || 5) = true
-(false || blank) = blank
 (false || Test.typeError_v0 "msg") = Test.typeError_v0 "msg"
-(false || Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 (false || 5) = Test.typeError_v0 "|| only supports Booleans"
-(blank || blank) = blank
-(blank || Test.typeError_v0 "msg") = blank
-(blank || Test.errorRailValue_v0 Nothing) = blank
 (Test.typeError_v0 "msg1" || Test.typeError_v0 "msg2") = Test.typeError_v0 "msg1"
-(Test.typeError_v0 "msg" || Test.errorRailValue_v0 Nothing) = Test.typeError_v0 "msg"
-(Test.errorRailValue_v0 Nothing || Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
 (5 || true) = Test.typeError_v0 "|| only supports Booleans"
 (true |> (||) true) = true
 (true |> (||) false) = true
 (false |> (||) true) = true
 (false |> (||) false) = false
-(true |> (||) blank) = true
-(false |> (||) blank) = blank
 
 
 [tests.featureflag]
 flag "test" true "old" "new" = "new"
-flag "test" true "old" (partial "outer" "new") = "new"
 // everything else is old
 flag "test" false "old" "new" = "old"
 flag "" [true] "old" "new" = "old"
 flag "test" null "old" "new" = "old"
 flag "test" 5 "old" "new" = "old"
-flag "test" blank "old" "new" = "old"
 flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
-flag "test" (List.head_v1_ster []) "old" "new" = "old"
+flag "test" (List.head_v2_ster []) "old" "new" = "old"
 flag "test" {x = true} "old" "new" = "old"
 flag "test" {x = true} "old" "new" = "old"
 flag "test" [true] "old" "new" = "old"
-flag "test" (Test.errorRailValue "error") "old" "new" = "old"
 flag "test" (Test.negativeInfinity "extra arg") "old" "new" = "old"
 flag "test" (Test.raiseException "message") "old" "new" = "old" // EXPECTED_EXCEPTION_COUNT: 1
 
 
 [tests.lambdas]
 List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
-(let y = (fun x -> x + (Test.errorRailValue Nothing)) in List.map_v0 [1;2;3;4] y) = Test.errorRailValue Nothing
 (let y = (fun x ___ -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
+//(let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ] // CLEANUP switch
+//(let y = (fun msg -> Test.typeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.typeError "1" // CLEANUP
+//(let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
 
 [test.lambda1]
 (let x = 5 in
@@ -173,22 +134,30 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 
 [test.lambda2]
 (String.join_v0
-  (List.foreach_v0
+  (List.map_v0
     (String.toList_v1 "some string")
-    (fun var -> String.toUppercase_v0 (String.fromChar_v1 var))) "") = "SOME STRING"
+    (fun var -> String.toUppercase_v1 (String.fromChar_v1 var))) "") = "SOME STRING"
 
+// CLEANUP
+[test.lambda3]
+(let y = (fun c -> if c > 2 then Test.typeError_v0 "err" else 18) in
+ [1; 2; 3; 4] |> List.map_v0 y) = Test.typeError_v0 "err"
 
 
 [tests.pipes]
 ([] |> List.push_v0 2) = [2]
-((Test.errorRailValue Nothing) |> List.push_v0 2) = Test.errorRailValue Nothing
+//+([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
+//+([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
+//+([] |> Test.typeError_v0 "err") = Test.typeError_v0 "err" // CLEANUP
+//+(Test.typeError_v0 "err" |> []) = Test.typeError_v0 "err" // CLEANUP
+//+(Test.typeError_v0 "one" |> Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
 
 [test.pipes]
 ([5]
- |> List.head_v0
+ |> List.head_v2
+ |> Test.unwrap
  |> Int.add_v0 1
  |> (+) 3
- |> blank
  |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
 
 [test.pipevariable]
@@ -196,15 +165,7 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  (5
  |> x
  |> x
- |> (+) 3
- |> blank)) = 10
-
-[test.pipe through partial]
-// partials need to be removed when converting to RT, and we had issues with pipes
-(5
-|> (+) 1
-|> partial "outer" (fun x -> partial "inner" (if (x + 4) > 1 then x else (1 + x)))
-) = 6
+ |> (+) 3)) = 10
 
 
 [tests.match]
@@ -213,16 +174,17 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 (match true with | false -> "fail" | true -> "pass" | var -> "fail") = "pass"
 (match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
 (match null with | null -> "pass" | var -> "fail") = "pass"
-(match 2.0 with | blank -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
 (match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
-(match "nothing matches" with | "not this" -> "fail") = blank
+(match "nothing matches" with | "not this" -> "fail") = Test.incomplete // CLEANUP
 
-(match blank with | 5 -> 5 | _ -> 6) = blank
-// CLEANUP: mistake
-(match (Test.errorRailValue Nothing) with | 5 -> 5 | _ -> 6) = blank
-// CLEANUP: mistake
-(match Test.typeError_v0 "msg"  with | 5 -> 5 | _ -> 6) = blank
+(match Test.typeError_v0 "msg" with | 5 -> 5 | _ -> 6) = Test.incomplete // CLEANUP
 
+//+(match Test.typeError_v0 "err with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "err" // CLEANUP
+//+(match 1 with | 1 -> Test.typeError_v0 "a" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "a" // CLEANUP
+//+(match 1 with | 2 -> Test.typeError_v0 "a" | 1 -> "pass" | var -> "fail") = "pass" // CLEANUP
+//+(match 1 with | 1 -> "pass" | 6 -> Test.typeError_v0 "a" | var -> "fail") = "pass" // CLEANUP
+//+(match 1 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "fail") = Test.typeError_v0 "a" // CLEANUP
+//+(match 3 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "pass") = "pass" // CLEANUP
 
 [test.matchInt]
 (match 5 with
@@ -230,7 +192,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
 | false -> "bool"
 | "myStr" -> "string"
 | null -> "null"
-| blank -> "blank"
 | Ok x -> "ok: " ++ x
 | Nothing -> "constructor nothing"
 | 5 -> "int"
@@ -242,7 +203,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | 5.6 -> "float"
@@ -254,7 +214,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | 1.1 -> "float"
@@ -266,7 +225,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | false -> "bool"
@@ -278,7 +236,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | false -> "bool"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | "myStr" -> "string"
@@ -291,7 +248,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "otherStrvar"
@@ -302,7 +258,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | 5.6 -> "float"
  | false -> "bool"
  | "myStr" -> "string"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | null -> "null"
@@ -315,7 +270,6 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Nothing -> "constructor nothing"
  | Ok x -> "ok: " ++ x
  | name -> name ++ "var") = "ok: x"
@@ -328,7 +282,6 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Nothing -> "constructor nothing"
  | (1, 1) -> "1 and 1"
  | (1, 2) -> "1 and 2"
@@ -343,7 +296,6 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Nothing -> "constructor nothing"
  | (1, 1) -> "1 and 1"
  | (1, 2, (Ok "one", "four"), 5) -> "non-matching pattern chosen"
@@ -365,7 +317,6 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "constructor nothing"
@@ -377,100 +328,39 @@ match tpl with
  | false -> "bool"
  | "myStr" -> "string"
  | null -> "null"
- | blank -> "blank"
  | Ok x -> "ok: " ++ x
  | Nothing -> "constructor nothing"
  | name -> name ++ "var") = "not matched: var"
 
 [tests.constructors]
 Nothing = Nothing
-((List.head_v1 []) = Nothing) = true
-(List.head_v1 []) = Nothing
+((List.head_v2 []) = Nothing) = true
+(List.head_v2 []) = Nothing
+Ok (Test.typeError_v0 "err") = Test.typeError_v0 "err"
+Just (Test.typeError_v0 "err") = Test.typeError_v0 "err"
 
-
-// ---------------------------
-// Fakeval propagation and handling
-// This should also should be tested above for all cases
-// No harm in repeating tests
-// ---------------------------
-
-[tests.incompletePropagation]
-List.head_v0 blank = blank
-(if blank then 5 else 6) = blank
-(List.head_v0 blank).field = blank
-[ 5; 6; List.head_v0 blank ] = [ 5; 6 ]
-[ 5; 6; blank] = [ 5, 6 ]
-{ i = blank; m = 5; j = List.head_v0 blank; n = 6 } = { n = 6; m = 5 }
-5 |> blank |> (+) 3 = 8
-5 |> (+) blank |> (+) 3564 = 3569
-5 |> (+) blank = 5
-(let x = blank in (5 |> x)) = 5
-Just blank = blank
-Error blank = blank
-Ok blank = blank
 
 [tests.error]
 List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
 Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a Str (\"not an option\"), but `option2` expected a Option."
 
 [tests.errorPropagation]
-List.head_v0 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-(if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "Expected boolean, got error"
-(List.head_v0 (Test.typeError_v0 "test")).field = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Error)."
-[ 5; 6; List.head_v0 (Test.typeError_v0 "test") ] = [5;6; Test.typeError_v0 "test"]
-[ 5; 6; Test.typeError_v0 "test"] = [ 5; 6; Test.typeError_v0 "test"]
-// CLEANUP - don't support errors in literal lists or records
-{ i = Test.typeError_v0 "test"; m = 5; j = List.head_v0 (Test.typeError_v0 "test"); n = 6 } = { n = 6; m = 5 ; j = Test.typeError_v0 "test"; i = Test.typeError_v0 "test" }
+List.head_v2 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+(if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "test"
+(List.head_v2 (Test.typeError_v0 "test")).field = Test.typeError_v0 "test"
+[ 5; 6; List.head_v2 (Test.typeError_v0 "test") ] = Test.typeError_v0 "test"
+[ 5; 6; Test.typeError_v0 "test"] = Test.typeError_v0 "test"
+{ i = Test.typeError_v0 "1"; m = 5; j = List.head_v2 (Test.typeError_v0 "2"); n = 6 } = Test.typeError_v0 "1"
 5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
 5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-(let x = Test.typeError_v0 "test" in (5 |> x)) = 5
-Just (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
-Error (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
-Ok (Test.typeError_v0 "test") = (Test.typeError_v0 "test")
+("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
+Just (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+Error (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+Ok (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+
 
 [test.pipe into error]
-(let e = Test.typeError_v0 "test" in
- 5 |> e |> (+) 3) = 8
-
-
-[fn.errorRailFn arg:any]
-([] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x)))
-
-[tests.errorrail]
-Dict.get_v1 {} "i" = Nothing
-Dict.get_v1_ster {} "i" = Test.errorRailValue_v0_ster Nothing
-([5] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 8
-([ ] |> List.head_v1_ster |> (+) 3 |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = Test.errorRailValue_v0 Nothing
-(blank == Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-(let x = Dict.get_v1_ster {} "i" in 1) = Test.errorRailValue_v0 Nothing
-(errorRailFn null) = Nothing
-
-[tests.errorRailPropagation]
-List.head_v0 (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
-(if (Test.errorRailValue Nothing) then 5 else 6) = (Test.errorRailValue Nothing)
-(List.head_v0 (Test.errorRailValue Nothing)).field = (Test.errorRailValue Nothing)
-[ 5; 6; List.head_v0 (Test.errorRailValue Nothing) ] = [5;6; (Test.errorRailValue Nothing)]
-[ 5; 6; (Test.errorRailValue Nothing)] = [ 5; 6; (Test.errorRailValue Nothing)]
-// CLEANUP - don't support errors in literal lists or records
-{ i = (Test.errorRailValue Nothing); j = List.head_v0 (Test.errorRailValue Nothing); n = 6 } = { n = 6; m = 5 ; j = (Test.errorRailValue Nothing); i = (Test.errorRailValue Nothing) }
-5 |> (+) (Test.errorRailValue Nothing) |> (+) 3564 = (Test.errorRailValue Nothing)
-5 |> (+) (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
-(let x = (Test.errorRailValue Nothing) in (5 |> x)) = (Test.errorRailValue Nothing)
-Just (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
-Error (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
-Ok (Test.errorRailValue Nothing) = (Test.errorRailValue Nothing)
-
-List.push_v0 [1;2;3;4] (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-List.filter_v1 [1;2;3;4] (fun x -> Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-List.map_v0 [1;2;3;4] (fun x -> Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-List.fold_v0 [1;2;3;4] 1 (fun x y -> Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-List.map_v0 [1;2;3;4] (fun x -> blank) = blank
-{ x = Test.errorRailValue_v0 Nothing } = Test.errorRailValue_v0 Nothing
-Error (Test.errorRailValue_v0 Nothing) = Test.errorRailValue_v0 Nothing
-
-[test.pipe into errorRail]
-(let e = Test.errorRailValue Nothing in
- 5 |> e |> (+) 3) = Test.errorRailValue Nothing
+("test" |> Test.typeError_v0 |> (++) "3") = Test.typeError "test"
 
 
 // ---------------------------
@@ -505,7 +395,6 @@ DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // EXPECTE
 (5.6 <> 5.7) = true
 (5.7 <> 6) = true
 (5.7 <> 5) = true
-(blank = blank) = blank
 (Test.typeError_v0 "test" <> Test.typeError_v0 "different msg") = Test.typeError_v0 "test"
 (true = true) = true
 (false = false) = true
@@ -524,8 +413,8 @@ DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // EXPECTE
 ("asd" <> "sad") = true
 ((Date.parse_v2 "2019-07-28T22:42:36Z") = (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
 ((Date.parse_v2 "2019-07-28T22:42:37Z") <> (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
-(String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
-(String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> String.toUUID_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+(Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+(Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 (Nothing = Nothing) = true
 (Nothing <> Just Nothing) = true
 (Just 5 = Just 5) = true
@@ -572,15 +461,11 @@ Ok 5
 [fn.returnsResultError v:any]
 Error false
 
-[fn.returnsOptionNothingOnErrorRail v:any]
-// A value that is already on the error rail
-Test.errorRailValue_v0 Nothing
-
-[fn.returnsOptionUnwrappedViaErrorRail v:any]
-List.head_v1_ster [5]
-
 [fn.throwsException v:any]
 Test.raiseException "throwsException message"
+
+[fn.derrorFn msg:string]
+msg ++ Test.typeError_v0 msg
 
 [tests.valid function calls]
 stringFn "string" = "string appended string"
@@ -588,24 +473,17 @@ twoStringFn "str1" "str2" = "str1 appended str2"
 returnsInt 6 = 5
 returnsString 6 = "string"
 returnsOptionJust 6 = Just 5
-returnsOptionJust_ster 6 = 5
+(returnsOptionJust 6) |> Test.unwrap = 5
 returnsOptionNothing 6 = Nothing
-returnsOptionNothing_ster 6 = Test.errorRailValue_v0 Nothing
 returnsResultOk 6 = Ok 5
-returnsResultOk_ster 6 = 5
-returnsResultError 6 = Error false
-returnsResultError_ster 6 = Test.errorRailValue_v0 (Error false)
-returnsOptionUnwrappedViaErrorRail 6 = 5
-
-// CLEANUP I was expecting the ErrorRail value to be returned (not unwrapped), and
-// for the result here to be `Test.errorRailValue Nothing`
-returnsOptionNothingOnErrorRail 6 = Nothing
+(returnsResultOk 6) |> Test.unwrap = 5
 
 [tests.invalid function calls]
-functionWhichDoesntExist 6 = blank
+functionWhichDoesntExist 6 = Test.incomplete // CLEANUP
 stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
 stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
 throwsException 6 = Test.typeError "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1
+derrorFn "msg" = Test.typeError "msg"
 
 
 [fn.myUserFunction_v2 str:str]
@@ -641,15 +519,11 @@ Ok 5
 [packagefn.returnsResultError v:any]
 Error false
 
-[packagefn.returnsOptionNothingOnErrorRail v:any]
-// A value that is already on the error rail
-Test.errorRailValue_v0 Nothing
-
-[packagefn.returnsOptionUnwrappedViaErrorRail v:any]
-List.head_v1_ster [5]
-
 [packagefn.throwsException v:any]
 Test.raiseException "package throwsException message"
+
+[packagefn.derror msg:string]
+Test.typeError msg
 
 [tests.valid package function calls]
 Test.Test.Test.stringFn "string" = "string appended string"
@@ -657,20 +531,14 @@ Test.Test.Test.twoStringFn "str1" "str2" = "str1 appended str2"
 Test.Test.Test.returnsInt 6 = 5
 Test.Test.Test.returnsString 6 = "string"
 Test.Test.Test.returnsOptionJust 6 = Just 5
-Test.Test.Test.returnsOptionJust_ster 6 = 5
+(Test.Test.Test.returnsOptionJust 6) |> Test.unwrap = 5
 Test.Test.Test.returnsOptionNothing 6 = Nothing
-Test.Test.Test.returnsOptionNothing_ster 6 = Test.errorRailValue_v0 Nothing
 Test.Test.Test.returnsResultOk 6 = Ok 5
-Test.Test.Test.returnsResultOk_ster 6 = 5
+(Test.Test.Test.returnsResultOk 6) |> Test.unwrap = 5
 Test.Test.Test.returnsResultError 6 = Error false
-Test.Test.Test.returnsResultError_ster 6 = Test.errorRailValue_v0 (Error false)
-Test.Test.Test.returnsOptionUnwrappedViaErrorRail 6 = 5
-
-// CLEANUP I was expecting the ErrorRail value to be returned (not unwrapped), and
-// for the result here to be `Test.errorRailValue Nothing`
-Test.Test.Test.returnsOptionNothingOnErrorRail 6 = Nothing
 
 [tests.invalid function calls]
 Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
 Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
 Test.Test.Test.throwsException 6 = Test.typeError "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1
+Test.Test.Test.derror "test" = Test.typeError "test"

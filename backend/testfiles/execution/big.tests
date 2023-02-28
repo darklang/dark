@@ -4,7 +4,7 @@
  let base64Encode = Bytes.base64Encode_v0 bytes in
  let hexEncode = Bytes.hexEncode_v0 bytes in
  let sl = String.length_v1 str in
- let bl = Bytes.length_v0 bytes in
+ let bl = Bytes.length bytes in
  let t = true in
  let f = false in
  let r = (Bool.xor_v0 t f) |> Bool.not_v0 in
@@ -12,7 +12,7 @@
  let d1 = d0 |> Float.power_v0 2.1 |> Float.add_v0 1.0 |> Float.sqrt_v0 in
  let reverse = String.reverse_v0 str in
  let contains = String.contains_v0 "a string" str in
- let uuid = String.toUUID_v1 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
+ let uuid = Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
  str
  |> (++) "\nbytes: "
  |> (++) (toString_v0 bytes)

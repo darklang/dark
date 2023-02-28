@@ -92,9 +92,9 @@ type PageableException(message : string, metadata : Metadata, inner : exn) =
 
 
 // This is for tracing
-let mutable exceptionCallback = (fun (e : exn) -> ())
+let mutable exceptionCallback = (fun (_e : exn) -> ())
 
-let mutable sendRollbarError = (fun (message : string) (metadata : Metadata) -> ())
+let mutable sendRollbarError = (fun (_message : string) (_metadata : Metadata) -> ())
 
 module Exception =
 
@@ -215,6 +215,21 @@ module Exception =
     with
     | e -> Error e.Message
 
+type System.Exception with
+
+  /// <summary>
+  /// This hack adds a `Reraise` method to exceptions, since
+  /// it's not normally possible to reraise exceptions within F# CEs.
+  /// </summary>
+  ///
+  /// <remarks>
+  /// Sources:
+  /// - https://github.com/fsharp/fslang-suggestions/issues/660#issuecomment-382070639
+  /// - https://stackoverflow.com/questions/57383
+  /// </remarks>
+  member this.Reraise() =
+    (System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture this).Throw()
+    Unchecked.defaultof<_>
 
 // ----------------------
 // Regex patterns
@@ -239,7 +254,8 @@ let matches (pattern : string) (input : string) : bool =
 // ----------------------
 // Runtime info
 // ----------------------
-let isBlazor = System.OperatingSystem.IsBrowser()
+/// LIGHTTODO
+let isWasm = System.OperatingSystem.IsBrowser()
 
 // ----------------------
 // Debugging
@@ -274,7 +290,7 @@ type NonBlockingConsole() =
             $"Exception in blocking queue thread: {e.Message}"
           )
     // Background threads aren't supported in Blazor
-    if not isBlazor then
+    if not isWasm then
       let thread = System.Threading.Thread(f)
       do
         thread.IsBackground <- true
@@ -288,7 +304,7 @@ type NonBlockingConsole() =
 
 
   static member WriteLine(value : string) : unit =
-    if isBlazor then System.Console.WriteLine value else mQueue.Add(value)
+    if isWasm then System.Console.WriteLine value else mQueue.Add(value)
 
 
 let debuG (msg : string) (a : 'a) : unit =
@@ -305,18 +321,25 @@ let debugString (msg : string) (s : string) : string =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} ('{s}': (len {s.Length}, {bytes})"
   s
 
-let debugByteArray (msg : string) (a : byte array) : byte array =
+let debuGByteArray (msg : string) (a : byte array) : unit =
   let bytes = a |> System.BitConverter.ToString
   NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {a.Length}, {bytes}"
+
+
+let debugByteArray (msg : string) (a : byte array) : byte array =
+  debuGByteArray msg a
   a
 
-let debugList (msg : string) (list : List<'a>) : List<'a> =
+let debuGList (msg : string) (list : List<'a>) : unit =
   if list = [] then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
   else
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {List.length list}, ["
     List.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}") list
     NonBlockingConsole.WriteLine $"])"
+
+let debugList (msg : string) (list : List<'a>) : List<'a> =
+  debuGList msg list
   list
 
 
@@ -650,7 +673,7 @@ module Uuid =
   let nilNamespace : System.Guid = System.Guid "00000000-0000-0000-0000-000000000000"
 
   let uuidV5 (data : string) (nameSpace : System.Guid) : System.Guid =
-    Faithlife.Utility.GuidUtility.Create(nilNamespace, data, 5)
+    Faithlife.Utility.GuidUtility.Create(nameSpace, data, 5)
 
 module Tuple2 =
   let fromKeyValuePair
@@ -847,6 +870,8 @@ module Dictionary =
     let result = empty ()
     List.iter (fun (k, v) -> result[k] <- v) l
     result
+
+  let toMap (d : T<'k, 'v>) : Map<'k, 'v> = d |> toList |> Map.ofList
 
 module ResizeArray =
   type T<'v> = ResizeArray<'v>
@@ -1430,7 +1455,7 @@ module Task =
 
   let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
     task {
-      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
       return ()
     }
 
@@ -1442,7 +1467,7 @@ module Task =
     let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
     let f = execWithSemaphore semaphore f
     task {
-      let! (completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
       return ()
     }
 
@@ -1614,7 +1639,7 @@ module UserName =
     match validate name with
     | Ok _ ->
       if Set.contains name reserved then Error "Username is not allowed" else Ok()
-    | Error msg as error -> Error msg
+    | Error msg -> Error msg
 
   // Create throws an InternalException. Validate before calling create to do user-visible errors
   let create (str : string) : T =
@@ -1719,7 +1744,7 @@ module HttpHeaders =
     headers
     |> List.tryFind (fun ((k : string), (_ : string)) ->
       String.equalsCaseInsensitive headerName k)
-    |> Option.map (fun (k, v) -> v)
+    |> Option.map (fun (_k, v) -> v)
 
   /// Get Dark-style headers from an Asp.Net HttpResponseMessage
   let headersForAspNetResponse (response : HttpResponseMessage) : T =
@@ -1729,9 +1754,6 @@ module HttpHeaders =
       |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
       |> Seq.toList
     fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
-
-
-
 
 let id (x : int) : id = uint64 x
 

@@ -8,11 +8,6 @@ set -euo pipefail
 
 docker volume rm \
   dark_build \
-  dark_dotesy \
-  dark_esy \
-  dark_fsharp_build \
-  dark_lib \
-  dark_node_modules \
   dark_nuget \
   darklang-dark-extension-volume \
   darklang-dark-extension-volume-insiders \

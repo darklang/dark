@@ -32,13 +32,12 @@ The most likely candidates are:
   - a bad migration or manual DB query
   - perhaps it's our quarterly DB maintenace: is it Tuesday or Wednesday around 11am
     EST?
-- a server (kubernetes deployment) won't restart
+- a server (cloud run deployment) won't restart
 
 Less likely candidates:
 
 - google cloud is having an outage
 - one of the `ops` canvases isn't working
-- GKE has upgraded kubernetes from beneath our feet again
 - something unexpected happened during CI deploy
 - a cert ran out
 
@@ -50,7 +49,7 @@ Start with whatever external signs you have:
 
 - if the DB is down, check the Cloud SQL dashboard. Also check for long running
   queries, especially if a migration is running.
-- If the server isn't responding to requests, check kubernetes workloads to see if
+- If the server isn't responding to requests, check cloud run to see if
   it's up or being restarted
 - if you can't connect over HTTP, check the load balancers
 - did something just deploy? Probably that
@@ -64,13 +63,12 @@ If you have no specific indicator of a problem, some starting points:
 - look at exceptions in rollbar
 - look at the CPU graph in Cloud SQL
 - look at the boards in honeycomb
-- check the kubernetes console: perhaps something is down or constantly restarting
+- check the Cloud Run console: perhaps something is down or constantly restarting
 - search honeycomb kubernetes-bwd-ocaml
   - group by `service.name` and `name`. Or if you know what's down, use the right service:
     - Crons: `service.name = CronChecker`
     - Queues and crons: `service.name = QueueWorker`
     - builtwithdark or custom domains: `service.name = BwdServer`
-    - editor: `service.name = ApiServer`
   - search exceptions with `exception = true`
   - use `duration_ms`
     - `heatmap(duration_ms)` then "bubble up"
@@ -103,45 +101,17 @@ You can also check long running queries in the dashboard, in the postgres
 dataset in honeycomb (there's some useful boards here), by searching honeycomb
 kubernetes-bwd-ocaml dataset for `name = postgres`, group by the SQL query.
 
-### Kubernetes
-
-Kubernetes has lots of information on why something might be going wrong
-
-- if the service is restarting or won't start, try the logs:
-  - eg `kubectl logs -n darklang deploy/apiserver-deployment -c apiserver-ctr`
-- the GKE dashboard shows you CPU and memory use. Look at the 7 day chart to
-  see what you expect them to be and compare them to right now.
-- the GKE workloads show you if things are restarting. Sometimes clicking through
-  will tell you more, or highlight an error
-- if the service is down, the GKE ingress/service dashboard shows you healthchecks
-- google's monitoring can help you find logs that often don't exist elsewhere (eg
-  ingress requests). However, they can be challenging to find.
-
 ### Where are the logs?
 
 - typically, the "logs" are in honeycomb as structures and searchable events.
   If you want to follow one machine's "logs", group by on `server.machine.host`
   and then view only the one you're interested in.
-- if something is really wrong, the logs won't be sent and you might see an
-  exception in the container. Use `kubectl logs` to see it.
 
 ### Pub/Sub
 
 Pub/Sub has a dashboard.
 
 ## What to do when you find it?
-
-### Bad deploys
-
-These can be rolled back: `kubectl rollout undo ...` TODO
-
-### Bad kubernetes config
-
-- fetch it: `kubectl get -n darklang cm/myconfig -o yaml > myconfig.yaml`
-- edit `myconfig.yaml`
-- the devcontainer has linters (make sure the k8s version matches the current
-  production version, which upgrades dynamically)
-- if it's a bad deploy or k8s config, roll it back
 
 ### DB issues:
 
@@ -171,10 +141,7 @@ These can be rolled back: `kubectl rollout undo ...` TODO
 ### Deliberate DOS or cannot stop the other way
 
 - You can prevent HTTP traffic to darklang.com, builtwithdark.com, or
-  static.darklang.com or darksa.com by adding AppArmor rules to disable the
-  traffic.
-- You can prevent HTTP traffic to custom domains by adding config to the
-  nginx-controller's nginx.conf
+  by adding AppArmor rules to disable the traffic.
 - You can disable queues by adding a scheduling rule (LibDarkInternal). Solves crons
   too.
 - You can safely add launchdarkly flags to anything to be able to selectively disable

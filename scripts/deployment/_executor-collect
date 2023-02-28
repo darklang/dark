@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+dir=$1
+
+mkdir -p $dir
+
+hash=$(git rev-parse --short HEAD)
+runtimes="linux-x64 linux-musl-x64 linux-arm64 osx-x64 osx-arm64 win-x64 win-arm64"
+
+for runtime in $runtimes; do
+  cp backend/Build/out/Executor/Release/net6.0/$runtime/publish/Executor "$dir/darklang-executor-$hash-$runtime" &>/dev/null || true
+  cp backend/Build/out/Executor/Release/net6.0/$runtime/publish/Executor.exe "$dir/darklang-executor-$hash-$runtime" &>/dev/null || true
+done
+
+ls -la $dir

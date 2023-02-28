@@ -13,7 +13,6 @@ module CTApi = ClientTypes.Api
 module CTPusher = ClientTypes.Pusher
 
 let initSerializers () =
-  ApiServer.ApiServer.initSerializers ()
   BwdServer.Server.initSerializers ()
 
   // These are serializers used in the tests that are not used in the main program
@@ -31,14 +30,12 @@ let main (args : string array) : int =
     (LibRealExecution.Init.init name).Result
     (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
-    ApiServer.ApiServer.initSerializers ()
     LibAnalysis.initSerializers ()
     initSerializers ()
 
     let tests =
       [ Tests.Account.tests
         Tests.AnalysisTypes.tests
-        Tests.ApiServer.tests
         Tests.Authorization.tests
         Tests.BwdServer.tests
         Tests.Canvas.tests
@@ -47,9 +44,7 @@ let main (args : string array) : int =
         Tests.EventQueue.tests
         Tests.EventQueueV2.tests
         Tests.Execution.tests
-        Tests.FSharpToExpr.tests
-        Tests.HttpQueryEncoding.tests
-        Tests.HttpClient.tests
+        Tests.Parser.tests
         Tests.HttpBaseClient.tests
         Tests.LibExecution.tests.Force()
         Tests.Prelude.tests
@@ -63,13 +58,10 @@ let main (args : string array) : int =
         Tests.Traces.tests
         Tests.StorageTraces.tests
         Tests.TypeChecker.tests
-        Tests.Undo.tests
-        Tests.UserDB.tests ]
+        Tests.Undo.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-    let apiServerTestsTask = Tests.ApiServer.init cancelationTokenSource.Token
-    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     let httpBaseClientTestsTask =
       Tests.HttpBaseClient.init cancelationTokenSource.Token
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
@@ -85,8 +77,6 @@ let main (args : string array) : int =
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
-    apiServerTestsTask.Wait()
-    httpClientTestsTask.Wait()
     httpBaseClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
     exitCode

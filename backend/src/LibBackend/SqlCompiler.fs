@@ -39,6 +39,7 @@ let typeToSqlType (t : DType) : string =
   | TFloat -> "double precision"
   | TBool -> "bool"
   | TDate -> "timestamp with time zone"
+  | TChar -> "text"
   | _ -> error $"We do not support this type of DB field yet: {t}"
 
 // This canonicalizes an expression, meaning it removes multiple ways of
@@ -48,8 +49,7 @@ let rec canonicalize (expr : Expr) : Expr = expr
 let dvalToSql (dval : Dval) : SqlValue =
   match dval with
   | DError _
-  | DIncomplete _
-  | DErrorRail _ -> Errors.foundFakeDval dval
+  | DIncomplete _ -> Errors.foundFakeDval dval
   | DObj _
   | DList _
   | DHttpResponse _
@@ -66,7 +66,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DInt i -> Sql.int64 i
   | DFloat v -> Sql.double v
   | DBool b -> Sql.bool b
-  | DNull -> Sql.dbnull
+  | DUnit -> Sql.dbnull
   | DStr s -> Sql.string s
   | DUuid id -> Sql.uuid id
 
@@ -149,7 +149,7 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
-  | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _, NoRail) when
+  | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _) when
     std.module_ = mName && std.function_ = fName && std.version = v
     ->
     Some args
@@ -168,23 +168,19 @@ let rec lambdaToSql
   let lts (typ : DType) (e : Expr) =
     lambdaToSql fns symtable paramName dbFields typ e
 
-  // We don't have good string escaping facilities here,
-  // plus it was always a bit dangerous to have string-escaping as we might miss one.
-  let vars = ref Map.empty
-
   match expr with
   // The correct way to handle null in SQL is "is null" or "is not null"
   // rather than a comparison with null.
-  | Fn "" "==" 0 [ ENull _; e ]
-  | Fn "" "==" 0 [ e; ENull _ ] ->
-    let sql, vars = lts TNull e
+  | Fn "" "==" 0 [ EUnit _; e ]
+  | Fn "" "==" 0 [ e; EUnit _ ] ->
+    let sql, vars = lts TUnit e
     $"({sql} is null)", vars
-  | Fn "" "!=" 0 [ ENull _; e ]
-  | Fn "" "!=" 0 [ e; ENull _ ] ->
-    let sql, vars = lts TNull e
+  | Fn "" "!=" 0 [ EUnit _; e ]
+  | Fn "" "!=" 0 [ e; EUnit _ ] ->
+    let sql, vars = lts TUnit e
     $"({sql} is not null)", vars
 
-  | EApply (_, EFQFnValue (_, name), args, _, NoRail) ->
+  | EApply (_, EFQFnValue (_, name), args, _) ->
     match Map.get name fns with
     | Some fn ->
       typecheck (FQFnName.toString name) fn.returnType expectedType
@@ -218,7 +214,7 @@ let rec lambdaToSql
         let argSql = argSqls @ fnArgs |> String.concat ", "
         $"({fnName} ({argSql}))", sqlVars
       | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] -> $"({fn arg1 arg2})", sqlVars
-      | fn, args ->
+      | _, _ ->
         error $"This function ({FQFnName.toString name}) is not yet implemented"
     | None ->
       error
@@ -255,8 +251,8 @@ let rec lambdaToSql
     let name = randomString 10
     $"(@{name})", [ name, Sql.bool v ]
 
-  | ENull _ ->
-    typecheck "value null" TNull expectedType
+  | EUnit _ ->
+    typecheck "value null" TUnit expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.dbnull ]
 
@@ -270,13 +266,18 @@ let rec lambdaToSql
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ]
 
+  | ECharacter (_, v) ->
+    typecheck $"char '{v}'" TChar expectedType
+    let name = randomString 10
+    $"(@{name})", [ name, Sql.string v ]
+
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
     let dbFieldType =
       match Map.get fieldname dbFields with
       | Some v -> v
       | None -> error2 "The datastore does not have a field named" fieldname
 
-    if expectedType <> TNull // Fields are allowed to be null
+    if expectedType <> TUnit // Fields are allowed to be null
     then
       typecheck fieldname dbFieldType expectedType
 
@@ -368,16 +369,17 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EApply (_, EFQFnValue _, args, _, _) when
+        | EApply (_, EFQFnValue _, args, _) when
           // functions that are fully specified
           List.all
             (fun expr ->
               match expr with
               | EInteger _
               | EBool _
-              | ENull _
+              | EUnit _
               | EFloat _
               | EString _
+              | ECharacter _
               | EVariable _ -> true
               | _ -> false)
             args
@@ -396,21 +398,20 @@ let partiallyEvaluate
           uply {
             match expr with
             | EInteger _
-            | EBlank _
             | EString _
             | EVariable _
             | ECharacter _
             | EFQFnValue _
             | EBool _
-            | ENull _
+            | EUnit _
             | EFloat _ -> return expr
             | ELet (id, name, rhs, next) ->
               let! rhs = r rhs
               let! next = r next
               return ELet(id, name, rhs, next)
-            | EApply (id, name, exprs, inPipe, ster) ->
+            | EApply (id, name, exprs, inPipe) ->
               let! exprs = Ply.List.mapSequentially r exprs
-              return EApply(id, name, exprs, inPipe, ster)
+              return EApply(id, name, exprs, inPipe)
             | EIf (id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr

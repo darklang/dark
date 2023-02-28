@@ -7,23 +7,10 @@ module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 
-let renames =
+let renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName> =
   // old names, new names
-  [ fn "Http" "respond" 0, fn "Http" "response" 0
-    fn "Http" "respondWithHtml" 0, fn "Http" "responseWithHtml" 0
-    fn "Http" "respondWithText" 0, fn "Http" "responseWithText" 0
-    fn "Http" "respondWithJson" 0, fn "Http" "responseWithJson" 0
-    fn "Http" "respondWithHeaders" 0, fn "Http" "responseWithHeaders" 0
-    fn "" "assoc" 0, fn "Dict" "set" 0
-    fn "" "dissoc" 0, fn "Dict" "remove" 0
-    fn "JSON" "read" 1, fn "JSON" "parse" 0
-    fn "Object" "empty" 0, fn "Dict" "empty" 0
-    fn "Object" "merge" 0, fn "Dict" "merge" 0
-    fn "Object" "toJSON" 1, fn "Dict" "toJSON" 0
-    fn "Date" "subtract" 0, fn "Date" "subtractSeconds" 0
-    fn "List" "contains" 0, fn "List" "member" 0
-    fn "String" "toUUID" 1, fn "Uuid" "parse" 0
-    fn "String" "toFloat" 1, fn "Float" "parse" 0 ]
+  // eg: fn "Http" "respond" 0, fn "Http" "response" 0
+  []
 
 
 let prefixFns : List<BuiltInFn> =
@@ -38,7 +25,6 @@ let prefixFns : List<BuiltInFn> =
     LibHttpClientAuth.fns
     LibJson.fns
     LibMath.fns
-    LibObject.fns
     LibUuid.fns
     LibInt.fns
     LibList.fns
@@ -75,17 +61,7 @@ let infixFnMapping : Map<FQFnName.StdlibFnName, (FQFnName.StdlibFnName * Depreca
     ("Date", "greaterThanOrEqualTo", 0), (("Date", ">="), NotDeprecated)
     ("String", "append", 1), (("", "++"), NotDeprecated)
     ("", "equals", 0), (("", "=="), NotDeprecated)
-    ("", "notEquals", 0), (("", "!="), NotDeprecated)
-    ("Bool", "and", 0),
-    (("", "&&"),
-     DeprecatedBecause(
-       "Use built-in keyword `&&` instead. Use the `convert-to-short-circuiting` command to convert automatically"
-     ))
-    ("Bool", "or", 0),
-    (("", "||"),
-     DeprecatedBecause(
-       "Use built-in keyword `||` instead. Use the `convert-to-short-circuiting` command to convert automatically"
-     )) ]
+    ("", "notEquals", 0), (("", "!="), NotDeprecated) ]
   |> List.map (fun ((module_, name, version), ((newMod, opName), deprecation)) ->
     FQFnName.stdlibFnName module_ name version,
     (FQFnName.stdlibFnName newMod opName 0, deprecation))

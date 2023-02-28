@@ -161,19 +161,6 @@ let forEachCanvas
   }
 
 
-/// Iterate through all canvases passing in an appropriate HTTP client
-let forEachCanvasWithClient
-  (concurrency : int)
-  (failOnError : bool)
-  (fn : Tests.ApiServer.C -> CanvasName.T -> Task<unit>)
-  =
-  forEachCanvas concurrency failOnError (fun canvasName ->
-    let username = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-    let client = lazy (Tests.ApiServer.forceLogin username)
-    fn client canvasName)
-
-
-
 let validate
   (name : string)
   (expected : 'a)
@@ -188,7 +175,7 @@ let validate
     serializeWatch.Stop()
     // debuG $"{name} serialize time  " serializeWatch.ElapsedMilliseconds
     // debuG $"{name} serialized size " (Array.length bytes)
-    let token = System.Threading.CancellationToken()
+    let _token = System.Threading.CancellationToken()
 
     // print (
     //   MessagePack.MessagePackSerializer.SerializeToJson(expected, options, token)

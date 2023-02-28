@@ -11,7 +11,6 @@ open Tablecloth
 open Db
 
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
 
 // **********************
 // Types
@@ -97,7 +96,6 @@ let insertUser
   (username : UserName.T)
   (email : string)
   (name : string)
-  (analyticsMetadata : Option<RT.DvalMap>)
   : Task<Result<unit, string>> =
   task {
     let account =
@@ -113,27 +111,21 @@ let insertUser
 
     match validateAccount account with
     | Ok () ->
-      let analyticsMetadata = analyticsMetadata |> Option.unwrap Map.empty
 
       try
         // insert
         do!
           Sql.query
             "INSERT INTO accounts
-              (id, username, name, email, admin, password, segment_metadata)
+              (id, username, name, email, admin, password)
               VALUES
-              (@id, @username, @name, @email, false, @password, @metadata)
+              (@id, @username, @name, @email, false, @password)
               ON CONFLICT DO NOTHING"
           |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
                               "username", Sql.string (string username)
                               "name", Sql.string name
                               "email", Sql.string email
-                              ("password", Sql.string (string Password.invalid))
-                              ("metadata",
-                               Sql.jsonb (
-                                 DvalReprInternalDeprecated.toInternalQueryableV1
-                                   analyticsMetadata
-                               )) ]
+                              ("password", Sql.string (string Password.invalid)) ]
           |> Sql.executeStatementAsync
 
         // verify insert worked
@@ -214,11 +206,11 @@ let getUserCreatedAt (username : UserName.T) : Task<NodaTime.Instant> =
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
 
-let getUserAndCreatedAtAndAnalyticsMetadata
+let getUserAndCreatedAt
   (username : UserName.T)
-  : Task<Option<UserInfoAndCreatedAt * Option<string>>> =
+  : Task<Option<UserInfoAndCreatedAt>> =
   Sql.query
-    "SELECT name, email, admin, created_at, id, segment_metadata
+    "SELECT name, email, admin, created_at, id
      FROM accounts
      WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
@@ -228,8 +220,7 @@ let getUserAndCreatedAtAndAnalyticsMetadata
       email = read.string "email"
       admin = read.bool "admin"
       id = read.uuid "id"
-      createdAt = read.instantWithoutTimeZone "created_at" },
-    read.stringOrNone "segment_metadata")
+      createdAt = read.instantWithoutTimeZone "created_at" })
 
 let getUserByEmail (email : string) : Task<Option<UserInfo>> =
   Sql.query
@@ -344,42 +335,6 @@ let orgs (userID : UserID) : Task<List<OrgName.T>> =
   |> Sql.parameters [ "userID", Sql.uuid userID ]
   |> Sql.executeAsync (fun read -> read.string "username" |> OrgName.create)
   |> Task.map List.sort
-
-// **********************
-// Tunnels
-// We allow users to run their own JS/CSS assets, so they can help develop the
-// client. For security, uses must register the tunnel first (allowing a tunnel to be
-// set from just a url would allow an attacker to trick users into loading assets
-// from the attacker's machine)
-// **********************
-
-let tunnelHostFor (userID : UserID) : Task<Option<string>> =
-  Sql.query
-    "SELECT tunnel_host
-     FROM registered_tunnelhosts
-     WHERE user_id = @userID"
-  |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "tunnel_host")
-
-let setTunnelHostFor (userID : UserID) (tunnelHost : Option<string>) : Task<unit> =
-  match tunnelHost with
-  | None ->
-    Sql.query "DELETE FROM registered_tunnelhosts WHERE user_id = @userID"
-    |> Sql.parameters [ "userID", Sql.uuid userID ]
-    |> Sql.executeStatementAsync
-
-  | Some tunnelHost ->
-    Sql.query
-      "INSERT INTO registered_tunnelhosts
-         (user_id, tunnel_host)
-       VALUES (@userID, @tunnelHost)
-         ON CONFLICT (user_id)
-         DO UPDATE SET tunnel_host = @tunnelHost"
-    |> Sql.parameters [ "userId", Sql.uuid userID
-                        "tunnelHost", Sql.string tunnelHost ]
-    |> Sql.executeStatementAsync
-
-let validateTunnelHost (host : string) : bool = matches "[-\\.0-9a-z]*" host
 
 // **********************
 // Local/test developement

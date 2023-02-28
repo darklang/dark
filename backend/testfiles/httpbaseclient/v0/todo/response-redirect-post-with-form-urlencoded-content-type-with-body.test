@@ -13,8 +13,8 @@ Location: /v0/response-redirect-dest-post-with-form-urlencoded-content-type-with
 
 
 [test]
-(let response = HttpBaseClient.request_ster "post" "http://URL" "body" {} {"Content-Type" = "application/x-www-form-urlencoded" }
- let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
+(let response = (HttpBaseClient.request "post" "http://URL" "body" {} {"Content-Type" = "application/x-www-form-urlencoded" }) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
      statusCode = 200

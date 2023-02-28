@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>6.0</LangVersion>
+    <OtherFlags>--warnaserror</OtherFlags>
+    <!-- Publishing configuration -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- We publish these for lots of different runtimes, so leave these empty and
+         then specify them in scripts/build/dotnet-publish-all-executors.sh. The
+         regular build works fine with the defaults (and will pick a runtime
+         automatically) -->
+    <!-- <PublishTrimmed>true</PublishTrimmed> -->
+    <!-- <PublishSingleFile>true</PublishSingleFile> -->
+    <!-- <PublishReadyToRun>false</PublishReadyToRun> -->
+    <!-- <SelfContained>true</SelfContained> -->
+    <!-- <RuntimeIdentifier>linux-x64</RuntimeIdentifier> -->
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Execute.fs" />
+    <Compile Include="VersionInfo.fs" />
+    <Compile Include="Api.fs" />
+    <Compile Include="WebServer.fs" />
+    <Compile Include="Arguments.fs" />
+    <Compile Include="Main.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../Parser/Parser.fsproj" />
+    <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
+  </ItemGroup>
+  <!--
+    +++++++++++++++++++++++++++
+    This creates build-time values that we use in Executor.VersionInfo
+    +++++++++++++++++++++++++++
+  -->
+  <!-- Creates a GitHash property -->
+  <Target Name="GitHash" BeforeTargets="AddExecutorAssemblyMetadata">
+    <Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" ConsoleToMSBuild="True" IgnoreExitCode="False">
+      <Output PropertyName="GitHash" TaskParameter="ConsoleOutput" />
+    </Exec>
+  </Target>
+  <!-- Creates a BuildDate property -->
+  <Target Name="BuildDate" BeforeTargets="AddExecutorAssemblyMetadata">
+    <Exec Command="date" ConsoleToMSBuild="True" IgnoreExitCode="False">
+      <Output PropertyName="BuildDate" TaskParameter="ConsoleOutput" />
+    </Exec>
+  </Target>
+  <!-- Creates AssemblyMetadataAttributes which can be used via
+       `System.Reflection.Assembly.GetEntryAssembly.GetCustomAttributes<
+          System.Reflection.AssemblyMetadataAttribute>()` -->
+  <Target Name="AddExecutorAssemblyMetadata" BeforeTargets="CoreGenerateAssemblyInfo">
+    <ItemGroup>
+      <AssemblyAttribute Include="AssemblyMetadata">
+        <_Parameter1>$(BuildDate)</_Parameter1>
+        <_Parameter2>$(GitHash)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

@@ -9,15 +9,7 @@ config/local
 .ionide/
 
 # Build system
-.browser-trigger
 rundir/
-*.pyc
-
-# Frontend
-lib/
-node_modules/
-.merlin
-/backend/static
 
 # F#
 backend/packages/
@@ -36,16 +28,5 @@ backend/.paket/load/
 ###############
 # Deployment
 ###############
-
-# Templates for these are in services/*/*.template.yaml
-services/apiserver-deployment-darklang/apiserver-deployment.yaml
-services/bwdserver-deployment-darklang/bwdserver-deployment.yaml
-services/cronchecker-deployment/cronchecker-deployment.yaml
-services/exechost-deployment/exechost-deployment.yaml
-services/queueworker-deployment/queueworker-deployment.yaml
-services/tunnel2-deployment/tunnel2-deployment.yaml
-
-# Files that get created on CI. We check that status is clean so need to list these.
-gzipped_assets
 
 deploy-lock-manual-deploy

@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a triple with the given values"
       fn =
         (function
-        | state, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
+        | _, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the first value of a triple"
       fn =
         (function
-        | state, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
+        | _, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second value of a triple"
       fn =
         (function
-        | state, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
+        | _, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the third value of a triple"
       fn =
         (function
-        | state, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
+        | _, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -101,7 +101,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newFirst =
-              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe
             return DTuple(newFirst, second, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -128,7 +128,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newSecond =
-              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe
             return DTuple(first, newSecond, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newThird =
-              Interpreter.applyFnVal state (id 0) fn [ third ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fn [ third ] NotInPipe
             return DTuple(first, second, [ newThird ])
           }
         | _ -> incorrectArgs ())
@@ -199,19 +199,13 @@ let fns : List<BuiltInFn> =
             DTuple (first, second, [ third ]) ] ->
           uply {
             let! newFirst =
-              Interpreter.applyFnVal state (id 0) fnFirst [ first ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fnFirst [ first ] NotInPipe
 
             let! newSecond =
-              Interpreter.applyFnVal
-                state
-                (id 0)
-                fnSecond
-                [ second ]
-                NotInPipe
-                NoRail
+              Interpreter.applyFnVal state (id 0) fnSecond [ second ] NotInPipe
 
             let! newThird =
-              Interpreter.applyFnVal state (id 0) fnThird [ third ] NotInPipe NoRail
+              Interpreter.applyFnVal state (id 0) fnThird [ third ] NotInPipe
 
             return DTuple(newFirst, newSecond, [ newThird ])
           }

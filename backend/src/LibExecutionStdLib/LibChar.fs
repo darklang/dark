@@ -15,63 +15,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Char" "toASCIICode" 0
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TInt
-      description = "Return <param c>'s ASCII code"
-      fn =
-        function
-        | state, [ c ] -> Errors.removedFunction state "Char::toASCIICode"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated =
-        DeprecatedBecause("used an old Character type that no longer exists") }
-
-
-    { name = fn "Char" "toASCIIChar" 0
-      parameters = [ Param.make "i" TInt "" ]
-      returnType = TChar
-      description = "Convert <param i> to an ASCII character"
-      fn =
-        function
-        | state, [ i ] -> Errors.removedFunction state "Char::toASCIIChar"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated =
-        DeprecatedBecause("used an old Character type that no longer exists") }
-
-
-    { name = fn "Char" "toLowercase" 0
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TChar
-      description = "Return the lowercase value of <param c>"
-      fn =
-        function
-        | state, [ c ] -> Errors.removedFunction state "Char::toLowercase"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated =
-        DeprecatedBecause("used an old Character type that no longer exists") }
-
-
-    { name = fn "Char" "toUppercase" 0
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TChar
-      description = "Return the uppercase value of <param c>"
-      fn =
-        function
-        | state, [ c ] -> Errors.removedFunction state "Char::toUppercase"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated =
-        DeprecatedBecause("used an old Character type that no longer exists") }
-
-
-    { name = fn "Char" "toUppercase" 1
+  [ { name = fn "Char" "toUppercase" 1
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description =
@@ -172,6 +116,30 @@ let fns : List<BuiltInFn> =
         function
         | _, [ DChar c ] ->
           (if c.Length = 1 then System.Char.IsAscii c[0] else false) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Char" "isLessThan" 0
+      parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c1> is less than <param c2>"
+      fn =
+        function
+        | _, [ DChar c1; DChar c2 ] -> (c1 < c2) |> DBool |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Char" "isGreaterThan" 0
+      parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
+      returnType = TBool
+      description = "Return whether <param c1> is greater than <param c2>"
+      fn =
+        function
+        | _, [ DChar c1; DChar c2 ] -> (c1 > c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure

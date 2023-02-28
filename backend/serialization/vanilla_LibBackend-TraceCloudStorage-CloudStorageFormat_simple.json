@@ -91,28 +91,6 @@
             ],
             "some error string"
           ],
-          "errorrail": [
-            "DErrorRail",
-            [
-              "DInt",
-              5
-            ]
-          ],
-          "errorrail with float": [
-            "DErrorRail",
-            [
-              "DObj",
-              {
-                "": [
-                  "DFloat",
-                  "NaN"
-                ],
-                "\u007F": [
-                  "DNull"
-                ]
-              }
-            ]
-          ],
           "escaped": [
             "DStr",
             "\u0014\u0004"
@@ -2914,7 +2892,7 @@
             1
           ],
           "null": [
-            "DNull"
+            "DUnit"
           ],
           "obj": [
             "DObj",
@@ -2945,7 +2923,7 @@
                 "weird"
               ],
               "value": [
-                "DNull"
+                "DUnit"
               ]
             }
           ],
@@ -3115,7 +3093,7 @@
             ],
             []
           ],
-          "tupleWithNull": [
+          "tupleWithUnit": [
             "DTuple",
             [
               "DInt",
@@ -3127,7 +3105,7 @@
             ],
             [
               [
-                "DNull"
+                "DUnit"
               ]
             ]
           ],
@@ -3256,28 +3234,6 @@
                   "SourceNone"
                 ],
                 "some error string"
-              ],
-              "errorrail": [
-                "DErrorRail",
-                [
-                  "DInt",
-                  5
-                ]
-              ],
-              "errorrail with float": [
-                "DErrorRail",
-                [
-                  "DObj",
-                  {
-                    "": [
-                      "DFloat",
-                      "NaN"
-                    ],
-                    "\u007F": [
-                      "DNull"
-                    ]
-                  }
-                ]
               ],
               "escaped": [
                 "DStr",
@@ -6080,7 +6036,7 @@
                 1
               ],
               "null": [
-                "DNull"
+                "DUnit"
               ],
               "obj": [
                 "DObj",
@@ -6111,7 +6067,7 @@
                     "weird"
                   ],
                   "value": [
-                    "DNull"
+                    "DUnit"
                   ]
                 }
               ],
@@ -6281,7 +6237,7 @@
                 ],
                 []
               ],
-              "tupleWithNull": [
+              "tupleWithUnit": [
                 "DTuple",
                 [
                   "DInt",
@@ -6293,7 +6249,7 @@
                 ],
                 [
                   [
-                    "DNull"
+                    "DUnit"
                   ]
                 ]
               ],
@@ -6336,8 +6292,8 @@
       7,
       7,
       "testFn",
-      1,
-      "myijahO1Nm7pWockklI3g5IfJPkgUIOZVqZqxAMVHJOgmYeqNypXvQBXchvZLk7u",
+      2,
+      "hwhVwp8VAyc",
       [
         "DObj",
         {
@@ -6425,28 +6381,6 @@
               "SourceNone"
             ],
             "some error string"
-          ],
-          "errorrail": [
-            "DErrorRail",
-            [
-              "DInt",
-              5
-            ]
-          ],
-          "errorrail with float": [
-            "DErrorRail",
-            [
-              "DObj",
-              {
-                "": [
-                  "DFloat",
-                  "NaN"
-                ],
-                "\u007F": [
-                  "DNull"
-                ]
-              }
-            ]
           ],
           "escaped": [
             "DStr",
@@ -9249,7 +9183,7 @@
             1
           ],
           "null": [
-            "DNull"
+            "DUnit"
           ],
           "obj": [
             "DObj",
@@ -9280,7 +9214,7 @@
                 "weird"
               ],
               "value": [
-                "DNull"
+                "DUnit"
               ]
             }
           ],
@@ -9450,7 +9384,7 @@
             ],
             []
           ],
-          "tupleWithNull": [
+          "tupleWithUnit": [
             "DTuple",
             [
               "DInt",
@@ -9462,7 +9396,7 @@
             ],
             [
               [
-                "DNull"
+                "DUnit"
               ]
             ]
           ],

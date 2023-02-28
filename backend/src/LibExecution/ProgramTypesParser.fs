@@ -23,21 +23,11 @@ module FQFnName =
   /// Standard Library Function Name
   let oneWordFunctions =
     Set [ "toString"
-          "toRepr"
           "equals"
           "notEquals"
-          "assoc"
-          "dissoc"
-          "toForm"
-          "emit"
           "toString_v0"
-          "toRepr_v0"
           "equals_v0"
           "notEquals_v0"
-          "assoc_v0"
-          "dissoc_v0"
-          "toForm_v0"
-          "emit_v0"
           "emit_v1" ]
 
   let namePat = @"^[a-z][a-z0-9_]*$"
@@ -151,7 +141,7 @@ module DType =
     | "float" -> Some PT.TFloat
     | "bool" -> Some PT.TBool
     | "boolean" -> Some PT.TBool
-    | "nothing" -> Some PT.TNull
+    | "nothing" -> Some PT.TUnit
     | "character"
     | "char" -> Some PT.TChar
     | "str" -> Some PT.TStr
@@ -168,7 +158,6 @@ module DType =
     | "password" -> Some PT.TPassword
     | "uuid" -> Some PT.TUuid
     | "option" -> Some(PT.TOption any)
-    | "errorrail" -> Some PT.TErrorRail
     | "result" -> Some(PT.TResult(PT.TVariable "a", PT.TVariable "b"))
     | "dict" -> Some(PT.TDict any)
     | _ ->
@@ -176,6 +165,8 @@ module DType =
         match String.toLowercase listTyp with
         | "str" -> Some(PT.TDbList PT.TStr)
         | "string" -> Some(PT.TDbList PT.TStr)
+        | "char" -> Some(PT.TDbList PT.TChar)
+        | "character" -> Some(PT.TDbList PT.TChar)
         | "int" -> Some(PT.TDbList PT.TInt)
         | "integer" -> Some(PT.TDbList PT.TInt)
         | "float" -> Some(PT.TDbList PT.TFloat)
@@ -220,48 +211,34 @@ module Handler =
 
     let toName (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP (route, _method, _ids)
-      | PT.Handler.HTTPBasic (route, _method, _ids) -> route
+      | PT.Handler.HTTP (route, _method, _ids) -> route
       | PT.Handler.Worker (name, _ids) -> name
-      | PT.Handler.OldWorker (_modulename, name, _ids) -> name
-      | PT.Handler.Cron (name, interval, _ids) -> name
+      | PT.Handler.Cron (name, _interval, _ids) -> name
       | PT.Handler.REPL (name, _ids) -> name
-      | PT.Handler.UnknownHandler (name, _modifier, _ids) -> name
 
     let toModifier (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP (_route, method, _ids)
-      | PT.Handler.HTTPBasic (_route, method, _ids) -> method
+      | PT.Handler.HTTP (_route, method, _ids) -> method
       | PT.Handler.Worker (_name, _ids) -> "_"
-      | PT.Handler.OldWorker (_modulename, _name, _ids) -> "_"
       | PT.Handler.Cron (_name, interval, _ids) ->
         interval |> Option.map CronInterval.toString |> Option.defaultValue ""
       | PT.Handler.REPL (_name, _ids) -> "_"
-      | PT.Handler.UnknownHandler (name, modifier, ids) -> modifier
 
     let toModule (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP _ -> "HTTP"
-      | PT.Handler.HTTPBasic _ -> "HTTP_BASIC"
+      | PT.Handler.HTTP _ -> "HTTP_BASIC"
       | PT.Handler.Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
-      | PT.Handler.OldWorker (modulename, _name, _ids) -> modulename
       | PT.Handler.Cron _ -> "CRON" // CLEANUP the DB relies on the casing
       | PT.Handler.REPL _ -> "REPL"
-      | PT.Handler.UnknownHandler (name, modifier, ids) -> ""
 
     let isComplete (s : PT.Handler.Spec) : bool =
       match s with
       | PT.Handler.HTTP ("", _, _) -> false
       | PT.Handler.HTTP (_, "", _) -> false
-      | PT.Handler.HTTPBasic ("", _, _) -> false
-      | PT.Handler.HTTPBasic (_, "", _) -> false
       | PT.Handler.Worker ("", _) -> false
-      | PT.Handler.OldWorker ("", _, _) -> false
-      | PT.Handler.OldWorker (_, "", _) -> false
       | PT.Handler.Cron ("", _, _) -> false
       | PT.Handler.Cron (_, None, _) -> false
       | PT.Handler.REPL ("", _) -> false
-      | PT.Handler.UnknownHandler _ -> false
       | _ -> true
 
     // Same as a TraceInput.EventDesc

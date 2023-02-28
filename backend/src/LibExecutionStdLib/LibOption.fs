@@ -24,33 +24,7 @@ let optionA = Param.make "option" (TOption varA) ""
 let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Option" "map" 0
-      parameters = [ optionA; fnAToB ]
-      returnType = TOption varB
-      description =
-        "If <param option> is {{Just value}}, returns {{Just (fn value)}} (the lambda <param fn> is
-         applied to <var val> and the result is wrapped in {{Just}}).
-
-         If <param option> is {{Nothing}}, returns {{Nothing}}."
-      fn =
-        (function
-        | state, [ DOption o; DFnVal b ] ->
-          uply {
-            match o with
-            | Some dv ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
-
-              return DOption(Some result)
-            | None _ -> return (DOption None)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Option" "map" 1) }
-
-
-    { name = fn "Option" "map" 1
+  [ { name = fn "Option" "map" 1
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
       description =
@@ -64,8 +38,7 @@ let fns : List<BuiltInFn> =
           uply {
             match o with
             | Some dv ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+              let! result = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
               return Dval.optionJust result
             | None -> return DOption None
@@ -97,7 +70,7 @@ let fns : List<BuiltInFn> =
             | _, None -> return DOption None
             | Some dv1, Some dv2 ->
               let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe NoRail
+                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
 
               return Dval.optionJust result
           }
@@ -123,8 +96,7 @@ let fns : List<BuiltInFn> =
           uply {
             match o with
             | Some dv ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe NoRail
+              let! result = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
 
               match result with
               | DOption result -> return DOption result

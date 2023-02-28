@@ -179,8 +179,8 @@ let makeTest versionName filename =
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
-        |> FSharpToExpr.parse
-        |> FSharpToExpr.convertToTest
+        |> Parser.parse
+        |> Parser.convertToTest
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
@@ -268,7 +268,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
         // Gather status, headers, and body from the actual request
         let actualStatus =
           $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
-        let actualHeaders = BwdServer.Server.getHeadersMergingKeys ctx
+        let actualHeaders = BwdServer.Server.getHeadersWithoutMergingKeys ctx
         let! actualBody = BwdServer.Server.getBody ctx
         let actualRequest : Http.T =
           { status = actualStatus; headers = actualHeaders; body = actualBody }

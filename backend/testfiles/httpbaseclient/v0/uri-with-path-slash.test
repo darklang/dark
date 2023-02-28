@@ -13,8 +13,8 @@ Content-Length: LENGTH
 Hello back
 
 [test]
-(let response = HttpBaseClient.request_ster "get" "http://URL/" [] Bytes.empty
- let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
+(let response = (HttpBaseClient.request "get" "http://URL/" [] Bytes.empty) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { statusCode = 200
      headers =

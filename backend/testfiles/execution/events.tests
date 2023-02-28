@@ -1,22 +1,10 @@
 [test.getQueue works] with Worker TestWorker
 Test.getQueue_v0 "TestWorker" = []
 
-[test.emit_v0 works] with Worker TestWorker
-(let _ = emit_v0 "value" "WORKER" "TestWorker" in
- let queue = Test.getQueue_v0 "TestWorker" in
- queue) = ["value"]
-
 [test.emit_v1 works] with Worker TestWorker
 (let _ = emit_v1 "value" "TestWorker" in
  let queue = Test.getQueue_v0 "TestWorker" in
  queue) = ["value"]
-
-[test.emit_v0 works with mixed values] with Worker TestWorker
-(let _ = emit_v0 "value" "WORKER" "TestWorker" in
- let _ = emit_v0 1 "WORKER" "TestWorker" in
- let _ = emit_v0 {``Fruits`` = ["apple", "banana"] } "WORKER" "TestWorker" in
- let queue = Test.getQueue_v0 "TestWorker" in
- List.sort queue) = [1; "value"; { ``Fruits`` = ["apple", "banana"] }]
 
 [test.emit_v1 works with mixed values] with Worker TestWorker
 (let _ = emit_v1 "value" "TestWorker" in

@@ -26,9 +26,6 @@ let ptFQFnName =
 
 let parseTests =
   let p = PTParser.FQFnName.parse
-  let User = RT.FQFnName.User
-  let Stdlib = RT.FQFnName.Stdlib
-  let Package = RT.FQFnName.Package
 
   testList
     "Parsing fn names"
@@ -61,10 +58,6 @@ let parseTests =
            Some(
              PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 }
            ))
-          ("toRepr",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "toRepr"; version = 0 }
-           ))
           ("equals",
            Some(
              PT.FQFnName.Stdlib { module_ = ""; function_ = "equals"; version = 0 }
@@ -74,24 +67,8 @@ let parseTests =
              PT.FQFnName.Stdlib
                { module_ = ""; function_ = "notEquals"; version = 0 }
            ))
-          ("assoc",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "assoc"; version = 0 }
-           ))
-          ("dissoc",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }
-           ))
-          ("dissoc_v0",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "dissoc"; version = 0 }
-           ))
           ("emit_v1",
            Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "emit"; version = 1 }))
-          ("toForm",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "toForm"; version = 0 }
-           ))
           ("myFunction_v2", Some(PT.FQFnName.User "myFunction_v2"))
           ("myFunction_v0", Some(PT.FQFnName.User "myFunction_v0"))
           ("++",
@@ -140,8 +117,7 @@ let parseTests =
 
 let testPipesToRuntimeTypes =
   test "pipes to runtime types" {
-    let actual =
-      FSharpToExpr.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+    let actual = Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
 
     let expected =
       S.ePipeApply
@@ -158,52 +134,20 @@ let testPipesToRuntimeTypes =
   }
 
 let testProgramTypesToRuntimeTypes =
-  let b = PT.EBlank(8UL)
-  let rb = RT.EBlank(8UL)
+  let u = PT.EUnit(8UL)
+  let ru = RT.EUnit(8UL)
   testMany
     "program types to runtime types"
     PT2RT.Expr.toRT
     [ PT.EFloat(7UL, Positive, "", "0"), RT.EFloat(7UL, 0.0)
       PT.EFloat(7UL, Positive, "0", ""), RT.EFloat(7UL, 0.0)
       PT.EFloat(7UL, Positive, "", ""), RT.EFloat(7UL, 0.0)
-      (PT.EMatch(9UL, b, [ PT.MPFloat(5UL, Positive, "", ""), b ]),
-       RT.EMatch(9UL, rb, [ RT.MPFloat(5UL, 0.0), rb ]))
-      (PT.EMatch(9UL, b, [ PT.MPFloat(5UL, Positive, "0", ""), b ]),
-       RT.EMatch(9UL, rb, [ RT.MPFloat(5UL, 0.0), rb ]))
-      (PT.EMatch(9UL, b, [ PT.MPFloat(5UL, Positive, "", "0"), b ]),
-       RT.EMatch(9UL, rb, [ RT.MPFloat(5UL, 0.0), rb ])) ]
-
-// We didn't use a special infix type in serialized types, so check it converts OK
-let testInfixSerializedTypesToProgramTypes =
-  testMany
-    "serialized infix types to program types"
-    ST2PT.Expr.toPT
-    [ (ST.EDeprecatedBinOp(
-        8UL,
-        ST.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 },
-        ST.EInteger(9UL, 6),
-        ST.EInteger(10UL, 6),
-        ST.NoRail
-       ),
-       PT.EInfix(
-         8UL,
-         PT.InfixFnCall({ module_ = None; function_ = "+" }, PT.NoRail),
-         PT.EInteger(9UL, 6),
-         PT.EInteger(10UL, 6)
-       ))
-      (ST.EDeprecatedBinOp(
-        8UL,
-        ST.FQFnName.Stdlib { module_ = "Date"; function_ = "<"; version = 0 },
-        ST.EInteger(9UL, 6),
-        ST.EInteger(10UL, 6),
-        ST.NoRail
-       ),
-       PT.EInfix(
-         8UL,
-         PT.InfixFnCall({ module_ = Some "Date"; function_ = "<" }, PT.NoRail),
-         PT.EInteger(9UL, 6),
-         PT.EInteger(10UL, 6)
-       )) ]
+      (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "", ""), u ]),
+       RT.EMatch(9UL, ru, [ RT.MPFloat(5UL, 0.0), ru ]))
+      (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "0", ""), u ]),
+       RT.EMatch(9UL, ru, [ RT.MPFloat(5UL, 0.0), ru ]))
+      (PT.EMatch(9UL, u, [ PT.MPFloat(5UL, Positive, "", "0"), u ]),
+       RT.EMatch(9UL, ru, [ RT.MPFloat(5UL, 0.0), ru ])) ]
 
 let testInfixProgramTypesToSerializedTypes =
   testMany
@@ -211,25 +155,25 @@ let testInfixProgramTypesToSerializedTypes =
     PT2ST.Expr.toST
     [ (PT.EInfix(
         8UL,
-        PT.InfixFnCall({ module_ = None; function_ = "+" }, PT.NoRail),
+        PT.InfixFnCall({ module_ = None; function_ = "+" }),
         PT.EInteger(9UL, 6),
         PT.EInteger(10UL, 6)
        ),
        ST.EInfix(
          8UL,
-         ST.InfixFnCall({ module_ = None; function_ = "+" }, ST.NoRail),
+         ST.InfixFnCall({ module_ = None; function_ = "+" }),
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6)
        ))
       (PT.EInfix(
         8UL,
-        PT.InfixFnCall({ module_ = Some "Date"; function_ = "<" }, PT.NoRail),
+        PT.InfixFnCall({ module_ = Some "Date"; function_ = "<" }),
         PT.EInteger(9UL, 6),
         PT.EInteger(10UL, 6)
        ),
        ST.EInfix(
          8UL,
-         ST.InfixFnCall({ module_ = Some("Date"); function_ = "<" }, ST.NoRail),
+         ST.InfixFnCall({ module_ = Some("Date"); function_ = "<" }),
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6)
        )) ]
@@ -253,6 +197,5 @@ let tests =
       testPipesToRuntimeTypes
       testProgramTypesToRuntimeTypes
       ptFQFnName
-      testInfixSerializedTypesToProgramTypes
       testInfixProgramTypesToSerializedTypes
       testVersionedSerializedTypesToProgramTypes ]

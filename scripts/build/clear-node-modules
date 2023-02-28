@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-set -uo pipefail
-
-rm -Rf node_modules/*
-rm -Rf node_modules/.* 2> /dev/null

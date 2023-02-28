@@ -37,10 +37,8 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
       |> List.map (fun (worker, tlid) ->
         PT.SetHandler(
           tlid,
-          testPos,
           { tlid = tlid
-            pos = testPos
-            ast = PT.Expr.EBlank(gid ())
+            ast = PT.Expr.EUnit(gid ())
             spec =
               PT.Handler.Worker(
                 worker,
@@ -64,8 +62,7 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
       // Convert the DBs back into ops so that DB operations will run
       dbs
       |> List.map (fun (db : PT.DB.T) ->
-        let initial =
-          PT.CreateDBWithBlankOr(db.tlid, { x = 0; y = 0 }, db.nameID, db.name)
+        let initial = PT.CreateDBWithBlankOr(db.tlid, db.nameID, db.name)
         let cols =
           db.cols
           |> List.map (fun (col : PT.DB.Col) ->
@@ -91,30 +88,6 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
   }
 
 
-
-let setupStaticAssets
-  (meta : Canvas.Meta)
-  (deployHashes : List<string>)
-  : Task<unit> =
-  task {
-    return!
-      Task.iterSequentially
-        (fun hash ->
-          // If it's already there just update the times. Multiple tests can use the same hash.
-          Sql.query
-            "INSERT INTO static_asset_deploys
-              (canvas_id, branch, deploy_hash, uploaded_by_account_id, created_at, live_at)
-            VALUES
-              (@canvasID, @branch, @deployHash, @uploadedBy, NOW(), NOW())
-            ON CONFLICT DO NOTHING"
-          |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                              "branch", Sql.string "main"
-                              "deployHash", Sql.string hash
-                              "uploadedBy", Sql.uuid meta.owner ]
-          |> Sql.executeStatementAsync)
-        deployHashes
-  }
-
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
   (initializeCanvas : bool)
@@ -125,7 +98,6 @@ let t
   (packageFns : Map<PT.FQFnName.PackageFnName, PT.Package.Fn>)
   (functions : Map<string, PT.UserFunction.T>)
   (workers : List<string>)
-  (staticAssetsDeployHashes : List<string>)
   : Test =
   let name = $"{comment} ({code})"
 
@@ -136,11 +108,7 @@ let t
       try
         let! owner = owner
         let! meta =
-          let initializeCanvas =
-            initializeCanvas
-            || dbs <> []
-            || workers <> []
-            || staticAssetsDeployHashes <> []
+          let initializeCanvas = initializeCanvas || dbs <> [] || workers <> []
           // Little optimization to skip the DB sometimes
           if initializeCanvas then
             initializeCanvasForOwner owner canvasName
@@ -155,7 +123,7 @@ let t
         let rtPackageFns =
           packageFns
           |> Map.toList
-          |> List.map (fun (k, v) ->
+          |> List.map (fun (_, v) ->
             let fn = PT2RT.Package.toRT v
             ((RT.FQFnName.Package fn.name), fn))
           |> Map
@@ -164,10 +132,9 @@ let t
         let state =
           { state with libraries = { state.libraries with packageFns = rtPackageFns } }
 
-        let source = FSharpToExpr.parse code
+        let source = Parser.parse code
 
-        let shouldEqual, actualProg, expectedResult =
-          FSharpToExpr.convertToTest source
+        let shouldEqual, actualProg, expectedResult = Parser.convertToTest source
 
         let msg = $"\n\n{actualProg}\n=\n{expectedResult} ->"
 
@@ -175,8 +142,6 @@ let t
           Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
 
         // Initialize
-        if staticAssetsDeployHashes <> [] then
-          do! setupStaticAssets meta staticAssetsDeployHashes
         if workers <> [] then do! setupWorkers meta workers
         if dbs <> [] then do! setupDBs meta dbs
 
@@ -190,7 +155,19 @@ let t
               test =
                 { state.test with expectedExceptionCount = expectedExceptionCount } }
 
+
+        let results, traceDvalFn = Exe.traceDvals ()
+        let state =
+          if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
+            { state with tracing = { state.tracing with traceDval = traceDvalFn } }
+          else
+            state
+
+        // Run the actual program
         let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualProg)
+
+        if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
+          debuGList "results" (Dictionary.toList results |> List.sortBy fst)
 
         let actual = normalizeDvalResult actual
 
@@ -218,7 +195,6 @@ let t
 type TestExtras =
   { dbs : List<PT.DB.T>
     workers : List<string>
-    staticAssetsDeployHashes : List<string>
     exactCanvasName : Option<string> }
 
 type TestInfo =
@@ -254,8 +230,7 @@ let testAdmin =
         |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
     })
 
-let emptyExtras =
-  { dbs = []; workers = []; staticAssetsDeployHashes = []; exactCanvasName = None }
+let emptyExtras = { dbs = []; workers = []; exactCanvasName = None }
 
 let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras =
   annotation
@@ -272,10 +247,6 @@ let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras 
       { extras with workers = workerName :: extras.workers }
     | [ "ExactCanvasName"; canvasName ] ->
       { extras with exactCanvasName = Some(String.trim canvasName) }
-    | [ "StaticAssetsDeployHash"; hash ] ->
-      let hash = String.trim hash
-      { extras with
-          staticAssetsDeployHashes = extras.staticAssetsDeployHashes @ [ hash ] }
     | other -> Exception.raiseInternal "invalid option" [ "annotation", other ])
 
 
@@ -312,10 +283,7 @@ let fileTests () : Test =
       Map.empty
     let mutable dbs : Map<string, PT.DB.T> = Map.empty
     let owner =
-      if filename = "internal.tests" || filename = "httpbaseclient.tests" then
-        testAdmin.Force()
-      else
-        testOwner.Force()
+      if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
     let initializeCanvas = filename = "internal.tests"
 
     let finish () =
@@ -335,7 +303,6 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.extras.workers
-            currentTest.extras.staticAssetsDeployHashes
 
         fileTests <- fileTests @ [ newTestCase ]
 
@@ -360,7 +327,7 @@ let fileTests () : Test =
                   module_ = "Test"
                   function_ = currentFn.name
                   version = 0 }
-              body = FSharpToExpr.parsePTExpr currentFn.code
+              body = Parser.parsePTExpr currentFn.code
               parameters = parameters
               returnType = PT.TVariable "a"
               author = "test"
@@ -376,7 +343,7 @@ let fileTests () : Test =
               returnTypeID = gid ()
               description = "test function"
               infix = false
-              body = FSharpToExpr.parsePTExpr currentFn.code
+              body = Parser.parsePTExpr currentFn.code
               parameters = currentFn.parameters }
           functions <- Map.add currentFn.name fn functions
 
@@ -409,7 +376,6 @@ let fileTests () : Test =
 
         let (db : PT.DB.T) =
           { tlid = id i
-            pos = { x = 0; y = 0 }
             name = name
             nameID = gid ()
             version = 0
@@ -511,7 +477,6 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.extras.workers
-            currentTest.extras.staticAssetsDeployHashes
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
       | Regex @"^(.*)\s*$" [ code ] ->
@@ -526,23 +491,13 @@ let fileTests () : Test =
             packageFunctions
             functions
             currentTest.extras.workers
-            currentTest.extras.staticAssetsDeployHashes
 
         currentGroup <- { currentGroup with tests = currentGroup.tests @ [ test ] }
 
       | _ -> raise (System.Exception $"can't parse line {i}: {line}"))
 
     finish ()
-    let tests = testList $"Tests from {filename}" fileTests
-    // Staticassets.tests use a combination of ExactCanvasName and
-    // StaticAssetsDeployHash, which can have race conditions. See comment in
-    // staticassets.tests.
-    if filename = "staticassets.tests" then
-      testSequencedGroup "staticAssetsInSequence" tests
-    else
-      tests
-
-  )
+    testList $"Tests from {filename}" fileTests)
   |> Array.toList
   |> testList "All files"
 

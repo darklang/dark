@@ -1,6 +1,6 @@
 /// The test values within this module are used to verify the exact output of our
 /// serializers against saved test files. So, we need the test inputs to be
-/// consistent, which is why we never use `gid ()` below, or `FSharpToExpr`
+/// consistent, which is why we never use `gid ()` below, or `Parser`
 /// functions.
 [<RequireQualifiedAccess>]
 module Tests.SerializationTestValues
@@ -32,7 +32,7 @@ module RuntimeTypes =
     [ RT.TInt
       RT.TFloat
       RT.TBool
-      RT.TNull
+      RT.TUnit
       RT.TStr
       RT.TList RT.TInt
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
@@ -41,7 +41,6 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TErrorRail
       RT.TUserType("test", 1)
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
@@ -56,11 +55,10 @@ module RuntimeTypes =
       RT.MPBool(8759375UL, true)
       RT.MPCharacter(4875843UL, "8jgkdjsfg")
       RT.MPString(857395UL, "iklfijo13294")
-      RT.MPBlank(71284374UL)
-      RT.MPNull(812394UL)
+      RT.MPUnit(812394UL)
       RT.MPTuple(
         487129457124UL,
-        RT.MPNull(1234124UL),
+        RT.MPUnit(1234124UL),
         RT.MPString(128734857124UL, "1243sdfsadf"),
         [ RT.MPVariable(12748124UL, "var2") ]
       )
@@ -68,48 +66,39 @@ module RuntimeTypes =
 
   let isInPipes : List<RT.IsInPipe> = [ RT.NotInPipe; RT.InPipe(18274UL) ]
 
-  let sendToRails : List<RT.SendToRail> = [ RT.Rail; RT.NoRail ]
-
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
       RT.EString(86749UL, "asdfasedf")
       RT.ECharacter(7683UL, "c")
       RT.EFloat(5495UL, 444.333)
-      RT.ENull(59485UL)
-      RT.EBlank(495839UL)
+      RT.EUnit(59485UL)
       RT.ELet(
         49583UL,
         "binding",
-        RT.ENull(12355555UL),
+        RT.EUnit(12355555UL),
         RT.EVariable(68496UL, "binding")
       )
       RT.EIf(
         8975872314UL,
-        RT.ENull(747123UL),
-        RT.ENull(747123UL),
-        RT.ENull(747123UL)
+        RT.EUnit(747123UL),
+        RT.EUnit(747123UL),
+        RT.EUnit(747123UL)
       )
-      RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.ENull(17384UL))
-      RT.EFieldAccess(74875UL, RT.ENull(737463UL), "field")
+      RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.EUnit(17384UL))
+      RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
-      RT.EApply(
-        128384UL,
-        RT.ENull(1235123UL),
-        [ RT.ENull(7756UL) ],
-        RT.NotInPipe,
-        RT.Rail
-      )
+      RT.EApply(128384UL, RT.EUnit(1235123UL), [ RT.EUnit(7756UL) ], RT.NotInPipe)
       RT.EFQFnValue(8737481UL, RT.FQFnName.User "sadflkjwerp")
-      RT.EList(737481UL, [ RT.ENull(74618UL) ])
+      RT.EList(737481UL, [ RT.EUnit(74618UL) ])
       RT.ETuple(
         73847UL,
-        RT.ENull(8474UL),
-        RT.ENull(84718341UL),
-        [ RT.ENull(7167384UL) ]
+        RT.EUnit(8474UL),
+        RT.EUnit(84718341UL),
+        [ RT.EUnit(7167384UL) ]
       )
-      RT.ERecord(8167384UL, [ "a9df8", RT.ENull(71631UL) ])
-      RT.EConstructor(64617UL, "Just", [ RT.EBlank(8173UL) ])
+      RT.ERecord(8167384UL, [ "a9df8", RT.EUnit(71631UL) ])
+      RT.EConstructor(64617UL, "Just", [ RT.EUnit(8173UL) ])
       RT.EMatch(
         712743UL,
         RT.EInteger(712373UL, 123),
@@ -128,23 +117,23 @@ module RuntimeTypes =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
 
   let dvalHttpResponses : List<RT.DHTTP> =
-    [ RT.Redirect "http://darklang.io"; RT.Response(8123, [ "a", "b" ], RT.DNull) ]
+    [ RT.Redirect "http://darklang.io"; RT.Response(8123, [ "a", "b" ], RT.DUnit) ]
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
     sampleDvals
-    |> List.filter (fun (name, dv) -> name <> "password")
+    |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map Tuple2.second
 
   let dvalFnValImpls : List<RT.FnValImpl> =
     [ RT.Lambda
         { parameters = []
-          symtable = [ ("val1", RT.DNull); ("val2", RT.DInt(173648)) ] |> Map.ofList
-          body = RT.ENull(1235123UL) } ]
+          symtable = [ ("val1", RT.DUnit); ("val2", RT.DInt(173648)) ] |> Map.ofList
+          body = RT.EUnit(1235123UL) } ]
 
   let dval : RT.Dval =
     sampleDvals
-    |> List.filter (fun (name, dv) -> name <> "password")
+    |> List.filter (fun (name, _dv) -> name <> "password")
     |> Map
     |> RT.DObj
 
@@ -159,8 +148,6 @@ module ProgramTypes =
           function_ = "sms"
           version = 1 } ]
 
-  let pos : PT.Position = { x = 6; y = 6 }
-
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPConstructor(7471263UL, "None", [])
@@ -169,16 +156,13 @@ module ProgramTypes =
       PT.MPCharacter(83749178UL, "w")
       PT.MPString(817201237UL, "testing testing 123")
       PT.MPFloat(012037123UL, Positive, "123", "456")
-      PT.MPNull(9123871238UL)
-      PT.MPBlank(8123818247123UL)
+      PT.MPUnit(9123871238UL)
       PT.MPTuple(
         91298UL,
         PT.MPInteger(812831UL, 123),
         PT.MPBool(81871UL, true),
-        [ PT.MPNull(17123UL) ]
+        [ PT.MPUnit(17123UL) ]
       ) ]
-
-  let sendToRails : List<PT.SendToRail> = [ PT.Rail; PT.NoRail ]
 
   // Note: this is aimed to contain all cases of `Expr`
   // When updating this, also update `FluidTestData.complexExpr` in the client
@@ -215,220 +199,175 @@ module ProgramTypes =
                   PT.ELet(
                     975263310UL,
                     "n",
-                    PT.ENull 923644248UL,
+                    PT.EUnit 923644248UL,
                     PT.ELet(
-                      468988830UL,
-                      "b",
-                      PT.EBlank 133368677UL,
-                      PT.ELet(
-                        43886336UL,
-                        "i",
+                      43886336UL,
+                      "i",
+                      PT.EIf(
+                        46231874UL,
+                        PT.EFnCall(
+                          898531080UL,
+                          PT.FQFnName.Stdlib
+                            { module_ = "Bool"; function_ = "isError"; version = 0 },
+                          [ PT.EInteger(160106123UL, 6L) ]
+                        ),
                         PT.EIf(
-                          46231874UL,
-                          PT.EFnCall(
-                            898531080UL,
-                            PT.FQFnName.Stdlib
-                              { module_ = "Bool"
-                                function_ = "isError"
-                                version = 0 },
-                            [ PT.EInteger(160106123UL, 6L) ],
-                            PT.Rail
-                          ),
-                          PT.EIf(
-                            729246077UL,
-                            PT.EInfix(
-                              94793109UL,
-                              PT.InfixFnCall(
-                                { module_ = None; function_ = "!=" },
-                                PT.NoRail
-                              ),
-                              PT.EInteger(264400705UL, 5L),
-                              PT.EInteger(335743639UL, 6L)
-                            ),
-                            PT.EInfix(
-                              775118986UL,
-                              PT.InfixFnCall(
-                                { module_ = None; function_ = "+" },
-                                PT.NoRail
-                              ),
-                              PT.EInteger(803876589UL, 5L),
-                              PT.EInteger(219131014UL, 2L)
-                            ),
-                            PT.ELambda(
-                              947647446UL,
-                              [ (180359194UL, "y") ],
-                              PT.EInfix(
-                                140609068UL,
-                                PT.InfixFnCall(
-                                  { module_ = None; function_ = "+" },
-                                  PT.NoRail
-                                ),
-                                PT.EInteger(450951790UL, 2L),
-                                PT.EVariable(402203255UL, "y")
-                              )
-                            )
+                          729246077UL,
+                          PT.EInfix(
+                            94793109UL,
+                            PT.InfixFnCall({ module_ = None; function_ = "!=" }),
+                            PT.EInteger(264400705UL, 5L),
+                            PT.EInteger(335743639UL, 6L)
                           ),
                           PT.EInfix(
-                            265463935UL,
-                            PT.InfixFnCall(
-                              { module_ = None; function_ = "+" },
-                              PT.NoRail
-                            ),
+                            775118986UL,
+                            PT.InfixFnCall({ module_ = None; function_ = "+" }),
+                            PT.EInteger(803876589UL, 5L),
+                            PT.EInteger(219131014UL, 2L)
+                          ),
+                          PT.ELambda(
+                            947647446UL,
+                            [ (180359194UL, "y") ],
                             PT.EInfix(
-                              312092282UL,
-                              PT.InfixFnCall(
-                                { module_ = None; function_ = "+" },
-                                PT.NoRail
-                              ),
-                              PT.EFieldAccess(
-                                974664608UL,
-                                PT.EVariable(1002893266UL, "x"),
-                                "y"
-                              ),
-                              PT.EFnCall(
-                                173079901UL,
-                                PT.FQFnName.Stdlib
-                                  { module_ = "Int"; function_ = "add"; version = 0 },
-                                [ PT.EInteger(250221144UL, 6L)
-                                  PT.EInteger(298149318UL, 2L) ],
-                                PT.NoRail
-                              )
-                            ),
-                            PT.EList(
-                              539797095UL,
-                              [ PT.EInteger(267797631UL, 5L)
-                                PT.EInteger(352138743UL, 6L)
-                                PT.EInteger(430871955UL, 7L) ]
+                              140609068UL,
+                              PT.InfixFnCall({ module_ = None; function_ = "+" }),
+                              PT.EInteger(450951790UL, 2L),
+                              PT.EVariable(402203255UL, "y")
                             )
                           )
                         ),
+                        PT.EInfix(
+                          265463935UL,
+                          PT.InfixFnCall({ module_ = None; function_ = "+" }),
+                          PT.EInfix(
+                            312092282UL,
+                            PT.InfixFnCall({ module_ = None; function_ = "+" }),
+                            PT.EFieldAccess(
+                              974664608UL,
+                              PT.EVariable(1002893266UL, "x"),
+                              "y"
+                            ),
+                            PT.EFnCall(
+                              173079901UL,
+                              PT.FQFnName.Stdlib
+                                { module_ = "Int"; function_ = "add"; version = 0 },
+                              [ PT.EInteger(250221144UL, 6L)
+                                PT.EInteger(298149318UL, 2L) ]
+                            )
+                          ),
+                          PT.EList(
+                            539797095UL,
+                            [ PT.EInteger(267797631UL, 5L)
+                              PT.EInteger(352138743UL, 6L)
+                              PT.EInteger(430871955UL, 7L) ]
+                          )
+                        )
+                      ),
+                      PT.ELet(
+                        831830073UL,
+                        "r",
+                        PT.ERecord(
+                          109539183UL,
+                          [ ("field",
+                             PT.EPipe(
+                               786862131UL,
+                               PT.EInteger(555880460UL, 5L),
+                               PT.EInfix(
+                                 1021880969UL,
+                                 PT.InfixFnCall({ module_ = None; function_ = "+" }),
+                                 PT.EPipeTarget 936577032UL,
+                                 PT.EInteger(962393769UL, 2L)
+                               ),
+                               []
+                             ))
+                            ("constructor",
+                             PT.EConstructor(
+                               567764301UL,
+                               "Ok",
+                               [ PT.EConstructor(
+                                   646107057UL,
+                                   "Error",
+                                   [ PT.EConstructor(
+                                       689802831UL,
+                                       "Just",
+                                       [ PT.EConstructor(957916875UL, "Nothing", []) ]
+                                     ) ]
+                                 ) ]
+                             )) ]
+                        ),
                         PT.ELet(
-                          831830073UL,
-                          "r",
-                          PT.ERecord(
-                            109539183UL,
-                            [ ("field",
-                               PT.EPipe(
-                                 786862131UL,
-                                 PT.EInteger(555880460UL, 5L),
-                                 PT.EInfix(
-                                   1021880969UL,
-                                   PT.InfixFnCall(
-                                     { module_ = None; function_ = "+" },
-                                     PT.NoRail
-                                   ),
-                                   PT.EPipeTarget 936577032UL,
-                                   PT.EInteger(962393769UL, 2L)
-                                 ),
-                                 []
+                          745304029UL,
+                          "m",
+                          PT.EMatch(
+                            889712088UL,
+                            PT.EFnCall(
+                              203239466UL,
+                              PT.FQFnName.Stdlib
+                                { module_ = "Mod"
+                                  function_ = "function"
+                                  version = 2 },
+                              []
+                            ),
+                            [ (PT.MPConstructor(
+                                1015986188UL,
+                                "Ok",
+                                [ PT.MPVariable(334386852UL, "x") ]
+                               ),
+                               PT.EVariable(863810169UL, "v"))
+                              (PT.MPInteger(928253813UL, 5L),
+                               PT.EInteger(342670561UL, -9223372036854775808L))
+                              (PT.MPBool(435227293UL, true),
+                               PT.EInteger(232748650UL, 7L))
+                              (PT.MPCharacter(387662539UL, "c"),
+                               PT.ECharacter(657848009UL, "c"))
+                              (PT.MPString(491115870UL, "string"),
+                               PT.EString(820329949UL, "string"))
+                              (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
+                              (PT.MPVariable(722099983UL, "var"),
+                               PT.EInfix(
+                                 275666765UL,
+                                 PT.InfixFnCall({ module_ = None; function_ = "+" }),
+                                 PT.EInteger(739193732UL, 6L),
+                                 PT.EVariable(880556562UL, "var")
                                ))
-                              ("constructor",
-                               PT.EConstructor(
-                                 567764301UL,
-                                 "Ok",
-                                 [ PT.EConstructor(
-                                     646107057UL,
-                                     "Error",
-                                     [ PT.EConstructor(
-                                         689802831UL,
-                                         "Just",
-                                         [ PT.EConstructor(
-                                             957916875UL,
-                                             "Nothing",
-                                             []
-                                           ) ]
-                                       ) ]
-                                   ) ]
-                               )) ]
+                              (PT.MPFloat(409097457UL, Positive, "5", "6"),
+                               PT.EFloat(131187958UL, Positive, "5", "6"))
+                              (PT.MPTuple(
+                                1285610UL,
+                                PT.MPVariable(17823641UL, "a"),
+                                PT.MPVariable(58123641UL, "b"),
+                                [ PT.MPVariable(95723641UL, "c") ]
+                               ),
+                               PT.EBool(123716747UL, true)) ]
                           ),
                           PT.ELet(
-                            745304029UL,
-                            "m",
-                            PT.EMatch(
-                              889712088UL,
-                              PT.EFnCall(
-                                203239466UL,
-                                PT.FQFnName.Stdlib
-                                  { module_ = "Mod"
-                                    function_ = "function"
-                                    version = 2 },
-                                [],
-                                PT.NoRail
-                              ),
-                              [ (PT.MPConstructor(
-                                  1015986188UL,
-                                  "Ok",
-                                  [ PT.MPVariable(334386852UL, "x") ]
-                                 ),
-                                 PT.EVariable(863810169UL, "v"))
-                                (PT.MPInteger(928253813UL, 5L),
-                                 PT.EInteger(342670561UL, -9223372036854775808L))
-                                (PT.MPBool(435227293UL, true),
-                                 PT.EInteger(232748650UL, 7L))
-                                (PT.MPCharacter(387662539UL, "c"),
-                                 PT.ECharacter(657848009UL, "c"))
-                                (PT.MPString(491115870UL, "string"),
-                                 PT.EString(820329949UL, "string"))
-                                (PT.MPNull 701616052UL, PT.ENull 731162955UL)
-                                (PT.MPVariable(722099983UL, "var"),
-                                 PT.EInfix(
-                                   275666765UL,
-                                   PT.InfixFnCall(
-                                     { module_ = None; function_ = "+" },
-                                     PT.NoRail
-                                   ),
-                                   PT.EInteger(739193732UL, 6L),
-                                   PT.EVariable(880556562UL, "var")
-                                 ))
-                                (PT.MPFloat(409097457UL, Positive, "5", "6"),
-                                 PT.EFloat(131187958UL, Positive, "5", "6"))
-                                (PT.MPBlank 858594159UL, PT.EInteger(135348705UL, 6L))
-                                (PT.MPTuple(
-                                  1285610UL,
-                                  PT.MPVariable(17823641UL, "a"),
-                                  PT.MPVariable(58123641UL, "b"),
-                                  [ PT.MPVariable(95723641UL, "c") ]
-                                 ),
-                                 PT.EBool(123716747UL, true)) ]
+                            927055617UL,
+                            "f",
+                            PT.EFeatureFlag(
+                              882488977UL,
+                              "test",
+                              PT.EBool(349352147UL, true),
+                              PT.EInteger(578528886UL, 5L),
+                              PT.EInteger(562930224UL, 6L)
                             ),
                             PT.ELet(
-                              927055617UL,
-                              "f",
-                              PT.EFeatureFlag(
-                                882488977UL,
-                                "test",
-                                PT.EBool(349352147UL, true),
-                                PT.EInteger(578528886UL, 5L),
-                                PT.EInteger(562930224UL, 6L)
-                              ),
+                              6345345UL,
+                              "partials",
+                              PT.EList(23423423UL, []),
                               PT.ELet(
-                                6345345UL,
-                                "partials",
-                                PT.EList(
-                                  23423423UL,
-                                  [ PT.EPartial(2949606UL, "some 🤬 string", e)
-                                    PT.ERightPartial(9239755UL, "some 😭 string", e)
-                                    PT.ELeftPartial(
-                                      234885UL,
-                                      "some 👨‍👩‍👧‍👦 string",
-                                      e
-                                    ) ]
-                                ),
+                                883434UL,
+                                "tuples",
+                                PT.ETuple(72333UL, e, e, [ e ]),
                                 PT.ELet(
-                                  883434UL,
-                                  "tuples",
-                                  PT.ETuple(72333UL, e, e, [ e ]),
-                                  PT.ELet(
-                                    47462UL,
-                                    "binopAnd",
-                                    PT.EInfix(
-                                      234234UL,
-                                      PT.BinOp(PT.BinOpAnd),
-                                      PT.EBool(234234UL, true),
-                                      PT.EBool(234234UL, false)
-                                    ),
-                                    e
-                                  )
+                                  47462UL,
+                                  "binopAnd",
+                                  PT.EInfix(
+                                    234234UL,
+                                    PT.BinOp(PT.BinOpAnd),
+                                    PT.EBool(234234UL, true),
+                                    PT.EBool(234234UL, false)
+                                  ),
+                                  e
                                 )
                               )
                             )
@@ -454,7 +393,7 @@ module ProgramTypes =
                         PT.THttpResponse(
                           PT.TOption(
                             PT.TDbList(
-                              PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TNull))
+                              PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit))
                             )
                           )
                         )
@@ -464,7 +403,7 @@ module ProgramTypes =
                  ("int", PT.TInt)
                  ("float", PT.TFloat)
                  ("bool", PT.TBool)
-                 ("null", PT.TNull)
+                 ("null", PT.TUnit)
                  ("str", PT.TStr)
                  ("list", PT.TList(PT.TInt))
                  ("tuple", PT.TTuple(PT.TInt, PT.TStr, []))
@@ -478,7 +417,6 @@ module ProgramTypes =
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
-                 ("errorRail", PT.TErrorRail)
                  ("usertype", PT.TUserType("name", 0))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))
@@ -499,67 +437,45 @@ module ProgramTypes =
       { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
 
     module Spec =
-      let http = PT.Handler.HTTP("/path", "GET", ids)
-      let httpBasic = PT.Handler.HTTPBasic("/path-bytes", "GET", ids)
+      let http = PT.Handler.HTTP("/path-bytes", "GET", ids)
       let worker = PT.Handler.Worker("name", ids)
-      let oldWorker = PT.Handler.OldWorker("MODULE", "name", ids)
       let cronWithoutInterval = PT.Handler.Cron("name", None, ids)
 
       let cronWithInterval =
         PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
 
       let repl = PT.Handler.REPL("name", ids)
-      let unknown = PT.Handler.UnknownHandler("name", "", ids)
 
     let specs : List<PT.Handler.Spec> =
       [ Spec.http
-        Spec.httpBasic
         Spec.worker
-        Spec.oldWorker
         Spec.cronWithoutInterval
         Spec.cronWithInterval
-        Spec.repl
-        Spec.unknown ]
+        Spec.repl ]
 
-    let http : PT.Handler.T =
-      { spec = Spec.http; tlid = 92987663UL; ast = expr; pos = pos }
+    let http : PT.Handler.T = { spec = Spec.http; tlid = 42280663UL; ast = expr }
 
-    let httpBasic : PT.Handler.T =
-      { spec = Spec.httpBasic; tlid = 42280663UL; ast = expr; pos = pos }
+    let worker : PT.Handler.T = { spec = Spec.worker; tlid = 19930486UL; ast = expr }
 
-    let worker : PT.Handler.T =
-      { spec = Spec.worker; tlid = 19930486UL; ast = expr; pos = pos }
-
-    let oldWorker : PT.Handler.T =
-      { spec = Spec.oldWorker; tlid = 10438664321UL; ast = expr; pos = pos }
-
-    let repl : PT.Handler.T =
-      { spec = Spec.repl; tlid = 10395769302UL; ast = expr; pos = pos }
+    let repl : PT.Handler.T = { spec = Spec.repl; tlid = 10395769302UL; ast = expr }
 
     let cronWithoutInterval : PT.Handler.T =
-      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr; pos = pos }
+      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr }
 
     let cronWithInterval : PT.Handler.T =
-      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr; pos = pos }
-
-    let unknown : PT.Handler.T =
-      { spec = Spec.unknown; tlid = 13633UL; ast = expr; pos = pos }
+      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr }
 
     let handlersWithName : List<string * PT.Handler.T> =
-      [ "Http", http
-        "Worker", worker
+      [ "Worker", worker
         "Cron1", cronWithoutInterval
         "Cron2", cronWithInterval
         "REPL", repl
-        "Unknown", unknown
-        "OldWorker", oldWorker
-        "HttpBasic", httpBasic ]
+        "Http", http ]
 
     let handlers = List.map snd handlersWithName
 
   let userDB : PT.DB.T =
     { tlid = 0UL
-      pos = pos
       nameID = 2399545UL
       name = "User"
       version = 0
@@ -640,13 +556,12 @@ module ProgramTypes =
   let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(Handler.http.tlid, pos, Handler.http)
-      PT.CreateDB(tlid, pos, "name")
+    [ PT.SetHandler(Handler.http.tlid, Handler.http)
+      PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")
       PT.SetDBColType(tlid, id, "int")
       PT.DeleteTL tlid
-      PT.MoveTL(tlid, pos)
       PT.SetFunction(userFunction)
       PT.ChangeDBColName(tlid, id, "name")
       PT.ChangeDBColType(tlid, id, "int")
@@ -657,7 +572,7 @@ module ProgramTypes =
       PT.DeleteFunction tlid
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
-      PT.CreateDBWithBlankOr(tlid, pos, id, "User")
+      PT.CreateDBWithBlankOr(tlid, id, "User")
       PT.SetType(userType)
       PT.DeleteType tlid ]
 

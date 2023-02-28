@@ -1,15 +1,11 @@
 [fn.d datestr:string]
-(Date.parse_v2_ster datestr)
+(Date.parse_v2 datestr) |> Test.unwrap
 
 [fn.p datestr:string]
-(Date.parse_v2 datestr) |> Result.map_v0 (fun x -> Date.toString_v0 x)
+(Date.parse_v2 datestr) |> Result.map_v1 (fun x -> Date.toString_v0 x)
 
 [tests.date parsing]
-(Date.parse_v0 "2019-07-28T22:42:36Z") |> Date.toString_v0 = "2019-07-28T22:42:36Z"
-Date.parse_v0 "asd" = Test.typeError_v0 "Invalid date format"
-(Date.parse_v1 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
-Date.parse_v1 "asd" = Error "Invalid date format"
-(Date.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v0 (fun x -> Date.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
+(Date.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v1 (fun x -> Date.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
 Date.parse_v2 "asd" = Error "Invalid date format"
 
 // Parse in both
@@ -161,17 +157,8 @@ Date.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") 
 Date.year_v0 (d "2019-07-28T22:42:36Z") = 2019
 Date.month_v0 (d "2019-07-28T22:42:36Z") = 7
 Date.day_v0 (d "2019-07-28T22:42:36Z") = 28
-Date.hour_v0 (d "2019-07-28T22:42:36Z") = 22
-Date.hour_v1 (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
-Date.minute_v0 (d "2019-07-28T22:42:36Z") = 42
-Date.second_v0 (d "2019-07-28T22:42:36Z") = 36
-Date.second_v0 (d "1905-12-13T10:12:14Z") = -46
-Date.second_v0 (d "1965-04-24T09:54:28Z") = -32
-Date.second_v0  (d "1969-07-05T12:34:00Z") = 0
-Date.minute_v0  (d "1955-05-16T18:08:00Z") = -52
-Date.minute_v0  (d "1949-06-27T12:26:00Z") = -34
-Date.minute_v0  (d "1908-05-12T10:18:00Z") = -42
-
+Date.hour_v2 (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
+Date.minute_v1 (d "2019-07-28T22:42:36Z") = 42
 Date.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
 Date.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
 Date.weekday_v0 (d "2019-07-24T22:42:36Z") = 3
@@ -186,12 +173,8 @@ Date.year_v0 (d "1919-07-28T22:42:36Z") = 1919
 Date.month_v0 (d "1919-07-28T22:42:36Z") = 7
 Date.day_v0 (d "1919-07-28T22:42:36Z") = 28
 Date.weekday_v0 (d "1919-07-28T22:42:36Z") = 1
-Date.hour_v0 (d "1919-07-28T22:42:36Z") = -37
-Date.hour_v1 (d "1919-12-27T03:27:36Z")  = -20
 Date.hour_v2 (d "1919-12-27T03:27:36Z")  = 3
-Date.minute_v0 (d "1919-07-28T22:42:36Z") = -17
 Date.minute_v1 (d "1919-07-28T22:42:36Z") = 42
-Date.second_v0 (d "1919-07-28T22:42:36Z") = -24
 Date.second_v1 (d "1919-07-28T22:42:36Z") = 36
 
 [tests.date before the epoch is negative: 1969]
@@ -199,12 +182,8 @@ Date.year_v0 (d "1969-07-28T22:42:36Z") = 1969
 Date.month_v0 (d "1969-07-28T22:42:36Z") = 7
 Date.day_v0 (d "1969-07-28T22:42:36Z") = 28
 Date.weekday_v0 (d "1969-07-28T22:42:36Z") = 1
-Date.hour_v0 (d "1969-07-28T22:42:36Z") = -25
-Date.hour_v1 (d "1969-12-27T03:27:36Z")  = -20
 Date.hour_v2 (d "1969-12-27T03:27:36Z")  = 3
-Date.minute_v0 (d "1969-07-28T22:42:36Z") = -17
 Date.minute_v1 (d "1969-07-28T22:42:36Z") = 42
-Date.second_v0 (d "1969-07-28T22:42:36Z") = -24
 Date.second_v1 (d "1969-07-28T22:42:36Z") = 36
 
 [tests.date before the epoch is negative: 1970]
@@ -212,13 +191,11 @@ Date.year_v0    (d "1970-07-28T22:42:36Z") = 1970
 Date.month_v0   (d "1970-07-28T22:42:36Z") = 7
 Date.day_v0     (d "1970-07-28T22:42:36Z") = 28
 Date.weekday_v0 (d "1970-07-28T22:42:36Z") = 2
-Date.hour_v0    (d "1970-07-28T22:42:36Z") = 34
-Date.hour_v1    (d "1970-12-27T03:27:36Z")  = 3
 Date.hour_v2    (d "1970-12-27T03:27:36Z")  = 3
-Date.minute_v0  (d "1970-07-28T22:42:36Z") = 42
-Date.minute_v0  (d "1970-07-28T22:42:36Z") = 42
-Date.second_v0  (d "1970-07-28T22:42:36Z") = 36
-Date.second_v0  (d "1970-07-28T22:42:36Z") = 36
+Date.minute_v1  (d "1970-07-28T22:42:36Z") = 42
+Date.minute_v1  (d "1970-07-28T22:42:36Z") = 42
+Date.second_v1  (d "1970-07-28T22:42:36Z") = 36
+Date.second_v1  (d "1970-07-28T22:42:36Z") = 36
 
 [tests.date conversion]
 Date.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
@@ -233,10 +210,6 @@ Date.toStringISO8601BasicDate_v0 (d "1069-07-28T22:42:36Z") = "10690728"
 // d "2019-07-28T22:42:36Z" |> Date.toSeconds_v0 |> Date.fromSeconds_v0 |> toString_v0 = "2019-07-28T22:42:36Z"
 // Date.today_v0 |> toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
 
-[tests.date human readable don't work]
-Date.toHumanReadable_v0 (d "2021-07-02T17:42:36Z") = "18 days, 19 hours, 27 minutes"
-Date.toHumanReadable_v0 (d "1970-01-01T00:00:00Z") = "less than a minute"
-
 [tests.date adding seconds]
 Date.add_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
 Date.add_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:47Z")
@@ -245,11 +218,6 @@ Date.add_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-12-07T18:24:26Z")
 Date.add_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:36Z")
 
 [tests.date subtracting seconds]
-Date.subtract_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
-Date.subtract_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:45Z")
-Date.subtract_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:36Z")
-Date.subtract_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-11-14T14:51:06Z")
-Date.subtract_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:56Z")
 Date.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
 Date.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:45Z")
 Date.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:36Z")

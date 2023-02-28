@@ -26,25 +26,6 @@ let listMigrations () : unit =
   LibBackend.Migrations.migrationsToRun ()
   |> List.iter (fun name -> print $" - {name}")
 
-/// Given a username, returns a cookie to use to access Canvases
-///
-/// Mostly available for when Auth0 is down
-let emergencyLogin (username : string) : Task<unit> =
-  task {
-    print $"Generating a cookie for {LibBackend.Config.cookieDomain}"
-    // validate the user exists
-    let username = UserName.create username
-    let! _user = LibBackend.Account.getUser username
-    let! authData = LibBackend.Session.insert username
-    print
-      $"See docs/emergency-login.md for instructions. Your values are
-  Name = __session
-  Value = {authData.sessionKey}
-  Domain = {LibBackend.Config.cookieDomain}
-  (note: initial dot is _important_)"
-    return ()
-  }
-
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
 let triggerRollbar () : unit =
   let tags = [ "int", 6 :> obj; "string", "string"; "float", -0.6; "bool", true ]
@@ -71,7 +52,6 @@ let triggerPagingRollbar () : int =
 
 let help () : unit =
   [ "USAGE:"
-    "  ExecHost emergency-login <user>"
     "  ExecHost migrations list"
     "  ExecHost migrations run"
     "  ExecHost trigger-rollbar"
@@ -82,7 +62,6 @@ let help () : unit =
   |> print
 
 type Options =
-  | EmergencyLogin of string
   | MigrationList
   | MigrationsRun
   | TriggerRollbar
@@ -94,7 +73,6 @@ type Options =
 
 let parse (args : string []) : Options =
   match args with
-  | [| "emergency-login"; username |] -> EmergencyLogin username
   | [| "migrations"; "list" |] -> MigrationList
   | [| "migrations"; "run" |] -> MigrationsRun
   | [| "trigger-rollbar" |] -> TriggerRollbar
@@ -106,7 +84,6 @@ let parse (args : string []) : Options =
 
 let usesDB (options : Options) =
   match options with
-  | EmergencyLogin _
   | MigrationList
   | MigrationsRun -> true
   | TriggerRollbar
@@ -141,11 +118,6 @@ let run (options : Options) : Task<int> =
     Rollbar.notify "execHost called" [ "options", string options ]
 
     match options with
-
-    | EmergencyLogin username ->
-      Rollbar.notify "emergencyLogin called" [ "username", username ]
-      do! emergencyLogin username
-      return 0
 
     | MigrationList ->
       listMigrations ()
@@ -192,20 +164,17 @@ let initSerializers () =
   // we probably don't need most of these, but it's key that ExecHost doesn't ever
   // fail, so we're extra-cautious, and include _everything_.
   Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Position> "Canvas.saveTLIDs"
-  Json.Vanilla.allow<LibExecution.DvalReprInternalNew.RoundtrippableSerializationFormatV0.Dval>
+  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
   Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
-  Json.Vanilla.allow<LibBackend.Session.JsonData> "LibBackend session db storage"
   Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads
   Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.NewStaticDeploy> "Pusher"
   Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
   Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
   //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused

@@ -22,7 +22,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
-let parse = FSharpToExpr.parseRTExpr
+let parse = Parser.parseRTExpr
 
 let executionStateForPreview
   (name : string)
@@ -81,30 +81,6 @@ let testExecFunctionTLIDs : Test =
   }
 
 
-let testErrorRailUsedInAnalysis : Test =
-  testTask
-    "When a function isn't available on the client, but has analysis data, we need to make sure we process the errorrail functions correctly" {
-    let! meta = createTestCanvas (Randomized "testErrorRailsUsedInAnalysis")
-    let! state = executionStateFor meta Map.empty Map.empty
-
-    let loadTraceResults _ _ =
-      Some(DOption(Some(DInt 12345L)), NodaTime.Instant.now ())
-
-    let state =
-      { state with
-          tracing =
-            { state.tracing with
-                loadFnResult = loadTraceResults
-                realOrPreview = Preview } }
-
-    let inputVars = Map.empty
-    let ast = eFnRail "" "fake_test_fn" 0 [ eInt 4; eInt 5 ]
-
-    let! result = Exe.executeExpr state inputVars ast
-
-    Expect.equal result (DInt 12345L) "is on the error rail"
-  }
-
 let testOtherDbQueryFunctionsHaveAnalysis : Test =
   testTask
     "The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends." {
@@ -136,20 +112,6 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
   }
 
 
-let testListLiterals : Test =
-  testTask "Blank in a list evaluates to Incomplete" {
-    let id = gid ()
-    let ast = eList [ eInt 1; EBlank id ]
-    let! (results : AT.AnalysisResults) =
-      execSaveDvals "blank is incomplete" [] [] ast
-
-    return
-      match Dictionary.get id results with
-      | Some (AT.ExecutedResult (DIncomplete _)) -> Expect.isTrue true ""
-      | _ -> Expect.isTrue false ""
-  }
-
-
 let testRecursionInEditor : Test =
   testTask "execution avoids recursion in editor" {
     let callerID = gid ()
@@ -163,8 +125,7 @@ let testRecursionInEditor : Test =
         PT.EFnCall(
           gid (),
           PTParser.FQFnName.stdlibFqName "" "<" 0,
-          [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ],
-          PT.NoRail
+          [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ]
         ),
 
         // 'then' expression
@@ -175,13 +136,12 @@ let testRecursionInEditor : Test =
         PT.EFnCall(
           skippedCallerID,
           PTParser.FQFnName.userFqName "recurse",
-          [ PT.EInteger(gid (), 2) ],
-          PT.NoRail
+          [ PT.EInteger(gid (), 2) ]
         )
       )
 
     let recurse = testUserFn "recurse" [ "i" ] fnExpr |> PT2RT.UserFunction.toRT
-    let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe, NoRail)
+    let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe)
     let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 
     Expect.equal
@@ -198,11 +158,11 @@ let testRecursionInEditor : Test =
   }
 
 let testIfPreview : Test =
+  let ifID = gid ()
+  let thenID = gid ()
+  let elseID = gid ()
   let f cond =
     task {
-      let ifID = gid ()
-      let thenID = gid ()
-      let elseID = gid ()
       let ast = EIf(ifID, cond, EString(thenID, "then"), EString(elseID, "else"))
       let! results = execSaveDvals "if-preview" [] [] ast
 
@@ -224,7 +184,7 @@ let testIfPreview : Test =
   //
   // - the first part is "what does the if/then expression evaluate to?"
   //   If the condition is 'truthy', then the expression will return "then"
-  //   Otherwise it willll turn "else"
+  //   Otherwise it will turn "else"
   //
   // - the other two parts correspond to the `then` and `else` branches of the if condition.
   //   if the first is an `ExecutedResult` and the second is a `NonExecutedResult`,
@@ -237,17 +197,13 @@ let testIfPreview : Test =
        (AT.ExecutedResult(DStr "else"),
         AT.NonExecutedResult(DStr "then"),
         AT.ExecutedResult(DStr "else")))
-      (eNull (),
-       (AT.ExecutedResult(DStr "else"),
-        AT.NonExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "else")))
-      // fakevals
-      (eFn "Test" "errorRailValue" 0 [ eConstructor "Nothing" [] ],
-       (AT.ExecutedResult(DErrorRail(DOption None)),
+      (eUnit (),
+       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
         AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
-      (EBlank 999UL,
-       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
+      // fakevals
+      (eFn "Test" "typeError" 0 [ eStr "test" ],
+       (AT.ExecutedResult(DError(SourceNone, "test")),
         AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
       // others are true
@@ -256,12 +212,12 @@ let testIfPreview : Test =
         AT.ExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
       (eInt 5,
-       (AT.ExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "then"),
+       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+        AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
       (eStr "test",
-       (AT.ExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "then"),
+       (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
+        AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else"))) ]
 
 let testOrPreview : Test =
@@ -300,23 +256,6 @@ let testOrPreview : Test =
        (AT.ExecutedResult(DBool true),
         AT.NonExecutedResult(DBool true),
         AT.ExecutedResult(DBool true)))
-      // fakevals
-      ((eBool false, EBlank 999UL),
-       (AT.ExecutedResult(DBool false),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
-      ((eBool true, EBlank 999UL),
-       (AT.ExecutedResult(DBool true),
-        AT.NonExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.ExecutedResult(DBool true)))
-      ((EBlank 999UL, eBool false),
-       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.NonExecutedResult(DBool false),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
-      ((EBlank 999UL, eBool true),
-       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.NonExecutedResult(DBool true),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
       // strings
       ((eBool false, eStr "test"),
        (AT.ExecutedResult(DBool false),
@@ -371,23 +310,6 @@ let testAndPreview : Test =
        (AT.ExecutedResult(DBool true),
         AT.ExecutedResult(DBool true),
         AT.ExecutedResult(DBool true)))
-      // fakevals
-      ((eBool false, EBlank 999UL),
-       (AT.ExecutedResult(DBool false),
-        AT.NonExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.ExecutedResult(DBool false)))
-      ((eBool true, EBlank 999UL),
-       (AT.ExecutedResult(DBool true),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
-      ((EBlank 999UL, eBool false),
-       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.NonExecutedResult(DBool false),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
-      ((EBlank 999UL, eBool true),
-       (AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL))),
-        AT.NonExecutedResult(DBool true),
-        AT.ExecutedResult(DIncomplete(SourceID(7UL, 999UL)))))
       // strings
       ((eBool false, eStr "test"),
        (AT.ExecutedResult(DBool false),
@@ -441,14 +363,6 @@ let testFeatureFlagPreview : Test =
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new")))
-      (eFn "Test" "errorRailValue" 0 [ eConstructor "Nothing" [] ],
-       (AT.ExecutedResult(DStr "old"),
-        AT.ExecutedResult(DStr "old"),
-        AT.NonExecutedResult(DStr "new")))
-      (eBlank (),
-       (AT.ExecutedResult(DStr "old"),
-        AT.ExecutedResult(DStr "old"),
-        AT.NonExecutedResult(DStr "new")))
       (eInt 5,
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
@@ -457,7 +371,7 @@ let testFeatureFlagPreview : Test =
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new")))
-      (eNull (),
+      (eUnit (),
        (AT.ExecutedResult(DStr "old"),
         AT.ExecutedResult(DStr "old"),
         AT.NonExecutedResult(DStr "new"))) ]
@@ -504,9 +418,7 @@ let testMatchPreview : Test =
   let pFloatId, floatRhsId = gid (), gid ()
   let pBoolId, boolRhsId = gid (), gid ()
   let pStrId, strRhsId = gid (), gid ()
-  let pNullId, nullRhsId = gid (), gid ()
-  let pBlankId, blankRhsId = gid (), gid ()
-  let pOkBlankOkId, pOkBlankBlankId, okBlankRhsId = gid (), gid (), gid ()
+  let pUnitId, unitRhsId = gid (), gid ()
 
   let (pOkVarOkId,
        pOkVarVarId,
@@ -532,15 +444,8 @@ let testMatchPreview : Test =
       // | "myStr" -> "str"
       (MPString(pStrId, "myStr"), EString(strRhsId, "str"))
 
-      // | null -> "null"
-      (MPNull(pNullId), EString(nullRhsId, "null"))
-
-      // | _ -> "blank" (should never been matched)
-      (MPBlank(pBlankId), EString(blankRhsId, "blank"))
-
-      // | Ok _ -> "ok blank"
-      (MPConstructor(pOkBlankOkId, "Ok", [ MPBlank pOkBlankBlankId ]),
-       EString(okBlankRhsId, "ok blank"))
+      // | () -> "unit"
+      (MPUnit(pUnitId), EString(unitRhsId, "unit"))
 
       // | Ok x -> "ok: " ++ x
       (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
@@ -551,8 +456,7 @@ let testMatchPreview : Test =
            PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
          ),
          [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
-         NotInPipe,
-         NoRail
+         NotInPipe
        ))
 
       // | None -> "constructor nothing"
@@ -653,21 +557,17 @@ let testMatchPreview : Test =
           (pBoolId, "bool pat", ner (DBool false))
           (boolRhsId, "bool rhs", ner (DStr "bool"))
 
-          (pNullId, "null pat", ner DNull)
-          (nullRhsId, "null rhs", ner (DStr "null"))
+          (pUnitId, "unit pat", ner DUnit)
+          (unitRhsId, "unit rhs", ner (DStr "unit"))
 
           (pOkVarOkId, "ok var pat ok", ner (inc pOkVarOkId))
           (pOkVarVarId, "ok var pat var", ner (inc pOkVarVarId))
-          (okVarRhsId, "ok var pat rhs", ner (inc okVarRhsVarId))
-          (okVarRhsVarId, "ok var rhs var", ner (inc okVarRhsVarId))
+          (okVarRhsId, "ok var pat rhs", ner (inc pOkVarVarId))
+          (okVarRhsVarId, "ok var rhs var", ner (inc pOkVarVarId))
           (okVarRhsStrId, "ok var rhs str", ner (DStr "ok: "))
 
           (pNothingId, "nothing pat", ner (DOption None))
           (nothingRhsId, "nothing pat rhs", ner (DStr "constructor nothing"))
-
-          (pOkBlankOkId, "ok blank pat ok", ner (inc pOkBlankOkId))
-          (pOkBlankBlankId, "ok blank pat blank", ner (inc pOkBlankBlankId))
-          (okBlankRhsId, "ok blank rhs", ner (DStr "ok blank"))
 
           (pVarId, "catch all pat", er (DInt 6L))
           (varRhsId, "catch all rhs", er (DInt 6L)) ]
@@ -684,17 +584,14 @@ let testMatchPreview : Test =
         [ (pBoolId, "pat", er (DBool false)); (boolRhsId, "rhs", er (DStr "bool")) ]
 
       t
-        "null"
-        (eNull ())
-        [ (pNullId, "pat", er DNull); (nullRhsId, "rhs", er (DStr "null")) ]
+        "unit"
+        (eUnit ())
+        [ (pUnitId, "pat", er DUnit); (unitRhsId, "rhs", er (DStr "unit")) ]
 
       t
         "ok: y"
         (eConstructor "Ok" [ eStr "y" ])
-        [ (pOkBlankOkId, "ok pat 1", ner (inc pOkBlankOkId))
-          (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
-          (okBlankRhsId, "rhs", ner (DStr "ok blank"))
-          (pOkVarOkId, "ok pat 2", er (DResult(Ok(DStr "y"))))
+        [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DStr "y"))))
 
           (binopFnValId,
            "fnval",
@@ -711,18 +608,6 @@ let testMatchPreview : Test =
           (okVarRhsStrId, "str", er (DStr "ok: ")) ]
 
       t
-        "ok: blank"
-        (eConstructor "Ok" [ EBlank(gid ()) ])
-        [ (pOkBlankOkId, "blank pat", ner (inc pOkBlankOkId))
-          (pOkBlankBlankId, "blank pat", ner (inc pOkBlankBlankId))
-          (okBlankRhsId, "blank rhs", ner (DStr "ok blank"))
-          (pOkVarOkId, "ok pat", ner (inc pOkVarOkId))
-          (pOkVarVarId, "var pat", ner (inc pOkVarVarId))
-          (okVarRhsId, "rhs", ner (inc okVarRhsVarId))
-          (okVarRhsVarId, "rhs var", ner (inc okVarRhsVarId))
-          (okVarRhsStrId, "str", ner (DStr "ok: ")) ]
-
-      t
         "nothing"
         (eConstructor "Nothing" [])
         [ (pNothingId, "ok pat", er (DOption None))
@@ -736,8 +621,7 @@ let testMatchPreview : Test =
 let tests =
   testList
     "ExecutionUnitTests"
-    [ testListLiterals
-      testRecursionInEditor
+    [ testRecursionInEditor
       testIfPreview
       testOrPreview
       testAndPreview
@@ -745,5 +629,4 @@ let tests =
       testFeatureFlagPreview
       testMatchPreview
       testExecFunctionTLIDs
-      testErrorRailUsedInAnalysis
       testOtherDbQueryFunctionsHaveAnalysis ]

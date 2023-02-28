@@ -23,7 +23,7 @@ module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
 
 
-let p (code : string) = FSharpToExpr.parsePTExpr code
+let p (code : string) = Parser.parsePTExpr code
 
 
 let testGetWorkerSchedulesForCanvas =

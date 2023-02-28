@@ -25,8 +25,6 @@ let serializationDir = $"{backendDir}serialization/"
 // -------------------------
 // Configurable dirs
 // -------------------------
-let templatesDir = absoluteDir "DARK_CONFIG_TEMPLATES_DIR"
-
 let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
 
 let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
@@ -34,12 +32,6 @@ let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 // -------------------------
 // Web configuration
 // -------------------------
-let apiServerServeStaticContent = bool "DARK_CONFIG_APISERVER_SERVE_STATIC_CONTENT"
-
-let apiServerStaticHost = string "DARK_CONFIG_APISERVER_STATIC_HOST"
-
-let cookieDomain = string "DARK_CONFIG_COOKIE_DOMAIN"
-
 let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
 
 // -------------------------
@@ -54,7 +46,6 @@ let httpclientProxyUrl = string "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL"
 
 type Root =
   | Serialization
-  | Templates
   | Webroot
   | Testdata
   | Migrations
@@ -63,7 +54,6 @@ type Root =
 let dir (root : Root) : string =
   match root with
   | Serialization -> serializationDir
-  | Templates -> templatesDir
   | Webroot -> webrootDir
   | Testdata -> testdataDir
   | Migrations -> migrationsDir
@@ -175,9 +165,5 @@ let traceStorageCredentials =
 let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"
 
 let browserReloadEnabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
-
-let hashStaticFilenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
-
-let staticAssetsSaltSuffix = string "DARK_CONFIG_STATIC_ASSETS_SALT_SUFFIX"
 
 let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"

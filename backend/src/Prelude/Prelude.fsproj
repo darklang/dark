@@ -5,7 +5,9 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>6.0</LangVersion>
     <OtherFlags>--warnaserror</OtherFlags>
+    <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
+    <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />

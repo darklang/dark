@@ -62,7 +62,6 @@ module InitialLoad =
         userTypes : List<Program.UserType.T>
         deletedUserTypes : List<Program.UserType.T>
         unlockedDBs : List<tlid>
-        staticDeploys : List<StaticDeploy.T>
         permission : Option<Authorization.Permission>
         opCtrs : Map<System.Guid, int>
         account : Authorization.UserInfo

@@ -145,10 +145,7 @@ def main():
 
   if should_watch:
     import watchfiles
-    ignored = [
-        ".git", "_build", "_esy", "node_modules", "integration-tests/node_modules",
-        "backend/static", "lib", "backend/Build"
-    ]
+    ignored = [ ".git", "backend/Build" ]
     ignored = set(["/home/dark/app/" + f for f in ignored])
     filter = watchfiles.DefaultFilter(ignore_paths=ignored)
     for changes in watchfiles.watch("/home/dark/app/", watch_filter=filter):

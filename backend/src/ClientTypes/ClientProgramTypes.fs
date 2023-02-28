@@ -12,8 +12,6 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-type Position = { x : int; y : int }
-
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
@@ -41,21 +39,16 @@ type MatchPattern =
   | MPCharacter of id * string
   | MPString of id * string
   | MPFloat of id * Sign * string * string
-  | MPNull of id
-  | MPBlank of id
+  | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
-
-type SendToRail =
-  | Rail
-  | NoRail
 
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr
 
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | InfixFnCall of FQFnName.InfixStdlibFnName
   | BinOp of BinaryOperation
 
 type Expr =
@@ -64,18 +57,14 @@ type Expr =
   | EString of id * string
   | ECharacter of id * string
   | EFloat of id * Sign * string * string
-  | ENull of id
-  | EBlank of id
+  | EUnit of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * List<Expr> * SendToRail
-  | EPartial of id * string * Expr
-  | ERightPartial of id * string * Expr
-  | ELeftPartial of id * string * Expr
+  | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
@@ -90,7 +79,7 @@ type DType =
   | TInt
   | TFloat
   | TBool
-  | TNull
+  | TUnit
   | TStr
   | TList of DType
   | TTuple of DType * DType * List<DType>
@@ -104,7 +93,6 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TErrorRail
   | TUserType of string * int
   | TBytes
   | TResult of DType * DType
@@ -128,14 +116,11 @@ module Handler =
 
   type Spec =
     | HTTP of route : string * method : string * ids : ids
-    | HTTPBasic of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
-    | OldWorker of modulename : string * name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
-    | UnknownHandler of string * string * ids
 
-  type T = { tlid : tlid; pos : Position; ast : Expr; spec : Spec }
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 
 module DB =
@@ -143,7 +128,6 @@ module DB =
 
   type T =
     { tlid : tlid
-      pos : Position
       name : string
       nameID : id
       version : int
@@ -189,13 +173,12 @@ type Toplevel =
   | TLType of UserType.T
 
 type Op =
-  | SetHandler of tlid * Position * Handler.T
-  | CreateDB of tlid * Position * string
+  | SetHandler of tlid * Handler.T
+  | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
   | DeleteTL of tlid
-  | MoveTL of tlid * Position
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
   | ChangeDBColType of tlid * id * string
@@ -206,7 +189,7 @@ type Op =
   | DeleteFunction of tlid
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * Position * id * string
+  | CreateDBWithBlankOr of tlid * id * string
   | SetType of UserType.T
   | DeleteType of tlid
 

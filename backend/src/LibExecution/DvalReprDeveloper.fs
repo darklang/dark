@@ -14,7 +14,7 @@ let rec typeName (t : DType) : string =
   | TInt -> "Int"
   | TFloat -> "Float"
   | TBool -> "Bool"
-  | TNull -> "Null"
+  | TUnit -> "Unit"
   | TChar -> "Character"
   | TStr -> "Str" // CLEANUP change to String
   | TList _ -> "List"
@@ -22,7 +22,7 @@ let rec typeName (t : DType) : string =
   | TDict _ -> "Dict"
   | TRecord _ -> "Dict"
   | TFn _ -> "Block"
-  | TVariable varname -> "Any"
+  | TVariable _varname -> "Any"
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
@@ -31,24 +31,12 @@ let rec typeName (t : DType) : string =
   | TPassword -> "Password"
   | TUuid -> "UUID"
   | TOption _ -> "Option"
-  | TErrorRail -> "ErrorRail"
   | TResult _ -> "Result"
   | TUserType (name, _) -> name
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName
 
-
-let private ocamlStringOfFloat (f : float) : string =
-  if System.Double.IsPositiveInfinity f then
-    "inf"
-  else if System.Double.IsNegativeInfinity f then
-    "-inf"
-  else if System.Double.IsNaN f then
-    "nan"
-  else
-    let result = sprintf "%.12g" f
-    if result.Contains "." then result else $"{result}."
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
 /// For printing something for the developer to read, as a live-value, error
@@ -76,8 +64,17 @@ let toRepr (dv : Dval) : string =
     | DInt i -> string i
     | DBool true -> "true"
     | DBool false -> "false"
-    | DFloat f -> ocamlStringOfFloat f
-    | DNull -> "null"
+    | DFloat f ->
+      if System.Double.IsPositiveInfinity f then
+        "Infinity"
+      else if System.Double.IsNegativeInfinity f then
+        "-Infinity"
+      else if System.Double.IsNaN f then
+        "NaN"
+      else
+        let result = sprintf "%.12g" f
+        if result.Contains "." then result else $"{result}.0"
+    | DUnit -> "unit"
     | DFnVal _ ->
       // TODO: we should print this, as this use case is safe
       // See docs/dblock-serialization.ml
@@ -93,7 +90,7 @@ let toRepr (dv : Dval) : string =
         headers
         |> List.map (fun (k, v) -> k + ": " + v)
         |> String.concat ", "
-        |> fun s -> "{ " + s + " }"
+        |> fun s -> "{" + s + "}"
 
       $"{code} {headerString}" + nl + toRepr_ indent hdv
     | DList l ->
@@ -121,7 +118,6 @@ let toRepr (dv : Dval) : string =
     | DOption (Some dv) -> "Just " + toRepr_ indent dv
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
-    | DErrorRail dv -> "ErrorRail: " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
 
   toRepr_ 0 dv

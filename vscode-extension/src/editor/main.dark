@@ -1,0 +1,3 @@
+match command with
+| "InitialLoad" -> "init2"
+| command -> "Unknown command: " ++ command

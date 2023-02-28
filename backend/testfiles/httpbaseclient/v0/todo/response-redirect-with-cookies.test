@@ -15,8 +15,8 @@ Location: /v0/response-redirect-dest-with-cookies
 
 [test]
 (let reqHeaders = { Cookie = "yummy_cookie=choco; tasty_cookie=strawberry" }
- let response = HttpBaseClient.request_ster "get" "http://URL" {} reqHeaders
- let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
+ let response = (HttpBaseClient.request "get" "http://URL" {} reqHeaders) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached with cookies"
      statusCode = 200

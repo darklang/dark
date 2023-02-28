@@ -13,7 +13,7 @@ open Tablecloth
 
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternalDeprecated = LibExecution.DvalReprInternalDeprecated
+module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 
 // -------------------------
 // External
@@ -39,9 +39,7 @@ let store
                         "tlid", Sql.tlid tlid
                         ("args",
                          Sql.string (
-                           DvalReprInternalDeprecated.toInternalRoundtrippableV0 (
-                             RT.DObj args
-                           )
+                           DvalReprInternalRoundtrippable.toJsonV0 (RT.DObj args)
                          )) ]
     |> Sql.executeStatementAsync
 
@@ -61,9 +59,7 @@ let storeMany
           "tlid", Sql.tlid tlid
           "timestamp", Sql.instantWithTimeZone timestamp
           ("args",
-           Sql.string (
-             DvalReprInternalDeprecated.toInternalRoundtrippableV0 (RT.DObj args)
-           )) ])
+           Sql.string (DvalReprInternalRoundtrippable.toJsonV0 (RT.DObj args))) ])
       |> ResizeArray.toList
 
     LibService.DBConnection.connect ()
@@ -104,8 +100,7 @@ let loadForAnalysis
     match result with
     | None -> return None
     | Some (arguments_json, timestamp) ->
-      let arguments =
-        DvalReprInternalDeprecated.ofInternalRoundtrippableV0 arguments_json
+      let arguments = DvalReprInternalRoundtrippable.parseJsonV0 arguments_json
       let arguments =
         arguments
         |> RT.Dval.toPairs

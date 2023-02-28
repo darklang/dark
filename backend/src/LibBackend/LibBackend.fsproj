@@ -24,7 +24,6 @@
     <Compile Include="Account.fs" />
     <Compile Include="Authorization.fs" />
     <Compile Include="Analytics.fs" />
-    <Compile Include="Session.fs" />
     <Compile Include="Routing.fs" />
     <Compile Include="SqlCompiler.fs" />
     <Compile Include="UserDB.fs" />
@@ -34,7 +33,6 @@
     <Compile Include="TraceFunctionResults.fs" />
     <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="TraceCloudStorage.fs" />
-    <Compile Include="StaticAssets.fs" />
     <Compile Include="Op.fs" />
     <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />

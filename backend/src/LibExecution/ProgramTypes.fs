@@ -5,8 +5,6 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-type Position = { x : int; y : int }
-
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
@@ -45,22 +43,15 @@ type MatchPattern =
   | MPCharacter of id * string
   | MPString of id * string
   | MPFloat of id * Sign * string * string
-  | MPNull of id
-  | MPBlank of id
+  | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
-/// Whether a function's result is unwrapped automatically (and, in the case of
-/// Error/Nothing, sent to the error rail). NoRail functions are not unwrapped.
-type SendToRail =
-  | Rail
-  | NoRail
 
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr
 
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | InfixFnCall of FQFnName.InfixStdlibFnName
   | BinOp of BinaryOperation
 
 /// Expressions - the main part of the language.
@@ -75,8 +66,7 @@ type Expr =
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
-  | ENull of id
-  | EBlank of id
+  | EUnit of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
@@ -85,45 +75,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * List<Expr> * SendToRail
-  // An EPartial holds the intermediate state of user-input when changing from
-  // one expression to another. The [string] is the exact text that has been
-  // entered and the [t] is the old expression that is being changed.
-  //
-  // Examples:
-  // - When filling in an EBlank by typing `Str` an EPartial (id, "Str", EBlank (...)) is used.
-  // - When changing the EFnCall of "String::append" by deleting a character
-  //   from the end, an EPartial (id, "String::appen", EFnCall _) would
-  //   be created.
-  //
-  // EPartial is usually rendered as just the string part, but sometimes when
-  // wrapping certain kinds of expressions will be rendered in unique ways.
-  // Eg, an EPartial wrapping an EFnCall will render the arguments of the old
-  // EFnCall expression after the string. See FluidPrinter for specifics.
-  | EPartial of id * string * Expr
-  // An ERightPartial is used while in the process of adding an EInfix,
-  // allowing for typing multiple characters as operators (eg, "++") after an
-  // expression. The [string] holds the typed characters while the [t] holds
-  // the LHS of the binop.
-  //
-  // Example:
-  // Typing `"foo" ++` creates ERightPartial (id, "++", EString (_, "foo"))
-  // until the autocomplete of "++" is accepted, transforming the ERightPartial
-  // into a proper EInfix.
-  //
-  // ERightPartial is rendered as the old expression followed by the string.
-  | ERightPartial of id * string * Expr
-  // ELeftPartial allows typing to prepend a construct to an existing
-  // expression. The [string] holds the typed text, while the [t] holds the
-  // existing expression to the right.
-  //
-  // Example:
-  // On an existing line with `String::append "a" "b"` (a EFnCall), typing `if` at the beginning of the line
-  // will create a ELeftPartial (id, "if", EFnCall _). Accepting autocomplete
-  // of `if` would wrap the EFnCall into an EIf.
-  //
-  // ELeftPartial is rendered as the string followed by the normal rendering of the old expression.
-  | ELeftPartial of id * string * Expr
+  | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
@@ -143,7 +95,7 @@ type DType =
   | TInt
   | TFloat
   | TBool
-  | TNull
+  | TUnit
   | TStr
   | TList of DType
   | TTuple of DType * DType * List<DType>
@@ -157,7 +109,6 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TErrorRail
   | TUserType of string * int
   | TBytes
   | TResult of DType * DType
@@ -186,19 +137,11 @@ module Handler =
 
   type Spec =
     | HTTP of route : string * method : string * ids : ids
-    | HTTPBasic of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
-    // Deprecated but still supported form
-    // CLEANUP: convert these into regular workers (change module name to WORKER,
-    // check if they're unique first though)
-    | OldWorker of modulename : string * name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
-    // If there's no module
-    // CLEANUP: convert these into repl and get rid of this case
-    | UnknownHandler of string * string * ids
 
-  type T = { tlid : tlid; pos : Position; ast : Expr; spec : Spec }
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 
 module DB =
@@ -206,7 +149,6 @@ module DB =
 
   type T =
     { tlid : tlid
-      pos : Position
       name : string
       nameID : id
       version : int
@@ -262,13 +204,12 @@ module Toplevel =
 /// "Op" is an abbreviation for Operation,
 /// and is preferred throughout code and documentation.
 type Op =
-  | SetHandler of tlid * Position * Handler.T
-  | CreateDB of tlid * Position * string
+  | SetHandler of tlid * Handler.T
+  | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
   | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | MoveTL of tlid * Position
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
   | ChangeDBColType of tlid * id * string
@@ -279,7 +220,7 @@ type Op =
   | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * Position * id * string
+  | CreateDBWithBlankOr of tlid * id * string
   | SetType of UserType.T
   | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
 

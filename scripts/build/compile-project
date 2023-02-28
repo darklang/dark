@@ -6,7 +6,7 @@ set -euo pipefail
 usage() {
     echo "usage: compile-project [name of project] [--test] [--optimize]
 Compiles a dark project. Options are:
-client, backend, shipit, all.
+client, all.
   --test: runs tests
   --optimize: adds --optimize, if appropriate
 "
@@ -14,8 +14,6 @@ client, backend, shipit, all.
 
 declare -A files
 files["backend"]="backend/global.json"
-files["client"]="package.json client/src/Types.res client/styles/app.scss client/test/ast_test.res"
-files["shipit"]="scripts/deployment/requirements.txt scripts/deployment/shipit"
 for v in "${files[@]}"; do
   files["all"]+=" $v"
 done
@@ -26,7 +24,7 @@ testfiles=""
 
 for cmd in "$@"; do
   case $cmd in
-    backend | client | shipit | all)
+    backend | all)
       testfiles="${testfiles} ${files[$cmd]}"
       ;;
     --test )

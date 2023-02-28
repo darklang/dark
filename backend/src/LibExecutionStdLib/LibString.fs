@@ -38,27 +38,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "foreach" 0
-      parameters =
-        [ Param.make "s" TStr "string to iterate over"
-          Param.makeWithArgs
-            "fn"
-            (TFn([ TChar ], TChar))
-            "function used to convert one character to another"
-            [ "char" ] ]
-      returnType = TStr
-      description =
-        "Iterate over each character (byte, not EGC) in the string, performing the
-         operation in the block on each one"
-      fn =
-        function
-        | state, [ s; f ] -> Errors.removedFunction state "String::foreach"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "foreach" 1) }
-
-
     { name = fn "String" "foreach" 1
       parameters =
         [ Param.make "s" TStr ""
@@ -78,8 +57,7 @@ let fns : List<BuiltInFn> =
                (id 0)
                b
                [ DChar te ]
-               NotInPipe
-               NoRail))
+               NotInPipe))
            |> (fun dvals ->
              (uply {
                let! (dvals : List<Dval>) = dvals
@@ -116,19 +94,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "toList" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TList TChar
-      description = "Returns the list of characters (byte, not EGC) in the string"
-      fn =
-        function
-        | state, [ s ] -> Errors.removedFunction state "String::toList"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "toList" 1) }
 
 
     { name = fn "String" "toList" 1
@@ -182,103 +147,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "toInt" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TInt
-      description = "Returns the <type int> value of the <type string>"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          (try
-            let int = s |> System.Convert.ToInt64
-
-            // These constants represent how high the old OCaml parsers would go
-            if int < -4611686018427387904L then
-              Exception.raiseInternal "goto exception case" []
-            else if int >= 4611686018427387904L then
-              Exception.raiseInternal "goto exception case" []
-            else
-              int |> DInt |> Ply
-           with
-           | e -> err (Errors.argumentWasnt "numeric" "s" (DStr s)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "toInt" 1) }
-
-
-    { name = fn "String" "toInt" 1
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TInt, TStr)
-      description =
-        "Returns the <type int> value of the string, wrapped in a {{Ok}}, or {{Error
-         <msg>}} if the string contains characters other than numeric digits"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          try
-            let int = s |> System.Convert.ToInt64
-
-            // These constants represent how high the old OCaml parsers would go
-            if int < -4611686018427387904L then
-              Exception.raiseInternal "goto exception case" []
-            else if int >= 4611686018427387904L then
-              Exception.raiseInternal "goto exception case" []
-            else
-              int |> DInt |> Ok |> DResult |> Ply
-          with
-          | e ->
-            $"Expected to parse string with only numbers, instead got \"{s}\""
-            |> DStr
-            |> Error
-            |> DResult
-            |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Int" "parse" 0) }
-
-
-    { name = fn "String" "toFloat" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TFloat
-      description = "Returns the float value of the string"
-      fn =
-        (function
-        | _, [ DStr s as dv ] ->
-          (try
-            float (s) |> DFloat |> Ply
-           with
-           | e ->
-             err (
-               Errors.argumentWasnt "a string representation of an IEEE float" "s" dv
-             ))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "toFloat" 1) }
-
-
-    { name = fn "String" "toUppercase" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
-      description =
-        "Returns the string, uppercased (only ASCII characters are uppercased)"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          s
-          |> String.toArray
-          |> Array.map (fun c -> if int c < 128 then Char.ToUpper c else c)
-          |> System.String
-          |> DStr
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "upper"
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "toUppercase" 1) }
-
-
     { name = fn "String" "toUppercase" 1
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
@@ -290,26 +158,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunction "upper"
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "toLowercase" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
-      description =
-        "Returns the string, lowercased (only ASCII characters are lowercased)"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          s
-          |> String.toArray
-          |> Array.map (fun c -> if int c < 128 then Char.ToLower c else c)
-          |> System.String
-          |> DStr
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "lower"
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "toLowercase" 1) }
 
 
     { name = fn "String" "toLowercase" 1
@@ -325,20 +173,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "length" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TInt
-      description = "Returns the number of bytes in the string"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          s |> System.Text.ASCIIEncoding.UTF8.GetByteCount |> Dval.int |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = SqlFunction "length"
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "length" 1) }
-
-
     { name = fn "String" "length" 1
       parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
@@ -350,36 +184,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "append" 0
-      // This used to provide "++" as an infix op. It was moved to
-      // [String::append_v1] instead, because we do not yet support versioning infix
-      // operators.  We decided this was safe under the assumption that no one should
-      // be (and very likely no one is) relying on broken normalization.
-      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
-      returnType = TStr
-      description = "Concatenates the two strings and returns the joined string"
-      fn =
-        (function
-        | _, [ DStr s1; DStr s2 ] ->
-          // This implementation does not normalize post-concatenation.
-          // This is a problem because it breaks our guarantees about strings always being normalized;
-          // concatenating two normalized strings does not always result in a normalized string.
-          // replicating known broken behaviour feels wrong, but maybe necessary
-          Ply(
-            DStr(
-              System.Text.Encoding.UTF8.GetString(
-                Array.append
-                  (System.Text.Encoding.UTF8.GetBytes s1)
-                  (System.Text.Encoding.UTF8.GetBytes s2)
-              )
-            )
-          )
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "append" 1) }
 
 
     { name = fn "String" "append" 1
@@ -411,61 +215,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "slugify" 0
-      parameters = [ Param.make "string" TStr "" ]
-      returnType = TStr
-      description = "Turns a string into a slug"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          let toRemove = "[^-a-zA-Z0-9\\s\\$\\*_+~\\.\\(\\)'\"!:@]|\x0b"
-          let trim = @"^\s+|\s+$"
-          let spaces = @"[-\s]+"
-
-          let replace (pattern : string) (replacement : string) (input : string) =
-            Regex.Replace(input, pattern, replacement)
-
-          s
-          |> replace toRemove ""
-          |> replace trim ""
-          |> replace spaces "-"
-          |> String.toLowercase
-          |> DStr
-          |> Ply
-
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "slugify" 1) }
-
-
-    { name = fn "String" "slugify" 1
-      parameters = [ Param.make "string" TStr "" ]
-      returnType = TStr
-      description = "Turns a string into a slug"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          let toRemove = "[^a-zA-Z0-9\\s_-]|\x0b"
-          let trim = @"^\s+|\s+$"
-          let newSpaces = @"[-_\s]+"
-
-          let replace (pattern : string) (replacement : string) (input : string) =
-            Regex.Replace(input, pattern, replacement)
-
-          s
-          |> replace toRemove ""
-          |> replace trim ""
-          |> replace newSpaces "-"
-          |> String.toLowercase
-          |> DStr
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "slugify" 2) }
 
 
     { name = fn "String" "slugify" 2
@@ -510,41 +259,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = SqlFunction "reverse"
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "split" 0
-      parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
-      returnType = TList TStr
-      description =
-        "Splits a string at the separator, returning a list of strings without the separator.
-        If the separator is not present, returns a list containing only the initial string."
-      fn =
-        (function
-        | _, [ DStr s; DStr sep ] ->
-          // This behaviour is the worst - it mimics what OCaml did:
-          // There are (n-1) empty strings returned for each sequence of n strings
-          // matching the separator (eg: split "aaaa" "a" = ["", "", ""]).
-          if sep = "" then
-            s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
-          else
-            let stripStartingEmptyString =
-              (function
-              | "" :: rest -> rest
-              | all -> all)
-
-            s.Split sep
-            |> Array.toList
-            |> stripStartingEmptyString
-            |> List.rev
-            |> stripStartingEmptyString
-            |> List.rev
-            |> List.map DStr
-            |> DList
-            |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "split" 1) }
 
 
     { name = fn "String" "split" 1
@@ -613,19 +327,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "fromList" 0
-      parameters = [ Param.make "l" (TList TChar) "" ]
-      returnType = TStr
-      description = "Returns the list of characters as a string"
-      fn =
-        function
-        | state, [ l ] -> Errors.removedFunction state "String::fromList"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "fromList" 1) }
-
-
     { name = fn "String" "fromList" 1
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TStr
@@ -646,19 +347,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "fromChar" 0
-      parameters = [ Param.make "c" TChar "" ]
-      returnType = TChar
-      description = "Converts a <type char> to a <type string>"
-      fn =
-        function
-        | state, [ c ] -> Errors.removedFunction state "String::fromChar"
-        | _ -> incorrectArgs ()
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "fromChar" 1) }
 
 
     { name = fn "String" "fromChar" 1
@@ -764,116 +452,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "sha384" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
-      description =
-        "Take a string and hash it using SHA384. Please use <fn Crypto::sha384>
-         instead."
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          let sha384Hash = SHA384.Create()
-          let data = System.Text.Encoding.UTF8.GetBytes(s)
-
-          let bytes = sha384Hash.ComputeHash(data)
-
-          // Deliberately keep padding
-          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DStr
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Crypto" "sha384" 0) }
-
-
-    { name = fn "String" "sha256" 0
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
-      description =
-        "Take a string and hash it using SHA256. Please use <fn Crypto::sha256>
-         instead."
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          let sha256Hash = SHA256.Create()
-          let data = System.Text.Encoding.UTF8.GetBytes(s)
-
-          let bytes = sha256Hash.ComputeHash(data)
-
-          // Deliberately keep padding
-          System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DStr
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "Crypto" "sha256" 0) }
-
-
-    { name = fn "String" "random" 0
-      parameters = [ Param.make "length" TInt "" ]
-      returnType = TStr
-      description =
-        "Generate a <type string> of length <param length> from random characters."
-      fn =
-        (function
-        | _, [ DInt l as dv ] ->
-          if l < 0L then
-            err "l should be a positive integer"
-          else
-            let randomString length =
-              let gen () =
-                match RNG.GetInt32(26 + 26 + 10) with
-                | n when n < 26 -> ('a' |> int) + n
-                | n when n < 26 + 26 -> ('A' |> int) + n - 26
-                | n -> ('0' |> int) + n - 26 - 26
-
-              let gen _ = char (gen ()) in
-
-              (Array.toList (Array.init length gen))
-              |> List.map string
-              |> String.concat ""
-
-            randomString (int l) |> DStr |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Impure
-      deprecated = ReplacedBy(fn "String" "random" 1) }
-
-
-    { name = fn "String" "random" 1
-      parameters = [ Param.make "length" TInt "" ]
-      returnType = TResult(TStr, TStr)
-      description =
-        "Generate a <type string> of length <param length> from random characters"
-      fn =
-        (function
-        | _, [ DInt l ] ->
-          if l < 0L then
-            "l should be a positive integer" |> DStr |> Error |> DResult |> Ply
-          else
-            let randomString length =
-              let gen () =
-                match RNG.GetInt32(26 + 26 + 10) with
-                | n when n < 26 -> ('a' |> int) + n
-                | n when n < 26 + 26 -> ('A' |> int) + n - 26
-                | n -> ('0' |> int) + n - 26 - 26
-
-              let gen _ = char (gen ()) in
-
-              (Array.toList (Array.init length gen))
-              |> List.map string
-              |> String.concat ""
-
-            randomString (int l) |> DStr |> Ok |> DResult |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Impure
-      deprecated = ReplacedBy(fn "String" "random" 1) }
-
-
     { name = fn "String" "random" 2
       parameters = [ Param.make "length" TInt "" ]
       returnType = TResult(TStr, TStr)
@@ -941,58 +519,6 @@ let fns : List<BuiltInFn> =
       // CLEANUP mark as Pure
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    { name = fn "String" "toUUID" 0
-      parameters = [ Param.make "uuid" TStr "" ]
-      returnType = TUuid
-      description =
-        "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
-      fn =
-        (function
-        | _, [ DStr s ] ->
-          match Guid.TryParse s with
-          | true, x -> x |> DUuid |> Ply
-          | _ ->
-            err (
-              "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-            )
-
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "toUUID" 1) }
-
-
-    { name = fn "String" "isSubstring" 0
-      parameters =
-        [ Param.make "searchingFor" TStr ""; Param.make "lookingIn" TStr "" ]
-      returnType = TBool
-      description = "Checks if <param lookingIn> contains <param searchingFor>"
-      fn =
-        (function
-        | _, [ DStr needle; DStr haystack ] -> DBool(haystack.Contains needle) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "isSubstring" 1) }
-
-
-    { name = fn "String" "isSubstring" 1
-      parameters =
-        [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
-      returnType = TBool
-      description = "Checks if <param lookingIn> contains <param searchingFor>"
-      fn =
-        (function
-        | _, [ DStr haystack; DStr needle ] -> DBool(haystack.Contains needle) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec =
-        SqlCallback2 (fun lookingIn searchingFor ->
-          // strpos returns indexed from 1; 0 means missing
-          $"(strpos({lookingIn}, {searchingFor}) > 0)")
-      previewable = Pure
-      deprecated = ReplacedBy(fn "String" "contains" 0) }
 
 
     { name = fn "String" "contains" 0

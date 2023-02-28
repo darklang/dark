@@ -103,25 +103,12 @@ If you've gotten this far, you're now ready to [contribute your first PR](https:
 ## Advanced setup
 
 - [setting up dnsmasq](docs/dnsmasq.md)
-- [setting up browser-reloading](docs/livereload.md)
 
 ## Testing
 
 Unit tests run when you specify `--test` to `scripts/builder`. You can run them as a once off using:
 
-- `scripts/run-client-tests`
 - `scripts/run-backend-tests`
-
-Integration tests:
-
-- `scripts/run-in-docker ./integration-tests/run.sh`
-
-You can also run integration tests on your (host) machine, which gives you some debugging ability, and typically runs faster:
-
-- `./integration-tests/run.sh`
-
-There are good debugging options for integration testing. See
-[integration-tests/README.md](integration-tests/README.md).
 
 ## Running unix commands in the container
 
@@ -136,17 +123,6 @@ There are good debugging options for integration testing. See
 Config files ([config/](config)) define all env vars that you can use in Dark code.
 All config vars must start with `DARK_CONFIG`. Changing a config variable in
 `config/dev` requires restaring the devcontanier.
-
-## Debugging the client
-
-You can enable the FluidDebugger by mousing over the Gear in the
-left-sidebar. There is also "Enable debugger" which enables a legacy
-debugger that nobody uses and doesn't work well.
-
-If you're using Chrome, enable Custom Formatters to see ReScript values in
-Chrome Dev Tools instead of their JS representation. From within Chrome
-Dev Tools, click "⠇", "Settings", "Preferences", "Enable Custom
-Formatters".
 
 ## Debugging dotnet
 
@@ -177,26 +153,11 @@ the dev container.
 
 ## Production Services
 
-The app is split into [backend](backend) and [client/](client).
-Part of the backend is used in the client ([Wasm](backend/src/Wasm)).
-
 These are compiled to create libraries and binaries.
 
 These are put into containers, whose definitions are in [containers/](containers). We also
 have some containers which are defined entirely in their directory (typically,
 these have a self-contained codebase).
-
-The containers are deployed via Kubernetes. A group of containers are deployed
-together, which is called a pod. Those pods, and how they are run (for example,
-how many of them, what secrets they have access to, how to check if they are
-still alive) are defined by a set of Yaml files which is called a _deployment_.
-Our deployments are all defined in the [services](services) directory.
-
-A _service_ in our repo typically wraps a deployment, but it can sometimes mean
-other things, so we also have a number of other services, defined via yaml
-files, in [services](services). Some of the services are deployments that use
-3rdparty containers (eg, "Let's Encrypt"), and some are abstractions around
-Google Cloud services.
 
 ## Other important docs
 
@@ -210,11 +171,8 @@ Google Cloud services.
 ### Less important docs
 
 - [Docs around running Dark in production](docs/production)
-- [Running the client against production (ngrok)](docs/running-against-production.md)
 - [Oplist serialization](docs/oplist-serialization.md)
-- [Intricacies of Bucklescript-tea](docs/bs-tea.md)
 - [Writing Stdlib docstrings](docs/writing-docstrings.md)
-- [Editing other BS libraries](docs/modifying-libraries.md)
 - [Add an account for yourself](docs/add-account.md)
 - [Using fuzzers to develop Dark](docs/fuzzer.md)
 - [Logging and telemetry](docs/logging-and-telemetry.md)

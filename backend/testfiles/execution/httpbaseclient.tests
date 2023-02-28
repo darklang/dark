@@ -19,8 +19,8 @@ HttpBaseClient.request "get" "" [] Bytes.empty = Test.typeError_v0 "Bad URL: Inv
 HttpBaseClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = Test.typeError_v0 "Bad URL: Invalid URI"
 
 // basic requests work
-((HttpBaseClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map(fun response -> response.statusCode)) = Ok 200
-((HttpBaseClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map(fun response -> response.statusCode)) = Ok 200
+((HttpBaseClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map_v1 (fun response -> response.statusCode)) = Ok 200
+((HttpBaseClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map_v1 (fun response -> response.statusCode)) = Ok 200
 
 // URLs we can't actually communicacte with
 (match HttpBaseClient.request "get" "http://localhost:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
@@ -33,8 +33,8 @@ HttpBaseClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empt
 HttpBaseClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
 
 [test.basic request works including headers]
-(let response = HttpBaseClient.request_ster "get" "https://httpbin.org/status/200" [] Bytes.empty
- let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
+(let response = (HttpBaseClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =
    { statusCode = 200
      headers =

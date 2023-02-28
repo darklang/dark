@@ -19,8 +19,8 @@ Content-Length: LENGTH
 // CLEANUP: clearly it should actually use form encoding here, right?
 (let reqHeaders = {"Content-Type" = "application/x-www-form-urlencoded; charset=utf-8" }
  let reqBody = { var1 = 2; var2 = [] }
- let response = HttpBaseClient.request_ster "post" "http://URL" reqBody {} reqHeaders
- let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h <> "date")
+ let response = (HttpBaseClient.request "post" "http://URL" reqBody {} reqHeaders) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
 Dict.set_v0 response "headers" respHeaders) =
    { body = ""
      statusCode = 200

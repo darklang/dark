@@ -17,8 +17,8 @@ type HeapIOMetadata = Map<string, string>
 let identifyUser (username : UserName.T) : unit =
   FireAndForget.fireAndForgetTask "identify user" (fun () ->
     task {
-      let! data = Account.getUserAndCreatedAtAndAnalyticsMetadata username
-      let (userInfoAndCreatedAt, heapioMetadataJson) =
+      let! data = Account.getUserAndCreatedAt username
+      let userInfoAndCreatedAt =
         Exception.unwrapOptionInternal
           "unwrapping metadata"
           [ "metadata", data ]
@@ -37,11 +37,6 @@ let identifyUser (username : UserName.T) : unit =
           | [ (orgName, _perm) ] -> orgName
           | _ -> username |> string |> OrgName.create)
 
-      let heapioMetadata =
-        heapioMetadataJson
-        |> Option.map Json.Vanilla.deserialize<HeapIOMetadata>
-        |> Option.defaultValue Map.empty
-
       let payload =
         [ ("username", string userInfoAndCreatedAt.username)
           ("email", userInfoAndCreatedAt.email)
@@ -50,11 +45,7 @@ let identifyUser (username : UserName.T) : unit =
           ("handle", string userInfoAndCreatedAt.username)
           ("organization", string organization) ]
 
-      // We do zero checking of fields in heapio_metadata, but this is ok
-      // because it's a field we control, going to a service only we see.
-      // If we wanted to harden this later, we could List.filter the
-      // heapio_metadata yojson
-      let payload = Map(payload @ Map.toList heapioMetadata)
+      let payload = Map payload
       LibService.HeapAnalytics.emitIdentifyUserEvent userInfoAndCreatedAt.id payload
       return ()
     })

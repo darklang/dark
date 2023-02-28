@@ -45,13 +45,6 @@ type Sign = Prelude.Sign
 // - change the type of a field in a record
 // - removing a field from a variant (eg remove b to X(a,b))
 
-[<MessagePack.MessagePackObject>]
-type Position =
-  { [<MessagePack.Key 0>]
-    x : int
-    [<MessagePack.Key 1>]
-    y : int }
-
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
@@ -107,14 +100,8 @@ type MatchPattern =
   | MPCharacter of id * string
   | MPString of id * string
   | MPFloat of id * Sign * string * string
-  | MPNull of id
-  | MPBlank of id
+  | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
-[<MessagePack.MessagePackObject>]
-type SendToRail =
-  | Rail
-  | NoRail
 
 [<MessagePack.MessagePackObject>]
 type BinaryOperation =
@@ -123,7 +110,7 @@ type BinaryOperation =
 
 [<MessagePack.MessagePackObject>]
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName * SendToRail
+  | InfixFnCall of FQFnName.InfixStdlibFnName
   | BinOp of BinaryOperation
 
 [<MessagePack.MessagePackObject>]
@@ -133,18 +120,13 @@ type Expr =
   | EString of id * string
   | ECharacter of id * string
   | EFloat of id * Sign * string * string
-  | ENull of id
-  | EBlank of id
+  | EUnit of id
   | ELet of id * string * Expr * Expr
   | EIf of id * Expr * Expr * Expr
-  | EDeprecatedBinOp of id * FQFnName.T * Expr * Expr * SendToRail
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * List<Expr> * SendToRail
-  | EPartial of id * string * Expr
-  | ERightPartial of id * string * Expr
-  | ELeftPartial of id * string * Expr
+  | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
@@ -160,7 +142,7 @@ type DType =
   | TInt
   | TFloat
   | TBool
-  | TNull
+  | TUnit
   | TStr
   | TList of DType
   | TDict of DType
@@ -173,7 +155,6 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TErrorRail
   | TUserType of string * int
   | TBytes
   | TResult of DType * DType
@@ -205,28 +186,20 @@ module Handler =
 
   [<MessagePack.MessagePackObject>]
   type Spec =
-    | HTTP of route : string * method : string * ids : ids
     | Worker of name : string * ids : ids
-    // Deprecated but still supported form
-    // CLEANUP: convert these into regular workers (change module name to WORKER,
-    // check if they're unique first though)
-    | OldWorker of modulename : string * name : string * ids : ids
     | Cron of name : string * interval : Option<CronInterval> * ids : ids
     | REPL of name : string * ids : ids
-    // If there's no module
-    // CLEANUP: convert these into repl and get rid of this case
-    | UnknownHandler of string * string * ids
-    | HTTPBasic of route : string * method : string * ids : ids
+    | HTTP of route : string * method : string * ids : ids
 
   [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
+
       [<MessagePack.Key 1>]
-      pos : Position
-      [<MessagePack.Key 2>]
       ast : Expr
-      [<MessagePack.Key 3>]
+
+      [<MessagePack.Key 2>]
       spec : Spec }
 
 
@@ -246,15 +219,17 @@ module DB =
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
+
       [<MessagePack.Key 1>]
-      pos : Position
-      [<MessagePack.Key 2>]
       nameID : id
-      [<MessagePack.Key 3>]
+
+      [<MessagePack.Key 2>]
       name : string
-      [<MessagePack.Key 4>]
+
+      [<MessagePack.Key 3>]
       version : int
-      [<MessagePack.Key 5>]
+
+      [<MessagePack.Key 4>]
       cols : List<Col> }
 
 module UserType =
@@ -334,13 +309,12 @@ module Toplevel =
 /// and is preferred throughout code and documentation.
 [<MessagePack.MessagePackObject>]
 type Op =
-  | SetHandler of tlid * Position * Handler.T
-  | CreateDB of tlid * Position * string
+  | SetHandler of tlid * Handler.T
+  | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
   | SetDBColType of tlid * id * string
   | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | MoveTL of tlid * Position
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
   | ChangeDBColType of tlid * id * string
@@ -351,7 +325,7 @@ type Op =
   | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * Position * id * string
+  | CreateDBWithBlankOr of tlid * id * string
   | DeleteTLForever of tlid // CLEANUP not used, can be removed (carefully)
   | DeleteFunctionForever of tlid // CLEANUP not used, can be removed (carefully)
   | SetType of UserType.T

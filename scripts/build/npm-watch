@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-set -euo pipefail
-
-cd client
-npm run test:watch

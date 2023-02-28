@@ -11,7 +11,6 @@ open LibBackend.Db
 
 open Prelude
 open Tablecloth
-open LibService.Exception
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -77,11 +76,6 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
-    let staticAssetDeploys =
-      Sql.query "DELETE FROM static_asset_deploys where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
     let storedEventsV2 =
       Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
@@ -106,7 +100,6 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
                      functionResultsV3
                      schedulingRules
                      secrets
-                     staticAssetDeploys
                      storedEventsV2
                      tracesV0
                      toplevelOplists
@@ -117,7 +110,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
 
 type TestCanvasName =
   /// Use exactly this canvas name for the test. This is needed to test some features
-  /// which use the canvas name within them, such as static assets.
+  /// which use the canvas name within them.
   | Exact of string
   /// Randomized test name using the provided base. This allows tests to avoid
   /// sharing the same canvas so they can be parallelized, etc
@@ -172,8 +165,6 @@ let createTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
     return! createCanvasForOwner owner name
   }
 
-let testPos : PT.Position = { x = 0; y = 0 }
-
 let testHttpRouteHandler
   (route : string)
   (method : string)
@@ -182,10 +173,7 @@ let testHttpRouteHandler
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { pos = { x = 0; y = 0 }
-    tlid = gid ()
-    ast = ast
-    spec = PT.Handler.HTTP(route, method, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method, ids) }
 
 let testCron
   (name : string)
@@ -195,19 +183,13 @@ let testCron
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { pos = { x = 0; y = 0 }
-    tlid = gid ()
-    ast = ast
-    spec = PT.Handler.Cron(name, Some interval, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, Some interval, ids) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   let ids : PT.Handler.ids =
     { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { pos = { x = 0; y = 0 }
-    tlid = gid ()
-    ast = ast
-    spec = PT.Handler.Worker(name, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Worker(name, ids) }
 
 let testUserFn
   (name : string)
@@ -248,18 +230,13 @@ let testUserType
 
 
 
-let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h.pos, h)
+let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
 let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
 
 let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
-  { tlid = gid ()
-    pos = { x = 0; y = 0 }
-    nameID = gid ()
-    name = name
-    cols = cols
-    version = 0 }
+  { tlid = gid (); nameID = gid (); name = name; cols = cols; version = 0 }
 
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
@@ -292,7 +269,7 @@ let executionStateFor
         exceptionReports = []
         expectedExceptionCount = 0
         postTestExecutionHook =
-          fun tc result ->
+          fun tc _ ->
             // In an effort to find errors in the test suite, we track exceptions
             // that we report in the runtime and check for them after the test
             // completes.  There are a lot of places where exceptions are allowed,
@@ -352,7 +329,7 @@ let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.
 
         let op =
           match tl with
-          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, { x = 0; y = 0 }, h)
+          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, h)
           | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
 
         (tlid, [ op ], tl, Canvas.NotDeleted))
@@ -475,7 +452,7 @@ module Expect =
     | DDate _
     | DBool _
     | DFloat _
-    | DNull
+    | DUnit
     | DPassword _
     | DFnVal _
     | DError _
@@ -499,7 +476,6 @@ module Expect =
 
     | DResult (Ok v)
     | DResult (Error v)
-    | DErrorRail v
     | DOption (Some v) -> check v
 
     | DList vs -> List.all check vs
@@ -543,8 +519,7 @@ module Expect =
     | MPFloat (_, d), MPFloat (_, d') -> check path d d'
     | MPBool (_, l), MPBool (_, l') -> check path l l'
     | MPCharacter (_, c), MPCharacter (_, c') -> check path c c'
-    | MPNull (_), MPNull (_) -> ()
-    | MPBlank (_), MPBlank (_) -> ()
+    | MPUnit (_), MPUnit (_) -> ()
     | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
     // exhaustiveness check
@@ -555,8 +530,7 @@ module Expect =
     | MPFloat _, _
     | MPBool _, _
     | MPCharacter _, _
-    | MPNull _, _
-    | MPBlank _, _
+    | MPUnit _, _
     | MPTuple _, _ -> check path actual expected
 
 
@@ -580,8 +554,7 @@ module Expect =
 
     match actual, expected with
     // expressions with no values
-    | ENull _, ENull _
-    | EBlank _, EBlank _ -> ()
+    | EUnit _, EUnit _ -> ()
     // expressions with single string values
     | EString (_, v), EString (_, v')
     | ECharacter (_, v), ECharacter (_, v')
@@ -603,8 +576,7 @@ module Expect =
       eq ("second" :: path) second second'
       eqList path theRest theRest'
     | EFQFnValue (_, v), EFQFnValue (_, v') -> check path v v'
-    | EApply (_, name, args, inPipe, toRail),
-      EApply (_, name', args', inPipe', toRail') ->
+    | EApply (_, name, args, inPipe), EApply (_, name', args', inPipe') ->
       let path = (string name :: path)
       eq path name name'
       eqList path args args'
@@ -612,8 +584,6 @@ module Expect =
       match (inPipe, inPipe') with
       | InPipe id, InPipe id' -> if checkIDs then check path id id'
       | _ -> check path inPipe inPipe'
-
-      check path toRail toRail'
 
     | ERecord (_, pairs), ERecord (_, pairs') ->
       List.iter2
@@ -653,8 +623,7 @@ module Expect =
       eq ("right" :: path) r r'
 
     // exhaustiveness check
-    | ENull _, _
-    | EBlank _, _
+    | EUnit _, _
     | EInteger _, _
     | EString _, _
     | ECharacter _, _
@@ -750,7 +719,6 @@ module Expect =
     | DIncomplete _, DIncomplete _ -> ()
     | DError (_, msg1), DError (_, msg2) ->
       check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
-    | DErrorRail l, DErrorRail r -> de ("ErrorRail" :: path) l r
     | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
       let vals l = List.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
@@ -763,14 +731,13 @@ module Expect =
     | DList _, _
     | DTuple _, _
     | DResult _, _
-    | DErrorRail _, _
     | DOption _, _
     | DStr _, _
     | DInt _, _
     | DDate _, _
     | DBool _, _
     | DFloat _, _
-    | DNull, _
+    | DUnit, _
     | DChar _, _
     | DPassword _, _
     | DFnVal _, _
@@ -815,12 +782,6 @@ module Expect =
   let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
     dvalEquality (DObj m1) (DObj m2)
 
-  // Raises a test exception if the two strings do not parse to identical JSON
-  let equalsJson (str1 : string) (str2 : string) : unit =
-    let parsed1 = Newtonsoft.Json.Linq.JToken.Parse str1
-    let parsed2 = Newtonsoft.Json.Linq.JToken.Parse str2
-    Expect.equal parsed1 parsed2 "jsons are equal"
-
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
   let f dv = state <- f dv :: state
@@ -834,7 +795,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DHttpResponse (Response (_, _, v))
     | DResult (Error v)
     | DResult (Ok v)
-    | DErrorRail v
     | DOption (Some v) -> visit v
     | DHttpResponse (Redirect _)
     | DOption None
@@ -843,7 +803,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DDate _
     | DBool _
     | DFloat _
-    | DNull
+    | DUnit
     | DChar _
     | DPassword _
     | DFnVal _
@@ -940,7 +900,7 @@ let naughtyStrings : List<string * string> =
   |> String.splitOnNewline
   |> List.mapWithIndex (fun i s -> $"naughty string line {i + 1}", s)
   // 139 is the Unicode BOM on line 140, which is tough to get .NET to put in a string
-  |> List.filterWithIndex (fun i (doc, str) ->
+  |> List.filterWithIndex (fun i (_, str) ->
     i <> 139 && not (String.startsWith "#" str))
 
 let interestingDvals =
@@ -951,7 +911,7 @@ let interestingDvals =
     ("int5", DInt 5L)
     ("true", DBool true)
     ("false", DBool false)
-    ("null", DNull)
+    ("null", DUnit)
     ("datastore", DDB "Visitors")
     ("string", DStr "incredibly this was broken")
     // Json.NET has a habit of converting things automatically based on the type in the string
@@ -964,7 +924,7 @@ let interestingDvals =
     ("list with derror",
      DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
     ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
-    ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DNull) ]))
+    ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DUnit) ]))
     ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
     // More Json.NET tests
     ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
@@ -977,7 +937,7 @@ let interestingDvals =
     ("block",
      DFnVal(
        Lambda
-         { body = RT.EBlank(id 1234)
+         { body = RT.EUnit(id 1234)
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
@@ -1013,26 +973,19 @@ let interestingDvals =
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
                            [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
-                           NotInPipe,
-                           NoRail
+                           NotInPipe
                          )
                          EInteger(648327618UL, 7) ],
-                       InPipe(312312798UL),
-                       NoRail
+                       InPipe(312312798UL)
                      )
                      EInteger(325843618UL, 8) ],
-                   NotInPipe,
-                   NoRail
+                   NotInPipe
                  ) ],
-               NotInPipe,
-               NoRail
+               NotInPipe
              )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
-    ("errorrail", DErrorRail(Dval.int 5))
-    ("errorrail with float",
-     DErrorRail(DObj(Map.ofList ([ ("", DFloat nan); ("", DNull) ]))))
     ("redirect", DHttpResponse(Redirect "/home"))
     ("httpresponse",
      DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
@@ -1063,7 +1016,7 @@ let interestingDvals =
 
     ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []))
     ("simple3Tuple", DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]))
-    ("tupleWithNull", DTuple(Dval.int 1, Dval.int 2, [ DNull ]))
+    ("tupleWithUnit", DTuple(Dval.int 1, Dval.int 2, [ DUnit ]))
     ("tupleWithError", DTuple(Dval.int 1, DResult(Error(DStr "error")), [])) ]
 
 let sampleDvals : List<string * Dval> =

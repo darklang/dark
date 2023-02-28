@@ -64,13 +64,10 @@ RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
-RUN curl -sSL https://nginx.org/keys/nginx_signing.key | apt-key add -
 RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 # We want postgres 9.6, but it is not in later ubuntus
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
-
-RUN echo "deb https://nginx.org/packages/ubuntu/ jammy nginx" > /etc/apt/sources.list.d/nginx.list
 
 RUN echo "deb https://deb.nodesource.com/node_14.x jammy main" > /etc/apt/sources.list.d/nodesource.list
 RUN echo "deb-src https://deb.nodesource.com/node_14.x jammy main" >> /etc/apt/sources.list.d/nodesource.list
@@ -105,6 +102,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       rsync \
       git \
       wget \
+      brotli \
       sudo \
       locales \
       postgresql-9.6 \
@@ -116,13 +114,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
-      terraform \
       jq \
       vim \
       unzip \
       docker-ce \
       build-essential \
-      kubectl \
       python3-pip \
       python3-setuptools \
       python3-dev \
@@ -135,7 +131,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pv \
       htop \
       net-tools \
-      nginx \
       bash-completion \
       openssh-server \
       dnsutils \
@@ -182,7 +177,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-RUN sudo npm install -g prettier@2.7.1
+RUN sudo npm install -g prettier@2.8.4
 
 ############################
 # Postgres
@@ -206,14 +201,6 @@ VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 RUN sudo chown postgres:postgres -R /etc/postgresql
 RUN sudo chown postgres:postgres -R /var/log/postgresql
 RUN sudo chown postgres:postgres -R /var/lib/postgresql
-
-############################
-# Nginx
-############################
-# We'll use our app's version
-RUN sudo rm /etc/nginx/conf.d/default.conf
-RUN sudo rm -r /etc/nginx/nginx.conf
-RUN sudo chown -R dark:dark /var/log/nginx
 
 ############################
 # Scripts to install files from the internet
@@ -259,8 +246,14 @@ esac
 mkdir -p $DIR
 wget -P $DIR $URL
 echo "$CHECKSUM $DIR/$FILENAME" | sha256sum -c -
-tar xvf $DIR/$FILENAME -C $DIR
-ls $DIR
+ARCHIVE_TYPE=$(file --mime-type $DIR/$FILENAME | awk -F "/" '{print $NF}')
+echo "Archive type: $ARCHIVE_TYPE"
+case $ARCHIVE_TYPE in
+  zip)  unzip $DIR/$FILENAME -d $DIR;;
+  gzip | x-xz) tar xvf $DIR/$FILENAME -C $DIR;;
+  *) exit 1;;
+esac
+ls -l $DIR
 sudo cp $DIR/${EXTRACT_FILE} ${TARGET}
 sudo chmod +x ${TARGET}
 rm -Rf $DIR
@@ -311,16 +304,14 @@ RUN sudo chown dark:dark /home/dark/install-exe-file
 RUN chmod +x /home/dark/install-exe-file
 
 ############################
-# Kubernetes
+# Terraform
 ############################
-RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
-
 RUN /home/dark/install-targz-file \
-  --arm64-sha256=57fa17b6bb040a3788116557a72579f2180ea9620b4ee8a9b7244e5901df02e4 \
-  --amd64-sha256=2315941a13291c277dac9f65e75ead56386440d3907e0540bf157ae70f188347 \
-  --url=https://get.helm.sh/helm-v3.10.2-linux-${TARGETARCH}.tar.gz \
-  --extract-file=linux-${TARGETARCH}/helm \
-  --target=/usr/bin/helm
+  --arm64-sha256=da571087268c5faf884912c4239c6b9c8e1ed8e8401ab1dcb45712df70f42f1b \
+  --amd64-sha256=53048fa573effdd8f2a59b726234c6f450491fe0ded6931e9f4c6e3df6eece56 \
+  --url=https://releases.hashicorp.com/terraform/1.3.9/terraform_1.3.9_linux_${TARGETARCH}.zip \
+  --extract-file=terraform \
+  --target=/usr/bin/terraform
 
 ############################
 # Google cloud
@@ -337,31 +328,11 @@ ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
 # GCS emulator
 RUN /home/dark/install-targz-file \
-  --arm64-sha256=74b5d65027b19167854705f273c32b1b295e9ea0c7c03f9cb421e53c99ed3ef5 \
-  --amd64-sha256=c38b83b813d15f554003b5c7823174ee23f3097ac977f7267a2cdc8b479524d3 \
-  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.42.2/fake-gcs-server_1.42.2_Linux_${TARGETARCH}.tar.gz\
+  --arm64-sha256=31f39066aa0d2ece95458d98ed86a7ac21cc82f734a5202196bef64574e586dd \
+  --amd64-sha256=b426a537811d505809caf21f5b5fa27bb00b7fa081bafd9f90ca7a4b26398220 \
+  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.44.0/fake-gcs-server_1.44.0_Linux_${TARGETARCH}.tar.gz\
   --extract-file=fake-gcs-server \
   --target=/usr/bin/fake-gcs-server
-
-# GKE
-ENV USE_GKE_GCLOUD_AUTH_PLUGIN=True
-
-# crcmod for gsutil; this gets us the compiled (faster), not pure Python
-# (slower) crcmod, as described in `gsutil help crcmod`
-#
-# It requires that python3-pip, python3-dev, python3-setuptools, and gcc be
-# installed. You'll also need CLOUDSDK_PYTHON=python3 to be set when you use
-# gsutil. (Which the ENV line handles.)
-#
-# The last line greps to confirm that gsutil has a compiled crcmod.
-# Possible failure modes; missing deps above (-pip, -dev, -setuptools, gcc); a
-# pre-installed crcmod that needs to be uninstalled first.  Added that because
-# this install is a bit brittle, and it's easy to invisibly install the pure
-# Python crcmod.
-ENV CLOUDSDK_PYTHON=python3
-RUN sudo pip3 install -U --no-cache-dir -U crcmod \
-  && ((gsutil version -l | grep compiled.crcmod:.True) \
-      || (echo "Compiled crcmod not installed." && false))
 
 ############################
 # Pip packages
@@ -380,40 +351,22 @@ RUN curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/ma
 ############################
 
 RUN \
-  VERSION=v0.8.0 \
+  VERSION=v0.9.0 \
   && case ${TARGETARCH} in \
        arm64) FILENAME=shellcheck-$VERSION.linux.aarch64.tar.xz;; \
        amd64) FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz;; \
        *) exit 1;; \
      esac \
   && /home/dark/install-targz-file \
-  --arm64-sha256=9f47bbff5624babfa712eb9d64ece14c6c46327122d0c54983f627ae3a30a4ac \
-  --amd64-sha256=ab6ee1b178f014d1b86d1e24da20d1139656c8b0ed34d2867fbb834dad02bf0a \
+  --arm64-sha256=179c579ef3481317d130adebede74a34dbbc2df961a70916dd4039ebf0735fae \
+  --amd64-sha256=700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f \
   --url=https://github.com/koalaman/shellcheck/releases/download/$VERSION/$FILENAME \
   --extract-file=shellcheck-${VERSION}/shellcheck \
   --target=/usr/bin/shellcheck
 
-############################
-# Kubeconform - for linting k8s files
-############################
-
-RUN \
-  VERSION=v0.4.14 \
-  && /home/dark/install-targz-file \
-  --arm64-sha256=0ff34c19b3b19905a9c87906c801d9d4325d0614ae48bc1b2543dc9ec908cf13 \
-  --amd64-sha256=140044a5eb44a18e52d737ba15936f87b0e5fca3d34a02ae13b2d68025a449f3 \
-  --url=https://github.com/yannh/kubeconform/releases/download/$VERSION/kubeconform-linux-${TARGETARCH}.tar.gz \
-  --extract-file=kubeconform \
-  --target=/usr/bin/kubeconform
-
 ####################################
-# Honeytail and honeymarker installs
+# Honeymarker installs
 ####################################
-RUN /home/dark/install-exe-file \
-  --arm64-sha256=c5a57a729b0ccf4ca0f2287c862538812604f5fd67d102372e91215701afdbe1 \
-  --amd64-sha256=d774112265ee8e98c6221232461cf36c35faf844005cc98b43b55bb375761766 \
-  --url=https://github.com/honeycombio/honeytail/releases/download/v1.8.2/honeytail-linux-${TARGETARCH} \
-  --target=/usr/bin/honeytail
 
 RUN /home/dark/install-exe-file \
   --arm64-sha256=fef8c383419c86ceabb0bbffd3bcad2bf9223537fba9f848218480f873a96e8d \
@@ -467,9 +420,6 @@ sudo ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 dotnet --help
 EOF
 
-# Not supported on arm64 until maybe dotnet 8 - https://github.com/dotnet/runtime/issues/75613
-RUN sudo dotnet workload install wasm-tools
-
 # formatting
 RUN dotnet tool install fantomas-tool --version 4.7.9 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
@@ -496,11 +446,6 @@ RUN touch .bash_history
 RUN mkdir -p .config/gcloud
 RUN mkdir -p .config/configstore
 RUN mkdir -p app
-RUN mkdir -p app/_build
-RUN mkdir -p app/_esy
-RUN mkdir -p .esy
-RUN mkdir -p app/node_modules
-RUN mkdir -p app/lib
 RUN mkdir -p app/backend/Build
 
 RUN mkdir -p \

@@ -16,32 +16,14 @@ else
   # shellcheck disable=SC2038
   find ./* \
     -path ".git" -prune \
-    -o -path "_build" -prune \
-    -o -path "./_build" -prune \
-    -o -path "node_modules" -prune \
-    -o -path "./node_modules" -prune \
     -o -path "backend/static" \
     -o -path "./backend/static" \
-    -o -path "client/static/vendor" \
-    -o -path "./client/static/vendor" \
-    -o -path "lib" \
-    -o -path "./lib" \
-    -o -path "integration-tests/node_modules" \
-    -o -path "./integration-tests/node_modules" \
-    -o -path "_esy" -prune \
-    -o -path "./_esy" -prune \
-    -o -path "lib" -prune \
-    -o -path "./lib" -prune \
-    -o -path "esy.lock" -prune \
-    -o -path "./esy.lock" -prune \
     -o -path "rundir" -prune \
     -o -path "./rundir" -prune \
     -o -path "backend/paket-files" -prune \
     -o -path "./backend/paket-files" -prune \
     -o -path "backend/Build" -prune \
     -o -path "./backend/Build" -prune \
-    -o -path "backend/tests/staticassets-tests" \
-    -o -path "./backend/tests/staticassets-tests" \
     -o -type f \
     -exec awk 'FNR == 1 && /^#!.*sh/{print FILENAME}' {} + \
     | xargs shellcheck -e SC2002 -e SC2044 -e SC2086

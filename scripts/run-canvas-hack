@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+
+EXE="backend/Build/out/CanvasHack/Debug/net6.0/linux-x64/CanvasHack"
+
+echo "Waiting for postgres"
+./scripts/devcontainer/_wait-for-background-services postgresql
+
+# if it hasn't been compiled yet, wait for it
+echo "Waiting for compiled binary"
+for ((i=1;i<=1000;i++));
+do
+  if [[ ! -f "${EXE}" ]]; then
+    sleep 0.01
+  fi
+done
+echo "Done waiting for compiled binary"
+
+if [ "$1" == "load-from-disk" ]; then
+  ./scripts/clear-dark-editor-canvas.sh
+fi
+
+echo "Running canvashack"
+"${EXE}" "${@}"
+
+echo "Finished running canvas hack"

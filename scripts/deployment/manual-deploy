@@ -7,38 +7,40 @@ set -euo pipefail
 # aimed to be used by a human to deploy a subset of services that they're watching go
 # out
 
-services=( "$@" )
-manifest="manual-deploy-manifest"
-CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
+# LIGHTTODO
 
-echo -e "\n\nservices: ${services[*]}"
+# services=( "$@" )
+# manifest="manual-deploy-manifest"
+# CHANGE_CAUSE="manual deploy ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)"
 
-echo -e "\n\nauthorizing"
-./scripts/production/gcp-authorize-kubectl
-gcloud auth configure-docker --quiet
+# echo -e "\n\nservices: ${services[*]}"
 
-echo -e "\n\nvalidation"
+# echo -e "\n\nauthorizing"
+# ./scripts/production/gcp-authorize-kubectl
+# gcloud auth configure-docker --quiet
 
-set -x
-./scripts/deployment/shipit validate "${services[*]}"
+# echo -e "\n\nvalidation"
 
-echo -e "\n\nbuilding containers"
-./scripts/deployment/shipit containers build --save-manifest=$manifest "${services[*]}"
+# set -x
+# ./scripts/deployment/shipit validate "${services[*]}"
 
-echo -e "\n\npushing containers"
-./scripts/deployment/shipit containers push "${services[*]}"
+# echo -e "\n\nbuilding containers"
+# ./scripts/deployment/shipit containers build --save-manifest=$manifest "${services[*]}"
 
-for s in "${services[@]}"; do
-  echo -e "\n\napplying manual settings for $s"
-  ./scripts/deployment/shipit manual apply "$s" --dry-run=server
-  ./scripts/deployment/shipit manual apply "$s"
-done
+# echo -e "\n\npushing containers"
+# ./scripts/deployment/shipit containers push "${services[*]}"
 
-echo -e "\n\ndeploying release"
-./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" "${services[*]}" --dry-run=client
-./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" "${services[*]}" --dry-run=server
-./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" "${services[*]}"
+# for s in "${services[@]}"; do
+#   echo -e "\n\napplying manual settings for $s"
+#   ./scripts/deployment/shipit manual apply "$s" --dry-run=server
+#   ./scripts/deployment/shipit manual apply "$s"
+# done
 
-echo -e "\n\nnotify telemetry"
-./scripts/deployment/_notify-deployment-rollbar "${CHANGE_CAUSE}"
-./scripts/deployment/_notify-deployment-honeycomb "${CHANGE_CAUSE}"
+# echo -e "\n\ndeploying release"
+# ./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" "${services[*]}" --dry-run=client
+# ./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" "${services[*]}" --dry-run=server
+# ./scripts/deployment/shipit release push --manifest=$manifest --arg CHANGE_CAUSE="${CHANGE_CAUSE}" "${services[*]}"
+
+# echo -e "\n\nnotify telemetry"
+# ./scripts/deployment/_notify-deployment-rollbar "${CHANGE_CAUSE}"
+# ./scripts/deployment/_notify-deployment-honeycomb "${CHANGE_CAUSE}"
