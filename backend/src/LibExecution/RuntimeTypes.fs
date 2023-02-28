@@ -132,7 +132,7 @@ module DarkDateTime =
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
-  | EString of id * string
+  | EString of id * List<StringSegment>
 
   /// A single Extended Grapheme Cluster
   | ECharacter of id * string
@@ -179,6 +179,10 @@ type Expr =
   | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
+
+and StringSegment =
+  | StringText of string
+  | StringInterpolation of Expr
 
 // EApply has slightly different semantics when it is in a pipe. When piping
 // into Incomplete values, we ignore the Incomplete and return the piped-in

@@ -58,7 +58,7 @@ type Infix =
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
-  | EString of id * string
+  | EString of id * List<StringSegment>
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.
   | ECharacter of id * string
@@ -90,6 +90,10 @@ type Expr =
   | EPipeTarget of id
   // EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr
   | EFeatureFlag of id * string * Expr * Expr * Expr
+
+and StringSegment =
+  | StringText of string
+  | StringInterpolation of Expr
 
 type DType =
   | TInt
