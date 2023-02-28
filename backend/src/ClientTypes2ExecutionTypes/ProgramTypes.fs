@@ -122,7 +122,8 @@ module Expr =
     match expr with
     | CTPT.Expr.EInteger (id, i) -> PT.EInteger(id, i)
     | CTPT.Expr.EBool (id, b) -> PT.EBool(id, b)
-    | CTPT.Expr.EString (id, s) -> PT.EString(id, s)
+    | CTPT.Expr.EString (id, segment) ->
+      PT.EString(id, List.map stringSegmentFromCTPT segment)
     | CTPT.Expr.ECharacter (id, c) -> PT.ECharacter(id, c)
     | CTPT.Expr.EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
     | CTPT.Expr.EUnit (id) -> PT.EUnit(id)
@@ -157,11 +158,16 @@ module Expr =
     | CTPT.Expr.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
 
+  and stringSegmentFromCTPT (segment : CTPT.StringSegment) : PT.StringSegment =
+    match segment with
+    | CTPT.StringText text -> PT.StringText text
+    | CTPT.StringInterpolation expr -> PT.StringInterpolation(fromCT expr)
+
   let rec toCT (expr : PT.Expr) : CTPT.Expr =
     match expr with
     | PT.EInteger (id, i) -> CTPT.Expr.EInteger(id, i)
     | PT.EBool (id, b) -> CTPT.Expr.EBool(id, b)
-    | PT.EString (id, s) -> CTPT.Expr.EString(id, s)
+    | PT.EString (id, s) -> CTPT.Expr.EString(id, List.map stringSegmentToCT s)
     | PT.ECharacter (id, c) -> CTPT.Expr.ECharacter(id, c)
     | PT.EFloat (id, sign, whole, frac) -> CTPT.Expr.EFloat(id, sign, whole, frac)
     | PT.EUnit (id) -> CTPT.Expr.EUnit(id)
@@ -206,6 +212,10 @@ module Expr =
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
 
+  and stringSegmentToCT (segment : PT.StringSegment) : CTPT.StringSegment =
+    match segment with
+    | PT.StringText text -> CTPT.StringText text
+    | PT.StringInterpolation expr -> CTPT.StringInterpolation(toCT expr)
 
 module DType =
   let rec fromCT (dtype : CTPT.DType) : PT.DType =

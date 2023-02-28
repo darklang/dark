@@ -154,7 +154,8 @@ module Expr =
     match e with
     | Expr.ECharacter (id, char) -> RT.ECharacter(id, char)
     | Expr.EInteger (id, num) -> RT.EInteger(id, num)
-    | Expr.EString (id, str) -> RT.EString(id, str)
+    | Expr.EString (id, segment) ->
+      RT.EString(id, List.map stringSegmentToRT segment)
     | Expr.EFloat (id, f) -> RT.EFloat(id, f)
 
     | Expr.EBool (id, b) -> RT.EBool(id, b)
@@ -185,6 +186,11 @@ module Expr =
     | Expr.EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | Expr.EOr (id, left, right) -> RT.EOr(id, r left, r right)
 
+  and stringSegmentToRT (segment : Expr.StringSegment) : RT.StringSegment =
+    match segment with
+    | Expr.StringText text -> RT.StringText text
+    | Expr.StringInterpolation expr -> RT.StringInterpolation(fromCT expr)
+
 
   let rec toCT (e : RT.Expr) : Expr.T =
     let r = toCT
@@ -192,7 +198,7 @@ module Expr =
     match e with
     | RT.ECharacter (id, char) -> Expr.ECharacter(id, char)
     | RT.EInteger (id, num) -> Expr.EInteger(id, num)
-    | RT.EString (id, str) -> Expr.EString(id, str)
+    | RT.EString (id, str) -> Expr.EString(id, List.map stringSegmenToCT str)
     | RT.EFloat (id, f) -> Expr.EFloat(id, f)
 
     | RT.EBool (id, b) -> Expr.EBool(id, b)
@@ -222,6 +228,11 @@ module Expr =
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
+
+  and stringSegmenToCT (segment : RT.StringSegment) : Expr.StringSegment =
+    match segment with
+    | RT.StringText text -> Expr.StringText text
+    | RT.StringInterpolation expr -> Expr.StringInterpolation(toCT expr)
 
 module Dval =
   module DvalSource =
