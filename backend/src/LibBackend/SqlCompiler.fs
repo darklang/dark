@@ -260,10 +260,23 @@ let rec lambdaToSql
     let name = randomString 10
     $"(@{name})", [ name, Sql.double v ]
 
-  | EString (_, v) ->
-    typecheck $"string \"{v}\"" TStr expectedType
-    let name = randomString 10
-    $"(@{name})", [ name, Sql.string v ]
+  | EString (_, parts) ->
+    let strParts, vars =
+      parts
+      |> List.map (fun part ->
+        match part with
+        | StringText (s) ->
+          typecheck $"string \"{s}\"" TStr expectedType
+          let name = randomString 10
+          name, [ name, Sql.string s ]
+        // $"(@{name})", [ name, Sql.string s]
+        | StringInterpolation e ->
+          let strPart, vars = lts TStr e
+          $"{strPart}", vars)
+      |> List.unzip
+    let strPart = strParts |> List.map (fun s -> $"@({s})") |> String.concat ""
+    let vars = vars |> List.collect identity
+    $"({strPart})", vars
 
   | ECharacter (_, v) ->
     typecheck $"char '{v}'" TChar expectedType
