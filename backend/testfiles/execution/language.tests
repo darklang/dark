@@ -44,7 +44,7 @@
 myvar = Test.typeError_v0 "There is no variable named: myvar"
 (let x = 5 in x) = 5
 
-[tests.interepolatedString]
+[tests.interpolatedString]
 "test 1" = $"test {"1"}"
 let one = "1" in "test 1" = $"test {one}"
 (let name = "John" in let age = "30" in $"Name: {name}, Age: {age} years old.") = "Name: John, Age: 30 years old."
