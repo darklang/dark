@@ -56,11 +56,12 @@ module Generators =
           return RT.EInteger(gid (), v)
         | RT.TStr ->
           let! v = G.safeUnicodeString
-          return RT.EString(gid (), v)
+          return RT.EString(gid (), [ RT.StringText v ]) //CLEANUP
         | RT.TChar ->
           // We don't have a construct for characters, so create code to generate the character
           let! v = G.char
-          return callFn "String" "toChar" 0 [ RT.EString(gid (), v) ]
+          return
+            callFn "String" "toChar" 0 [ RT.EString(gid (), [ RT.StringText v ]) ] //CLEANUP
         // Don't generate a random value as some random values are invalid
         // (e.g. constructor outside certain names). Ints should be fine for
         // whatever purpose there is here
@@ -145,7 +146,8 @@ module Generators =
           // (to test edges of conversions to strings, and just be more robust in general).
           // If we're able to remove `containsBytes` or reduce its scope, all the better.
           let! bytes = Arb.generate<byte []>
-          let v = RT.EString(gid (), Base64.defaultEncodeToString bytes)
+          let v =
+            RT.EString(gid (), [ RT.StringText(Base64.defaultEncodeToString bytes) ]) //CLEANUP
           return callFn "String" "toBytes" 0 [ v ]
         | RT.TDB _ ->
           let! name = G.safeUnicodeString
@@ -154,10 +156,20 @@ module Generators =
           return RT.EVariable(gid (), name)
         | RT.TDateTime ->
           let! d = Arb.generate<NodaTime.Instant>
-          return callFn "DateTime" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
+          return
+            callFn
+              "Date"
+              "parse"
+              0
+              [ RT.EString(gid (), [ RT.StringText(d.toIsoString ()) ]) ]
         | RT.TUuid ->
           let! u = Arb.generate<System.Guid>
-          return callFn "String" "toUUID" 0 [ RT.EString(gid (), string u) ]
+          return
+            callFn
+              "String"
+              "toUUID"
+              0
+              [ RT.EString(gid (), [ RT.StringText(string u) ]) ]
         | RT.THttpResponse typ ->
           let! code = genExpr' RT.TInt size
           let! body = genExpr' typ size

@@ -163,7 +163,13 @@ let testIfPreview : Test =
   let elseID = gid ()
   let f cond =
     task {
-      let ast = EIf(ifID, cond, EString(thenID, "then"), EString(elseID, "else"))
+      let ast =
+        EIf(
+          ifID,
+          cond,
+          EString(thenID, [ StringText "then" ]),
+          EString(elseID, [ StringText "else" ])
+        ) //CLEANUP
       let! results = execSaveDvals "if-preview" [] [] ast
 
       return
@@ -265,11 +271,11 @@ let testOrPreview : Test =
        (AT.ExecutedResult(DBool true),
         AT.NonExecutedResult(DStr "test"),
         AT.ExecutedResult(DBool true)))
-      ((EString(999UL, "test"), eBool false),
+      ((EString(999UL, [ StringText "test" ]), eBool false),  //CLEANUP
        (AT.ExecutedResult(DStr "test"),
         AT.NonExecutedResult(DBool false),
         AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
-      ((EString(999UL, "test"), eBool true),
+      ((EString(999UL, [ StringText "test" ]), eBool true),  //CLEANUP
        (AT.ExecutedResult(DStr "test"),
         AT.NonExecutedResult(DBool true),
         AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans")))) ]
@@ -319,11 +325,11 @@ let testAndPreview : Test =
        (AT.ExecutedResult(DBool true),
         AT.ExecutedResult(DStr "test"),
         AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
-      ((EString(999UL, "test"), eBool false),
+      ((EString(999UL, [ StringText "test" ]), eBool false),  //CLEANUP
        (AT.ExecutedResult(DStr "test"),
         AT.NonExecutedResult(DBool false),
         AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
-      ((EString(999UL, "test"), eBool true),
+      ((EString(999UL, [ StringText "test" ]), eBool true),  //CLEANUP
        (AT.ExecutedResult(DStr "test"),
         AT.NonExecutedResult(DBool true),
         AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans")))) ]
@@ -337,7 +343,12 @@ let testFeatureFlagPreview : Test =
       let oldID = gid ()
       let newID = gid ()
       let ast =
-        EFeatureFlag(ffID, cond, EString(oldID, "old"), EString(newID, "new"))
+        EFeatureFlag(
+          ffID,
+          cond,
+          EString(oldID, [ StringText "old" ]),
+          EString(newID, [ StringText "new" ])
+        ) //CLEANUP
       let! results = execSaveDvals "ff-preview" [] [] ast
 
       return
@@ -389,14 +400,14 @@ let testLambdaPreview : Test =
   testManyTask
     "lambda preview"
     f
-    [ (EString(65UL, "body")),
+    [ (EString(65UL, [ StringText "body" ])),
       (Map.fromList [ (lID,
                        AT.ExecutedResult(
                          DFnVal(
                            Lambda(
                              { parameters = [ (p2ID, "var") ]
                                symtable = Map.empty
-                               body = EString(65UL, "body") }
+                               body = EString(65UL, [ StringText "body" ]) } //CLEANUP
                            )
                          )
                        ))
@@ -436,16 +447,16 @@ let testMatchPreview : Test =
       (MPInteger(pIntId, 5L), EInteger(intRhsId, 17L))
 
       // | 5.6 -> "float"
-      (MPFloat(pFloatId, 5.6), EString(floatRhsId, "float"))
+      (MPFloat(pFloatId, 5.6), EString(floatRhsId, [ StringText "float" ])) //CLEANUP
 
       // | false -> "bool"
-      (MPBool(pBoolId, false), EString(boolRhsId, "bool"))
+      (MPBool(pBoolId, false), EString(boolRhsId, [ StringText "bool" ])) //CLEANUP
 
       // | "myStr" -> "str"
-      (MPString(pStrId, "myStr"), EString(strRhsId, "str"))
+      (MPString(pStrId, "myStr"), EString(strRhsId, [ StringText "str" ])) //CLEANUP
 
       // | () -> "unit"
-      (MPUnit(pUnitId), EString(unitRhsId, "unit"))
+      (MPUnit(pUnitId), EString(unitRhsId, [ StringText "unit" ])) //CLEANUP
 
       // | Ok x -> "ok: " ++ x
       (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
@@ -455,13 +466,14 @@ let testMatchPreview : Test =
            binopFnValId,
            PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
          ),
-         [ EString(okVarRhsStrId, "ok: "); EVariable(okVarRhsVarId, "x") ],
+         [ EString(okVarRhsStrId, [ StringText "ok: " ])
+           EVariable(okVarRhsVarId, "x") ], //CLEANUP
          NotInPipe
        ))
 
       // | None -> "constructor nothing"
       (MPConstructor(pNothingId, "Nothing", []),
-       EString(nothingRhsId, "constructor nothing"))
+       EString(nothingRhsId, [ StringText "constructor nothing" ])) //CLEANUP
 
       // | name -> name
       // (everything should match this, except for 'fake' dvals such as errors)
