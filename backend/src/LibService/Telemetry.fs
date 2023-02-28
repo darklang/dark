@@ -249,44 +249,58 @@ let honeycombOptions : HoneycombOptions =
   options.Endpoint <- Config.honeycombEndpoint
   options
 
+
+open System
+open System.Collections.Generic
+open System.Threading.Tasks
+
 let configureAspNetCore
   (options : Instrumentation.AspNetCore.AspNetCoreInstrumentationOptions)
   =
 
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Instrumentation.AspNetCore/README.md
-  let enrich =
-    (fun (activity : Span.T) (eventName : string) (rawObject : obj) ->
-      match (eventName, rawObject) with
-      | "OnStartActivity", (:? Microsoft.AspNetCore.Http.HttpRequest as httpRequest) ->
-        let ipAddress =
-          try
-            httpRequest.Headers.["x-forwarded-for"].[0]
-            |> String.split ","
-            |> List.head
-            |> Option.unwrap (
-              string httpRequest.HttpContext.Connection.RemoteIpAddress
-            )
-          with
-          | _ -> ""
-        let proto =
-          try
-            httpRequest.Headers.["x-forwarded-proto"].[0]
-          with
-          | _ -> ""
+  let enrichHttpRequest
+    (activity)
+    (httpRequest : Microsoft.AspNetCore.Http.HttpRequest)
+    =
+    let ipAddress =
+      try
+        httpRequest.Headers.["x-forwarded-for"].[0]
+        |> String.split ","
+        |> List.head
+        |> Option.unwrap (string httpRequest.HttpContext.Connection.RemoteIpAddress)
+      with
+      | _ -> ""
+    let proto =
+      try
+        httpRequest.Headers.["x-forwarded-proto"].[0]
+      with
+      | _ -> ""
 
-        activity
-        |> Span.addTags [ "meta.type", "http_request"
-                          "http.request.cookies.count", httpRequest.Cookies.Count
-                          "http.request.content_type", httpRequest.ContentType
-                          "http.request.content_length", httpRequest.ContentLength
-                          "http.remote_addr", ipAddress
-                          "http.proto", proto ]
-      | "OnStopActivity", (:? Microsoft.AspNetCore.Http.HttpResponse as httpResponse) ->
-        activity
-        |> Span.addTags [ "http.response.content_length", httpResponse.ContentLength
-                          "http.response.content_type", httpResponse.ContentType ]
-      | _ -> ())
-  options.Enrich <- enrich
+    activity
+    |> Span.addTags [ "meta.type", "http_request"
+                      "http.request.cookies.count", httpRequest.Cookies.Count
+                      "http.request.content_type", httpRequest.ContentType
+                      "http.request.content_length", httpRequest.ContentLength
+                      "http.remote_addr", ipAddress
+                      "http.proto", proto ]
+
+  let enrichHttpResponse
+    activity
+    (httpResponse : Microsoft.AspNetCore.Http.HttpResponse)
+    =
+    activity
+    |> Span.addTags [ "http.response.content_length", httpResponse.ContentLength
+                      "http.response.content_type", httpResponse.ContentType ]
+
+
+  options.EnrichWithHttpRequest <-
+    Action<Diagnostics.Activity, Microsoft.AspNetCore.Http.HttpRequest>
+      enrichHttpRequest
+  options.EnrichWithHttpResponse <-
+    Action<Diagnostics.Activity, Microsoft.AspNetCore.Http.HttpResponse>
+      enrichHttpResponse
+
   options.RecordException <- true
 
 #nowarn "1182"
@@ -364,7 +378,6 @@ let addTelemetry
        b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
   |> fun b ->
        b.AddHttpClientInstrumentation (fun options ->
-         options.SetHttpFlavor <- true // Record HTTP version
          options.RecordException <- true
          ())
   // TODO HttpClient instrumentation isn't working, so let's try to add it
@@ -402,8 +415,11 @@ module AspNet =
     (traceDBQueries : TraceDBQueries)
     (services : IServiceCollection)
     : IServiceCollection =
-    services.AddOpenTelemetryTracing (fun builder ->
-      // TODO: save tracerProvider to flush when it's finished
-      addTelemetry serviceName traceDBQueries builder
-      |> ignore<TracerProviderBuilder>
-      ())
+    services
+      .AddOpenTelemetry()
+      .WithTracing(fun builder ->
+        // TODO: save tracerProvider to flush when it's finished
+        addTelemetry serviceName traceDBQueries builder
+        |> ignore<TracerProviderBuilder>
+        ())
+      .Services

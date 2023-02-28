@@ -16,7 +16,7 @@ RUN mkdir app
 ENV DARK_CONFIG_RUNDIR=/home/dark/gcp-rundir
 RUN ./scripts/devcontainer/_create-app-directories
 
-COPY --chown=dark:dark backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/* app/
+COPY --chown=dark:dark backend/Build/out/BwdServer/Release/net7.0/linux-x64/publish/* app/
 RUN ./scripts/linting/_check-linked-libs app/BwdServer
 
 CMD ./app/BwdServer

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 
-EXE="backend/Build/out/CanvasHack/Debug/net6.0/linux-x64/CanvasHack"
+EXE="backend/Build/out/CanvasHack/Debug/net7.0/linux-x64/CanvasHack"
 
 echo "Waiting for postgres"
 ./scripts/devcontainer/_wait-for-background-services postgresql

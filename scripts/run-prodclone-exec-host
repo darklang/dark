@@ -17,9 +17,9 @@ done
 
 if [[ "$PUBLISHED" == "true" ]]; then
 
-  EXE="backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/ExecHost"
+  EXE="backend/Build/out/ExecHost/Release/net7.0/linux-x64/publish/ExecHost"
 else
-  EXE="backend/Build/out/ExecHost/Debug/net6.0/linux-x64/ExecHost"
+  EXE="backend/Build/out/ExecHost/Debug/net7.0/linux-x64/ExecHost"
 fi
 
 DARK_CONFIG_TELEMETRY_EXPORTER=none \

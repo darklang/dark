@@ -27,11 +27,11 @@ done
 killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Tests/Release/net6.0/linux-x64/Tests
-  EXECHOST=Build/out/ExecHost/Release/net6.0/linux-x64/ExecHost
+  EXE=Build/out/Tests/Release/net7.0/linux-x64/Tests
+  EXECHOST=Build/out/ExecHost/Release/net7.0/linux-x64/ExecHost
 else
-  EXE=Build/out/Tests/Debug/net6.0/linux-x64/Tests
-  EXECHOST=Build/out/ExecHost/Debug/net6.0/linux-x64/ExecHost
+  EXE=Build/out/Tests/Debug/net7.0/linux-x64/Tests
+  EXECHOST=Build/out/ExecHost/Debug/net7.0/linux-x64/ExecHost
 fi
 
 echo "Dropping testdb database"
