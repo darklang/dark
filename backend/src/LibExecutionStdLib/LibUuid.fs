@@ -55,4 +55,18 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
+    { name = fn "Uuid" "toString" 0
+      parameters = [ Param.make "uuid" TUuid "" ]
+      returnType = TStr
+      description =
+        "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+      fn =
+        (function
+        | _, [ DUuid uuid ] -> Ply(DStr(string uuid))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
     ]

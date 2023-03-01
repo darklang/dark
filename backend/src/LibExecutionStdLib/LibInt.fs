@@ -416,4 +416,20 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Int" "toString" 0
+      parameters = [ Param.make "int" TInt "" ]
+      returnType = TStr
+      description = "Stringify <param int>"
+      fn =
+        (function
+        | _, [ DInt int ] -> Ply(DStr(string int))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    ]

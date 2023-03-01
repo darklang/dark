@@ -68,6 +68,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
     | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInteger(id, n)
     | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInteger(id, int64 n)
+    | SynPat.Const (SynConst.UInt64 n, _) -> PT.MPInteger(id, int64 n)
     | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInteger(id, parseInt64 n)
     | SynPat.Const (SynConst.Char c, _) -> PT.MPCharacter(id, string c)
     | SynPat.Const (SynConst.Bool b, _) -> PT.MPBool(id, b)
@@ -135,6 +136,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Null _ -> PT.EUnit id
   | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInteger(id, n)
   | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(id, int64 n)
+  | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInteger(id, int64 n)
   | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInteger(id, parseInt64 n)
   | SynExpr.Const (SynConst.Char c, _) -> PT.ECharacter(id, string c)
   | SynExpr.Const (SynConst.Bool b, _) -> PT.EBool(id, b)

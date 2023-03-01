@@ -1,5 +1,5 @@
 [http-handler POST /]
-request.body |> Bytes.length |> toString |> String.toBytes_v0
+request.body |> Bytes.length |> Int.toString |> String.toBytes_v0
 
 [request]
 POST / HTTP/1.1

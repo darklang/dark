@@ -372,4 +372,32 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Float" "toString" 0
+      parameters = [ Param.make "f" TFloat "" ]
+      returnType = TStr
+      description = "Return {\"true\"} or {\"false\"}"
+      fn =
+        (function
+        | _, [ DFloat f ] ->
+          // TODO add tests from DvalRepr.Tests
+          let result =
+            if System.Double.IsPositiveInfinity f then
+              "Infinity"
+            else if System.Double.IsNegativeInfinity f then
+              "-Infinity"
+            else if System.Double.IsNaN f then
+              "NaN"
+            else
+              let result = sprintf "%.12g" f
+              if result.Contains "." then result else $"{result}.0"
+          Ply(DStr result)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    ]

@@ -1,5 +1,5 @@
 [http-handler POST /]
-(let body = request.body |> Bytes.length |> toString |> String.toBytes in
+(let body = request.body |> Bytes.length |> Int.toString |> String.toBytes in
 Http.response body 500)
 
 [request]

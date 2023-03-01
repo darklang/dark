@@ -22,10 +22,8 @@ module PT = ProgramTypes
 module FQFnName =
   /// Standard Library Function Name
   let oneWordFunctions =
-    Set [ "toString"
-          "equals"
+    Set [ "equals"
           "notEquals"
-          "toString_v0"
           "equals_v0"
           "notEquals_v0"
           "emit_v1" ]

@@ -1,11 +1,5 @@
 // CLEANUP move all these to LibMisc
 
-toString_v0 "test" = "test"
-toString_v0 123 = "123"
-toString_v0 (Date.parse_v2 "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
-toString_v0 (String.toBytes_v0 "a big big string with some emoji ✅") = "a big big string with some emoji ✅"
-toString_v0 (String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨") = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇👨‍❤️‍💋‍👨"
-
 equals_v0 1 1 = true
 equals_v0 "abc" "abc" = true
 equals_v0 "abd" "abc" = false

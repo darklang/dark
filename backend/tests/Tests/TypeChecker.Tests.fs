@@ -48,9 +48,7 @@ let testBasicTypecheckWorks : Test =
        Error(
          [ TypeChecker.Error.TypeUnificationFailure
              { expectedType = RT.TInt; actualValue = RT.DBool true } ]
-       ))
-
-      ("toString_v0", [ ("v", RT.DInt 5L) ]), Ok() ]
+       )) ]
 
 let testArguments : Test =
   let t (name, returnType, body) =

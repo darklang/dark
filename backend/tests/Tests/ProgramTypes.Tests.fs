@@ -20,7 +20,6 @@ let ptFQFnName =
     [ (PTParser.FQFnName.stdlibFqName "" "++" 0), "++"
       (PTParser.FQFnName.stdlibFqName "" "!=" 0), "!="
       (PTParser.FQFnName.stdlibFqName "" "&&" 0), "&&"
-      (PTParser.FQFnName.stdlibFqName "" "toString" 0), "toString"
       (PTParser.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 
@@ -36,8 +35,6 @@ let parseTests =
           ("", p "uawmdntve/dolxb/X4Im::nsgKJGO_v1")
           ("", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E_v1")
           ("no v0", p "gqs/ekupo0/AmOCq7bpK9xBftJX1F4s::nFTxmaoJ8wAeshW0E")
-          ("",
-           PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 })
           ("", PT.FQFnName.User "someUserFn")
           ("capital letter", PT.FQFnName.User "SomeUserFn") // CLEANUP shouldn't be needed
           ("has _v2 in it", PT.FQFnName.User "myfunction_v2")
@@ -54,11 +51,7 @@ let parseTests =
             Some(PTParser.FQFnName.parse name)
           with
           | _ -> None)
-        [ ("toString",
-           Some(
-             PT.FQFnName.Stdlib { module_ = ""; function_ = "toString"; version = 0 }
-           ))
-          ("equals",
+        [ ("equals",
            Some(
              PT.FQFnName.Stdlib { module_ = ""; function_ = "equals"; version = 0 }
            ))

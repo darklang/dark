@@ -64,4 +64,22 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Bool" "toString" 0
+      parameters = [ Param.make "v" TBool "" ]
+      returnType = TStr
+      description = "Return {\"true\"} or {\"false\"}"
+      fn =
+        (function
+        | _, [ DBool b ] ->
+          match b with
+          | true -> Ply(DStr("true"))
+          | false -> Ply(DStr("false"))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    ]
