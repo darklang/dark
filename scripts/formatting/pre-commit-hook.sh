@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # To install:
-# - cp scripts/pre-commit-hook.sh .git/hooks/pre-commit
+# - cp scripts/formatting/pre-commit-hook.sh .git/hooks/pre-commit
 # - chmod +x .git/hooks/pre-commit
 
 # Works on all filetype, silently ignoring unsupported files

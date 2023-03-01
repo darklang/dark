@@ -289,7 +289,7 @@ let fns : List<BuiltInFn> =
           // The next line is a fix to correct work when an upper bound equal '1'.
           // It is need because System.Random.NexInt64(Int64) _always_ returns 0 for 1
           // line from the official doc: "The _exclusive_ upper bound of the random number to be generated"
-          let correction: int64  = if upper = 1 then 2 else 0
+          let correction : int64 = if upper = 1 then 2 else 0
           lower + randomSeeded().NextInt64(upper - lower + correction) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
