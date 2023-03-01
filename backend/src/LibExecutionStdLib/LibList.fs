@@ -445,6 +445,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO: type check to ensure `varB` is "comparable"
     { name = fn "List" "uniqueBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -471,6 +472,27 @@ let fns : List<BuiltInFn> =
             let distinct = List.distinctBy snd projected
 
             return distinct |> List.sortBy fst |> List.map fst |> DList
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    // TODO: type check to ensure `varA` is "comparable"
+    { name = fn "List" "unique" 0
+      parameters =
+        [ Param.make "list" (TList varA) ""  ]
+      returnType = TList varA
+      description =
+        "Returns the passed list, with only unique values.
+         Only one of each value will be returned, but the
+         order will not be maintained."
+      fn =
+        (function
+        | _, [ DList l ] ->
+          uply {
+            return List.distinct l |> List.sort |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
