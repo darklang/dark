@@ -318,8 +318,7 @@ let fns : List<BuiltInFn> =
                 | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TStr "l" dv))
               l
 
-          // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
-          Ply(DStr((String.concat sep strs)))
+          Ply(DStr((String.concat sep strs).Normalize()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -515,8 +514,7 @@ let fns : List<BuiltInFn> =
           Ply(DStr(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      // CLEANUP mark as Pure
-      previewable = Impure
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
