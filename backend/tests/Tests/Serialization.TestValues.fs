@@ -187,7 +187,7 @@ module ProgramTypes =
             PT.ELet(
               244891515UL,
               "str",
-              PT.EString(446488682UL, [PT.StringText "a string"] ),
+              PT.EString(446488682UL, [ PT.StringText "a string" ]),
               PT.ELet(
                 537517627UL,
                 "char",
@@ -321,7 +321,7 @@ module ProgramTypes =
                               (PT.MPCharacter(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
                               (PT.MPString(491115870UL, "string"),
-                               PT.EString(820329949UL, [PT.StringText "string"]))
+                               PT.EString(820329949UL, [ PT.StringText "string" ]))
                               (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
                               (PT.MPVariable(722099983UL, "var"),
                                PT.EInfix(
