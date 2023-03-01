@@ -328,8 +328,7 @@ let fns : List<BuiltInFn> =
                   ))
               l
 
-          // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
-          Ply(DString((String.concat sep strs)))
+          Ply(DString((String.concat sep strs).Normalize()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -534,8 +533,7 @@ let fns : List<BuiltInFn> =
           Ply(DString(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      // CLEANUP mark as Pure
-      previewable = Impure
+      previewable = Pure
       deprecated = NotDeprecated }
 
 
