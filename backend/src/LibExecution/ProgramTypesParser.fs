@@ -22,11 +22,7 @@ module PT = ProgramTypes
 module FQFnName =
   /// Standard Library Function Name
   let oneWordFunctions =
-    Set [ "equals"
-          "notEquals"
-          "equals_v0"
-          "notEquals_v0"
-          "emit_v1" ]
+    Set [ "equals"; "notEquals"; "equals_v0"; "notEquals_v0"; "emit_v1" ]
 
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
