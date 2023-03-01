@@ -15,10 +15,7 @@ module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
 let incorrectArgs = LibExecution.Errors.incorrectArgs
-
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
