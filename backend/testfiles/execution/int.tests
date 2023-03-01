@@ -201,3 +201,14 @@ Int.parse_v0 "" = Error "Expected to parse string with only numbers, instead got
 Int.parse_v0 "1I" = Error "Expected to parse string with only numbers, instead got \"1I\""
 Int.parse_v0 "one" = Error "Expected to parse string with only numbers, instead got \"one\""
 Int.parse_v0 "XIV" = Error "Expected to parse string with only numbers, instead got \"XIV\""
+
+
+Int.toString 0 = "0"
+Int.toString 1 = "1"
+Int.toString -1 = "-1"
+Int.toString -4611686018427387904L = "-4611686018427387904" // OCaml lower limit
+Int.toString -4611686018427387905L = "-4611686018427387905" // past the OCaml upper limit"
+Int.toString -9223372036854775808L = "-9223372036854775808" // .NET lower limit
+Int.toString 4611686018427387903L = "4611686018427387903" // OCaml upper limit
+Int.toString 4611686018427387904L = "4611686018427387904" // past the OCaml upper limit
+Int.toString 9223372036854775807L = "9223372036854775807" // .NET upper limit
