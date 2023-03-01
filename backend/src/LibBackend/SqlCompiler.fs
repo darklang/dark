@@ -269,14 +269,13 @@ let rec lambdaToSql
           typecheck $"string \"{s}\"" TStr expectedType
           let name = randomString 10
           name, [ name, Sql.string s ]
-        // $"(@{name})", [ name, Sql.string s]
         | StringInterpolation e ->
           let strPart, vars = lts TStr e
           $"{strPart}", vars)
       |> List.unzip
-    let strPart = strParts |> List.map (fun s -> $"@({s})") |> String.concat ""
+    let strPart = strParts |> List.map (fun s -> $"(@{s})") |> String.concat ""
     let vars = vars |> List.collect identity
-    $"({strPart})", vars
+    strPart, vars
 
   | ECharacter (_, v) ->
     typecheck $"char '{v}'" TChar expectedType
