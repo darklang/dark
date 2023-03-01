@@ -286,7 +286,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DInt a; DInt b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
-          lower + randomSeeded().NextInt64(upper - lower) |> DInt |> Ply
+          // The next line is a fix to correct work when an upper bound equal '1'.
+          // It is need because System.Random.NexInt64(Int64) _always_ returns 0 for 1
+          // line from the official doc: "The _exclusive_ upper bound of the random number to be generated"
+          let correction: int64  = if upper = 1 then 2 else 0
+          lower + randomSeeded().NextInt64(upper - lower + correction) |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
