@@ -19,7 +19,7 @@ let executeFiles (files : string list) : unit =
 
   let result = Execute.execute expr Map.empty
   let dval = result.Result
-  let output = LibExecution.DvalReprLegacyExternal.toEnduserReadableTextV0 dval
+  let output = LibExecution.DvalReprDeveloper.toRepr dval
   System.Console.Out.WriteLine output
 
 

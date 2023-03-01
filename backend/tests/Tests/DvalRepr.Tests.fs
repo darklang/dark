@@ -14,7 +14,6 @@ module RT = LibExecution.RuntimeTypes
 module CTRuntime = ClientTypes.Runtime
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 
-module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
@@ -42,22 +41,6 @@ let testToDeveloperRepr =
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
           RT.DObj(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
           RT.DList [ RT.DUnit ], "[\n  unit\n]" ] ]
-
-let testToEnduserReadable =
-  testMany
-    "toEnduserReadable string"
-    DvalReprLegacyExternal.toEnduserReadableTextV0
-    [ RT.DFloat(0.0), "0.0"
-      RT.DFloat(-0.0), "-0.0"
-      RT.DFloat(5.0), "5.0"
-      RT.DFloat(5.1), "5.1"
-      RT.DFloat(-5.0), "-5.0"
-      RT.DFloat(-5.1), "-5.1"
-      RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
-      RT.DError(RT.SourceNone, "Some message"), "Error"
-      RT.DHttpResponse(RT.Redirect("some url")), "302 some url\nunit"
-      RT.DHttpResponse(RT.Response(0L, [ "a header", "something" ], RT.DUnit)),
-      "0 { a header: something }\nunit" ]
 
 // We used a System.Text.Json converter supplied by a NuGet package for a bit,
 // but found that it was incompatible with the OCamlCompatible serializer. We
@@ -202,9 +185,6 @@ module Password =
         DvalReprInternalRoundtrippable.parseJsonV0
 
       // redacting
-      doesRedact
-        "toEnduserReadableTextV0"
-        DvalReprLegacyExternal.toEnduserReadableTextV0
       doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
       doesRedact "Json.Vanilla.serialize" (fun dv ->
         dv |> CT2Runtime.Dval.toCT |> Json.Vanilla.serialize)
@@ -270,7 +250,6 @@ let tests =
     "dvalRepr"
     [ testDvalRoundtrippableRoundtrips
       testToDeveloperRepr
-      testToEnduserReadable
       ToHashableRepr.tests
       testInternalRoundtrippableNew
       Password.tests
