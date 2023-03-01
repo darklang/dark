@@ -14,25 +14,23 @@
  let contains = String.contains_v0 "a string" str in
  let uuid = Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2" in
  str
- |> (++) "\nbytes: "
- |> (++) (toString_v0 bytes)
  |> (++) "\nbase64Encode: "
  |> (++) base64Encode
  |> (++) "\nhex64Encode: "
  |> (++) hexEncode
  |> (++) "\nstring length: "
- |> (++) (toString_v0 sl)
+ |> (++) (Int.toString_v0 sl)
  |> (++) "\nbytes length: "
- |> (++) (toString_v0 bl)
+ |> (++) (Int.toString_v0 bl)
  |> (++) "\nbool: "
- |> (++) (toString_v0 r)
+ |> (++) (Bool.toString_v0 r)
  |> (++) "\nfloat: "
- |> (++) (toString_v0 d0)
+ |> (++) (Float.toString_v0 d0)
  |> (++) "\nanother double: "
- |> (++) (toString_v0 d1)
+ |> (++) (Float.toString_v0 d1)
  |> (++) "\nstring reverse: "
  |> (++) reverse
  |> (++) "\nstring contains: "
- |> (++) (toString_v0 contains)
+ |> (++) (Bool.toString_v0 contains)
  |> (++) "\nuuid: "
- |> (++) (toString_v0 uuid)) = "a string to be used as the test case\nbytes: a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
+ |> (++) (Uuid.toString_v0 (Test.unwrap uuid))) = "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"

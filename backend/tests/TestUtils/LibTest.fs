@@ -337,7 +337,6 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "httpResponseHeaders" 0
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
-      // CLEANUP make this is a list of string*string tuples
       returnType = TList(TList TStr)
       description = "Get headers from a HttpResponse"
       fn =
@@ -347,7 +346,7 @@ let fns : List<BuiltInFn> =
           | Redirect _ -> Ply(DList [])
           | Response (_, headers, _) ->
             headers
-            |> List.map (fun (k, v) -> DList [ DStr k; DStr v ])
+            |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
             |> DList
             |> Ply
         | _ -> incorrectArgs ())

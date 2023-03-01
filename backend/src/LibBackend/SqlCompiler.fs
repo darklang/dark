@@ -14,7 +14,6 @@ open Tablecloth
 
 open LibExecution.RuntimeTypes
 
-module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst

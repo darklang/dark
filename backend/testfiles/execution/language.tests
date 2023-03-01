@@ -54,9 +54,6 @@ myvar = Test.typeError_v0 "There is no variable named: myvar"
 (5 + (3)) = 8
 Int.add_v0 5 3 = 8
 
-[tests.fqfnname]
-toString 5 = "5"
-
 
 [tests.if]
 (if true then "correct" else 0) = "correct"

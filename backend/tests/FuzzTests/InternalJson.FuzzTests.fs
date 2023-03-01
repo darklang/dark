@@ -17,7 +17,6 @@ open FuzzTests.Utils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module G = Generators

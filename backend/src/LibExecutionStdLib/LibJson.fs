@@ -8,7 +8,6 @@ open LibExecution.RuntimeTypes
 open Prelude
 
 module Errors = LibExecution.Errors
-module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 
 let fn = FQFnName.stdlibFnName
 

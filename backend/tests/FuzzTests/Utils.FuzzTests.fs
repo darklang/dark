@@ -16,7 +16,6 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 
 

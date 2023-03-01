@@ -41,15 +41,16 @@ Http.responseWithJson_v0 {Connection = "Keep-Alive"}  200 = Http.responseWithHea
 Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 200 = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) {``Content-Type`` = "application/json"} 200
 Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 4503599627370496I = Http.responseWithHeaders_v0  (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) {``Content-Type`` = "application/json"} 4503599627370496I
 
-((Http.response_v0 "" 4503599627370496I) |> toString) = "4503599627370496 {  }\n\"\""
+((Http.response_v0 "" 4503599627370496L) |> Test.httpResponseStatusCode) = 4503599627370496L
 
-(Http.redirectTo_v0 "") |> toString = "302 \nunit"
-(Http.redirectTo_v0 "bad url") |> toString = "302 bad url\nunit"
-(Http.redirectTo_v0 "http://someothersite.com/") |> toString = "302 http://someothersite.com/\nunit"
-(Http.redirectTo_v0 "/relativeUrl") |> toString = "302 /relativeUrl\nunit"
+// TODO: re-enable after HttpRedirect removed
+// (Http.redirectTo_v0 "") = Http.response "" 301
+// (Http.redirectTo_v0 "bad url") = Http.response "bad url" 301
+// (Http.redirectTo_v0 "http://someothersite.com/") = Http.responseWithHeaders "" { Location = "http://someothersite.com" } 302
+// (Http.redirectTo_v0 "/relativeUrl") = Http.responseWithHeaders () { Location = "/relativeUrl" } 302
 
 Http.responseWithHeaders_v0 null {} 200 = Http.response_v0 null 200
 Http.responseWithHeaders_v0 "" {} 200 = Http.response_v0 "" 200
 Http.responseWithHeaders_v0 "value" {} 201 = Http.response_v0 "value" 201
-(Http.responseWithHeaders_v0 "value" { ``Server`` = "darklang" } 201) |> toString = "201 { Server: darklang }\n\"value\""
-(Http.responseWithHeaders_v0 4503599627370496I { ``Server`` = "darklang"; ``X-Secret-Key`` = "p@ssw0rd" } 200) |> toString = "200 { Server: darklang,X-Secret-Key: p@ssw0rd }\n4503599627370496"
+(Http.responseWithHeaders_v0 "value" { ``Server`` = "darklang" } 201) |> Test.httpResponseHeaders = [ ("Server", "darklang")]
+(Http.responseWithHeaders_v0 4503599627370496I { ``Server`` = "darklang"; ``X-Secret-Key`` = "p@ssw0rd" } 200) |> Test.httpResponseHeaders = [ ("Server","darklang") ;("X-Secret-Key", "p@ssw0rd") ]

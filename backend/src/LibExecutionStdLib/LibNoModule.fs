@@ -3,7 +3,6 @@ module LibExecutionStdLib.LibNoModule
 open Prelude
 open System
 
-module DvalReprLegacyExternal = LibExecution.DvalReprLegacyExternal
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 open LibExecution.RuntimeTypes
 
@@ -17,23 +16,7 @@ let varB = TVariable "b"
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "" "toString" 0
-      description =
-        "Returns a string representation of <param v>, suitable for displaying to a
-         user. Redacts passwords."
-      parameters = [ Param.make "v" (TVariable "a") "" ]
-      returnType = TStr
-      fn =
-        (function
-        | _, [ a ] ->
-          a |> DvalReprLegacyExternal.toEnduserReadableTextV0 |> DStr |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "" "equals" 0
+  [ { name = fn "" "equals" 0
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
       description = "Returns true if the two value are equal"

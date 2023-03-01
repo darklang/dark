@@ -1,5 +1,5 @@
 [http-handler GET /]
-Http.response (request.url |> toString |> String.toBytes_v0) 200
+Http.response (request.url |> String.toBytes_v0) 200
 
 [request]
 GET /?key=value HTTP/1.1
