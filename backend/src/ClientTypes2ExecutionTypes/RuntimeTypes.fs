@@ -198,7 +198,7 @@ module Expr =
     match e with
     | RT.ECharacter (id, char) -> Expr.ECharacter(id, char)
     | RT.EInteger (id, num) -> Expr.EInteger(id, num)
-    | RT.EString (id, str) -> Expr.EString(id, List.map stringSegmenToCT str)
+    | RT.EString (id, str) -> Expr.EString(id, List.map stringSegmentToCT str)
     | RT.EFloat (id, f) -> Expr.EFloat(id, f)
 
     | RT.EBool (id, b) -> Expr.EBool(id, b)
@@ -229,7 +229,7 @@ module Expr =
     | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
 
-  and stringSegmenToCT (segment : RT.StringSegment) : Expr.StringSegment =
+  and stringSegmentToCT (segment : RT.StringSegment) : Expr.StringSegment =
     match segment with
     | RT.StringText text -> Expr.StringText text
     | RT.StringInterpolation expr -> Expr.StringInterpolation(toCT expr)
