@@ -173,3 +173,15 @@ Char.isGreaterThan_v0 'a' (hand null) = false
 Char.isGreaterThan_v0 'a' (family null) = false
 Char.isGreaterThan_v0 (smiley null) (hand null) = true
 
+
+Char.toString 'A' = "A"
+Char.toString 'a' = "a"
+Char.toString 'Á' = "Á"
+Char.toString '3' = "3"
+Char.toString (smiley null) = "😂"
+Char.toString 'Ż' = "Ż"
+Char.toString 'Ó' = "Ó"
+Char.toString 'Ł' = "Ł"
+Char.toString (hand null) = "✋🏿"
+Char.toString 'Ჾ' = "Ჾ"
+Char.toString 'ჾ' = "ჾ"
