@@ -498,22 +498,22 @@ d "2100-01-01T00:00:00Z"
  let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
  DB.set_v1 { ts = afterDate null } "after"  Timestamp)
 
-[test.query with Date::<] with DB Timestamp
+[test.query with DateTime::<] with DB Timestamp
 (let _ = prepDates null in
  DB.queryOne_v4 Timestamp (fun value -> DateTime.(<) (middleDate null) value.ts)) =
    Just { ts = afterDate null }
 
-[test.query with Date::>] with DB Timestamp
+[test.query with DateTime::>] with DB Timestamp
 (let _ = prepDates null in
  DB.queryOne_v4 Timestamp (fun value -> DateTime.(>) (middleDate null) value.ts)) =
    Just { ts = beforeDate null }
 
-[test.query with Date::lessThan] with DB Timestamp
+[test.query with DateTime::lessThan] with DB Timestamp
 (let _ = prepDates null in
  DB.queryOne_v4 Timestamp (fun value -> DateTime.lessThan_v0 (middleDate null) value.ts)) =
    Just ({ ts = afterDate null })
 
-[test.query with Date::greaterThan] with DB Timestamp
+[test.query with DateTime::greaterThan] with DB Timestamp
 (let _ = prepDates null in
  DB.queryOne_v4 Timestamp (fun value -> DateTime.greaterThan_v0 (middleDate null) value.ts)) =
    Just { ts = beforeDate null }
