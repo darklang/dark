@@ -47,7 +47,7 @@ module FormatV0 =
     | DIncomplete of DvalSource
     | DHttpResponse of DHTTP
     | DDB of string
-    | DDate of NodaTime.LocalDateTime
+    | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
     | DUuid of System.Guid
     | DOption of Option<Dval>
@@ -70,7 +70,7 @@ module FormatV0 =
     | DIncomplete (SourceID (tlid, id)) -> RT.DIncomplete(RT.SourceID(tlid, id))
     | DError (SourceNone, msg) -> RT.DError(RT.SourceNone, msg)
     | DError (SourceID (tlid, id), msg) -> RT.DError(RT.SourceID(tlid, id), msg)
-    | DDate d -> RT.DDate d
+    | DDateTime d -> RT.DDateTime d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
@@ -101,7 +101,7 @@ module FormatV0 =
     | RT.DIncomplete (RT.SourceID (tlid, id)) -> DIncomplete(SourceID(tlid, id))
     | RT.DError (RT.SourceNone, msg) -> DError(SourceNone, msg)
     | RT.DError (RT.SourceID (tlid, id), msg) -> DError(SourceID(tlid, id), msg)
-    | RT.DDate d -> DDate d
+    | RT.DDateTime d -> DDateTime d
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword (Password pw) -> DPassword pw
@@ -147,7 +147,7 @@ module Test =
     | RT.DBool _
     | RT.DChar _
     | RT.DBytes _
-    | RT.DDate _
+    | RT.DDateTime _
     | RT.DOption None
     | RT.DPassword _ -> true
     | RT.DList dvals -> List.all isRoundtrippableDval dvals

@@ -566,7 +566,7 @@ that's already taken, returns an error."
           | TError -> "error"
           | THttpResponse _ -> "response"
           | TDB _ -> "datastore"
-          | TDate -> "date"
+          | TDateTime -> "date"
           | TPassword -> "password"
           | TUuid -> "uuid"
           | TOption _ -> "option"
@@ -729,7 +729,7 @@ human-readable data."
           TRecord [ "space", TStr
                     "path", TStr
                     "modifier", TStr
-                    "timestamp", TDate
+                    "timestamp", TDateTime
                     "traceID", TUuid ]
         )
       description = "Fetch a list of recent 404s"
@@ -744,7 +744,7 @@ human-readable data."
                   [ "space", DStr space
                     "path", DStr path
                     "modifier", DStr modifier
-                    "timestamp", DDate(DDateTime.fromInstant instant)
+                    "timestamp", DDateTime(DarkDateTime.fromInstant instant)
                     "traceID",
                     DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
                   |> Map

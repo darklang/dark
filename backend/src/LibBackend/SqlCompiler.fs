@@ -37,7 +37,7 @@ let typeToSqlType (t : DType) : string =
   | TInt -> "integer"
   | TFloat -> "double precision"
   | TBool -> "bool"
-  | TDate -> "timestamp with time zone"
+  | TDateTime -> "timestamp with time zone"
   | TChar -> "text"
   | _ -> error $"We do not support this type of DB field yet: {t}"
 
@@ -61,7 +61,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DBytes _
   | DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
-  | DDate date -> date |> DDateTime.toDateTimeUtc |> Sql.timestamptz
+  | DDateTime date -> date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz
   | DInt i -> Sql.int64 i
   | DFloat v -> Sql.double v
   | DBool b -> Sql.bool b
@@ -286,7 +286,7 @@ let rec lambdaToSql
     // CLEANUP this should be dbFieldType, since we know it. We could have a TAny
     // function with a Date field and this would query it wrong
     (match expectedType with
-     | TDate ->
+     | TDateTime ->
        // This match arm handles types that are serialized in
        // unsafeDvalToJson using wrapUserType or wrapUserStr, meaning
        // they are wrapped in {type:, value:}. Right now, of the types sql

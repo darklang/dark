@@ -152,9 +152,9 @@ module Generators =
           let ti = System.Globalization.CultureInfo.InvariantCulture.TextInfo
           let name = ti.ToTitleCase name
           return RT.EVariable(gid (), name)
-        | RT.TDate ->
+        | RT.TDateTime ->
           let! d = Arb.generate<NodaTime.Instant>
-          return callFn "Date" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
+          return callFn "DateTime" "parse" 0 [ RT.EString(gid (), d.toIsoString ()) ]
         | RT.TUuid ->
           let! u = Arb.generate<System.Guid>
           return callFn "String" "toUUID" 0 [ RT.EString(gid (), string u) ]
@@ -223,14 +223,14 @@ module Generators =
                 s
                 (Gen.zip (G.safeUnicodeString) (genDval' typ (s / 2))))
         | RT.TDB _ -> return! Gen.map RT.DDB (G.safeUnicodeString)
-        | RT.TDate ->
+        | RT.TDateTime ->
           return!
             Gen.map
-              (fun (dt : RT.DDateTime.T) ->
+              (fun (dt : RT.DarkDateTime.T) ->
                 // Set milliseconds to zero
-                RT.DDate(dt.PlusMilliseconds(-dt.Millisecond)))
+                RT.DDateTime(dt.PlusMilliseconds(-dt.Millisecond)))
 
-              Arb.generate<RT.DDateTime.T>
+              Arb.generate<RT.DarkDateTime.T>
         | RT.TChar ->
           let! v = G.char
           return RT.DChar v

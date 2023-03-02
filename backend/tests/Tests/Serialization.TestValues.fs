@@ -412,7 +412,7 @@ module ProgramTypes =
                  ("error", PT.TError)
                  ("httpresponse", PT.THttpResponse(PT.TInt))
                  ("db", PT.TDB(PT.TInt))
-                 ("date", PT.TDate)
+                 ("date", PT.TDateTime)
                  ("char", PT.TChar)
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)

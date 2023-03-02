@@ -418,8 +418,8 @@ let rec debugDval (v : Dval) : string =
   match v with
   | DStr s ->
     $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
-  | DDate d ->
-    $"DDate '{DDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
+  | DDateTime d ->
+    $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
   | DObj obj ->
     obj
     |> Map.toList
@@ -446,10 +446,10 @@ module Expect =
     let check = isCanonical
 
     match dv with
-    | DDate _
+    | DDateTime _
     | DIncomplete _
     | DInt _
-    | DDate _
+    | DDateTime _
     | DBool _
     | DFloat _
     | DUnit
@@ -677,7 +677,7 @@ module Expect =
     | DResult (Ok l), DResult (Ok r) -> de ("Ok" :: path) l r
     | DResult (Error l), DResult (Error r) -> de ("Error" :: path) l r
     | DOption (Some l), DOption (Some r) -> de ("Just" :: path) l r
-    | DDate l, DDate r ->
+    | DDateTime l, DDateTime r ->
       // Two dates can be the same millisecond and not be equal if they don't
       // have the same number of ticks. For testing, we shall consider them
       // equal if they print the same string.
@@ -734,7 +734,7 @@ module Expect =
     | DOption _, _
     | DStr _, _
     | DInt _, _
-    | DDate _, _
+    | DDateTime _, _
     | DBool _, _
     | DFloat _, _
     | DUnit, _
@@ -800,7 +800,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DOption None
     | DStr _
     | DInt _
-    | DDate _
+    | DDateTime _
     | DBool _
     | DFloat _
     | DUnit
@@ -991,8 +991,8 @@ let interestingDvals =
      DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
     ("db", DDB "Visitors")
     ("date",
-     DDate(
-       DDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
+     DDateTime(
+       DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
      ))
     ("password", DPassword(Password(UTF8.toBytes "somebytes")))
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))

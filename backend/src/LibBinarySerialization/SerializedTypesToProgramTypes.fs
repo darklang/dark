@@ -131,7 +131,7 @@ module DType =
     | ST.TError -> PT.TError
     | ST.THttpResponse typ -> PT.THttpResponse(toPT typ)
     | ST.TDB typ -> PT.TDB(toPT typ)
-    | ST.TDate -> PT.TDate
+    | ST.TDateTime -> PT.TDateTime
     | ST.TChar -> PT.TChar
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid

@@ -160,13 +160,13 @@ let testInfixProgramTypesToSerializedTypes =
        ))
       (PT.EInfix(
         8UL,
-        PT.InfixFnCall({ module_ = Some "Date"; function_ = "<" }),
+        PT.InfixFnCall({ module_ = Some "DateTime"; function_ = "<" }),
         PT.EInteger(9UL, 6),
         PT.EInteger(10UL, 6)
        ),
        ST.EInfix(
          8UL,
-         ST.InfixFnCall({ module_ = Some("Date"); function_ = "<" }),
+         ST.InfixFnCall({ module_ = Some("DateTime"); function_ = "<" }),
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6)
        )) ]

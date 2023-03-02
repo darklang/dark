@@ -53,7 +53,7 @@
             "Visitors"
           ],
           "date": [
-            "DDate",
+            "DDateTime",
             "2018-09-14T00:31:41Z"
           ],
           "date string": [
@@ -3197,7 +3197,7 @@
                 "Visitors"
               ],
               "date": [
-                "DDate",
+                "DDateTime",
                 "2018-09-14T00:31:41Z"
               ],
               "date string": [
@@ -6293,7 +6293,7 @@
       7,
       "testFn",
       2,
-      "hwhVwp8VAyc",
+      "aEsAeewYgQ4",
       [
         "DObj",
         {
@@ -6344,7 +6344,7 @@
             "Visitors"
           ],
           "date": [
-            "DDate",
+            "DDateTime",
             "2018-09-14T00:31:41Z"
           ],
           "date string": [

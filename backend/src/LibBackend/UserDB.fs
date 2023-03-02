@@ -93,7 +93,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TStr, RT.DStr _ -> value
         | RT.TChar, RT.DChar _ -> value
         | RT.TBool, RT.DBool _ -> value
-        | RT.TDate, RT.DDate _ -> value
+        | RT.TDateTime, RT.DDateTime _ -> value
         // CLEANUP use the inner type
         | RT.TList _, RT.DList _ -> value
         | RT.TPassword, RT.DPassword _ -> value

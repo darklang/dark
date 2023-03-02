@@ -27,7 +27,7 @@ let rec typeName (t : DType) : string =
   | TError -> "Error"
   | THttpResponse _ -> "Response"
   | TDB _ -> "Datastore"
-  | TDate -> "Date" // CLEANUP Dates should be DateTimes
+  | TDateTime -> "DateTime" // CLEANUP Dates should be DateTimes
   | TPassword -> "Password"
   | TUuid -> "UUID"
   | TOption _ -> "Option"
@@ -81,7 +81,7 @@ let toRepr (dv : Dval) : string =
       justType
     | DIncomplete _ -> justType
     | DError (_, msg) -> $"<error: {msg}>"
-    | DDate d -> wrap (DDateTime.toIsoString d)
+    | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
     | DHttpResponse (Redirect url) -> $"302 {url}"

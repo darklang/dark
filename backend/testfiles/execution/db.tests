@@ -290,7 +290,7 @@ DB.count X = 0
 [db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
 
 [fn.addFriend key:string name:string height:int human:bool dob:string income:float]
-(let dob = (Date.parse_v2 dob) |> Test.unwrap in
+(let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
  let obj = { height = height; name = name; human = human; dob = dob; income = income } in
  DB.set_v1 obj key Person)
 
@@ -303,7 +303,7 @@ DB.count X = 0
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
 
 [fn.d datestr:string]
-(Date.parse_v2 datestr) |> Test.unwrap
+(DateTime.parse_v2 datestr) |> Test.unwrap
 
 [fn.rossDOB x:any]
 (d "1967-05-12T00:00:00Z")
@@ -386,7 +386,7 @@ friendsError (fun p -> p.height == "string") =
 
 // This test checks do we look up dates correctly when the function type is not a date
 [test.db invalid date comparison EXPECTED_EXCEPTION_COUNT: 1] with DB Person
-friendsError (fun p -> p.dob != Date.now_v0) =
+friendsError (fun p -> p.dob != DateTime.now_v0) =
   Test.sqlError "An error occurred while querying the Datastore"
 
 // ------------
@@ -419,21 +419,21 @@ friendsError (fun p -> p.dob != Date.now_v0) =
 (friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
 (friends (fun p -> Bool.and_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
 (friends (fun p -> Bool.or_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> Date.(<=) p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> Date.(<=) p.dob (rossDOB null))) = ["Ross" ]
-(friends (fun p -> Date.(<) p.dob (rossDOB null))) = []
-(friends (fun p -> Date.(>=) p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
-(friends (fun p -> Date.(>=) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-(friends (fun p -> Date.(>) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-(friends (fun p -> Date.(<=) p.dob (Date.add_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
-(friends (fun p -> Date.(<=) p.dob (Date.subtractSeconds_v0 (Date.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
-(friends (fun p -> Date.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
-(friends (fun p -> Date.hour_v2 p.dob == 10)) = [" Chandler "]
-(friends (fun p -> Date.day_v0 p.dob == 19)) = [" Chandler "]
-(friends (fun p -> Date.minute_v1 p.dob == 13)) = [" Chandler "]
-(friends (fun p -> Date.month_v0 p.dob == 8)) = [" Chandler "]
-(friends (fun p -> Date.second_v1 p.dob == 42)) = [" Chandler "]
-(friends (fun p -> Date.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
+(friends (fun p -> DateTime.(<=) p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> DateTime.(<=) p.dob (rossDOB null))) = ["Ross" ]
+(friends (fun p -> DateTime.(<) p.dob (rossDOB null))) = []
+(friends (fun p -> DateTime.(>=) p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
+(friends (fun p -> DateTime.(>=) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+(friends (fun p -> DateTime.(>) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+(friends (fun p -> DateTime.(<=) p.dob (DateTime.add_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> DateTime.(<=) p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
+(friends (fun p -> DateTime.hour_v2 p.dob == 10)) = [" Chandler "]
+(friends (fun p -> DateTime.day_v0 p.dob == 19)) = [" Chandler "]
+(friends (fun p -> DateTime.minute_v1 p.dob == 13)) = [" Chandler "]
+(friends (fun p -> DateTime.month_v0 p.dob == 8)) = [" Chandler "]
+(friends (fun p -> DateTime.second_v1 p.dob == 42)) = [" Chandler "]
+(friends (fun p -> DateTime.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
 
 [test.db partial evaluation fieldAccesses outside query] with DB Person
 (let _ = prepFriends null
@@ -498,24 +498,24 @@ d "2100-01-01T00:00:00Z"
  let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
  DB.set_v1 { ts = afterDate null } "after"  Timestamp)
 
-[test.query with Date::<] with DB Timestamp
+[test.query with DateTime::<] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.(<) (middleDate null) value.ts)) =
+ DB.queryOne_v4 Timestamp (fun value -> DateTime.(<) (middleDate null) value.ts)) =
    Just { ts = afterDate null }
 
-[test.query with Date::>] with DB Timestamp
+[test.query with DateTime::>] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.(>) (middleDate null) value.ts)) =
+ DB.queryOne_v4 Timestamp (fun value -> DateTime.(>) (middleDate null) value.ts)) =
    Just { ts = beforeDate null }
 
-[test.query with Date::lessThan] with DB Timestamp
+[test.query with DateTime::lessThan] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.lessThan_v0 (middleDate null) value.ts)) =
+ DB.queryOne_v4 Timestamp (fun value -> DateTime.lessThan_v0 (middleDate null) value.ts)) =
    Just ({ ts = afterDate null })
 
-[test.query with Date::greaterThan] with DB Timestamp
+[test.query with DateTime::greaterThan] with DB Timestamp
 (let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> Date.greaterThan_v0 (middleDate null) value.ts)) =
+ DB.queryOne_v4 Timestamp (fun value -> DateTime.greaterThan_v0 (middleDate null) value.ts)) =
    Just { ts = beforeDate null }
 
 [tests.other tests]

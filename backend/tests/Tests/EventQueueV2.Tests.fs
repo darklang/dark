@@ -37,7 +37,7 @@ let initializeCanvas (name : string) : Task<Canvas.Meta * tlid> =
     // set up handler
     let! meta = initializeTestCanvas (Randomized name)
 
-    let h = testWorker "test" (p "let data = Date.now_v0 in 123")
+    let h = testWorker "test" (p "let data = DateTime.now_v0 in 123")
     let oplists = [ handlerOp h ]
 
     do!
@@ -84,7 +84,7 @@ let checkSuccess
     Expect.equal (List.length functionResults) 1 "should have stored fn result"
     let shapeIsAsExpected =
       match functionResults with
-      | [ (_, _, _, _, RT.DDate _) ] -> true
+      | [ (_, _, _, _, RT.DDateTime _) ] -> true
       | _ -> false
     Expect.isTrue shapeIsAsExpected "should have a date here"
   }

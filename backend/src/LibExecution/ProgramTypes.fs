@@ -104,7 +104,7 @@ type DType =
   | TError
   | THttpResponse of DType
   | TDB of DType
-  | TDate
+  | TDateTime
   | TChar
   | TPassword
   | TUuid

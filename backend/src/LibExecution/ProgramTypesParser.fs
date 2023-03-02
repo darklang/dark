@@ -102,7 +102,8 @@ module FQFnName =
             [ module_; name; version ] -> stdlibFqName module_ name (int version)
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
       stdlibFqName module_ name 0
-    | Regex "^Date::([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "Date" name 0
+    | Regex "^DateTime::([-+><&|!=^%/*]{1,2})$" [ name ] ->
+      stdlibFqName "DateTime" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
       stdlibFqName "" name (int version)
@@ -148,7 +149,7 @@ module DType =
     | "error" -> Some PT.TError
     | "response" -> Some(PT.THttpResponse any)
     | "datastore" -> Some(PT.TDB any)
-    | "date" -> Some PT.TDate
+    | "date" -> Some PT.TDateTime
     | "password" -> Some PT.TPassword
     | "uuid" -> Some PT.TUuid
     | "option" -> Some(PT.TOption any)
@@ -169,7 +170,7 @@ module DType =
         | "password" -> Some(PT.TDbList PT.TPassword)
         | "uuid" -> Some(PT.TDbList PT.TUuid)
         | "dict" -> Some(PT.TDbList(PT.TDict any))
-        | "date" -> Some(PT.TDbList PT.TDate)
+        | "date" -> Some(PT.TDbList PT.TDateTime)
         | "title" -> Some(PT.TDbList PT.TStr)
         | "url" -> Some(PT.TDbList PT.TStr)
         | _ -> None

@@ -107,7 +107,7 @@ module FQFnName =
     | _ -> false
 
 
-module DDateTime =
+module DarkDateTime =
   open NodaTime
   // A datetime in Dark is always in UTC, so we don't include the utc info
   type T = LocalDateTime
@@ -268,7 +268,7 @@ and Dval =
   // user types: awaiting a better type system
   | DHttpResponse of DHTTP
   | DDB of string
-  | DDate of DDateTime.T
+  | DDateTime of DarkDateTime.T
   | DPassword of Password
   | DUuid of System.Guid
   | DOption of Option<Dval>
@@ -293,7 +293,7 @@ and DType =
   | TError
   | THttpResponse of DType
   | TDB of DType
-  | TDate
+  | TDateTime
   | TChar
   | TPassword
   | TUuid
@@ -331,7 +331,7 @@ and DType =
     | TError -> "Error"
     | THttpResponse _ -> "Response"
     | TDB _ -> "Datastore"
-    | TDate -> "Date"
+    | TDateTime -> "DateTime"
     | TDict _ -> "Dict"
     | TPassword -> "Password"
     | TUuid -> "UUID"
@@ -460,7 +460,7 @@ module Dval =
     | DHttpResponse (Response (_, _, dv)) -> THttpResponse(toType dv)
     | DHttpResponse (Redirect _) -> THttpResponse TUnit
     | DDB _ -> TDB any
-    | DDate _ -> TDate
+    | DDateTime _ -> TDateTime
     | DPassword _ -> TPassword
     | DUuid _ -> TUuid
     | DOption None -> TOption any
@@ -488,7 +488,7 @@ module Dval =
     | DBool _, TBool
     | DUnit, TUnit
     | DStr _, TStr
-    | DDate _, TDate
+    | DDateTime _, TDateTime
     | DPassword _, TPassword
     | DUuid _, TUuid
     | DChar _, TChar
@@ -530,7 +530,7 @@ module Dval =
     | DBool _, _
     | DUnit, _
     | DStr _, _
-    | DDate _, _
+    | DDateTime _, _
     | DPassword _, _
     | DUuid _, _
     | DChar _, _
@@ -690,15 +690,15 @@ module Package =
 /// their results saved.
 /// In addition, some functions can be run without side-effects; to give
 /// the user a good experience, we can run them as soon as they are added.
-/// this includes Date::now and Int::random.
+/// this includes DateTime::now and Int::random.
 /// </remarks>
 type Previewable =
   /// The same inputs will always yield the same outputs,
-  /// so we don't need to save results. e.g. `Date::add`
+  /// so we don't need to save results. e.g. `DateTime::add`
   | Pure
 
   /// Output may vary with the same inputs, though we can safely preview.
-  /// e.g. `Date::now`. We should save the results.
+  /// e.g. `DateTime::now`. We should save the results.
   | ImpurePreviewable
 
   /// Can only be run on the server. e.g. `DB::update`
