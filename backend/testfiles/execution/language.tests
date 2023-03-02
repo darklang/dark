@@ -129,6 +129,9 @@ List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
  let x = 6 in
  [1; 2; 3; 4] |> List.map_v0 y) = [ 6; 7; 8; 9 ]
 
+[test.pipe identity function]
+([1; 2; 3] |> List.map_v0 Fun.identity) = [1; 2; 3]
+
 [test.lambda2]
 (String.join_v0
   (List.map_v0

@@ -1,0 +1,4 @@
+Fun.identity 1 = 1
+Fun.identity "test" = "test"
+Fun.identity (Just "test") = Just "test"
+Fun.identity (fun a -> a + 1) = (fun a -> a + 1)

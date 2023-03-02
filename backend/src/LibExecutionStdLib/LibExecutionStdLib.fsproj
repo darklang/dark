@@ -16,6 +16,7 @@
     <Compile Include="LibDate.fs" />
     <Compile Include="LibDict.fs" />
     <Compile Include="LibFloat.fs" />
+    <Compile Include="LibFun.fs" />
     <Compile Include="LibHttp.fs" />
     <Compile Include="LibHttpClient.fs" />
     <Compile Include="LibInt.fs" />
