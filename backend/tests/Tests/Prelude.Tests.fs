@@ -150,7 +150,7 @@ let floatTests =
 
 let dateTests =
   testList
-    "Date"
+    "DateTime"
     [ testMany
         "toIsoString"
         (fun (i : NodaTime.Instant) -> i.toIsoString ())

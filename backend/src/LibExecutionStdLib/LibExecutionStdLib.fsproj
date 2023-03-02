@@ -13,7 +13,7 @@
     <Compile Include="LibBool.fs" />
     <Compile Include="LibBytes.fs" />
     <Compile Include="LibChar.fs" />
-    <Compile Include="LibDate.fs" />
+    <Compile Include="LibDateTime.fs" />
     <Compile Include="LibDict.fs" />
     <Compile Include="LibFloat.fs" />
     <Compile Include="LibHttp.fs" />
