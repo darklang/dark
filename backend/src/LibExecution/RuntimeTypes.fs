@@ -331,7 +331,7 @@ and DType =
     | TError -> "Error"
     | THttpResponse _ -> "Response"
     | TDB _ -> "Datastore"
-    | TDateTime -> "Date"
+    | TDateTime -> "DateTime"
     | TDict _ -> "Dict"
     | TPassword -> "Password"
     | TUuid -> "UUID"
