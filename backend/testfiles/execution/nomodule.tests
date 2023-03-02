@@ -3,29 +3,29 @@
 equals_v0 1 1 = true
 equals_v0 "abc" "abc" = true
 equals_v0 "abd" "abc" = false
-equals_v0 (Date.parse_v2 "2019-07-28T22:42:36Z") (Date.parse_v2 "2019-07-28T22:42:36Z") = true
+equals_v0 (DateTime.parse_v2 "2019-07-28T22:42:36Z") (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 (=) 1 1 = true
 (=) "abc" "abc" = true
 (=) "abd" "abc" = false
-(=) (Date.parse_v2 "2019-07-28T22:42:36Z") (Date.parse_v2 "2019-07-28T22:42:36Z") = true
+(=) (DateTime.parse_v2 "2019-07-28T22:42:36Z") (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 1 == 1 = true
 "abc" == "abc" = true
 "abd" == "abc" = false
-(Date.parse_v2 "2019-07-28T22:42:36Z") == (Date.parse_v2 "2019-07-28T22:42:36Z") = true
+(DateTime.parse_v2 "2019-07-28T22:42:36Z") == (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 
 
 notEquals_v0 1 1 = false
 notEquals_v0 "abc" "abc" = false
 notEquals_v0 "abd" "abc" = true
-notEquals_v0 (Date.parse_v2 "2021-07-28T22:42:36Z") (Date.parse_v2 "2019-07-28T22:42:36Z") = true
+notEquals_v0 (DateTime.parse_v2 "2021-07-28T22:42:36Z") (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 (!=) 1 1 = false
 (!=) "abc" "abc" = false
 (!=) "abd" "abc" = true
-(!=) (Date.parse_v2 "2021-07-28T22:42:36Z") (Date.parse_v2 "2019-07-28T22:42:36Z") = true
+(!=) (DateTime.parse_v2 "2021-07-28T22:42:36Z") (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 1 != 1 = false
 "abc" != "abc" = false
 "abd" != "abc" = true
-(Date.parse_v2 "2021-07-28T22:42:36Z") != (Date.parse_v2 "2019-07-28T22:42:36Z") = true
+(DateTime.parse_v2 "2021-07-28T22:42:36Z") != (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 
 
 AWS.urlencode_v0 "%" = ""

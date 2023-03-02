@@ -1,8 +1,8 @@
 Http.setCookie_v2 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal" }
-Http.setCookie_v2 "myCookie" "myVal" { Expires = (Date.parse_v2 "2000-07-28T22:42:00Z") |> Test.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
+Http.setCookie_v2 "myCookie" "myVal" { Expires = (DateTime.parse_v2 "2000-07-28T22:42:00Z") |> Test.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
 
 [test.date]
-(match Date.parse_v2 "2019-07-28T22:42:00Z" with
+(match DateTime.parse_v2 "2019-07-28T22:42:00Z" with
 | Ok date -> Http.setCookie_v2 "myCookie" "myVal" { Expires = date; ``Max-Age`` = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" }) = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
 
 [tests.errors]

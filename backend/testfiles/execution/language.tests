@@ -408,8 +408,8 @@ DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // EXPECTE
 ({ x = 6; y = 7 } <> { x = 7; y = 6 }) = true
 ("asd" = "asd") = true
 ("asd" <> "sad") = true
-((Date.parse_v2 "2019-07-28T22:42:36Z") = (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
-((Date.parse_v2 "2019-07-28T22:42:37Z") <> (Date.parse_v2 "2019-07-28T22:42:36Z")) = true
+((DateTime.parse_v2 "2019-07-28T22:42:36Z") = (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
+((DateTime.parse_v2 "2019-07-28T22:42:37Z") <> (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
 (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 (Nothing = Nothing) = true
