@@ -205,7 +205,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
     PT.ETuple(id, c first, c second, List.map c rest)
 
-  // Long Identifiers like Date.now, represented in the form of ["Date"; "now"]
+  // Long Identifiers like DateTime.now, represented in the form of ["Date"; "now"]
   // (LongIdent = Ident list)
   | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
     System.Char.IsUpper(modName.idText[0])
@@ -217,7 +217,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       | Regex "(.+)_v(\d+)" [ name; version ] ->
         ($"{module_}::{name}_v{int version}")
       | Regex "(.*)" [ name ] when Map.containsKey name ops ->
-        // Things like `Date::<`, written `Date.(<)`
+        // Things like `DateTime::<`, written `DateTime.(<)`
         let name =
           Map.get name ops
           |> Exception.unwrapOptionInternal

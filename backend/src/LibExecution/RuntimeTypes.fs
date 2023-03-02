@@ -690,15 +690,15 @@ module Package =
 /// their results saved.
 /// In addition, some functions can be run without side-effects; to give
 /// the user a good experience, we can run them as soon as they are added.
-/// this includes Date::now and Int::random.
+/// this includes DateTime::now and Int::random.
 /// </remarks>
 type Previewable =
   /// The same inputs will always yield the same outputs,
-  /// so we don't need to save results. e.g. `Date::add`
+  /// so we don't need to save results. e.g. `DateTime::add`
   | Pure
 
   /// Output may vary with the same inputs, though we can safely preview.
-  /// e.g. `Date::now`. We should save the results.
+  /// e.g. `DateTime::now`. We should save the results.
   | ImpurePreviewable
 
   /// Can only be run on the server. e.g. `DB::update`
