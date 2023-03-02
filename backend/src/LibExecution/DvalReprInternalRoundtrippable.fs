@@ -29,7 +29,6 @@ module FormatV0 =
     | SourceID of tlid * id
 
   and DHTTP =
-    | Redirect of string
     | Response of int64 * List<string * string> * Dval
 
   and Dval =
@@ -74,7 +73,6 @@ module FormatV0 =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DHttpResponse (Redirect url) -> RT.DHttpResponse(RT.Redirect url)
     | DHttpResponse (Response (code, headers, hdv)) ->
       RT.DHttpResponse(RT.Response(code, headers, toRT hdv))
     | DList l -> RT.DList(List.map toRT l)
@@ -105,7 +103,6 @@ module FormatV0 =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword (Password pw) -> DPassword pw
-    | RT.DHttpResponse (RT.Redirect url) -> DHttpResponse(Redirect url)
     | RT.DHttpResponse (RT.Response (code, headers, hdv)) ->
       DHttpResponse(Response(code, headers, fromRT hdv))
     | RT.DList l -> DList(List.map fromRT l)
@@ -158,7 +155,6 @@ module Test =
     | RT.DHttpResponse (RT.Response (_, _, v))
     | RT.DResult (Error v)
     | RT.DResult (Ok v) -> isRoundtrippableDval v
-    | RT.DHttpResponse (RT.Redirect _) -> true
     | RT.DDB _
     | RT.DError _
     | RT.DIncomplete _ -> true

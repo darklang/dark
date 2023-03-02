@@ -117,7 +117,7 @@ module RuntimeTypes =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
 
   let dvalHttpResponses : List<RT.DHTTP> =
-    [ RT.Redirect "http://darklang.io"; RT.Response(8123, [ "a", "b" ], RT.DUnit) ]
+    [ RT.Response(8123, [ "a", "b" ], RT.DUnit) ]
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.

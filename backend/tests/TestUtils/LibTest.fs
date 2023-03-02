@@ -327,7 +327,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DHttpResponse response ] ->
           match response with
-          | Redirect _ -> DInt 302 |> Ply
           | Response (code, _, _) -> DInt code |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -343,7 +342,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DHttpResponse response ] ->
           match response with
-          | Redirect _ -> Ply(DList [])
           | Response (_, headers, _) ->
             headers
             |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
@@ -363,7 +361,6 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ DHttpResponse response ] ->
           match response with
-          | Redirect _ -> DStr "" |> Ply
           | Response (_, _, body) -> body |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

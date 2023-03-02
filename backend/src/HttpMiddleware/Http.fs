@@ -38,9 +38,6 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user responses
-    | RT.DHttpResponse (RT.Redirect str) ->
-      Telemetry.addTags [ "response-type", "httpResponse redirect" ]
-      { statusCode = int 302; headers = [ "Location", str ]; body = [||] }
 
     | RT.DHttpResponse (RT.Response (code, headers, RT.DBytes body)) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]

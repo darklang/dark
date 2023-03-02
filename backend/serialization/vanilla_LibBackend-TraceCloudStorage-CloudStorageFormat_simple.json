@@ -2984,13 +2984,6 @@
             "DFloat",
             4.141592653589793
           ],
-          "redirect": [
-            "DHttpResponse",
-            [
-              "Redirect",
-              "/home"
-            ]
-          ],
           "result": [
             "DResult",
             [
@@ -6128,13 +6121,6 @@
                 "DFloat",
                 4.141592653589793
               ],
-              "redirect": [
-                "DHttpResponse",
-                [
-                  "Redirect",
-                  "/home"
-                ]
-              ],
               "result": [
                 "DResult",
                 [
@@ -6293,7 +6279,7 @@
       7,
       "testFn",
       2,
-      "aEsAeewYgQ4",
+      "vrmmuRZPJh4",
       [
         "DObj",
         {
@@ -9274,13 +9260,6 @@
           "pi \u002B 1": [
             "DFloat",
             4.141592653589793
-          ],
-          "redirect": [
-            "DHttpResponse",
-            [
-              "Redirect",
-              "/home"
-            ]
           ],
           "result": [
             "DResult",

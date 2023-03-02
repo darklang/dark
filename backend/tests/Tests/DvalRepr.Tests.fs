@@ -76,9 +76,6 @@ module ToHashableRepr =
     testList
       "hashv2"
       [ t [ DBytes [||] ] "diEjLGQC8oE"
-        t
-          [ DHttpResponse(Redirect "H"); DStr "\""; DIncomplete SourceNone ]
-          "lqp206BU8hI"
         t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
 
   let tests = testList "hashing" [ testHashV2 ]

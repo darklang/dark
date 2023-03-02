@@ -208,7 +208,6 @@ and FnValImpl =
   | FnName of FQFnName.T
 
 and DHTTP =
-  | Redirect of string
   | Response of int64 * List<string * string> * Dval
 
 and DDateTime = NodaTime.LocalDate
@@ -458,7 +457,6 @@ module Dval =
     | DError _ -> TError
     | DIncomplete _ -> TIncomplete
     | DHttpResponse (Response (_, _, dv)) -> THttpResponse(toType dv)
-    | DHttpResponse (Redirect _) -> THttpResponse TUnit
     | DDB _ -> TDB any
     | DDateTime _ -> TDateTime
     | DPassword _ -> TPassword
@@ -519,7 +517,6 @@ module Dval =
     | DOption (Some v), TOption t
     | DResult (Ok v), TResult (t, _) -> typeMatches t v
     | DResult (Error v), TResult (_, t) -> typeMatches t v
-    | DHttpResponse (Redirect _), THttpResponse _ -> true
     | DHttpResponse (Response (_, _, body)), THttpResponse t -> typeMatches t body
     // Dont match these fakevals, functions do not have these types
     | DError _, _

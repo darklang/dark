@@ -3116,13 +3116,6 @@
             "DFloat",
             4.141592653589793
           ],
-          "redirect": [
-            "DHttpResponse",
-            [
-              "Redirect",
-              "/home"
-            ]
-          ],
           "result": [
             "DResult",
             [
@@ -6393,13 +6386,6 @@
           "pi \u002B 1": [
             "DFloat",
             4.141592653589793
-          ],
-          "redirect": [
-            "DHttpResponse",
-            [
-              "Redirect",
-              "/home"
-            ]
           ],
           "result": [
             "DResult",

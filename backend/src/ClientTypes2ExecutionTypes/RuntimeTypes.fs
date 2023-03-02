@@ -237,12 +237,10 @@ module Dval =
 
   let rec httpResponseFromCT (s : Dval.DHTTP) : RT.DHTTP =
     match s with
-    | Dval.Redirect (uri) -> RT.Redirect(uri)
     | Dval.Response (id, pairs, dval) -> RT.Response(id, pairs, fromCT dval)
 
   and httpResponseToCT (s : RT.DHTTP) : Dval.DHTTP =
     match s with
-    | RT.Redirect (uri) -> Dval.Redirect(uri)
     | RT.Response (code, headers, dval) -> Dval.Response(code, headers, toCT dval)
 
   and fromCT (dv : Dval.T) : RT.Dval =

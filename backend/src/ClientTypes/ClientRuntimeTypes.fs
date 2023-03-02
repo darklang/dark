@@ -109,7 +109,6 @@ module Dval =
     | FnName of FQFnName.T
 
   and DHTTP =
-    | Redirect of string
     | Response of int64 * List<string * string> * T
 
   and T =

@@ -3112,13 +3112,6 @@
       "DFloat",
       4.141592653589793
     ],
-    "redirect": [
-      "DHttpResponse",
-      [
-        "Redirect",
-        "/home"
-      ]
-    ],
     "result": [
       "DResult",
       [
