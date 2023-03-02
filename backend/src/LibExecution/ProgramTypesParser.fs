@@ -102,7 +102,8 @@ module FQFnName =
             [ module_; name; version ] -> stdlibFqName module_ name (int version)
     | Regex "^([A-Z][a-z0-9A-Z_]*)::([a-z][a-z0-9A-Z_]*)$" [ module_; name ] ->
       stdlibFqName module_ name 0
-    | Regex "^DateTime::([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "DateTime" name 0
+    | Regex "^DateTime::([-+><&|!=^%/*]{1,2})$" [ name ] ->
+      stdlibFqName "DateTime" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})$" [ name ] -> stdlibFqName "" name 0
     | Regex "^([-+><&|!=^%/*]{1,2})_v(\d+)$" [ name; version ] ->
       stdlibFqName "" name (int version)

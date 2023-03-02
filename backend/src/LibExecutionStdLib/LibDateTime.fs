@@ -300,7 +300,11 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DInt s ] ->
-          s |> Instant.FromUnixTimeSeconds |> DarkDateTime.fromInstant |> DDateTime |> Ply
+          s
+          |> Instant.FromUnixTimeSeconds
+          |> DarkDateTime.fromInstant
+          |> DDateTime
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -426,7 +430,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DDateTime endDate; DDateTime startDate ] ->
-          let diff = (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
+          let diff =
+            (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
           diff.TotalSeconds |> System.Math.Round |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
