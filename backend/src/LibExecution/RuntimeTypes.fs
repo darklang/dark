@@ -207,8 +207,7 @@ and FnValImpl =
   | Lambda of LambdaImpl
   | FnName of FQFnName.T
 
-and DHTTP =
-  | Response of int64 * List<string * string> * Dval
+and DHTTP = Response of int64 * List<string * string> * Dval
 
 and DDateTime = NodaTime.LocalDate
 and Dval =

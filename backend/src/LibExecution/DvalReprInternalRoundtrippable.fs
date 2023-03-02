@@ -28,8 +28,7 @@ module FormatV0 =
     | SourceNone
     | SourceID of tlid * id
 
-  and DHTTP =
-    | Response of int64 * List<string * string> * Dval
+  and DHTTP = Response of int64 * List<string * string> * Dval
 
   and Dval =
     | DInt of int64

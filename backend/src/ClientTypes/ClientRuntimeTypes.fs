@@ -108,8 +108,7 @@ module Dval =
     | Lambda of LambdaImpl
     | FnName of FQFnName.T
 
-  and DHTTP =
-    | Response of int64 * List<string * string> * T
+  and DHTTP = Response of int64 * List<string * string> * T
 
   and T =
     | DInt of int64

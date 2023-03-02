@@ -75,8 +75,7 @@ module ToHashableRepr =
 
     testList
       "hashv2"
-      [ t [ DBytes [||] ] "diEjLGQC8oE"
-        t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
+      [ t [ DBytes [||] ] "diEjLGQC8oE"; t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
 
   let tests = testList "hashing" [ testHashV2 ]
 
