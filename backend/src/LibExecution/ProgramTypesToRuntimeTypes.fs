@@ -164,7 +164,7 @@ module DType =
     | PT.TError -> RT.TError
     | PT.THttpResponse typ -> RT.THttpResponse(toRT typ)
     | PT.TDB typ -> RT.TDB(toRT typ)
-    | PT.TDate -> RT.TDate
+    | PT.TDateTime -> RT.TDateTime
     | PT.TChar -> RT.TChar
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid

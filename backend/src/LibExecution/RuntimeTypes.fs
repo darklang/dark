@@ -293,7 +293,7 @@ and DType =
   | TError
   | THttpResponse of DType
   | TDB of DType
-  | TDate
+  | TDateTime
   | TChar
   | TPassword
   | TUuid
@@ -331,7 +331,7 @@ and DType =
     | TError -> "Error"
     | THttpResponse _ -> "Response"
     | TDB _ -> "Datastore"
-    | TDate -> "Date"
+    | TDateTime -> "Date"
     | TDict _ -> "Dict"
     | TPassword -> "Password"
     | TUuid -> "UUID"
@@ -460,7 +460,7 @@ module Dval =
     | DHttpResponse (Response (_, _, dv)) -> THttpResponse(toType dv)
     | DHttpResponse (Redirect _) -> THttpResponse TUnit
     | DDB _ -> TDB any
-    | DDate _ -> TDate
+    | DDate _ -> TDateTime
     | DPassword _ -> TPassword
     | DUuid _ -> TUuid
     | DOption None -> TOption any
@@ -488,7 +488,7 @@ module Dval =
     | DBool _, TBool
     | DUnit, TUnit
     | DStr _, TStr
-    | DDate _, TDate
+    | DDate _, TDateTime
     | DPassword _, TPassword
     | DUuid _, TUuid
     | DChar _, TChar

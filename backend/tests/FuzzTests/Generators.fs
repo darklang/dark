@@ -121,7 +121,7 @@ module RuntimeTypes =
       | RT.TBool
       | RT.TUnit
       | RT.TUnit
-      | RT.TDate
+      | RT.TDateTime
       | RT.TChar
       | RT.TUuid
       | RT.TBytes

@@ -67,7 +67,7 @@ module DType =
     | RT.TError -> TError
     | RT.THttpResponse t -> THttpResponse(r t)
     | RT.TDB t -> TDB(r t)
-    | RT.TDate -> TDate
+    | RT.TDateTime -> TDateTime
     | RT.TChar -> TChar
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
@@ -96,7 +96,7 @@ module DType =
     | TError -> RT.TError
     | THttpResponse t -> RT.THttpResponse(r t)
     | TDB t -> RT.TDB(r t)
-    | TDate -> RT.TDate
+    | TDateTime -> RT.TDateTime
     | TChar -> RT.TChar
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid

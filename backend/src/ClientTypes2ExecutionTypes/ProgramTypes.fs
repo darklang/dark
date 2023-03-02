@@ -223,7 +223,7 @@ module DType =
     | CTPT.DType.TError -> PT.TError
     | CTPT.DType.THttpResponse (t) -> PT.THttpResponse(fromCT t)
     | CTPT.DType.TDB (t) -> PT.TDB(fromCT t)
-    | CTPT.DType.TDate -> PT.TDate
+    | CTPT.DType.TDateTime -> PT.TDateTime
     | CTPT.DType.TChar -> PT.TChar
     | CTPT.DType.TPassword -> PT.TPassword
     | CTPT.DType.TUuid -> PT.TUuid
@@ -252,7 +252,7 @@ module DType =
     | PT.TError -> CTPT.DType.TError
     | PT.THttpResponse (t) -> CTPT.DType.THttpResponse(toCT t)
     | PT.TDB (t) -> CTPT.DType.TDB(toCT t)
-    | PT.TDate -> CTPT.DType.TDate
+    | PT.TDateTime -> CTPT.DType.TDateTime
     | PT.TChar -> CTPT.DType.TChar
     | PT.TPassword -> CTPT.DType.TPassword
     | PT.TUuid -> CTPT.DType.TUuid
