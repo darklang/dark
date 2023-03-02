@@ -81,7 +81,7 @@ let toRepr (dv : Dval) : string =
       justType
     | DIncomplete _ -> justType
     | DError (_, msg) -> $"<error: {msg}>"
-    | DDate d -> wrap (DDateTime.toIsoString d)
+    | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
     | DHttpResponse (Redirect url) -> $"302 {url}"

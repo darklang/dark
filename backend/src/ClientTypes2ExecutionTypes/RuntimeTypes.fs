@@ -266,7 +266,7 @@ module Dval =
     | Dval.DFnVal (Dval.FnName (name)) -> RT.DFnVal(RT.FnName(FQFnName.fromCT name))
     | Dval.DIncomplete (source) -> RT.DIncomplete(DvalSource.fromCT source)
     | Dval.DError (source, msg) -> RT.DError(DvalSource.fromCT source, msg)
-    | Dval.DDate d -> RT.DDate d
+    | Dval.DDateTime d -> RT.DDateTime d
     | Dval.DDB name -> RT.DDB name
     | Dval.DUuid uuid -> RT.DUuid uuid
     | Dval.DPassword pw -> RT.DPassword(pw)
@@ -302,7 +302,7 @@ module Dval =
     | RT.DFnVal (RT.FnName (name)) -> Dval.DFnVal(Dval.FnName(FQFnName.toCT name))
     | RT.DIncomplete (source) -> Dval.DIncomplete(DvalSource.toCT source)
     | RT.DError (source, msg) -> Dval.DError(DvalSource.toCT source, msg)
-    | RT.DDate d -> Dval.DDate d
+    | RT.DDateTime d -> Dval.DDateTime d
     | RT.DDB name -> Dval.DDB name
     | RT.DUuid uuid -> Dval.DUuid uuid
     | RT.DPassword (Password pw) -> Dval.DPassword(Password pw)

@@ -226,11 +226,11 @@ module Generators =
         | RT.TDateTime ->
           return!
             Gen.map
-              (fun (dt : RT.DDateTime.T) ->
+              (fun (dt : RT.DarkDateTime.T) ->
                 // Set milliseconds to zero
-                RT.DDate(dt.PlusMilliseconds(-dt.Millisecond)))
+                RT.DDateTime(dt.PlusMilliseconds(-dt.Millisecond)))
 
-              Arb.generate<RT.DDateTime.T>
+              Arb.generate<RT.DarkDateTime.T>
         | RT.TChar ->
           let! v = G.char
           return RT.DChar v

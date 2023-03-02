@@ -109,7 +109,7 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (dv : Dval) : unit =
           writeDval v)
         o)
   | DChar c -> wrapStringValue "character" c
-  | DDate date -> wrapStringValue "date" (DDateTime.toIsoString date)
+  | DDateTime date -> wrapStringValue "date" (DarkDateTime.toIsoString date)
   | DPassword (Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (string uuid)
@@ -160,7 +160,7 @@ let parseJsonV0 (str : string) : Dval =
       match fields with
       | [ ("type", DStr "character"); ("value", DStr v) ] -> DChar v
       | [ ("type", DStr "date"); ("value", DStr v) ] ->
-        DDate(NodaTime.Instant.ofIsoString v |> DDateTime.fromInstant)
+        DDateTime(NodaTime.Instant.ofIsoString v |> DarkDateTime.fromInstant)
       | [ ("type", DStr "password"); ("value", DStr v) ] ->
         v |> Base64.decodeFromString |> Password |> DPassword
       | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
@@ -181,7 +181,7 @@ module Test =
     | DStr _
     | DUnit _
     | DBool _
-    | DDate _
+    | DDateTime _
     | DPassword _
     | DUuid _ -> true
     | DFloat f -> System.Double.IsFinite f // See comment above

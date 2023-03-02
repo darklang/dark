@@ -49,7 +49,7 @@ module SchedulingRule =
                   ("canvas_id", RT.Dval.DUuid r.canvasID)
                   ("handler_name", RT.Dval.DStr r.handlerName)
                   ("event_space", RT.Dval.DStr r.eventSpace)
-                  ("created_at", RT.Dval.DDate(RT.DDateTime.fromInstant r.createdAt)) ]
+                  ("created_at", RT.Dval.DDateTime(RT.DarkDateTime.fromInstant r.createdAt ))]
 
 
 module WorkerStates =

@@ -744,7 +744,7 @@ human-readable data."
                   [ "space", DStr space
                     "path", DStr path
                     "modifier", DStr modifier
-                    "timestamp", DDate(DDateTime.fromInstant instant)
+                    "timestamp", DDateTime(DarkDateTime.fromInstant instant)
                     "traceID",
                     DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
                   |> Map

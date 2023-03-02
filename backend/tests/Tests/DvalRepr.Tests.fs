@@ -50,10 +50,10 @@ let testToDeveloperRepr =
 let testPreviousDateSerializionCompatibility =
   test "previous date serialization compatible" {
     let expected =
-      CTRuntime.Dval.DDate(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
+      CTRuntime.Dval.DDateTime(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
     let actual =
       Json.Vanilla.deserialize<CTRuntime.Dval.T>
-        """["DDate","1970-01-01T00:00:00"]"""
+        """["DDateTime","1970-01-01T00:00:00"]"""
     Expect.equal expected actual "not deserializing correctly"
   }
 

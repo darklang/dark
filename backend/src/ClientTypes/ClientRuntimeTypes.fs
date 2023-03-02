@@ -127,7 +127,7 @@ module Dval =
     | DIncomplete of DvalSource
     | DHttpResponse of DHTTP
     | DDB of string
-    | DDate of NodaTime.LocalDateTime
+    | DDateTime of NodaTime.LocalDateTime
     | DPassword of Password
     | DUuid of System.Guid
     | DOption of Option<T>

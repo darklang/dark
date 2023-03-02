@@ -61,7 +61,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DBytes _
   | DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
-  | DDate date -> date |> DDateTime.toDateTimeUtc |> Sql.timestamptz
+  | DDateTime date -> date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz
   | DInt i -> Sql.int64 i
   | DFloat v -> Sql.double v
   | DBool b -> Sql.bool b
