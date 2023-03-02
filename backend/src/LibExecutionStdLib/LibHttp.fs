@@ -132,21 +132,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "Http" "redirectTo" 0
-    //   parameters = [ Param.make "url" TStr "" ]
-    //   returnType = THttpResponse varA
-    //   description =
-    //     "Returns a <type Response> that can be returned from an HTTP handler to
-    //      respond with a {{302}} redirect to <param url>"
-    //   fn =
-    //     (function
-    //     | _, [ DStr url ] -> Ply(DHttpResponse(Redirect url))
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotQueryable
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
-
-
     { name = fn "Http" "badRequest" 0
       parameters = [ Param.make "error" TStr "" ]
       returnType = THttpResponse varA
