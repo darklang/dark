@@ -473,6 +473,110 @@ let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
     (false, convert actual, convert expected)
   | _ -> true, convert ast, PT.EBool(gid (), true)
 
+type Module =
+  { types : List<PT.UserType.T>
+    fns : List<PT.UserFunction.T>
+    modules : List<string * Module>
+    tests : List<bool * PT.Expr * PT.Expr> }
+
+let parseTestFile (filename : string) : Module =
+  let checker = FSharpChecker.Create()
+  let input = System.IO.File.ReadAllText filename
+
+  // Throws an exception here if we don't do this:
+  // https://github.com/fsharp/FSharp.Compiler.Service/blob/122520fa62edec7be5d00854989b282bf3ce7315/src/fsharp/service/FSharpCheckerResults.fs#L1555
+  let parsingOptions =
+    { FSharpParsingOptions.Default with SourceFiles = [| filename |] }
+
+  let results =
+    checker.ParseFile("json.fs", Text.SourceText.ofString input, parsingOptions)
+    |> Async.RunSynchronously
+
+  let parseBinding (binding : SynBinding) : PT.UserFunction.T =
+    match binding with
+    | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
+      debuG "pat" pat
+      debuG "returnInfo" returnInfo
+      debuG "expr" expr
+      { tlid = gid ()
+        name = "test"
+        nameID = gid ()
+        parameters = []
+        returnType = PT.TBool
+        returnTypeID = gid ()
+        description = ""
+        infix = false
+        body = convertToExpr expr }
+
+  let convertType (typ : SynType) : PT.DType =
+    match typ with
+    | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
+      match ident.idText with
+      | "bool" -> PT.TBool
+      | "int" -> PT.TInt
+      | _ -> Exception.raiseInternal $"Unsupported type longident " [ "type", typ ]
+    | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
+
+  let parseRecordField (field : SynField) : PT.UserType.RecordField =
+    match field with
+    | SynField (_, _, Some id, typ, _, _, _, _, _) ->
+      { name = id.idText
+        nameID = gid ()
+        typ = Some(convertType typ)
+        typeID = gid () }
+    | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
+
+  let parseType (typeDef : SynTypeDefn) : PT.UserType.T =
+    match typeDef with
+    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
+                                           _),
+                   members,
+                   _,
+                   _,
+                   _) ->
+      { tlid = gid ()
+        name = id.idText
+        nameID = gid ()
+        version = 0
+        definition = PT.UserType.Record(List.map parseRecordField fields) }
+    | _ ->
+      Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
+
+
+  let parseModule (decl : SynModuleOrNamespace) : (string * Module) =
+    match decl with
+    | SynModuleOrNamespace ([ id ], _, _, decls, _, _, _, _, _) ->
+      let empty = { types = []; fns = []; modules = []; tests = [] }
+      let m =
+        List.fold
+          empty
+          (fun m decl ->
+            match decl with
+            | SynModuleDecl.Let (_, bindings, _) ->
+              { m with fns = m.fns @ List.map parseBinding bindings }
+            | SynModuleDecl.Types (defns, _) ->
+              { m with types = m.types @ List.map parseType defns }
+            | SynModuleDecl.Expr (SynExpr.Do (expr, _), _) ->
+              { m with tests = m.tests @ [ convertToTest expr ] }
+            | _ ->
+              Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+          decls
+      (id.idText, m)
+    | _ -> Exception.raiseInternal $"Unsupported module" [ "decl", decl ]
+
+
+  debuG "err" (results.ParseHadErrors)
+  match results.ParseTree with
+  | (ParsedInput.ImplFile (ParsedImplFileInput (_, _, _, _, _, [ module' ], _, _, _))) ->
+    let _, mainModule = parseModule module'
+    mainModule
+  | _ ->
+    Exception.raiseInternal
+      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
+      [ "parseTree", results.ParseTree; "input", input ]
+
+
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
 
 let parseRTExpr (code : string) : RT.Expr =
