@@ -494,10 +494,10 @@ let parseTestFile (filename : string) : Module =
 
   let parseBinding (binding : SynBinding) : PT.UserFunction.T =
     match binding with
-    | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
-      debuG "pat" pat
-      debuG "returnInfo" returnInfo
-      debuG "expr" expr
+    | SynBinding (_, _, _, _, _, _, _, _pat, _returnInfo, expr, _, _, _) ->
+      // debuG "pat" pat
+      // debuG "returnInfo" returnInfo
+      // debuG "expr" expr
       { tlid = gid ()
         name = "test"
         nameID = gid ()
@@ -544,33 +544,48 @@ let parseTestFile (filename : string) : Module =
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
 
-  let parseModule (decl : SynModuleOrNamespace) : (string * Module) =
-    match decl with
-    | SynModuleOrNamespace ([ id ], _, _, decls, _, _, _, _, _) ->
-      let empty = { types = []; fns = []; modules = []; tests = [] }
-      let m =
-        List.fold
-          empty
-          (fun m decl ->
-            match decl with
-            | SynModuleDecl.Let (_, bindings, _) ->
-              { m with fns = m.fns @ List.map parseBinding bindings }
-            | SynModuleDecl.Types (defns, _) ->
-              { m with types = m.types @ List.map parseType defns }
-            | SynModuleDecl.Expr (SynExpr.Do (expr, _), _) ->
-              { m with tests = m.tests @ [ convertToTest expr ] }
-            | _ ->
-              Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
-          decls
-      (id.idText, m)
-    | _ -> Exception.raiseInternal $"Unsupported module" [ "decl", decl ]
-
+  let rec parseModule (decls : List<SynModuleDecl>) : Module =
+    List.fold
+      { types = []; fns = []; modules = []; tests = [] }
+      (fun m decl ->
+        match decl with
+        | SynModuleDecl.Let (_, bindings, _) ->
+          { m with fns = m.fns @ List.map parseBinding bindings }
+        | SynModuleDecl.Types (defns, _) ->
+          { m with types = m.types @ List.map parseType defns }
+        | SynModuleDecl.Expr (SynExpr.Do (expr, _), _) ->
+          { m with tests = m.tests @ [ convertToTest expr ] }
+        | SynModuleDecl.Expr (expr, _) ->
+          { m with tests = m.tests @ [ convertToTest expr ] }
+        | SynModuleDecl.NestedModule (SynComponentInfo (_, _, _, [ name ], _, _, _, _),
+                                      _,
+                                      decls,
+                                      _,
+                                      _,
+                                      _) ->
+          { m with modules = m.modules @ [ (name.idText, parseModule decls) ] }
+        | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+      decls
 
   debuG "err" (results.ParseHadErrors)
   match results.ParseTree with
-  | (ParsedInput.ImplFile (ParsedImplFileInput (_, _, _, _, _, [ module' ], _, _, _))) ->
-    let _, mainModule = parseModule module'
-    mainModule
+  | (ParsedInput.ImplFile (ParsedImplFileInput (_,
+                                                _,
+                                                _,
+                                                _,
+                                                _,
+                                                [ SynModuleOrNamespace ([ _id ],
+                                                                        _,
+                                                                        _,
+                                                                        decls,
+                                                                        _,
+                                                                        _,
+                                                                        _,
+                                                                        _,
+                                                                        _) ],
+                                                _,
+                                                _,
+                                                _))) -> parseModule decls
   | _ ->
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
