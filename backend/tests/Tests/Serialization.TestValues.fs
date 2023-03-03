@@ -116,8 +116,8 @@ module RuntimeTypes =
   let dvalSources : List<RT.DvalSource> =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
 
-  let dvalHttpResponses : List<RT.DHTTP> =
-    [ RT.Response(8123, [ "a", "b" ], RT.DUnit) ]
+  let dvalHttpResponses : List<RT.Dval> =
+    [ RT.DHttpResponse(8123, [ "a", "b" ], RT.DUnit) ]
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.

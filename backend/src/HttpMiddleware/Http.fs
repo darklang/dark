@@ -39,7 +39,7 @@ module Response =
     match result with
     // Expected user responses
 
-    | RT.DHttpResponse (RT.Response (code, headers, RT.DBytes body)) ->
+    | RT.DHttpResponse (code, headers, RT.DBytes body) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       { statusCode = int code; headers = lowercaseHeaderKeys headers; body = body }
 

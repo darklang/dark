@@ -326,7 +326,6 @@
     "httpresponse": [
       "DHttpResponse",
       [
-        "Response",
         200,
         [
           [

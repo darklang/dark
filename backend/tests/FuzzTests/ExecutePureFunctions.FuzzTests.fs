@@ -288,7 +288,7 @@ module Generators =
           let! body = genDval' typ s
 
           return!
-            Gen.elements [ RT.Response(code, headers, body) ]
+            Gen.elements [ (code, headers, body) ]
             |> Gen.map RT.DHttpResponse
 
         // FSTODO: support all types

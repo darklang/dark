@@ -108,8 +108,6 @@ module Dval =
     | Lambda of LambdaImpl
     | FnName of FQFnName.T
 
-  and DHTTP = Response of int64 * List<string * string> * T
-
   and T =
     | DInt of int64
     | DFloat of double
@@ -123,7 +121,7 @@ module Dval =
     | DObj of Map<string, T>
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DHttpResponse of DHTTP
+    | DHttpResponse of (int64 * List<string * string> * T)
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of Password

@@ -626,12 +626,6 @@ module RoundtripTests =
           CT2Runtime.Dval.DvalSource.fromCT
           None
         testRoundtripList
-          "RT.DHTTP"
-          V.RuntimeTypes.dvalHttpResponses
-          CT2Runtime.Dval.httpResponseToCT
-          CT2Runtime.Dval.httpResponseFromCT
-          None
-        testRoundtripList
           "RT.Dval"
           V.RuntimeTypes.dvals
           CT2Runtime.Dval.toCT

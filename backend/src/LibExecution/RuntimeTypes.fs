@@ -207,8 +207,6 @@ and FnValImpl =
   | Lambda of LambdaImpl
   | FnName of FQFnName.T
 
-and DHTTP = Response of int64 * List<string * string> * Dval
-
 and DDateTime = NodaTime.LocalDate
 and Dval =
   | DInt of int64
@@ -264,7 +262,7 @@ and Dval =
   | DIncomplete of DvalSource
 
   // user types: awaiting a better type system
-  | DHttpResponse of DHTTP
+  | DHttpResponse of (int64 * List<string * string> * Dval)
   | DDB of string
   | DDateTime of DarkDateTime.T
   | DPassword of Password
@@ -455,7 +453,7 @@ module Dval =
     | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
     | DError _ -> TError
     | DIncomplete _ -> TIncomplete
-    | DHttpResponse (Response (_, _, dv)) -> THttpResponse(toType dv)
+    | DHttpResponse (_, _, dv) -> THttpResponse(toType dv)
     | DDB _ -> TDB any
     | DDateTime _ -> TDateTime
     | DPassword _ -> TPassword
@@ -516,7 +514,7 @@ module Dval =
     | DOption (Some v), TOption t
     | DResult (Ok v), TResult (t, _) -> typeMatches t v
     | DResult (Error v), TResult (_, t) -> typeMatches t v
-    | DHttpResponse (Response (_, _, body)), THttpResponse t -> typeMatches t body
+    | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
     // Dont match these fakevals, functions do not have these types
     | DError _, _
     | DIncomplete _, _ -> false

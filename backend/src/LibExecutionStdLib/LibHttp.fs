@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
          respond with HTTP status <param code> and <param response> body."
       fn =
         (function
-        | _, [ dv; DInt code ] -> Ply(DHttpResponse(Response(code, [], dv)))
+        | _, [ dv; DInt code ] -> Ply(DHttpResponse(code, [], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
               | _, v ->
                 Exception.raiseCode (Errors.argumentWasnt "a string" "value" v))
 
-          Ply(DHttpResponse(Response(code, pairs, dv)))
+          Ply(DHttpResponse(code, pairs, dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
          respond with HTTP status 200 and <param response> body."
       fn =
         (function
-        | _, [ dv ] -> Ply(DHttpResponse(Response(200L, [], dv)))
+        | _, [ dv ] -> Ply(DHttpResponse(200L, [], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ dv; DInt code ] ->
-          Ply(DHttpResponse(Response(code, [ ("Content-Type", "text/html") ], dv)))
+          Ply(DHttpResponse(code, [ ("Content-Type", "text/html") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ dv; DInt code ] ->
-          Ply(DHttpResponse(Response(code, [ ("Content-Type", "text/plain") ], dv)))
+          Ply(DHttpResponse(code, [ ("Content-Type", "text/plain") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -122,10 +122,24 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ dv; DInt code ] ->
           Ply(
-            DHttpResponse(
-              Response(code, [ ("Content-Type", "application/json") ], dv)
+            DHttpResponse(code, [ ("Content-Type", "application/json") ], dv
             )
           )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Http" "redirectTo" 0
+      parameters = [ Param.make "url" TStr "" ]
+      returnType = THttpResponse varA
+      description =
+        "Returns a <type Response> that can be returned from an HTTP handler to
+         respond with a {{302}} redirect to <param url>"
+      fn =
+        (function
+        | _, [ DStr url] -> Ply(DHttpResponse(302L, [("Location", url) ], DStr("")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -140,7 +154,7 @@ let fns : List<BuiltInFn> =
          respond with a {{400}} status and string <param error> message"
       fn =
         (function
-        | _, [ DStr _ as msg ] -> Ply(DHttpResponse(Response(400L, [], msg)))
+        | _, [ DStr _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -155,7 +169,7 @@ let fns : List<BuiltInFn> =
          respond with {{404}} status code (not found)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(Response(404L, [], DUnit)))
+        | _, [] -> Ply(DHttpResponse(404L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -170,7 +184,7 @@ let fns : List<BuiltInFn> =
          respond with {{401}} status code (unauthorized)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(Response(401L, [], DUnit)))
+        | _, [] -> Ply(DHttpResponse(401L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -185,7 +199,7 @@ let fns : List<BuiltInFn> =
          respond with {{403}} status code (forbidden)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(Response(403L, [], DUnit)))
+        | _, [] -> Ply(DHttpResponse(403L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -462,7 +462,7 @@ module Expect =
     | DOption None
     | DFloat _ -> true
 
-    | DHttpResponse (Response (_, headers, v)) ->
+    | DHttpResponse (_, headers, v) ->
       // We don't check code as you can actually set it to anything
       let vOk = check v
 
@@ -709,7 +709,7 @@ module Expect =
           | None -> check (key :: path) ls rs)
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
-    | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
+    | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
       check path sc1 sc2
       check path h1 h2
       de ("response" :: path) b1 b2
@@ -789,7 +789,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DHttpResponse (Response (_, _, v))
+    | DHttpResponse  (_, _, v)
     | DResult (Error v)
     | DResult (Ok v)
     | DOption (Some v) -> visit v
@@ -983,7 +983,7 @@ let interestingDvals =
            parameters = [ (id 5678, "a") ] }
      ))
     ("httpresponse",
-     DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
+     DHttpResponse(200L, [ "content-length", "9" ], DStr "success"))
     ("db", DDB "Visitors")
     ("date",
      DDateTime(
