@@ -10,14 +10,7 @@ module RT = LibExecution.RuntimeTypes
 
 let fn = RT.FQFnName.stdlibFnName
 
-let renames =
-  [ fn "DB" "query" 3, fn "DB" "queryExactFields" 0
-    fn "DB" "query" 2, fn "DB" "query" 3 // don't know why these are the same
-    fn "DB" "queryWithKey" 2, fn "DB" "queryExactFieldsWithKey" 0
-    fn "DB" "get" 1, fn "DB" "get" 2 // don't know why these are the same
-    fn "DB" "queryOne" 2, fn "DB" "queryOneWithExactFields" 0
-    fn "DB" "queryOneWithKey" 2, fn "DB" "queryOneWithExactFieldsWithKey" 0 ]
-
+let renames = []
 
 let fns : List<RT.BuiltInFn> =
   [ LibDB.fns
