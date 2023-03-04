@@ -44,10 +44,10 @@ Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 45035996
 ((Http.response_v0 "" 4503599627370496L) |> Test.httpResponseStatusCode) = 4503599627370496L
 
 // TODO: re-enable after HttpRedirect removed
-// (Http.redirectTo_v0 "") = Http.response "" 301
-// (Http.redirectTo_v0 "bad url") = Http.response "bad url" 301
-// (Http.redirectTo_v0 "http://someothersite.com/") = Http.responseWithHeaders "" { Location = "http://someothersite.com" } 302
-// (Http.redirectTo_v0 "/relativeUrl") = Http.responseWithHeaders () { Location = "/relativeUrl" } 302
+//(Http.redirectTo_v0 "") = Http.response "" 301
+//(Http.redirectTo_v0 "bad url") = Http.response "bad url" 301
+(Http.redirectTo_v0 "http://someothersite.com") = Http.responseWithHeaders "" { Location = "http://someothersite.com" } 302
+(Http.redirectTo_v0 "/relativeUrl") = Http.responseWithHeaders () { Location = "/relativeUrl" } 302
 
 Http.responseWithHeaders_v0 null {} 200 = Http.response_v0 null 200
 Http.responseWithHeaders_v0 "" {} 200 = Http.response_v0 "" 200

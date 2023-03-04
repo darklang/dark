@@ -139,7 +139,7 @@ let fns : List<BuiltInFn> =
          respond with a {{302}} redirect to <param url>"
       fn =
         (function
-        | _, [ DStr url] -> Ply(DHttpResponse(302L, [("Location", url) ], DBytes([||])))
+        | _, [ DStr url] -> Ply(DHttpResponse(302L, [("Location", url) ], DStr("")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -262,7 +262,7 @@ and Dval =
   | DIncomplete of DvalSource
 
   // user types: awaiting a better type system
-  | DHttpResponse of (int64 * List<string * string> * Dval)
+  | DHttpResponse of int64 * List<string * string> * Dval
   | DDB of string
   | DDateTime of DarkDateTime.T
   | DPassword of Password

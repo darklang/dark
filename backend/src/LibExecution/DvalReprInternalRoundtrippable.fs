@@ -41,7 +41,7 @@ module FormatV0 =
     | DObj of DvalMap
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DHttpResponse of (int64 * List<string * string> * Dval)
+    | DHttpResponse of int64 * List<string * string> * Dval
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize

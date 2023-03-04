@@ -325,9 +325,7 @@ let fns : List<BuiltInFn> =
       description = "Get the status code from a HttpResponse"
       fn =
         (function
-        | _, [ DHttpResponse response ] ->
-          match response with
-          | (code, _, _) -> DInt code |> Ply
+        | _, [ DHttpResponse (code, _, _) ] -> DInt code |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -340,9 +338,7 @@ let fns : List<BuiltInFn> =
       description = "Get headers from a HttpResponse"
       fn =
         (function
-        | _, [ DHttpResponse response ] ->
-          match response with
-          | (_, headers, _) ->
+        | _, [ DHttpResponse (_, headers, _) ]->
             headers
             |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
             |> DList
@@ -359,9 +355,7 @@ let fns : List<BuiltInFn> =
       description = "Get the body from a HttpResponse"
       fn =
         (function
-        | _, [ DHttpResponse response ] ->
-          match response with
-          | (_, _, body) -> body |> Ply
+        | _, [ DHttpResponse (_, _, body) ] -> body |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

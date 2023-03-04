@@ -121,7 +121,7 @@ module Dval =
     | DObj of Map<string, T>
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DHttpResponse of (int64 * List<string * string> * T)
+    | DHttpResponse of int64 * List<string * string> * T
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of Password
