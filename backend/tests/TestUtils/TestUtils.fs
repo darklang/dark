@@ -789,7 +789,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DHttpResponse  (_, _, v)
+    | DHttpResponse (_, _, v)
     | DResult (Error v)
     | DResult (Ok v)
     | DOption (Some v) -> visit v
@@ -982,8 +982,7 @@ let interestingDvals =
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
-    ("httpresponse",
-     DHttpResponse(200L, [ "content-length", "9" ], DStr "success"))
+    ("httpresponse", DHttpResponse(200L, [ "content-length", "9" ], DStr "success"))
     ("db", DDB "Visitors")
     ("date",
      DDateTime(

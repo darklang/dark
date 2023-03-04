@@ -260,7 +260,8 @@ module Dval =
     | Dval.DDB name -> RT.DDB name
     | Dval.DUuid uuid -> RT.DUuid uuid
     | Dval.DPassword pw -> RT.DPassword(pw)
-    | Dval.DHttpResponse (id, pairs, dval) -> RT.DHttpResponse(id, pairs, fromCT dval)
+    | Dval.DHttpResponse (id, pairs, dval) ->
+      RT.DHttpResponse(id, pairs, fromCT dval)
     | Dval.DList list -> RT.DList(List.map r list)
     | Dval.DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
@@ -296,7 +297,8 @@ module Dval =
     | RT.DDB name -> Dval.DDB name
     | RT.DUuid uuid -> Dval.DUuid uuid
     | RT.DPassword (Password pw) -> Dval.DPassword(Password pw)
-    | RT.DHttpResponse (code, headers, dval) -> Dval.DHttpResponse(code, headers, toCT dval)
+    | RT.DHttpResponse (code, headers, dval) ->
+      Dval.DHttpResponse(code, headers, toCT dval)
     | RT.DList l -> Dval.DList(List.map r l)
     | RT.DTuple (first, second, theRest) ->
       Dval.DTuple(r first, r second, List.map r theRest)

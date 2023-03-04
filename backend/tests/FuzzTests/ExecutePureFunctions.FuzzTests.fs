@@ -287,9 +287,7 @@ module Generators =
           let! headers = Arb.generate<List<string * string>>
           let! body = genDval' typ s
 
-          return!
-            Gen.elements [ (code, headers, body) ]
-            |> Gen.map RT.DHttpResponse
+          return! Gen.elements [ (code, headers, body) ] |> Gen.map RT.DHttpResponse
 
         // FSTODO: support all types
         | RT.TPassword

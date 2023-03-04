@@ -338,11 +338,11 @@ let fns : List<BuiltInFn> =
       description = "Get headers from a HttpResponse"
       fn =
         (function
-        | _, [ DHttpResponse (_, headers, _) ]->
-            headers
-            |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
-            |> DList
-            |> Ply
+        | _, [ DHttpResponse (_, headers, _) ] ->
+          headers
+          |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
+          |> DList
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

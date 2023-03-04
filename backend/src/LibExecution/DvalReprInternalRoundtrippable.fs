@@ -70,8 +70,7 @@ module FormatV0 =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DHttpResponse (code, headers, hdv) ->
-      RT.DHttpResponse(code, headers, toRT hdv)
+    | DHttpResponse (code, headers, hdv) -> RT.DHttpResponse(code, headers, toRT hdv)
     | DList l -> RT.DList(List.map toRT l)
     | DTuple (first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)

@@ -121,10 +121,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ dv; DInt code ] ->
-          Ply(
-            DHttpResponse(code, [ ("Content-Type", "application/json") ], dv
-            )
-          )
+          Ply(DHttpResponse(code, [ ("Content-Type", "application/json") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -139,7 +136,8 @@ let fns : List<BuiltInFn> =
          respond with a {{302}} redirect to <param url>"
       fn =
         (function
-        | _, [ DStr url] -> Ply(DHttpResponse(302L, [("Location", url) ], DStr("")))
+        | _, [ DStr url ] ->
+          Ply(DHttpResponse(302L, [ ("Location", url) ], DBytes([||])))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

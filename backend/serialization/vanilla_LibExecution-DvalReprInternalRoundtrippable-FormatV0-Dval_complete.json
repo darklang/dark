@@ -192,18 +192,16 @@
     ],
     "httpresponse": [
       "DHttpResponse",
+      200,
       [
-        200,
         [
-          [
-            "content-length",
-            "9"
-          ]
-        ],
-        [
-          "DStr",
-          "success"
+          "content-length",
+          "9"
         ]
+      ],
+      [
+        "DStr",
+        "success"
       ]
     ],
     "incomplete": [
