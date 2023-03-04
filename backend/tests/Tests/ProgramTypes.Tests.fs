@@ -158,18 +158,7 @@ let testInfixProgramTypesToSerializedTypes =
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6)
        ))
-      (PT.EInfix(
-        8UL,
-        PT.InfixFnCall({ module_ = Some "DateTime"; function_ = "<" }),
-        PT.EInteger(9UL, 6),
-        PT.EInteger(10UL, 6)
-       ),
-       ST.EInfix(
-         8UL,
-         ST.InfixFnCall({ module_ = Some("DateTime"); function_ = "<" }),
-         ST.EInteger(9UL, 6),
-         ST.EInteger(10UL, 6)
-       )) ]
+    ]
 
 /// We have functions that were written as user functions, but accidentally
 /// converted to StdLibFns before being saved to the DB

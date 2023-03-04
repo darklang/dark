@@ -419,14 +419,14 @@ friendsError (fun p -> p.dob != DateTime.now_v0) =
 (friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
 (friends (fun p -> Bool.and_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
 (friends (fun p -> Bool.or_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> DateTime.(<=) p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> DateTime.(<=) p.dob (rossDOB null))) = ["Ross" ]
-(friends (fun p -> DateTime.(<) p.dob (rossDOB null))) = []
-(friends (fun p -> DateTime.(>=) p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
-(friends (fun p -> DateTime.(>=) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-(friends (fun p -> DateTime.(>) p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-(friends (fun p -> DateTime.(<=) p.dob (DateTime.add_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
-(friends (fun p -> DateTime.(<=) p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
+(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (rossDOB null))) = ["Ross" ]
+(friends (fun p -> DateTime.lessThan p.dob (rossDOB null))) = []
+(friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
+(friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+(friends (fun p -> DateTime.greaterThan p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.add_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
 (friends (fun p -> DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
 (friends (fun p -> DateTime.hour_v2 p.dob == 10)) = [" Chandler "]
 (friends (fun p -> DateTime.day_v0 p.dob == 19)) = [" Chandler "]
@@ -497,16 +497,6 @@ d "2100-01-01T00:00:00Z"
 (let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
  let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
  DB.set_v1 { ts = afterDate null } "after"  Timestamp)
-
-[test.query with DateTime::<] with DB Timestamp
-(let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> DateTime.(<) (middleDate null) value.ts)) =
-   Just { ts = afterDate null }
-
-[test.query with DateTime::>] with DB Timestamp
-(let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> DateTime.(>) (middleDate null) value.ts)) =
-   Just { ts = beforeDate null }
 
 [test.query with DateTime::lessThan] with DB Timestamp
 (let _ = prepDates null in

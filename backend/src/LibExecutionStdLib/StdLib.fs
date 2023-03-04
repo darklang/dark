@@ -54,10 +54,6 @@ let infixFnMapping : Map<FQFnName.StdlibFnName, (FQFnName.StdlibFnName * Depreca
     ("Int", "power", 0), (("", "^"), NotDeprecated)
     ("Int", "mod", 0), (("", "%"), NotDeprecated)
     ("Float", "divide", 0), (("", "/"), NotDeprecated)
-    ("DateTime", "lessThan", 0), (("DateTime", "<"), NotDeprecated)
-    ("DateTime", "greaterThan", 0), (("DateTime", ">"), NotDeprecated)
-    ("DateTime", "lessThanOrEqualTo", 0), (("DateTime", "<="), NotDeprecated)
-    ("DateTime", "greaterThanOrEqualTo", 0), (("DateTime", ">="), NotDeprecated)
     ("String", "append", 1), (("", "++"), NotDeprecated)
     ("", "equals", 0), (("", "=="), NotDeprecated)
     ("", "notEquals", 0), (("", "!="), NotDeprecated) ]
