@@ -130,27 +130,19 @@ p " 2006-06-09T10:20:30.040+02:00 " = Error "Invalid date format"
 
 [tests.date inequality]
 // <
-DateTime.(<) (d "2020-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-DateTime.(<) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-DateTime.(<) (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
+DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
 DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
 
 // <=
-DateTime.(<=) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = true
-DateTime.(<=) (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
-DateTime.(<=) (d "2021-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = false
+DateTime.lessThanOrEqualTo (d "2021-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = false
 DateTime.lessThanOrEqualTo (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
 
 // >
-DateTime.(>) (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
-DateTime.(>) (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-DateTime.(>) (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
+DateTime.greaterThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
 DateTime.greaterThan (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
 
 // >=
-DateTime.(>=) (d "2019-11-26T04:37:46Z") (d "2020-07-28T22:42:36Z") = false
-DateTime.(>=) (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
-DateTime.(>=) (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
+DateTime.greaterThanOrEqualTo (d "2019-11-26T04:37:46Z") (d "2020-07-28T22:42:36Z") = false
 DateTime.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
 
 [tests.date field]
