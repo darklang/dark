@@ -98,7 +98,7 @@ let t
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
   (packageFns : Map<PT.FQFnName.PackageFnName, PT.Package.Fn>)
-  (functions : Map<string, PT.UserFunction.T>)
+  (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
   : Test =
   testTask $"line: {lineNumber}" {
@@ -115,7 +115,10 @@ let t
       let rtDBs =
         (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
 
-      let rtFunctions = functions |> Map.map PT2RT.UserFunction.toRT
+      let rtFunctions =
+        (functions
+         |> List.map (fun fn -> fn.name, PT2RT.UserFunction.toRT fn)
+         |> Map.ofList)
 
       let rtPackageFns =
         packageFns
@@ -256,24 +259,29 @@ let fileTests () : Test =
     let initializeCanvas = filename = "internal.tests"
     let module' = (baseDir + filename) |> Parser.parseTestFile
 
-    let moduleToTests (name : string) (module' : Parser.Module) =
-      let testExprToTest (test : Parser.Test) =
-        t
-          owner
-          initializeCanvas
-          (Randomized test.name)
-          test.shouldEqual
-          test.expected
-          test.actual
-          test.lineNumber
-          []
-          Map.empty
-          Map.empty
-          []
+    let testExprToTest (fns : List<PT.UserFunction.T>) (test : Parser.Test) =
+      t
+        owner
+        initializeCanvas
+        (Randomized test.name)
+        test.shouldEqual
+        test.expected
+        test.actual
+        test.lineNumber
+        []
+        Map.empty
+        fns
+        []
 
-      testList $"Test from {name}" (List.map testExprToTest module'.tests)
 
-    testList $"Tests from {filename}" [ moduleToTests filename module' ])
+    let rec moduleToTests (moduleName : string) (module' : Parser.Module) =
+      let nestedModules =
+        List.map (fun (name, m) -> moduleToTests name m) module'.modules
+      let tests = (List.map (testExprToTest module'.fns) module'.tests)
+      testList $"Tests from {moduleName}" (nestedModules @ tests)
+
+
+    moduleToTests filename module')
   |> Array.toList
   |> testList "All files"
 

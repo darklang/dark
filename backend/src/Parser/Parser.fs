@@ -507,30 +507,51 @@ let parseTestFile (filename : string) : Module =
     checker.ParseFile("json.fs", Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
-  let parseBinding (binding : SynBinding) : PT.UserFunction.T =
-    match binding with
-    | SynBinding (_, _, _, _, _, _, _, _pat, _returnInfo, expr, _, _, _) ->
-      // debuG "pat" pat
-      // debuG "returnInfo" returnInfo
-      // debuG "expr" expr
-      { tlid = gid ()
-        name = "test"
-        nameID = gid ()
-        parameters = []
-        returnType = PT.TBool
-        returnTypeID = gid ()
-        description = ""
-        infix = false
-        body = convertToExpr expr }
-
   let convertType (typ : SynType) : PT.DType =
     match typ with
     | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
       match ident.idText with
       | "bool" -> PT.TBool
       | "int" -> PT.TInt
+      | "string" -> PT.TStr
       | _ -> Exception.raiseInternal $"Unsupported type longident " [ "type", typ ]
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
+
+  let rec parseArgPat (pat : SynPat) : PT.UserFunction.Parameter =
+    match pat with
+    | SynPat.Paren (pat, _) -> parseArgPat pat
+    | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
+      { name = id.idText
+        nameID = gid ()
+        typ = Some(convertType typ)
+        typeID = gid ()
+        description = "" }
+    | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
+
+  let parseSignature (pat : SynPat) : string * List<PT.UserFunction.Parameter> =
+    match pat with
+    | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, _, argPats, _, _) ->
+      let parameters =
+        match argPats with
+        | SynArgPats.Pats pats -> List.map parseArgPat pats
+        | SynArgPats.NamePatPairs _ ->
+          Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
+      (name.idText, parameters)
+    | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
+
+  let parseBinding (binding : SynBinding) : PT.UserFunction.T =
+    match binding with
+    | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) as x ->
+      let (name, parameters) = parseSignature pat
+      { tlid = gid ()
+        name = name
+        nameID = gid ()
+        parameters = parameters
+        returnType = PT.TVariable "a"
+        returnTypeID = gid ()
+        description = ""
+        infix = false
+        body = convertToExpr expr }
 
   let parseRecordField (field : SynField) : PT.UserType.RecordField =
     match field with
@@ -578,11 +599,14 @@ let parseTestFile (filename : string) : Module =
                                       _,
                                       _,
                                       _) ->
-          { m with modules = m.modules @ [ (name.idText, parseModule decls) ] }
+          let nested = parseModule decls
+          // Add types and fns that it has access during descent
+          let nested =
+            { nested with fns = m.fns @ nested.fns; types = m.types @ nested.types }
+          { m with modules = m.modules @ [ (name.idText, nested) ] }
         | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
       decls
 
-  debuG "err" (results.ParseHadErrors)
   match results.ParseTree with
   | (ParsedInput.ImplFile (ParsedImplFileInput (_,
                                                 _,
