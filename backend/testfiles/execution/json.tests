@@ -1,0 +1,5 @@
+type MyType = {
+  x: int
+}
+
+Json.parse "{ 'x': 5 }" = { x = 5 }

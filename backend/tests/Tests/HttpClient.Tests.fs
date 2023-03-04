@@ -173,7 +173,7 @@ let makeTest versionName filename =
       let! state = executionStateFor meta Map.empty Map.empty
 
       // Parse the Dark code
-      let shouldEqual, actualDarkProg, expectedResult =
+      let test =
         darkCode
         |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
@@ -185,7 +185,7 @@ let makeTest versionName filename =
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualDarkProg)
+      let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT test.actual)
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]
@@ -200,10 +200,9 @@ let makeTest versionName filename =
       // Second check: expected result (Dval) matches actual result (Dval)
       let actual = normalizeDvalResult actual
 
-      let! expected =
-        Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
+      let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT test.expected)
 
-      if shouldEqual then
+      if test.shouldEqual then
         Expect.equalDval actual expected $"Responses don't match"
       else
         Expect.notEqual actual expected $"Responses don't match"

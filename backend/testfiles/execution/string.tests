@@ -1,7 +1,6 @@
-[fn.c arg:string]
-(Test.toChar_v0 arg) |> Test.unwrap
+let c (arg: string) =
+  (Test.toChar_v0 arg) |> Test.unwrap
 
-[tests.tests]
 "a" ++ "̂" = "â"
 "hello" ++ " world" = "hello world"
 "ᄀ" ++ "ᅡᆨ" = "각"
@@ -567,8 +566,6 @@ String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = "🧟‍♀️🧟‍♂�
 String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
 String.padEnd_v0 "鷝" "觌഻" 0 = "鷝"
 
-
-[test.stringForeach]
 // Check that foreach executes the right number of times
 (let v = String.foreach_v1 "a string" (fun x -> let _ = Test.incrementSideEffectCounter_v0 false in 'c') in
  (v, Test.sideEffectCount_v0)) = ("cccccccc", 8)

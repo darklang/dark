@@ -437,7 +437,14 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | expr ->
     Exception.raiseInternal "Unsupported expression" [ "ast", ast; "expr", expr ]
 
-let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
+type Test =
+  { name : string
+    lineNumber : int
+    actual : PT.Expr
+    expected : PT.Expr
+    shouldEqual : bool }
+
+let convertToTest (ast : SynExpr) : Test =
   // Split equality into actual vs expected in tests.
   let convert (x : SynExpr) : PT.Expr = convertToExpr x
 
@@ -453,9 +460,13 @@ let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
                               actual,
                               _),
                  expected,
-                 _) when ident.idText = "op_Equality" ->
+                 range) when ident.idText = "op_Equality" ->
     // Exception.raiseInternal $"whole thing: {actual}"
-    (true, convert actual, convert expected)
+    { name = "test"
+      lineNumber = range.Start.Line
+      actual = convert actual
+      expected = convert expected
+      shouldEqual = true }
 
   | SynExpr.App (_,
                  _,
@@ -468,16 +479,20 @@ let convertToTest (ast : SynExpr) : bool * PT.Expr * PT.Expr =
                               actual,
                               _),
                  expected,
-                 _) when ident.idText = "op_Inequality" ->
+                 range) when ident.idText = "op_Inequality" ->
     // Exception.raiseInternal $"whole thing: {actual}"
-    (false, convert actual, convert expected)
-  | _ -> true, convert ast, PT.EBool(gid (), true)
+    { name = "test"
+      lineNumber = range.Start.Line
+      actual = convert actual
+      expected = convert expected
+      shouldEqual = false }
+  | _ -> Exception.raiseCode "Stop supporting this style"
 
 type Module =
   { types : List<PT.UserType.T>
     fns : List<PT.UserFunction.T>
     modules : List<string * Module>
-    tests : List<bool * PT.Expr * PT.Expr> }
+    tests : List<Test> }
 
 let parseTestFile (filename : string) : Module =
   let checker = FSharpChecker.Create()
