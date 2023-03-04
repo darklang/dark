@@ -35,7 +35,7 @@ let testToDeveloperRepr =
     [ testMany
         "toDeveloperRepr string"
         DvalReprDeveloper.toRepr
-        [ RT.DHttpResponse(RT.Response(0L, [], RT.DUnit)), "0 {}\nunit"
+        [ RT.DHttpResponse(0L, [], RT.DUnit), "0 {}\nunit"
           RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
@@ -75,11 +75,7 @@ module ToHashableRepr =
 
     testList
       "hashv2"
-      [ t [ DBytes [||] ] "diEjLGQC8oE"
-        t
-          [ DHttpResponse(Redirect "H"); DStr "\""; DIncomplete SourceNone ]
-          "lqp206BU8hI"
-        t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
+      [ t [ DBytes [||] ] "diEjLGQC8oE"; t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
 
   let tests = testList "hashing" [ testHashV2 ]
 

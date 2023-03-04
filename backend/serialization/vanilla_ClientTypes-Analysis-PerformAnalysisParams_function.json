@@ -1421,19 +1421,16 @@
               ],
               "httpresponse": [
                 "DHttpResponse",
+                200,
                 [
-                  "Response",
-                  200,
                   [
-                    [
-                      "content-length",
-                      "9"
-                    ]
-                  ],
-                  [
-                    "DStr",
-                    "success"
+                    "content-length",
+                    "9"
                   ]
+                ],
+                [
+                  "DStr",
+                  "success"
                 ]
               ],
               "incomplete": [
@@ -4207,13 +4204,6 @@
               "pi \u002B 1": [
                 "DFloat",
                 4.141592653589793
-              ],
-              "redirect": [
-                "DHttpResponse",
-                [
-                  "Redirect",
-                  "/home"
-                ]
               ],
               "result": [
                 "DResult",
@@ -4699,19 +4689,16 @@
               ],
               "httpresponse": [
                 "DHttpResponse",
+                200,
                 [
-                  "Response",
-                  200,
                   [
-                    [
-                      "content-length",
-                      "9"
-                    ]
-                  ],
-                  [
-                    "DStr",
-                    "success"
+                    "content-length",
+                    "9"
                   ]
+                ],
+                [
+                  "DStr",
+                  "success"
                 ]
               ],
               "incomplete": [
@@ -7485,13 +7472,6 @@
               "pi \u002B 1": [
                 "DFloat",
                 4.141592653589793
-              ],
-              "redirect": [
-                "DHttpResponse",
-                [
-                  "Redirect",
-                  "/home"
-                ]
               ],
               "result": [
                 "DResult",

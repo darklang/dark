@@ -84,8 +84,7 @@ let toRepr (dv : Dval) : string =
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DHttpResponse (Redirect url) -> $"302 {url}"
-    | DHttpResponse (Response (code, headers, hdv)) ->
+    | DHttpResponse (code, headers, hdv) ->
       let headerString =
         headers
         |> List.map (fun (k, v) -> k + ": " + v)

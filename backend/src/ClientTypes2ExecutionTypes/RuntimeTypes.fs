@@ -235,17 +235,7 @@ module Dval =
       | RT.SourceNone -> Dval.SourceNone
       | RT.SourceID (tlid, id) -> Dval.SourceID(tlid, id)
 
-  let rec httpResponseFromCT (s : Dval.DHTTP) : RT.DHTTP =
-    match s with
-    | Dval.Redirect (uri) -> RT.Redirect(uri)
-    | Dval.Response (id, pairs, dval) -> RT.Response(id, pairs, fromCT dval)
-
-  and httpResponseToCT (s : RT.DHTTP) : Dval.DHTTP =
-    match s with
-    | RT.Redirect (uri) -> Dval.Redirect(uri)
-    | RT.Response (code, headers, dval) -> Dval.Response(code, headers, toCT dval)
-
-  and fromCT (dv : Dval.T) : RT.Dval =
+  let rec fromCT (dv : Dval.T) : RT.Dval =
     let r = fromCT
 
     match dv with
@@ -270,8 +260,9 @@ module Dval =
     | Dval.DDB name -> RT.DDB name
     | Dval.DUuid uuid -> RT.DUuid uuid
     | Dval.DPassword pw -> RT.DPassword(pw)
-    | Dval.DHttpResponse (response) -> RT.DHttpResponse(httpResponseFromCT response)
-    | Dval.DList l -> RT.DList(List.map r l)
+    | Dval.DHttpResponse (id, pairs, dval) ->
+      RT.DHttpResponse(id, pairs, fromCT dval)
+    | Dval.DList list -> RT.DList(List.map r list)
     | Dval.DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
     | Dval.DObj o -> RT.DObj(Map.map r o)
@@ -306,7 +297,8 @@ module Dval =
     | RT.DDB name -> Dval.DDB name
     | RT.DUuid uuid -> Dval.DUuid uuid
     | RT.DPassword (Password pw) -> Dval.DPassword(Password pw)
-    | RT.DHttpResponse (response) -> Dval.DHttpResponse(httpResponseToCT response)
+    | RT.DHttpResponse (code, headers, dval) ->
+      Dval.DHttpResponse(code, headers, toCT dval)
     | RT.DList l -> Dval.DList(List.map r l)
     | RT.DTuple (first, second, theRest) ->
       Dval.DTuple(r first, r second, List.map r theRest)

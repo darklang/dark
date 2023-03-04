@@ -462,8 +462,7 @@ module Expect =
     | DOption None
     | DFloat _ -> true
 
-    | DHttpResponse (Redirect str) -> str.IsNormalized()
-    | DHttpResponse (Response (_, headers, v)) ->
+    | DHttpResponse (_, headers, v) ->
       // We don't check code as you can actually set it to anything
       let vOk = check v
 
@@ -710,12 +709,10 @@ module Expect =
           | None -> check (key :: path) ls rs)
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
-    | DHttpResponse (Response (sc1, h1, b1)), DHttpResponse (Response (sc2, h2, b2)) ->
+    | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
       check path sc1 sc2
       check path h1 h2
       de ("response" :: path) b1 b2
-    | DHttpResponse (Redirect u1), DHttpResponse (Redirect u2) ->
-      check ("redirectUrl" :: path) u1 u2
     | DIncomplete _, DIncomplete _ -> ()
     | DError (_, msg1), DError (_, msg2) ->
       check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
@@ -792,11 +789,10 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DHttpResponse (Response (_, _, v))
+    | DHttpResponse (_, _, v)
     | DResult (Error v)
     | DResult (Ok v)
     | DOption (Some v) -> visit v
-    | DHttpResponse (Redirect _)
     | DOption None
     | DStr _
     | DInt _
@@ -986,9 +982,7 @@ let interestingDvals =
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
-    ("redirect", DHttpResponse(Redirect "/home"))
-    ("httpresponse",
-     DHttpResponse(Response(200L, [ "content-length", "9" ], DStr "success")))
+    ("httpresponse", DHttpResponse(200L, [ "content-length", "9" ], DStr "success"))
     ("db", DDB "Visitors")
     ("date",
      DDateTime(
