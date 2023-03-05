@@ -18,11 +18,11 @@
 // ------------
 [test.db null roundtrip] with DB X
 (let _ = DB.set_v1 { x = null } "hello" X in
- DB.get_v1 "hello" X) = Just { x = null }
+ DB.get_v2 "hello" X) = Just { x = null }
 
 [test.db roundtrip case insensitive] with DB Insensitive
 (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
- DB.get_v1 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
+ DB.get_v2 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
 
 [test.db roundtrip password] with DB Passwords
 // Each call to hash gets a different but compatible answer
@@ -39,7 +39,7 @@
 
 [test.db roundtrip lists] with DB Lists
 (let _ = DB.set_v1 { strs = ["str1"; "str2"]; ints = [-1,6,0]} "lists" Lists in
- DB.get_v1 "lists" Lists) = Just { strs = ["str1"; "str2"]; ints = [-1,6,0]}
+ DB.get_v2 "lists" Lists) = Just { strs = ["str1"; "str2"]; ints = [-1,6,0]}
 
 
 // ------------
@@ -86,44 +86,10 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 // ------------
 // Exact field queries
 // ------------
-[test.query_v2_works] with DB XY
-(let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
- let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
- DB.query_v2 { x = "goodbye" } XY) = [{ x = "goodbye"; y = "hello" }]
-
-[test.query_v3_works] with DB XY
-(let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
- let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
- DB.query_v3 { x = "goodbye" } XY) = [{ x = "goodbye"; y = "hello" }]
-
 [test.queryExactFields works] with DB XY
 (let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
  let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
  DB.queryExactFields { x = "goodbye" } XY) = [{ x = "goodbye"; y = "hello" }]
-
-
-// DB.get_v1
-[test.db.get_v1 returns nothing given empty store] with DB X
-( DB.get_v1 "lol" X) = Nothing
-
-[test.db.get_v1 returns nothing given invalid key] with DB X
-(let _ = DB.set_v1 { x = "hello" } "key" X in
- DB.get_v1 "lol" X) = Nothing
-
-[test.db.get_v1 returns value given one entry] with DB X
-(let _ = DB.set_v1 { x = "hello" } "key" X in
- DB.get_v1 "key" X) = Just { x = "hello" }
-
-[test.db.get_v1 returns correct value given reassigned entry] with DB X
-(let _ = DB.set_v1 { x = "hello" } "key" X in
- let _ = DB.set_v1 { x = "goodbye" } "key" X in
- DB.get_v1 "key" X) = Just { x = "goodbye" }
-
-[test.db.get_v1 returns value given multiple entries] with DB X
-(let _ = DB.set_v1 { x = "pancake" } "key1" X in
- let _ = DB.set_v1 { x = "waffle" } "key2" X in
- let _ = DB.set_v1 { x = "scone" } "key3" X in
- DB.get_v1 "key2" X) = Just { x = "waffle" }
 
 
 // DB.get_v2
@@ -205,12 +171,6 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 
 // DB.queryWithKey
-[test.db.queryWithKey_v2 works] with DB SortedX
-(let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
- let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
- let three = DB.set_v1 { x = "goodbye"; sortBy = 2  } "three" SortedX in
- DB.queryWithKey_v2 { x = "goodbye" } SortedX) = { two = { x = "goodbye"; sortBy = 1}; three = { x = "goodbye"; sortBy = 2} }
-
 [test.db.queryExactFieldsWithKey_v0 works] with DB SortedX
 (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
  let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
@@ -218,23 +178,23 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
  DB.queryExactFieldsWithKey_v0 { x = "goodbye" } SortedX) = { two = { x = "goodbye"; sortBy = 1}; three = { x = "goodbye"; sortBy = 2} }
 
 
-// DB.queryOneWithKey
-[test.db.queryOneWithKey_v2 works] with DB X
+// DB.queryOneWithExactFieldsWithKey
+[test.db.queryOneWithExactFieldsWithKey works] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOneWithKey_v2 { x = "goodbye" } X) = Nothing
+ DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
 
-[test.db.queryOneWithKey_v2 returns none if none] with DB X
+[test.db.queryOneWithExactFieldsWithKey returns none if none] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOneWithKey_v2 { x = "goodbye" } X) = Nothing
+ DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
 
-[test.db.queryOneWithKey_v2 returns none if many] with DB X
+[test.db.queryOneWithExactFieldsWithKey returns none if many] with DB X
 (let one = DB.set_v1 { x = "hello" } "one" X in
  let two = DB.set_v1 { x = "hello" } "two" X in
- DB.queryOneWithKey_v2 { x = "hello" } X) = Nothing
+ DB.queryOneWithExactFieldsWithKey { x = "hello" } X) = Nothing
 
-[test.db.queryOneWithKey_v2 char works] with DB Z
+[test.db.queryOneWithExactFieldsWithKey char works] with DB Z
 (let one = DB.set_v1 { x = 'a' } "one" Z in
- DB.queryOneWithKey_v2 { x = 'b' } Z) = Nothing
+ DB.queryOneWithExactFieldsWithKey { x = 'b' } Z) = Nothing
 
 // DB.delete
 [test.db.delete_v1 does delete] with DB X
