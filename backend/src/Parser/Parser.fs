@@ -486,14 +486,34 @@ let parseTestFile (filename : string) : Module =
     checker.ParseFile("test.fs", Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
-  let convertType (typ : SynType) : PT.DType =
+  let rec convertType (typ : SynType) : PT.DType =
     match typ with
-    | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
+    | SynType.App (SynType.LongIdent (SynLongIdent ([ident], _, _)), _, args, _, _, _, _) ->
+      match ident.idText, args with
+      | "List", [arg] -> PT.TList(convertType arg)
+      | "Option", [arg] -> PT.TOption(convertType arg)
+      | _ ->
+        Exception.raiseInternal
+          $"Unsupported type (outer)"
+          [ "type", typ; "name", ident.idText; "range", ident; "id", ident.idRange ]
+
+    | SynType.Paren (t, _) -> convertType t
+    | SynType.Fun (arg, ret, _, _) -> PT.TFn([ convertType arg ], convertType ret)
+    | SynType.Var (SynTypar (id, _, _), _) -> PT.TVariable(id.idText)
+    | SynType.LongIdent (SynLongIdent ([ident], _, _)) ->
       match ident.idText with
       | "bool" -> PT.TBool
       | "int" -> PT.TInt
       | "string" -> PT.TStr
-      | _ -> Exception.raiseInternal $"Unsupported type longident " [ "type", typ ]
+      | "char" -> PT.TChar
+      | "float" -> PT.TFloat
+      | "DateTime" -> PT.TDateTime
+      | "UUID" -> PT.TUuid
+      | "Password" -> PT.TPassword
+      | _ ->
+        Exception.raiseInternal
+          $"Unsupported type"
+          [ "name", ident.idText; "type", typ; "range", ident.idRange ]
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
   let rec parseArgPat (pat : SynPat) : PT.UserFunction.Parameter =

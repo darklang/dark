@@ -1,16 +1,13 @@
 type X = { x : string }
-type Z { x : char }
-type Lists = { strs : List<string>; ints : List<Int> }
+type Z = { x : char }
+type Lists = { strs : List<string>; ints : List<int> }
 type Insensitive = { cOlUmNnAmE : string }
-type XY = { x : string, y: string }
-type SortedX = { x : string, sortBy: int }
+type XY = { x : string; y: string }
+type SortedX = { x : string; sortBy: int }
 type Timestamp = { ts : DateTime }
 type Uuid = { uu : UUID }
-type Passwords { password : Password }
+type Passwords = { password : Password }
 
-// ------------
-// Roundtripping Functions
-// ------------
 module RoundtripUnit =
   // CLEANUP () should have been removed and shouldn't work here
   (let _ = DB.set_v1 { x = () } "hello" X in
@@ -48,11 +45,6 @@ module Schemas =
 
 
 
-
-// ------------
-// Setting values
-// ------------
-
 module SetDoesUpsert =
   (let old = DB.set_v1 { x = "hello" } "hello" X in
   let newval = DB.set_v1 { x = "goodbye" } "hello" X in
@@ -63,14 +55,13 @@ module SetCharUpserts =
   let newval = DB.set_v1 { x = 'b' } "a" Z in
   DB.getAllWithKeys_v2 Z) = { a = { x = 'b'} }
 
-// ------------
-// Exact field queries
-// ------------
+
+
+
 module QueryExactFields =
   (let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
   let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
   DB.queryExactFields { x = "goodbye" } XY) = [{ x = "goodbye"; y = "hello" }]
-
 
 module Get =
   // return nothing for empty store
@@ -152,7 +143,7 @@ module QueryOneWithExactFieldsWithKey =
   (let one = DB.set_v1 { x = "hello" } "one" X in
    DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
 
-  DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
+  DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X = Nothing
 
   (let one = DB.set_v1 { x = "hello" } "one" X in
    let two = DB.set_v1 { x = "hello" } "two" X in
@@ -226,12 +217,12 @@ let addFriend (key: string) (name: string) (height: int) (human: bool) (dob: str
   DB.set_v1 obj key Person
 
 let prepFriends () =
-(let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
- let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
- // Note spaces around Chandler, that's to test trim functions
- let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 in
- let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
- DB.set_v1 { height = (); name = (); human = (); dob = (); income = () } "()" Person)
+  (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
+   let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
+   // Note spaces around Chandler, that's to test trim functions
+   let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 in
+   let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
+   DB.set_v1 { height = (); name = (); human = (); dob = (); income = () } "()" Person)
 
 let d (datestr:string) =
   (DateTime.parse_v2 datestr) |> Test.unwrap
@@ -318,9 +309,7 @@ module FindAll =
   friendsError (fun p -> p.dob != DateTime.now_v0) =
     Test.sqlError "An error occurred while querying the Datastore"
 
-// ------------
-// Test compiled functions
-// ------------
+
 module CompiledFunctions =
   (friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
   (friends (fun p -> Float.lessThanOrEqualTo_v0 p.income 82.10)) = ["GrumpyCat"; "Rachel"]
@@ -374,11 +363,11 @@ module PartialEvaluation =
 
   // fieldAccesses inside query
   (friends (fun p -> let x = { y = { z = { a = 5 }}} in
-   x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+                     x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
   (friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}}
-  (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+                     (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 
 module QueryOneWithKey =
@@ -405,7 +394,7 @@ module QueryOneWithKey =
 module QueryWithKey =
   // none
   (let _ = prepFriends () in
-   DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = {}
+   DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = Dict.empty
 
   // one
   (let _ = prepFriends () in
@@ -421,9 +410,6 @@ module QueryCount =
   (let _ = prepFriends () in
    DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
 
-// ------------
-// Date Functions
-// ------------
 module Dates =
 
   let beforeDate () =
