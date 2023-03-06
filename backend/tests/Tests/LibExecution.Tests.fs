@@ -231,7 +231,12 @@ let fileTests () : Test =
     let rec moduleToTests (moduleName : string) (module' : Parser.Module) =
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) module'.modules
-      let tests = (List.map (testExprToTest module'.fns) module'.tests)
+      let tests = List.map (testExprToTest module'.fns) module'.tests
+      debuG "adding module" moduleName
+      if List.isEmpty tests && List.isEmpty nestedModules then
+        Exception.raiseInternal
+          "No tests or nested modules found "
+          [ ("module", moduleName) ]
       testList moduleName (nestedModules @ tests)
 
 
