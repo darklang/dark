@@ -1,0 +1,27 @@
+[expected-request]
+GET PATH HTTP/1.1
+Host: HOST
+Content-Length: 0
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: LENGTH
+
+Hello back
+
+[test]
+(let reqHeaders = [("Content-Type", "")]
+ let response = (HttpClient.request "get" "http://URL" reqHeaders Bytes.empty) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
+ Dict.set_v0 response "headers" respHeaders) =
+   {
+     statusCode = 200
+     headers =
+      [
+        ("content-length", "LENGTH")
+        ("content-type", "text/plain; charset=utf-8")
+        ("Server", "Kestrel")
+      ]
+     body = "Hello back" |> String.toBytes_v0 }

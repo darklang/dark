@@ -17,7 +17,7 @@ let fns : List<RT.BuiltInFn> =
     LibCrypto.fns
     LibDarkInternal.fns
     LibEvent.fns
-    LibHttpBaseClient.fns
+    LibHttpClient.fns
     LibPassword.fns
     LibX509.fns ]
   |> List.concat

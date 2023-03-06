@@ -3484,7 +3484,7 @@
         ]
       ],
       "spec": [
-        "HTTPBasic",
+        "HTTP",
         "/path-bytes",
         "GET",
         {
@@ -6980,7 +6980,7 @@
         ]
       ],
       "spec": [
-        "HTTPBasic",
+        "HTTP",
         "/path-bytes",
         "GET",
         {

@@ -1,0 +1,26 @@
+[expected-request]
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip, br
+Content-Type: text/plain; charset=utf-8
+Host: HOST
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-Length: LENGTH
+
+👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👨‍❤️‍💋‍👨", "﷽﷽﷽
+
+[test]
+(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
+ Dict.set_v0 response "headers" respHeaders) =
+   { body = """👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👨‍❤️‍💋‍👨", "﷽﷽﷽"""
+     statusCode = 200
+     headers =
+      [
+        ("content-length", "LENGTH")
+        ("server", "kestrel")
+      }
+     raw = """👱👱🏻👱🏼👱🏽👱🏾👱🏿", "👨‍❤️‍💋‍👨", "﷽﷽﷽"""}

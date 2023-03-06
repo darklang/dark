@@ -1,0 +1,24 @@
+[expected-request]
+GET PATH HTTP/1.1
+Host: HOST
+Content-Length: 0
+
+
+[response]
+HTTP/1.1 302 Found
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Location: http://URL
+
+[test]
+(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
+ Dict.set_v0 response "headers" respHeaders) =
+  { statusCode = 302
+    headers =
+      [
+        ("server", "kestrel")
+        ("transfer-encoding", "chunked")
+        ("location", "not sure why we aren't getting this")
+      ]
+    body = Bytes.empty }
+

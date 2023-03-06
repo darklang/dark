@@ -1,0 +1,32 @@
+[expected-request]
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip, br
+Content-Type: text/plain; charset=utf-8
+Host: HOST
+
+[response]
+HTTP/1.1 302 Found
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Location: /v0/response-redirect-destination
+
+
+[test]
+(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
+ Dict.set_v0 response "headers" respHeaders) =
+  { body = "Redirect destination reached"
+    statusCode = 200
+    error = ""
+    headers =
+      [
+        "Arbitrary-header" = "Test value"
+        "Content-Length" = "28"
+        ("content-type", "text/plain; charset=utf-8")
+        "HTTP/1.1 302 Found" = ""
+        Location = "/v0/response-redirect-destination"
+        "Transfer-Encoding" = "chunked"
+        ("server", "kestrel")
+      }
+    raw = "Redirect destination reached"
+  }
