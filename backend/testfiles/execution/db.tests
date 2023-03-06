@@ -124,7 +124,8 @@ module GetMany =
    let two = DB.set_v1 { x = "goodbye" } "two" X in
    DB.getMany_v3 ["three"; "two"] X) = Nothing
 
-  (let two = DB.set_v1 { x = "goodbye" } "two" X in
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+   let two = DB.set_v1 { x = "goodbye" } "two" X in
    DB.getMany_v3 ["one"; "two"] X) = Just [ { x = "hello"}; { x = "goodbye"}]
 
 
