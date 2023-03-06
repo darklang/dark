@@ -101,7 +101,7 @@ let t
   (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
   : Test =
-  testTask $"line: {lineNumber}" {
+  testTask $"line{lineNumber}" {
     try
       let! owner = owner
       let! meta =
@@ -254,6 +254,7 @@ let fileTests () : Test =
   |> Array.filter ((<>) ".gitattributes")
   |> Array.map (fun file ->
     let filename = System.IO.Path.GetFileName file
+    let fileNameWithoutSuffix = System.IO.Path.GetFileNameWithoutExtension file
     debuG "Reading test file" filename
     let owner =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
@@ -279,11 +280,11 @@ let fileTests () : Test =
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) module'.modules
       let tests = (List.map (testExprToTest module'.fns) module'.tests)
-      testList $"Tests from {moduleName}" (nestedModules @ tests)
+      testList moduleName (nestedModules @ tests)
 
 
-    moduleToTests filename module')
+    moduleToTests fileNameWithoutSuffix module')
   |> Array.toList
-  |> testList "All files"
+  |> testList "All"
 
 let tests = lazy (testList "LibExecution" [ fileTests () ])
