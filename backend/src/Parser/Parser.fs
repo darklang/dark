@@ -469,6 +469,7 @@ let convertToTest (ast : SynExpr) : Test =
 
 type Module =
   { types : List<PT.UserType.T>
+    dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
     modules : List<string * Module>
     tests : List<Test> }
@@ -584,16 +585,53 @@ let parseTestFile (filename : string) : Module =
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
+  let parseDBSchemaField (field : SynField) : PT.DB.Col =
+    match field with
+    | SynField (_, _, Some id, typ, _, _, _, _, _) ->
+      { name = Some(id.idText) // CLEANUP
+        nameID = gid ()
+        typ = Some(convertType typ)
+        typeID = gid () }
+    | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
+
+
+
+  let parseDB (typeDef : SynTypeDefn) : PT.DB.T =
+    match typeDef with
+    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
+                                           _),
+                   members,
+                   _,
+                   _,
+                   _) ->
+      { tlid = gid ()
+        name = id.idText
+        nameID = gid ()
+        version = 0
+        cols = List.map parseDBSchemaField fields
+      }
+    | _ ->
+      Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
+
+  let parseTypeDecl (typeDef : SynTypeDefn) : List<PT.DB.T> * List<PT.UserType.T> =
+    match typeDef with
+    | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
+      let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
+      let isDB = attrs |> List.exists (fun attr -> string attr.TypeName = "DB")
+      if isDB then [parseDB typeDef], [] else [], [parseType typeDef]
+
 
   let rec parseModule (decls : List<SynModuleDecl>) : Module =
     List.fold
-      { types = []; fns = []; modules = []; tests = [] }
+      { types = []; fns = []; modules = []; tests = []; dbs = [] }
       (fun m decl ->
         match decl with
         | SynModuleDecl.Let (_, bindings, _) ->
           { m with fns = m.fns @ List.map parseBinding bindings }
         | SynModuleDecl.Types (defns, _) ->
-          { m with types = m.types @ List.map parseType defns }
+          let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
+          { m with types = m.types @ List.concat types; dbs = m.dbs @ List.concat dbs }
         | SynModuleDecl.Expr (SynExpr.Do (expr, _), _) ->
           { m with tests = m.tests @ [ convertToTest expr ] }
         | SynModuleDecl.Expr (expr, _) ->

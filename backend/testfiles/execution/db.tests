@@ -1,27 +1,23 @@
-type X = { x : string }
-type Z = { x : char }
-type Lists = { strs : List<string>; ints : List<int> }
-type Insensitive = { cOlUmNnAmE : string }
-type XY = { x : string; y: string }
-type SortedX = { x : string; sortBy: int }
-type Timestamp = { ts : DateTime }
-type Uuid = { uu : UUID }
-type Passwords = { password : Password }
+[<DB>] type X = { x : string }
+[<DB>] type Z = { x : char }
+[<DB>] type Lists = { strs : List<string>; ints : List<int> }
+[<DB>] type XY = { x : string; y: string }
+[<DB>] type SortedX = { x : string; sortBy: int }
+[<DB>] type Timestamp = { ts : DateTime }
+[<DB>] type Uuid = { uu : UUID }
 
 module RoundtripUnit =
   // CLEANUP () should have been removed and shouldn't work here
   (let _ = DB.set_v1 { x = () } "hello" X in
-  DB.get_v2 "hello" X) = Just { x = () }
+   DB.get_v2 "hello" X) = Just { x = () }
 
 module RoundtripCaseInsensitive =
+  [<DB>] type Insensitive = { cOlUmNnAmE : string }
   (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
-  DB.get_v2 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
-
-module RoundtripCaseInsensitive =
-  (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
-   DB.get_v1 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
+   DB.get_v2 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
 
 module RoundtripPassword =
+  [<DB>] type Passwords = { password : Password }
   (let pw = Password.hash_v0 "password" in
    let x = DB.set_v1 { password = pw } "test" Passwords in
    let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
@@ -32,7 +28,7 @@ module RoundtripLists =
   DB.get_v2 "lists" Lists) = Just { strs = ["str1"; "str2"]; ints = [-1,6,0]}
 
 
-module ObjectMissingColumnGivesGoodError =
+module ValueMissingColumnGivesGoodError =
   (DB.set_v1 { x = "x"; col = "v" } "i" X) = Test.typeError_v0 "Found but did not expect: [col]"
 
 
