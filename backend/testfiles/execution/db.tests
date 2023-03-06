@@ -423,6 +423,13 @@ friendsError (fun p -> p.dob != DateTime.now_v0) =
  (DB.queryOneWithKey_v3 Person (fun p -> p.name = "Rachel"))
  |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
+[test.queryOne interpolated - one] with DB Person
+(let _ = prepFriends null in
+ let test = "ache" in
+ let _ = Test.inspect test "test"
+ (DB.queryOneWithKey_v3 Person (fun p -> p.name = $"R{test}l"))
+ |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
+
 // queryWithKey
 [test.queryWithKey works - none] with DB Person
 (let _ = prepFriends null in
