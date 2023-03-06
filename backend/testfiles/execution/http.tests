@@ -19,11 +19,11 @@ module Errors =
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
 Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a Str."
-Http.notFound_v0 = Http.response_v0 null 404
+Http.notFound_v0 = Http.response_v0 () 404
 
-Http.unauthorized_v0 = Http.response_v0 null 401
+Http.unauthorized_v0 = Http.response_v0 () 401
 
-Http.forbidden_v0 = Http.response_v0 null 403
+Http.forbidden_v0 = Http.response_v0 () 403
 
 Http.success_v0 {test = "test1"} = Http.response_v0 {test = "test1"} 200
 Http.success_v0 {``Content-Length`` = 0; Server = "darklang"} = Http.response_v0 {``Content-Length`` = 0; Server = "darklang"} 200
@@ -49,7 +49,7 @@ Http.responseWithJson_v0  {``Content-Length`` = 0; Server = "darklang"} 45035996
 (Http.redirectTo_v0 "http://someothersite.com") = Http.responseWithHeaders Bytes.empty { Location = "http://someothersite.com" } 302
 (Http.redirectTo_v0 "/relativeUrl") = Http.responseWithHeaders Bytes.empty { Location = "/relativeUrl" } 302
 
-Http.responseWithHeaders_v0 null {} 200 = Http.response_v0 null 200
+Http.responseWithHeaders_v0 () {} 200 = Http.response_v0 () 200
 Http.responseWithHeaders_v0 "" {} 200 = Http.response_v0 "" 200
 Http.responseWithHeaders_v0 "value" {} 201 = Http.response_v0 "value" 201
 (Http.responseWithHeaders_v0 "value" { ``Server`` = "darklang" } 201) |> Test.httpResponseHeaders = [ ("Server", "darklang")]

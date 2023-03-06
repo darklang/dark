@@ -74,7 +74,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInteger(id, parseInt64 n)
     | SynPat.Const (SynConst.Char c, _) -> PT.MPCharacter(id, string c)
     | SynPat.Const (SynConst.Bool b, _) -> PT.MPBool(id, b)
-    | SynPat.Null _ -> PT.MPUnit id
+    | SynPat.Const (SynConst.Unit, _) -> PT.MPUnit(id)
+    | SynPat.Null _ ->
+      Exception.raiseInternal "null pattern not supported, use `()`" [ "pat", pat ]
     | SynPat.Paren (pat, _) -> convertPattern pat
     | SynPat.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
@@ -134,7 +136,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
 
   match ast with
   // constant values
-  | SynExpr.Null _ -> PT.EUnit id
+  | SynExpr.Null _ ->
+    Exception.raiseInternal "null not supported, use `()`" [ "ast", ast ]
+  | SynExpr.Const (SynConst.Unit _, _) -> PT.EUnit id
   | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInteger(id, n)
   | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(id, int64 n)
   | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInteger(id, int64 n)

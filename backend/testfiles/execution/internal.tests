@@ -144,7 +144,7 @@ module Secrets =
   DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE") = Error "Error inserting secret"
 
   // deleteSecret
-  DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = null
+  DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = ()
 
   // deleteSecret
   (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
@@ -157,7 +157,7 @@ module Secrets =
 // ---------------
 module F404s =
   DarkInternal.getRecent404s Test.getCanvasID = []
-  DarkInternal.delete404 Test.getCanvasID "" "" "" = null
+  DarkInternal.delete404 Test.getCanvasID "" "" "" = ()
 
 
 module Toplevels =

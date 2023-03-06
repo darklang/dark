@@ -142,7 +142,7 @@ module GreaterThan =
 
 module GreaterThanOrEquals =
   DateTime.greaterThanOrEqualTo (d "2019-11-26T04:37:46Z") (d "2020-07-28T22:42:36Z") = false
-DateTime.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
+  DateTime.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
 
 module Fields =
   DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019

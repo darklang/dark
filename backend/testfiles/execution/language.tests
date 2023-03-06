@@ -67,7 +67,7 @@ module If =
   //(if false then Test.typeError_v0 "a" else 0) = 0 // CLEANUP
   //(if true then 0 else Test.typeError_v0 "a") = 0 // CLEANUP
   (if false then "" else "correct") = "correct"
-  (if null then "" else "") = Test.typeError_v0 "If only supports Booleans"
+  (if () then "" else "") = Test.typeError_v0 "If only supports Booleans"
   (if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
   (if 5 then "" else "") = Test.typeError_v0 "If only supports Booleans"
 
@@ -110,7 +110,7 @@ module FeatureFlag =
   // everything else is old
   flag "test" false "old" "new" = "old"
   flag "" [true] "old" "new" = "old"
-  flag "test" null "old" "new" = "old"
+  flag "test" () "old" "new" = "old"
   flag "test" 5 "old" "new" = "old"
   flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
   flag "test" (List.head_v2_ster []) "old" "new" = "old"
@@ -171,7 +171,7 @@ module Match =
   (match "x" with | "y" -> "fail" | "x" -> "pass" | var -> "fail") = "pass"
   (match true with | false -> "fail" | true -> "pass" | var -> "fail") = "pass"
   (match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
-  (match null with | null -> "pass" | var -> "fail") = "pass"
+  (match () with | () -> "pass" | var -> "fail") = "pass"
   (match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
   (match "nothing matches" with | "not this" -> "fail") = Test.incomplete // CLEANUP
   (match Test.typeError_v0 "msg" with | 5 -> 5 | _ -> 6) = Test.incomplete // CLEANUP
@@ -188,7 +188,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | 5 -> "int"
@@ -199,7 +199,7 @@ module Match =
   | 5 -> "int"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | 5.6 -> "float"
@@ -210,7 +210,7 @@ module Match =
   | 5 -> "int"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | 1.1 -> "float"
@@ -221,7 +221,7 @@ module Match =
   | 5 -> "int"
   | 5.6 -> "float"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | false -> "bool"
@@ -232,7 +232,7 @@ module Match =
   | 5 -> "int"
   | 5.6 -> "float"
   | false -> "bool"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | "myStr" -> "string"
@@ -244,21 +244,21 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | name -> name ++ "var") = "otherStrvar"
 
-  // null CLEANUP
-  (match null with
+  // () CLEANUP
+  (match () with
   | 5 -> "int"
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
-  | null -> "null"
-  | name -> name ++ "var") = "null"
+  | () -> "()"
+  | name -> name ++ "var") = "()"
 
   // constructor with arg
   (match Ok "x" with
@@ -266,7 +266,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Nothing -> "constructor nothing"
   | Ok x -> "ok: " ++ x
   | name -> name ++ "var") = "ok: x"
@@ -278,7 +278,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Nothing -> "constructor nothing"
   | (1, 1) -> "1 and 1"
   | (1, 2) -> "1 and 2"
@@ -292,7 +292,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Nothing -> "constructor nothing"
   | (1, 1) -> "1 and 1"
   | (1, 2, (Ok "one", "four"), 5) -> "non-matching pattern chosen"
@@ -313,7 +313,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | name -> name ++ "var") = "constructor nothing"
@@ -324,7 +324,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | name -> name ++ "var") = "not matched: var"
@@ -335,7 +335,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | null -> "null"
+  | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing") = Test.typeError "x"
 
@@ -407,11 +407,11 @@ module Equality =
   (true = true) = true
   (false = false) = true
   (true <> false) = true
-  (null = null) = true
-  (null <> Nothing) = true
-  (null <> false) = true
-  (null <> 0) = true
-  (null <> 0.0) = true
+  (() = ()) = true
+  (() <> Nothing) = true
+  (() <> false) = true
+  (() <> 0) = true
+  (() <> 0.0) = true
   ([ 1; 2; 3 ] = [ 1; 2; 3 ]) = true
   ([ 1; 2; 3 ] <> [ 3; 2; 1 ]) = true
   ({ x = 6; y = 7 } = { x = 6; y = 7 }) = true

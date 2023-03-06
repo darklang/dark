@@ -11,10 +11,10 @@ type Passwords { password : Password }
 // ------------
 // Roundtripping Functions
 // ------------
-module RoundtripNull =
-  // CLEANUP null should have been removed and shouldn't work here
-  (let _ = DB.set_v1 { x = null } "hello" X in
-  DB.get_v2 "hello" X) = Just { x = null }
+module RoundtripUnit =
+  // CLEANUP () should have been removed and shouldn't work here
+  (let _ = DB.set_v1 { x = () } "hello" X in
+  DB.get_v2 "hello" X) = Just { x = () }
 
 module RoundtripCaseInsensitive =
   (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
@@ -231,7 +231,7 @@ let prepFriends () =
  // Note spaces around Chandler, that's to test trim functions
  let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 in
  let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
- DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
+ DB.set_v1 { height = (); name = (); human = (); dob = (); income = () } "()" Person)
 
 let d (datestr:string) =
   (DateTime.parse_v2 datestr) |> Test.unwrap
@@ -240,18 +240,18 @@ let rossDOB () =
   d "1967-05-12T00:00:00Z"
 
 let friendsError (lambda: ('a -> bool)) =
-  let _ = prepFriends null in
+  let _ = prepFriends () in
   DB.query_v4 Person lambda
 
 let friends (lambda: ('a -> bool)) =
-  let _ = prepFriends null in
+  let _ = prepFriends () in
   (DB.query_v4 Person lambda)
   |> List.map_v0 (fun p -> p.name)
   |> List.sort_v0
 
 // Test standard language features
 module FindAll =
-  (friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> true)) = [(); " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // with condition
   (friends (fun p -> p.height > 3)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
@@ -259,15 +259,15 @@ module FindAll =
   // boolean queries
   (friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
 
-  // null equality works CLEANUP
-  (friends (fun p -> p.name = null )) = [null]
+  // () equality works CLEANUP
+  (friends (fun p -> p.name = () )) = [()]
 
-  // null inequality works CLEANUP
-  (friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // () inequality works CLEANUP
+  (friends (fun p -> p.name != () )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-  // CLEANUP weird behaviour here - shouldn't the null object be returned here.
-  // null is not 'null' (string)
-  (friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // CLEANUP weird behaviour here - shouldn't the () object be returned here.
+  // () is not '()' (string)
+  (friends (fun p -> p.name != "()" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // &&
   (friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
@@ -349,11 +349,11 @@ module CompiledFunctions =
   (friends (fun p -> Bool.and_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
   (friends (fun p -> Bool.or_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
   (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
-  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (rossDOB null))) = ["Ross" ]
-  (friends (fun p -> DateTime.lessThan p.dob (rossDOB null))) = []
+  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (rossDOB ()))) = ["Ross" ]
+  (friends (fun p -> DateTime.lessThan p.dob (rossDOB ()))) = []
   (friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
-  (friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-  (friends (fun p -> DateTime.greaterThan p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+  (friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> DateTime.greaterThan p.dob (rossDOB ()))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
   (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.add_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
   (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
   (friends (fun p -> DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
@@ -366,7 +366,7 @@ module CompiledFunctions =
 
 module PartialEvaluation =
   // fieldAccesses outside query
-  (let _ = prepFriends null
+  (let _ = prepFriends ()
    let x = { y = { z = { a = 5 }}}
    ((DB.query_v4 Person (fun p -> x.y.z.a < p.height))
    |> List.map_v0 (fun p -> p.name)
@@ -383,15 +383,15 @@ module PartialEvaluation =
 
 module QueryOneWithKey =
   // multiple
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
    DB.queryOneWithKey_v3 Person (fun p -> p.human)) = Nothing
 
   // none
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
    DB.queryOneWithKey_v3 Person (fun p -> p.name = "bob")) = Nothing
 
   // one
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
   (DB.queryOneWithKey_v3 Person (fun p -> p.name = "Rachel"))
    |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
@@ -404,21 +404,21 @@ module QueryOneWithKey =
 
 module QueryWithKey =
   // none
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
    DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = {}
 
   // one
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
    (DB.queryWithKey_v3 Person (fun p -> p.name = "Rachel"))
    |> (fun v -> v.rachel.name)) = "Rachel"
 
 module QueryCount =
   // none
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
    DB.queryCount_v0 Person (fun p -> p.name = "bob")) = 0
 
   // one
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
    DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
 
 // ------------
@@ -436,18 +436,18 @@ module Dates =
     d "2100-01-01T00:00:00Z"
 
   let prepDates () =
-    (let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
-    let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
-    DB.set_v1 { ts = afterDate null } "after"  Timestamp)
+    (let _ = DB.set_v1 { ts = beforeDate () } "before" Timestamp in
+    let _ = DB.set_v1 { ts = middleDate () } "middle" Timestamp in
+    DB.set_v1 { ts = afterDate () } "after"  Timestamp)
 
   // DateTime.lessThan
-  (let _ = prepDates null in
-  DB.queryOne_v4 Timestamp (fun value -> DateTime.lessThan_v0 (middleDate null) value.ts)) =
-    Just ({ ts = afterDate null })
+  (let _ = prepDates () in
+  DB.queryOne_v4 Timestamp (fun value -> DateTime.lessThan_v0 (middleDate ()) value.ts)) =
+    Just ({ ts = afterDate () })
 
   // DateTime.greaterThan
-  (let _ = prepDates null in
-  DB.queryOne_v4 Timestamp (fun value -> DateTime.greaterThan_v0 (middleDate null) value.ts)) =
-    Just { ts = beforeDate null }
+  (let _ = prepDates () in
+  DB.queryOne_v4 Timestamp (fun value -> DateTime.greaterThan_v0 (middleDate ()) value.ts)) =
+    Just { ts = beforeDate () }
 
 (DB.generateKey_v0 |> String.length_v1) = 36
