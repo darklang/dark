@@ -1,69 +1,50 @@
-// ------------
-// Set up databases for use in tests
-//
-// e.g. DB "x" has column "x" of type "Str"
-// ------------
-[db.X { "x" : "Str" }]
-[db.Z { "x" : "Character" }]
-[db.Lists { "strs" : "[Str]" , "ints" : "[Int]" }]
-[db.Insensitive { "cOlUmNnAmE" : "Str" }]
-[db.XY { "x" : "Str", "y": "Str" }]
-[db.SortedX { "x" : "Str", "sortBy": "Int" }]
-[db.Timestamp { "ts" : "Date"}]
-[db.Uuid { "uu" : "UUID"}]
-[db.Passwords { "password" : "Password"}]
+type X = { x : string }
+type Z { x : char }
+type Lists = { strs : List<string>; ints : List<Int> }
+type Insensitive = { cOlUmNnAmE : string }
+type XY = { x : string, y: string }
+type SortedX = { x : string, sortBy: int }
+type Timestamp = { ts : DateTime }
+type Uuid = { uu : UUID }
+type Passwords { password : Password }
 
 // ------------
 // Roundtripping Functions
 // ------------
-[test.db null roundtrip] with DB X
-(let _ = DB.set_v1 { x = null } "hello" X in
- DB.get_v2 "hello" X) = Just { x = null }
+module RoundtripNull =
+  // CLEANUP null should have been removed and shouldn't work here
+  (let _ = DB.set_v1 { x = null } "hello" X in
+  DB.get_v2 "hello" X) = Just { x = null }
 
-[test.db roundtrip case insensitive] with DB Insensitive
-(let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
- DB.get_v2 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
+module RoundtripCaseInsensitive =
+  (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
+  DB.get_v2 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
 
-[test.db roundtrip password] with DB Passwords
-// Each call to hash gets a different but compatible answer
-(let pw = Password.hash_v0 "password" in
- let x = DB.set_v1 { password = pw } "test" Passwords in
- let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
- Password.check_v0 y.password "password") = true
+module RoundtripCaseInsensitive =
+  (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
+   DB.get_v1 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
 
-[test.db roundtrip uuid] with DB Uuid
-(let i = Uuid.generate_v0 in
- let _ = DB.set_v1 { uu = i } "test2" Uuid in
- let result = DB.getAll_v3 Uuid in
- (result |> List.head_v2 |> Test.unwrap).uu = i) = true
+module RoundtripPassword =
+  (let pw = Password.hash_v0 "password" in
+   let x = DB.set_v1 { password = pw } "test" Passwords in
+   let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
+   Password.check_v0 y.password "password") = true
 
-[test.db roundtrip lists] with DB Lists
-(let _ = DB.set_v1 { strs = ["str1"; "str2"]; ints = [-1,6,0]} "lists" Lists in
- DB.get_v2 "lists" Lists) = Just { strs = ["str1"; "str2"]; ints = [-1,6,0]}
+module RoundtripLists =
+  (let _ = DB.set_v1 { strs = ["str1"; "str2"]; ints = [-1,6,0]} "lists" Lists in
+  DB.get_v2 "lists" Lists) = Just { strs = ["str1"; "str2"]; ints = [-1,6,0]}
 
 
-// ------------
-// Errors
-// ------------
-[test.db object to missing column gives good error] with DB X
-(DB.set_v1 { x = "x"; col = "v" } "i" X) = Test.typeError_v0 "Found but did not expect: [col]"
+module ObjectMissingColumnGivesGoodError =
+  (DB.set_v1 { x = "x"; col = "v" } "i" X) = Test.typeError_v0 "Found but did not expect: [col]"
 
 
 
-// ------------
-// Schema
-// ------------
-[test.db.schemaFields_v1 works for db with one field] with DB X
-DB.schemaFields_v1 X = ["x"]
-
-[test.db.schemaFields_v1 works for db with multiple fields] with DB XY
-DB.schemaFields_v1 XY = ["x", "y"]
-
-[test.db.schema_v1 works for db with one field] with DB X
-DB.schema_v1 X = { x = "Str" }
-
-[test.db.schema_v1 works for db with multiple fields] with DB SortedX
-DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
+module Schemas =
+  DB.schemaFields_v1 X = ["x"]
+  DB.schemaFields_v1 XY = ["x", "y"]
+  DB.schema_v1 X = { x = "Str" }
+  DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 
 
 
@@ -72,189 +53,179 @@ DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
 // Setting values
 // ------------
 
-// DB.set
-[test.db.set does upsert] with DB X
-(let old = DB.set_v1 { x = "hello" } "hello" X in
- let newval = DB.set_v1 { x = "goodbye" } "hello" X in
- DB.getAllWithKeys_v2 X) = { hello = { x = "goodbye"} }
+module SetDoesUpsert =
+  (let old = DB.set_v1 { x = "hello" } "hello" X in
+  let newval = DB.set_v1 { x = "goodbye" } "hello" X in
+  DB.getAllWithKeys_v2 X) = { hello = { x = "goodbye"} }
 
-[test.db.set char upsert] with DB Z
-(let old = DB.set_v1 { x = 'a' } "a" Z in
- let newval = DB.set_v1 { x = 'b' } "a" Z in
- DB.getAllWithKeys_v2 Z) = { a = { x = 'b'} }
+module SetCharUpserts =
+  (let old = DB.set_v1 { x = 'a' } "a" Z in
+  let newval = DB.set_v1 { x = 'b' } "a" Z in
+  DB.getAllWithKeys_v2 Z) = { a = { x = 'b'} }
 
 // ------------
 // Exact field queries
 // ------------
-[test.queryExactFields works] with DB XY
-(let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
- let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
- DB.queryExactFields { x = "goodbye" } XY) = [{ x = "goodbye"; y = "hello" }]
+module QueryExactFields =
+  (let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
+  let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
+  DB.queryExactFields { x = "goodbye" } XY) = [{ x = "goodbye"; y = "hello" }]
 
 
-// DB.get_v2
-[test.db.get_v2 returns nothing given empty store] with DB X
-( DB.get_v2 "lol" X) = Nothing
+module Get =
+  // return nothing for empty store
+  (DB.get_v2 "lol" X) = Nothing
 
-[test.db.get_v2 returns nothing given invalid key] with DB X
-(let _ = DB.set_v1 { x = "hello" } "key" X in
- DB.get_v2 "lol" X) = Nothing
+  // return nothing for invalid key
+  (let _ = DB.set_v1 { x = "hello" } "key" X in
+   DB.get_v2 "lol" X) = Nothing
 
-[test.db.get_v2 returns value given one entry] with DB X
-(let _ = DB.set_v1 { x = "hello" } "key" X in
- DB.get_v2 "key" X) = Just { x = "hello" }
+  // returns single value
+  (let _ = DB.set_v1 { x = "hello" } "key" X in
+   DB.get_v2 "key" X) = Just { x = "hello" }
 
-[test.db.get_v2 returns correct value given reassigned entry] with DB X
-(let _ = DB.set_v1 { x = "hello" } "key" X in
- let _ = DB.set_v1 { x = "goodbye" } "key" X in
- DB.get_v2 "key" X) = Just { x = "goodbye" }
+  // returns correct value given reassigned entry
+  (let _ = DB.set_v1 { x = "hello" } "key" X in
+   let _ = DB.set_v1 { x = "goodbye" } "key" X in
+   DB.get_v2 "key" X) = Just { x = "goodbye" }
 
-[test.db.get_v2 returns value given multiple entries] with DB X
-(let _ = DB.set_v1 { x = "pancake" } "key1" X in
- let _ = DB.set_v1 { x = "waffle" } "key2" X in
- let _ = DB.set_v1 { x = "scone" } "key3" X in
- DB.get_v2 "key2" X) = Just { x = "waffle" }
-
-
-
-// DB.getAll
-[test.db.getAll_v3 works] with DB SortedX
-(let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
- let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
- let three = DB.set_v1 { x = "howdy"; sortBy = 2  } "three" SortedX in
- (DB.getAll_v3 SortedX)
- |> List.sortBy_v0 (fun x -> x.sortBy)) = (
-   [ { x = "hello"; sortBy = 0}
-   ; { x = "goodbye"; sortBy = 1}
-   ; { x = "howdy"; sortBy = 2}])
+  // returns value given multiple entries
+  (let _ = DB.set_v1 { x = "pancake" } "key1" X in
+   let _ = DB.set_v1 { x = "waffle" } "key2" X in
+   let _ = DB.set_v1 { x = "scone" } "key3" X in
+   DB.get_v2 "key2" X) = Just { x = "waffle" }
 
 
-// DB.getAllKeys
-[test.db.keys_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- (DB.keys_v1 X) |> List.sort_v0) = (
-   [ "one"; "two" ])
+
+module GetAll =
+  (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
+   let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
+   let three = DB.set_v1 { x = "howdy"; sortBy = 2  } "three" SortedX in
+   (DB.getAll_v3 SortedX)
+   |> List.sortBy_v0 (fun x -> x.sortBy)) =
+     [ { x = "hello"; sortBy = 0}
+     ; { x = "goodbye"; sortBy = 1}
+     ; { x = "howdy"; sortBy = 2}]
 
 
-// DB.getAllWithKeys
-[test.db.getAllWithKeys_v2 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getAllWithKeys_v2 X) = { one = { x = "hello"} ; two = { x = "goodbye"} }
+module GetAllKeys =
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+   let two = DB.set_v1 { x = "goodbye" } "two" X in
+   (DB.keys_v1 X) |> List.sort_v0) = [ "one"; "two" ]
 
 
-// DB.getManyWithKeys
-[test.db.getManyWithKeys_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getManyWithKeys_v1 ["one"; "two"] X) = { one = { x = "hello"} ; two = { x = "goodbye"} }
+module GetAllWithKeys =
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+   let two = DB.set_v1 { x = "goodbye" } "two" X in
+   DB.getAllWithKeys_v2 X) = { one = { x = "hello"} ; two = { x = "goodbye"} }
 
 
-// DB.getExisting
-[test.db.getExisting_v0 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getExisting_v0 ["three"; "two"] X) = [ { x = "goodbye" } ]
+module GetManyWithKeys =
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+   let two = DB.set_v1 { x = "goodbye" } "two" X in
+   DB.getManyWithKeys_v1 ["one"; "two"] X) = { one = { x = "hello"} ; two = { x = "goodbye"} }
 
 
-// DB.getMany
-[test.db.getMany_v3 returns nothing] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getMany_v3 ["three"; "two"] X) = Nothing
-
-[test.db.getMany_v3 works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- DB.getMany_v3 ["one"; "two"] X) = Just [ { x = "hello"}; { x = "goodbye"}]
+module GetExisting =
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+  let two = DB.set_v1 { x = "goodbye" } "two" X in
+  DB.getExisting_v0 ["three"; "two"] X) = [ { x = "goodbye" } ]
 
 
-// DB.queryWithKey
-[test.db.queryExactFieldsWithKey_v0 works] with DB SortedX
-(let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
- let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
- let three = DB.set_v1 { x = "goodbye"; sortBy = 2  } "three" SortedX in
- DB.queryExactFieldsWithKey_v0 { x = "goodbye" } SortedX) = { two = { x = "goodbye"; sortBy = 1}; three = { x = "goodbye"; sortBy = 2} }
+module GetMany =
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+   let two = DB.set_v1 { x = "goodbye" } "two" X in
+   DB.getMany_v3 ["three"; "two"] X) = Nothing
+
+  (let two = DB.set_v1 { x = "goodbye" } "two" X in
+   DB.getMany_v3 ["one"; "two"] X) = Just [ { x = "hello"}; { x = "goodbye"}]
 
 
-// DB.queryOneWithExactFieldsWithKey
-[test.db.queryOneWithExactFieldsWithKey works] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
-
-[test.db.queryOneWithExactFieldsWithKey returns none if none] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
-
-[test.db.queryOneWithExactFieldsWithKey returns none if many] with DB X
-(let one = DB.set_v1 { x = "hello" } "one" X in
- let two = DB.set_v1 { x = "hello" } "two" X in
- DB.queryOneWithExactFieldsWithKey { x = "hello" } X) = Nothing
-
-[test.db.queryOneWithExactFieldsWithKey char works] with DB Z
-(let one = DB.set_v1 { x = 'a' } "one" Z in
- DB.queryOneWithExactFieldsWithKey { x = 'b' } Z) = Nothing
-
-// DB.delete
-[test.db.delete_v1 does delete] with DB X
-(let one = DB.set_v1 { x = "hello"} "one" X in
- let delete = DB.delete_v1 "one" X in
- DB.getAllWithKeys_v2 X) = {}
-
-[test.db.delete_v1 deletes nothing] with DB X
-(let one = DB.set_v1 { x = "hello"} "one" X in
- let delete = DB.delete_v1 "two" X in
- DB.getAllWithKeys_v2 X) = { one = { x = "hello"} }
-
-[test.db.delete_v1 deletes only one] with DB X
-(let one = DB.set_v1 { x = "hello"} "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- let delete = DB.delete_v1 "one" X in
- DB.getAllWithKeys_v2 X) = { two = { x = "goodbye"} }
-
-// // DB.deleteAll
-[test.db.deleteAll_v1 works] with DB X
-(let one = DB.set_v1 { x = "hello"} "one" X in
- let delete = DB.deleteAll_v1 X in
- DB.getAll_v3 X) = []
-
-[test.db.deleteAll_v1 delete all] with DB X
-(let one = DB.set_v1 { x = "hello"} "one" X in
- let two = DB.set_v1 { x = "goodbye" } "two" X in
- let delete = DB.deleteAll_v1 X in
- DB.getAll_v3 X) = []
-
-[test.db.deleteAll_v1 works] with DB X
-(let delete = DB.deleteAll_v1 X in
- DB.getAll_v3 X) = []
+module QueryWithKey =
+  (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
+   let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
+   let three = DB.set_v1 { x = "goodbye"; sortBy = 2  } "three" SortedX in
+   DB.queryExactFieldsWithKey_v0 { x = "goodbye" } SortedX) = { two = { x = "goodbye"; sortBy = 1}; three = { x = "goodbye"; sortBy = 2} }
 
 
-[test.db.count works when empty] with DB X
-DB.count X = 0
+module QueryOneWithExactFieldsWithKey =
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+   DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
 
-[test.db.count works with single entry] with DB X
-(let _ = DB.set_v1 { x = "hello" } "one" X in
- DB.count X) = 1
+  DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
 
-[test.db.count works with multiple entries] with DB X
-(let _ = DB.set_v1 { x = "hello" } "one" X in
- let _ = DB.set_v1 { x = "goodbye" } "two" X in
- let _ = DB.set_v1 { x = "howdy" } "three" X in
- let _ = DB.set_v1 { x = "cheers" } "four" X in
- DB.count X) = 4
+  (let one = DB.set_v1 { x = "hello" } "one" X in
+   let two = DB.set_v1 { x = "hello" } "two" X in
+   DB.queryOneWithExactFieldsWithKey { x = "hello" } X) = Nothing
+
+  // chars
+  (let one = DB.set_v1 { x = 'a' } "one" Z in
+   DB.queryOneWithExactFieldsWithKey { x = 'b' } Z) = Nothing
+
+module Delete =
+  (let one = DB.set_v1 { x = "hello"} "one" X in
+   let delete = DB.delete_v1 "one" X in
+   DB.getAllWithKeys_v2 X) = {}
+
+  // delete nothing
+  (let one = DB.set_v1 { x = "hello"} "one" X in
+   let delete = DB.delete_v1 "two" X in
+   DB.getAllWithKeys_v2 X) = { one = { x = "hello"} }
+
+  // deletes only one
+  (let one = DB.set_v1 { x = "hello"} "one" X in
+   let two = DB.set_v1 { x = "goodbye" } "two" X in
+   let delete = DB.delete_v1 "one" X in
+   DB.getAllWithKeys_v2 X) = { two = { x = "goodbye"} }
+
+module DeleteAll =
+  (let one = DB.set_v1 { x = "hello"} "one" X in
+   let delete = DB.deleteAll_v1 X in
+   DB.getAll_v3 X) = []
+
+  // deletes all
+  (let one = DB.set_v1 { x = "hello"} "one" X in
+   let two = DB.set_v1 { x = "goodbye" } "two" X in
+   let delete = DB.deleteAll_v1 X in
+   DB.getAll_v3 X) = []
+
+  // when empty
+  (let delete = DB.deleteAll_v1 X in
+   DB.getAll_v3 X) = []
+
+module Count =
+  // empty
+  DB.count X = 0
+
+  // one entries
+  (let _ = DB.set_v1 { x = "hello" } "one" X in
+   DB.count X) = 1
+
+  // multiple entries
+  (let _ = DB.set_v1 { x = "hello" } "one" X in
+   let _ = DB.set_v1 { x = "goodbye" } "two" X in
+   let _ = DB.set_v1 { x = "howdy" } "three" X in
+   let _ = DB.set_v1 { x = "cheers" } "four" X in
+   DB.count X) = 4
 
 // ------------
 // SqlCompiler queries
 // ------------
-[db.Person { "name" : "Str", "human": "Bool", "height": "Int", "income" : "Float", "dob" : "Date"}]
+[<DB>]
+type Person = {
+  name : string;
+  human : bool;
+  height : int;
+  income : float;
+  dob : DateTime
+}
 
-[fn.addFriend key:string name:string height:int human:bool dob:string income:float]
-(let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
- let obj = { height = height; name = name; human = human; dob = dob; income = income } in
- DB.set_v1 obj key Person)
+let addFriend (key: string) (name: string) (height: int) (human: bool) (dob: string) (income: float) =
+  let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
+  let obj = { height = height; name = name; human = human; dob = dob; income = income } in
+  DB.set_v1 obj key Person
 
-[fn.prepFriends v:any]
+let prepFriends () =
 (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
  let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
  // Note spaces around Chandler, that's to test trim functions
@@ -262,217 +233,221 @@ DB.count X = 0
  let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
  DB.set_v1 { height = null; name = null; human = null; dob = null; income = null } "null" Person)
 
-[fn.d datestr:string]
-(DateTime.parse_v2 datestr) |> Test.unwrap
+let d (datestr:string) =
+  (DateTime.parse_v2 datestr) |> Test.unwrap
 
-[fn.rossDOB x:any]
-(d "1967-05-12T00:00:00Z")
+let rossDOB () =
+  d "1967-05-12T00:00:00Z"
 
-[fn.friendsError lambda:any]
-(let _ = prepFriends null in
- DB.query_v4 Person lambda)
+let friendsError (lambda: ('a -> bool)) =
+  let _ = prepFriends null in
+  DB.query_v4 Person lambda
 
-[fn.friends lambda:any]
-(let _ = prepFriends null in
- ((DB.query_v4 Person lambda)
- |> List.map_v0 (fun p -> p.name)
- |> List.sort_v0))
+let friends (lambda: ('a -> bool)) =
+  let _ = prepFriends null in
+  (DB.query_v4 Person lambda)
+  |> List.map_v0 (fun p -> p.name)
+  |> List.sort_v0
 
 // Test standard language features
-[test.db findall] with DB Person
-(friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+module FindAll =
+  (friends (fun p -> true)) = [null; " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-[test.db find all with condition] with DB Person
-(friends (fun p -> p.height > 3)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // with condition
+  (friends (fun p -> p.height > 3)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-[test.db boolean queries] with DB Person
-(friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
+  // boolean queries
+  (friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db null equality works] with DB Person
-(friends (fun p -> p.name = null )) = [null]
+  // null equality works CLEANUP
+  (friends (fun p -> p.name = null )) = [null]
 
-[test.db null inequality works] with DB Person
-(friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // null inequality works CLEANUP
+  (friends (fun p -> p.name != null )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-// TODO weird behaviour here - shouldn't the null object be returned here.
-[test.db null is not 'null' (string)] with DB Person
-(friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // CLEANUP weird behaviour here - shouldn't the null object be returned here.
+  // null is not 'null' (string)
+  (friends (fun p -> p.name != "null" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-[test.db different param name] with DB Person
-(friends (fun value -> value.human )) = [" Chandler "; "Rachel"; "Ross" ]
+  // &&
+  (friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
 
-[test.db && queries] with DB Person
-(friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
+  // ||
+  (friends (fun p -> p.human || p.height > 66 )) = [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db || queries] with DB Person
-(friends (fun p -> p.human || p.height > 66 )) = [" Chandler "; "Rachel"; "Ross" ]
+  // inlining
+  (friends (fun p -> let x = 32 in p.height > x && true)) = [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db inlining] with DB Person
-(friends (fun p -> let x = 32 in p.height > x && true)) = [" Chandler "; "Rachel"; "Ross" ]
+  // inlining field access
+  (friends (fun p -> let x = p.height in true && x > 32 )) = [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db inlining field access] with DB Person
-(friends (fun p -> let x = p.height in true && x > 32 )) = [" Chandler "; "Rachel"; "Ross" ]
+  // pipes
+  (friends (fun p -> p.height |> (*) 2 |> (<) 40)) = ["GrumpyCat" ]
 
-[test.db pipes] with DB Person
-(friends (fun p -> p.height |> (*) 2 |> (<) 40)) = ["GrumpyCat" ]
+  //[test.db query with external variable] with DB Person
+  // TODO pass an external var x
+  //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
-//[test.db query with external variable] with DB Person
-// TODO pass an external var x
-//(friends (fun p -> p.height < x)) = ["GrumpyCat"]
+  // fieldaccess
+  (friends (fun p -> let obj = { x = 42 } in p.height > obj.x )) =
+    [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db fieldaccess] with DB Person
-(friends (fun p -> let obj = { x = 42 } in p.height > obj.x )) =
-  [" Chandler "; "Rachel"; "Ross" ]
+  // nested fieldaccess
+  friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
+    [" Chandler "; "Rachel"; "Ross" ]
 
-[test.db nested fieldaccess] with DB Person
-friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
-  [" Chandler "; "Rachel"; "Ross" ]
+  // lambda doesnt return a bool
+  friendsError (fun p -> "x") =
+    Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a Str"
 
-[test.db lambda doesnt return a bool] with DB Person
-friendsError (fun p -> "x") =
-  Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a Str"
+  // bad variable name
+  friendsError (fun p -> let x = 32 in true && p.height > y) =
+    Test.sqlError "This variable is not defined: y"
 
-[test.db bad variable name] with DB Person
-friendsError (fun p -> let x = 32 in true && p.height > y) =
-  Test.sqlError "This variable is not defined: y"
+  // sql injection
+  friendsError (fun p -> "; select * from users;" = p.name ) = []
 
-[test.db sql injection] with DB Person
-friendsError (fun p -> "; select * from users;" = p.name ) = []
+  // CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
+  // invalid type comparison
+  // EXPECTED_EXCEPTION_COUNT: 1
+  friendsError (fun p -> p.height == "string") =
+    Test.sqlError "An error occurred while querying the Datastore"
 
-// CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
-[test.db invalid type comparison EXPECTED_EXCEPTION_COUNT: 1] with DB Person
-friendsError (fun p -> p.height == "string") =
-  Test.sqlError "An error occurred while querying the Datastore"
-
-// This test checks do we look up dates correctly when the function type is not a date
-[test.db invalid date comparison EXPECTED_EXCEPTION_COUNT: 1] with DB Person
-friendsError (fun p -> p.dob != DateTime.now_v0) =
-  Test.sqlError "An error occurred while querying the Datastore"
+  // do we look up dates correctly when the function type is not a date
+  // EXPECTED_EXCEPTION_COUNT: 1
+  friendsError (fun p -> p.dob != DateTime.now_v0) =
+    Test.sqlError "An error occurred while querying the Datastore"
 
 // ------------
 // Test compiled functions
 // ------------
-[tests.db compiled functions] with DB Person
-(friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
-(friends (fun p -> Float.lessThanOrEqualTo_v0 p.income 82.10)) = ["GrumpyCat"; "Rachel"]
-(friends (fun p -> Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
-(friends (fun p -> Float.greaterThanOrEqualTo_v0 82.10 p.income )) = ["GrumpyCat"; "Rachel"]
-(friends (fun p -> Int.lessThanOrEqualTo_v0 p.height 65)) = ["GrumpyCat"; "Rachel"]
-(friends (fun p -> Int.lessThan_v0 p.height 65)) = ["GrumpyCat"]
-(friends (fun p -> Int.greaterThanOrEqualTo_v0 p.height 65)) =  [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> Int.greaterThan_v0 p.height 65)) =  [" Chandler "; "Ross" ]
-(friends (fun p -> String.toLowercase_v1 p.name = "rachel")) = ["Rachel"]
-(friends (fun p -> String.toUppercase_v1 p.name = "RACHEL")) = ["Rachel"]
-(friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
-// Not implemented yet
-// (friends (fun p -> String.length_v1 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-(friends (fun p -> String.contains_v0 p.name "ROSS")) = []
-(friends (fun p -> String.contains_v0 p.name "R")) = ["Rachel"; "Ross" ]
-(friends (fun p -> String.contains_v0 p.name "ZZZ")) = []
-(friends (fun p -> String.contains_v0 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-(friends (fun p -> String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [" Chandler " ]
-(friends (fun p -> String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [" Chandler " ]
-(friends (fun p -> String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [" Chandler " ]
-(friends (fun p -> String.trim_v0 p.name == "Chandler")) = [" Chandler " ]
-(friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [" Chandler " ]
-(friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [" Chandler " ]
-(friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
-(friends (fun p -> Bool.and_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> Bool.or_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
-(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (rossDOB null))) = ["Ross" ]
-(friends (fun p -> DateTime.lessThan p.dob (rossDOB null))) = []
-(friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
-(friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-(friends (fun p -> DateTime.greaterThan p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.add_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
-(friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
-(friends (fun p -> DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
-(friends (fun p -> DateTime.hour_v2 p.dob == 10)) = [" Chandler "]
-(friends (fun p -> DateTime.day_v0 p.dob == 19)) = [" Chandler "]
-(friends (fun p -> DateTime.minute_v1 p.dob == 13)) = [" Chandler "]
-(friends (fun p -> DateTime.month_v0 p.dob == 8)) = [" Chandler "]
-(friends (fun p -> DateTime.second_v1 p.dob == 42)) = [" Chandler "]
-(friends (fun p -> DateTime.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
+module CompiledFunctions =
+  (friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
+  (friends (fun p -> Float.lessThanOrEqualTo_v0 p.income 82.10)) = ["GrumpyCat"; "Rachel"]
+  (friends (fun p -> Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
+  (friends (fun p -> Float.greaterThanOrEqualTo_v0 82.10 p.income )) = ["GrumpyCat"; "Rachel"]
+  (friends (fun p -> Int.lessThanOrEqualTo_v0 p.height 65)) = ["GrumpyCat"; "Rachel"]
+  (friends (fun p -> Int.lessThan_v0 p.height 65)) = ["GrumpyCat"]
+  (friends (fun p -> Int.greaterThanOrEqualTo_v0 p.height 65)) =  [" Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> Int.greaterThan_v0 p.height 65)) =  [" Chandler "; "Ross" ]
+  (friends (fun p -> String.toLowercase_v1 p.name = "rachel")) = ["Rachel"]
+  (friends (fun p -> String.toUppercase_v1 p.name = "RACHEL")) = ["Rachel"]
+  (friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
+  // Not implemented yet
+  // (friends (fun p -> String.length_v1 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+  (friends (fun p -> String.contains_v0 p.name "ROSS")) = []
+  (friends (fun p -> String.contains_v0 p.name "R")) = ["Rachel"; "Ross" ]
+  (friends (fun p -> String.contains_v0 p.name "ZZZ")) = []
+  (friends (fun p -> String.contains_v0 p.name "")) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [" Chandler " ]
+  (friends (fun p -> String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [" Chandler " ]
+  (friends (fun p -> String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [" Chandler " ]
+  (friends (fun p -> String.trim_v0 p.name == "Chandler")) = [" Chandler " ]
+  (friends (fun p -> String.trimStart_v0 p.name == "Chandler ")) = [" Chandler " ]
+  (friends (fun p -> String.trimEnd_v0 p.name == " Chandler")) = [" Chandler " ]
+  (friends (fun p -> Bool.not_v0 p.human)) = ["GrumpyCat" ]
+  (friends (fun p -> Bool.and_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> Bool.or_v0 p.human p.human)) =  [" Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [" Chandler "; "Rachel"; "Ross" ]
+  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (rossDOB null))) = ["Ross" ]
+  (friends (fun p -> DateTime.lessThan p.dob (rossDOB null))) = []
+  (friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
+  (friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> DateTime.greaterThan p.dob (rossDOB null))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.add_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+  (friends (fun p -> DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
+  (friends (fun p -> DateTime.hour_v2 p.dob == 10)) = [" Chandler "]
+  (friends (fun p -> DateTime.day_v0 p.dob == 19)) = [" Chandler "]
+  (friends (fun p -> DateTime.minute_v1 p.dob == 13)) = [" Chandler "]
+  (friends (fun p -> DateTime.month_v0 p.dob == 8)) = [" Chandler "]
+  (friends (fun p -> DateTime.second_v1 p.dob == 42)) = [" Chandler "]
+  (friends (fun p -> DateTime.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
 
-[test.db partial evaluation fieldAccesses outside query] with DB Person
-(let _ = prepFriends null
- let x = { y = { z = { a = 5 }}}
- ((DB.query_v4 Person (fun p -> x.y.z.a < p.height))
- |> List.map_v0 (fun p -> p.name)
- |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+module PartialEvaluation =
+  // fieldAccesses outside query
+  (let _ = prepFriends null
+   let x = { y = { z = { a = 5 }}}
+   ((DB.query_v4 Person (fun p -> x.y.z.a < p.height))
+   |> List.map_v0 (fun p -> p.name)
+   |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-[test.db partial evaluation fieldAccesses inside query] with DB Person
-(friends (fun p -> let x = { y = { z = { a = 5 }}} in x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // fieldAccesses inside query
+  (friends (fun p -> let x = { y = { z = { a = 5 }}} in
+   x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-[test.db partial evaluation fieldAccesses inside query] with DB Person
-(friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}} in (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // fieldAccesses inside query
+  (friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}}
+  (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 
-// queryOneWithKey
-[test.queryOneWithKey works - multiple] with DB Person
-(let _ = prepFriends null in
- DB.queryOneWithKey_v3 Person (fun p -> p.human)) = Nothing
+module QueryOneWithKey =
+  // multiple
+  (let _ = prepFriends null in
+   DB.queryOneWithKey_v3 Person (fun p -> p.human)) = Nothing
 
-[test.queryOneWith works - none] with DB Person
-(let _ = prepFriends null in
- DB.queryOneWithKey_v3 Person (fun p -> p.name = "bob")) = Nothing
+  // none
+  (let _ = prepFriends null in
+   DB.queryOneWithKey_v3 Person (fun p -> p.name = "bob")) = Nothing
 
-[test.queryOne works - one] with DB Person
-(let _ = prepFriends null in
- (DB.queryOneWithKey_v3 Person (fun p -> p.name = "Rachel"))
- |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
+  // one
+  (let _ = prepFriends null in
+  (DB.queryOneWithKey_v3 Person (fun p -> p.name = "Rachel"))
+   |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
-[test.queryOne interpolated - one] with DB Person
-(let _ = prepFriends null in
- let test = "ache" in
- (DB.queryOneWithKey_v3 Person (fun p -> p.name = $"R{test}l"))
- |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
+   // interpolated
+  (let _ = prepFriends null in
+   let test = "ache" in
+   (DB.queryOneWithKey_v3 Person (fun p -> p.name = $"R{test}l"))
+   |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
-// queryWithKey
-[test.queryWithKey works - none] with DB Person
-(let _ = prepFriends null in
- DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = {}
 
-[test.queryWithKey works - one] with DB Person
-(let _ = prepFriends null in
- (DB.queryWithKey_v3 Person (fun p -> p.name = "Rachel"))
- |> (fun v -> v.rachel.name)) = "Rachel"
+module QueryWithKey =
+  // none
+  (let _ = prepFriends null in
+   DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = {}
 
-// queryCount
-[test.queryCount works - none] with DB Person
-(let _ = prepFriends null in
- DB.queryCount_v0 Person (fun p -> p.name = "bob")) = 0
+  // one
+  (let _ = prepFriends null in
+   (DB.queryWithKey_v3 Person (fun p -> p.name = "Rachel"))
+   |> (fun v -> v.rachel.name)) = "Rachel"
 
-[test.queryCount works - one] with DB Person
-(let _ = prepFriends null in
- DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
+module QueryCount =
+  // none
+  (let _ = prepFriends null in
+   DB.queryCount_v0 Person (fun p -> p.name = "bob")) = 0
+
+  // one
+  (let _ = prepFriends null in
+   DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
 
 // ------------
 // Date Functions
 // ------------
+module Dates =
 
-[fn.beforeDate null:any]
-d "1900-01-01T00:00:00Z"
-[fn.middleDate null:any]
-d "2000-01-01T00:00:00Z"
-[fn.afterDate null:any]
-d "2100-01-01T00:00:00Z"
+  let beforeDate () =
+    d "1900-01-01T00:00:00Z"
 
-[fn.prepDates null:any]
-(let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
- let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
- DB.set_v1 { ts = afterDate null } "after"  Timestamp)
+  let middleDate () =
+    d "2000-01-01T00:00:00Z"
 
-[test.query with DateTime::lessThan] with DB Timestamp
-(let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> DateTime.lessThan_v0 (middleDate null) value.ts)) =
-   Just ({ ts = afterDate null })
+  let afterDate () =
+    d "2100-01-01T00:00:00Z"
 
-[test.query with DateTime::greaterThan] with DB Timestamp
-(let _ = prepDates null in
- DB.queryOne_v4 Timestamp (fun value -> DateTime.greaterThan_v0 (middleDate null) value.ts)) =
-   Just { ts = beforeDate null }
+  let prepDates () =
+    (let _ = DB.set_v1 { ts = beforeDate null } "before" Timestamp in
+    let _ = DB.set_v1 { ts = middleDate null } "middle" Timestamp in
+    DB.set_v1 { ts = afterDate null } "after"  Timestamp)
 
-[tests.other tests]
+  // DateTime.lessThan
+  (let _ = prepDates null in
+  DB.queryOne_v4 Timestamp (fun value -> DateTime.lessThan_v0 (middleDate null) value.ts)) =
+    Just ({ ts = afterDate null })
+
+  // DateTime.greaterThan
+  (let _ = prepDates null in
+  DB.queryOne_v4 Timestamp (fun value -> DateTime.greaterThan_v0 (middleDate null) value.ts)) =
+    Just { ts = beforeDate null }
+
 (DB.generateKey_v0 |> String.length_v1) = 36

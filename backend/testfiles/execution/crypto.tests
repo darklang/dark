@@ -5,17 +5,17 @@ Bytes.hexEncode_v0 (Crypto.md5_v0 (String.toBytes_v0 "a longer string that's mor
 Bytes.hexEncode_v0 (Crypto.sha256_v0 (String.toBytes_v0 "a longer string that's more interesting")) = "1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F"
 Bytes.hexEncode_v0 (Crypto.sha384_v0 (String.toBytes_v0 "a longer string that's more interesting")) = "AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B"
 
-[test.sha256hmac]
+// sha256hmac
 (let secretBytes = String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
  let dataBytes = String.toBytes_v0 "20150830" in
  Bytes.hexEncode_v0 (Crypto.sha256hmac_v0 secretBytes dataBytes)) = "0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD"
 
-[test.sha1hmac]
+// sha1hmac
 (let secretBytes = String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY" in
  let dataBytes = String.toBytes_v0 "20150830" in
  Bytes.hexEncode_v0 (Crypto.sha1hmac_v0 secretBytes dataBytes)) = "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
 
-[test.aws]
+// aws
 (let scope = "20150830/us-east-1/iam/aws4_request" in
  let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59" in
  let strs = ["AWS4-HMAC-SHA256";"20150830T123600Z";scope;content] in

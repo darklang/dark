@@ -486,7 +486,7 @@ let convertToTest (ast : SynExpr) : Test =
       actual = convert actual
       expected = convert expected
       shouldEqual = false }
-  | _ -> Exception.raiseCode "Stop supporting this style"
+  | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
 type Module =
   { types : List<PT.UserType.T>
@@ -504,7 +504,7 @@ let parseTestFile (filename : string) : Module =
     { FSharpParsingOptions.Default with SourceFiles = [| filename |] }
 
   let results =
-    checker.ParseFile("json.fs", Text.SourceText.ofString input, parsingOptions)
+    checker.ParseFile("test.fs", Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
   let convertType (typ : SynType) : PT.DType =
@@ -520,6 +520,12 @@ let parseTestFile (filename : string) : Module =
   let rec parseArgPat (pat : SynPat) : PT.UserFunction.Parameter =
     match pat with
     | SynPat.Paren (pat, _) -> parseArgPat pat
+    | SynPat.Const (SynConst.Unit, _) ->
+      { name = "unit"
+        nameID = gid ()
+        typ = Some(PT.TUnit)
+        typeID = gid ()
+        description = "" }
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
       { name = id.idText
         nameID = gid ()

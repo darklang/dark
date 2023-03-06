@@ -1,20 +1,20 @@
 Http.setCookie_v2 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal" }
 Http.setCookie_v2 "myCookie" "myVal" { Expires = (DateTime.parse_v2 "2000-07-28T22:42:00Z") |> Test.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
 
-[test.date]
+// date
 (match DateTime.parse_v2 "2019-07-28T22:42:00Z" with
 | Ok date -> Http.setCookie_v2 "myCookie" "myVal" { Expires = date; ``Max-Age`` = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" }) = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
 
-[tests.errors]
-Http.setCookie_v2 "myCookie" "myVal" { Expires = 5 } = Test.typeError_v0 "Expected the argument `Expires` to be a date, but it was `5`"
-Http.setCookie_v2 "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.typeError_v0 "Expected the argument `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
-Http.setCookie_v2 "myCookie" "myVal" { Domain = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`"
-Http.setCookie_v2 "myCookie" "myVal" { Path = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`"
-Http.setCookie_v2 "myCookie" "myVal" { Secure = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
-Http.setCookie_v2 "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
-Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
-Http.setCookie_v2 "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
-Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
+module Errors =
+  Http.setCookie_v2 "myCookie" "myVal" { Expires = 5 } = Test.typeError_v0 "Expected the argument `Expires` to be a date, but it was `5`"
+  Http.setCookie_v2 "myCookie" "myVal" { ``Max-Age`` = "foo" } = Test.typeError_v0 "Expected the argument `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
+  Http.setCookie_v2 "myCookie" "myVal" { Domain = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`"
+  Http.setCookie_v2 "myCookie" "myVal" { Path = 5 } = Test.typeError_v0 "Expected the argument ``Path` or `Domain`` to be a string, but it was `5`"
+  Http.setCookie_v2 "myCookie" "myVal" { Secure = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+  Http.setCookie_v2 "myCookie" "myVal" { HttpOnly = 5 } = Test.typeError_v0 "Expected the argument `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+  Http.setCookie_v2 "myCookie" "myVal" { SameSite = 5 } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
+  Http.setCookie_v2 "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Test.typeError_v0 "Expected the argument `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
+  Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400

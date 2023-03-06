@@ -1,13 +1,11 @@
-[fn.smiley null:any]
-((String.toList_v1 "😂") |> List.head_v2 |> Test.unwrap)
+let smiley () =
+  (String.toList_v1 "😂") |> List.head_v2 |> Test.unwrap
 
-[fn.hand null:any]
-((String.toList_v1 "✋🏿") |> List.head_v2 |> Test.unwrap)
+let hand () =
+  (String.toList_v1 "✋🏿") |> List.head_v2 |> Test.unwrap
 
-[fn.family null:any]
-((String.toList_v1 "👩‍👩‍👧‍👦") |> List.head_v2 |> Test.unwrap)
-
-[tests.all]
+let family () =
+  (String.toList_v1 "👩‍👩‍👧‍👦") |> List.head_v2 |> Test.unwrap
 
 Char.toLowercase_v1 'A' = 'a'
 Char.toLowercase_v1 'a' = 'a'

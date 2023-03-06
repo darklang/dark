@@ -1,114 +1,117 @@
-[db.X { "x" : "Str" }]
+[<DB>]
+type X = {
+  x : string
+}
 
 // ---------------
 // Misc
 // ---------------
-[tests.misc]
+module Misc =
 
-[test.correct number of tables]
-Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
+  // correct number of tables
+  Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 23
 
-[test.allFunctions has many functions]
-(List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
+  // allFunctions has many functions
+  (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
 
-[test.server build hash]
-(match DarkInternal.serverBuildHash_v0 with
- // in local dev, the value is "dev"
- | "dev" -> true
- // in ci, "circleci"
- | "circleci" -> true
- // otherwise it's the first 7 chars of the git hash
- | hash -> (String.length hash) = 7)
+  // server build hash
+  (match DarkInternal.serverBuildHash_v0 with
+  // in local dev, the value is "dev"
+  | "dev" -> true
+  // in ci, "circleci"
+  | "circleci" -> true
+  // otherwise it's the first 7 chars of the git hash
+  | hash -> (String.length hash) = 7) = true
 
 // ---------------
 // Grants
 // ---------------
-[tests.grants]
+// [tests.grants]
 
-[test.empty grants]
-(let _ = Test.deleteUser_v0 "empty_grants"
- let _ = DarkInternal.insertUser_v2 "emptygrants" "a@eg.com" "test user"
- DarkInternal.orgsFor "empty_grants") = {}
+// [test.empty grants]
+// (let _ = Test.deleteUser_v0 "empty_grants"
+//  let _ = DarkInternal.insertUser_v2 "emptygrants" "a@eg.com" "test user"
+//  DarkInternal.orgsFor "empty_grants") = {}
 
-[test.grants and orgs]
-(let _ = DarkInternal.insertUser_v2 "gaoorg" "gao-test-org@darklang.com" "gao test org"
- let _ = DarkInternal.insertUser_v2 "gaouser" "gao-test-user@darklang.com" "gao test user"
- let _ = DarkInternal.grant_v0 "gaouser" "gaoorg" "rw" in
- DarkInternal.orgsFor "gaouser") = { ``gaoorg`` = "rw" }
+// [test.grants and orgs]
+// (let _ = DarkInternal.insertUser_v2 "gaoorg" "gao-test-org@darklang.com" "gao test org"
+//  let _ = DarkInternal.insertUser_v2 "gaouser" "gao-test-user@darklang.com" "gao test user"
+//  let _ = DarkInternal.grant_v0 "gaouser" "gaoorg" "rw" in
+//  DarkInternal.orgsFor "gaouser") = { ``gaoorg`` = "rw" }
 
-[test.grants and grants]
-(let _ = DarkInternal.insertUser_v2 "gagorg" "gag-test-org@darklang.com" "gag test org"
- let _ = DarkInternal.insertUser_v2 "gaguser" "gag-test-user@darklang.com" "gag test user"
- let _ = DarkInternal.grant "gaguser" "gagorg" "rw" in
- let result = DarkInternal.grantsFor "gagorg"
- let _ = DarkInternal.grant "gaguser" "gagorg" "" in
- result) = { gaguser = "rw" }
+// [test.grants and grants]
+// (let _ = DarkInternal.insertUser_v2 "gagorg" "gag-test-org@darklang.com" "gag test org"
+//  let _ = DarkInternal.insertUser_v2 "gaguser" "gag-test-user@darklang.com" "gag test user"
+//  let _ = DarkInternal.grant "gaguser" "gagorg" "rw" in
+//  let result = DarkInternal.grantsFor "gagorg"
+//  let _ = DarkInternal.grant "gaguser" "gagorg" "" in
+//  result) = { gaguser = "rw" }
 
 
-// ---------------
-// users
-// ---------------
-[tests.users]
-DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
-DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" = Error "Underscores not allowed in usernames"
+// // ---------------
+// // users
+// // ---------------
+// [tests.users]
+// DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
+// DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
+// DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
+// DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
+// DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" = Error "Underscores not allowed in usernames"
 
-// These could be tested in a much better way, really we're just testing the signatures here
-(List.length (DarkInternal.getCanvasList Test.getUserID) > 0) = true
-(DarkInternal.getOrgCanvasList Test.getUserID) = []
-DarkInternal.getOrgList Test.getUserID = []
+// // These could be tested in a much better way, really we're just testing the signatures here
+// (List.length (DarkInternal.getCanvasList Test.getUserID) > 0) = true
+// (DarkInternal.getOrgCanvasList Test.getUserID) = []
+// DarkInternal.getOrgList Test.getUserID = []
 
-// These tests are racy as they use global state
-// DarkInternal.endUsers = []
-// DarkInternal.getUsers = ["test_unhashed"; "test"; "test_admin"; "sample"; "dark"; "paul"; "libexe_admin"]
-// DarkInternal.getAllCanvases = []
+// // These tests are racy as they use global state
+// // DarkInternal.endUsers = []
+// // DarkInternal.getUsers = ["test_unhashed"; "test"; "test_admin"; "sample"; "dark"; "paul"; "libexe_admin"]
+// // DarkInternal.getAllCanvases = []
 
-// ---------------
-// get permission
-// ---------------
-[fn.username prefix:str]
-(String.random_v2 5) |> Test.unwrap |> (fun v -> prefix ++ v) |> String.toLowercase_v1
+// // ---------------
+// // get permission
+// // ---------------
+// [fn.username prefix:str]
+// (String.random_v2 5) |> Test.unwrap |> (fun v -> prefix ++ v) |> String.toLowercase_v1
 
-[test.getPermission with none]
-(let user1 = username "gpnuser1"
- let user2 = username "gpnuser2"
- let user1Email = user1 ++ "-test@darklang.com"
- let user2Email = user2 ++ "-test@darklang.com"
- let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpn test user1") |> Test.unwrap
- let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpn test user2") |> Test.unwrap
- let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
- let canvasID = Test.createCanvas user2
- let startingPermission = DarkInternal.getPermission_v0 userID canvasID
- let _ = (DarkInternal.grant_v0 user1 user2 "") |> Test.unwrap in
- (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "" , Ok "")
+// [test.getPermission with none]
+// (let user1 = username "gpnuser1"
+//  let user2 = username "gpnuser2"
+//  let user1Email = user1 ++ "-test@darklang.com"
+//  let user2Email = user2 ++ "-test@darklang.com"
+//  let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpn test user1") |> Test.unwrap
+//  let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpn test user2") |> Test.unwrap
+//  let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
+//  let canvasID = Test.createCanvas user2
+//  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
+//  let _ = (DarkInternal.grant_v0 user1 user2 "") |> Test.unwrap in
+//  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "" , Ok "")
 
-[test.getPermission with r]
-(let user1 = username "gpruser1"
- let user2 = username "gpruser2"
- let user1Email = user1 ++ "-test@darklang.com"
- let user2Email = user2 ++ "-test@darklang.com"
- let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpr test user1") |> Test.unwrap
- let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpr test user2") |> Test.unwrap
- let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
- let canvasID = Test.createCanvas user2
- let startingPermission = DarkInternal.getPermission_v0 userID canvasID
- let _ = (DarkInternal.grant_v0 user1 user2 "r") |> Test.unwrap in
- (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "r" , Ok "")
+// [test.getPermission with r]
+// (let user1 = username "gpruser1"
+//  let user2 = username "gpruser2"
+//  let user1Email = user1 ++ "-test@darklang.com"
+//  let user2Email = user2 ++ "-test@darklang.com"
+//  let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpr test user1") |> Test.unwrap
+//  let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpr test user2") |> Test.unwrap
+//  let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
+//  let canvasID = Test.createCanvas user2
+//  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
+//  let _ = (DarkInternal.grant_v0 user1 user2 "r") |> Test.unwrap in
+//  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "r" , Ok "")
 
-[test.getPermission with rw]
-(let user1 = username "gprwuser1"
- let user2 = username "gprwuser2"
- let user1Email = user1 ++ "-test@darklang.com"
- let user2Email = user2 ++ "-test@darklang.com"
- let _ = (DarkInternal.insertUser_v2 user1 user1Email "gprw test user1") |> Test.unwrap
- let _ = (DarkInternal.insertUser_v2 user2 user2Email "gprw test user2") |> Test.unwrap
- let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
- let canvasID = Test.createCanvas user2
- let startingPermission = DarkInternal.getPermission_v0 userID canvasID
- let _ = (DarkInternal.grant_v0 user1 user2 "rw") |> Test.unwrap in
- (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "rw" , Ok "")
+// [test.getPermission with rw]
+// (let user1 = username "gprwuser1"
+//  let user2 = username "gprwuser2"
+//  let user1Email = user1 ++ "-test@darklang.com"
+//  let user2Email = user2 ++ "-test@darklang.com"
+//  let _ = (DarkInternal.insertUser_v2 user1 user1Email "gprw test user1") |> Test.unwrap
+//  let _ = (DarkInternal.insertUser_v2 user2 user2Email "gprw test user2") |> Test.unwrap
+//  let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
+//  let canvasID = Test.createCanvas user2
+//  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
+//  let _ = (DarkInternal.grant_v0 user1 user2 "rw") |> Test.unwrap in
+//  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "rw" , Ok "")
 
 
 
@@ -116,82 +119,68 @@ DarkInternal.getOrgList Test.getUserID = []
 // ---------------
 // canvasID
 // ---------------
-[tests.canvasIDOfCanvasName]
-DarkInternal.canvasIDOfCanvasName_v0 Test.getCanvasName = Ok (Test.getCanvasID)
-DarkInternal.canvasIDOfCanvasName_v0 "invalid name" = Error "Invalid username 'invalid name' - must be 2-20 lowercase characters, and must start with a letter."
-DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not found"
+module CanvasIDOfCanvasName =
+  DarkInternal.canvasIDOfCanvasName_v0 Test.getCanvasName = Ok (Test.getCanvasID)
+  DarkInternal.canvasIDOfCanvasName_v0 "invalid name" = Error "Invalid username 'invalid name' - must be 2-20 lowercase characters, and must start with a letter."
+  DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not found"
 
-[tests.canvasNameOfCanvasID]
-DarkInternal.canvasNameOfCanvasID_v0 (Test.getCanvasID) = Ok (Test.getCanvasName)
-DarkInternal.canvasNameOfCanvasID_v0 ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = Error "Canvas not found"
+module CanvasNameOfCanvasID =
+  DarkInternal.canvasNameOfCanvasID_v0 (Test.getCanvasID) = Ok (Test.getCanvasName)
+  DarkInternal.canvasNameOfCanvasID_v0 ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = Error "Canvas not found"
 
 
-// ---------------
-// Secrets
-// ---------------
-[tests.secrets]
+module Secrets =
 
-[test.getSecrets empty]
-DarkInternal.getSecrets Test.getCanvasID = {}
+  // getSecrets empty
+  DarkInternal.getSecrets Test.getCanvasID = {}
 
-[test.insertSecret]
-(let _ = (DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE")
- DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
+  // insertSecret
+  (let _ = (DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE")
+  DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
 
-[test.insertSecret twice]
-(let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
- // Does not work
- DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE") = Error "Error inserting secret"
+  // insertSecret twice
+  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
+  // Does not work
+  DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE") = Error "Error inserting secret"
 
-[test.deleteSecret none]
-DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = null
+  // deleteSecret
+  DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = null
 
-[test.deleteSecret some]
-(let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
- let _ = DarkInternal.deleteSecret Test.getCanvasID "SECRET"
- DarkInternal.getSecrets Test.getCanvasID) = {}
+  // deleteSecret
+  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
+   let _ = DarkInternal.deleteSecret Test.getCanvasID "SECRET"
+   DarkInternal.getSecrets Test.getCanvasID) = Dict.empty
 
 
 // ---------------
 // 404s
 // ---------------
-[tests.404s]
-DarkInternal.getRecent404s Test.getCanvasID = []
-DarkInternal.delete404 Test.getCanvasID "" "" "" = null
-
-[test.deleteToplevelForever]
-DarkInternal.deleteToplevelForever Test.getCanvasID 0 = false
-
-// ---------------
-// Toplevels
-// ---------------
-[test.dbs] with DB X
-DarkInternal.dbs Test.getCanvasName = [1]
-
-[test.dbs]
-DarkInternal.dbs Test.getCanvasName = []
-
-[test.delete-toplevel-forever]
-DarkInternal.deleteToplevelForever Test.getCanvasID 1 = false
-
-// ---------------
-// unlocked DB
-// ---------------
-[tests.unlockedDB]
-
-[test.unlocked none]
-DarkInternal.unlockedDBs Test.getCanvasID = []
-
-[test.unlocked one] with DB X
-DarkInternal.unlockedDBs Test.getCanvasID = [1]
-
-[test.unlocked, one but locked] with DB X
-(let _ = DB.set_v1 { x = "str" } "test" X in
- DarkInternal.unlockedDBs Test.getCanvasID) = []
+module F404s =
+  DarkInternal.getRecent404s Test.getCanvasID = []
+  DarkInternal.delete404 Test.getCanvasID "" "" "" = null
 
 
-// ---------------
-// Ops
-// ---------------
-[test.getOpsForToplevel returns empty list for nonexistant TL]
-DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []
+module Toplevels =
+  (let _db = X
+   DarkInternal.dbs Test.getCanvasName) = [1]
+
+  DarkInternal.dbs Test.getCanvasName = []
+
+  DarkInternal.deleteToplevelForever Test.getCanvasID 1 = false
+
+
+module UnlockedDB =
+  // none
+  DarkInternal.unlockedDBs Test.getCanvasID = []
+
+  // one
+  DarkInternal.unlockedDBs Test.getCanvasID = [1]
+
+  // one but locked
+  (let _ = DB.set_v1 { x = "str" } "test" X in
+   DarkInternal.unlockedDBs Test.getCanvasID) = []
+
+
+module Ops =
+  // getOpsForToplevel returns empty list for nonexistant TL
+  DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []

@@ -249,11 +249,12 @@ let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras 
 
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
-  System.IO.Directory.GetFiles(baseDir, "string.tests")
+  System.IO.Directory.GetFiles(baseDir, "*.tests")
   |> Array.filter ((<>) "README.md")
   |> Array.filter ((<>) ".gitattributes")
   |> Array.map (fun file ->
     let filename = System.IO.Path.GetFileName file
+    debuG "Reading test file" filename
     let owner =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
     let initializeCanvas = filename = "internal.tests"
