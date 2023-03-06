@@ -198,11 +198,7 @@ let makeTest versionName filename =
       let actual = normalizeDvalResult actual
 
       let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT test.expected)
-
-      if test.shouldEqual then
-        Expect.equalDval actual expected $"Responses don't match"
-      else
-        Expect.notEqual actual expected $"Responses don't match"
+      return Expect.equalDval actual expected $"Responses don't match"
   }
 
 

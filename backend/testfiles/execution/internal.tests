@@ -174,7 +174,8 @@ module UnlockedDB =
   DarkInternal.unlockedDBs Test.getCanvasID = []
 
   // one
-  DarkInternal.unlockedDBs Test.getCanvasID = [1]
+  (let _db = X
+   DarkInternal.unlockedDBs Test.getCanvasID) = [1]
 
   // one but locked
   (let _ = DB.set_v1 { x = "str" } "test" X in

@@ -441,12 +441,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | expr ->
     Exception.raiseInternal "Unsupported expression" [ "ast", ast; "expr", expr ]
 
-type Test =
-  { name : string
-    lineNumber : int
-    actual : PT.Expr
-    expected : PT.Expr
-    shouldEqual : bool }
+type Test = { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
 
 let convertToTest (ast : SynExpr) : Test =
   // Split equality into actual vs expected in tests.
@@ -469,27 +464,7 @@ let convertToTest (ast : SynExpr) : Test =
     { name = "test"
       lineNumber = range.Start.Line
       actual = convert actual
-      expected = convert expected
-      shouldEqual = true }
-
-  | SynExpr.App (_,
-                 _,
-                 SynExpr.App (_,
-                              _,
-                              SynExpr.LongIdent (_,
-                                                 SynLongIdent ([ ident ], _, _),
-                                                 _,
-                                                 _),
-                              actual,
-                              _),
-                 expected,
-                 range) when ident.idText = "op_Inequality" ->
-    // Exception.raiseInternal $"whole thing: {actual}"
-    { name = "test"
-      lineNumber = range.Start.Line
-      actual = convert actual
-      expected = convert expected
-      shouldEqual = false }
+      expected = convert expected }
   | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
 type Module =

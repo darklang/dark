@@ -92,7 +92,6 @@ let t
   (owner : Task<LibBackend.Account.UserInfo>)
   (initializeCanvas : bool)
   (canvasName : string)
-  (shouldEqual : bool)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
   (lineNumber : int)
@@ -171,11 +170,7 @@ let t
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
 
-      if shouldEqual then
-        Expect.equalDval actual expected msg
-      else
-        Expect.notEqual actual expected msg
-      return ()
+      return Expect.equalDval actual expected msg
     with
     | e ->
       let metadata = Exception.toMetadata e
@@ -224,7 +219,6 @@ let fileTests () : Test =
         owner
         initializeCanvas
         test.name
-        test.shouldEqual
         test.expected
         test.actual
         test.lineNumber
