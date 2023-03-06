@@ -5,6 +5,35 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+/// A Fully-Qualified Type Name
+/// Includes package, module, and version information where relevant.
+/// TODO: maybe this should be FQCustomTypeName or CustomTypeName or something?
+module FQTypeName =
+
+  /// Standard Library Type Name
+  type StdlibTypeName =
+    { module_ : string
+      type_ : string
+      // TODO: does this really need a version?
+      // (Do we plan on releasing a v2 of any stdlib type?)
+      version : int }
+
+  /// A UserType is a type written by a Developer in their canvas
+  type UserTypeName = { type_: string; version: int}
+
+  /// The name of a type in the package manager
+  type PackageTypeName =
+    { owner : string
+      package : string
+      module_ : string
+      type_ : string
+      version : int }
+
+  type T =
+    | User of UserTypeName
+    | Stdlib of StdlibTypeName
+    | Package of PackageTypeName
+
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
@@ -37,6 +66,7 @@ module FQFnName =
 /// Used for pattern matching in a match statement
 type MatchPattern =
   | MPVariable of id * string
+  // TODO: rebrand to MPEnum?
   | MPConstructor of id * string * List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
@@ -78,7 +108,7 @@ type Expr =
   | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * List<string * Expr>
+  | EAnonRecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   // Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
   // expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
@@ -90,6 +120,10 @@ type Expr =
   | EPipeTarget of id
   // EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr
   | EFeatureFlag of id * string * Expr * Expr * Expr
+  | ECustomRecord of id * FQTypeName.T * List<string * Expr>
+  | ECustomEnum of id * FQTypeName.T * caseName: string * fields: List<Expr>
+  // TODO: alias/abbreviation
+
 
 type DType =
   | TInt
@@ -97,30 +131,67 @@ type DType =
   | TBool
   | TUnit
   | TStr
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TDict of DType
+  | TList of T
+  | TTuple of T * T * List<T>
+  | TDict of T
   | TIncomplete
   | TError
-  | THttpResponse of DType
-  | TDB of DType
+  | THttpResponse of T
+  | TDB of T
   | TDateTime
   | TChar
   | TPassword
   | TUuid
-  | TOption of DType
-  | TUserType of string * int
+  | TOption of T
   | TBytes
-  | TResult of DType * DType
+  | TResult of T * T
   // A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string // replaces TAny
-  | TFn of List<DType> * DType // replaces TLambda
-  | TRecord of List<string * DType>
-  | TDbList of DType // TODO: cleanup and remove
-// This allows you to build up a record to eventually be the right shape.
-// | TRecordWithFields of List<string * DType>
-// | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-// | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+  | TFn of List<T> * T // replaces TLambda
+  | TAnonRecord of List<string * T>
+  | TDbList of T // TODO: cleanup and remove
+  // This allows you to build up a record to eventually be the right shape.
+  // | TRecordWithFields of List<string * T>
+  // | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+  // | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
+  | TCustomType of FQTypeName.T
+
+
+/// Complex/custom types
+/// defined by a standard library, user/canvas, or package
+module CustomType =
+  /// Model types like this:
+  /// type A = { field: DInt; field2: DRecord }
+  module Record =
+    // Q: why does it need a typeID? Why does it need a nameID?
+    type Field = { nameID : id; name : string; type_ : DType; typeID : id }
+    type T = { name: string; fields: List<Field>}
+
+  // Goal: support enums like this
+  /// type X =
+  ///   | A
+  ///   | B of int
+  ///   | C of int * string
+  ///   | D of i: int * string
+  ///
+  /// - one or more cases (no upper limit)
+  /// - each case may have 0 or more fields (no upper limit)
+  /// - each field has a type
+  /// - a field may have an optional label/name
+  ///
+  /// TODO: or should this be called a Union, or DU?
+  module Enum =
+    type Field = { type_: T; label: Option<string> }
+    type Case = { nameID: id; name: string; cases: List<Field> }
+    type T = { name: string; firstCase: Case; additionalCases: List<Case> }
+
+  type T =
+    // TODO: alias/abbreviation?
+    // e.g. `type SomePair = int * string`
+
+    | Record of Record.T
+
+    | Enum of Enum.T
 
 
 module Handler =
@@ -145,7 +216,7 @@ module Handler =
 
 
 module DB =
-  type Col = { name : Option<string>; typ : Option<DType>; nameID : id; typeID : id }
+  type Col = { name : Option<string>; typ : Option<DType.T>; nameID : id; typeID : id }
 
   type T =
     { tlid : tlid
@@ -154,31 +225,32 @@ module DB =
       version : int
       cols : List<Col> }
 
-module UserType =
-  type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
-  type Definition = Record of List<RecordField>
 
-  type T =
+// kill usertype? Really
+type UserType =
+  // type RecordField = { name : string; typ : Option<DType.T>; nameID : id; typeID : id }
+  // type Definition = Record of List<RecordField>
+
     { tlid : tlid
       name : string
       nameID : id
       version : int
-      definition : Definition }
+      definition : CustomType.T }
 
 module UserFunction =
   type Parameter =
     { name : string
       nameID : id
-      typ : Option<DType>
+      typ : Option<DType.T>
       typeID : id
       description : string }
 
   type T =
     { tlid : tlid
-      name : string
-      nameID : id
+      name : string // why isn't this FQFnName.UserFunction?
+      nameID : id // I don't understand why we need this
       parameters : List<Parameter>
-      returnType : DType
+      returnType : DType.T
       returnTypeID : id
       description : string
       infix : bool
@@ -211,6 +283,7 @@ type Op =
   | SetDBColType of tlid * id * string
   | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
   | SetFunction of UserFunction.T
+  | SetType of UserType.T
   | ChangeDBColName of tlid * id * string
   | ChangeDBColType of tlid * id * string
   | UndoTL of tlid
@@ -218,6 +291,7 @@ type Op =
   | SetExpr of tlid * id * Expr
   | TLSavepoint of tlid
   | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
+  // TODO: DeleteType? Unclear what to do here. When should something be an Op or not?
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
   | CreateDBWithBlankOr of tlid * id * string
@@ -232,14 +306,18 @@ module Secret =
   type T = { name : string; value : string }
 
 module Package =
-  type Parameter = { name : string; typ : DType; description : string }
+  // module Type =
+  //   type
 
-  type Fn =
-    { name : FQFnName.PackageFnName
-      body : Expr
-      parameters : List<Parameter>
-      returnType : DType
-      description : string
-      author : string
-      deprecated : bool
-      tlid : tlid }
+  module Fn =
+    type Parameter = { name : string; typ : DType.T; description : string }
+
+    type T =
+      { name : FQFnName.PackageFnName
+        body : Expr
+        parameters : List<Parameter>
+        returnType : DType.T
+        description : string
+        author : string
+        deprecated : bool
+        tlid : tlid }
