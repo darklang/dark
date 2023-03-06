@@ -534,13 +534,13 @@ let parseTestFile (filename : string) : Module =
     | SynPat.Const (SynConst.Unit, _) ->
       { name = "unit"
         nameID = gid ()
-        typ = Some(PT.TUnit)
+        typ = PT.TUnit
         typeID = gid ()
         description = "" }
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
       { name = id.idText
         nameID = gid ()
-        typ = Some(convertType typ)
+        typ = convertType typ
         typeID = gid ()
         description = "" }
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]

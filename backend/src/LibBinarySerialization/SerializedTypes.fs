@@ -272,7 +272,7 @@ module UserFunction =
       [<MessagePack.Key 1>]
       nameID : id
       [<MessagePack.Key 2>]
-      typ : Option<DType>
+      typ : DType
       [<MessagePack.Key 3>]
       typeID : id
       [<MessagePack.Key 4>]

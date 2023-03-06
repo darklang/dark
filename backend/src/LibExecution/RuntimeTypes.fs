@@ -847,7 +847,7 @@ and TestContext =
   { mutable sideEffectCount : int
 
     mutable exceptionReports : List<string * string * Metadata>
-    expectedExceptionCount : int
+    mutable expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit }
 
 /// Non-user-specific functionality needed to run code

@@ -198,7 +198,7 @@ let testUserFn
         (fun (p : string) ->
           { name = p
             nameID = gid ()
-            typ = Some(PT.TVariable "b")
+            typ = PT.TVariable "b"
             typeID = gid ()
             description = "test" })
         parameters }

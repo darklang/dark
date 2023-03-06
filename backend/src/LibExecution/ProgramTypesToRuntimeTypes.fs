@@ -246,9 +246,7 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name
-        typ = p.typ |> Option.unwrap (PT.TVariable "a") |> DType.toRT
-        description = p.description }
+      { name = p.name; typ = p.typ |> DType.toRT; description = p.description }
 
   let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid

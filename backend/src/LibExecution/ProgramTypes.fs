@@ -173,7 +173,7 @@ module UserFunction =
   type Parameter =
     { name : string
       nameID : id
-      typ : Option<DType>
+      typ : DType
       typeID : id
       description : string }
 
