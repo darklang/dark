@@ -206,41 +206,43 @@ let fileTests () : Test =
   |> Array.filter ((<>) "README.md")
   |> Array.filter ((<>) ".gitattributes")
   |> Array.map (fun file ->
+
     let filename = System.IO.Path.GetFileName file
-    let fileNameWithoutSuffix = System.IO.Path.GetFileNameWithoutExtension file
-    debuG "Reading test file" filename
+    let testName = System.IO.Path.GetFileNameWithoutExtension file
     let owner =
       if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
-    let initializeCanvas = filename = "internal.tests"
-    let module' = (baseDir + filename) |> Parser.parseTestFile
-
-    let testExprToTest (fns : List<PT.UserFunction.T>) (test : Parser.Test) =
-      t
-        owner
-        initializeCanvas
-        test.name
-        test.expected
-        test.actual
-        test.lineNumber
-        []
-        Map.empty
-        fns
-        []
-
+    let initializeCanvas = testName = "internal"
+    let shouldSkip = String.startsWith "_" filename
 
     let rec moduleToTests (moduleName : string) (module' : Parser.Module) =
+
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) module'.modules
-      let tests = List.map (testExprToTest module'.fns) module'.tests
-      debuG "adding module" moduleName
+
+      let tests =
+        module'.tests
+        |> List.map (fun test ->
+          t
+            owner
+            initializeCanvas
+            test.name
+            test.expected
+            test.actual
+            test.lineNumber
+            []
+            Map.empty
+            module'.fns
+            [])
+
       if List.isEmpty tests && List.isEmpty nestedModules then
-        Exception.raiseInternal
-          "No tests or nested modules found "
-          [ ("module", moduleName) ]
-      testList moduleName (nestedModules @ tests)
+        Exception.raiseInternal "No tests or modules found" [ "module", moduleName ]
+      else
+        testList moduleName (nestedModules @ tests)
 
-
-    moduleToTests fileNameWithoutSuffix module')
+    if shouldSkip then
+      testList $"skipped - {testName}" []
+    else
+      (baseDir + filename) |> Parser.parseTestFile |> moduleToTests testName)
   |> Array.toList
   |> testList "All"
 
