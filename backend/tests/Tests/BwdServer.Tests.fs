@@ -190,12 +190,7 @@ module ParseTest =
 /// Initializes and sets up a test canvas (handlers, secrets, etc.)
 let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
   task {
-    let! (meta : Canvas.Meta) =
-      let canvasName =
-        match test.canvasName with
-        | Some name -> Exact name
-        | None -> Randomized $"bwdserver-{testName}"
-      initializeTestCanvas canvasName
+    let! (meta : Canvas.Meta) = initializeTestCanvas $"bwdserver-{testName}"
 
     // Handlers
     let oplists =

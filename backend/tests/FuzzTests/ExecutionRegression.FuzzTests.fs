@@ -122,7 +122,7 @@ module Generators =
 
 let eval expr =
   task {
-    let! meta = createTestCanvas (Randomized "ExecutionRegression")
+    let! meta = createTestCanvas "ExecutionRegression"
 
     let! state = executionStateFor meta Map.empty Map.empty
 

@@ -108,31 +108,20 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
     return ()
   }
 
-type TestCanvasName =
-  /// Use exactly this canvas name for the test. This is needed to test some features
-  /// which use the canvas name within them.
-  | Exact of string
-  /// Randomized test name using the provided base. This allows tests to avoid
-  /// sharing the same canvas so they can be parallelized, etc
-  | Randomized of string
-
-let nameToTestName (name : TestCanvasName) : string =
-  match name with
-  | Exact name -> name
-  | Randomized name ->
-    let name =
-      name
-      |> String.toLowercase
-      // replace invalid chars with a single hyphen
-      |> FsRegEx.replace "[^-a-z0-9]+" "-"
-      |> FsRegEx.replace "[-_]+" "-"
-      |> String.take 50
-    let suffix = randomString 5 |> String.toLowercase
-    $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
+let nameToTestName (name : string) : string =
+  let name =
+    name
+    |> String.toLowercase
+    // replace invalid chars with a single hyphen
+    |> FsRegEx.replace "[^-a-z0-9]+" "-"
+    |> FsRegEx.replace "[-_]+" "-"
+    |> String.take 50
+  let suffix = randomString 5 |> String.toLowercase
+  $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
 
 let initializeCanvasForOwner
   (owner : Account.UserInfo)
-  (name : TestCanvasName)
+  (name : string)
   : Task<Canvas.Meta> =
   task {
     let canvasName = CanvasName.createExn (nameToTestName name)
@@ -141,7 +130,7 @@ let initializeCanvasForOwner
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let initializeTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
+let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! initializeCanvasForOwner owner name
@@ -151,7 +140,7 @@ let initializeTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
 // Same as initializeTestCanvas, for tests that don't need to hit the DB
 let createCanvasForOwner
   (owner : Account.UserInfo)
-  (name : TestCanvasName)
+  (name : string)
   : Task<Canvas.Meta> =
   task {
     let canvasName = CanvasName.createExn (nameToTestName name)
@@ -159,7 +148,7 @@ let createCanvasForOwner
     return { id = id; name = canvasName; owner = owner.id }
   }
 
-let createTestCanvas (name : TestCanvasName) : Task<Canvas.Meta> =
+let createTestCanvas (name : string) : Task<Canvas.Meta> =
   task {
     let! owner = testOwner.Force()
     return! createCanvasForOwner owner name

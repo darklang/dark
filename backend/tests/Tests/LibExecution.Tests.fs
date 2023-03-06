@@ -91,7 +91,7 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
   (initializeCanvas : bool)
-  (canvasName : TestCanvasName)
+  (canvasName : string)
   (shouldEqual : bool)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
@@ -187,27 +187,6 @@ let t
           ""
   }
 
-type TestExtras =
-  { dbs : List<PT.DB.T>
-    workers : List<string>
-    exactCanvasName : Option<string> }
-
-type TestInfo =
-  { name : string
-    recording : bool
-    code : string
-    extras : TestExtras }
-
-type TestGroup = { name : string; tests : List<Test>; extras : TestExtras }
-
-type FnInfo =
-  { name : string
-    recording : bool
-    isPackage : bool
-    code : string
-    tlid : tlid
-    parameters : List<PT.UserFunction.Parameter> }
-
 let testAdmin =
   lazy
     (task {
@@ -224,27 +203,6 @@ let testAdmin =
         LibBackend.Account.getUser username
         |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
     })
-
-let emptyExtras = { dbs = []; workers = []; exactCanvasName = None }
-
-let parseExtras (annotation : string) (dbs : Map<string, PT.DB.T>) : TestExtras =
-  annotation
-  |> String.split ","
-  |> List.fold emptyExtras (fun extras s ->
-    match String.split " " (String.trim s) with
-    | [ "DB"; dbName ] ->
-      let dbName = String.trim dbName
-      match Map.get dbName dbs with
-      | Some db -> { extras with dbs = db :: extras.dbs }
-      | None -> Exception.raiseInternal $"No DB named {dbName} found" []
-    | [ "Worker"; workerName ] ->
-      let workerName = String.trim workerName
-      { extras with workers = workerName :: extras.workers }
-    | [ "ExactCanvasName"; canvasName ] ->
-      { extras with exactCanvasName = Some(String.trim canvasName) }
-    | other -> Exception.raiseInternal "invalid option" [ "annotation", other ])
-
-
 
 
 // Read all test files. The test file format is described in README.md
@@ -265,7 +223,7 @@ let fileTests () : Test =
       t
         owner
         initializeCanvas
-        (Randomized test.name)
+        test.name
         test.shouldEqual
         test.expected
         test.actual

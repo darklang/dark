@@ -28,7 +28,7 @@ let p (code : string) = Parser.parsePTExpr code
 
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
-    let! meta = initializeTestCanvas (Randomized "worker-schedules")
+    let! meta = initializeTestCanvas "worker-schedules"
 
     let apple = testWorker "apple" (p "1")
     let banana = testWorker "banana" (p "1")

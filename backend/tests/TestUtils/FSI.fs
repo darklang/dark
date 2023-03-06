@@ -20,7 +20,7 @@ open Prelude
 let execute (code : string) : RT.Dval =
   let t =
     task {
-      let! meta = TestUtils.initializeTestCanvas (TestUtils.Exact "fsi")
+      let! meta = TestUtils.initializeTestCanvas "fsi"
       let! state = TestUtils.executionStateFor meta Map.empty Map.empty
       let prog = Parser.parseRTExpr code
       return! Exe.executeExpr state Map.empty prog

@@ -165,11 +165,7 @@ let makeTest versionName filename =
     else
       let! admin = testAdmin.Force()
       // Set up the canvas
-      let! meta =
-        createCanvasForOwner
-          admin
-          (Randomized $"httpclient-{versionName}-{testName}")
-      //createTestCanvas (Randomized $"httpclient-{versionName}-{testName}")
+      let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"
       let! state = executionStateFor meta Map.empty Map.empty
 
       // Parse the Dark code
