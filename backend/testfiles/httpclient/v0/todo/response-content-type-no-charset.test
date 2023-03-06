@@ -1,0 +1,19 @@
+[expected-request]
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip, br
+Content-Type: text/plain; charset=utf-8
+Host: HOST
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain
+Content-Length: LENGTH
+
+à æ ç
+
+[test]
+(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
+ response.body) =
+   "à æ ç"

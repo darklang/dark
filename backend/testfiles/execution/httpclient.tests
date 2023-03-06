@@ -21,3 +21,54 @@ HttpClient.basicAuth_v1 "" "-" = { Authorization = "Basic Oi0=" }
 HttpClient.basicAuth_v1 ":" "" = { Authorization = "Basic Ojo=" }
 HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
 
+
+// Tests that try to make requests to the internet
+
+// type errors for bad `headers` are OK
+HttpClient.request "get" "https://darklang.com" [1] Bytes.empty = Test.typeError_v0 "Expected request headers to be a List of (string * string), but got: 1"
+HttpClient.request "get" "https://darklang.com" [("", "")] Bytes.empty = Test.typeError_v0 "Empty request header key provided"
+
+// type errors for bad `method` are OK
+HttpClient.request "" "https://darklang.com" [] Bytes.empty = Test.typeError_v0 "Expected valid HTTP method (e.g. 'get' or 'POST')"
+HttpClient.request " get " "https://darklang.com" [] Bytes.empty = Test.typeError_v0 "Expected valid HTTP method (e.g. 'get' or 'POST')"
+HttpClient.request "🇵🇷" "https://darklang.com" [] Bytes.empty = Test.typeError_v0 "Expected valid HTTP method (e.g. 'get' or 'POST')"
+
+// unsupported protocols
+HttpClient.request "get" "ftp://darklang.com" [] Bytes.empty = Test.typeError_v0 "Bad URL: Unsupported Protocol"
+HttpClient.request "put" "file:///etc/passwd" [] Bytes.empty = Test.typeError_v0 "Bad URL: Unsupported Protocol"
+HttpClient.request "put" "/just-a-path" [] Bytes.empty = Test.typeError_v0 "Bad URL: Unsupported Protocol"
+
+// totally bogus URLs
+HttpClient.request "get" "" [] Bytes.empty = Test.typeError_v0 "Bad URL: Invalid URI"
+HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = Test.typeError_v0 "Bad URL: Invalid URI"
+
+// basic requests work
+((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map_v1 (fun response -> response.statusCode)) = Ok 200
+((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map_v1 (fun response -> response.statusCode)) = Ok 200
+
+// URLs we can't actually communicacte with
+(match HttpClient.request "get" "http://localhost:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
+(match HttpClient.request "get" "http://127.0.0.1:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
+(match HttpClient.request "get" "http://0:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
+(match HttpClient.request "get" "http://0.0.0.0:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
+
+// bad ssl
+HttpClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empty = Error "The request was aborted. The response ended prematurely."
+HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
+
+[test.basic request works including headers]
+(let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
+ let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h <> "date")
+ Dict.set_v0 response "headers" respHeaders) =
+   { statusCode = 200
+     headers =
+      [
+        ("server", "gunicorn/19.9.0")
+        ("access-control-allow-origin", "*")
+        ("access-control-allow-credentials", "true")
+        ("content-type", "text/html; charset=utf-8")
+        ("content-length", "0")
+      ]
+     body = Bytes.empty}
+
+// TODO: http2, http3

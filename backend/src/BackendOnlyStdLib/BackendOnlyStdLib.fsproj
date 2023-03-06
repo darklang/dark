@@ -21,7 +21,7 @@
     <Compile Include="LibDB.fs" />
     <Compile Include="LibDarkInternal.fs" />
     <Compile Include="LibEvent.fs" />
-    <Compile Include="LibHttpBaseClient.fs" />
+    <Compile Include="LibHttpClient.fs" />
     <Compile Include="LibPassword.fs" />
     <Compile Include="LibX509.fs" />
     <Compile Include="StdLib.fs" />

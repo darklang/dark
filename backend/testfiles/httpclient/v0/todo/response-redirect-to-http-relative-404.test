@@ -1,0 +1,33 @@
+[expected-request]
+GET PATH HTTP/1.1
+Accept: */*
+Accept-Encoding: deflate, gzip, br
+Content-Type: text/plain; charset=utf-8
+Host: HOST
+
+[response]
+HTTP/1.1 303 See Other
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Location: /v0/invalid-url
+
+
+[test]
+(match HttpClient.request "get" "http://URL" [] Bytes.empty with
+ | Ok -> "fail"
+ | Error response ->
+    let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
+    Dict.set_v0 response "headers" respHeaders) =
+  { body = "intentionally not found"
+    statusCode = 404
+    error = ""
+    headers =
+      [
+        "Content-Length" = "23"
+        "HTTP/1.1 303 See Other" = ""
+        "HTTP/1.1 404 Not Found" = ""
+        Location = "/v0/invalid-url"
+        "Transfer-Encoding" = "chunked"
+        ("server", "kestrel")
+      }
+    raw = "intentionally not found"
+  }

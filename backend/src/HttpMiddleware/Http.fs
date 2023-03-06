@@ -37,8 +37,7 @@ module Response =
 
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
-    // Expected user responses
-
+    // Expected user response
     | RT.DHttpResponse (code, headers, RT.DBytes body) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       { statusCode = int code; headers = lowercaseHeaderKeys headers; body = body }
