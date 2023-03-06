@@ -226,10 +226,10 @@ let fileTests () : Test =
             owner
             initializeCanvas
             test.name
-            test.expected
             test.actual
+            test.expected
             test.lineNumber
-            []
+            module'.dbs
             Map.empty
             module'.fns
             [])

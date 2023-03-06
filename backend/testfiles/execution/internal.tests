@@ -1,8 +1,3 @@
-[<DB>]
-type X = {
-  x : string
-}
-
 // ---------------
 // Misc
 // ---------------
@@ -161,25 +156,28 @@ module F404s =
 
 
 module Toplevels =
-  (let _db = X
-   DarkInternal.dbs Test.getCanvasName) = [1]
+  module WithDB =
+    [<DB>] type X = { x : string }
+    (DarkInternal.dbs Test.getCanvasName) |> List.length = 1
 
-  DarkInternal.dbs Test.getCanvasName = []
+  module NoDB =
+    DarkInternal.dbs Test.getCanvasName = []
 
-  DarkInternal.deleteToplevelForever Test.getCanvasID 1 = false
+    DarkInternal.deleteToplevelForever Test.getCanvasID 1 = false
 
 
 module UnlockedDB =
   // none
   DarkInternal.unlockedDBs Test.getCanvasID = []
 
-  // one
-  (let _db = X
-   DarkInternal.unlockedDBs Test.getCanvasID) = [1]
+  module WithDB =
+    [<DB>] type X = { x : string }
+    // one
+    (DarkInternal.unlockedDBs Test.getCanvasID) |> List.length = 1
 
-  // one but locked
-  (let _ = DB.set_v1 { x = "str" } "test" X in
-   DarkInternal.unlockedDBs Test.getCanvasID) = []
+    // one but locked
+    (let _ = DB.set_v1 { x = "str" } "test" X in
+     DarkInternal.unlockedDBs Test.getCanvasID) = []
 
 
 module Ops =

@@ -60,6 +60,9 @@ let (|Placeholder|_|) (input : PT.Expr) =
 // CLEANUP - blanks here aren't allowed
 let nameOrBlank (v : string) : string = if v = "___" then "" else v
 
+let longIdentToList (li : LongIdent) : List<string> =
+  li |> List.map (fun id -> id.idText)
+
 let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let c = convertToExpr
 
@@ -217,7 +220,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
     PT.ETuple(id, c first, c second, List.map c rest)
 
-  // Long Identifiers like DateTime.now, represented in the form of ["Date"; "now"]
+  // Long Identifiers like DateTime.now, represented in the form of ["DateTime"; "now"]
   // (LongIdent = Ident list)
   | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
     System.Char.IsUpper(modName.idText[0])
@@ -474,6 +477,8 @@ type Module =
     modules : List<string * Module>
     tests : List<Test> }
 
+let emptyModule = { types = []; dbs = []; fns = []; modules = []; tests = [] }
+
 let parseTestFile (filename : string) : Module =
   let checker = FSharpChecker.Create()
   let input = System.IO.File.ReadAllText filename
@@ -489,10 +494,16 @@ let parseTestFile (filename : string) : Module =
 
   let rec convertType (typ : SynType) : PT.DType =
     match typ with
-    | SynType.App (SynType.LongIdent (SynLongIdent ([ident], _, _)), _, args, _, _, _, _) ->
+    | SynType.App (SynType.LongIdent (SynLongIdent ([ ident ], _, _)),
+                   _,
+                   args,
+                   _,
+                   _,
+                   _,
+                   _) ->
       match ident.idText, args with
-      | "List", [arg] -> PT.TList(convertType arg)
-      | "Option", [arg] -> PT.TOption(convertType arg)
+      | "List", [ arg ] -> PT.TList(convertType arg)
+      | "Option", [ arg ] -> PT.TOption(convertType arg)
       | _ ->
         Exception.raiseInternal
           $"Unsupported type (outer)"
@@ -501,7 +512,7 @@ let parseTestFile (filename : string) : Module =
     | SynType.Paren (t, _) -> convertType t
     | SynType.Fun (arg, ret, _, _) -> PT.TFn([ convertType arg ], convertType ret)
     | SynType.Var (SynTypar (id, _, _), _) -> PT.TVariable(id.idText)
-    | SynType.LongIdent (SynLongIdent ([ident], _, _)) ->
+    | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
       match ident.idText with
       | "bool" -> PT.TBool
       | "int" -> PT.TInt
@@ -609,8 +620,7 @@ let parseTestFile (filename : string) : Module =
         name = id.idText
         nameID = gid ()
         version = 0
-        cols = List.map parseDBSchemaField fields
-      }
+        cols = List.map parseDBSchemaField fields }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
@@ -618,20 +628,29 @@ let parseTestFile (filename : string) : Module =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
-      let isDB = attrs |> List.exists (fun attr -> string attr.TypeName = "DB")
-      if isDB then [parseDB typeDef], [] else [], [parseType typeDef]
+      let isDB =
+        attrs
+        |> List.exists (fun attr ->
+          longIdentToList attr.TypeName.LongIdent = [ "DB" ])
+      if isDB then [ parseDB typeDef ], [] else [], [ parseType typeDef ]
 
 
-  let rec parseModule (decls : List<SynModuleDecl>) : Module =
+  let rec parseModule (parent : Module) (decls : List<SynModuleDecl>) : Module =
     List.fold
-      { types = []; fns = []; modules = []; tests = []; dbs = [] }
+      { types = parent.types
+        fns = parent.fns
+        modules = []
+        tests = []
+        dbs = parent.dbs }
       (fun m decl ->
         match decl with
         | SynModuleDecl.Let (_, bindings, _) ->
           { m with fns = m.fns @ List.map parseBinding bindings }
         | SynModuleDecl.Types (defns, _) ->
           let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
-          { m with types = m.types @ List.concat types; dbs = m.dbs @ List.concat dbs }
+          { m with
+              types = m.types @ List.concat types
+              dbs = m.dbs @ List.concat dbs }
         | SynModuleDecl.Expr (SynExpr.Do (expr, _), _) ->
           { m with tests = m.tests @ [ convertToTest expr ] }
         | SynModuleDecl.Expr (expr, _) ->
@@ -642,10 +661,7 @@ let parseTestFile (filename : string) : Module =
                                       _,
                                       _,
                                       _) ->
-          let nested = parseModule decls
-          // Add types and fns that it has access during descent
-          let nested =
-            { nested with fns = m.fns @ nested.fns; types = m.types @ nested.types }
+          let nested = parseModule m decls
           { m with modules = m.modules @ [ (name.idText, nested) ] }
         | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
       decls
@@ -667,7 +683,7 @@ let parseTestFile (filename : string) : Module =
                                                                         _) ],
                                                 _,
                                                 _,
-                                                _))) -> parseModule decls
+                                                _))) -> parseModule emptyModule decls
   | _ ->
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
