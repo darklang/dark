@@ -158,7 +158,7 @@ module Generators =
           let! d = Arb.generate<NodaTime.Instant>
           return
             callFn
-              "Date"
+              "DateTime"
               "parse"
               0
               [ RT.EString(gid (), [ RT.StringText(d.toIsoString ()) ]) ]
