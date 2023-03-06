@@ -155,7 +155,7 @@ let makeTest versionName filename =
 
 
   // Load the testcases first so that redirection works
-  testTask $"HttpClient files: {filename}" {
+  testTask testName {
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
     // debuG "darkCode" darkCode
@@ -164,6 +164,7 @@ let makeTest versionName filename =
       skiptest $"underscore test - {testName}"
     else
       let! admin = testAdmin.Force()
+
       // Set up the canvas
       let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"
       let! state = executionStateFor meta Map.empty Map.empty
@@ -383,5 +384,5 @@ let tests =
   versions
   |> List.map (fun versionName ->
     let tests = testsFromFiles versionName
-    testList $"From files, {versionName}" tests)
+    testList versionName tests)
   |> testList "HttpClient"
