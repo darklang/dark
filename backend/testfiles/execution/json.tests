@@ -2,4 +2,5 @@ type MyType = {
   x: int
 }
 
-Json.parse "{ 'x': 5 }" = { x = 5 }
+1 = 1
+// Json.parse "{ 'x': 5 }" = { x = 5 }
