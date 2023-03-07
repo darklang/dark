@@ -29,8 +29,7 @@ let identifyUser (username : UserName.T) : unit =
           ("email", userInfoAndCreatedAt.email)
           ("name", userInfoAndCreatedAt.name)
           ("admin", string userInfoAndCreatedAt.admin)
-          ("handle", string userInfoAndCreatedAt.username)
-        ]
+          ("handle", string userInfoAndCreatedAt.username) ]
 
       let payload = Map payload
       LibService.HeapAnalytics.emitIdentifyUserEvent userInfoAndCreatedAt.id payload
