@@ -27,6 +27,23 @@ module FQFnName =
     | PT.FQFnName.Stdlib fn -> RT.FQFnName.Stdlib(StdlibFnName.toRT fn)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(PackageFnName.toRT p)
 
+module InfixFnName =
+  let toFnName (name : PT.InfixFnName) : (string * string * int) =
+    match name with
+    | PT.ArithmeticPlus -> ("Int", "add", 0)
+    | PT.ArithmeticMinus -> ("Int", "subtract", 0)
+    | PT.ArithmeticMultiply -> ("Int", "multiply", 0)
+    | PT.ArithmeticDivide -> ("Int", "divide", 0)
+    | PT.ArithmeticModulo -> ("Int", "modulo", 0)
+    | PT.ArithmeticPower -> ("Int", "power", 0)
+    | PT.ComparisonGreaterThan -> ("Int", "greaterThan", 0)
+    | PT.ComparisonGreaterThanOrEqual -> ("Int", "greaterThanOrEqual", 0)
+    | PT.ComparisonLessThan -> ("Int", "lessThan", 0)
+    | PT.ComparisonLessThanOrEqual -> ("Int", "lessThanOrEqual", 0)
+    | PT.StringConcat -> ("String", "concat", 0)
+    | PT.ComparisonEquals -> ("", "equals", 0)
+    | PT.ComparisonNotEquals -> ("", "notEquals", 0)
+
 module LetPattern =
   let rec toRT (p : PT.LetPattern) : RT.LetPattern =
     match p with
@@ -75,12 +92,9 @@ module Expr =
         RT.NotInPipe
       )
     | PT.EInfix (id, PT.InfixFnCall fnName, arg1, arg2) ->
+      let (module_, fn, version) = InfixFnName.toFnName fnName
       let name =
-        PT.FQFnName.Stdlib(
-          { module_ = ""
-            function_ = fnName.function_
-            version = 0 }
-        )
+        PT.FQFnName.Stdlib({ module_ = module_; function_ = fn; version = version })
       toRT (PT.EFnCall(id, name, [ arg1; arg2 ]))
     | PT.EInfix (id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
@@ -118,11 +132,10 @@ module Expr =
               )
             // TODO: support currying
             | PT.EInfix (id, PT.InfixFnCall (fnName), PT.EPipeTarget ptID, expr2) ->
+              let (module_, fn, version) = InfixFnName.toFnName fnName
               let name =
                 PT.FQFnName.Stdlib(
-                  { module_ = ""
-                    function_ = fnName.function_
-                    version = 0 }
+                  { module_ = module_; function_ = fn; version = version }
                 )
               RT.EApply(
                 id,

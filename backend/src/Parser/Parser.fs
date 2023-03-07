@@ -119,21 +119,19 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | other -> other
 
   let ops =
-    Map.ofList [ ("op_Addition", "+")
-                 ("op_Subtraction", "-")
-                 ("op_Multiply", "*")
-                 ("op_Division", "/")
-                 ("op_PlusPlus", "++")
-                 ("op_GreaterThan", ">")
-                 ("op_GreaterThanOrEqual", ">=")
-                 ("op_LessThan", "<")
-                 ("op_LessThanOrEqual", "<=")
-                 ("op_Modulus", "%")
-                 ("op_Concatenate", "^")
-                 ("op_EqualsEquals", "==")
-                 ("op_Equality", "==")
-                 ("op_BangEquals", "!=")
-                 ("op_Inequality", "!=") ]
+    Map.ofList [ ("op_Addition", PT.ArithmeticPlus)
+                 ("op_Subtraction", PT.ArithmeticMinus)
+                 ("op_Multiply", PT.ArithmeticMultiply)
+                 ("op_Division", PT.ArithmeticDivide)
+                 ("op_Modulus", PT.ArithmeticModulo)
+                 ("op_Concatenate", PT.ArithmeticPower)
+                 ("op_GreaterThan", PT.ComparisonGreaterThan)
+                 ("op_GreaterThanOrEqual", PT.ComparisonGreaterThanOrEqual)
+                 ("op_LessThan", PT.ComparisonLessThan)
+                 ("op_LessThanOrEqual", PT.ComparisonLessThanOrEqual)
+                 ("op_EqualsEquals", PT.ComparisonEquals)
+                 ("op_BangEquals", PT.ComparisonNotEquals)
+                 ("op_PlusPlus", PT.StringConcat) ]
 
   let id = gid ()
 
@@ -170,8 +168,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       |> Exception.unwrapOptionInternal
            "can't find operation"
            [ "name", ident.idText ]
-    let fn : PT.FQFnName.InfixStdlibFnName = { function_ = op }
-    PT.EInfix(id, PT.InfixFnCall(fn), placeholder, placeholder)
+    PT.EInfix(id, PT.InfixFnCall op, placeholder, placeholder)
 
   | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
     List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
@@ -190,9 +187,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     let name = PT.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [])
 
-  | SynExpr.Ident ident when
-    Set.contains ident.idText PT.FQFnName.oneWordFunctions
-    ->
+  | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
     PT.EFnCall(id, FQFnNameParser.parse ident.idText, [])
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
@@ -254,7 +249,11 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                        _) when
     owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
     ->
-    PT.EFnCall(gid (), PT.FQFnName.packageFqName "test" "test" "Test" fnName.idText 0, [])
+    PT.EFnCall(
+      gid (),
+      PT.FQFnName.packageFqName "test" "test" "Test" fnName.idText 0,
+      []
+    )
 
   | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
     let obj1 =
@@ -410,8 +409,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     // A pipe with more than one entry
     | PT.EPipe (id, arg1, arg2, rest) ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
-    | PT.EVariable (id, name) ->
-      PT.EFnCall(id, FQFnNameParser.parse name, [ c arg ])
+    | PT.EVariable (id, name) -> PT.EFnCall(id, FQFnNameParser.parse name, [ c arg ])
     | e ->
       Exception.raiseInternal
         "Unsupported expression in app"

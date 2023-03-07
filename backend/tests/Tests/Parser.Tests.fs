@@ -42,10 +42,10 @@ let parserTests =
         "(5 + 3) == 8"
         (PT.EInfix(
           id,
-          PT.InfixFnCall({ function_ = "==" }),
+          PT.InfixFnCall(PT.ComparisonEquals),
           PT.EInfix(
             id,
-            (PT.InfixFnCall({ function_ = "+" })),
+            (PT.InfixFnCall(PT.ArithmeticPlus)),
             PT.EInteger(id, 5),
             PT.EInteger(id, 3)
           ),

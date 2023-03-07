@@ -109,7 +109,8 @@ let parseTests =
 
 let testPipesToRuntimeTypes =
   test "pipes to runtime types" {
-    let actual = Parser.Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+    let actual =
+      Parser.Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
 
     let expected =
       S.ePipeApply
@@ -147,13 +148,13 @@ let testInfixProgramTypesToSerializedTypes =
     PT2ST.Expr.toST
     [ (PT.EInfix(
         8UL,
-        PT.InfixFnCall({ function_ = "+" }),
+        PT.InfixFnCall(PT.ArithmeticPlus),
         PT.EInteger(9UL, 6),
         PT.EInteger(10UL, 6)
        ),
        ST.EInfix(
          8UL,
-         ST.InfixFnCall({ function_ = "+" }),
+         ST.InfixFnCall(ST.ArithmeticPlus),
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6)
        )) ]

@@ -12,9 +12,6 @@ module FQFnName =
   /// Standard Library Function Name
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
-  /// Standard Library Infix Function Name
-  type InfixStdlibFnName = { function_ : string }
-
   /// A UserFunction is a function written by a Developer in their canvas
   type UserFnName = string
 
@@ -119,8 +116,23 @@ type BinaryOperation =
   | BinOpAnd
   | BinOpOr
 
+type InfixFnName =
+  | ArithmeticPlus
+  | ArithmeticMinus
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals
+  | StringConcat
+
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName
+  | InfixFnCall of InfixFnName
   | BinOp of BinaryOperation
 
 /// Expressions - the main part of the language.

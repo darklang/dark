@@ -55,7 +55,5 @@ module Functions =
         description = fn.description
         returnType = CT2Runtime.DType.toCT fn.returnType
         previewable = Previewable.toCT fn.previewable
-        isInfix =
-          LibExecutionStdLib.StdLib.isInfixName fn.name.function_
         deprecated = Deprecation.toCT fn.deprecated
         sqlSpec = SqlSpec.toCT fn.sqlSpec }

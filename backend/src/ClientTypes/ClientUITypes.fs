@@ -39,5 +39,4 @@ module Functions =
       description : string
       previewable : Previewable
       deprecated : Deprecation
-      isInfix : bool
       sqlSpec : SqlSpec }

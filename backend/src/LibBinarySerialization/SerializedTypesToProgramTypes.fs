@@ -22,16 +22,28 @@ module FQFnName =
     let toPT (name : ST.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
       { module_ = name.module_; function_ = name.function_; version = name.version }
 
-  module InfixStdlibFnName =
-    let toPT (name : ST.FQFnName.InfixStdlibFnName) : PT.FQFnName.InfixStdlibFnName =
-      { function_ = name.function_ }
-
   let toPT (fqfn : ST.FQFnName.T) : PT.FQFnName.T =
     match fqfn with
     | ST.FQFnName.User u -> PT.FQFnName.User u
     | ST.FQFnName.Stdlib fn -> PT.FQFnName.Stdlib(StdlibFnName.toPT fn)
     | ST.FQFnName.Package p -> PT.FQFnName.Package(PackageFnName.toPT p)
 
+module InfixFnName =
+  let toPT (name : ST.InfixFnName) : PT.InfixFnName =
+    match name with
+    | ST.ArithmeticPlus -> PT.ArithmeticPlus
+    | ST.ArithmeticMinus -> PT.ArithmeticMinus
+    | ST.ArithmeticMultiply -> PT.ArithmeticMultiply
+    | ST.ArithmeticDivide -> PT.ArithmeticDivide
+    | ST.ArithmeticModulo -> PT.ArithmeticModulo
+    | ST.ArithmeticPower -> PT.ArithmeticPower
+    | ST.ComparisonGreaterThan -> PT.ComparisonGreaterThan
+    | ST.ComparisonGreaterThanOrEqual -> PT.ComparisonGreaterThanOrEqual
+    | ST.ComparisonLessThan -> PT.ComparisonLessThan
+    | ST.ComparisonLessThanOrEqual -> PT.ComparisonLessThanOrEqual
+    | ST.ComparisonEquals -> PT.ComparisonEquals
+    | ST.ComparisonNotEquals -> PT.ComparisonNotEquals
+    | ST.StringConcat -> PT.StringConcat
 
 module BinaryOperation =
   let toPT (binop : ST.BinaryOperation) : PT.BinaryOperation =
@@ -43,7 +55,7 @@ module BinaryOperation =
 module Infix =
   let toPT (infix : ST.Infix) : PT.Infix =
     match infix with
-    | ST.InfixFnCall (fn) -> PT.InfixFnCall(FQFnName.InfixStdlibFnName.toPT fn)
+    | ST.InfixFnCall (fn) -> PT.InfixFnCall(InfixFnName.toPT fn)
     | ST.BinOp binop -> PT.BinOp(BinaryOperation.toPT binop)
 
 module LetPattern =
