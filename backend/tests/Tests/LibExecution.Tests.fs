@@ -96,7 +96,7 @@ let t
   (expectedExpr : PT.Expr)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
-  (packageFns : Map<PT.FQFnName.PackageFnName, PT.Package.Fn>)
+  (packageFns : List<PT.Package.Fn>)
   (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
   : Test =
@@ -121,8 +121,7 @@ let t
 
       let rtPackageFns =
         packageFns
-        |> Map.toList
-        |> List.map (fun (_, v) ->
+        |> List.map (fun v ->
           let fn = PT2RT.Package.toRT v
           ((RT.FQFnName.Package fn.name), fn))
         |> Map
@@ -230,7 +229,7 @@ let fileTests () : Test =
             test.expected
             test.lineNumber
             module'.dbs
-            Map.empty
+            module'.packageFns
             module'.fns
             [])
 

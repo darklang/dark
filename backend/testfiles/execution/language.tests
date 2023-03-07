@@ -504,54 +504,53 @@ let myUserFunction_v2 (str:str) =
 // ---------------------------
 // Package manager function calls
 // ---------------------------
+[<Package("test", "test", "Test")>]
 module Packages =
-  module Test =
-    module Test =
-      module Test =
-        let stringFn (key:string) =
-          key ++ " appended string"
+  let stringFn (key:string) =
+    key ++ " appended string"
 
-        let twoStringFn (str1: string) (str2: string) =
-          str1 ++ " appended " ++ str2
+  let twoStringFn (str1: string) (str2: string) =
+    str1 ++ " appended " ++ str2
 
-        let returnsInt () =
-          5
+  let returnsInt () =
+    5
 
-        let returnsString () =
-          "string"
+  let returnsString () =
+    "string"
 
-        let returnsOptionJust () =
-          Just 5
+  let returnsOptionJust () =
+    Just 5
 
-        let returnsOptionNothing () =
-          Nothing
+  let returnsOptionNothing () =
+    Nothing
 
-        let returnsResultOk () =
-          Ok 5
+  let returnsResultOk () =
+    Ok 5
 
-        let returnsResultError () =
-          Error false
+  let returnsResultError () =
+    Error false
 
-        let throwsException () =
-          Test.raiseException "throwsException message"
+  let throwsException () =
+    Test.raiseException "throwsException message"
 
-        let derrorFn (msg:string) =
-          msg ++ Test.typeError_v0 msg
+  let derrorFn (msg:string) =
+    msg ++ Test.typeError_v0 msg
 
-module PackageTests =
   Test.Test.Test.stringFn "string" = "string appended string"
   Test.Test.Test.twoStringFn "str1" "str2" = "str1 appended str2"
-  Test.Test.Test.returnsInt 6 = 5
-  Test.Test.Test.returnsString 6 = "string"
-  Test.Test.Test.returnsOptionJust 6 = Just 5
-  (Test.Test.Test.returnsOptionJust 6) |> Test.unwrap = 5
-  Test.Test.Test.returnsOptionNothing 6 = Nothing
-  Test.Test.Test.returnsResultOk 6 = Ok 5
-  (Test.Test.Test.returnsResultOk 6) |> Test.unwrap = 5
-  Test.Test.Test.returnsResultError 6 = Error false
+  Test.Test.Test.returnsInt () = 5
+  Test.Test.Test.returnsString () = "string"
+  Test.Test.Test.returnsOptionJust () = Just 5
+  (Test.Test.Test.returnsOptionJust ()) |> Test.unwrap = 5
+  Test.Test.Test.returnsOptionNothing () = Nothing
+  Test.Test.Test.returnsResultOk () = Ok 5
+  (Test.Test.Test.returnsResultOk ()) |> Test.unwrap = 5
+  Test.Test.Test.returnsResultError () = Error false
 
   module Invalid =
     Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
     Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
-    Test.Test.Test.throwsException 6 = Test.typeError "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1
-    Test.Test.Test.derror "test" = Test.typeError "test"
+    Test.Test.Test.derrorFn "test" = Test.typeError "test"
+
+    (let _ = Test.setExpectedExceptionCount 1 in
+     Test.Test.Test.throwsException ()) = Test.typeError "Unknown error"

@@ -474,10 +474,12 @@ type Module =
   { types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
+    packageFns : List<PT.Package.Fn>
     modules : List<string * Module>
     tests : List<Test> }
 
-let emptyModule = { types = []; dbs = []; fns = []; modules = []; tests = [] }
+let emptyModule =
+  { types = []; dbs = []; fns = []; modules = []; tests = []; packageFns = [] }
 
 let parseTestFile (filename : string) : Module =
   let checker = FSharpChecker.Create()
@@ -558,6 +560,7 @@ let parseTestFile (filename : string) : Module =
 
   let parseBinding (binding : SynBinding) : PT.UserFunction.T =
     match binding with
+    // CLEANUP returnInfo
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) as x ->
       let (name, parameters) = parseSignature pat
       { tlid = gid ()
@@ -569,6 +572,29 @@ let parseTestFile (filename : string) : Module =
         description = ""
         infix = false
         body = convertToExpr expr }
+
+  let parsePackageFn
+    ((p1, p2, p3) : string * string * string)
+    (binding : SynBinding)
+    : PT.Package.Fn =
+    let userFn = parseBinding binding
+    { name =
+        { owner = p1
+          package = p2
+          module_ = p3
+          function_ = userFn.name
+          version = 0 }
+      parameters =
+        userFn.parameters
+        |> List.map (fun (p : PT.UserFunction.Parameter) ->
+          { name = p.name; typ = p.typ; description = "" })
+      returnType = userFn.returnType
+      description = userFn.description
+      deprecated = false
+      author = ""
+      tlid = userFn.tlid
+      body = userFn.body }
+
 
   let parseRecordField (field : SynField) : PT.UserType.RecordField =
     match field with
@@ -634,18 +660,52 @@ let parseTestFile (filename : string) : Module =
           longIdentToList attr.TypeName.LongIdent = [ "DB" ])
       if isDB then [ parseDB typeDef ], [] else [], [ parseType typeDef ]
 
+  let getPackage (attrs : SynAttributes) : Option<string * string * string> =
+    attrs
+    |> List.map (fun attr -> attr.Attributes)
+    |> List.concat
+    |> List.filterMap (fun (attr : SynAttribute) ->
+      if longIdentToList attr.TypeName.LongIdent = [ "Package" ] then
+        match debug "argExpr" attr.ArgExpr with
+        | SynExpr.Paren (SynExpr.Tuple (_,
+                                        [ SynExpr.Const (SynConst.String (p1, _, _),
+                                                         _)
+                                          SynExpr.Const (SynConst.String (p2, _, _),
+                                                         _)
+                                          SynExpr.Const (SynConst.String (p3, _, _),
+                                                         _) ],
+                                        _,
+                                        _),
+                         _,
+                         _,
+                         _) -> Some(p1, p2, p3)
+        | _ -> None
+      else
+        None)
+    |> List.tryHead
 
-  let rec parseModule (parent : Module) (decls : List<SynModuleDecl>) : Module =
+  let rec parseModule
+    (parent : Module)
+    (attrs : SynAttributes)
+    (decls : List<SynModuleDecl>)
+    : Module =
+    let package = getPackage attrs
     List.fold
       { types = parent.types
         fns = parent.fns
+        packageFns = parent.packageFns
+        dbs = parent.dbs
         modules = []
-        tests = []
-        dbs = parent.dbs }
+        tests = [] }
       (fun m decl ->
         match decl with
         | SynModuleDecl.Let (_, bindings, _) ->
-          { m with fns = m.fns @ List.map parseBinding bindings }
+          match package with
+          | Some package ->
+            { m with
+                packageFns =
+                  m.packageFns @ List.map (parsePackageFn package) bindings }
+          | None -> { m with fns = m.fns @ List.map parseBinding bindings }
         | SynModuleDecl.Types (defns, _) ->
           let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
           { m with
@@ -655,13 +715,20 @@ let parseTestFile (filename : string) : Module =
           { m with tests = m.tests @ [ convertToTest expr ] }
         | SynModuleDecl.Expr (expr, _) ->
           { m with tests = m.tests @ [ convertToTest expr ] }
-        | SynModuleDecl.NestedModule (SynComponentInfo (_, _, _, [ name ], _, _, _, _),
+        | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
+                                                        _,
+                                                        _,
+                                                        [ name ],
+                                                        _,
+                                                        _,
+                                                        _,
+                                                        _),
                                       _,
                                       decls,
                                       _,
                                       _,
                                       _) ->
-          let nested = parseModule m decls
+          let nested = parseModule m attrs decls
           { m with modules = m.modules @ [ (name.idText, nested) ] }
         | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
       decls
@@ -677,13 +744,14 @@ let parseTestFile (filename : string) : Module =
                                                                         _,
                                                                         decls,
                                                                         _,
-                                                                        _,
+                                                                        attrs,
                                                                         _,
                                                                         _,
                                                                         _) ],
                                                 _,
                                                 _,
-                                                _))) -> parseModule emptyModule decls
+                                                _))) ->
+    parseModule emptyModule attrs decls
   | _ ->
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
