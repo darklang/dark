@@ -666,7 +666,7 @@ let parseTestFile (filename : string) : Module =
     |> List.concat
     |> List.filterMap (fun (attr : SynAttribute) ->
       if longIdentToList attr.TypeName.LongIdent = [ "Package" ] then
-        match debug "argExpr" attr.ArgExpr with
+        match attr.ArgExpr with
         | SynExpr.Paren (SynExpr.Tuple (_,
                                         [ SynExpr.Const (SynConst.String (p1, _, _),
                                                          _)
