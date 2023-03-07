@@ -439,9 +439,7 @@ module Equality =
   //(fun x -> y) = (fun x -> y) // CLEANUP: they have different IDs so they're not equal
   ((fun x -> let y = 1 in y) <> (fun x -> let y = 1 in x)) = true
 
-  [<DB>]
-  type MyDB = { x : string; y: string }]
-  // db equality
+  [<DB>] type MyDB = { x : string; y: string }
   (MyDB = MyDB) = true
   (MyDB <> 5) = true
 
