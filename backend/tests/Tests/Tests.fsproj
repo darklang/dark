@@ -32,7 +32,6 @@
     <Compile Include="Traces.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />
     <Compile Include="StorageTraces.Tests.fs" />
-    <Compile Include="Authorization.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="Cron.Tests.fs" />
