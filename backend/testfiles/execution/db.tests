@@ -297,14 +297,14 @@ module FindAll =
 
   // CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
   // invalid type comparison
-  // EXPECTED_EXCEPTION_COUNT: 1
-  friendsError (fun p -> p.height == "string") =
-    Test.sqlError "An error occurred while querying the Datastore"
+  (let _ = Test.setExpectedExceptionCount 1 in
+   friendsError (fun p -> p.height == "string")) =
+     Test.sqlError "An error occurred while querying the Datastore"
 
   // do we look up dates correctly when the function type is not a date
-  // EXPECTED_EXCEPTION_COUNT: 1
-  friendsError (fun p -> p.dob != DateTime.now_v0) =
-    Test.sqlError "An error occurred while querying the Datastore"
+  (let _ = Test.setExpectedExceptionCount 1 in
+   friendsError (fun p -> p.dob != DateTime.now_v0)) =
+     Test.sqlError "An error occurred while querying the Datastore"
 
 
 module CompiledFunctions =

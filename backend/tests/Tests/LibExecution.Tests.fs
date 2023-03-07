@@ -138,17 +138,6 @@ let t
       if workers <> [] then do! setupWorkers meta workers
       if dbs <> [] then do! setupDBs meta dbs
 
-      // Only do this now so that the error doesn't fire while evaluating the expectedExpr
-      let state =
-        let expectedExceptionCount =
-          match "TODO" with
-          | Regex ".*EXPECTED_EXCEPTION_COUNT: (\d+)" [ count ] -> int count
-          | _ -> 0
-        { state with
-            test =
-              { state.test with expectedExceptionCount = expectedExceptionCount } }
-
-
       let results, traceDvalFn = Exe.traceDvals ()
       let state =
         if System.Environment.GetEnvironmentVariable "DEBUG" <> null then

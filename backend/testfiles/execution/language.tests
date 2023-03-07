@@ -118,7 +118,9 @@ module FeatureFlag =
   flag "test" {x = true} "old" "new" = "old"
   flag "test" [true] "old" "new" = "old"
   flag "test" (Test.negativeInfinity "extra arg") "old" "new" = "old"
-  flag "test" (Test.raiseException "message") "old" "new" = "old" // EXPECTED_EXCEPTION_COUNT: 1
+
+  (let _ = Test.setExpectedExceptionCount 1 in
+   flag "test" (Test.raiseException "message") "old" "new") = "old"
 
 
 module Lambdas =
@@ -389,7 +391,8 @@ module Shadowing =
 // DarkInternal tests are internal
 // ---------------------------
 module Darkinternal =
-  DarkInternal.setAdmin "test" true = Test.typeError_v0 "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1
+  (let _ = Test.setExpectedExceptionCount 1 in
+   DarkInternal.getAllSchedulingRules) = Test.typeError_v0 "Unknown error"
 
 // ---------------------------
 // Equality
@@ -479,23 +482,25 @@ let derrorFn (msg:string) =
 module FunctionCalls =
   stringFn "string" = "string appended string"
   twoStringFn "str1" "str2" = "str1 appended str2"
-  returnsInt 6 = 5
-  returnsString 6 = "string"
-  returnsOptionJust 6 = Just 5
-  (returnsOptionJust 6) |> Test.unwrap = 5
-  returnsOptionNothing 6 = Nothing
-  returnsResultOk 6 = Ok 5
-  (returnsResultOk 6) |> Test.unwrap = 5
+  returnsInt () = 5
+  returnsString () = "string"
+  returnsOptionJust () = Just 5
+  (returnsOptionJust ()) |> Test.unwrap = 5
+  returnsOptionNothing () = Nothing
+  returnsResultOk () = Ok 5
+  (returnsResultOk ()) |> Test.unwrap = 5
 
 module InvalidFnCalls =
   functionWhichDoesntExist 6 = Test.incomplete // CLEANUP
   stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
   stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
-  throwsException 6 = Test.typeError "Unknown error" // EXPECTED_EXCEPTION_COUNT: 1
+
+  (let _ = Test.setExpectedExceptionCount 1 in
+   throwsException ()) = Test.typeError "Unknown error"
   derrorFn "msg" = Test.typeError "msg"
 
 
-let myUserFunction_v2 (str:str) =
+let myUserFunction_v2 (str:string) =
   6
 
 // user function with _v2 in it
