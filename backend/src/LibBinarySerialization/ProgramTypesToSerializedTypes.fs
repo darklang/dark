@@ -74,9 +74,9 @@ module Expr =
       ST.EFnCall(id, FQFnName.toST name, List.map toST args)
     | PT.EInfix (id, PT.InfixFnCall (name), arg1, arg2) ->
       let isInfix = LibExecutionStdLib.StdLib.isInfixName
-      assertFn2 "is a binop" isInfix (Option.unwrap "" name.module_) name.function_
+      assertFn "is a binop" isInfix name.function_
       let name : ST.FQFnName.InfixStdlibFnName =
-        { module_ = name.module_; function_ = name.function_ }
+        { function_ = name.function_ }
       ST.EInfix(id, ST.InfixFnCall(name), toST arg1, toST arg2)
     | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)

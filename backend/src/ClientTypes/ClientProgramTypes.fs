@@ -15,7 +15,7 @@ type Sign = Prelude.Sign
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
-  type InfixStdlibFnName = { module_ : Option<string>; function_ : string }
+  type InfixStdlibFnName = { function_ : string }
 
   type UserFnName = string
 

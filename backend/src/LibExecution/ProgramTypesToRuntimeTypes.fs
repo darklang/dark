@@ -74,10 +74,10 @@ module Expr =
         List.map toRT args,
         RT.NotInPipe
       )
-    | PT.EInfix (id, PT.InfixFnCall (fnName), arg1, arg2) ->
+    | PT.EInfix (id, PT.InfixFnCall fnName, arg1, arg2) ->
       let name =
         PT.FQFnName.Stdlib(
-          { module_ = Option.unwrap "" fnName.module_
+          { module_ = ""
             function_ = fnName.function_
             version = 0 }
         )
@@ -120,7 +120,7 @@ module Expr =
             | PT.EInfix (id, PT.InfixFnCall (fnName), PT.EPipeTarget ptID, expr2) ->
               let name =
                 PT.FQFnName.Stdlib(
-                  { module_ = Option.unwrap "" fnName.module_
+                  { module_ = ""
                     function_ = fnName.function_
                     version = 0 }
                 )

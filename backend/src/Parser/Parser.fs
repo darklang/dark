@@ -170,7 +170,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       |> Exception.unwrapOptionInternal
            "can't find operation"
            [ "name", ident.idText ]
-    let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
+    let fn : PT.FQFnName.InfixStdlibFnName = { function_ = op }
     PT.EInfix(id, PT.InfixFnCall(fn), placeholder, placeholder)
 
   | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when

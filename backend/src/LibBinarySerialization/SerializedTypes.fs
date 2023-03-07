@@ -63,8 +63,6 @@ module FQFnName =
   [<MessagePack.MessagePackObject>]
   type InfixStdlibFnName =
     { [<MessagePack.Key 0>]
-      module_ : Option<string>
-      [<MessagePack.Key 1>]
       function_ : string }
 
   /// A UserFunction is a function written by a Developer in their canvas

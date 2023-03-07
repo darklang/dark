@@ -24,7 +24,7 @@ module FQFnName =
 
   module InfixStdlibFnName =
     let toPT (name : ST.FQFnName.InfixStdlibFnName) : PT.FQFnName.InfixStdlibFnName =
-      { module_ = name.module_; function_ = name.function_ }
+      { function_ = name.function_ }
 
   let toPT (fqfn : ST.FQFnName.T) : PT.FQFnName.T =
     match fqfn with

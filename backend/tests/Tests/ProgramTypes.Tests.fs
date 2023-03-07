@@ -147,13 +147,13 @@ let testInfixProgramTypesToSerializedTypes =
     PT2ST.Expr.toST
     [ (PT.EInfix(
         8UL,
-        PT.InfixFnCall({ module_ = None; function_ = "+" }),
+        PT.InfixFnCall({ function_ = "+" }),
         PT.EInteger(9UL, 6),
         PT.EInteger(10UL, 6)
        ),
        ST.EInfix(
          8UL,
-         ST.InfixFnCall({ module_ = None; function_ = "+" }),
+         ST.InfixFnCall({ function_ = "+" }),
          ST.EInteger(9UL, 6),
          ST.EInteger(10UL, 6)
        )) ]

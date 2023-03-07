@@ -44,22 +44,22 @@ let prefixFns : List<BuiltInFn> =
 
 // Map of prefix names to their infix versions
 let infixFnMapping : Map<FQFnName.StdlibFnName, (FQFnName.StdlibFnName * Deprecation)> =
-  [ ("Int", "add", 0), (("", "+"), NotDeprecated)
-    ("Int", "subtract", 0), (("", "-"), NotDeprecated)
-    ("Int", "multiply", 0), (("", "*"), NotDeprecated)
-    ("Int", "greaterThan", 0), (("", ">"), NotDeprecated)
-    ("Int", "greaterThanOrEqualTo", 0), (("", ">="), NotDeprecated)
-    ("Int", "lessThanOrEqualTo", 0), (("", "<="), NotDeprecated)
-    ("Int", "lessThan", 0), (("", "<"), NotDeprecated)
-    ("Int", "power", 0), (("", "^"), NotDeprecated)
-    ("Int", "mod", 0), (("", "%"), NotDeprecated)
-    ("Float", "divide", 0), (("", "/"), NotDeprecated)
-    ("String", "append", 1), (("", "++"), NotDeprecated)
-    ("", "equals", 0), (("", "=="), NotDeprecated)
-    ("", "notEquals", 0), (("", "!="), NotDeprecated) ]
-  |> List.map (fun ((module_, name, version), ((newMod, opName), deprecation)) ->
+  [ ("Int", "add", 0), ("+", NotDeprecated)
+    ("Int", "subtract", 0), ("-", NotDeprecated)
+    ("Int", "multiply", 0), ("*", NotDeprecated)
+    ("Int", "greaterThan", 0), (">", NotDeprecated)
+    ("Int", "greaterThanOrEqualTo", 0), (">=", NotDeprecated)
+    ("Int", "lessThanOrEqualTo", 0), ("<=", NotDeprecated)
+    ("Int", "lessThan", 0), ("<", NotDeprecated)
+    ("Int", "power", 0), ("^", NotDeprecated)
+    ("Int", "mod", 0), ("%", NotDeprecated)
+    ("Float", "divide", 0), ("/", NotDeprecated)
+    ("String", "append", 1), ("++", NotDeprecated)
+    ("", "equals", 0), ("==", NotDeprecated)
+    ("", "notEquals", 0), ("!=", NotDeprecated) ]
+  |> List.map (fun ((module_, name, version), (opName, deprecation)) ->
     FQFnName.stdlibFnName module_ name version,
-    (FQFnName.stdlibFnName newMod opName 0, deprecation))
+    (FQFnName.stdlibFnName "" opName 0, deprecation))
   |> Map
 
 // set of infix names
@@ -71,8 +71,8 @@ let infixFnNames : Set<FQFnName.StdlibFnName> =
   |> Set
 
 // Is this the name of an infix function?
-let isInfixName (module_ : string) (fnName : string) =
-  infixFnNames.Contains { module_ = module_; function_ = fnName; version = 0 }
+let isInfixName (fnName : string) =
+  infixFnNames.Contains { module_ = ""; function_ = fnName; version = 0 }
 
 let infixFns : List<BuiltInFn> =
   let fns =

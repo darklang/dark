@@ -22,12 +22,12 @@ module FQFnName =
     let fromCT
       (name : CTPT.FQFnName.InfixStdlibFnName)
       : PT.FQFnName.InfixStdlibFnName =
-      { module_ = name.module_; function_ = name.function_ }
+      { function_ = name.function_ }
 
     let toCT
       (name : PT.FQFnName.InfixStdlibFnName)
       : CTPT.FQFnName.InfixStdlibFnName =
-      { module_ = name.module_; function_ = name.function_ }
+      { function_ = name.function_ }
 
 
   module UserFnName =
