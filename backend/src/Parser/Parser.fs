@@ -51,7 +51,7 @@ let parse (input : string) : SynExpr =
       [ "parseTree", results.ParseTree; "input", input ]
 
 // A placeholder is used to indicate what still needs to be filled
-let placeholder = PT.EString(12345678UL, "PLACEHOLDER VALUE")
+let placeholder = PT.EString(12345678UL, [ PT.StringText "PLACEHOLDER VALUE" ])
 
 // This is a "Partial active pattern" that you can use as a Pattern to match a Placeholder value
 let (|Placeholder|_|) (input : PT.Expr) =
@@ -144,7 +144,15 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.Const (SynConst.Double d, _) ->
     let sign, whole, fraction = readFloat d
     PT.EFloat(id, sign, whole, fraction)
-  | SynExpr.Const (SynConst.String (s, _, _), _) -> PT.EString(id, s)
+  | SynExpr.Const (SynConst.String (s, _, _), _) ->
+    PT.EString(id, [ PT.StringText s ])
+  | SynExpr.InterpolatedString (parts, _, _) ->
+    let parts =
+      parts
+      |> List.map (function
+        | SynInterpolatedStringPart.String (s, _) -> PT.StringText s
+        | SynInterpolatedStringPart.FillExpr (e, _) -> PT.StringInterpolation(c e))
+    PT.EString(id, parts)
 
   // simple identifiers like `==`
   | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when

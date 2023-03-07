@@ -67,7 +67,7 @@ module Expr =
   type T =
     | EInteger of id * int64
     | EBool of id * bool
-    | EString of id * string
+    | EString of id * List<StringSegment>
     | ECharacter of id * string
     | EFloat of id * double
     | EUnit of id
@@ -86,6 +86,10 @@ module Expr =
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
+
+  and StringSegment =
+    | StringText of string
+    | StringInterpolation of T
 
   and IsInPipe =
     | InPipe of id

@@ -53,7 +53,8 @@ module Expr =
     match e with
     | PT.ECharacter (id, char) -> RT.ECharacter(id, char)
     | PT.EInteger (id, num) -> RT.EInteger(id, num)
-    | PT.EString (id, str) -> RT.EString(id, str)
+    | PT.EString (id, segments) ->
+      RT.EString(id, List.map stringSegmentToRT segments)
     | PT.EFloat (id, sign, whole, fraction) ->
       let whole = if whole = "" then "0" else whole
       let fraction = if fraction = "" then "0" else fraction
@@ -147,6 +148,12 @@ module Expr =
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, _name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
+
+
+  and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
+    match segment with
+    | PT.StringText text -> RT.StringText text
+    | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
 
 module DType =
   let rec toRT (t : PT.DType) : RT.DType =

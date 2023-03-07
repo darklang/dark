@@ -220,7 +220,10 @@ module RuntimeTypes =
     let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.EBool(gid (), b))
     let genUnit = gen { return RT.EUnit(gid ()) }
     let genChar = char |> Gen.map (fun c -> RT.ECharacter(gid (), c))
-    let genStr = simpleString |> Gen.map (fun s -> RT.EString(gid (), s))
+
+    let genStr =
+      simpleString |> Gen.map (fun s -> RT.EString(gid (), [ RT.StringText s ])) //CLEANUP
+
     let genVar = simpleString |> Gen.map (fun s -> RT.EVariable(gid (), s))
     let genFloat = Arb.generate<float> |> Gen.map (fun f -> RT.EFloat(gid (), f))
 
@@ -448,7 +451,8 @@ module ProgramTypes =
 
     let genChar = char |> Gen.map (fun c -> PT.ECharacter(gid (), c))
 
-    let genStr = simpleString |> Gen.map (fun s -> PT.EString(gid (), s))
+    let genStr =
+      simpleString |> Gen.map (fun s -> PT.EString(gid (), [ PT.StringText s ])) //CLEANUP
 
     let genVar = simpleString |> Gen.map (fun s -> PT.EVariable(gid (), s))
 

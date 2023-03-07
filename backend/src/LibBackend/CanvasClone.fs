@@ -85,7 +85,13 @@ let updateHostsInOp
   |> Option.map (
     ProgramTypesAst.preTraversal (fun pat ->
       match pat with
-      | PT.EString (id, str) -> PT.EString(id, replaceHost str)
+      | PT.EString (id, parts) ->
+        parts
+        |> List.map (fun part ->
+          match part with
+          | PT.StringText str -> PT.StringText(replaceHost str)
+          | PT.StringInterpolation expr -> PT.StringInterpolation expr)
+        |> fun parts -> PT.EString(id, parts)
       | PT.EMatch (id, cond, branches) ->
         let newBranches =
           branches

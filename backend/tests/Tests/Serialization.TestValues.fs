@@ -69,7 +69,7 @@ module RuntimeTypes =
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
-      RT.EString(86749UL, "asdfasedf")
+      RT.EString(86749UL, [ RT.StringText "asdfasedf" ]) //CLEANUP
       RT.ECharacter(7683UL, "c")
       RT.EFloat(5495UL, 444.333)
       RT.EUnit(59485UL)
@@ -107,8 +107,8 @@ module RuntimeTypes =
       RT.EFeatureFlag(
         1823UL,
         RT.EBool(81273UL, false),
-        RT.EString(1283UL, "true"),
-        RT.EString(18329472UL, "false")
+        RT.EString(1283UL, [ RT.StringText "true" ]), //CLEANUP
+        RT.EString(18329472UL, [ RT.StringText "false" ]) //CLEANUP
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false)) ]
@@ -187,7 +187,7 @@ module ProgramTypes =
             PT.ELet(
               244891515UL,
               "str",
-              PT.EString(446488682UL, "a string"),
+              PT.EString(446488682UL, [ PT.StringText "a string" ]),
               PT.ELet(
                 537517627UL,
                 "char",
@@ -321,7 +321,7 @@ module ProgramTypes =
                               (PT.MPCharacter(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
                               (PT.MPString(491115870UL, "string"),
-                               PT.EString(820329949UL, "string"))
+                               PT.EString(820329949UL, [ PT.StringText "string" ]))
                               (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
                               (PT.MPVariable(722099983UL, "var"),
                                PT.EInfix(

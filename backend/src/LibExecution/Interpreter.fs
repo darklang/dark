@@ -51,7 +51,34 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   uply {
     match e with
-    | EString (_id, s) -> return DStr(String.normalize s)
+    | EString (_id, segments) ->
+      let! result =
+        segments
+        |> Ply.List.foldSequentially
+             (fun builtUpString seg ->
+               uply {
+                 match builtUpString, seg with
+                 | Ok str, StringText (text) -> return Ok(str + text)
+                 | Ok str, StringInterpolation (expr) ->
+                   let! result = eval state st expr
+                   match result with
+                   | DStr s -> return Ok(str + s)
+                   | DIncomplete _
+                   | DError _ -> return Error(result)
+                   | dv ->
+                     return
+                       Error(
+                         DError(
+                           sourceID _id,
+                           "Expected string, got " + DvalReprDeveloper.toRepr dv
+                         )
+                       )
+                 | Error dv, _ -> return Error(dv)
+               })
+             (Ok "")
+      match result with
+      | Ok str -> return DStr(String.normalize str)
+      | Error dv -> return dv
     | EBool (_id, b) -> return DBool b
     | EInteger (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value

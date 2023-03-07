@@ -57,7 +57,8 @@ module Expr =
     match e with
     | PT.ECharacter (id, char) -> ST.ECharacter(id, char)
     | PT.EInteger (id, num) -> ST.EInteger(id, num)
-    | PT.EString (id, str) -> ST.EString(id, str)
+    | PT.EString (id, segments) ->
+      ST.EString(id, List.map stringSegmentToST segments)
     | PT.EFloat (id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool (id, b) -> ST.EBool(id, b)
     | PT.EUnit id -> ST.EUnit id
@@ -96,6 +97,11 @@ module Expr =
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       ST.EFeatureFlag(id, name, toST cond, toST caseA, toST caseB)
+
+  and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
+    match segment with
+    | PT.StringText text -> ST.StringText text
+    | PT.StringInterpolation expr -> ST.StringInterpolation(toST expr)
 
 module DType =
   let rec toST (t : PT.DType) : ST.DType =

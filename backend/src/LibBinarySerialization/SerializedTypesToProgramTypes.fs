@@ -80,7 +80,7 @@ module Expr =
     match e with
     | ST.ECharacter (id, char) -> PT.ECharacter(id, char)
     | ST.EInteger (id, num) -> PT.EInteger(id, num)
-    | ST.EString (id, str) -> PT.EString(id, str)
+    | ST.EString (id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
     | ST.EFloat (id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool (id, b) -> PT.EBool(id, b)
     | ST.EUnit id -> PT.EUnit id
@@ -114,6 +114,10 @@ module Expr =
     | ST.EInfix (id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
 
+  and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
+    match segment with
+    | ST.StringText text -> PT.StringText text
+    | ST.StringInterpolation expr -> PT.StringInterpolation(toPT expr)
 
 module DType =
   let rec toPT (t : ST.DType) : PT.DType =

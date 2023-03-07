@@ -117,7 +117,7 @@ type Infix =
 type Expr =
   | EInteger of id * int64
   | EBool of id * bool
-  | EString of id * string
+  | EString of id * List<StringSegment>
   | ECharacter of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
@@ -136,6 +136,10 @@ type Expr =
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
+
+and StringSegment =
+  | StringText of string
+  | StringInterpolation of Expr
 
 [<MessagePack.MessagePackObject>]
 type DType =
