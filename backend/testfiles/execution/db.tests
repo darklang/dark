@@ -382,7 +382,7 @@ module QueryOneWithKey =
    |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
    // interpolated
-  (let _ = prepFriends null in
+  (let _ = prepFriends () in
    let test = "ache" in
    (DB.queryOneWithKey_v3 Person (fun p -> p.name = $"R{test}l"))
    |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
