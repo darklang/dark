@@ -32,6 +32,24 @@ module Records =
   { col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
   { col1 = 2 ; ___ = 3 } = Test.typeError "Record key is empty"
 
+module UserEnums =
+  //type Card = | A | B of string | C of i: int
+
+  //(let cards = [A; B "test"; C(5)]
+  //
+  // match List.getAt_v1 cards 1 with
+  // | Some b -> Ok b
+  // | None -> Error "Failure") = Ok (B "test")
+
+  // TODO: support enum deconstruction in `match` exprs
+  // (let cards = [A; B "test"; C 5]
+
+  // match List.getAt_v1 cards 1 with
+  // | Some (B(s)) -> Ok s
+  // | None -> Error "Failure") = Ok ("test")
+
+
+
 
 module FieldAccess =
   (let x = { col1 = 1 } in x.col1) = 1

@@ -160,7 +160,12 @@ module DB =
 module UserType =
   type RecordField = { id : id; name : string; typ : DType }
 
-  type Definition = Record of List<RecordField>
+  type EnumField = { id : id; type_ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+
+  type Definition =
+    | Record of List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
   type T = { tlid : tlid; name : UserTypeName; definition : Definition }
 

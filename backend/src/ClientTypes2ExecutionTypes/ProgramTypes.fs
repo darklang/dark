@@ -424,16 +424,40 @@ module UserType =
     let toCT (rf : PT.UserType.RecordField) : CTPT.UserType.RecordField =
       { id = rf.id; name = rf.name; typ = DType.toCT rf.typ }
 
+  module EnumField =
+    let fromCT (ef : CTPT.UserType.EnumField) : PT.UserType.EnumField =
+      { id = ef.id; type_ = DType.fromCT ef.type_; label = ef.label }
+
+    let toCT (ef : PT.UserType.EnumField) : CTPT.UserType.EnumField =
+      { id = ef.id; type_ = DType.toCT ef.type_; label = ef.label }
+
+  module EnumCase =
+    let fromCT (ec : CTPT.UserType.EnumCase) : PT.UserType.EnumCase =
+      { id = ec.id; name = ec.name; fields = List.map EnumField.fromCT ec.fields }
+
+    let toCT (ec : PT.UserType.EnumCase) : CTPT.UserType.EnumCase =
+      { id = ec.id; name = ec.name; fields = List.map EnumField.toCT ec.fields }
+
   module Definition =
     let fromCT (def : CTPT.UserType.Definition) : PT.UserType.Definition =
       match def with
       | CTPT.UserType.Definition.Record fields ->
         PT.UserType.Record(List.map RecordField.fromCT fields)
+      | CTPT.UserType.Definition.Enum (firstCase, additionalCases) ->
+        PT.UserType.Enum(
+          EnumCase.fromCT firstCase,
+          List.map EnumCase.fromCT additionalCases
+        )
 
     let toCT (def : PT.UserType.Definition) : CTPT.UserType.Definition =
       match def with
       | PT.UserType.Record fields ->
         CTPT.UserType.Definition.Record(List.map RecordField.toCT fields)
+      | PT.UserType.Definition.Enum (firstCase, additionalCases) ->
+        CTPT.UserType.Enum(
+          EnumCase.toCT firstCase,
+          List.map EnumCase.toCT additionalCases
+        )
 
   let fromCT (ut : CTPT.UserType.T) : PT.UserType.T =
     { tlid = ut.tlid

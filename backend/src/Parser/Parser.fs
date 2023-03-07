@@ -582,6 +582,16 @@ let parseTestFile (filename : string) : Module =
       { tlid = gid ()
         name = { type_ = id.idText; version = 0 }
         definition = PT.UserType.Record(List.map parseRecordField fields) }
+    // | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+    //                SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Enum (cases, _),
+    //                                        _),
+    //                members,
+    //                _,
+    //                _,
+    //                _) ->
+    //   { tlid = gid ()
+    //     name = { type_ = id.idText; version = 0 }
+    //     definition = PT.UserType.Record(List.map parseRecordField fields) }
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 

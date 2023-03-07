@@ -513,13 +513,24 @@ module ProgramTypes =
 
   let userFunctions : List<PT.UserFunction.T> = [ userFunction ]
 
-  let userType : PT.UserType.T =
+  let userRecordType : PT.UserType.T =
     { tlid = 0UL
       name = { type_ = "User"; version = 0 }
       definition =
         PT.UserType.Record [ { id = 0698978UL; name = "prop1"; typ = dtype } ] }
 
-  let userTypes : List<PT.UserType.T> = [ userType ]
+  let userEnumType : PT.UserType.T =
+    { tlid = 0UL
+      name = { type_ = "User"; version = 0 }
+      definition =
+        PT.UserType.Enum(
+          { id = 0698978UL; name = "caseA"; fields = [] },
+          [ { id = 0698978UL
+              name = "caseB"
+              fields = [ { id = 178567123UL; type_ = dtype; label = Some "i" } ] } ]
+        ) }
+
+  let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
 
   let packageFn : PT.Package.Fn =
     { name =
@@ -563,7 +574,7 @@ module ProgramTypes =
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
       PT.CreateDBWithBlankOr(tlid, id, "User")
-      PT.SetType(userType)
+      PT.SetType(userRecordType)
       PT.DeleteType tlid ]
 
   let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2" }

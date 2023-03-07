@@ -215,6 +215,17 @@ module UserType =
               { id = rf.id; name = rf.name; typ = DType.toST rf.typ })
             fields
         )
+      | PT.UserType.Enum (firstCase, additionalCases) ->
+        let mapCase (c : PT.UserType.EnumCase) : ST.UserType.EnumCase =
+          { id = c.id
+            name = c.name
+            fields =
+              List.map
+                (fun (f : PT.UserType.EnumField) ->
+                  { id = f.id; type_ = DType.toST f.type_; label = f.label })
+                c.fields }
+
+        ST.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)
 
   let toST (t : PT.UserType.T) : ST.UserType.T =
     { tlid = t.tlid

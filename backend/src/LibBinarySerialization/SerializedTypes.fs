@@ -269,7 +269,27 @@ module UserType =
       typ : DType }
 
   [<MessagePack.MessagePackObject>]
-  type Definition = Record of List<RecordField>
+  type EnumField =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      type_ : DType
+      [<MessagePack.Key 2>]
+      label : Option<string> }
+
+  [<MessagePack.MessagePackObject>]
+  type EnumCase =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      fields : List<EnumField> }
+
+  [<MessagePack.MessagePackObject>]
+  type Definition =
+    | Record of List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
   [<MessagePack.MessagePackObject>]
   type T =

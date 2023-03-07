@@ -248,6 +248,7 @@ module DB =
           db.cols }
 
 module UserType =
+
   module Definition =
     let toRT (d : PT.UserType.Definition) : RT.UserType.Definition =
       match d with
@@ -255,14 +256,24 @@ module UserType =
         RT.UserType.Record(
           List.map
             (fun (rf : PT.UserType.RecordField) ->
-              { name = rf.name; typ = DType.toRT rf.typ })
+              { id = rf.id; name = rf.name; typ = DType.toRT rf.typ })
             fields
         )
+      | PT.UserType.Enum (firstCase, additionalCases) ->
+        let mapCase (c : PT.UserType.EnumCase) : RT.UserType.EnumCase =
+          { id = c.id
+            name = c.name
+            fields =
+              List.map
+                (fun (f : PT.UserType.EnumField) ->
+                  { id = f.id; type_ = DType.toRT f.type_; label = f.label })
+                c.fields }
+
+        RT.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)
 
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
       name = UserTypeName.toRT t.name
-      //version = t.version
       definition = Definition.toRT t.definition }
 
 module UserFunction =
