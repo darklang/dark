@@ -414,8 +414,10 @@
                 "usertype",
                 [
                   "TUserType",
-                  "name",
-                  0
+                  {
+                    "type_": "name",
+                    "version": 0
+                  }
                 ]
               ],
               [
@@ -646,8 +648,10 @@
             "usertype",
             [
               "TUserType",
-              "name",
-              0
+              {
+                "type_": "name",
+                "version": 0
+              }
             ]
           ],
           [
@@ -8344,8 +8348,10 @@
                   "usertype",
                   [
                     "TUserType",
-                    "name",
-                    0
+                    {
+                      "type_": "name",
+                      "version": 0
+                    }
                   ]
                 ],
                 [
@@ -8576,8 +8582,10 @@
               "usertype",
               [
                 "TUserType",
-                "name",
-                0
+                {
+                  "type_": "name",
+                  "version": 0
+                }
               ]
             ],
             [
@@ -9313,9 +9321,10 @@
     "userTypes": [
       {
         "tlid": 0,
-        "name": "User",
-        "nameID": 92930232,
-        "version": 0,
+        "name": {
+          "type_": "User",
+          "version": 0
+        },
         "definition": [
           "Record",
           [
@@ -9496,8 +9505,10 @@
                     "usertype",
                     [
                       "TUserType",
-                      "name",
-                      0
+                      {
+                        "type_": "name",
+                        "version": 0
+                      }
                     ]
                   ],
                   [
@@ -10413,8 +10424,10 @@
                   "usertype",
                   [
                     "TUserType",
-                    "name",
-                    0
+                    {
+                      "type_": "name",
+                      "version": 0
+                    }
                   ]
                 ],
                 [
@@ -10644,8 +10657,10 @@
               "usertype",
               [
                 "TUserType",
-                "name",
-                0
+                {
+                  "type_": "name",
+                  "version": 0
+                }
               ]
             ],
             [

@@ -41,7 +41,7 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TUserType("test", 1)
+      RT.TUserType({ type_ = "User"; version = 0 })
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
       RT.TVariable "test"
@@ -421,7 +421,7 @@ module ProgramTypes =
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
-                 ("usertype", PT.TUserType("name", 0))
+                 ("usertype", PT.TUserType({ type_ = "name"; version = 0 }))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))
                  ("variable", PT.TVariable "v")
@@ -520,9 +520,7 @@ module ProgramTypes =
 
   let userType : PT.UserType.T =
     { tlid = 0UL
-      name = "User"
-      nameID = 92930232UL
-      version = 0
+      name = { type_ = "User"; version = 0 }
       definition =
         PT.UserType.Record [ { name = "prop1"
                                typ = None

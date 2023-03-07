@@ -91,7 +91,8 @@ module Generators =
               (Gen.listOfLength
                 size
                 (Gen.zip G.safeUnicodeString (genExpr' typ (size / 2))))
-        | RT.TUserType (_name, _version) ->
+        | RT.TUserType _ ->
+          // TODO: generate based on the type^
           let! typ = Arb.generate<RT.DType>
 
           return!
@@ -275,7 +276,8 @@ module Generators =
           let! source = Arb.generate<RT.DvalSource>
           let! str = Arb.generate<string>
           return RT.DError(source, str)
-        | RT.TUserType (_name, _version) ->
+        | RT.TUserType _ ->
+          // TODO: generate based on the type^
           let! list =
             Gen.listOfLength s (Gen.zip (G.safeUnicodeString) (genDval' typ (s / 2)))
 

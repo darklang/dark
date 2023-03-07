@@ -32,7 +32,7 @@ let rec typeName (t : DType) : string =
   | TUuid -> "UUID"
   | TOption _ -> "Option"
   | TResult _ -> "Result"
-  | TUserType (name, _) -> name
+  | TUserType t -> t.type_
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName

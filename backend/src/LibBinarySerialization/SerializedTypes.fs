@@ -45,6 +45,22 @@ type Sign = Prelude.Sign
 // - change the type of a field in a record
 // - removing a field from a variant (eg remove b to X(a,b))
 
+
+/// A Fully-Qualified Type Name
+/// Includes package, module, and version information where relevant.
+module FQTypeName =
+  /// A UserType is a type written by a Developer in their canvas
+  [<MessagePack.MessagePackObject>]
+  type UserTypeName =
+    { [<MessagePack.Key 0>]
+      type_ : string
+
+      [<MessagePack.Key 1>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type T = User of UserTypeName
+
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
@@ -170,7 +186,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of string * int
+  | TUserType of FQTypeName.UserTypeName
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -267,12 +283,8 @@ module UserType =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : string
+      name : FQTypeName.UserTypeName
       [<MessagePack.Key 2>]
-      nameID : id
-      [<MessagePack.Key 3>]
-      version : int
-      [<MessagePack.Key 4>]
       definition : Definition }
 
 module UserFunction =

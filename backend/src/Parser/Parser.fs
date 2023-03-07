@@ -593,9 +593,7 @@ let parseTestFile (filename : string) : Module =
                    _,
                    _) ->
       { tlid = gid ()
-        name = id.idText
-        nameID = gid ()
-        version = 0
+        name = { type_ = id.idText; version = 0 }
         definition = PT.UserType.Record(List.map parseRecordField fields) }
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]

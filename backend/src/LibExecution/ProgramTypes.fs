@@ -5,6 +5,14 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+/// A Fully-Qualified Type Name
+/// Includes package, module, and version information where relevant.
+module FQTypeName =
+  /// A UserType is a type written by a Developer in their canvas
+  type UserTypeName = { type_ : string; version : int }
+
+  type T = User of UserTypeName
+
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
@@ -185,7 +193,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of string * int
+  | TUserType of FQTypeName.UserTypeName
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`, matches anything
@@ -193,10 +201,6 @@ type DType =
   | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
-// This allows you to build up a record to eventually be the right shape.
-// | TRecordWithFields of List<string * DType>
-// | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-// | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
 
 
 module Handler =
@@ -234,12 +238,7 @@ module UserType =
   type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
   type Definition = Record of List<RecordField>
 
-  type T =
-    { tlid : tlid
-      name : string
-      nameID : id
-      version : int
-      definition : Definition }
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =
   type Parameter =

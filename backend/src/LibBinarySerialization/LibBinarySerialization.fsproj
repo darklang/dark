@@ -18,6 +18,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="SerializedTypes.fs" />
+    <!-- TODO: consider merging the below 2 files into one module? -->
     <Compile Include="SerializedTypesToProgramTypes.fs" />
     <Compile Include="ProgramTypesToSerializedTypes.fs" />
     <Compile Include="BinarySerialization.fs" />

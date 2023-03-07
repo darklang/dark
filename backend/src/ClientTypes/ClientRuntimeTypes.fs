@@ -8,6 +8,13 @@ module ClientTypes.Runtime
 open Prelude
 open Tablecloth
 
+/// A Fully-Qualified Type Name
+/// Includes package, module, and version information where relevant.
+module FQTypeName =
+  /// A UserType is a type written by a Developer in their canvas
+  type UserTypeName = { type_ : string; version : int }
+
+  type T = User of UserTypeName
 
 module FQFnName =
   type UserFnName = string
@@ -45,7 +52,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of string * int
+  | TUserType of FQTypeName.UserTypeName
   | TBytes
   | TResult of DType * DType
   | TVariable of string

@@ -203,14 +203,12 @@ let testUserFn
             description = "test" })
         parameters }
 
-let testUserType
-  (name : string)
+let tesTUserType
+  (name : PT.FQTypeName.UserTypeName)
   (definition : List<string * PT.DType>)
   : PT.UserType.T =
   { tlid = gid ()
     name = name
-    nameID = gid ()
-    version = 0
     definition =
       definition
       |> List.map (fun (name, typ) ->

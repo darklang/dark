@@ -10,6 +10,24 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+module FQTypeName =
+
+  module UserTypeName =
+    let fromCT (u : CTPT.FQTypeName.UserTypeName) : PT.FQTypeName.UserTypeName =
+      { type_ = u.type_; version = u.version }
+
+    let toCT (u : PT.FQTypeName.UserTypeName) : CTPT.FQTypeName.UserTypeName =
+      { type_ = u.type_; version = u.version }
+
+  let fromCT (t : CTPT.FQTypeName.T) : PT.FQTypeName.T =
+    match t with
+    | CTPT.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.fromCT u)
+
+  let toCT (t : PT.FQTypeName.T) : CTPT.FQTypeName.T =
+    match t with
+    | PT.FQTypeName.User u -> CTPT.FQTypeName.User(UserTypeName.toCT u)
+
+
 module FQFnName =
   module StdlibFnName =
     let fromCT (name : CTPT.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
@@ -266,7 +284,7 @@ module DType =
     | CTPT.DType.TPassword -> PT.TPassword
     | CTPT.DType.TUuid -> PT.TUuid
     | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
-    | CTPT.DType.TUserType (name, v) -> PT.TUserType(name, v)
+    | CTPT.DType.TUserType t -> PT.TUserType(FQTypeName.UserTypeName.fromCT t)
     | CTPT.DType.TBytes -> PT.TBytes
     | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
     | CTPT.DType.TVariable (name) -> PT.TVariable(name)
@@ -295,7 +313,7 @@ module DType =
     | PT.TPassword -> CTPT.DType.TPassword
     | PT.TUuid -> CTPT.DType.TUuid
     | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
-    | PT.TUserType (name, v) -> CTPT.DType.TUserType(name, v)
+    | PT.TUserType t -> CTPT.DType.TUserType(FQTypeName.UserTypeName.toCT t)
     | PT.TBytes -> CTPT.DType.TBytes
     | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
     | PT.TVariable (name) -> CTPT.DType.TVariable(name)
@@ -419,16 +437,12 @@ module UserType =
 
   let fromCT (ut : CTPT.UserType.T) : PT.UserType.T =
     { tlid = ut.tlid
-      name = ut.name
-      nameID = ut.nameID
-      version = ut.version
+      name = FQTypeName.UserTypeName.fromCT ut.name
       definition = Definition.fromCT ut.definition }
 
   let toCT (ut : PT.UserType.T) : CTPT.UserType.T =
     { tlid = ut.tlid
-      name = ut.name
-      nameID = ut.nameID
-      version = ut.version
+      name = FQTypeName.UserTypeName.toCT ut.name
       definition = Definition.toCT ut.definition }
 
 

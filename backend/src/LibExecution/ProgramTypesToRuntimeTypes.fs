@@ -8,6 +8,17 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
+module FQTypeName =
+
+  module UserTypeName =
+    let toRT (u : PT.FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
+      { type_ = u.type_; version = u.version }
+
+  let toRT (t : PT.FQTypeName.T) : RT.FQTypeName.T =
+    match t with
+    | PT.FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.toRT u)
+
+
 module FQFnName =
   module PackageFnName =
     let toRT (name : PT.FQFnName.PackageFnName) : RT.FQFnName.PackageFnName =
@@ -193,7 +204,7 @@ module DType =
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
     | PT.TOption typ -> RT.TOption(toRT typ)
-    | PT.TUserType (name, version) -> RT.TUserType(name, version)
+    | PT.TUserType typeName -> RT.TUserType(FQTypeName.UserTypeName.toRT typeName)
     | PT.TBytes -> RT.TBytes
     | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)
     | PT.TVariable (name) -> RT.TVariable(name)
@@ -245,7 +256,7 @@ module UserType =
     let toRT (d : PT.UserType.Definition) : RT.UserType.Definition =
       match d with
       | PT.UserType.Record fields ->
-        RT.UserType.UTRecord(
+        RT.UserType.Record(
           List.filterMap
             (fun (rf : PT.UserType.RecordField) ->
               match rf.typ with
@@ -256,8 +267,8 @@ module UserType =
 
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
-      name = t.name
-      version = t.version
+      name = FQTypeName.UserTypeName.toRT t.name
+      //version = t.version
       definition = Definition.toRT t.definition }
 
 module UserFunction =
