@@ -26,7 +26,7 @@ let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
-    let! meta = initializeTestCanvas (Randomized "db_oplist_roundtrip")
+    let! meta = initializeTestCanvas "db_oplist_roundtrip"
 
     let db = testDB "myDB" []
     let oplist =
@@ -43,7 +43,7 @@ let testDBOplistRoundtrip : Test =
 
 let testHttpOplistRoundtrip =
   testTask "test http oplist roundtrip" {
-    let! meta = initializeTestCanvas (Randomized "http_oplist_roundtrip")
+    let! meta = initializeTestCanvas "http_oplist_roundtrip"
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let oplist = [ hop handler ]
@@ -62,7 +62,7 @@ let testHttpOplistRoundtrip =
 
 let testHttpOplistLoadsUserTypes =
   testTask "httpOplistLoadsUserTypes" {
-    let! meta = initializeTestCanvas (Randomized "http_oplist_loads_user_tipes")
+    let! meta = initializeTestCanvas "http_oplist_loads_user_tipes"
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let typ = testUserType "test-tipe" [ ("age", PT.TInt) ]
@@ -85,7 +85,7 @@ let testHttpOplistLoadsUserTypes =
 
 let testUndoTooFarDoesntBreak =
   testTask "undo too far doesnt break" {
-    let! meta = initializeTestCanvas (Randomized "undo too far doesnt break")
+    let! meta = initializeTestCanvas "undo too far doesnt break"
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     do!
       Canvas.saveTLIDs
@@ -134,7 +134,7 @@ let testUndoTooFarDoesntBreak =
 
 let testHttpLoadIgnoresDeletedHandler =
   testTask "Http load ignores deleted handler" {
-    let! meta = initializeTestCanvas (Randomized "http-load-ignores-deleted-handler")
+    let! meta = initializeTestCanvas "http-load-ignores-deleted-handler"
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     do!
       Canvas.saveTLIDs
@@ -174,7 +174,7 @@ let testHttpLoadIgnoresDeletedHandler =
 
 let testHttpLoadIgnoresDeletedFns =
   testTask "Http load ignores deleted fns" {
-    let! meta = initializeTestCanvas (Randomized "http-load-ignores-deleted-fns")
+    let! meta = initializeTestCanvas "http-load-ignores-deleted-fns"
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
     let f = testUserFn "testfn" [] (parse "5 + 3")
@@ -215,7 +215,7 @@ let testHttpLoadIgnoresDeletedFns =
 
 let testDbCreateWithOrblankName =
   testTask "DB create with orblank name" {
-    let! meta = initializeTestCanvas (Randomized "db-create-with-orblank-name")
+    let! meta = initializeTestCanvas "db-create-with-orblank-name"
 
     let dbid = gid ()
     let nameID = gid ()
@@ -239,7 +239,7 @@ let testDbCreateWithOrblankName =
 
 let testDbRename =
   testTask "DB rename" {
-    let! meta = initializeTestCanvas (Randomized "db-rename")
+    let! meta = initializeTestCanvas "db-rename"
 
     let dbid = gid ()
     let nameID = gid ()
@@ -256,7 +256,7 @@ let testDbRename =
 
 let testSetHandlerAfterDelete =
   testTask "handler set after delete" {
-    let! meta = initializeTestCanvas (Randomized "set-handlder-after-delete")
+    let! meta = initializeTestCanvas "set-handlder-after-delete"
     let e1 = (parse "5 + 3")
     let e2 = (parse "5 + 2")
     let h1 = testHttpRouteHandler "/path" "GET" e1
@@ -293,7 +293,7 @@ let testSetHandlerAfterDelete =
 
 let testSetFunctionAfterDelete =
   testTask "function set after delete" {
-    let! meta = initializeTestCanvas (Randomized "db-set-function-after-delete")
+    let! meta = initializeTestCanvas "db-set-function-after-delete"
     let f1 = testUserFn "testfn" [] (parse "5 + 3")
     let f2 = testUserFn "testfn" [] (parse "6 + 4")
     let op1 = PT.SetFunction f1
@@ -329,7 +329,7 @@ let testSetFunctionAfterDelete =
 
 let testLoadAllDBs =
   testTask "load all dbs" {
-    let! meta = initializeTestCanvas (Randomized "load-all-dbs")
+    let! meta = initializeTestCanvas "load-all-dbs"
     let dbid1, dbid2, dbid3 = gid (), gid (), gid ()
     let nameid1, nameid2, nameid3 = gid (), gid (), gid ()
     let ops1 = [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books"); PT.DeleteTL dbid1 ]
@@ -351,8 +351,7 @@ let testLoadAllDBs =
 
 let testCanvasVerificationDuplicationCreation =
   testTask "canvas verification duplication creation" {
-    let! meta =
-      initializeTestCanvas (Randomized "canvas-verification-duplication-creation")
+    let! meta = initializeTestCanvas "canvas-verification-duplication-creation"
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -368,9 +367,8 @@ let testCanvasVerificationDuplicationCreation =
 let testCanvasVerificationDuplicationCreationOffDisk =
   testTask "canvas verification duplication creation off disk" {
     let! meta =
-      initializeTestCanvas (
-        Randomized "canvas-verification-duplication-creation-off-disk"
-      )
+      initializeTestCanvas "canvas-verification-duplication-creation-off-disk"
+
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     // same name
@@ -397,8 +395,7 @@ let testCanvasVerificationDuplicationCreationOffDisk =
 
 let testCanvasVerificationDuplicationRenaming =
   testTask "canvas verification duplication renaming" {
-    let! meta =
-      initializeTestCanvas (Randomized "canvas-verification-duplication-renaming")
+    let! meta = initializeTestCanvas "canvas-verification-duplication-renaming"
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -414,7 +411,7 @@ let testCanvasVerificationDuplicationRenaming =
 
 let testCanvasVerificationNoError =
   testTask "canvas verification no error" {
-    let! meta = initializeTestCanvas (Randomized "canvas-verification-no-error")
+    let! meta = initializeTestCanvas "canvas-verification-no-error"
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops =
@@ -428,8 +425,7 @@ let testCanvasVerificationNoError =
 
 let testCanvasVerificationUndoRenameDupedName =
   testTask "canvas verification undo rename duped name" {
-    let! meta =
-      initializeTestCanvas (Randomized "canvas-verification-undo-rename-duped-name")
+    let! meta = initializeTestCanvas "canvas-verification-undo-rename-duped-name"
     let dbid1, dbid2 = gid (), gid ()
     let nameid1, nameid2 = gid (), gid ()
     let ops1 =

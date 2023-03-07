@@ -1,12 +1,12 @@
-[fn.d datestr:string]
-(DateTime.parse_v2 datestr) |> Test.unwrap
+let d (datestr:string) =
+  (DateTime.parse_v2 datestr) |> Test.unwrap
 
-[fn.p datestr:string]
-(DateTime.parse_v2 datestr) |> Result.map_v1 (fun x -> DateTime.toString_v0 x)
+let p (datestr:string) =
+  (DateTime.parse_v2 datestr) |> Result.map_v1 (fun x -> DateTime.toString_v0 x)
 
-[tests.date parsing]
-(DateTime.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v1 (fun x -> DateTime.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
-DateTime.parse_v2 "asd" = Error "Invalid date format"
+module DateParsing =
+  (DateTime.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v1 (fun x -> DateTime.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
+  DateTime.parse_v2 "asd" = Error "Invalid date format"
 
 // Parse in both
 p "2000-11-22 09:10:15" = Ok "2000-11-22T09:10:15Z"
@@ -128,100 +128,99 @@ p " 2006-06-09T10:20:30.040+02:00" = Error "Invalid date format"
 p "2006-06-09T10:20:30.040+02:00 " = Error "Invalid date format"
 p " 2006-06-09T10:20:30.040+02:00 " = Error "Invalid date format"
 
-[tests.date inequality]
-// <
-DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
+module LessThan =
+  DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
+  DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
 
-// <=
-DateTime.lessThanOrEqualTo (d "2021-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = false
-DateTime.lessThanOrEqualTo (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
+module LessThanOrEquals =
+  DateTime.lessThanOrEqualTo (d "2021-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = false
+  DateTime.lessThanOrEqualTo (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
 
-// >
-DateTime.greaterThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-DateTime.greaterThan (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
+module GreaterThan =
+  DateTime.greaterThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
+  DateTime.greaterThan (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
 
-// >=
-DateTime.greaterThanOrEqualTo (d "2019-11-26T04:37:46Z") (d "2020-07-28T22:42:36Z") = false
-DateTime.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
+module GreaterThanOrEquals =
+  DateTime.greaterThanOrEqualTo (d "2019-11-26T04:37:46Z") (d "2020-07-28T22:42:36Z") = false
+  DateTime.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
 
-[tests.date field]
-DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019
-DateTime.month_v0 (d "2019-07-28T22:42:36Z") = 7
-DateTime.day_v0 (d "2019-07-28T22:42:36Z") = 28
-DateTime.hour_v2 (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
-DateTime.minute_v1 (d "2019-07-28T22:42:36Z") = 42
-DateTime.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
-DateTime.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
-DateTime.weekday_v0 (d "2019-07-24T22:42:36Z") = 3
-DateTime.weekday_v0 (d "2019-07-25T22:42:36Z") = 4
-DateTime.weekday_v0 (d "2019-07-26T22:42:36Z") = 5
-DateTime.weekday_v0 (d "2019-07-27T22:42:36Z") = 6
-DateTime.weekday_v0 (d "2019-07-28T22:42:36Z") = 7
+module Fields =
+  DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019
+  DateTime.month_v0 (d "2019-07-28T22:42:36Z") = 7
+  DateTime.day_v0 (d "2019-07-28T22:42:36Z") = 28
+  DateTime.hour_v2 (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
+  DateTime.minute_v1 (d "2019-07-28T22:42:36Z") = 42
+  DateTime.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
+  DateTime.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
+  DateTime.weekday_v0 (d "2019-07-24T22:42:36Z") = 3
+  DateTime.weekday_v0 (d "2019-07-25T22:42:36Z") = 4
+  DateTime.weekday_v0 (d "2019-07-26T22:42:36Z") = 5
+  DateTime.weekday_v0 (d "2019-07-27T22:42:36Z") = 6
+  DateTime.weekday_v0 (d "2019-07-28T22:42:36Z") = 7
 
 
-[tests.date before the epoch is negative - 1919]
-DateTime.year_v0 (d "1919-07-28T22:42:36Z") = 1919
-DateTime.month_v0 (d "1919-07-28T22:42:36Z") = 7
-DateTime.day_v0 (d "1919-07-28T22:42:36Z") = 28
-DateTime.weekday_v0 (d "1919-07-28T22:42:36Z") = 1
-DateTime.hour_v2 (d "1919-12-27T03:27:36Z")  = 3
-DateTime.minute_v1 (d "1919-07-28T22:42:36Z") = 42
-DateTime.second_v1 (d "1919-07-28T22:42:36Z") = 36
+module Epoch1919 =
+  DateTime.year_v0 (d "1919-07-28T22:42:36Z") = 1919
+  DateTime.month_v0 (d "1919-07-28T22:42:36Z") = 7
+  DateTime.day_v0 (d "1919-07-28T22:42:36Z") = 28
+  DateTime.weekday_v0 (d "1919-07-28T22:42:36Z") = 1
+  DateTime.hour_v2 (d "1919-12-27T03:27:36Z")  = 3
+  DateTime.minute_v1 (d "1919-07-28T22:42:36Z") = 42
+  DateTime.second_v1 (d "1919-07-28T22:42:36Z") = 36
 
-[tests.date before the epoch is negative: 1969]
-DateTime.year_v0 (d "1969-07-28T22:42:36Z") = 1969
-DateTime.month_v0 (d "1969-07-28T22:42:36Z") = 7
-DateTime.day_v0 (d "1969-07-28T22:42:36Z") = 28
-DateTime.weekday_v0 (d "1969-07-28T22:42:36Z") = 1
-DateTime.hour_v2 (d "1969-12-27T03:27:36Z")  = 3
-DateTime.minute_v1 (d "1969-07-28T22:42:36Z") = 42
-DateTime.second_v1 (d "1969-07-28T22:42:36Z") = 36
+module Epoch1969 =
+  DateTime.year_v0 (d "1969-07-28T22:42:36Z") = 1969
+  DateTime.month_v0 (d "1969-07-28T22:42:36Z") = 7
+  DateTime.day_v0 (d "1969-07-28T22:42:36Z") = 28
+  DateTime.weekday_v0 (d "1969-07-28T22:42:36Z") = 1
+  DateTime.hour_v2 (d "1969-12-27T03:27:36Z")  = 3
+  DateTime.minute_v1 (d "1969-07-28T22:42:36Z") = 42
+  DateTime.second_v1 (d "1969-07-28T22:42:36Z") = 36
 
-[tests.date before the epoch is negative: 1970]
-DateTime.year_v0    (d "1970-07-28T22:42:36Z") = 1970
-DateTime.month_v0   (d "1970-07-28T22:42:36Z") = 7
-DateTime.day_v0     (d "1970-07-28T22:42:36Z") = 28
-DateTime.weekday_v0 (d "1970-07-28T22:42:36Z") = 2
-DateTime.hour_v2    (d "1970-12-27T03:27:36Z")  = 3
-DateTime.minute_v1  (d "1970-07-28T22:42:36Z") = 42
-DateTime.minute_v1  (d "1970-07-28T22:42:36Z") = 42
-DateTime.second_v1  (d "1970-07-28T22:42:36Z") = 36
-DateTime.second_v1  (d "1970-07-28T22:42:36Z") = 36
+module Epoch1970 =
+  DateTime.year_v0    (d "1970-07-28T22:42:36Z") = 1970
+  DateTime.month_v0   (d "1970-07-28T22:42:36Z") = 7
+  DateTime.day_v0     (d "1970-07-28T22:42:36Z") = 28
+  DateTime.weekday_v0 (d "1970-07-28T22:42:36Z") = 2
+  DateTime.hour_v2    (d "1970-12-27T03:27:36Z")  = 3
+  DateTime.minute_v1  (d "1970-07-28T22:42:36Z") = 42
+  DateTime.minute_v1  (d "1970-07-28T22:42:36Z") = 42
+  DateTime.second_v1  (d "1970-07-28T22:42:36Z") = 36
+  DateTime.second_v1  (d "1970-07-28T22:42:36Z") = 36
 
-[tests.date conversion]
-DateTime.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
-DateTime.atStartOfDay_v0 (d "2019-07-28T22:42:36Z") = (d "2019-07-28T00:00:00Z")
-DateTime.toSeconds_v0 (d "2019-07-28T22:42:36Z") = 1564353756
-DateTime.toSeconds_v0 (d "2075-11-14T11:01:35Z") = 3340954895L
-DateTime.toStringISO8601BasicDateTime_v0 (d "2019-07-28T22:42:36Z") = "20190728T224236Z"
-DateTime.toStringISO8601BasicDateTime_v0 (d "1919-07-28T22:42:36Z") = "19190728T224236Z"
-DateTime.toStringISO8601BasicDate_v0 (d "2019-07-28T22:42:36Z") = "20190728"
-DateTime.toStringISO8601BasicDate_v0 (d "1069-07-28T22:42:36Z") = "10690728"
-1095379198 |> DateTime.fromSeconds_v0 |> DateTime.toSeconds_v0 = 1095379198
-(d "2019-07-28T22:42:36Z") |> DateTime.toSeconds_v0 |> DateTime.fromSeconds_v0 |> DateTime.toString_v0 = "2019-07-28T22:42:36Z"
-// DateTime.today_v0 |> DateTime.toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
+module Convertsion =
+  DateTime.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
+  DateTime.atStartOfDay_v0 (d "2019-07-28T22:42:36Z") = (d "2019-07-28T00:00:00Z")
+  DateTime.toSeconds_v0 (d "2019-07-28T22:42:36Z") = 1564353756
+  DateTime.toSeconds_v0 (d "2075-11-14T11:01:35Z") = 3340954895L
+  DateTime.toStringISO8601BasicDateTime_v0 (d "2019-07-28T22:42:36Z") = "20190728T224236Z"
+  DateTime.toStringISO8601BasicDateTime_v0 (d "1919-07-28T22:42:36Z") = "19190728T224236Z"
+  DateTime.toStringISO8601BasicDate_v0 (d "2019-07-28T22:42:36Z") = "20190728"
+  DateTime.toStringISO8601BasicDate_v0 (d "1069-07-28T22:42:36Z") = "10690728"
+  1095379198 |> DateTime.fromSeconds_v0 |> DateTime.toSeconds_v0 = 1095379198
+  (d "2019-07-28T22:42:36Z") |> DateTime.toSeconds_v0 |> DateTime.fromSeconds_v0 |> DateTime.toString_v0 = "2019-07-28T22:42:36Z"
+  // DateTime.today_v0 |> DateTime.toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
 
-[tests.date adding seconds]
-DateTime.add_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
-DateTime.add_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:47Z")
-DateTime.add_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:56Z")
-DateTime.add_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-12-07T18:24:26Z")
-DateTime.add_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:36Z")
+module AddingSeconds =
+  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
+  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:47Z")
+  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:56Z")
+  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-12-07T18:24:26Z")
+  DateTime.add_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:36Z")
 
-[tests.date subtracting seconds]
-DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
-DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:45Z")
-DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:36Z")
-DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-11-14T14:51:06Z")
-DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:56Z")
+module SubtractingSeconds =
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:45Z")
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:36Z")
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-11-14T14:51:06Z")
+  DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:56Z")
 
-[tests.date difference]
-DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0L
-DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:45Z") = 1L
-DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:36Z") = 10L
-DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:56Z") = -10L
-DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-14T14:51:06Z") = 1000000L
-DateTime.subtract_v1 (d "2020-11-14T14:51:06Z") (d "2020-11-26T04:37:46Z") = -1000000L
-DateTime.subtract_v1 (d "1921-01-01T12:00:00Z") (d "2021-01-01T12:00:00Z") = -3155760000L
-DateTime.subtract_v1 (d "2021-01-01T12:00:00Z") (d "1921-01-01T12:00:00Z") = 3155760000L
+module Difference =
+  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0L
+  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:45Z") = 1L
+  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:36Z") = 10L
+  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:56Z") = -10L
+  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-14T14:51:06Z") = 1000000L
+  DateTime.subtract_v1 (d "2020-11-14T14:51:06Z") (d "2020-11-26T04:37:46Z") = -1000000L
+  DateTime.subtract_v1 (d "1921-01-01T12:00:00Z") (d "2021-01-01T12:00:00Z") = -3155760000L
+  DateTime.subtract_v1 (d "2021-01-01T12:00:00Z") (d "1921-01-01T12:00:00Z") = 3155760000L

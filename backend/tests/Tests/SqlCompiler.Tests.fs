@@ -21,7 +21,7 @@ let compile
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
-    let! meta = createTestCanvas (Randomized "sqlcompiler")
+    let! meta = createTestCanvas "sqlcompiler"
     let! state = executionStateFor meta Map.empty Map.empty
 
     try
@@ -132,7 +132,7 @@ let partialEvaluation =
     "partialEvaluate"
     (fun (expr, vars) ->
       task {
-        let! meta = createTestCanvas (Randomized "sqlcompiler")
+        let! meta = createTestCanvas "sqlcompiler"
         let! state = executionStateFor meta Map.empty Map.empty
         let expr = Parser.parseRTExpr expr
         let result = C.partiallyEvaluate state "x" (Map vars) expr

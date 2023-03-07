@@ -53,7 +53,7 @@ let testBasicTypecheckWorks : Test =
 let testArguments : Test =
   let t (name, returnType, body) =
     task {
-      let! meta = createTestCanvas (Randomized name)
+      let! meta = createTestCanvas name
       let userFn : RT.UserFunction.T =
         { tlid = id 7
           name = name

@@ -417,7 +417,7 @@ type Generator =
 let isOk ((fn, args) : FnAndArgs) : bool =
   (task {
     // evaluate the fn call against both backends
-    let! meta = initializeTestCanvas (Randomized "ExecutePureFunction")
+    let! meta = initializeTestCanvas "ExecutePureFunction"
     let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
 
     let ast =

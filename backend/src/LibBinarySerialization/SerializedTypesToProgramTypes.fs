@@ -221,7 +221,7 @@ module UserFunction =
     let toPT (p : ST.UserFunction.Parameter) : PT.UserFunction.Parameter =
       { name = p.name
         nameID = p.nameID
-        typ = p.typ |> Option.map DType.toPT
+        typ = DType.toPT p.typ
         typeID = p.typeID
         description = p.description }
 

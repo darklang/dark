@@ -155,7 +155,7 @@ let makeTest versionName filename =
 
 
   // Load the testcases first so that redirection works
-  testTask $"HttpClient files: {filename}" {
+  testTask testName {
     // debuG "expectedRequest" (toStr expectedRequest)
     // debuG "response" (toStr response)
     // debuG "darkCode" darkCode
@@ -164,16 +164,13 @@ let makeTest versionName filename =
       skiptest $"underscore test - {testName}"
     else
       let! admin = testAdmin.Force()
+
       // Set up the canvas
-      let! meta =
-        createCanvasForOwner
-          admin
-          (Randomized $"httpclient-{versionName}-{testName}")
-      //createTestCanvas (Randomized $"httpclient-{versionName}-{testName}")
+      let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"
       let! state = executionStateFor meta Map.empty Map.empty
 
       // Parse the Dark code
-      let shouldEqual, actualDarkProg, expectedResult =
+      let test =
         darkCode
         |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
@@ -185,7 +182,7 @@ let makeTest versionName filename =
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT actualDarkProg)
+      let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT test.actual)
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]
@@ -200,13 +197,8 @@ let makeTest versionName filename =
       // Second check: expected result (Dval) matches actual result (Dval)
       let actual = normalizeDvalResult actual
 
-      let! expected =
-        Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedResult)
-
-      if shouldEqual then
-        Expect.equalDval actual expected $"Responses don't match"
-      else
-        Expect.notEqual actual expected $"Responses don't match"
+      let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT test.expected)
+      return Expect.equalDval actual expected $"Responses don't match"
   }
 
 
@@ -388,5 +380,5 @@ let tests =
   versions
   |> List.map (fun versionName ->
     let tests = testsFromFiles versionName
-    testList $"From files, {versionName}" tests)
+    testList versionName tests)
   |> testList "HttpClient"

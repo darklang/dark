@@ -71,7 +71,8 @@ let main (args : string array) : int =
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang
-    let exitCode = runTestsWithCLIArgs [] args (testList "tests" tests)
+    let exitCode =
+      runTestsWithCLIArgs [ Allow_Duplicate_Names ] args (testList "tests" tests)
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()

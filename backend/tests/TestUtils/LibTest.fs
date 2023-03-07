@@ -423,7 +423,6 @@ let fns : List<BuiltInFn> =
       returnType = TVariable "a"
       description =
         "Unwrap an Option or Result, returning the value or a DError if Nothing"
-
       fn =
         (function
         | _, [ DOption opt ] ->
@@ -442,6 +441,22 @@ let fns : List<BuiltInFn> =
                   SourceNone,
                   ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
                 ))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "Test" "setExpectedExceptionCount" 0
+      parameters = [ Param.make "count" TInt "" ]
+      returnType = TUnit
+      description = "Set the expected exception count for the current test"
+      fn =
+        (function
+        | state, [ DInt count ] ->
+          uply {
+            state.test.expectedExceptionCount <- int count
+            return DUnit
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

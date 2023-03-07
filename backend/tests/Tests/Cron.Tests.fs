@@ -35,7 +35,7 @@ let testCronFetchActiveCrons =
 
 let testCronSanity =
   testTask "cron sanity" {
-    let! meta = initializeTestCanvas (Randomized "cron-sanity")
+    let! meta = initializeTestCanvas "cron-sanity"
 
     let h = testCron "test" PT.Handler.EveryDay (p " 5 + 3")
     let oplists = [ handlerOp h ]
@@ -60,7 +60,7 @@ let testCronSanity =
 
 let testCronJustRan =
   testTask "test cron just ran" {
-    let! meta = initializeTestCanvas (Randomized "cron-just-ran")
+    let! meta = initializeTestCanvas "cron-just-ran"
 
     let h = testCron "test" PT.Handler.EveryDay (p "5 + 3")
 

@@ -30,7 +30,7 @@ let executionStateForPreview
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
-    let! meta = createTestCanvas (Randomized name)
+    let! meta = createTestCanvas name
     let! state = executionStateFor meta dbs fns
     let results, traceFn = Exe.traceDvals ()
 
@@ -61,7 +61,7 @@ let execSaveDvals
 
 let testExecFunctionTLIDs : Test =
   testTask "test that exec function returns the right tlids in the trace" {
-    let! meta = initializeTestCanvas (Randomized "exec-function-tlids")
+    let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
     let fn = testUserFn name [] (PT.EInteger(gid (), 5)) |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]

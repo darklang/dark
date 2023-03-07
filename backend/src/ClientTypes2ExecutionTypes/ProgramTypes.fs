@@ -409,14 +409,14 @@ module UserFunction =
     let fromCT (p : CTPT.UserFunction.Parameter) : PT.UserFunction.Parameter =
       { name = p.name
         nameID = p.nameID
-        typ = Option.map DType.fromCT p.typ
+        typ = DType.fromCT p.typ
         typeID = p.typeID
         description = p.description }
 
     let toCT (p : PT.UserFunction.Parameter) : CTPT.UserFunction.Parameter =
       { name = p.name
         nameID = p.nameID
-        typ = Option.map DType.toCT p.typ
+        typ = DType.toCT p.typ
         typeID = p.typeID
         description = p.description }
 

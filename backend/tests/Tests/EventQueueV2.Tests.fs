@@ -35,7 +35,7 @@ let p (code : string) = Parser.parsePTExpr code
 let initializeCanvas (name : string) : Task<Canvas.Meta * tlid> =
   task {
     // set up handler
-    let! meta = initializeTestCanvas (Randomized name)
+    let! meta = initializeTestCanvas name
 
     let h = testWorker "test" (p "let data = DateTime.now_v0 in 123")
     let oplists = [ handlerOp h ]

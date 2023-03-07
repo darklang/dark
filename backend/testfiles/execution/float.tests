@@ -131,7 +131,7 @@ Float.subtract_v0 1.0 0.2 = 0.8
 
 Float.sum_v0 [1.0;0.2] = 1.2
 Float.sum_v0 [1.0;"a"] = Test.typeError_v0 "Expected the argument `a` to be a list of floats, but it was `[\n  1.0, \"a\"\n]`"
-Test.nan_v0 != Test.nan_v0
+Test.nan_v0 == Test.nan_v0 = false
 
 Float.toString 1.5 = "1.5"
 Float.toString 0.0 = "0.0"
