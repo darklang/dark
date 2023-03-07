@@ -24,7 +24,7 @@ module Error =
       actualFields : Set<string> }
 
   type T =
-    | TypeLookupFailure of FQTypeName.UserTypeName
+    | TypeLookupFailure of UserTypeName
     | TypeUnificationFailure of UnificationError
     | MismatchedRecordFields of MismatchedFields
 
@@ -67,7 +67,7 @@ module Error =
 open Error
 
 let rec unify
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (expected : DType)
   (value : Dval)
   : Result<unit, List<Error.T>> =
@@ -110,7 +110,7 @@ let rec unify
 
 
 and unifyUserRecordWithDvalMap
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (definition : List<UserType.RecordField>)
   (value : DvalMap)
   : Result<unit, List<Error.T>> =
@@ -143,7 +143,7 @@ and unifyUserRecordWithDvalMap
 
 
 let checkFunctionCall
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (fn : Fn)
   (args : DvalMap)
   : Result<unit, List<Error.T>> =
@@ -169,7 +169,7 @@ let checkFunctionCall
 
 
 let checkFunctionReturnType
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (fn : Fn)
   (result : Dval)
   : Result<unit, Error.T list> =

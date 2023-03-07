@@ -8,15 +8,9 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
-module FQTypeName =
-
-  module UserTypeName =
-    let toRT (u : PT.FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
-      { type_ = u.type_; version = u.version }
-
-  let toRT (t : PT.FQTypeName.T) : RT.FQTypeName.T =
-    match t with
-    | PT.FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.toRT u)
+module UserTypeName =
+  let toRT (u : PT.UserTypeName) : RT.UserTypeName =
+    { type_ = u.type_; version = u.version }
 
 
 module FQFnName =
@@ -204,7 +198,7 @@ module DType =
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
     | PT.TOption typ -> RT.TOption(toRT typ)
-    | PT.TUserType typeName -> RT.TUserType(FQTypeName.UserTypeName.toRT typeName)
+    | PT.TUserType typeName -> RT.TUserType(UserTypeName.toRT typeName)
     | PT.TBytes -> RT.TBytes
     | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)
     | PT.TVariable (name) -> RT.TVariable(name)
@@ -265,7 +259,7 @@ module UserType =
 
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
-      name = FQTypeName.UserTypeName.toRT t.name
+      name = UserTypeName.toRT t.name
       //version = t.version
       definition = Definition.toRT t.definition }
 

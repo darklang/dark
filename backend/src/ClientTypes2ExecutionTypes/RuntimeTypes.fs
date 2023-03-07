@@ -12,22 +12,14 @@ open ClientTypes.Runtime
 
 module RT = LibExecution.RuntimeTypes
 
-module FQTypeName =
 
-  module UserTypeName =
-    let fromCT (u : FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
-      { type_ = u.type_; version = u.version }
+module UserTypeName =
+  let fromCT (u : UserTypeName) : RT.UserTypeName =
+    { type_ = u.type_; version = u.version }
 
-    let toCT (u : RT.FQTypeName.UserTypeName) : FQTypeName.UserTypeName =
-      { type_ = u.type_; version = u.version }
+  let toCT (u : RT.UserTypeName) : UserTypeName =
+    { type_ = u.type_; version = u.version }
 
-  let fromCT (t : FQTypeName.T) : RT.FQTypeName.T =
-    match t with
-    | FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.fromCT u)
-
-  let toCT (t : RT.FQTypeName.T) : FQTypeName.T =
-    match t with
-    | RT.FQTypeName.User u -> FQTypeName.User(UserTypeName.toCT u)
 
 module FQFnName =
   type UserFnName = string
@@ -90,7 +82,7 @@ module DType =
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
     | RT.TOption t -> TOption(r t)
-    | RT.TUserType typeName -> TUserType(FQTypeName.UserTypeName.toCT typeName)
+    | RT.TUserType typeName -> TUserType(UserTypeName.toCT typeName)
     | RT.TBytes -> TBytes
     | RT.TResult (ok, error) -> TResult(r ok, r error)
     | RT.TVariable (name) -> TVariable(name)
@@ -119,7 +111,7 @@ module DType =
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid
     | TOption t -> RT.TOption(r t)
-    | TUserType t -> RT.TUserType(FQTypeName.UserTypeName.fromCT t)
+    | TUserType t -> RT.TUserType(UserTypeName.fromCT t)
     | TBytes -> RT.TBytes
     | TResult (ok, error) -> RT.TResult(r ok, r error)
     | TVariable (name) -> RT.TVariable(name)

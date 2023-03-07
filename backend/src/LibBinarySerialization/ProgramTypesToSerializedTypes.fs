@@ -9,14 +9,10 @@ module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-module FQTypeName =
-  module UserTypeName =
-    let toST (u : PT.FQTypeName.UserTypeName) : ST.FQTypeName.UserTypeName =
-      { type_ = u.type_; version = u.version }
+module UserTypeName =
+  let toST (u : PT.UserTypeName) : ST.UserTypeName =
+    { type_ = u.type_; version = u.version }
 
-  let toST (t : PT.FQTypeName.T) : ST.FQTypeName.T =
-    match t with
-    | PT.FQTypeName.User u -> ST.FQTypeName.User(UserTypeName.toST u)
 
 module FQFnName =
   module PackageFnName =
@@ -152,7 +148,7 @@ module DType =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TUserType t -> ST.TUserType(FQTypeName.UserTypeName.toST t)
+    | PT.TUserType t -> ST.TUserType(UserTypeName.toST t)
     | PT.TBytes -> ST.TBytes
     | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
     | PT.TVariable (name) -> ST.TVariable(name)
@@ -220,7 +216,7 @@ module UserType =
 
   let toST (t : PT.UserType.T) : ST.UserType.T =
     { tlid = t.tlid
-      name = FQTypeName.UserTypeName.toST t.name
+      name = UserTypeName.toST t.name
       definition = Definition.toST t.definition }
 
 module UserFunction =

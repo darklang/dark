@@ -665,8 +665,7 @@ let toProgram (c : T) : RT.ProgramContext =
   let userTypes =
     c.userTypes
     |> Map.values
-    |> List.map (fun t ->
-      (PT2RT.FQTypeName.UserTypeName.toRT t.name, PT2RT.UserType.toRT t))
+    |> List.map (fun t -> (PT2RT.UserTypeName.toRT t.name, PT2RT.UserType.toRT t))
     |> Map.ofList
 
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT

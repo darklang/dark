@@ -198,7 +198,7 @@ let testUserFn
         parameters }
 
 let tesTUserType
-  (name : PT.FQTypeName.UserTypeName)
+  (name : PT.UserTypeName)
   (definition : List<string * PT.DType>)
   : PT.UserType.T =
   { tlid = gid ()

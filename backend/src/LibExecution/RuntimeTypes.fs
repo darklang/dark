@@ -36,13 +36,8 @@ open VendoredTablecloth
 
 module J = Prelude.Json
 
-/// A Fully-Qualified Type Name
-/// Includes package, module, and version information where relevant.
-module FQTypeName =
-  /// A UserType is a type written by a Developer in their canvas
-  type UserTypeName = { type_ : string; version : int }
-
-  type T = User of UserTypeName
+/// A UserType is a type written by a Developer in their canvas
+type UserTypeName = { type_ : string; version : int }
 
 module FQFnName =
 
@@ -309,7 +304,7 @@ and DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of FQTypeName.UserTypeName
+  | TUserType of UserTypeName
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
@@ -646,7 +641,7 @@ module UserType =
   type RecordField = { name : string; typ : DType }
   type Definition = Record of List<RecordField>
 
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
+  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
 
 module UserFunction =
   type Parameter = { name : string; typ : DType; description : string }
@@ -846,7 +841,7 @@ and ProgramContext =
     accountID : UserID
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
-    userTypes : Map<FQTypeName.UserTypeName, UserType.T>
+    userTypes : Map<UserTypeName, UserType.T>
     secrets : List<Secret.T> }
 
 /// Set of callbacks used to trace the interpreter
