@@ -258,39 +258,6 @@ let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
                       "username", Sql.string (string username) ]
   |> Sql.executeStatementAsync
 
-// Returns None if no valid user, or Some username _from the db_ if valid.
-// Note: the input username may also be an email address. We do this because
-// users input data this way and it seems silly not to allow it.
-//
-// No need to detect which and SQL differently; no valid username contains a
-// '@', and every valid email address does. [If you say 'uucp bang path', I
-// will laugh and then tell you to give me a real email address.]
-//
-// This function was converted from OCaml. The OCaml Libsodium
-// (https://github.com/ahrefs/ocaml-sodium/blob/master/lib/sodium.ml), the F#
-// version is libsodium-net
-// (https://github.com/tabrath/libsodium-core/blob/master/src/Sodium.Core/PasswordHash.cs).
-// The OCaml version used the argon2i versions under the hood, which we use explicitly in F#.
-let authenticate
-  (usernameOrEmail : string)
-  (givenPassword : string)
-  : Task<Option<string>> =
-  Sql.query
-    "SELECT username, password from accounts
-      WHERE accounts.username = @usernameOrEmail OR accounts.email = @usernameOrEmail"
-  |> Sql.parameters [ "usernameOrEmail", Sql.string usernameOrEmail ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    (read.string "username", read.string "password"))
-  |> Task.map (
-    Option.andThen (fun (username, password) ->
-      let dbHash = password |> Base64.decodeFromString |> UTF8.ofBytesWithReplacement
-
-      if Sodium.PasswordHash.ArgonHashStringVerify(dbHash, givenPassword) then
-        Some(username)
-      else
-        None)
-  )
-
 let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
 // formerly called auth_domain_for
