@@ -498,15 +498,9 @@ module ProgramTypes =
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
       name = "myFunc"
-      nameID = 1828332UL
       parameters =
-        [ { name = "myparam1"
-            nameID = 23824935UL
-            typ = dtype
-            typeID = 38284244UL
-            description = "param1" } ]
+        [ { id = 23824935UL; name = "myparam1"; typ = dtype; description = "param1" } ]
       returnType = dtype
-      returnTypeID = 23923423UL
       description = "function description"
       infix = false
       body = expr }
@@ -517,10 +511,7 @@ module ProgramTypes =
     { tlid = 0UL
       name = { type_ = "User"; version = 0 }
       definition =
-        PT.UserType.Record [ { name = "prop1"
-                               typ = dtype
-                               nameID = 0698978UL
-                               typeID = 93494534UL } ] }
+        PT.UserType.Record [ { id = 0698978UL; name = "prop1"; typ = dtype } ] }
 
   let userTypes : List<PT.UserType.T> = [ userType ]
 

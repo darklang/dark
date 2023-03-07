@@ -217,10 +217,7 @@ module UserType =
         PT.UserType.Record(
           List.map
             (fun (rf : ST.UserType.RecordField) ->
-              { name = rf.name
-                nameID = rf.nameID
-                typ = DType.toPT rf.typ
-                typeID = rf.typeID })
+              { id = rf.id; name = rf.name; typ = DType.toPT rf.typ })
             fields
         )
 
@@ -232,19 +229,16 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toPT (p : ST.UserFunction.Parameter) : PT.UserFunction.Parameter =
-      { name = p.name
-        nameID = p.nameID
+      { id = p.id
+        name = p.name
         typ = DType.toPT p.typ
-        typeID = p.typeID
         description = p.description }
 
   let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
     { tlid = f.tlid
       name = f.name
-      nameID = f.nameID
       parameters = List.map Parameter.toPT f.parameters
       returnType = DType.toPT f.returnType
-      returnTypeID = f.returnTypeID
       description = f.description
       infix = f.infix
       body = Expr.toPT f.body }

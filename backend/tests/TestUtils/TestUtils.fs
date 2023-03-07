@@ -190,17 +190,11 @@ let testUserFn
     description = ""
     infix = false
     name = name
-    nameID = gid ()
     returnType = PT.TVariable "a"
-    returnTypeID = gid ()
     parameters =
       List.map
         (fun (p : string) ->
-          { name = p
-            nameID = gid ()
-            typ = PT.TVariable "b"
-            typeID = gid ()
-            description = "test" })
+          { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
         parameters }
 
 let tesTUserType
@@ -212,7 +206,7 @@ let tesTUserType
     definition =
       definition
       |> List.map (fun (name, typ) ->
-        ({ name = name; typ = typ; typeID = gid (); nameID = gid () } : PT.UserType.RecordField))
+        ({ id = gid (); name = name; typ = typ } : PT.UserType.RecordField))
       |> PT.UserType.Record }
 
 

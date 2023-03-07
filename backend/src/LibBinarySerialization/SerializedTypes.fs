@@ -267,13 +267,11 @@ module UserType =
   [<MessagePack.MessagePackObject>]
   type RecordField =
     { [<MessagePack.Key 0>]
-      name : string
+      id : id
       [<MessagePack.Key 1>]
-      typ : DType
+      name : string
       [<MessagePack.Key 2>]
-      nameID : id
-      [<MessagePack.Key 3>]
-      typeID : id }
+      typ : DType }
 
   [<MessagePack.MessagePackObject>]
   type Definition = Record of List<RecordField>
@@ -291,14 +289,12 @@ module UserFunction =
   [<MessagePack.MessagePackObject>]
   type Parameter =
     { [<MessagePack.Key 0>]
-      name : string
+      id : id
       [<MessagePack.Key 1>]
-      nameID : id
+      name : string
       [<MessagePack.Key 2>]
       typ : DType
       [<MessagePack.Key 3>]
-      typeID : id
-      [<MessagePack.Key 4>]
       description : string }
 
   [<MessagePack.MessagePackObject>]
@@ -308,18 +304,14 @@ module UserFunction =
       [<MessagePack.Key 1>]
       name : string
       [<MessagePack.Key 2>]
-      nameID : id
-      [<MessagePack.Key 3>]
       parameters : List<Parameter>
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       returnType : DType
-      [<MessagePack.Key 5>]
-      returnTypeID : id
-      [<MessagePack.Key 6>]
+      [<MessagePack.Key 4>]
       description : string
-      [<MessagePack.Key 7>]
+      [<MessagePack.Key 5>]
       infix : bool
-      [<MessagePack.Key 8>]
+      [<MessagePack.Key 6>]
       body : Expr }
 
 module Toplevel =

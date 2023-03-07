@@ -413,16 +413,10 @@ module DB =
 module UserType =
   module RecordField =
     let fromCT (rf : CTPT.UserType.RecordField) : PT.UserType.RecordField =
-      { name = rf.name
-        typ = DType.fromCT rf.typ
-        nameID = rf.nameID
-        typeID = rf.typeID }
+      { id = rf.id; name = rf.name; typ = DType.fromCT rf.typ }
 
     let toCT (rf : PT.UserType.RecordField) : CTPT.UserType.RecordField =
-      { name = rf.name
-        typ = DType.toCT rf.typ
-        nameID = rf.nameID
-        typeID = rf.typeID }
+      { id = rf.id; name = rf.name; typ = DType.toCT rf.typ }
 
   module Definition =
     let fromCT (def : CTPT.UserType.Definition) : PT.UserType.Definition =
@@ -449,26 +443,22 @@ module UserType =
 module UserFunction =
   module Parameter =
     let fromCT (p : CTPT.UserFunction.Parameter) : PT.UserFunction.Parameter =
-      { name = p.name
-        nameID = p.nameID
+      { id = p.id
+        name = p.name
         typ = DType.fromCT p.typ
-        typeID = p.typeID
         description = p.description }
 
     let toCT (p : PT.UserFunction.Parameter) : CTPT.UserFunction.Parameter =
-      { name = p.name
-        nameID = p.nameID
+      { id = p.id
+        name = p.name
         typ = DType.toCT p.typ
-        typeID = p.typeID
         description = p.description }
 
   let fromCT (uf : CTPT.UserFunction.T) : PT.UserFunction.T =
     { tlid = uf.tlid
       name = uf.name
-      nameID = uf.nameID
       parameters = List.map Parameter.fromCT uf.parameters
       returnType = DType.fromCT uf.returnType
-      returnTypeID = uf.returnTypeID
       description = uf.description
       infix = uf.infix
       body = Expr.fromCT uf.body }
@@ -476,10 +466,8 @@ module UserFunction =
   let toCT (uf : PT.UserFunction.T) : CTPT.UserFunction.T =
     { tlid = uf.tlid
       name = uf.name
-      nameID = uf.nameID
       parameters = List.map Parameter.toCT uf.parameters
       returnType = DType.toCT uf.returnType
-      returnTypeID = uf.returnTypeID
       description = uf.description
       infix = uf.infix
       body = Expr.toCT uf.body }

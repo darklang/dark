@@ -162,7 +162,7 @@ module DB =
 
 
 module UserType =
-  type RecordField = { name : string; typ : DType; nameID : id; typeID : id }
+  type RecordField = { id : id; name : string; typ : DType }
 
   type Definition = Record of List<RecordField>
 
@@ -170,20 +170,13 @@ module UserType =
 
 
 module UserFunction =
-  type Parameter =
-    { name : string
-      nameID : id
-      typ : DType
-      typeID : id
-      description : string }
+  type Parameter = { id : id; name : string; typ : DType; description : string }
 
   type T =
     { tlid : tlid
       name : string
-      nameID : id
-      parameters : List<Parameter>
       returnType : DType
-      returnTypeID : id
+      parameters : List<Parameter>
       description : string
       infix : bool
       body : Expr }
