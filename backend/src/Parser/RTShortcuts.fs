@@ -11,7 +11,7 @@ module PTParser = LibExecution.ProgramTypesParser
 let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
   EFQFnValue(
     gid (),
-    PTParser.FQFnName.stdlibFqName module_ function_ version |> PT2RT.FQFnName.toRT
+    PT.FQFnName.stdlibFqName module_ function_ version |> PT2RT.FQFnName.toRT
   )
 
 let eUserFnVal (function_ : string) : Expr =

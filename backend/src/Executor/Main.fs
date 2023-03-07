@@ -15,7 +15,7 @@ let executeFiles (files : string list) : unit =
       else
         System.IO.File.ReadAllText file)
     |> String.concat "\n"
-    |> Parser.parseRTExpr
+    |> Parser.Parser.parseRTExpr
 
   let result = Execute.execute expr Map.empty
   let dval = result.Result

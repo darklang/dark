@@ -20,7 +20,7 @@ let print (s : string) = System.Console.WriteLine(s)
 
 let parseExpr (name : string) (s : string) =
   try
-    Parser.parsePTExpr s
+    Parser.Parser.parsePTExpr s
   with
   | e -> Exception.raiseCode $"Couldn't parse expression {name}\n{s}\n{e.Message}"
 

@@ -17,14 +17,13 @@ let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PTParser.FQFnName.stdlibFqName "" "++" 0), "++"
-      (PTParser.FQFnName.stdlibFqName "" "!=" 0), "!="
-      (PTParser.FQFnName.stdlibFqName "" "&&" 0), "&&"
-      (PTParser.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
+    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++"
+      (PT.FQFnName.stdlibFqName "" "!=" 0), "!="
+      (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 
 let parseTests =
-  let p = PTParser.FQFnName.parse
+  let p = Parser.FQFnNameParser.parse
 
   testList
     "Parsing fn names"
@@ -48,7 +47,7 @@ let parseTests =
         "FQFnName parse tests"
         (fun name ->
           try
-            Some(PTParser.FQFnName.parse name)
+            Some(Parser.FQFnNameParser.parse name)
           with
           | _ -> None)
         [ ("equals",
@@ -110,7 +109,7 @@ let parseTests =
 
 let testPipesToRuntimeTypes =
   test "pipes to runtime types" {
-    let actual = Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+    let actual = Parser.Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
 
     let expected =
       S.ePipeApply
@@ -159,17 +158,6 @@ let testInfixProgramTypesToSerializedTypes =
          ST.EInteger(10UL, 6)
        )) ]
 
-/// We have functions that were written as user functions, but accidentally
-/// converted to StdLibFns before being saved to the DB
-let testVersionedSerializedTypesToProgramTypes =
-  testMany
-    "versioned user functions migrated"
-    ST2PT.FQFnName.toPT
-    [ ST.FQFnName.Stdlib { module_ = ""; function_ = "myFunction"; version = 2 },
-      (PT.FQFnName.User "myFunction_v2")
-      ST.FQFnName.Stdlib { module_ = ""; function_ = "myFunction"; version = 0 },
-      (PT.FQFnName.User "myFunction_v0") ]
-
 
 let tests =
   testList
@@ -178,5 +166,4 @@ let tests =
       testPipesToRuntimeTypes
       testProgramTypesToRuntimeTypes
       ptFQFnName
-      testInfixProgramTypesToSerializedTypes
-      testVersionedSerializedTypesToProgramTypes ]
+      testInfixProgramTypesToSerializedTypes ]

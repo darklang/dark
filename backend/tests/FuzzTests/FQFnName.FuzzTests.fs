@@ -42,10 +42,10 @@ type Generator =
               let! module_ = modName
               let! function_ = fnName
               let! version = G.nonNegativeInt
-              return PTParser.FQFnName.stdlibFqName module_ function_ version
+              return PT.FQFnName.stdlibFqName module_ function_ version
             }
 
-          let user = Gen.map PTParser.FQFnName.userFqName fnName
+          let user = Gen.map PT.FQFnName.userFqName fnName
 
           let package =
             gen {
@@ -56,7 +56,7 @@ type Generator =
               let! version = G.nonNegativeInt
 
               return
-                PTParser.FQFnName.packageFqName
+                PT.FQFnName.packageFqName
                   owner
                   package
                   module_
@@ -73,7 +73,7 @@ type Generator =
 
 /// ProgramType can roundtrip cleanly to/from RuntimeType
 let ptRoundtrip (a : PT.FQFnName.T) : bool =
-  a |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString |> PTParser.FQFnName.parse
+  a |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString |> Parser.FQFnNameParser.parse
   .=. a
 
 let tests config =

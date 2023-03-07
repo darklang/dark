@@ -42,7 +42,7 @@ let hardToRepresentTests =
     }
 
   let fnName mod_ function_ version =
-    PTParser.FQFnName.stdlibFnName mod_ function_ version
+    PT.FQFnName.stdlibFnName mod_ function_ version
 
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany2Task

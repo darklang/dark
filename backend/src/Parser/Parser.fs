@@ -1,5 +1,5 @@
 /// Converts strings of F# into Dark. Used for testing.
-module Parser
+module Parser.Parser
 
 // refer to https://fsharp.github.io/fsharp-compiler-docs
 
@@ -187,13 +187,13 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
     ident.idText = "op_UnaryNegation"
     ->
-    let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
+    let name = PT.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [])
 
   | SynExpr.Ident ident when
-    Set.contains ident.idText PTParser.FQFnName.oneWordFunctions
+    Set.contains ident.idText PT.FQFnName.oneWordFunctions
     ->
-    PT.EFnCall(id, PTParser.FQFnName.parse ident.idText, [])
+    PT.EFnCall(id, FQFnNameParser.parse ident.idText, [])
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
@@ -245,7 +245,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
           $"Bad format in function name"
           [ "name", fnName.idText ]
 
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [])
+    PT.EFnCall(gid (), FQFnNameParser.parse name, [])
 
   // Preliminary support for package manager functions
   | SynExpr.LongIdent (_,
@@ -254,8 +254,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                        _) when
     owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
     ->
-    let name = $"test/test/Test::{fnName.idText}_v0"
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [])
+    PT.EFnCall(gid (), PT.FQFnName.packageFqName "test" "test" "Test" fnName.idText 0, [])
 
   | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
     let obj1 =
@@ -412,7 +411,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | PT.EPipe (id, arg1, arg2, rest) ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
     | PT.EVariable (id, name) ->
-      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ])
+      PT.EFnCall(id, FQFnNameParser.parse name, [ c arg ])
     | e ->
       Exception.raiseInternal
         "Unsupported expression in app"

@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 let parserTests =
   let t name testStr expectedExpr =
     testTask name {
-      let actual = Parser.parseRTExpr testStr
+      let actual = Parser.Parser.parseRTExpr testStr
       return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
     }
   let id = 0UL // since we're ignoring IDs, just use the same one everywhere
@@ -31,7 +31,7 @@ let parserTests =
             PT.EVariable(id, "x"),
             PT.EFnCall(
               id,
-              PTParser.FQFnName.stdlibFqName "List" "map" 0,
+              PT.FQFnName.stdlibFqName "List" "map" 0,
               [ (PT.EPipeTarget id); PT.EInteger(id, 5) ]
             ),
             []
