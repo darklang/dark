@@ -56,7 +56,7 @@ HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = Test.typeError_v
 HttpClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empty = Error "The request was aborted. The response ended prematurely."
 HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
 
-[test.basic request works including headers]
+// Basic request works including headers
 (let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h <> "date")
  Dict.set_v0 response "headers" respHeaders) =

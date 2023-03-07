@@ -755,7 +755,7 @@ let parseTestFile (filename : string) : Module =
   | _ ->
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
-      [ "parseTree", results.ParseTree; "input", input ]
+      [ "parseTree", results.ParseTree; "input", input; "filename", filename ]
 
 
 let parsePTExpr (code : string) : PT.Expr = code |> parse |> convertToExpr
