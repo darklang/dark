@@ -157,6 +157,7 @@ type Expr =
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
+  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and StringSegment =
   | StringText of string

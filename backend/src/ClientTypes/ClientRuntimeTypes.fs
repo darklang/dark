@@ -91,6 +91,7 @@ module Expr =
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
+    | EUserEnum of id * UserTypeName * caseName : string * fields : List<T>
 
   and StringSegment =
     | StringText of string
@@ -138,3 +139,4 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
+    | DUserEnum of typeName : UserTypeName * caseName : string * fields : List<T>

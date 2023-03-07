@@ -113,7 +113,13 @@ module RuntimeTypes =
         RT.EString(18329472UL, [ RT.StringText "false" ]) //CLEANUP
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
-      RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false)) ]
+      RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
+      RT.EUserEnum(
+        8375723UL,
+        { type_ = "MyEnum"; version = 0 },
+        "A",
+        [ RT.EUnit(81264012UL) ]
+      ) ]
 
   let dvalSources : List<RT.DvalSource> =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]

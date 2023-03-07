@@ -121,6 +121,8 @@ module Expr =
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       ST.EFeatureFlag(id, name, toST cond, toST caseA, toST caseB)
+    | PT.EUserEnum (id, typeName, caseName, fields) ->
+      ST.EUserEnum(id, UserTypeName.toST typeName, caseName, List.map toST fields)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with

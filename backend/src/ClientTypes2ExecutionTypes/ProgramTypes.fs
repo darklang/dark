@@ -195,6 +195,13 @@ module Expr =
     | CTPT.Expr.EPipeTarget (id) -> PT.EPipeTarget(id)
     | CTPT.Expr.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
+    | CTPT.EUserEnum (id, typeName, caseName, fields) ->
+      PT.Expr.EUserEnum(
+        id,
+        UserTypeName.fromCT typeName,
+        caseName,
+        List.map fromCT fields
+      )
 
   and stringSegmentFromCTPT (segment : CTPT.StringSegment) : PT.StringSegment =
     match segment with
@@ -249,6 +256,13 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
+    | PT.EUserEnum (id, typeName, caseName, fields) ->
+      CTPT.Expr.EUserEnum(
+        id,
+        UserTypeName.toCT typeName,
+        caseName,
+        List.map toCT fields
+      )
 
   and stringSegmentToCT (segment : PT.StringSegment) : CTPT.StringSegment =
     match segment with

@@ -463,6 +463,9 @@ module Expect =
     | DObj vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
+    | DUserEnum (_typeName, _caseName, fields) ->
+      // TODO: revisit
+      fields |> List.all check
 
   type Path = string list
 
@@ -617,6 +620,8 @@ module Expect =
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
 
+    | EUserEnum _, EUserEnum _ -> () // EUserEnumTODO
+
     // exhaustiveness check
     | EUnit _, _
     | EInteger _, _
@@ -632,6 +637,7 @@ module Expect =
     | EFQFnValue _, _
     | EApply _, _
     | ERecord _, _
+    | EUserEnum _, _
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
@@ -705,6 +711,10 @@ module Expect =
           | None -> check (key :: path) ls rs)
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
+    | DUserEnum (_typeName, _caseName, _fields),
+      DUserEnum (_typeName', _caseName', _fields') ->
+      // TODO
+      ()
     | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
       check path sc1 sc2
       check path h1 h2
@@ -721,6 +731,7 @@ module Expect =
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DObj _, _
+    | DUserEnum _, _
     | DList _, _
     | DTuple _, _
     | DResult _, _
@@ -782,6 +793,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DUserEnum (_typeName, _caseName, fields) ->
+      fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>

@@ -92,6 +92,7 @@ type Expr =
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
+  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and StringSegment =
   | StringText of string

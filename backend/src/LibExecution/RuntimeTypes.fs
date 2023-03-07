@@ -183,6 +183,7 @@ type Expr =
   | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
+  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and LetPattern = LPVariable of id * name : string
 
@@ -280,6 +281,7 @@ and Dval =
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
   | DBytes of byte array
+  | DUserEnum of typeName : UserTypeName * caseName : string * fields : List<Dval>
 
 and DvalTask = Ply<Dval>
 
@@ -304,7 +306,7 @@ and DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  | TUserType of UserTypeName // this should probably be split into TUserEnum and TUserRecord
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
@@ -398,9 +400,10 @@ module Expr =
     | EFQFnValue (id, _)
     | EConstructor (id, _, _)
     | EFeatureFlag (id, _, _, _)
-    | EMatch (id, _, _) -> id
-    | EAnd (id, _, _) -> id
-    | EOr (id, _, _) -> id
+    | EMatch (id, _, _)
+    | EAnd (id, _, _)
+    | EOr (id, _, _)
+    | EUserEnum (id, _, _, _) -> id
 
 /// Functions for working with Dark Let patterns
 module LetPattern =
@@ -479,6 +482,9 @@ module Dval =
     | DResult (Ok v) -> TResult(toType v, any)
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
+    | DUserEnum (typeName, caseName, _fields) ->
+      // todo: we need the context of the available types in order to assess this
+      TUserType(typeName)
 
   /// <summary>
   /// Checks if a runtime's value matches a given type
@@ -522,7 +528,8 @@ module Dval =
         List.zip actual expected
         |> List.all (fun ((aField, aVal), (eField, eType)) ->
           aField = eField && typeMatches eType aVal)
-    | DObj _, TUserType _ -> false // not used
+    | DObj _, TUserType _ -> false // not used TODO revisit
+    | DUserEnum _, TUserType _ -> false // TODO revisit
     | DFnVal (Lambda l), TFn (parameters, _) ->
       List.length parameters = List.length l.parameters
     | DFnVal (FnName _fnName), TFn _ -> false // not used
@@ -554,7 +561,8 @@ module Dval =
     | DOption _, _
     | DResult _, _
     | DHttpResponse _, _
-    | DObj _, _ -> false
+    | DObj _, _
+    | DUserEnum _, _ -> false
 
 
   let int (i : int) = DInt(int64 i)

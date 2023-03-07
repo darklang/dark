@@ -85,7 +85,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EUnit _id -> return DUnit
     | ECharacter (_id, s) -> return DChar s
 
-
     | ELet (id, pattern, rhs, body) ->
       match pattern with
       | LPVariable (_id, lhs) ->
@@ -457,6 +456,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return Dval.resultError dv
       | name, _ ->
         return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+
+    | EUserEnum (_id, name, caseName, fields) ->
+      // EUserEnumTODO: handle analysis/preview
+      let! fields = Ply.List.mapSequentially (eval state st) fields
+
+      // EUserEnumTODO: reconsider (stole this from DList)
+      match List.tryFind Dval.isFake fields with
+      | Some fakeDval -> return fakeDval
+      | None -> return DUserEnum(name, caseName, fields)
   }
 
 /// Interprets an expression and reduces to a Dark value

@@ -170,6 +170,8 @@ module Expr =
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, _name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
+    | PT.EUserEnum (id, name, caseName, fields) ->
+      RT.EUserEnum(id, UserTypeName.toRT name, caseName, List.map toRT fields)
 
 
   and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
