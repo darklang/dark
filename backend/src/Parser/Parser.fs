@@ -570,28 +570,55 @@ let parseTestFile (filename : string) : Module =
       { id = gid (); name = id.idText; typ = convertType typ }
     | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
+  let parseEnumField (typ : SynField) : PT.UserType.EnumField =
+    match typ with
+    | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
+      { id = gid ()
+        type_ = convertType typ
+        label = fieldName |> Option.map (fun id -> id.idText) }
+
+  let parseEnumCase (case : SynUnionCase) : PT.UserType.EnumCase =
+    match case with
+    | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
+      match typ with
+      | SynUnionCaseKind.Fields fields ->
+        { id = gid (); name = id.idText; fields = List.map parseEnumField fields }
+      | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
+
   let parseType (typeDef : SynTypeDefn) : PT.UserType.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
                                            _),
-                   members,
+                   _,
                    _,
                    _,
                    _) ->
       { tlid = gid ()
         name = { type_ = id.idText; version = 0 }
         definition = PT.UserType.Record(List.map parseRecordField fields) }
-    // | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
-    //                SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Enum (cases, _),
-    //                                        _),
-    //                members,
-    //                _,
-    //                _,
-    //                _) ->
-    //   { tlid = gid ()
-    //     name = { type_ = id.idText; version = 0 }
-    //     definition = PT.UserType.Record(List.map parseRecordField fields) }
+    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Union (_, cases, _),
+                                           _),
+                   _,
+                   _,
+                   _,
+                   _) ->
+      { tlid = gid ()
+        name = { type_ = id.idText; version = 0 }
+        definition =
+          let firstCase, additionalCases =
+            match cases with
+            | [] ->
+              Exception.raiseInternal
+                $"Can't parse enum without any cases"
+                [ "typeDef", typeDef ]
+            | firstCase :: additionalCases -> firstCase, additionalCases
+
+          PT.UserType.Enum(
+            parseEnumCase firstCase,
+            List.map parseEnumCase additionalCases
+          ) }
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
