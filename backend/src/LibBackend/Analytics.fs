@@ -23,19 +23,6 @@ let identifyUser (username : UserName.T) : unit =
           "unwrapping metadata"
           [ "metadata", data ]
           data
-      let! orgs = Authorization.orgsFor username
-      let organization =
-        // A user's orgs for this purpose do not include orgs it has
-        // read-only access to
-        orgs
-        |> List.filter (fun (_orgName, perm) -> perm = Authorization.ReadWrite)
-        // If you have one org, that's your org! If you have no orgs, or
-        // more than one, then we just use your username. This is because
-        // Heap's properties/traits don't support lists.
-        |> (fun org ->
-          match org with
-          | [ (orgName, _perm) ] -> orgName
-          | _ -> username |> string |> OrgName.create)
 
       let payload =
         [ ("username", string userInfoAndCreatedAt.username)
@@ -43,7 +30,7 @@ let identifyUser (username : UserName.T) : unit =
           ("name", userInfoAndCreatedAt.name)
           ("admin", string userInfoAndCreatedAt.admin)
           ("handle", string userInfoAndCreatedAt.username)
-          ("organization", string organization) ]
+        ]
 
       let payload = Map payload
       LibService.HeapAnalytics.emitIdentifyUserEvent userInfoAndCreatedAt.id payload
