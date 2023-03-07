@@ -269,7 +269,7 @@ module UserType =
     { [<MessagePack.Key 0>]
       name : string
       [<MessagePack.Key 1>]
-      typ : Option<DType>
+      typ : DType
       [<MessagePack.Key 2>]
       nameID : id
       [<MessagePack.Key 3>]

@@ -257,11 +257,9 @@ module UserType =
       match d with
       | PT.UserType.Record fields ->
         RT.UserType.Record(
-          List.filterMap
+          List.map
             (fun (rf : PT.UserType.RecordField) ->
-              match rf.typ with
-              | Some t -> Some({ name = rf.name; typ = DType.toRT t })
-              | None -> None)
+              { name = rf.name; typ = DType.toRT rf.typ })
             fields
         )
 
@@ -274,7 +272,7 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name; typ = p.typ |> DType.toRT; description = p.description }
+      { name = p.name; typ = DType.toRT p.typ; description = p.description }
 
   let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid

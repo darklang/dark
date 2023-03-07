@@ -504,11 +504,6 @@ module ProgramTypes =
             nameID = 23824935UL
             typ = dtype
             typeID = 38284244UL
-            description = "param1" }
-          { name = "myparam2"
-            nameID = 92837232UL
-            typ = dtype
-            typeID = 239232UL
             description = "param1" } ]
       returnType = dtype
       returnTypeID = 23923423UL
@@ -523,11 +518,7 @@ module ProgramTypes =
       name = { type_ = "User"; version = 0 }
       definition =
         PT.UserType.Record [ { name = "prop1"
-                               typ = None
-                               nameID = 923942342UL
-                               typeID = 3452342UL }
-                             { name = "prop1"
-                               typ = Some dtype
+                               typ = dtype
                                nameID = 0698978UL
                                typeID = 93494534UL } ] }
 

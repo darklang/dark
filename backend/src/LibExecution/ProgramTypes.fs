@@ -235,7 +235,7 @@ module DB =
       cols : List<Col> }
 
 module UserType =
-  type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
+  type RecordField = { name : string; typ : DType; nameID : id; typeID : id }
   type Definition = Record of List<RecordField>
 
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }

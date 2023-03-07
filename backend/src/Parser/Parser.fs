@@ -577,10 +577,7 @@ let parseTestFile (filename : string) : Module =
   let parseRecordField (field : SynField) : PT.UserType.RecordField =
     match field with
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-      { name = id.idText
-        nameID = gid ()
-        typ = Some(convertType typ)
-        typeID = gid () }
+      { name = id.idText; nameID = gid (); typ = convertType typ; typeID = gid () }
     | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
   let parseType (typeDef : SynTypeDefn) : PT.UserType.T =

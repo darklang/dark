@@ -219,7 +219,7 @@ module UserType =
             (fun (rf : ST.UserType.RecordField) ->
               { name = rf.name
                 nameID = rf.nameID
-                typ = Option.map DType.toPT rf.typ
+                typ = DType.toPT rf.typ
                 typeID = rf.typeID })
             fields
         )

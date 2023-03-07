@@ -414,13 +414,13 @@ module UserType =
   module RecordField =
     let fromCT (rf : CTPT.UserType.RecordField) : PT.UserType.RecordField =
       { name = rf.name
-        typ = Option.map DType.fromCT rf.typ
+        typ = DType.fromCT rf.typ
         nameID = rf.nameID
         typeID = rf.typeID }
 
     let toCT (rf : PT.UserType.RecordField) : CTPT.UserType.RecordField =
       { name = rf.name
-        typ = Option.map DType.toCT rf.typ
+        typ = DType.toCT rf.typ
         nameID = rf.nameID
         typeID = rf.typeID }
 

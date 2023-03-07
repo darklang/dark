@@ -212,7 +212,7 @@ let tesTUserType
     definition =
       definition
       |> List.map (fun (name, typ) ->
-        ({ name = name; typ = Some typ; typeID = gid (); nameID = gid () } : PT.UserType.RecordField))
+        ({ name = name; typ = typ; typeID = gid (); nameID = gid () } : PT.UserType.RecordField))
       |> PT.UserType.Record }
 
 
