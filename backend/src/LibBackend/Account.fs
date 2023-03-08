@@ -87,7 +87,7 @@ let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>
   }
 
 let upsertAdmin = upsertAccount true
-let upsertNonAdmin = upsertAccount false //needed for tests
+let upsertNonAdmin = upsertAccount false
 
 // Any external calls to this should also call Analytics.identifyUser;
 // we can't do it here because that sets up a module dependency cycle
