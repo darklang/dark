@@ -13,7 +13,6 @@
          because they use reflection which is a documented thing that's likely to
          break. When we get source generators going, this might improve. -->
     <PublishTrimmed>false</PublishTrimmed>
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
