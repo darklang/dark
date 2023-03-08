@@ -399,7 +399,7 @@ module Expr =
     | EAnd (id, _, _) -> id
     | EOr (id, _, _) -> id
 
-/// Functions for working with Dark match patterns
+/// Functions for working with Dark Let patterns
 module LetPattern =
   let toID (pat : LetPattern) : id =
     match pat with
