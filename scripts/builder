@@ -23,9 +23,10 @@ rm -Rf backend/Build
 
 # See Dockerfile for an explanation of uid/gid.
 gid="$(id -g)"
+uid="$(id -u)"
 # Below is max($gid, 1000); on OS X, the user's group might be staff, with
 # gid=20, which conflicts with ubuntu group dialout.
-gid=$((gid > 1000 ? gid : 1000))
+gid=$((gid == 20 ? uid : gid))
 
 # --------------
 # Build image from clean start
@@ -36,7 +37,7 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   # slow on MacOS but it gets there eventually.
   # Most of the work is done to enable arm64 builds
   # LightTODO revisit this
-  docker buildx build --platform linux/amd64 -t dark --build-arg uid="$(id -u)" --build-arg gid="$gid" .
+  docker buildx build -t dark --build-arg uid="$uid" --build-arg gid="$gid" .
 
   echo "Removing running containers"
   c=$(docker ps --filter "name=dark-builder" -q)
@@ -105,7 +106,6 @@ docker run \
   --init \
   --rm \
   -i \
-  --platform linux/amd64 \
   --dns 8.8.8.8 \
   --dns 8.8.4.4 \
   --name dark-builder \
@@ -132,7 +132,7 @@ docker run \
   -p 13002:13002 \
   --security-opt seccomp=scripts/devcontainer/chrome-seccomp.json \
   -w /home/dark/app \
-  --user "$(id -u):$gid" \
+  --user "$uid:$gid" \
   --cap-add=ALL \
   --security-opt seccomp=unconfined \
   --ulimit=nofile=65536:65536 \

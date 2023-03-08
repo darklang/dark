@@ -43,11 +43,11 @@ if [[ "$PUBLISHED" == "true" ]]; then
   EXECHOST_BINPATH="backend/Build/out/ExecHost/Release/net7.0/linux-x64/publish"
   EXECUTOR_BINPATH="backend/Build/out/Executor/Release/net7.0/linux-x64/publish"
 else
-  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net7.0/linux-x64"
-  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net7.0/linux-x64"
-  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net7.0/linux-x64"
-  EXECHOST_BINPATH="backend/Build/out/ExecHost/Debug/net7.0/linux-x64"
-  EXECUTOR_BINPATH="backend/Build/out/Executor/Debug/net7.0/"
+  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net7.0"
+  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net7.0"
+  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net7.0"
+  EXECHOST_BINPATH="backend/Build/out/ExecHost/Debug/net7.0"
+  EXECUTOR_BINPATH="backend/Build/out/Executor/Debug/net7.0"
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"

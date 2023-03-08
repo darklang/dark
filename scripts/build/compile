@@ -311,8 +311,6 @@ def mark(should, f):
         "/backend/.config/dotnet-tools.json" in f or \
         "/backend/Directory.Build.props" in f):
     should.fsharp_tool_restore = True
-    should.fsharp_paket_restore = True
-    should.backend_full_build = True
 
   elif ("/backend/paket.dependencies" in f):
     should.fsharp_paket_install = True

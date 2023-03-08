@@ -15,7 +15,6 @@
     <!-- <PublishSingleFile>true</PublishSingleFile> -->
     <!-- <PublishReadyToRun>false</PublishReadyToRun> -->
     <!-- <SelfContained>true</SelfContained> -->
-    <!-- <RuntimeIdentifier>linux-x64</RuntimeIdentifier> -->
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
