@@ -108,4 +108,3 @@ let parse (fnName : string) : PT.FQFnName.T =
   // can be removed. Also some functions have "_v2" or similar in them.
   | Regex "^(.*)$" [ name ] -> userFqName name
   | _ -> Exception.raiseInternal "Bad format in function name" [ "fnName", fnName ]
-

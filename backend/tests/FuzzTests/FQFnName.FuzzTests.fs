@@ -56,12 +56,7 @@ type Generator =
               let! version = G.nonNegativeInt
 
               return
-                PT.FQFnName.packageFqName
-                  owner
-                  package
-                  module_
-                  function_
-                  version
+                PT.FQFnName.packageFqName owner package module_ function_ version
             }
 
           Gen.oneof [ stdlib; user; package ] }
