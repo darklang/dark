@@ -87,7 +87,7 @@ let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>
   }
 
 let upsertAdmin = upsertAccount true
-let upsertNonAdmin = upsertAccount false
+let upsertNonAdmin = upsertAccount false //needed for tests
 
 // Any external calls to this should also call Analytics.identifyUser;
 // we can't do it here because that sets up a module dependency cycle
@@ -250,13 +250,6 @@ let isAdmin (username : UserName.T) : Task<bool> =
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeExistsAsync
 
-let setAdmin (admin : bool) (username : UserName.T) : Task<unit> =
-  Sql.query
-    "UPDATE accounts
-        SET admin = @admin where username = @username"
-  |> Sql.parameters [ "admin", Sql.bool admin
-                      "username", Sql.string (string username) ]
-  |> Sql.executeStatementAsync
 
 let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
@@ -280,28 +273,6 @@ let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
   |> Task.map List.sort
 
 
-// NB: this returns canvases an account has access to via an organization, not
-// the organization(s) themselves
-let accessibleCanvases (userID : UserID) : Task<List<CanvasName.T>> =
-  Sql.query
-    "SELECT c.name
-       FROM access
-      INNER JOIN accounts as org on access.organization_account = org.id
-      INNER JOIN canvases as c on org.id = account_id
-      WHERE access.access_account = @userID"
-  |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
-  |> Task.map List.sort
-
-let orgs (userID : UserID) : Task<List<OrgName.T>> =
-  Sql.query
-    "SELECT org.username
-     FROM access
-     INNER JOIN accounts as org on access.organization_account = org.id
-     WHERE access.access_account = @userID"
-  |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "username" |> OrgName.create)
-  |> Task.map List.sort
 
 // **********************
 // Local/test developement
@@ -344,38 +315,11 @@ let initTestAccounts () : Task<unit> =
     return ()
   }
 
-let initAdmins () : Task<unit> =
-  task {
-    let password =
-      // "what"
-      Password.fromHash
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-
-    do!
-      upsertAdmin
-        { username = UserName.create "dark"
-          password = password
-          email = "ops+darkuser@darklang.com"
-          name = "Dark Local Admin user" }
-      |> Task.map (Exception.unwrapResultInternal [])
-
-    do!
-      upsertAdmin
-        { username = UserName.create "paul"
-          password = password
-          email = "paul@darklang.com"
-          name = "Paul Biggar" }
-      |> Task.map (Exception.unwrapResultInternal [])
-
-    return ()
-  }
-
 /// Initialize accounts needed for development and testing
 let initializeDevelopmentAccounts (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend.Account in {serviceName}"
     do! initTestAccounts ()
-    do! initAdmins ()
     print $"Inited  LibBackend.Account in {serviceName}"
     return ()
   }

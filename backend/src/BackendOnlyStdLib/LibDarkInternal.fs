@@ -236,28 +236,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "setAdmin" 0
-      parameters = [ Param.make "username" TStr ""; Param.make "admin" TBool "" ]
-      returnType = TUnit
-      description = "Set whether a user is an admin. Returns null"
-      fn =
-        internalFn (function
-          | _, [ DStr username; DBool admin ] ->
-            uply {
-              let username = UserName.create username
-              do! Account.setAdmin admin username
-              LibService.Rollbar.notify
-                "setAdmin called"
-                [ "username", username; "admin", admin ]
-              Analytics.identifyUser username
-              return DUnit
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DarkInternal" "getUsers" 0
       parameters = []
       returnType = TList TStr
@@ -856,40 +834,6 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated }
 
-
-    { name = fn "DarkInternal" "getOrgCanvasList" 0
-      parameters = [ Param.make "userID" TUuid "" ]
-      returnType = TList TStr
-      description =
-        "Returns all canvases the user has access to via orgs (not including ones they have access to directly)"
-      fn =
-        internalFn (function
-          | _, [ DUuid userID ] ->
-            uply {
-              let! canvasList = Account.accessibleCanvases userID
-              return canvasList |> List.map string |> List.map DStr |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getOrgList" 0
-      parameters = [ Param.make "userID" TUuid "" ]
-      returnType = TList TStr
-      description = "Returns all orgs the user is a member of"
-      fn =
-        internalFn (function
-          | _, [ DUuid userID ] ->
-            uply {
-              let! canvasList = Account.orgs userID
-              return canvasList |> List.map string |> List.map DStr |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
 
 
     { name = fn "DarkInternal" "getOpsForToplevel" 0
