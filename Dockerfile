@@ -97,8 +97,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
     apt install \
       --no-install-recommends \
       -y \
-      software-properties-common \
-      make \
       rsync \
       git \
       wget \
@@ -110,7 +108,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-contrib-9.6 \
       git-restore-mtime \
       nodejs \
-      libgbm1 \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
@@ -118,14 +115,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       vim \
       unzip \
       docker-ce \
-      build-essential \
       python3-pip \
       python3-setuptools \
       python3-dev \
       libsodium-dev \
-      gcc \
-      pgcli \
-      ffmpeg \
       libssl-dev \
       zlib1g-dev \
       pv \
@@ -142,7 +135,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libssl3 \
       libstdc++6 \
       zlib1g \
-      lldb \
       # end .NET dependencies
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
