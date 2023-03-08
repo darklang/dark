@@ -135,14 +135,20 @@ let rec inline'
   RuntimeTypesAst.postTraversal
     (fun expr ->
       match expr with
-      | ELet (_, name, expr, body) ->
-        inline' paramName (Map.add name expr symtable) body
+      | ELet (_, pat, expr, body) ->
+        let varName =
+          match pat with
+          | LPVariable (_id, name) -> name
+
+        inline' paramName (Map.add varName expr symtable) body
+
       | EVariable (_, name) as expr when name <> paramName ->
         (match Map.get name symtable with
          | Some found -> found
          | None ->
            // the variable might be in the symtable, so put it back to fill in later
            expr)
+
       | expr -> expr)
     expr
 
@@ -417,10 +423,10 @@ let partiallyEvaluate
             | EBool _
             | EUnit _
             | EFloat _ -> return expr
-            | ELet (id, name, rhs, next) ->
+            | ELet (id, pat, rhs, next) ->
               let! rhs = r rhs
               let! next = r next
-              return ELet(id, name, rhs, next)
+              return ELet(id, pat, rhs, next)
             | EApply (id, name, exprs, inPipe) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EApply(id, name, exprs, inPipe)
@@ -448,10 +454,10 @@ let partiallyEvaluate
 
               let! pairs =
                 Ply.List.mapSequentially
-                  (fun (name, expr) ->
+                  (fun (pat, expr) ->
                     uply {
                       let! expr = r expr
-                      return (name, expr)
+                      return (pat, expr)
                     })
                   pairs
 

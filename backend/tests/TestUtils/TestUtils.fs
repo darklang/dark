@@ -478,6 +478,21 @@ module Expect =
     let pathStr = (path @ [ "val" ]) |> List.reverse |> String.concat "."
     $"in ({pathStr})"
 
+  let rec letPatternEqualityBaseFn
+    (checkIDs : bool)
+    (path : Path)
+    (actual : LetPattern)
+    (expected : LetPattern)
+    (errorFn : Path -> string -> string -> unit)
+    : unit =
+    let check path (a : 'a) (e : 'a) =
+      if a <> e then errorFn path (string actual) (string expected)
+
+    if checkIDs then check path (LetPattern.toID actual) (LetPattern.toID expected)
+
+    match actual, expected with
+    | LPVariable (_, name), LPVariable (_, name') -> check path name name'
+
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
     (path : Path)
@@ -550,8 +565,8 @@ module Expect =
     | EInteger (_, v), EInteger (_, v') -> check path v v'
     | EFloat (_, v), EFloat (_, v') -> check path v v'
     | EBool (_, v), EBool (_, v') -> check path v v'
-    | ELet (_, lhs, rhs, body), ELet (_, lhs', rhs', body') ->
-      check path lhs lhs'
+    | ELet (_, pat, rhs, body), ELet (_, pat', rhs', body') ->
+      letPatternEqualityBaseFn checkIDs path pat pat' errorFn
       eq ("rhs" :: path) rhs rhs'
       eq ("body" :: path) body body'
     | EIf (_, con, thn, els), EIf (_, con', thn', els') ->

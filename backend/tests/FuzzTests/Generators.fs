@@ -154,6 +154,27 @@ module RuntimeTypes =
   let simpleString =
     simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
+
+  module LetPattern =
+    let genVar = simpleString |> Gen.map (fun s -> RT.LPVariable(gid (), s))
+
+  module LP = LetPattern
+
+  let letPattern =
+    // TODO: consider adding 'weight' such that certain patterns are generated
+    // more often than others
+    let rec gen' s : Gen<RT.LetPattern> =
+      let finitePatterns = [ LP.genVar ]
+
+      let allPatterns = finitePatterns
+
+      match s with
+      | 0 -> Gen.oneof finitePatterns
+      | n when n > 0 -> Gen.oneof allPatterns
+      | _ -> invalidArg "s" "Only positive arguments are allowed"
+
+    Gen.sized gen' // todo: depth of 5 seems kinda reasonable
+
   module MatchPattern =
     let genInt = Arb.generate<int64> |> Gen.map (fun i -> RT.MPInteger(gid (), i))
     let genBool = Arb.generate<bool> |> Gen.map (fun b -> RT.MPBool(gid (), b))
@@ -230,11 +251,11 @@ module RuntimeTypes =
     // Recursive exprs
     let genLet genSubExpr s =
       gen {
-        let! varName = simpleString
+        let! pat = letPattern
         let! rhsExpr = genSubExpr (s / 2)
         let! nextExpr = genSubExpr (s / 2)
 
-        return RT.ELet(gid (), varName, rhsExpr, nextExpr)
+        return RT.ELet(gid (), pat, rhsExpr, nextExpr)
       }
 
     let genIf genSubExpr s =
@@ -380,6 +401,26 @@ module ProgramTypes =
   let simpleString =
     simpleName [ 'a' .. 'z' ] (List.concat [ [ 'a' .. 'z' ]; [ '0' .. '9' ] ])
 
+  module LetPattern =
+    let genVar = simpleString |> Gen.map (fun s -> PT.LPVariable(gid (), s))
+
+  module LP = LetPattern
+
+  let letPattern =
+    // TODO: consider adding 'weight' such that certain patterns are generated
+    // more often than others
+    let rec gen' s : Gen<PT.LetPattern> =
+      let finitePatterns = [ LP.genVar ]
+
+      let allPatterns = finitePatterns
+
+      match s with
+      | 0 -> Gen.oneof finitePatterns
+      | n when n > 0 -> Gen.oneof allPatterns
+      | _ -> invalidArg "s" "Only positive arguments are allowed"
+
+    Gen.sized gen' // todo: depth of 5 seems kinda reasonable
+
   module MatchPattern =
     let genInt = Arb.generate<int64> |> Gen.map (fun i -> PT.MPInteger(gid (), i))
     let genBool = Arb.generate<bool> |> Gen.map (fun b -> PT.MPBool(gid (), b))
@@ -461,11 +502,11 @@ module ProgramTypes =
     // Recursive exprs
     let genLet genSubExpr s =
       gen {
-        let! varName = simpleString
+        let! pat = letPattern
         let! rhsExpr = genSubExpr (s / 2)
         let! nextExpr = genSubExpr (s / 2)
 
-        return PT.ELet(gid (), varName, rhsExpr, nextExpr)
+        return PT.ELet(gid (), pat, rhsExpr, nextExpr)
       }
 
     let genIf genSubExpr s =

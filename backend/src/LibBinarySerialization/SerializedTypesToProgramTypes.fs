@@ -58,6 +58,11 @@ module Infix =
     | ST.InfixFnCall (fn) -> PT.InfixFnCall(FQFnName.InfixStdlibFnName.toPT fn)
     | ST.BinOp binop -> PT.BinOp(BinaryOperation.toPT binop)
 
+module LetPattern =
+  let rec toPT (p : ST.LetPattern) : PT.LetPattern =
+    match p with
+    | ST.LPVariable (id, str) -> PT.LPVariable(id, str)
+
 module MatchPattern =
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
     match p with
@@ -90,7 +95,8 @@ module Expr =
     | ST.EFnCall (id, name, args) ->
       PT.EFnCall(id, FQFnName.toPT name, List.map toPT args)
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
-    | ST.ELet (id, lhs, rhs, body) -> PT.ELet(id, lhs, toPT rhs, toPT body)
+    | ST.ELet (id, pat, rhs, body) ->
+      PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
     | ST.EIf (id, cond, thenExpr, elseExpr) ->
       PT.EIf(id, toPT cond, toPT thenExpr, toPT elseExpr)
     | ST.EList (id, exprs) -> PT.EList(id, List.map toPT exprs)

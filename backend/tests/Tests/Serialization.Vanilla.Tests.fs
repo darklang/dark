@@ -642,10 +642,16 @@ module RoundtripTests =
           CT2Program.FQFnName.fromCT
           None
         testRoundtripList
-          "PT.Pattern"
+          "PT.MatchPattern"
           V.ProgramTypes.matchPatterns
           CT2Program.MatchPattern.toCT
           CT2Program.MatchPattern.fromCT
+          None
+        testRoundtripList
+          "PT.LetPattern"
+          V.ProgramTypes.letPatterns
+          CT2Program.LetPattern.toCT
+          CT2Program.LetPattern.fromCT
           None
         testRoundtrip
           "PT.Expr"

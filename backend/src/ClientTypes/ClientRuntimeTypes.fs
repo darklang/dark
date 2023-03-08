@@ -52,6 +52,8 @@ type DType =
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
 
+type LetPattern = LPVariable of id * name : string
+
 type MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * string * List<MatchPattern>
@@ -71,7 +73,7 @@ module Expr =
     | ECharacter of id * string
     | EFloat of id * double
     | EUnit of id
-    | ELet of id * string * T * T
+    | ELet of id * LetPattern * T * T
     | EIf of id * T * T * T
     | ELambda of id * List<id * string> * T
     | EFieldAccess of id * T * string

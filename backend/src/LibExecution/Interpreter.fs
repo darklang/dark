@@ -86,22 +86,23 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ECharacter (_id, s) -> return DChar s
 
 
-    | ELet (id, lhs, rhs, body) ->
-      if lhs = "" then
-        let! _ = preview st rhs
-        return DError(sourceID id, "Variable name in `let` is empty")
-      else
-        let! rhs = eval state st rhs
-        match rhs with
-        | DError _
-        | DIncomplete _ ->
-          let st = Map.add lhs rhs st
-          do! preview st body
-          return rhs
-        | _ ->
-          let st = Map.add lhs rhs st
-          return! eval state st body
-
+    | ELet (id, pattern, rhs, body) ->
+      match pattern with
+      | LPVariable (_id, lhs) ->
+        if lhs = "" then
+          let! _ = preview st rhs
+          return DError(sourceID id, "Variable name in `let` is empty")
+        else
+          let! rhs = eval state st rhs
+          match rhs with
+          | DError _
+          | DIncomplete _ ->
+            let st = Map.add lhs rhs st
+            do! preview st body
+            return rhs
+          | _ ->
+            let st = Map.add lhs rhs st
+            return! eval state st body
 
     | EList (_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state st) exprs

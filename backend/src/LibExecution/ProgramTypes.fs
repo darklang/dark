@@ -34,6 +34,8 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
+type LetPattern = LPVariable of id * name : string
+
 /// Used for pattern matching in a match statement
 type MatchPattern =
   | MPVariable of id * string
@@ -67,7 +69,7 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | ELet of id * string * Expr * Expr
+  | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
   // the id in the varname list is the analysis id, used to get a livevalue

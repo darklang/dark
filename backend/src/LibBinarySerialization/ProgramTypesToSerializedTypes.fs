@@ -35,6 +35,11 @@ module BinaryOperation =
     | PT.BinOpAnd -> ST.BinOpAnd
     | PT.BinOpOr -> ST.BinOpOr
 
+module LetPattern =
+  let rec toST (p : PT.LetPattern) : ST.LetPattern =
+    match p with
+    | PT.LPVariable (id, str) -> ST.LPVariable(id, str)
+
 module MatchPattern =
   let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
@@ -76,7 +81,8 @@ module Expr =
     | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)
-    | PT.ELet (id, lhs, rhs, body) -> ST.ELet(id, lhs, toST rhs, toST body)
+    | PT.ELet (id, pat, rhs, body) ->
+      ST.ELet(id, LetPattern.toST pat, toST rhs, toST body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
     | PT.EList (id, exprs) -> ST.EList(id, List.map toST exprs)

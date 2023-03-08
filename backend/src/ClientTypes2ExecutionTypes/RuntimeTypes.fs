@@ -108,6 +108,15 @@ module DType =
     | TFn (ts, returnType) -> RT.TFn(rl ts, r returnType)
     | TRecord (pairs) -> RT.TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
 
+module LetPattern =
+  let rec fromCT (p : LetPattern) : RT.LetPattern =
+    match p with
+    | LPVariable (id, str) -> RT.LPVariable(id, str)
+
+  let rec toCT (p : RT.LetPattern) : LetPattern =
+    match p with
+    | RT.LPVariable (id, str) -> LPVariable(id, str)
+
 module MatchPattern =
   let rec fromCT (p : MatchPattern) : RT.MatchPattern =
     let r = fromCT
@@ -163,7 +172,8 @@ module Expr =
     | Expr.EVariable (id, var) -> RT.EVariable(id, var)
     | Expr.EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | Expr.ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
-    | Expr.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, r rhs, r body)
+    | Expr.ELet (id, pat, rhs, body) ->
+      RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
     | Expr.EApply (id, expr, exprs, pipe) ->
@@ -206,7 +216,8 @@ module Expr =
     | RT.EVariable (id, var) -> Expr.EVariable(id, var)
     | RT.EFieldAccess (id, obj, fieldname) -> Expr.EFieldAccess(id, r obj, fieldname)
     | RT.ELambda (id, vars, body) -> Expr.ELambda(id, vars, r body)
-    | RT.ELet (id, lhs, rhs, body) -> Expr.ELet(id, lhs, r rhs, r body)
+    | RT.ELet (id, pat, rhs, body) ->
+      Expr.ELet(id, LetPattern.toCT pat, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
     | RT.EApply (id, expr, exprs, pipe) ->

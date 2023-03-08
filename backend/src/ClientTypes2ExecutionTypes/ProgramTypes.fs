@@ -62,6 +62,14 @@ module FQFnName =
     | PT.FQFnName.Stdlib fn -> CTPT.FQFnName.Stdlib(StdlibFnName.toCT fn)
     | PT.FQFnName.Package p -> CTPT.FQFnName.Package(PackageFnName.toCT p)
 
+module LetPattern =
+  let rec fromCT (p : CTPT.LetPattern) : PT.LetPattern =
+    match p with
+    | CTPT.LPVariable (id, str) -> PT.LPVariable(id, str)
+
+  let rec toCT (p : PT.LetPattern) : CTPT.LetPattern =
+    match p with
+    | PT.LPVariable (id, str) -> CTPT.LPVariable(id, str)
 
 module MatchPattern =
   let rec fromCT (pat : CTPT.MatchPattern) : PT.MatchPattern =
@@ -127,8 +135,8 @@ module Expr =
     | CTPT.Expr.ECharacter (id, c) -> PT.ECharacter(id, c)
     | CTPT.Expr.EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
     | CTPT.Expr.EUnit (id) -> PT.EUnit(id)
-    | CTPT.Expr.ELet (id, name, expr, body) ->
-      PT.ELet(id, name, fromCT expr, fromCT body)
+    | CTPT.Expr.ELet (id, pat, expr, body) ->
+      PT.ELet(id, LetPattern.fromCT pat, fromCT expr, fromCT body)
     | CTPT.Expr.EIf (id, cond, ifExpr, thenExpr) ->
       PT.EIf(id, fromCT cond, fromCT ifExpr, fromCT thenExpr)
     | CTPT.EInfix (id, infix, first, second) ->
@@ -171,8 +179,8 @@ module Expr =
     | PT.ECharacter (id, c) -> CTPT.Expr.ECharacter(id, c)
     | PT.EFloat (id, sign, whole, frac) -> CTPT.Expr.EFloat(id, sign, whole, frac)
     | PT.EUnit (id) -> CTPT.Expr.EUnit(id)
-    | PT.ELet (id, name, expr, body) ->
-      CTPT.Expr.ELet(id, name, toCT expr, toCT body)
+    | PT.ELet (id, pat, expr, body) ->
+      CTPT.Expr.ELet(id, LetPattern.toCT pat, toCT expr, toCT body)
     | PT.EIf (id, cond, ifExpr, thenExpr) ->
       CTPT.Expr.EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
     | PT.EInfix (id, PT.InfixFnCall (name), first, second) ->
