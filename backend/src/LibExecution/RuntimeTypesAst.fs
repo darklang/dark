@@ -21,7 +21,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | ECharacter _
   | EFQFnValue _
   | EFloat _ -> expr
-  | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
+  | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
   | EApply (id, name, exprs, inPipe) -> EApply(id, name, List.map r exprs, inPipe)
@@ -52,7 +52,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EBool _
     | EUnit _
     | EFloat _ -> expr
-    | ELet (id, name, rhs, next) -> ELet(id, name, r rhs, r next)
+    | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
     | EApply (id, name, exprs, inPipe) -> EApply(id, name, List.map r exprs, inPipe)
     | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
     | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)

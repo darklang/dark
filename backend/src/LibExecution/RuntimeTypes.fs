@@ -139,16 +139,17 @@ type Expr =
   | EFloat of id * double
   | EUnit of id
 
+
   /// <summary>
-  /// Composed of binding name, the bound expression,
-  /// and the expression that follows, where the bound value is available
+  /// Composed of binding pattern, the expression to create bindings for,
+  /// and the expression that follows, where the bound values are available
   /// </summary>
   ///
   /// <code>
   /// let str = expr1
   /// expr2
   /// </code>
-  | ELet of id * string * Expr * Expr
+  | ELet of id * LetPattern * Expr * Expr
 
   /// Composed of condition, expr if true, and expr if false
   | EIf of id * Expr * Expr * Expr
@@ -179,6 +180,8 @@ type Expr =
   | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
+
+and LetPattern = LPVariable of id * name : string
 
 and StringSegment =
   | StringText of string
@@ -395,6 +398,12 @@ module Expr =
     | EMatch (id, _, _) -> id
     | EAnd (id, _, _) -> id
     | EOr (id, _, _) -> id
+
+/// Functions for working with Dark match patterns
+module LetPattern =
+  let toID (pat : LetPattern) : id =
+    match pat with
+    | LPVariable (id, _) -> id
 
 /// Functions for working with Dark match patterns
 module MatchPattern =

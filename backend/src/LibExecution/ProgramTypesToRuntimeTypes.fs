@@ -27,7 +27,10 @@ module FQFnName =
     | PT.FQFnName.Stdlib fn -> RT.FQFnName.Stdlib(StdlibFnName.toRT fn)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(PackageFnName.toRT p)
 
-
+module LetPattern =
+  let rec toRT (p : PT.LetPattern) : RT.LetPattern =
+    match p with
+    | PT.LPVariable (id, str) -> RT.LPVariable(id, str)
 
 module MatchPattern =
   let rec toRT (p : PT.MatchPattern) : RT.MatchPattern =
@@ -84,7 +87,8 @@ module Expr =
     | PT.EInfix (id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
       RT.EOr(id, toRT expr1, toRT expr2)
     | PT.ELambda (id, vars, body) -> RT.ELambda(id, vars, toRT body)
-    | PT.ELet (id, lhs, rhs, body) -> RT.ELet(id, lhs, toRT rhs, toRT body)
+    | PT.ELet (id, pattern, rhs, body) ->
+      RT.ELet(id, LetPattern.toRT pattern, toRT rhs, toRT body)
     | PT.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, toRT cond, toRT thenExpr, toRT elseExpr)
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)

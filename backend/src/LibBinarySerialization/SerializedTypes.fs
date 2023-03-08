@@ -92,6 +92,9 @@ module FQFnName =
     | Package of PackageFnName
 
 [<MessagePack.MessagePackObject>]
+type LetPattern = LPVariable of id * name : string
+
+[<MessagePack.MessagePackObject>]
 type MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * string * List<MatchPattern>
@@ -121,7 +124,7 @@ type Expr =
   | ECharacter of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | ELet of id * string * Expr * Expr
+  | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string

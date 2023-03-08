@@ -31,6 +31,8 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
+type LetPattern = LPVariable of id * name : string
+
 type MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * string * List<MatchPattern>
@@ -58,7 +60,7 @@ type Expr =
   | ECharacter of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | ELet of id * string * Expr * Expr
+  | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
   | ELambda of id * List<id * string> * Expr
