@@ -4,10 +4,10 @@ equals_v0 1 1 = true
 equals_v0 "abc" "abc" = true
 equals_v0 "abd" "abc" = false
 equals_v0 (DateTime.parse_v2 "2019-07-28T22:42:36Z") (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
-(=) 1 1 = true
-(=) "abc" "abc" = true
-(=) "abd" "abc" = false
-(=) (DateTime.parse_v2 "2019-07-28T22:42:36Z") (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
+(==) 1 1 = true
+(==) "abc" "abc" = true
+(==) "abd" "abc" = false
+(==) (DateTime.parse_v2 "2019-07-28T22:42:36Z") (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 1 == 1 = true
 "abc" == "abc" = true
 "abd" == "abc" = false

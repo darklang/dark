@@ -80,15 +80,9 @@ module FQFnName =
     (function_ : string)
     (version : int)
     : StdlibFnName =
-    if module_ = "" then
-      Prelude.assert_
-        "stdlib function name must match"
-        [ "function", function_ ]
-        (Set.contains function_ oneWordFunctions
-         || Set.contains function_ infixFnNames)
-    else
+    if module_ <> "" then
       Prelude.assertRe "modName name must match" modNamePat module_
-      Prelude.assertRe "stdlib function name must match" fnnamePat function_
+    Prelude.assertRe "stdlib function name must match" fnnamePat function_
     Prelude.assert_
       "version can't be negative"
       [ "function", function_; "version", version ]

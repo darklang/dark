@@ -17,9 +17,7 @@ let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PT.FQFnName.stdlibFqName "" "++" 0), "++"
-      (PT.FQFnName.stdlibFqName "" "!=" 0), "!="
-      (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
+    [ (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
 
 
 let parseTests =
@@ -38,11 +36,7 @@ let parseTests =
           ("capital letter", PT.FQFnName.User "SomeUserFn") // CLEANUP shouldn't be needed
           ("has _v2 in it", PT.FQFnName.User "myfunction_v2")
           ("has _v0 in it", PT.FQFnName.User "myfunction_v0")
-          ("", p "String::toInt_v1")
-          ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 })
-          ("", PT.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 })
-          ("", p "-")
-          ("", p "^") ]
+          ("", p "String::toInt_v1") ]
       testMany
         "FQFnName parse tests"
         (fun name ->
@@ -63,10 +57,6 @@ let parseTests =
            Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "emit"; version = 1 }))
           ("myFunction_v2", Some(PT.FQFnName.User "myFunction_v2"))
           ("myFunction_v0", Some(PT.FQFnName.User "myFunction_v0"))
-          ("++",
-           Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "++"; version = 0 }))
-          ("+",
-           Some(PT.FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }))
           ("dark/stdlib/Twitter::sendText_v0",
            Some(
              PT.FQFnName.Package
@@ -114,11 +104,11 @@ let testPipesToRuntimeTypes =
 
     let expected =
       S.ePipeApply
-        (S.eStdFnVal "" "<" 0)
+        (S.eStdFnVal "Int" "lessThan" 0)
         [ S.ePipeApply
-            (S.eStdFnVal "" "+" 0)
+            (S.eStdFnVal "Int" "add" 0)
             [ S.ePipeApply
-                (S.eStdFnVal "" "-" 0)
+                (S.eStdFnVal "Int" "subtract" 0)
                 [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
               S.eFieldAccess (S.eVar "value") "age" ]
           S.eInt 3 ]

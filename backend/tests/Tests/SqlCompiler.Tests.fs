@@ -73,7 +73,7 @@ let compileTests =
 
         let expr =
           S.eApply
-            (S.eStdFnVal "" "==" 0)
+            (S.eStdFnVal "" "equals" 0)
             [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
 
         let! sql, args = compile Map.empty "value" [ injection, TStr ] expr
@@ -110,7 +110,8 @@ let compileTests =
 
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
-    let expr = Parser.Parser.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
+    let expr =
+      Parser.Parser.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
     let expected = Parser.Parser.parseRTExpr "3 + 5"
     let result = C.inline' "value" Map.empty expr

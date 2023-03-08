@@ -18,7 +18,7 @@ Redirect destination reached
 [test]
 // This is here to be a destination for valid redirect tests
 (let response = (HttpClient.request "post" "http://URL" "" {} {"Content-Type" = "application/json"}) |> Test.unwrap
- let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
  Dict.set_v0 response "headers" respHeaders) =
    { body = "Redirect destination reached"
      statusCode = 200

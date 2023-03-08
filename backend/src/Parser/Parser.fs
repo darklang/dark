@@ -468,8 +468,10 @@ let parseTestFile (filename : string) : Module =
   let parsingOptions =
     { FSharpParsingOptions.Default with SourceFiles = [| filename |] }
 
+  let fsharpFilename = System.IO.Path.GetFileNameWithoutExtension filename + ".fs"
+
   let results =
-    checker.ParseFile("test.fs", Text.SourceText.ofString input, parsingOptions)
+    checker.ParseFile(fsharpFilename, Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
   let rec convertType (typ : SynType) : PT.DType =

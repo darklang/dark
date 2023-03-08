@@ -16,7 +16,7 @@ module Misc =
   // in ci, "circleci"
   | "circleci" -> true
   // otherwise it's the first 7 chars of the git hash
-  | hash -> (String.length hash) = 7) = true
+  | hash -> (String.length hash) == 7) = true
 
 // ---------------
 // Grants
