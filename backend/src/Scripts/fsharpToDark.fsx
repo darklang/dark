@@ -28,7 +28,7 @@ let output =
   |> Seq.map (fun x -> $"  {x}")
   |> String.concat "\n"
   |> (fun input -> $"do ({input})")
-  |> Parser.Parser.parseRTExpr
+  |> Parser.parseRTExpr
   |> LibExecution.Shortcuts.toStringRepr
 
 printfn "%s" output

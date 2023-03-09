@@ -202,7 +202,7 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests (moduleName : string) (module' : Parser.Parser.Module) =
+    let rec moduleToTests (moduleName : string) (module' : Parser.Module) =
 
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) module'.modules
@@ -230,7 +230,7 @@ let fileTests () : Test =
     if shouldSkip then
       testList $"skipped - {testName}" []
     else
-      (baseDir + filename) |> Parser.Parser.parseTestFile |> moduleToTests testName)
+      (baseDir + filename) |> Parser.parseTestFile |> moduleToTests testName)
   |> Array.toList
   |> testList "All"
 

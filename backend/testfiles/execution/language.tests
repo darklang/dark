@@ -113,7 +113,7 @@ module FeatureFlag =
   flag "test" () "old" "new" = "old"
   flag "test" 5 "old" "new" = "old"
   flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
-  flag "test" (List.head_v2_ster []) "old" "new" = "old"
+  flag "test" (List.head_v2 []) "old" "new" = "old"
   flag "test" {x = true} "old" "new" = "old"
   flag "test" {x = true} "old" "new" = "old"
   flag "test" [true] "old" "new" = "old"

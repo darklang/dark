@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 let parserTests =
   let t name testStr expectedExpr =
     testTask name {
-      let actual = Parser.Parser.parseRTExpr testStr
+      let actual = Parser.parseRTExpr testStr
       return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
     }
   let id = 0UL // since we're ignoring IDs, just use the same one everywhere

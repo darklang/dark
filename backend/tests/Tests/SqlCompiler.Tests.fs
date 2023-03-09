@@ -54,7 +54,7 @@ let matchSql
 
 let compileTests =
 
-  let p code = Parser.Parser.parseRTExpr code
+  let p code = Parser.parseRTExpr code
 
   testList
     "compile tests"
@@ -110,10 +110,9 @@ let compileTests =
 
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
-    let expr =
-      Parser.Parser.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
+    let expr = Parser.parseRTExpr "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
-    let expected = Parser.Parser.parseRTExpr "3 + 5"
+    let expected = Parser.parseRTExpr "3 + 5"
     let result = C.inline' "value" Map.empty expr
     Expect.equalExprIgnoringIDs result expected
   }
@@ -121,9 +120,9 @@ let inlineWorksAtRoot =
 let inlineWorksWithNested =
   test "inlineWorksWithNested" {
     let expr =
-      Parser.Parser.parseRTExpr "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
+      Parser.parseRTExpr "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
-    let expected = Parser.Parser.parseRTExpr "3 + 7"
+    let expected = Parser.parseRTExpr "3 + 7"
     let result = C.inline' "value" Map.empty expr
     Expect.equalExprIgnoringIDs result expected
   }
@@ -135,7 +134,7 @@ let partialEvaluation =
       task {
         let! meta = createTestCanvas "sqlcompiler"
         let! state = executionStateFor meta Map.empty Map.empty
-        let expr = Parser.Parser.parseRTExpr expr
+        let expr = Parser.parseRTExpr expr
         let result = C.partiallyEvaluate state "x" (Map vars) expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with

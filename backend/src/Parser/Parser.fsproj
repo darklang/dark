@@ -12,7 +12,6 @@
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FQFnNameParser.fs" />
     <Compile Include="Parser.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

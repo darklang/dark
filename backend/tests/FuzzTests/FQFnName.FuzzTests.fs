@@ -66,12 +66,4 @@ type Generator =
         member _.Generator =
           Generator.PTFQFnName().Generator |> Gen.map PT2RT.FQFnName.toRT }
 
-/// ProgramType can roundtrip cleanly to/from RuntimeType
-let ptRoundtrip (a : PT.FQFnName.T) : bool =
-  a |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString |> Parser.FQFnNameParser.parse
-  .=. a
-
-let tests config =
-  testList
-    "PT.FQFnName"
-    [ testProperty config typeof<Generator> "roundtripping" ptRoundtrip ]
+let tests config = testList "PT.FQFnName" []

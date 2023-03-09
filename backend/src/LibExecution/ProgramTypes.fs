@@ -32,9 +32,6 @@ module FQFnName =
   let oneWordFunctions =
     Set [ "equals"; "notEquals"; "equals_v0"; "notEquals_v0"; "emit_v1" ]
 
-  let infixFnNames =
-    Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%"; "/"; "++"; "=="; "!=" ]
-
   // CLEANUP Packages should just have a uuid
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"

@@ -1,5 +1,5 @@
 /// Converts strings of F# into Dark. Used for testing.
-module Parser.Parser
+module Parser
 
 // refer to https://fsharp.github.io/fsharp-compiler-docs
 
@@ -11,7 +11,6 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 let parse (input : string) : SynExpr =
@@ -62,6 +61,16 @@ let nameOrBlank (v : string) : string = if v = "___" then "" else v
 
 let longIdentToList (li : LongIdent) : List<string> =
   li |> List.map (fun id -> id.idText)
+
+let parseFn (fnName : string) : string * int =
+  match fnName with
+  | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
+  | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+  | _ ->
+    Exception.raiseInternal
+      "Bad format in one word function name"
+      [ "fnName", fnName ]
+
 
 let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let c = convertToExpr
@@ -188,7 +197,8 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     PT.EFnCall(id, name, [])
 
   | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
-    PT.EFnCall(id, FQFnNameParser.parse ident.idText, [])
+    let name, version = parseFn ident.idText
+    PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [])
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
@@ -221,26 +231,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     System.Char.IsUpper(modName.idText[0])
     ->
     let module_ = modName.idText
+    let name, version = parseFn fnName.idText
+    PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, [])
 
-    let name =
-      match fnName.idText with
-      | Regex "(.+)_v(\d+)" [ name; version ] ->
-        ($"{module_}::{name}_v{int version}")
-      | Regex "(.*)" [ name ] when Map.containsKey name ops ->
-        // Things like `DateTime::<`, written `DateTime.(<)`
-        let name =
-          Map.get name ops
-          |> Exception.unwrapOptionInternal
-               "can't find function name"
-               [ "name", name ]
-        ($"{module_}::{name}")
-      | Regex "(.+)" [ name ] -> ($"{module_}::{name}")
-      | _ ->
-        Exception.raiseInternal
-          $"Bad format in function name"
-          [ "name", fnName.idText ]
-
-    PT.EFnCall(gid (), FQFnNameParser.parse name, [])
 
   // Preliminary support for package manager functions
   | SynExpr.LongIdent (_,
@@ -409,7 +402,12 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     // A pipe with more than one entry
     | PT.EPipe (id, arg1, arg2, rest) ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
-    | PT.EVariable (id, name) -> PT.EFnCall(id, FQFnNameParser.parse name, [ c arg ])
+    | PT.EVariable (id, name) ->
+      if Set.contains name PT.FQFnName.oneWordFunctions then
+        let (name, version) = parseFn name
+        PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [ c arg ])
+      else
+        PT.EFnCall(id, PT.FQFnName.User name, [ c arg ])
     | e ->
       Exception.raiseInternal
         "Unsupported expression in app"

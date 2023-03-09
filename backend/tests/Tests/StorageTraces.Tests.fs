@@ -280,7 +280,7 @@ let testTraceRoundtrip =
 //         returnType = RT.TInt
 //         description = ""
 //         infix = false
-//         body = Parser.Parser.parseRTExpr "DB.generateKey" }
+//         body = Parser.parseRTExpr "DB.generateKey" }
 
 //     let program =
 //       { canvasID = meta.id
@@ -359,7 +359,7 @@ let testTraceRoundtrip =
 //     // the DB has no columns, but the code expects one, causing it to fail
 //     let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"
 
-//     let (ast : Expr) = Parser.Parser.parseRTExpr code
+//     let (ast : Expr) = Parser.parseRTExpr code
 
 //     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 

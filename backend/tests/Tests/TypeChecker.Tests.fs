@@ -25,12 +25,11 @@ module S = TestUtils.RTShortcuts
 
 let testBasicTypecheckWorks : Test =
   let t
-    ((fn, args) : string * List<string * RT.Dval>)
+    ((fn, args) : RT.FQFnName.T * List<string * RT.Dval>)
     : Result<unit, TypeChecker.Error.T list> =
     let args = Map.ofList args
 
     let fn =
-      let fn = fn |> Parser.FQFnNameParser.parse |> PT2RT.FQFnName.toRT
       libraries
       |> Lazy.force
       |> fun l -> l.stdlib
@@ -43,12 +42,15 @@ let testBasicTypecheckWorks : Test =
   testMany
     "basic type checking"
     t
-    [ ("Int::add_v0", [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
-      (("Int::add_v0", [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
-       Error(
-         [ TypeChecker.Error.TypeUnificationFailure
-             { expectedType = RT.TInt; actualValue = RT.DBool true } ]
-       )) ]
+    (let intAdd =
+      RT.FQFnName.Stdlib { module_ = "Int"; function_ = "add"; version = 0 }
+
+     [ (intAdd, [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
+       ((intAdd, [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
+        Error(
+          [ TypeChecker.Error.TypeUnificationFailure
+              { expectedType = RT.TInt; actualValue = RT.DBool true } ]
+        )) ])
 
 let testArguments : Test =
   let t (name, returnType, body) =

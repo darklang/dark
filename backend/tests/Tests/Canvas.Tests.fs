@@ -20,7 +20,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module CanvasClone = LibBackend.CanvasClone
 module Account = LibBackend.Account
 
-let parse = Parser.Parser.parsePTExpr
+let parse = Parser.parsePTExpr
 
 let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
