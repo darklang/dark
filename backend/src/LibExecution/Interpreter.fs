@@ -461,7 +461,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       // EUserEnumTODO: handle analysis/preview
       let! fields = Ply.List.mapSequentially (eval state st) fields
 
-      // EUserEnumTODO: reconsider (stole this from DList)
+      // EUserEnumTODO: reconsider (stole this from DList)f
       match List.tryFind Dval.isFake fields with
       | Some fakeDval -> return fakeDval
       | None -> return DUserEnum(name, caseName, fields)

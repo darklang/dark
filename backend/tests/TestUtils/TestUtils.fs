@@ -488,6 +488,18 @@ module Expect =
     match actual, expected with
     | LPVariable (_, name), LPVariable (_, name') -> check path name name'
 
+  let rec userTypeNameEqualityBaseFn
+    (path : Path)
+    (actual : UserTypeName)
+    (expected : UserTypeName)
+    (errorFn : Path -> string -> string -> unit)
+    : unit =
+    let check path (a : 'a) (e : 'a) =
+      if a <> e then errorFn path (string actual) (string expected)
+
+    check path (actual.type_) (actual.type_)
+    check path (actual.version) (actual.version)
+
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
     (path : Path)
@@ -620,7 +632,12 @@ module Expect =
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
 
-    | EUserEnum _, EUserEnum _ -> () // EUserEnumTODO
+    | EUserEnum (_, typeName, caseName, fields),
+      EUserEnum (_, typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      check path caseName caseName'
+      eqList path fields fields'
+      ()
 
     // exhaustiveness check
     | EUnit _, _
@@ -711,10 +728,17 @@ module Expect =
           | None -> check (key :: path) ls rs)
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
-    | DUserEnum (_typeName, _caseName, _fields),
-      DUserEnum (_typeName', _caseName', _fields') ->
-      // TODO
+
+    | DUserEnum (typeName, caseName, fields),
+      DUserEnum (typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+
+      check ("caseName" :: path) caseName caseName'
+
+      check ("fields.Length" :: path) (List.length fields) (List.length fields)
+      List.iteri2 (fun i l r -> de (string i :: path) l r) fields fields'
       ()
+
     | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
       check path sc1 sc2
       check path h1 h2

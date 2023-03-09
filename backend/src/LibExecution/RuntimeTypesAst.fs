@@ -39,7 +39,6 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EAnd (id, left, right) -> EAnd(id, r left, r right)
   | EOr (id, left, right) -> EOr(id, r left, r right)
   | EUserEnum (id, typeName, caseName, fields) ->
-    // EUserEnumTODO: something with typeName+caseName?
     EUserEnum(id, typeName, caseName, List.map r fields)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
@@ -73,7 +72,6 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EAnd (id, left, right) -> EAnd(id, r left, r right)
     | EOr (id, left, right) -> EOr(id, r left, r right)
     | EUserEnum (id, typeName, caseName, fields) ->
-      // EUserEnumTODO: something with typeName+caseName?
       EUserEnum(id, typeName, caseName, List.map r fields)
 
 

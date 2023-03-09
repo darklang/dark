@@ -482,9 +482,7 @@ module Dval =
     | DResult (Ok v) -> TResult(toType v, any)
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
-    | DUserEnum (typeName, caseName, _fields) ->
-      // todo: we need the context of the available types in order to assess this
-      TUserType(typeName)
+    | DUserEnum (typeName, _caseName, _fields) -> TUserType(typeName)
 
   /// <summary>
   /// Checks if a runtime's value matches a given type
@@ -528,8 +526,7 @@ module Dval =
         List.zip actual expected
         |> List.all (fun ((aField, aVal), (eField, eType)) ->
           aField = eField && typeMatches eType aVal)
-    | DObj _, TUserType _ -> false // not used TODO revisit
-    | DUserEnum _, TUserType _ -> false // TODO revisit
+
     | DFnVal (Lambda l), TFn (parameters, _) ->
       List.length parameters = List.length l.parameters
     | DFnVal (FnName _fnName), TFn _ -> false // not used
@@ -538,6 +535,31 @@ module Dval =
     | DResult (Ok v), TResult (t, _) -> typeMatches t v
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
+
+    | DObj _, TUserType _ ->
+      // UserTypeTODO revisit
+      // 1. get Definition of UserType
+      //   we likely need a `(userTypeMap: Map<UserTypeName, UserType.Definition>)` passed in
+      //
+      // 2. match against that
+      //  match def with
+      //  | Enum _ -> false
+      //  | Record (...) ->
+      //    ...
+      false
+
+    | DUserEnum _, TUserType _ ->
+      // UserTypeTODO revisit
+      // 1. get Definition of UserType
+      //   we likely need a `(userTypeMap: Map<UserTypeName, UserType.Definition>)` passed in
+      //
+      // 2. match against that
+      //  match def with
+      //  | Record _ -> false
+      //  | Enum (...) ->
+      //    ...
+      false
+
     // Dont match these fakevals, functions do not have these types
     | DError _, _
     | DIncomplete _, _ -> false

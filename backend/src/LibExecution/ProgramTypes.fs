@@ -11,7 +11,7 @@ type Sign = Prelude.Sign
 /// once we support stdlib-defined types (soon!)
 /// ```fsharp
 /// type FQTypeName =
-///   | User of UsertypeName
+///   | User of UserTypeName
 ///   | Stdlib of StdlibTypeName
 ///   | Package of PackageTypeName
 /// ```
