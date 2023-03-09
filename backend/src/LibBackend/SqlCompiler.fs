@@ -59,13 +59,13 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DOption _
   | DResult _
   | DBytes _
+  | DUnit
   | DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | DDateTime date -> date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz
   | DInt i -> Sql.int64 i
   | DFloat v -> Sql.double v
   | DBool b -> Sql.bool b
-  | DUnit -> Sql.dbnull
   | DStr s -> Sql.string s
   | DUuid id -> Sql.uuid id
 
@@ -176,12 +176,12 @@ let rec lambdaToSql
   match expr with
   // The correct way to handle null in SQL is "is null" or "is not null"
   // rather than a comparison with null.
-  | Fn "" "==" 0 [ EUnit _; e ]
-  | Fn "" "==" 0 [ e; EUnit _ ] ->
+  | Fn "" "equals" 0 [ EUnit _; e ]
+  | Fn "" "equals" 0 [ e; EUnit _ ] ->
     let sql, vars = lts TUnit e
     $"({sql} is null)", vars
-  | Fn "" "!=" 0 [ EUnit _; e ]
-  | Fn "" "!=" 0 [ e; EUnit _ ] ->
+  | Fn "" "notEquals" 0 [ EUnit _; e ]
+  | Fn "" "notEquals" 0 [ e; EUnit _ ] ->
     let sql, vars = lts TUnit e
     $"({sql} is not null)", vars
 
@@ -257,7 +257,7 @@ let rec lambdaToSql
     $"(@{name})", [ name, Sql.bool v ]
 
   | EUnit _ ->
-    typecheck "value null" TUnit expectedType
+    typecheck "unit" TUnit expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.dbnull ]
 
@@ -279,7 +279,7 @@ let rec lambdaToSql
           let strPart, vars = lts TStr e
           strPart, vars)
       |> List.unzip
-    let result = String.concat "," strParts
+    let result = String.concat ", " strParts
     let strPart = $"concat({result})"
     let vars = vars |> List.concat
     strPart, vars

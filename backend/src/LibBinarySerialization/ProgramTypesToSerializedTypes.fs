@@ -28,6 +28,23 @@ module FQFnName =
     | PT.FQFnName.Stdlib fn -> ST.FQFnName.Stdlib(StdlibFnName.toST fn)
     | PT.FQFnName.Package p -> ST.FQFnName.Package(PackageFnName.toST p)
 
+module InfixFnName =
+  let toST (name : PT.InfixFnName) : ST.InfixFnName =
+    match name with
+    | PT.ArithmeticPlus -> ST.ArithmeticPlus
+    | PT.ArithmeticMinus -> ST.ArithmeticMinus
+    | PT.ArithmeticMultiply -> ST.ArithmeticMultiply
+    | PT.ArithmeticDivide -> ST.ArithmeticDivide
+    | PT.ArithmeticModulo -> ST.ArithmeticModulo
+    | PT.ArithmeticPower -> ST.ArithmeticPower
+    | PT.ComparisonGreaterThan -> ST.ComparisonGreaterThan
+    | PT.ComparisonGreaterThanOrEqual -> ST.ComparisonGreaterThanOrEqual
+    | PT.ComparisonLessThan -> ST.ComparisonLessThan
+    | PT.ComparisonLessThanOrEqual -> ST.ComparisonLessThanOrEqual
+    | PT.ComparisonEquals -> ST.ComparisonEquals
+    | PT.ComparisonNotEquals -> ST.ComparisonNotEquals
+    | PT.StringConcat -> ST.StringConcat
+
 
 module BinaryOperation =
   let toST (op : PT.BinaryOperation) : ST.BinaryOperation =
@@ -72,12 +89,8 @@ module Expr =
       ST.EFieldAccess(id, toST obj, fieldname)
     | PT.EFnCall (id, name, args) ->
       ST.EFnCall(id, FQFnName.toST name, List.map toST args)
-    | PT.EInfix (id, PT.InfixFnCall (name), arg1, arg2) ->
-      let isInfix = LibExecutionStdLib.StdLib.isInfixName
-      assertFn2 "is a binop" isInfix (Option.unwrap "" name.module_) name.function_
-      let name : ST.FQFnName.InfixStdlibFnName =
-        { module_ = name.module_; function_ = name.function_ }
-      ST.EInfix(id, ST.InfixFnCall(name), toST arg1, toST arg2)
+    | PT.EInfix (id, PT.InfixFnCall name, arg1, arg2) ->
+      ST.EInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST arg1, toST arg2)
     | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
     | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)

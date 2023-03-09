@@ -58,7 +58,7 @@ HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error
 
 // Basic request works including headers
 (let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
- let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h <> "date")
+ let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h != "date")
  Dict.set_v0 response "headers" respHeaders) =
    { statusCode = 200
      headers =

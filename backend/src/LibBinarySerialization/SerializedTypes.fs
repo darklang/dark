@@ -59,14 +59,6 @@ module FQFnName =
       [<MessagePack.Key 2>]
       version : int }
 
-  /// Standard Library Infix Function Name
-  [<MessagePack.MessagePackObject>]
-  type InfixStdlibFnName =
-    { [<MessagePack.Key 0>]
-      module_ : Option<string>
-      [<MessagePack.Key 1>]
-      function_ : string }
-
   /// A UserFunction is a function written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
   type UserFnName = string
@@ -92,6 +84,22 @@ module FQFnName =
     | Package of PackageFnName
 
 [<MessagePack.MessagePackObject>]
+type InfixFnName =
+  | ArithmeticPlus
+  | ArithmeticMinus
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals
+  | StringConcat
+
+[<MessagePack.MessagePackObject>]
 type LetPattern = LPVariable of id * name : string
 
 [<MessagePack.MessagePackObject>]
@@ -113,7 +121,7 @@ type BinaryOperation =
 
 [<MessagePack.MessagePackObject>]
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName
+  | InfixFnCall of InfixFnName
   | BinOp of BinaryOperation
 
 [<MessagePack.MessagePackObject>]

@@ -15,8 +15,6 @@ type Sign = Prelude.Sign
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
-  type InfixStdlibFnName = { module_ : Option<string>; function_ : string }
-
   type UserFnName = string
 
   type PackageFnName =
@@ -30,6 +28,21 @@ module FQFnName =
     | User of UserFnName
     | Stdlib of StdlibFnName
     | Package of PackageFnName
+
+type InfixFnName =
+  | ArithmeticPlus
+  | ArithmeticMinus
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals
+  | StringConcat
 
 type LetPattern = LPVariable of id * name : string
 
@@ -50,7 +63,7 @@ type BinaryOperation =
   | BinOpOr
 
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName
+  | InfixFnCall of InfixFnName
   | BinOp of BinaryOperation
 
 type Expr =

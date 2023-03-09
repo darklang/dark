@@ -18,17 +18,6 @@ module FQFnName =
     let toCT (name : PT.FQFnName.StdlibFnName) : CTPT.FQFnName.StdlibFnName =
       { module_ = name.module_; function_ = name.function_; version = name.version }
 
-  module InfixStdlibFnName =
-    let fromCT
-      (name : CTPT.FQFnName.InfixStdlibFnName)
-      : PT.FQFnName.InfixStdlibFnName =
-      { module_ = name.module_; function_ = name.function_ }
-
-    let toCT
-      (name : PT.FQFnName.InfixStdlibFnName)
-      : CTPT.FQFnName.InfixStdlibFnName =
-      { module_ = name.module_; function_ = name.function_ }
-
 
   module UserFnName =
     let fromCT (t : CTPT.FQFnName.UserFnName) : PT.FQFnName.UserFnName = t
@@ -61,6 +50,39 @@ module FQFnName =
     | PT.FQFnName.User u -> CTPT.FQFnName.User(UserFnName.toCT u)
     | PT.FQFnName.Stdlib fn -> CTPT.FQFnName.Stdlib(StdlibFnName.toCT fn)
     | PT.FQFnName.Package p -> CTPT.FQFnName.Package(PackageFnName.toCT p)
+
+module InfixFnName =
+  let fromCT (name : CTPT.InfixFnName) : PT.InfixFnName =
+    match name with
+    | CTPT.ArithmeticPlus -> PT.ArithmeticPlus
+    | CTPT.ArithmeticMinus -> PT.ArithmeticMinus
+    | CTPT.ArithmeticMultiply -> PT.ArithmeticMultiply
+    | CTPT.ArithmeticDivide -> PT.ArithmeticDivide
+    | CTPT.ArithmeticModulo -> PT.ArithmeticModulo
+    | CTPT.ArithmeticPower -> PT.ArithmeticPower
+    | CTPT.ComparisonGreaterThan -> PT.ComparisonGreaterThan
+    | CTPT.ComparisonGreaterThanOrEqual -> PT.ComparisonGreaterThanOrEqual
+    | CTPT.ComparisonLessThan -> PT.ComparisonLessThan
+    | CTPT.ComparisonLessThanOrEqual -> PT.ComparisonLessThanOrEqual
+    | CTPT.ComparisonEquals -> PT.ComparisonEquals
+    | CTPT.ComparisonNotEquals -> PT.ComparisonNotEquals
+    | CTPT.StringConcat -> PT.StringConcat
+
+  let toCT (name : PT.InfixFnName) : CTPT.InfixFnName =
+    match name with
+    | PT.ArithmeticPlus -> CTPT.ArithmeticPlus
+    | PT.ArithmeticMinus -> CTPT.ArithmeticMinus
+    | PT.ArithmeticMultiply -> CTPT.ArithmeticMultiply
+    | PT.ArithmeticDivide -> CTPT.ArithmeticDivide
+    | PT.ArithmeticModulo -> CTPT.ArithmeticModulo
+    | PT.ArithmeticPower -> CTPT.ArithmeticPower
+    | PT.ComparisonGreaterThan -> CTPT.ComparisonGreaterThan
+    | PT.ComparisonGreaterThanOrEqual -> CTPT.ComparisonGreaterThanOrEqual
+    | PT.ComparisonLessThan -> CTPT.ComparisonLessThan
+    | PT.ComparisonLessThanOrEqual -> CTPT.ComparisonLessThanOrEqual
+    | PT.ComparisonEquals -> CTPT.ComparisonEquals
+    | PT.ComparisonNotEquals -> CTPT.ComparisonNotEquals
+    | PT.StringConcat -> CTPT.StringConcat
 
 module LetPattern =
   let rec fromCT (p : CTPT.LetPattern) : PT.LetPattern =
@@ -115,14 +137,12 @@ module BinaryOperation =
 module Infix =
   let fromCT (infix : CTPT.Infix) : PT.Infix =
     match infix with
-    | CTPT.InfixFnCall (name) ->
-      PT.InfixFnCall(FQFnName.InfixStdlibFnName.fromCT (name))
+    | CTPT.InfixFnCall (name) -> PT.InfixFnCall(InfixFnName.fromCT name)
     | CTPT.BinOp (op) -> PT.BinOp(BinaryOperation.fromCT op)
 
   let toCT (infix : PT.Infix) : CTPT.Infix =
     match infix with
-    | PT.InfixFnCall (name) ->
-      CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT (name))
+    | PT.InfixFnCall (name) -> CTPT.InfixFnCall(InfixFnName.toCT name)
     | PT.BinOp (op) -> CTPT.BinOp(BinaryOperation.toCT op)
 
 module Expr =
@@ -186,7 +206,7 @@ module Expr =
     | PT.EInfix (id, PT.InfixFnCall (name), first, second) ->
       CTPT.Expr.EInfix(
         id,
-        CTPT.InfixFnCall(FQFnName.InfixStdlibFnName.toCT name),
+        CTPT.InfixFnCall(InfixFnName.toCT name),
         toCT first,
         toCT second
       )

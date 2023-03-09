@@ -48,7 +48,7 @@ List.findFirst_v2 [1;2;3] (fun x -> x > 5) = Nothing
 List.findFirst_v2 [] (fun x -> x) = Nothing
 List.findFirst_v2 [1;2;3;1;4] (fun x -> x > 1 ) = Just 2
 List.findFirst_v2 [0; 5; -6; -10; ] (fun x -> x < 0) = Just -6
-List.findFirst_v2 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 = 0)) = Just -2
+List.findFirst_v2 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = Just -2
 
 List.flatten_v0 [1;2;3] = Test.typeError_v0 "Flattening non-lists"
 List.flatten_v0 [[1];[2];[3]] = [ 1; 2; 3 ]

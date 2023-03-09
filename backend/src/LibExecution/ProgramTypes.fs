@@ -12,11 +12,6 @@ module FQFnName =
   /// Standard Library Function Name
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
-  /// Standard Library Infix Function Name
-  // CLEANUP The module is only there for a few functions in the Date module, such as
-  // Date::<. Making these infix wasn't a great idea, and we should remove them.
-  type InfixStdlibFnName = { module_ : Option<string>; function_ : string }
-
   /// A UserFunction is a function written by a Developer in their canvas
   type UserFnName = string
 
@@ -33,6 +28,66 @@ module FQFnName =
     | User of UserFnName
     | Stdlib of StdlibFnName
     | Package of PackageFnName
+
+  let oneWordFunctions =
+    Set [ "equals"; "notEquals"; "equals_v0"; "notEquals_v0"; "emit_v1" ]
+
+  // CLEANUP Packages should just have a uuid
+  let namePat = @"^[a-z][a-z0-9_]*$"
+  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+  let fnnamePat = @"^([a-z][a-z0-9A-Z_]*)$"
+  let userFnNamePat = @"^([a-z][a-z0-9A-Z_]*)$"
+
+  let packageFnName
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : PackageFnName =
+    Prelude.assertRe "owner must match" namePat owner
+    Prelude.assertRe "package must match" namePat package
+    Prelude.assertRe "modName name must match" modNamePat module_
+    Prelude.assertRe "package function name must match" fnnamePat function_
+    Prelude.assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { owner = owner
+      package = package
+      module_ = module_
+      function_ = function_
+      version = version }
+
+  let packageFqName
+    (owner : string)
+    (package : string)
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : T =
+    Package(packageFnName owner package module_ function_ version)
+
+  let userFnName (fnName : string) : UserFnName =
+    Prelude.assertRe "user function name must match" userFnNamePat fnName
+    fnName
+
+
+  let userFqName (fnName : string) = User(userFnName fnName)
+
+  let stdlibFnName
+    (module_ : string)
+    (function_ : string)
+    (version : int)
+    : StdlibFnName =
+    if module_ <> "" then
+      Prelude.assertRe "modName name must match" modNamePat module_
+    Prelude.assertRe "stdlib function name must match" fnnamePat function_
+    Prelude.assert_
+      "version can't be negative"
+      [ "function", function_; "version", version ]
+      (version >= 0)
+    { module_ = module_; function_ = function_; version = version }
+
+  let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
+    Stdlib(stdlibFnName module_ function_ version)
 
 type LetPattern = LPVariable of id * name : string
 
@@ -52,8 +107,23 @@ type BinaryOperation =
   | BinOpAnd
   | BinOpOr
 
+type InfixFnName =
+  | ArithmeticPlus
+  | ArithmeticMinus
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals
+  | StringConcat
+
 type Infix =
-  | InfixFnCall of FQFnName.InfixStdlibFnName
+  | InfixFnCall of InfixFnName
   | BinOp of BinaryOperation
 
 /// Expressions - the main part of the language.

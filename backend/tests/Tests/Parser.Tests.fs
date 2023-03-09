@@ -31,7 +31,7 @@ let parserTests =
             PT.EVariable(id, "x"),
             PT.EFnCall(
               id,
-              PTParser.FQFnName.stdlibFqName "List" "map" 0,
+              PT.FQFnName.stdlibFqName "List" "map" 0,
               [ (PT.EPipeTarget id); PT.EInteger(id, 5) ]
             ),
             []
@@ -42,10 +42,10 @@ let parserTests =
         "(5 + 3) == 8"
         (PT.EInfix(
           id,
-          PT.InfixFnCall({ module_ = None; function_ = "==" }),
+          PT.InfixFnCall(PT.ComparisonEquals),
           PT.EInfix(
             id,
-            (PT.InfixFnCall({ module_ = None; function_ = "+" })),
+            (PT.InfixFnCall(PT.ArithmeticPlus)),
             PT.EInteger(id, 5),
             PT.EInteger(id, 3)
           ),

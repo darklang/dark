@@ -11,7 +11,6 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 
 let parse (input : string) : SynExpr =
@@ -62,6 +61,16 @@ let nameOrBlank (v : string) : string = if v = "___" then "" else v
 
 let longIdentToList (li : LongIdent) : List<string> =
   li |> List.map (fun id -> id.idText)
+
+let parseFn (fnName : string) : string * int =
+  match fnName with
+  | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
+  | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+  | _ ->
+    Exception.raiseInternal
+      "Bad format in one word function name"
+      [ "fnName", fnName ]
+
 
 let rec convertToExpr (ast : SynExpr) : PT.Expr =
   let c = convertToExpr
@@ -119,21 +128,19 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | other -> other
 
   let ops =
-    Map.ofList [ ("op_Addition", "+")
-                 ("op_Subtraction", "-")
-                 ("op_Multiply", "*")
-                 ("op_Division", "/")
-                 ("op_PlusPlus", "++")
-                 ("op_GreaterThan", ">")
-                 ("op_GreaterThanOrEqual", ">=")
-                 ("op_LessThan", "<")
-                 ("op_LessThanOrEqual", "<=")
-                 ("op_Modulus", "%")
-                 ("op_Concatenate", "^")
-                 ("op_EqualsEquals", "==")
-                 ("op_Equality", "==")
-                 ("op_BangEquals", "!=")
-                 ("op_Inequality", "!=") ]
+    Map.ofList [ ("op_Addition", PT.ArithmeticPlus)
+                 ("op_Subtraction", PT.ArithmeticMinus)
+                 ("op_Multiply", PT.ArithmeticMultiply)
+                 ("op_Division", PT.ArithmeticDivide)
+                 ("op_Modulus", PT.ArithmeticModulo)
+                 ("op_Concatenate", PT.ArithmeticPower)
+                 ("op_GreaterThan", PT.ComparisonGreaterThan)
+                 ("op_GreaterThanOrEqual", PT.ComparisonGreaterThanOrEqual)
+                 ("op_LessThan", PT.ComparisonLessThan)
+                 ("op_LessThanOrEqual", PT.ComparisonLessThanOrEqual)
+                 ("op_EqualsEquals", PT.ComparisonEquals)
+                 ("op_BangEquals", PT.ComparisonNotEquals)
+                 ("op_PlusPlus", PT.StringConcat) ]
 
   let id = gid ()
 
@@ -170,8 +177,7 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
       |> Exception.unwrapOptionInternal
            "can't find operation"
            [ "name", ident.idText ]
-    let fn : PT.FQFnName.InfixStdlibFnName = { module_ = None; function_ = op }
-    PT.EInfix(id, PT.InfixFnCall(fn), placeholder, placeholder)
+    PT.EInfix(id, PT.InfixFnCall op, placeholder, placeholder)
 
   | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
     List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
@@ -187,13 +193,12 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
   | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
     ident.idText = "op_UnaryNegation"
     ->
-    let name = PTParser.FQFnName.stdlibFqName "Int" "negate" 0
+    let name = PT.FQFnName.stdlibFqName "Int" "negate" 0
     PT.EFnCall(id, name, [])
 
-  | SynExpr.Ident ident when
-    Set.contains ident.idText PTParser.FQFnName.oneWordFunctions
-    ->
-    PT.EFnCall(id, PTParser.FQFnName.parse ident.idText, [])
+  | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
+    let name, version = parseFn ident.idText
+    PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [])
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
     PT.EConstructor(id, "Nothing", [])
@@ -226,26 +231,9 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     System.Char.IsUpper(modName.idText[0])
     ->
     let module_ = modName.idText
+    let name, version = parseFn fnName.idText
+    PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, [])
 
-    let name =
-      match fnName.idText with
-      | Regex "(.+)_v(\d+)" [ name; version ] ->
-        ($"{module_}::{name}_v{int version}")
-      | Regex "(.*)" [ name ] when Map.containsKey name ops ->
-        // Things like `DateTime::<`, written `DateTime.(<)`
-        let name =
-          Map.get name ops
-          |> Exception.unwrapOptionInternal
-               "can't find function name"
-               [ "name", name ]
-        ($"{module_}::{name}")
-      | Regex "(.+)" [ name ] -> ($"{module_}::{name}")
-      | _ ->
-        Exception.raiseInternal
-          $"Bad format in function name"
-          [ "name", fnName.idText ]
-
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [])
 
   // Preliminary support for package manager functions
   | SynExpr.LongIdent (_,
@@ -254,8 +242,11 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
                        _) when
     owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
     ->
-    let name = $"test/test/Test::{fnName.idText}_v0"
-    PT.EFnCall(gid (), PTParser.FQFnName.parse name, [])
+    PT.EFnCall(
+      gid (),
+      PT.FQFnName.packageFqName "test" "test" "Test" fnName.idText 0,
+      []
+    )
 
   | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
     let obj1 =
@@ -412,7 +403,11 @@ let rec convertToExpr (ast : SynExpr) : PT.Expr =
     | PT.EPipe (id, arg1, arg2, rest) ->
       PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
     | PT.EVariable (id, name) ->
-      PT.EFnCall(id, PTParser.FQFnName.parse name, [ c arg ])
+      if Set.contains name PT.FQFnName.oneWordFunctions then
+        let (name, version) = parseFn name
+        PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [ c arg ])
+      else
+        PT.EFnCall(id, PT.FQFnName.User name, [ c arg ])
     | e ->
       Exception.raiseInternal
         "Unsupported expression in app"
@@ -471,8 +466,10 @@ let parseTestFile (filename : string) : Module =
   let parsingOptions =
     { FSharpParsingOptions.Default with SourceFiles = [| filename |] }
 
+  let fsharpFilename = System.IO.Path.GetFileNameWithoutExtension filename + ".fs"
+
   let results =
-    checker.ParseFile("test.fs", Text.SourceText.ofString input, parsingOptions)
+    checker.ParseFile(fsharpFilename, Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
   let rec convertType (typ : SynType) : PT.DType =

@@ -155,10 +155,9 @@
                               94793109,
                               [
                                 "InfixFnCall",
-                                {
-                                  "module_": null,
-                                  "function_": "!="
-                                }
+                                [
+                                  "ComparisonNotEquals"
+                                ]
                               ],
                               [
                                 "EInteger",
@@ -176,10 +175,9 @@
                               775118986,
                               [
                                 "InfixFnCall",
-                                {
-                                  "module_": null,
-                                  "function_": "\u002B"
-                                }
+                                [
+                                  "ArithmeticPlus"
+                                ]
                               ],
                               [
                                 "EInteger",
@@ -206,10 +204,9 @@
                                 140609068,
                                 [
                                   "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  }
+                                  [
+                                    "ArithmeticPlus"
+                                  ]
                                 ],
                                 [
                                   "EInteger",
@@ -229,20 +226,18 @@
                             265463935,
                             [
                               "InfixFnCall",
-                              {
-                                "module_": null,
-                                "function_": "\u002B"
-                              }
+                              [
+                                "ArithmeticPlus"
+                              ]
                             ],
                             [
                               "EInfix",
                               312092282,
                               [
                                 "InfixFnCall",
-                                {
-                                  "module_": null,
-                                  "function_": "\u002B"
-                                }
+                                [
+                                  "ArithmeticPlus"
+                                ]
                               ],
                               [
                                 "EFieldAccess",
@@ -329,10 +324,9 @@
                                     1021880969,
                                     [
                                       "InfixFnCall",
-                                      {
-                                        "module_": null,
-                                        "function_": "\u002B"
-                                      }
+                                      [
+                                        "ArithmeticPlus"
+                                      ]
                                     ],
                                     [
                                       "EPipeTarget",
@@ -497,10 +491,9 @@
                                     275666765,
                                     [
                                       "InfixFnCall",
-                                      {
-                                        "module_": null,
-                                        "function_": "\u002B"
-                                      }
+                                      [
+                                        "ArithmeticPlus"
+                                      ]
                                     ],
                                     [
                                       "EInteger",
@@ -8102,10 +8095,9 @@
                                 94793109,
                                 [
                                   "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "!="
-                                  }
+                                  [
+                                    "ComparisonNotEquals"
+                                  ]
                                 ],
                                 [
                                   "EInteger",
@@ -8123,10 +8115,9 @@
                                 775118986,
                                 [
                                   "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  }
+                                  [
+                                    "ArithmeticPlus"
+                                  ]
                                 ],
                                 [
                                   "EInteger",
@@ -8153,10 +8144,9 @@
                                   140609068,
                                   [
                                     "InfixFnCall",
-                                    {
-                                      "module_": null,
-                                      "function_": "\u002B"
-                                    }
+                                    [
+                                      "ArithmeticPlus"
+                                    ]
                                   ],
                                   [
                                     "EInteger",
@@ -8176,20 +8166,18 @@
                               265463935,
                               [
                                 "InfixFnCall",
-                                {
-                                  "module_": null,
-                                  "function_": "\u002B"
-                                }
+                                [
+                                  "ArithmeticPlus"
+                                ]
                               ],
                               [
                                 "EInfix",
                                 312092282,
                                 [
                                   "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  }
+                                  [
+                                    "ArithmeticPlus"
+                                  ]
                                 ],
                                 [
                                   "EFieldAccess",
@@ -8276,10 +8264,9 @@
                                       1021880969,
                                       [
                                         "InfixFnCall",
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        }
+                                        [
+                                          "ArithmeticPlus"
+                                        ]
                                       ],
                                       [
                                         "EPipeTarget",
@@ -8444,10 +8431,9 @@
                                       275666765,
                                       [
                                         "InfixFnCall",
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        }
+                                        [
+                                          "ArithmeticPlus"
+                                        ]
                                       ],
                                       [
                                         "EInteger",
@@ -9042,10 +9028,9 @@
                                 94793109,
                                 [
                                   "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "!="
-                                  }
+                                  [
+                                    "ComparisonNotEquals"
+                                  ]
                                 ],
                                 [
                                   "EInteger",
@@ -9063,10 +9048,9 @@
                                 775118986,
                                 [
                                   "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  }
+                                  [
+                                    "ArithmeticPlus"
+                                  ]
                                 ],
                                 [
                                   "EInteger",
@@ -9093,10 +9077,9 @@
                                   140609068,
                                   [
                                     "InfixFnCall",
-                                    {
-                                      "module_": null,
-                                      "function_": "\u002B"
-                                    }
+                                    [
+                                      "ArithmeticPlus"
+                                    ]
                                   ],
                                   [
                                     "EInteger",
@@ -9116,20 +9099,18 @@
                               265463935,
                               [
                                 "InfixFnCall",
-                                {
-                                  "module_": null,
-                                  "function_": "\u002B"
-                                }
+                                [
+                                  "ArithmeticPlus"
+                                ]
                               ],
                               [
                                 "EInfix",
                                 312092282,
                                 [
                                   "InfixFnCall",
-                                  {
-                                    "module_": null,
-                                    "function_": "\u002B"
-                                  }
+                                  [
+                                    "ArithmeticPlus"
+                                  ]
                                 ],
                                 [
                                   "EFieldAccess",
@@ -9216,10 +9197,9 @@
                                       1021880969,
                                       [
                                         "InfixFnCall",
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        }
+                                        [
+                                          "ArithmeticPlus"
+                                        ]
                                       ],
                                       [
                                         "EPipeTarget",
@@ -9384,10 +9364,9 @@
                                       275666765,
                                       [
                                         "InfixFnCall",
-                                        {
-                                          "module_": null,
-                                          "function_": "\u002B"
-                                        }
+                                        [
+                                          "ArithmeticPlus"
+                                        ]
                                       ],
                                       [
                                         "EInteger",

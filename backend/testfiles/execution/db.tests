@@ -247,8 +247,7 @@ module FindAll =
   // boolean queries
   (friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
 
-  // () equality works CLEANUP
-  (friends (fun p -> p.name = () )) = [()]
+  (friends (fun p -> p.name == () )) = [()]
 
   // () inequality works CLEANUP
   (friends (fun p -> p.name != () )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
@@ -293,7 +292,7 @@ module FindAll =
     Test.sqlError "This variable is not defined: y"
 
   // sql injection
-  friendsError (fun p -> "; select * from users;" = p.name ) = []
+  friendsError (fun p -> "; select * from users;" == p.name ) = []
 
   // CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
   // invalid type comparison
@@ -316,9 +315,9 @@ module CompiledFunctions =
   (friends (fun p -> Int.lessThan_v0 p.height 65)) = ["GrumpyCat"]
   (friends (fun p -> Int.greaterThanOrEqualTo_v0 p.height 65)) =  [" Chandler "; "Rachel"; "Ross" ]
   (friends (fun p -> Int.greaterThan_v0 p.height 65)) =  [" Chandler "; "Ross" ]
-  (friends (fun p -> String.toLowercase_v1 p.name = "rachel")) = ["Rachel"]
-  (friends (fun p -> String.toUppercase_v1 p.name = "RACHEL")) = ["Rachel"]
-  (friends (fun p -> String.reverse_v0 p.name = "lehcaR")) = ["Rachel"]
+  (friends (fun p -> String.toLowercase_v1 p.name == "rachel")) = ["Rachel"]
+  (friends (fun p -> String.toUppercase_v1 p.name == "RACHEL")) = ["Rachel"]
+  (friends (fun p -> String.reverse_v0 p.name == "lehcaR")) = ["Rachel"]
   // Not implemented yet
   // (friends (fun p -> String.length_v1 p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
   (friends (fun p -> String.contains_v0 p.name "ROSS")) = []
@@ -374,34 +373,34 @@ module QueryOneWithKey =
 
   // none
   (let _ = prepFriends () in
-   DB.queryOneWithKey_v3 Person (fun p -> p.name = "bob")) = Nothing
+   DB.queryOneWithKey_v3 Person (fun p -> p.name == "bob")) = Nothing
 
   // one
   (let _ = prepFriends () in
-  (DB.queryOneWithKey_v3 Person (fun p -> p.name = "Rachel"))
+  (DB.queryOneWithKey_v3 Person (fun p -> p.name == "Rachel"))
    |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
    // interpolated
   (let _ = prepFriends () in
    let test = "ache" in
-   (DB.queryOneWithKey_v3 Person (fun p -> p.name = $"R{test}l"))
+   (DB.queryOneWithKey_v3 Person (fun p -> p.name == $"R{test}l"))
    |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
 
 module QueryWithKey =
   // none
   (let _ = prepFriends () in
-   DB.queryWithKey_v3 Person (fun p -> p.name = "bob")) = Dict.empty
+   DB.queryWithKey_v3 Person (fun p -> p.name == "bob")) = Dict.empty
 
   // one
   (let _ = prepFriends () in
-   (DB.queryWithKey_v3 Person (fun p -> p.name = "Rachel"))
+   (DB.queryWithKey_v3 Person (fun p -> p.name == "Rachel"))
    |> (fun v -> v.rachel.name)) = "Rachel"
 
 module QueryCount =
   // none
   (let _ = prepFriends () in
-   DB.queryCount_v0 Person (fun p -> p.name = "bob")) = 0
+   DB.queryCount_v0 Person (fun p -> p.name == "bob")) = 0
 
   // one
   (let _ = prepFriends () in

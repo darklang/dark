@@ -122,10 +122,11 @@ let testRecursionInEditor : Test =
         gid (),
 
         // condition
-        PT.EFnCall(
+        PT.EInfix(
           gid (),
-          PTParser.FQFnName.stdlibFqName "" "<" 0,
-          [ PT.EVariable(gid (), "i"); PT.EInteger(gid (), 1) ]
+          PT.InfixFnCall PT.ComparisonLessThan,
+          PT.EVariable(gid (), "i"),
+          PT.EInteger(gid (), 1)
         ),
 
         // 'then' expression
@@ -135,7 +136,7 @@ let testRecursionInEditor : Test =
         // calls self ("recurse") resulting in recursion
         PT.EFnCall(
           skippedCallerID,
-          PTParser.FQFnName.userFqName "recurse",
+          PT.FQFnName.userFqName "recurse",
           [ PT.EInteger(gid (), 2) ]
         )
       )
@@ -464,7 +465,7 @@ let testMatchPreview : Test =
          okVarRhsId,
          EFQFnValue(
            binopFnValId,
-           PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+           PT.FQFnName.stdlibFqName "String" "append" 1 |> PT2RT.FQFnName.toRT
          ),
          [ EString(okVarRhsStrId, [ StringText "ok: " ])
            EVariable(okVarRhsVarId, "x") ], //CLEANUP
@@ -610,7 +611,8 @@ let testMatchPreview : Test =
            er (
              DFnVal(
                FnName(
-                 PTParser.FQFnName.stdlibFqName "" "++" 0 |> PT2RT.FQFnName.toRT
+                 FQFnName.Stdlib
+                   { module_ = "String"; function_ = "append"; version = 1 }
                )
              )
            ))

@@ -16,7 +16,7 @@ Hello back
 [test]
 (let reqHeaders = [("Content-Type", "application/json; charset=invalid")]
  let response = (HttpClient.request "get" "http://URL" reqHeaders Bytes.empty) |> Test.unwrap
- let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h <> "date")
+ let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
  Dict.set_v0 response "headers" respHeaders) =
    { statusCode = 200
      headers =

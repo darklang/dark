@@ -41,8 +41,7 @@ let hardToRepresentTests =
       return Expect.dvalEquality actual expected
     }
 
-  let fnName mod_ function_ version =
-    PTParser.FQFnName.stdlibFnName mod_ function_ version
+  let fnName mod_ function_ version = PT.FQFnName.stdlibFnName mod_ function_ version
 
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany2Task
@@ -143,20 +142,4 @@ let oldFunctionsAreDeprecated =
       counts.Value
   }
 
-let intInfixMatch =
-  test "int infix functions match" {
-    let actual = LibExecution.Errors.intInfixFns
-    let expected =
-      LibExecutionStdLib.StdLib.infixFnMapping
-      |> Map.filterWithIndex (fun name _ -> name.module_ = "Int")
-      |> Map.values
-      |> List.map (fun (name, _) -> name.function_)
-      |> Set
-
-    Expect.equal actual expected "We didn't miss any infix functions"
-  }
-
-let tests =
-  testList
-    "stdlib"
-    [ hardToRepresentTests; oldFunctionsAreDeprecated; intInfixMatch ]
+let tests = testList "stdlib" [ hardToRepresentTests; oldFunctionsAreDeprecated ]

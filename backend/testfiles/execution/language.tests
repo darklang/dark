@@ -48,7 +48,7 @@ module InterpolatedString =
   $"""test {"1"}""" = "test 1"
   (let one = "1" in  $"test {one}") = "test 1"
   (let name = "John" in let age = "30" in $"Name: {name}, Age: {age} years old.") = "Name: John, Age: 30 years old."
-  (let two = 2 in "test 1" = $"test {one}") = Test.typeError_v0 "There is no variable named: one"
+  (let two = 2 in "test 1" == $"test {one}") = Test.typeError_v0 "There is no variable named: one"
 
 module FnCall =
   5 + 3 = 8
@@ -113,7 +113,7 @@ module FeatureFlag =
   flag "test" () "old" "new" = "old"
   flag "test" 5 "old" "new" = "old"
   flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
-  flag "test" (List.head_v2_ster []) "old" "new" = "old"
+  flag "test" (List.head_v2 []) "old" "new" = "old"
   flag "test" {x = true} "old" "new" = "old"
   flag "test" {x = true} "old" "new" = "old"
   flag "test" [true] "old" "new" = "old"
@@ -344,7 +344,7 @@ module Match =
 
 module Constructors =
   Nothing = Nothing
-  ((List.head_v2 []) = Nothing) = true
+  ((List.head_v2 []) == Nothing) = true
   (List.head_v2 []) = Nothing
   Ok (Test.typeError_v0 "err") = Test.typeError_v0 "err"
   Just (Test.typeError_v0 "err") = Test.typeError_v0 "err"
@@ -399,49 +399,49 @@ module Darkinternal =
 // ---------------------------
 
 module Equality =
-  (5 = 5) = true
-  (5 <> 6) = true
-  (5.6 = 5.6) = true
-  (-55555555555555555555555555555.5 = -55555555555555555555555555555.5) = true
-  (5.6 <> 5.7) = true
-  (5.7 <> 6) = true
-  (5.7 <> 5) = true
-  (Test.typeError_v0 "test" <> Test.typeError_v0 "different msg") = Test.typeError_v0 "test"
-  (true = true) = true
-  (false = false) = true
-  (true <> false) = true
-  (() = ()) = true
-  (() <> Nothing) = true
-  (() <> false) = true
-  (() <> 0) = true
-  (() <> 0.0) = true
-  ([ 1; 2; 3 ] = [ 1; 2; 3 ]) = true
-  ([ 1; 2; 3 ] <> [ 3; 2; 1 ]) = true
-  ({ x = 6; y = 7 } = { x = 6; y = 7 }) = true
-  ({ x = 6; y = 7 } = { y = 7; x = 6 }) = true
-  ({ x = 6; y = 7 } <> { x = 7; y = 6 }) = true
-  ("asd" = "asd") = true
-  ("asd" <> "sad") = true
-  ((DateTime.parse_v2 "2019-07-28T22:42:36Z") = (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
-  ((DateTime.parse_v2 "2019-07-28T22:42:37Z") <> (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
-  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" = Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
-  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" <> Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
-  (Nothing = Nothing) = true
-  (Nothing <> Just Nothing) = true
-  (Just 5 = Just 5) = true
-  (Just 5 <> Just 6) = true
-  (Just (Just 0) <> Just (Just 1)) = true
-  (Just (Just 0) = Just (Just 0)) = true
-  (Error 0 = Error 0) = true
-  (Ok 0 = Ok 0) = true
-  (Ok 0 <> Error 0) = true
-  ((String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼") = (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
+  (5 == 5) = true
+  (5 != 6) = true
+  (5.6 == 5.6) = true
+  (-55555555555555555555555555555.5 == -55555555555555555555555555555.5) = true
+  (5.6 != 5.7) = true
+  (5.7 != 6) = true
+  (5.7 != 5) = true
+  (Test.typeError_v0 "test" != Test.typeError_v0 "different msg") = Test.typeError_v0 "test"
+  (true == true) = true
+  (false == false) = true
+  (true != false) = true
+  (() == ()) = true
+  (() != Nothing) = true
+  (() != false) = true
+  (() != 0) = true
+  (() != 0.0) = true
+  ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
+  ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
+  ({ x = 6; y = 7 } == { x = 6; y = 7 }) = true
+  ({ x = 6; y = 7 } == { y = 7; x = 6 }) = true
+  ({ x = 6; y = 7 } != { x = 7; y = 6 }) = true
+  ("asd" == "asd") = true
+  ("asd" != "sad") = true
+  ((DateTime.parse_v2 "2019-07-28T22:42:36Z") == (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
+  ((DateTime.parse_v2 "2019-07-28T22:42:37Z") != (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
+  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" == Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" != Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Nothing == Nothing) = true
+  (Nothing != Just Nothing) = true
+  (Just 5 == Just 5) = true
+  (Just 5 != Just 6) = true
+  (Just (Just 0) != Just (Just 1)) = true
+  (Just (Just 0) == Just (Just 0)) = true
+  (Error 0 == Error 0) = true
+  (Ok 0 == Ok 0) = true
+  (Ok 0 != Error 0) = true
+  ((String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼") == (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
   //(fun x -> y) = (fun x -> y) // CLEANUP: they have different IDs so they're not equal
-  ((fun x -> let y = 1 in y) <> (fun x -> let y = 1 in x)) = true
+  ((fun x -> let y = 1 in y) != (fun x -> let y = 1 in x)) = true
 
   [<DB>] type MyDB = { x : string; y: string }
-  (MyDB = MyDB) = true
-  (MyDB <> 5) = true
+  (MyDB == MyDB) = true
+  (MyDB != 5) = true
 
 
 // ---------------------------

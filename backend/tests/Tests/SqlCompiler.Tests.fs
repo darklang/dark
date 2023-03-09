@@ -73,7 +73,7 @@ let compileTests =
 
         let expr =
           S.eApply
-            (S.eStdFnVal "" "==" 0)
+            (S.eStdFnVal "" "equals" 0)
             [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
 
         let! sql, args = compile Map.empty "value" [ injection, TStr ] expr
