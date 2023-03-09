@@ -23,6 +23,9 @@ module FormatV0 =
   // 2. This needs to be backwards compatible, but we don't want to constrain how we
   //    change RT.Dval.
 
+  /// A UserType is a type written by a Developer in their canvas
+  type UserTypeName = { type_ : string; version : int }
+
   type DvalMap = Map<string, Dval>
   and DvalSource =
     | SourceNone
@@ -110,6 +113,7 @@ module FormatV0 =
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DBytes bytes -> DBytes bytes
+    | RT.DUserEnum _ -> DUnit // TODO why?
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -141,6 +145,7 @@ module Test =
     | RT.DChar _
     | RT.DBytes _
     | RT.DDateTime _
+    | RT.DUserEnum _
     | RT.DOption None
     | RT.DPassword _ -> true
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
@@ -153,4 +158,5 @@ module Test =
     | RT.DResult (Ok v) -> isRoundtrippableDval v
     | RT.DDB _
     | RT.DError _
+
     | RT.DIncomplete _ -> true

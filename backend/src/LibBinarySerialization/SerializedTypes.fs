@@ -45,6 +45,16 @@ type Sign = Prelude.Sign
 // - change the type of a field in a record
 // - removing a field from a variant (eg remove b to X(a,b))
 
+
+/// A UserType is a type written by a Developer in their canvas
+[<MessagePack.MessagePackObject>]
+type UserTypeName =
+  { [<MessagePack.Key 0>]
+    type_ : string
+
+    [<MessagePack.Key 1>]
+    version : int }
+
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
@@ -147,6 +157,7 @@ type Expr =
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
+  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and StringSegment =
   | StringText of string
@@ -170,7 +181,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of string * int
+  | TUserType of UserTypeName
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -251,42 +262,54 @@ module UserType =
   [<MessagePack.MessagePackObject>]
   type RecordField =
     { [<MessagePack.Key 0>]
-      name : string
+      id : id
       [<MessagePack.Key 1>]
-      typ : Option<DType>
+      name : string
       [<MessagePack.Key 2>]
-      nameID : id
-      [<MessagePack.Key 3>]
-      typeID : id }
+      typ : DType }
 
   [<MessagePack.MessagePackObject>]
-  type Definition = Record of List<RecordField>
+  type EnumField =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      type_ : DType
+      [<MessagePack.Key 2>]
+      label : Option<string> }
+
+  [<MessagePack.MessagePackObject>]
+  type EnumCase =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      fields : List<EnumField> }
+
+  [<MessagePack.MessagePackObject>]
+  type Definition =
+    | Record of List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
   [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : string
+      name : UserTypeName
       [<MessagePack.Key 2>]
-      nameID : id
-      [<MessagePack.Key 3>]
-      version : int
-      [<MessagePack.Key 4>]
       definition : Definition }
 
 module UserFunction =
   [<MessagePack.MessagePackObject>]
   type Parameter =
     { [<MessagePack.Key 0>]
-      name : string
+      id : id
       [<MessagePack.Key 1>]
-      nameID : id
+      name : string
       [<MessagePack.Key 2>]
       typ : DType
       [<MessagePack.Key 3>]
-      typeID : id
-      [<MessagePack.Key 4>]
       description : string }
 
   [<MessagePack.MessagePackObject>]
@@ -296,18 +319,14 @@ module UserFunction =
       [<MessagePack.Key 1>]
       name : string
       [<MessagePack.Key 2>]
-      nameID : id
-      [<MessagePack.Key 3>]
       parameters : List<Parameter>
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       returnType : DType
-      [<MessagePack.Key 5>]
-      returnTypeID : id
-      [<MessagePack.Key 6>]
+      [<MessagePack.Key 4>]
       description : string
-      [<MessagePack.Key 7>]
+      [<MessagePack.Key 5>]
       infix : bool
-      [<MessagePack.Key 8>]
+      [<MessagePack.Key 6>]
       body : Expr }
 
 module Toplevel =

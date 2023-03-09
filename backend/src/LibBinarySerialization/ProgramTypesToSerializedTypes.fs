@@ -9,6 +9,11 @@ module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
+module UserTypeName =
+  let toST (u : PT.UserTypeName) : ST.UserTypeName =
+    { type_ = u.type_; version = u.version }
+
+
 module FQFnName =
   module PackageFnName =
     let toST (name : PT.FQFnName.PackageFnName) : ST.FQFnName.PackageFnName =
@@ -116,6 +121,8 @@ module Expr =
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       ST.EFeatureFlag(id, name, toST cond, toST caseA, toST caseB)
+    | PT.EUserEnum (id, typeName, caseName, fields) ->
+      ST.EUserEnum(id, UserTypeName.toST typeName, caseName, List.map toST fields)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
@@ -143,7 +150,7 @@ module DType =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TUserType (name, version) -> ST.TUserType(name, version)
+    | PT.TUserType t -> ST.TUserType(UserTypeName.toST t)
     | PT.TBytes -> ST.TBytes
     | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
     | PT.TVariable (name) -> ST.TVariable(name)
@@ -205,36 +212,39 @@ module UserType =
         ST.UserType.Record(
           List.map
             (fun (rf : PT.UserType.RecordField) ->
-              { name = rf.name
-                nameID = rf.nameID
-                typ = Option.map DType.toST rf.typ
-                typeID = rf.typeID })
+              { id = rf.id; name = rf.name; typ = DType.toST rf.typ })
             fields
         )
+      | PT.UserType.Enum (firstCase, additionalCases) ->
+        let mapCase (c : PT.UserType.EnumCase) : ST.UserType.EnumCase =
+          { id = c.id
+            name = c.name
+            fields =
+              List.map
+                (fun (f : PT.UserType.EnumField) ->
+                  { id = f.id; type_ = DType.toST f.type_; label = f.label })
+                c.fields }
+
+        ST.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)
 
   let toST (t : PT.UserType.T) : ST.UserType.T =
     { tlid = t.tlid
-      nameID = t.nameID
-      name = t.name
-      version = t.version
+      name = UserTypeName.toST t.name
       definition = Definition.toST t.definition }
 
 module UserFunction =
   module Parameter =
     let toST (p : PT.UserFunction.Parameter) : ST.UserFunction.Parameter =
-      { name = p.name
-        nameID = p.nameID
+      { id = p.id
+        name = p.name
         typ = DType.toST p.typ
-        typeID = p.typeID
         description = p.description }
 
   let toST (f : PT.UserFunction.T) : ST.UserFunction.T =
     { tlid = f.tlid
       name = f.name
-      nameID = f.nameID
       parameters = List.map Parameter.toST f.parameters
       returnType = DType.toST f.returnType
-      returnTypeID = f.returnTypeID
       description = f.description
       infix = f.infix
       body = Expr.toST f.body }

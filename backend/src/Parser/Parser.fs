@@ -512,17 +512,9 @@ let parseTestFile (filename : string) : Module =
     match pat with
     | SynPat.Paren (pat, _) -> parseArgPat pat
     | SynPat.Const (SynConst.Unit, _) ->
-      { name = "unit"
-        nameID = gid ()
-        typ = PT.TUnit
-        typeID = gid ()
-        description = "" }
+      { id = gid (); name = "unit"; typ = PT.TUnit; description = "" }
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
-      { name = id.idText
-        nameID = gid ()
-        typ = convertType typ
-        typeID = gid ()
-        description = "" }
+      { id = gid (); name = id.idText; typ = convertType typ; description = "" }
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let parseSignature (pat : SynPat) : string * List<PT.UserFunction.Parameter> =
@@ -543,10 +535,8 @@ let parseTestFile (filename : string) : Module =
       let (name, parameters) = parseSignature pat
       { tlid = gid ()
         name = name
-        nameID = gid ()
         parameters = parameters
         returnType = PT.TVariable "a"
-        returnTypeID = gid ()
         description = ""
         infix = false
         body = convertToExpr expr }
@@ -577,26 +567,58 @@ let parseTestFile (filename : string) : Module =
   let parseRecordField (field : SynField) : PT.UserType.RecordField =
     match field with
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-      { name = id.idText
-        nameID = gid ()
-        typ = Some(convertType typ)
-        typeID = gid () }
+      { id = gid (); name = id.idText; typ = convertType typ }
     | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
+
+  let parseEnumField (typ : SynField) : PT.UserType.EnumField =
+    match typ with
+    | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
+      { id = gid ()
+        type_ = convertType typ
+        label = fieldName |> Option.map (fun id -> id.idText) }
+
+  let parseEnumCase (case : SynUnionCase) : PT.UserType.EnumCase =
+    match case with
+    | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
+      match typ with
+      | SynUnionCaseKind.Fields fields ->
+        { id = gid (); name = id.idText; fields = List.map parseEnumField fields }
+      | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
   let parseType (typeDef : SynTypeDefn) : PT.UserType.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
                                            _),
-                   members,
+                   _,
                    _,
                    _,
                    _) ->
       { tlid = gid ()
-        name = id.idText
-        nameID = gid ()
-        version = 0
+        name = { type_ = id.idText; version = 0 }
         definition = PT.UserType.Record(List.map parseRecordField fields) }
+    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Union (_, cases, _),
+                                           _),
+                   _,
+                   _,
+                   _,
+                   _) ->
+      { tlid = gid ()
+        name = { type_ = id.idText; version = 0 }
+        definition =
+          let firstCase, additionalCases =
+            match cases with
+            | [] ->
+              Exception.raiseInternal
+                $"Can't parse enum without any cases"
+                [ "typeDef", typeDef ]
+            | firstCase :: additionalCases -> firstCase, additionalCases
+
+          PT.UserType.Enum(
+            parseEnumCase firstCase,
+            List.map parseEnumCase additionalCases
+          ) }
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 

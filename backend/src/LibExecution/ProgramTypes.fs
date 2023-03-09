@@ -5,11 +5,24 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+/// Used to reference a canvas-level type written by a Developer
+///
+/// TODO: wrap this in a FQTypeName module+type,
+/// once we support stdlib-defined types (soon!)
+/// ```fsharp
+/// type FQTypeName =
+///   | User of UserTypeName
+///   | Stdlib of StdlibTypeName
+///   | Package of PackageTypeName
+/// ```
+/// (steal from `FQFnName`)
+type UserTypeName = { type_ : string; version : int }
+
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
 
-  /// Standard Library Function Name
+  /// Standard Library Function NameDF
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
   /// A UserFunction is a function written by a Developer in their canvas
@@ -152,21 +165,68 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
+
   // Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
   // expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
   // or length 0 (for `Nothing`).
+  // TODO: migrate usages of this to usages of EDefinedEnum(FQTypeName.T, ...
   | EConstructor of id * string * List<Expr>
-  | EMatch of id * Expr * List<MatchPattern * Expr>
+
+  /// Supports `match` expressions
+  /// ```fsharp
+  /// match x + 2 with // arg
+  /// // cases
+  /// | pattern -> expr
+  /// | pattern -> expr
+  /// | ...
+  /// ```
+  | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
+
   // Placeholder that indicates the target of the Thread. May be movable at
   // some point
   | EPipeTarget of id
-  // EFeatureFlag: id, flagName, condExpr, caseAExpr, caseBExpr
-  | EFeatureFlag of id * string * Expr * Expr * Expr
+
+  /// Like an if statement, but with a label
+  /// TODO: continue describing
+  | EFeatureFlag of
+    id *
+    flagName : string *
+    cond : Expr *
+    caseA : Expr *
+    caseB : Expr
+
+
+  // TODO:
+  // - define EUser
+  // migrate existing ERecords to EUserRecords and
+  // /// Given a User type of:
+  // ///   `type MyRecord = { A: int;  B: int * MyRecord }`
+  // /// , this is the expression
+  // ///   `EUserRecord(UserType.MyRecord, [EInteger(1), EString("title")]`
+  // | EUserRecord of id * UserTypeName * fields: List<string * Expr>
+
+
+  // TODO one of these:
+  // - implement EStdlibEnum and EStdlibRecord, then EPackageEnum and EPackageRecord
+  // - implement a more generic EDefinedEnum and EDefinedRecord
+  //   that reference awith `User`, `Stdlib`, and `Package` cases
+
+  /// Given a User type of:
+  ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
+  /// , this is the expression
+  ///   `EUserEnum(UserType.MyEnum, "C", [EInteger(1), EString("title")]`
+  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
+
 
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
+/// Darklang's available types
+/// - `int`
+/// - `List<T>`
+/// - user-defined enums
+/// - etc.
 type DType =
   | TInt
   | TFloat
@@ -185,7 +245,8 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of string * int
+  // split into
+  | TUserType of UserTypeName
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`, matches anything
@@ -193,10 +254,6 @@ type DType =
   | TFn of List<DType> * DType // replaces TLambda
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
-// This allows you to build up a record to eventually be the right shape.
-// | TRecordWithFields of List<string * DType>
-// | TRecordPlusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
-// | TRecordMinusField of string (* polymorphic type name, like TVariable *)  * string (* record field name *)  * DType
 
 
 module Handler =
@@ -231,31 +288,27 @@ module DB =
       cols : List<Col> }
 
 module UserType =
-  type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
-  type Definition = Record of List<RecordField>
+  // TODO: move this to some ComplexType or CustomType type
+  type RecordField = { id : id; name : string; typ : DType }
 
-  type T =
-    { tlid : tlid
-      name : string
-      nameID : id
-      version : int
-      definition : Definition }
+  type EnumField = { id : id; type_ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+
+  type Definition =
+    // TODO: records need at least 1 field - model this.
+    | Record of fields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
 
 module UserFunction =
-  type Parameter =
-    { name : string
-      nameID : id
-      typ : DType
-      typeID : id
-      description : string }
+  type Parameter = { id : id; name : string; typ : DType; description : string }
 
   type T =
     { tlid : tlid
       name : string
-      nameID : id
       parameters : List<Parameter>
       returnType : DType
-      returnTypeID : id
       description : string
       infix : bool
       body : Expr }

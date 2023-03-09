@@ -24,14 +24,14 @@ module Error =
       actualFields : Set<string> }
 
   type T =
-    | TypeLookupFailure of string * int
+    | TypeLookupFailure of UserTypeName
     | TypeUnificationFailure of UnificationError
     | MismatchedRecordFields of MismatchedFields
 
     override this.ToString() : string =
       match this with
-      | TypeLookupFailure (lookupName, lookupVersion) ->
-        let lookupString = $"({lookupName}, v{lookupVersion})"
+      | TypeLookupFailure typeName ->
+        let lookupString = $"({typeName.type_}, v{typeName.version})"
         $"Type {lookupString} could not be found on the canvas"
       | TypeUnificationFailure uf ->
         let expected = DvalReprDeveloper.typeName uf.expectedType
@@ -67,7 +67,7 @@ module Error =
 open Error
 
 let rec unify
-  (userTypes : Map<string * int, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (expected : DType)
   (value : Dval)
   : Result<unit, List<Error.T>> =
@@ -98,19 +98,22 @@ let rec unify
   | TDB _, DDB _ -> Ok()
   | THttpResponse _, DHttpResponse _ -> Ok()
   | TBytes, DBytes _ -> Ok()
-  | TUserType (expectedName, expectedVersion), DObj dmap ->
-    (match Map.tryFind (expectedName, expectedVersion) userTypes with
-     | None -> Error [ TypeLookupFailure(expectedName, expectedVersion) ]
+  | TUserType typeName, DObj dmap ->
+    (match Map.tryFind typeName userTypes with
+     | None -> Error [ TypeLookupFailure typeName ]
      | Some ut ->
        (match ut.definition with
-        | UserType.UTRecord utd -> unifyUserRecordWithDvalMap userTypes utd dmap))
+        | UserType.Record utd -> unifyUserRecordWithDvalMap userTypes utd dmap
+        | UserType.Enum _ ->
+          Error [ TypeUnificationFailure
+                    { expectedType = expected; actualValue = value } ]))
   | expectedType, actualValue ->
     Error [ TypeUnificationFailure
               { expectedType = expectedType; actualValue = actualValue } ]
 
 
 and unifyUserRecordWithDvalMap
-  (userTypes : Map<string * int, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (definition : List<UserType.RecordField>)
   (value : DvalMap)
   : Result<unit, List<Error.T>> =
@@ -143,7 +146,7 @@ and unifyUserRecordWithDvalMap
 
 
 let checkFunctionCall
-  (userTypes : Map<string * int, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (fn : Fn)
   (args : DvalMap)
   : Result<unit, List<Error.T>> =
@@ -169,7 +172,7 @@ let checkFunctionCall
 
 
 let checkFunctionReturnType
-  (userTypes : Map<string * int, UserType.T>)
+  (userTypes : Map<UserTypeName, UserType.T>)
   (fn : Fn)
   (result : Dval)
   : Result<unit, Error.T list> =

@@ -113,12 +113,14 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DPassword (Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
   | DUuid uuid -> wrapStringValue "uuid" (string uuid)
+
   // Not supported
   | DTuple _
   | DFnVal _
   | DError _
   | DIncomplete _
   | DHttpResponse _
+  | DUserEnum _
   | DDB _
   | DOption _
   | DResult _
@@ -187,6 +189,10 @@ module Test =
     | DFloat f -> System.Double.IsFinite f // See comment above
     | DList dvals -> List.all isQueryableDval dvals
     | DObj map -> map |> Map.values |> List.all isQueryableDval
+    | DUserEnum (_typeName, _caseName, fields) ->
+      // TODO: check the fields in `typeName.caseName`? Not sure if needed, rethink later.
+      fields |> List.all isQueryableDval
+
     // TODO support
     | DTuple _
     | DChar _
@@ -194,6 +200,7 @@ module Test =
     | DHttpResponse _
     | DOption _
     | DResult _
+
     // Maybe never support
     | DFnVal _
     | DError _

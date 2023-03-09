@@ -41,7 +41,7 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TUserType("test", 1)
+      RT.TUserType({ type_ = "User"; version = 0 })
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
       RT.TVariable "test"
@@ -113,7 +113,13 @@ module RuntimeTypes =
         RT.EString(18329472UL, [ RT.StringText "false" ]) //CLEANUP
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
-      RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false)) ]
+      RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
+      RT.EUserEnum(
+        8375723UL,
+        { type_ = "MyEnum"; version = 0 },
+        "A",
+        [ RT.EUnit(81264012UL) ]
+      ) ]
 
   let dvalSources : List<RT.DvalSource> =
     [ RT.SourceNone; RT.SourceID(123UL, 91293UL) ]
@@ -421,7 +427,7 @@ module ProgramTypes =
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
-                 ("usertype", PT.TUserType("name", 0))
+                 ("usertype", PT.TUserType({ type_ = "name"; version = 0 }))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))
                  ("variable", PT.TVariable "v")
@@ -498,42 +504,33 @@ module ProgramTypes =
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
       name = "myFunc"
-      nameID = 1828332UL
       parameters =
-        [ { name = "myparam1"
-            nameID = 23824935UL
-            typ = dtype
-            typeID = 38284244UL
-            description = "param1" }
-          { name = "myparam2"
-            nameID = 92837232UL
-            typ = dtype
-            typeID = 239232UL
-            description = "param1" } ]
+        [ { id = 23824935UL; name = "myparam1"; typ = dtype; description = "param1" } ]
       returnType = dtype
-      returnTypeID = 23923423UL
       description = "function description"
       infix = false
       body = expr }
 
   let userFunctions : List<PT.UserFunction.T> = [ userFunction ]
 
-  let userType : PT.UserType.T =
+  let userRecordType : PT.UserType.T =
     { tlid = 0UL
-      name = "User"
-      nameID = 92930232UL
-      version = 0
+      name = { type_ = "User"; version = 0 }
       definition =
-        PT.UserType.Record [ { name = "prop1"
-                               typ = None
-                               nameID = 923942342UL
-                               typeID = 3452342UL }
-                             { name = "prop1"
-                               typ = Some dtype
-                               nameID = 0698978UL
-                               typeID = 93494534UL } ] }
+        PT.UserType.Record [ { id = 0698978UL; name = "prop1"; typ = dtype } ] }
 
-  let userTypes : List<PT.UserType.T> = [ userType ]
+  let userEnumType : PT.UserType.T =
+    { tlid = 0UL
+      name = { type_ = "User"; version = 0 }
+      definition =
+        PT.UserType.Enum(
+          { id = 0698978UL; name = "caseA"; fields = [] },
+          [ { id = 0698978UL
+              name = "caseB"
+              fields = [ { id = 178567123UL; type_ = dtype; label = Some "i" } ] } ]
+        ) }
+
+  let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
 
   let packageFn : PT.Package.Fn =
     { name =
@@ -577,7 +574,7 @@ module ProgramTypes =
       PT.DeleteDBCol(tlid, id)
       PT.RenameDBname(tlid, "newname")
       PT.CreateDBWithBlankOr(tlid, id, "User")
-      PT.SetType(userType)
+      PT.SetType(userRecordType)
       PT.DeleteType tlid ]
 
   let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2" }

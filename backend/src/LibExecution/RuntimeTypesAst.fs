@@ -38,6 +38,8 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     EFeatureFlag(id, r cond, r casea, r caseb)
   | EAnd (id, left, right) -> EAnd(id, r left, r right)
   | EOr (id, left, right) -> EOr(id, r left, r right)
+  | EUserEnum (id, typeName, caseName, fields) ->
+    EUserEnum(id, typeName, caseName, List.map r fields)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
@@ -69,5 +71,8 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
       EFeatureFlag(id, r cond, r casea, r caseb)
     | EAnd (id, left, right) -> EAnd(id, r left, r right)
     | EOr (id, left, right) -> EOr(id, r left, r right)
+    | EUserEnum (id, typeName, caseName, fields) ->
+      EUserEnum(id, typeName, caseName, List.map r fields)
+
 
   f result

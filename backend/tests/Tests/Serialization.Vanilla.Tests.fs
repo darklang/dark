@@ -688,7 +688,7 @@ module RoundtripTests =
           CT2Program.DB.fromCT
         testRoundtrip
           "PT.UserType"
-          V.ProgramTypes.userType
+          V.ProgramTypes.userRecordType
           CT2Program.UserType.toCT
           CT2Program.UserType.fromCT
         testRoundtrip

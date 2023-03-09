@@ -190,31 +190,23 @@ let testUserFn
     description = ""
     infix = false
     name = name
-    nameID = gid ()
     returnType = PT.TVariable "a"
-    returnTypeID = gid ()
     parameters =
       List.map
         (fun (p : string) ->
-          { name = p
-            nameID = gid ()
-            typ = PT.TVariable "b"
-            typeID = gid ()
-            description = "test" })
+          { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
         parameters }
 
-let testUserType
-  (name : string)
+let tesTUserType
+  (name : PT.UserTypeName)
   (definition : List<string * PT.DType>)
   : PT.UserType.T =
   { tlid = gid ()
     name = name
-    nameID = gid ()
-    version = 0
     definition =
       definition
       |> List.map (fun (name, typ) ->
-        ({ name = name; typ = Some typ; typeID = gid (); nameID = gid () } : PT.UserType.RecordField))
+        ({ id = gid (); name = name; typ = typ } : PT.UserType.RecordField))
       |> PT.UserType.Record }
 
 
@@ -471,6 +463,9 @@ module Expect =
     | DObj vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
+    | DUserEnum (_typeName, _caseName, fields) ->
+      // TODO: revisit
+      fields |> List.all check
 
   type Path = string list
 
@@ -492,6 +487,18 @@ module Expect =
 
     match actual, expected with
     | LPVariable (_, name), LPVariable (_, name') -> check path name name'
+
+  let rec userTypeNameEqualityBaseFn
+    (path : Path)
+    (actual : UserTypeName)
+    (expected : UserTypeName)
+    (errorFn : Path -> string -> string -> unit)
+    : unit =
+    let check path (a : 'a) (e : 'a) =
+      if a <> e then errorFn path (string actual) (string expected)
+
+    check path (actual.type_) (actual.type_)
+    check path (actual.version) (actual.version)
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -625,6 +632,13 @@ module Expect =
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
 
+    | EUserEnum (_, typeName, caseName, fields),
+      EUserEnum (_, typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      check path caseName caseName'
+      eqList path fields fields'
+      ()
+
     // exhaustiveness check
     | EUnit _, _
     | EInteger _, _
@@ -640,6 +654,7 @@ module Expect =
     | EFQFnValue _, _
     | EApply _, _
     | ERecord _, _
+    | EUserEnum _, _
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
@@ -713,6 +728,17 @@ module Expect =
           | None -> check (key :: path) ls rs)
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
+
+    | DUserEnum (typeName, caseName, fields),
+      DUserEnum (typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+
+      check ("caseName" :: path) caseName caseName'
+
+      check ("fields.Length" :: path) (List.length fields) (List.length fields)
+      List.iteri2 (fun i l r -> de (string i :: path) l r) fields fields'
+      ()
+
     | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
       check path sc1 sc2
       check path h1 h2
@@ -729,6 +755,7 @@ module Expect =
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DObj _, _
+    | DUserEnum _, _
     | DList _, _
     | DTuple _, _
     | DResult _, _
@@ -790,6 +817,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DUserEnum (_typeName, _caseName, fields) ->
+      fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>

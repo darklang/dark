@@ -12,6 +12,10 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+
+/// A UserType is a type written by a Developer in their canvas
+type UserTypeName = { type_ : string; version : int }
+
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
@@ -88,6 +92,7 @@ type Expr =
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
+  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and StringSegment =
   | StringText of string
@@ -111,7 +116,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of string * int
+  | TUserType of UserTypeName
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -153,33 +158,26 @@ module DB =
 
 
 module UserType =
-  type RecordField = { name : string; typ : Option<DType>; nameID : id; typeID : id }
+  type RecordField = { id : id; name : string; typ : DType }
 
-  type Definition = Record of List<RecordField>
+  type EnumField = { id : id; type_ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
-  type T =
-    { tlid : tlid
-      name : string
-      nameID : id
-      version : int
-      definition : Definition }
+  type Definition =
+    | Record of List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
 
 
 module UserFunction =
-  type Parameter =
-    { name : string
-      nameID : id
-      typ : DType
-      typeID : id
-      description : string }
+  type Parameter = { id : id; name : string; typ : DType; description : string }
 
   type T =
     { tlid : tlid
       name : string
-      nameID : id
-      parameters : List<Parameter>
       returnType : DType
-      returnTypeID : id
+      parameters : List<Parameter>
       description : string
       infix : bool
       body : Expr }

@@ -32,7 +32,7 @@ let rec typeName (t : DType) : string =
   | TUuid -> "UUID"
   | TOption _ -> "Option"
   | TResult _ -> "Result"
-  | TUserType (name, _) -> name
+  | TUserType t -> t.type_
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName
@@ -118,5 +118,11 @@ let toRepr (dv : Dval) : string =
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
+    | DUserEnum (typeName, caseName, fields) ->
+      let fieldStr =
+        fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
+
+      $"{typeName}.{caseName}([{fieldStr}])"
+
 
   toRepr_ 0 dv

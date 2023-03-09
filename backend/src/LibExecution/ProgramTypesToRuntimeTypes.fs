@@ -8,6 +8,11 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
+module UserTypeName =
+  let toRT (u : PT.UserTypeName) : RT.UserTypeName =
+    { type_ = u.type_; version = u.version }
+
+
 module FQFnName =
   module PackageFnName =
     let toRT (name : PT.FQFnName.PackageFnName) : RT.FQFnName.PackageFnName =
@@ -165,6 +170,8 @@ module Expr =
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, _name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
+    | PT.EUserEnum (id, name, caseName, fields) ->
+      RT.EUserEnum(id, UserTypeName.toRT name, caseName, List.map toRT fields)
 
 
   and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
@@ -193,7 +200,7 @@ module DType =
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
     | PT.TOption typ -> RT.TOption(toRT typ)
-    | PT.TUserType (name, version) -> RT.TUserType(name, version)
+    | PT.TUserType typeName -> RT.TUserType(UserTypeName.toRT typeName)
     | PT.TBytes -> RT.TBytes
     | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)
     | PT.TVariable (name) -> RT.TVariable(name)
@@ -241,29 +248,38 @@ module DB =
           db.cols }
 
 module UserType =
+
   module Definition =
     let toRT (d : PT.UserType.Definition) : RT.UserType.Definition =
       match d with
       | PT.UserType.Record fields ->
-        RT.UserType.UTRecord(
-          List.filterMap
+        RT.UserType.Record(
+          List.map
             (fun (rf : PT.UserType.RecordField) ->
-              match rf.typ with
-              | Some t -> Some({ name = rf.name; typ = DType.toRT t })
-              | None -> None)
+              { id = rf.id; name = rf.name; typ = DType.toRT rf.typ })
             fields
         )
+      | PT.UserType.Enum (firstCase, additionalCases) ->
+        let mapCase (c : PT.UserType.EnumCase) : RT.UserType.EnumCase =
+          { id = c.id
+            name = c.name
+            fields =
+              List.map
+                (fun (f : PT.UserType.EnumField) ->
+                  { id = f.id; type_ = DType.toRT f.type_; label = f.label })
+                c.fields }
+
+        RT.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)
 
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
-      name = t.name
-      version = t.version
+      name = UserTypeName.toRT t.name
       definition = Definition.toRT t.definition }
 
 module UserFunction =
   module Parameter =
     let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name; typ = p.typ |> DType.toRT; description = p.description }
+      { name = p.name; typ = DType.toRT p.typ; description = p.description }
 
   let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid

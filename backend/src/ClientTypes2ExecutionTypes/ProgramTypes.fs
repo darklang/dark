@@ -10,6 +10,16 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+
+module UserTypeName =
+  let fromCT (u : CTPT.UserTypeName) : PT.UserTypeName =
+    { type_ = u.type_; version = u.version }
+
+  let toCT (u : PT.UserTypeName) : CTPT.UserTypeName =
+    { type_ = u.type_; version = u.version }
+
+
+
 module FQFnName =
   module StdlibFnName =
     let fromCT (name : CTPT.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
@@ -185,6 +195,13 @@ module Expr =
     | CTPT.Expr.EPipeTarget (id) -> PT.EPipeTarget(id)
     | CTPT.Expr.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
+    | CTPT.EUserEnum (id, typeName, caseName, fields) ->
+      PT.Expr.EUserEnum(
+        id,
+        UserTypeName.fromCT typeName,
+        caseName,
+        List.map fromCT fields
+      )
 
   and stringSegmentFromCTPT (segment : CTPT.StringSegment) : PT.StringSegment =
     match segment with
@@ -239,6 +256,13 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
+    | PT.EUserEnum (id, typeName, caseName, fields) ->
+      CTPT.Expr.EUserEnum(
+        id,
+        UserTypeName.toCT typeName,
+        caseName,
+        List.map toCT fields
+      )
 
   and stringSegmentToCT (segment : PT.StringSegment) : CTPT.StringSegment =
     match segment with
@@ -266,7 +290,7 @@ module DType =
     | CTPT.DType.TPassword -> PT.TPassword
     | CTPT.DType.TUuid -> PT.TUuid
     | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
-    | CTPT.DType.TUserType (name, v) -> PT.TUserType(name, v)
+    | CTPT.DType.TUserType t -> PT.TUserType(UserTypeName.fromCT t)
     | CTPT.DType.TBytes -> PT.TBytes
     | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
     | CTPT.DType.TVariable (name) -> PT.TVariable(name)
@@ -295,7 +319,7 @@ module DType =
     | PT.TPassword -> CTPT.DType.TPassword
     | PT.TUuid -> CTPT.DType.TUuid
     | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
-    | PT.TUserType (name, v) -> CTPT.DType.TUserType(name, v)
+    | PT.TUserType t -> CTPT.DType.TUserType(UserTypeName.toCT t)
     | PT.TBytes -> CTPT.DType.TBytes
     | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
     | PT.TVariable (name) -> CTPT.DType.TVariable(name)
@@ -395,66 +419,76 @@ module DB =
 module UserType =
   module RecordField =
     let fromCT (rf : CTPT.UserType.RecordField) : PT.UserType.RecordField =
-      { name = rf.name
-        typ = Option.map DType.fromCT rf.typ
-        nameID = rf.nameID
-        typeID = rf.typeID }
+      { id = rf.id; name = rf.name; typ = DType.fromCT rf.typ }
 
     let toCT (rf : PT.UserType.RecordField) : CTPT.UserType.RecordField =
-      { name = rf.name
-        typ = Option.map DType.toCT rf.typ
-        nameID = rf.nameID
-        typeID = rf.typeID }
+      { id = rf.id; name = rf.name; typ = DType.toCT rf.typ }
+
+  module EnumField =
+    let fromCT (ef : CTPT.UserType.EnumField) : PT.UserType.EnumField =
+      { id = ef.id; type_ = DType.fromCT ef.type_; label = ef.label }
+
+    let toCT (ef : PT.UserType.EnumField) : CTPT.UserType.EnumField =
+      { id = ef.id; type_ = DType.toCT ef.type_; label = ef.label }
+
+  module EnumCase =
+    let fromCT (ec : CTPT.UserType.EnumCase) : PT.UserType.EnumCase =
+      { id = ec.id; name = ec.name; fields = List.map EnumField.fromCT ec.fields }
+
+    let toCT (ec : PT.UserType.EnumCase) : CTPT.UserType.EnumCase =
+      { id = ec.id; name = ec.name; fields = List.map EnumField.toCT ec.fields }
 
   module Definition =
     let fromCT (def : CTPT.UserType.Definition) : PT.UserType.Definition =
       match def with
       | CTPT.UserType.Definition.Record fields ->
         PT.UserType.Record(List.map RecordField.fromCT fields)
+      | CTPT.UserType.Definition.Enum (firstCase, additionalCases) ->
+        PT.UserType.Enum(
+          EnumCase.fromCT firstCase,
+          List.map EnumCase.fromCT additionalCases
+        )
 
     let toCT (def : PT.UserType.Definition) : CTPT.UserType.Definition =
       match def with
       | PT.UserType.Record fields ->
         CTPT.UserType.Definition.Record(List.map RecordField.toCT fields)
+      | PT.UserType.Definition.Enum (firstCase, additionalCases) ->
+        CTPT.UserType.Enum(
+          EnumCase.toCT firstCase,
+          List.map EnumCase.toCT additionalCases
+        )
 
   let fromCT (ut : CTPT.UserType.T) : PT.UserType.T =
     { tlid = ut.tlid
-      name = ut.name
-      nameID = ut.nameID
-      version = ut.version
+      name = UserTypeName.fromCT ut.name
       definition = Definition.fromCT ut.definition }
 
   let toCT (ut : PT.UserType.T) : CTPT.UserType.T =
     { tlid = ut.tlid
-      name = ut.name
-      nameID = ut.nameID
-      version = ut.version
+      name = UserTypeName.toCT ut.name
       definition = Definition.toCT ut.definition }
 
 
 module UserFunction =
   module Parameter =
     let fromCT (p : CTPT.UserFunction.Parameter) : PT.UserFunction.Parameter =
-      { name = p.name
-        nameID = p.nameID
+      { id = p.id
+        name = p.name
         typ = DType.fromCT p.typ
-        typeID = p.typeID
         description = p.description }
 
     let toCT (p : PT.UserFunction.Parameter) : CTPT.UserFunction.Parameter =
-      { name = p.name
-        nameID = p.nameID
+      { id = p.id
+        name = p.name
         typ = DType.toCT p.typ
-        typeID = p.typeID
         description = p.description }
 
   let fromCT (uf : CTPT.UserFunction.T) : PT.UserFunction.T =
     { tlid = uf.tlid
       name = uf.name
-      nameID = uf.nameID
       parameters = List.map Parameter.fromCT uf.parameters
       returnType = DType.fromCT uf.returnType
-      returnTypeID = uf.returnTypeID
       description = uf.description
       infix = uf.infix
       body = Expr.fromCT uf.body }
@@ -462,10 +496,8 @@ module UserFunction =
   let toCT (uf : PT.UserFunction.T) : CTPT.UserFunction.T =
     { tlid = uf.tlid
       name = uf.name
-      nameID = uf.nameID
       parameters = List.map Parameter.toCT uf.parameters
       returnType = DType.toCT uf.returnType
-      returnTypeID = uf.returnTypeID
       description = uf.description
       infix = uf.infix
       body = Expr.toCT uf.body }

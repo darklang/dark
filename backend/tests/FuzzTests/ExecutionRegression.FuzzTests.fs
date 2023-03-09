@@ -83,6 +83,7 @@ let rec patternFromExpr (expr : RT.Expr) : Gen<RT.MatchPattern> =
   | RT.EVariable _
   | RT.EFieldAccess _
   | RT.EFeatureFlag _
+  | RT.EUserEnum _
   | RT.ERecord _
   | RT.EList _
   | RT.ETuple _

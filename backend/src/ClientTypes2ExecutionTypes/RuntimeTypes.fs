@@ -12,6 +12,15 @@ open ClientTypes.Runtime
 
 module RT = LibExecution.RuntimeTypes
 
+
+module UserTypeName =
+  let fromCT (u : UserTypeName) : RT.UserTypeName =
+    { type_ = u.type_; version = u.version }
+
+  let toCT (u : RT.UserTypeName) : UserTypeName =
+    { type_ = u.type_; version = u.version }
+
+
 module FQFnName =
   type UserFnName = string
 
@@ -54,6 +63,7 @@ module DType =
   let rec toCT (t : RT.DType) : DType =
     let r = toCT
     let rl = List.map toCT
+
     match t with
     | RT.TInt -> TInt
     | RT.TFloat -> TFloat
@@ -72,7 +82,7 @@ module DType =
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
     | RT.TOption t -> TOption(r t)
-    | RT.TUserType (str, version) -> TUserType(str, version)
+    | RT.TUserType typeName -> TUserType(UserTypeName.toCT typeName)
     | RT.TBytes -> TBytes
     | RT.TResult (ok, error) -> TResult(r ok, r error)
     | RT.TVariable (name) -> TVariable(name)
@@ -101,7 +111,7 @@ module DType =
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid
     | TOption t -> RT.TOption(r t)
-    | TUserType (str, version) -> RT.TUserType(str, version)
+    | TUserType t -> RT.TUserType(UserTypeName.fromCT t)
     | TBytes -> RT.TBytes
     | TResult (ok, error) -> RT.TResult(r ok, r error)
     | TVariable (name) -> RT.TVariable(name)
@@ -195,6 +205,8 @@ module Expr =
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
     | Expr.EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | Expr.EOr (id, left, right) -> RT.EOr(id, r left, r right)
+    | Expr.EUserEnum (id, typeName, caseName, fields) ->
+      RT.EUserEnum(id, UserTypeName.fromCT typeName, caseName, List.map r fields)
 
   and stringSegmentToRT (segment : Expr.StringSegment) : RT.StringSegment =
     match segment with
@@ -239,6 +251,8 @@ module Expr =
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
+    | RT.EUserEnum (id, typeName, casename, fields) ->
+      Expr.EUserEnum(id, UserTypeName.toCT typeName, casename, List.map r fields)
 
   and stringSegmentToCT (segment : RT.StringSegment) : Expr.StringSegment =
     match segment with
@@ -293,6 +307,8 @@ module Dval =
     | Dval.DResult (Ok dv) -> RT.DResult(Ok(r dv))
     | Dval.DResult (Error dv) -> RT.DResult(Error(r dv))
     | Dval.DBytes bytes -> RT.DBytes bytes
+    | Dval.DUserEnum (typeName, caseName, fields) ->
+      RT.DUserEnum(UserTypeName.fromCT typeName, caseName, List.map r fields)
 
   and toCT (dv : RT.Dval) : Dval.T =
     let r = toCT
@@ -330,3 +346,4 @@ module Dval =
     | RT.DResult (Ok dv) -> Dval.DResult(Ok(r dv))
     | RT.DResult (Error dv) -> Dval.DResult(Error(r dv))
     | RT.DBytes bytes -> Dval.DBytes bytes
+    | RT.DUserEnum (typeName, caseName, fields) -> Dval.DUnit // todo

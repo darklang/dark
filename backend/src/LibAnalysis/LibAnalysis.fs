@@ -47,8 +47,7 @@ module Eval =
           canvasID = System.Guid.NewGuid()
           canvasName = CanvasName.createExn "todo"
           userFns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
-          userTypes =
-            request.userTypes |> List.map (fun t -> (t.name, t.version), t) |> Map
+          userTypes = request.userTypes |> List.map (fun t -> t.name, t) |> Map
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
           secrets = request.secrets }
 

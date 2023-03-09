@@ -9,6 +9,9 @@ open Prelude
 open Tablecloth
 
 
+/// A UserType is a type written by a Developer in their canvas
+type UserTypeName = { type_ : string; version : int }
+
 module FQFnName =
   type UserFnName = string
 
@@ -45,7 +48,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of string * int
+  | TUserType of UserTypeName
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -88,6 +91,7 @@ module Expr =
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
+    | EUserEnum of id * UserTypeName * caseName : string * fields : List<T>
 
   and StringSegment =
     | StringText of string
@@ -135,3 +139,4 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
+    | DUserEnum of typeName : UserTypeName * caseName : string * fields : List<T>
