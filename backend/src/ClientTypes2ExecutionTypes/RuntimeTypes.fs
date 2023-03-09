@@ -15,10 +15,10 @@ module RT = LibExecution.RuntimeTypes
 
 module UserTypeName =
   let fromCT (u : UserTypeName) : RT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+    { typ = u.typ; version = u.version }
 
   let toCT (u : RT.UserTypeName) : UserTypeName =
-    { type_ = u.type_; version = u.version }
+    { typ = u.typ; version = u.version }
 
 
 module FQFnName =

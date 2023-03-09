@@ -10,7 +10,7 @@ open Tablecloth
 
 
 /// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { type_ : string; version : int }
+type UserTypeName = { typ : string; version : int }
 
 module FQFnName =
   type UserFnName = string

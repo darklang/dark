@@ -148,6 +148,8 @@ let makeTest versionName filename =
       let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"
       let! state = executionStateFor meta Map.empty Map.empty
 
+      let userTypes = []
+
       // Parse the Dark code
       let test =
         darkCode
@@ -156,7 +158,7 @@ let makeTest versionName filename =
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> Parser.parse
-        |> Parser.convertToTest
+        |> Parser.convertToTest userTypes
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the

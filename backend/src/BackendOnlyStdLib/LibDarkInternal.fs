@@ -300,7 +300,7 @@ that's already taken, returns an error."
           | TUuid -> "uuid"
           | TOption _ -> "option"
           | TResult _ -> "result"
-          | TUserType t -> t.type_
+          | TUserType t -> t.typ
           | TBytes -> "bytes"
 
         internalFn (function

@@ -50,7 +50,7 @@ type Sign = Prelude.Sign
 [<MessagePack.MessagePackObject>]
 type UserTypeName =
   { [<MessagePack.Key 0>]
-    type_ : string
+    typ : string
 
     [<MessagePack.Key 1>]
     version : int }
@@ -273,7 +273,7 @@ module UserType =
     { [<MessagePack.Key 0>]
       id : id
       [<MessagePack.Key 1>]
-      type_ : DType
+      typ : DType
       [<MessagePack.Key 2>]
       label : Option<string> }
 

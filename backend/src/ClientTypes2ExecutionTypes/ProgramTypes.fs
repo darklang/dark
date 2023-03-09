@@ -13,10 +13,10 @@ type Sign = Prelude.Sign
 
 module UserTypeName =
   let fromCT (u : CTPT.UserTypeName) : PT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+    { typ = u.typ; version = u.version }
 
   let toCT (u : PT.UserTypeName) : CTPT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+    { typ = u.typ; version = u.version }
 
 
 
@@ -426,10 +426,10 @@ module UserType =
 
   module EnumField =
     let fromCT (ef : CTPT.UserType.EnumField) : PT.UserType.EnumField =
-      { id = ef.id; type_ = DType.fromCT ef.type_; label = ef.label }
+      { id = ef.id; typ = DType.fromCT ef.typ; label = ef.label }
 
     let toCT (ef : PT.UserType.EnumField) : CTPT.UserType.EnumField =
-      { id = ef.id; type_ = DType.toCT ef.type_; label = ef.label }
+      { id = ef.id; typ = DType.toCT ef.typ; label = ef.label }
 
   module EnumCase =
     let fromCT (ec : CTPT.UserType.EnumCase) : PT.UserType.EnumCase =

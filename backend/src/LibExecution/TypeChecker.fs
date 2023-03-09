@@ -31,7 +31,7 @@ module Error =
     override this.ToString() : string =
       match this with
       | TypeLookupFailure typeName ->
-        let lookupString = $"({typeName.type_}, v{typeName.version})"
+        let lookupString = $"({typeName.typ}, v{typeName.version})"
         $"Type {lookupString} could not be found on the canvas"
       | TypeUnificationFailure uf ->
         let expected = DvalReprDeveloper.typeName uf.expectedType

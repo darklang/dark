@@ -37,27 +37,49 @@ module Records =
   { col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
   { col1 = 2 ; ___ = 3 } = Test.typeError "Record key is empty"
 
-module UserEnums =
-  // TODO: support recursive UserEnums
-  type Card = | A | B of string | C of i: int | D of c: string * i: int
 
-  // TODO: fix parser - "A" below is currently interpreted as a variable we can't find.
-  //(let cards = [A; B "test"; C(5)]
-  //
-  // match List.getAt_v1 cards 1 with
-  // | Some b -> Ok b
-  // | None -> Error "Failure") = Ok (B "test")
+module UserEnums =
+  // Simple enums work
+  type AorB = A | B
+
+  (let a = A
+   let b = B
+   a == b) = false
+
+  (A == A) = true
+  (A == B) = false
+  List.unique_v0 [A; B; A; A; B] = [A; B]
+
+
+  // Mixed kinds of enums are OK
+  type EnumOfMixedCases =
+    | W | X of string | Y of i: int | Z of c: string * i: int
+
+  (W == (Y 1)) = false
+  (Y 1 == Y 1) = true
+
+  (let cards = [W; X "testX"; Y(5); Z("testZ", 2)]
+   match List.getAt_v1 cards 3 with
+   | Just z -> Ok z
+   | Nothing -> Error "Failure") = Ok (Z ("testZ", 2))
+
+
+  // You can define enums based on previously-defined enums
+  type CorD = | C of int | D of AorB
+
+  (C != D(B)) = true
+  (D(A) == D(A)) = true
+
+
+  // TODO: support recursively-defined UserEnums
+
 
   // TODO: support enum deconstruction in `match` exprs
-  // (let cards = [A; B "test"; C 5]
-
-  // match List.getAt_v1 cards 1 with
-  // | Some (B(s)) -> Ok s
-  // | None -> Error "Failure") = Ok ("test")
-
-  // a simple test so the module is happy until the above
-  // tests may be uncommented
-  1 = 1
+  //
+  //(let cards = [W; X "test"; Y(5); Z("test2", 2)]
+  // match List.getAt_v1 cards 3 with
+  // | Just (Z(str, _num)) -> Ok (Tuple2.first z)
+  // | Nothing -> Error "Failure") = Ok "test2"
 
 
 

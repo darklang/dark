@@ -11,7 +11,7 @@ module PTParser = LibExecution.ProgramTypesParser
 
 module UserTypeName =
   let toST (u : PT.UserTypeName) : ST.UserTypeName =
-    { type_ = u.type_; version = u.version }
+    { typ = u.typ; version = u.version }
 
 
 module FQFnName =
@@ -222,7 +222,7 @@ module UserType =
             fields =
               List.map
                 (fun (f : PT.UserType.EnumField) ->
-                  { id = f.id; type_ = DType.toST f.type_; label = f.label })
+                  { id = f.id; typ = DType.toST f.typ; label = f.label })
                 c.fields }
 
         ST.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)

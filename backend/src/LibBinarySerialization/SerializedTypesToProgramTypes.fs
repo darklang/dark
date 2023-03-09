@@ -11,7 +11,7 @@ module PTParser = LibExecution.ProgramTypesParser
 
 module UserTypeName =
   let toPT (u : ST.UserTypeName) : PT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+    { typ = u.typ; version = u.version }
 
 
 module FQFnName =
@@ -210,7 +210,7 @@ module DB =
 module UserType =
   module EnumField =
     let toPT (f : ST.UserType.EnumField) : PT.UserType.EnumField =
-      { id = f.id; type_ = DType.toPT f.type_; label = f.label }
+      { id = f.id; typ = DType.toPT f.typ; label = f.label }
 
   module EnumCase =
     let toPT (c : ST.UserType.EnumCase) : PT.UserType.EnumCase =

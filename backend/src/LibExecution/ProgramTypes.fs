@@ -16,13 +16,13 @@ type Sign = Prelude.Sign
 ///   | Package of PackageTypeName
 /// ```
 /// (steal from `FQFnName`)
-type UserTypeName = { type_ : string; version : int }
+type UserTypeName = { typ : string; version : int }
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
 module FQFnName =
 
-  /// Standard Library Function NameDF
+  /// Standard Library Function Name
   type StdlibFnName = { module_ : string; function_ : string; version : int }
 
   /// A UserFunction is a function written by a Developer in their canvas
@@ -245,7 +245,6 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  // split into
   | TUserType of UserTypeName
   | TBytes
   | TResult of DType * DType
@@ -288,10 +287,9 @@ module DB =
       cols : List<Col> }
 
 module UserType =
-  // TODO: move this to some ComplexType or CustomType type
   type RecordField = { id : id; name : string; typ : DType }
 
-  type EnumField = { id : id; type_ : DType; label : Option<string> }
+  type EnumField = { id : id; typ : DType; label : Option<string> }
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type Definition =

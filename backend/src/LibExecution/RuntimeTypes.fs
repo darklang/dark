@@ -37,7 +37,7 @@ open VendoredTablecloth
 module J = Prelude.Json
 
 /// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { type_ : string; version : int }
+type UserTypeName = { typ : string; version : int }
 
 module FQFnName =
 
@@ -306,7 +306,7 @@ and DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName // this should probably be split into TUserEnum and TUserRecord
+  | TUserType of UserTypeName
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
@@ -640,7 +640,7 @@ module DB =
 module UserType =
   type RecordField = { id : id; name : string; typ : DType }
 
-  type EnumField = { id : id; type_ : DType; label : Option<string> }
+  type EnumField = { id : id; typ : DType; label : Option<string> }
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type Definition =

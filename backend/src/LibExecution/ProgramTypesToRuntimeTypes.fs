@@ -10,7 +10,7 @@ module PT = ProgramTypes
 
 module UserTypeName =
   let toRT (u : PT.UserTypeName) : RT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+    { typ = u.typ; version = u.version }
 
 
 module FQFnName =
@@ -266,7 +266,7 @@ module UserType =
             fields =
               List.map
                 (fun (f : PT.UserType.EnumField) ->
-                  { id = f.id; type_ = DType.toRT f.type_; label = f.label })
+                  { id = f.id; typ = DType.toRT f.typ; label = f.label })
                 c.fields }
 
         RT.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)

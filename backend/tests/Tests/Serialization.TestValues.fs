@@ -41,7 +41,7 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TUserType({ type_ = "User"; version = 0 })
+      RT.TUserType({ typ = "User"; version = 0 })
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
       RT.TVariable "test"
@@ -116,7 +116,7 @@ module RuntimeTypes =
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EUserEnum(
         8375723UL,
-        { type_ = "MyEnum"; version = 0 },
+        { typ = "MyEnum"; version = 0 },
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -427,7 +427,7 @@ module ProgramTypes =
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
-                 ("usertype", PT.TUserType({ type_ = "name"; version = 0 }))
+                 ("usertype", PT.TUserType({ typ = "name"; version = 0 }))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))
                  ("variable", PT.TVariable "v")
@@ -515,19 +515,19 @@ module ProgramTypes =
 
   let userRecordType : PT.UserType.T =
     { tlid = 0UL
-      name = { type_ = "User"; version = 0 }
+      name = { typ = "User"; version = 0 }
       definition =
         PT.UserType.Record [ { id = 0698978UL; name = "prop1"; typ = dtype } ] }
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
-      name = { type_ = "User"; version = 0 }
+      name = { typ = "User"; version = 0 }
       definition =
         PT.UserType.Enum(
           { id = 0698978UL; name = "caseA"; fields = [] },
           [ { id = 0698978UL
               name = "caseB"
-              fields = [ { id = 178567123UL; type_ = dtype; label = Some "i" } ] } ]
+              fields = [ { id = 178567123UL; typ = dtype; label = Some "i" } ] } ]
         ) }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]

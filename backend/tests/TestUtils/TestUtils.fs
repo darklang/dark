@@ -497,7 +497,7 @@ module Expect =
     let check path (a : 'a) (e : 'a) =
       if a <> e then errorFn path (string actual) (string expected)
 
-    check path (actual.type_) (actual.type_)
+    check path (actual.typ) (actual.typ)
     check path (actual.version) (actual.version)
 
   let rec matchPatternEqualityBaseFn

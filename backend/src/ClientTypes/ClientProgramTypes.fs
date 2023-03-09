@@ -14,7 +14,7 @@ type Sign = Prelude.Sign
 
 
 /// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { type_ : string; version : int }
+type UserTypeName = { typ : string; version : int }
 
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
@@ -160,7 +160,7 @@ module DB =
 module UserType =
   type RecordField = { id : id; name : string; typ : DType }
 
-  type EnumField = { id : id; type_ : DType; label : Option<string> }
+  type EnumField = { id : id; typ : DType; label : Option<string> }
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type Definition =

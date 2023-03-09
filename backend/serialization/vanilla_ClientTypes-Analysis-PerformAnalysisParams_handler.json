@@ -7413,7 +7413,7 @@
               [
                 "TUserType",
                 {
-                  "type_": "name",
+                  "typ": "name",
                   "version": 0
                 }
               ]
@@ -7647,7 +7647,7 @@
                   [
                     "TUserType",
                     {
-                      "type_": "name",
+                      "typ": "name",
                       "version": 0
                     }
                   ]
@@ -8388,7 +8388,7 @@
       {
         "tlid": 0,
         "name": {
-          "type_": "User",
+          "typ": "User",
           "version": 0
         },
         "definition": [
@@ -8567,7 +8567,7 @@
                     [
                       "TUserType",
                       {
-                        "type_": "name",
+                        "typ": "name",
                         "version": 0
                       }
                     ]
@@ -8634,7 +8634,7 @@
       {
         "tlid": 0,
         "name": {
-          "type_": "User",
+          "typ": "User",
           "version": 0
         },
         "definition": [
@@ -8651,7 +8651,7 @@
               "fields": [
                 {
                   "id": 178567123,
-                  "type_": [
+                  "typ": [
                     "TRecord",
                     [
                       [
@@ -8821,7 +8821,7 @@
                         [
                           "TUserType",
                           {
-                            "type_": "name",
+                            "typ": "name",
                             "version": 0
                           }
                         ]
@@ -9741,7 +9741,7 @@
                   [
                     "TUserType",
                     {
-                      "type_": "name",
+                      "typ": "name",
                       "version": 0
                     }
                   ]
@@ -9974,7 +9974,7 @@
               [
                 "TUserType",
                 {
-                  "type_": "name",
+                  "typ": "name",
                   "version": 0
                 }
               ]
