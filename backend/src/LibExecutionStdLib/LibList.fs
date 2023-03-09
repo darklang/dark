@@ -286,18 +286,20 @@ let fns : List<BuiltInFn> =
 
     { name = fn "List" "repeat" 0
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
-      returnType = TList varA
+      returnType = TResult(TList varA, TStr)
       description =
         "Returns a list containing <param val> repeated <param times> times"
       fn =
         (function
         | _, [ DInt times; v ] ->
+          let errPipe e = e |> DStr |> Error |> DResult |> Ply
           if times < 0L then
-            err (Errors.argumentWasnt "positive" "times" (DInt times))
+            Errors.argumentWasnt "positive" "times" (DInt times) |> errPipe
           else if times > 2147483647L then
-            err (Errors.argumentWasnt "less than 2147483647" "times" (DInt times))
+            Errors.argumentWasnt "less than 2147483647" "times" (DInt times)
+            |> errPipe
           else
-            List.replicate (int times) v |> DList |> Ply
+            List.replicate (int times) v |> DList |> Ok |> DResult |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
