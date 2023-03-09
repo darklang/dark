@@ -22,24 +22,9 @@ type Account =
     email : string
     name : string }
 
-type UserInfo =
-  { username : UserName.T
-    name : string
-    admin : bool
-    email : string
-    id : UserID }
+type UserInfo = { id : UserID }
 
-type UserInfoAndCreatedAt =
-  { username : UserName.T
-    name : string
-    admin : bool
-    email : string
-    id : UserID
-    createdAt : NodaTime.Instant }
-
-let userInfoToPerson (ui : UserInfo) : LibService.Rollbar.Person =
-  Some { id = ui.id; username = Some ui.username }
-
+type UserInfoAndCreatedAt = { id : UserID; createdAt : NodaTime.Instant }
 
 // **********************
 // Adding
@@ -177,6 +162,7 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
     | Some v -> v
     | None -> Exception.raiseGrandUser "User not found")
 
+//used in internalFn
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
     "SELECT username
@@ -187,59 +173,22 @@ let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
 
 let getUser (username : UserName.T) : Task<Option<UserInfo>> =
   Sql.query
-    "SELECT name, email, admin, id
+    "SELECT id
      FROM accounts
      WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    { username = username
-      name = read.string "name"
-      email = read.string "email"
-      admin = read.bool "admin"
-      id = read.uuid "id" })
-
-let getUserCreatedAt (username : UserName.T) : Task<NodaTime.Instant> =
-  Sql.query
-    "SELECT created_at
-     FROM accounts
-     WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
+  |> Sql.executeRowOptionAsync (fun read -> { id = read.uuid "id" })
 
 let getUserAndCreatedAt
   (username : UserName.T)
   : Task<Option<UserInfoAndCreatedAt>> =
   Sql.query
-    "SELECT name, email, admin, created_at, id
+    "SELECT created_at, id
      FROM accounts
      WHERE accounts.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read ->
-    { username = username
-      name = read.string "name"
-      email = read.string "email"
-      admin = read.bool "admin"
-      id = read.uuid "id"
-      createdAt = read.instantWithoutTimeZone "created_at" })
-
-let getUserByEmail (email : string) : Task<Option<UserInfo>> =
-  Sql.query
-    "SELECT name, username, admin, id
-     FROM accounts
-     WHERE accounts.email = @email"
-  |> Sql.parameters [ "email", Sql.string email ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    { username = UserName.create (read.string "username")
-      name = read.string "name"
-      email = email
-      admin = read.bool "admin"
-      id = read.uuid "id" })
-
-let getUsers () : Task<List<UserName.T>> =
-  Sql.query
-    "SELECT username
-     FROM accounts"
-  |> Sql.executeAsync (fun read -> UserName.create (read.string "username"))
+    { id = read.uuid "id"; createdAt = read.instantWithoutTimeZone "created_at" })
 
 let isAdmin (username : UserName.T) : Task<bool> =
   Sql.query
@@ -259,20 +208,6 @@ let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
   | owner :: _ -> OwnerName.create owner
   | _ -> OwnerName.create (string canvasName)
 
-// **********************
-// What user has access to
-// **********************
-
-let ownedCanvases (userID : UserID) : Task<List<CanvasName.T>> =
-  Sql.query
-    "SELECT name
-     FROM canvases
-     WHERE account_id = @userID"
-  |> Sql.parameters [ "userID", Sql.uuid userID ]
-  |> Sql.executeAsync (fun read -> read.string "name" |> CanvasName.createExn)
-  |> Task.map List.sort
-
-
 
 // **********************
 // Local/test developement
@@ -282,34 +217,10 @@ let initTestAccounts () : Task<unit> =
   task {
     do!
       upsertNonAdmin
-        { username = UserName.create "test_unhashed"
-          password = Password.fromHash "fVm2CUePzGKCwoEQQdNJktUQ"
-          email = "test+unhashed@darklang.com"
-          name = "Dark Backend Tests with Unhashed Password" }
-      |> Task.map (Exception.unwrapResultInternal [])
-
-    do!
-      upsertNonAdmin
         { username = UserName.create "test"
           password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
           email = "test@darklang.com"
           name = "Dark Backend Tests" }
-      |> Task.map (Exception.unwrapResultInternal [])
-
-    do!
-      upsertAdmin
-        { username = UserName.create "test_admin"
-          password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
-          email = "test+admin@darklang.com"
-          name = "Dark Backend Test Admin" }
-      |> Task.map (Exception.unwrapResultInternal [])
-
-    do!
-      upsertNonAdmin
-        { username = UserName.create "sample"
-          password = Password.invalid
-          email = "test+sample@darklang.com"
-          name = "Dark Backend Sample owner" }
       |> Task.map (Exception.unwrapResultInternal [])
 
     return ()
