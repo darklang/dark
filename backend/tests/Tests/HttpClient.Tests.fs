@@ -87,22 +87,22 @@ let updateBody (body : byte array) : byte array =
 
 
 // TODO once the fn is non-internal, remove
-let testAdmin =
-  lazy
-    (task {
-      let username = UserName.create "httpclient_admin"
-      let account : LibBackend.Account.Account =
-        { username = username
-          password = LibBackend.Password.invalid
-          email = "admin-httpclient-test@darklang.com"
-          name = "test name" }
-      do!
-        LibBackend.Account.upsertAdmin account
-        |> Task.map (Exception.unwrapResultInternal [])
-      return!
-        LibBackend.Account.getUser username
-        |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
-    })
+// let testAdmin =
+//   lazy
+//     (task {
+//       let username = UserName.create "httpclient_admin"
+//       let account : LibBackend.Account.Account =
+//         { username = username
+//           password = LibBackend.Password.invalid
+//           email = "admin-httpclient-test@darklang.com"
+//           name = "test name" }
+//       do!
+//         LibBackend.Account.upsertAdmin account
+//         |> Task.map (Exception.unwrapResultInternal [])
+//       return!
+//         LibBackend.Account.getUser username
+//         |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
+//     })
 
 
 let makeTest versionName filename =
@@ -163,7 +163,7 @@ let makeTest versionName filename =
     if shouldSkipTest then
       skiptest $"underscore test - {testName}"
     else
-      let! admin = testAdmin.Force()
+      let! admin = testOwner.Force()
 
       // Set up the canvas
       let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"

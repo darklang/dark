@@ -170,24 +170,6 @@ let t
           ""
   }
 
-let testAdmin =
-  lazy
-    (task {
-      let username = UserName.create "libexe_admin"
-      let account : LibBackend.Account.Account =
-        { username = username
-          password = LibBackend.Password.invalid
-          email = "admin-test@darklang.com"
-          name = "test name" }
-      do!
-        LibBackend.Account.upsertAdmin account
-        |> Task.map (Exception.unwrapResultInternal [])
-      return!
-        LibBackend.Account.getUser username
-        |> Task.map (Exception.unwrapOptionInternal "can't get testAdmin" [])
-    })
-
-
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
   System.IO.Directory.GetFiles(baseDir, "*.tests")
@@ -197,8 +179,7 @@ let fileTests () : Test =
 
     let filename = System.IO.Path.GetFileName file
     let testName = System.IO.Path.GetFileNameWithoutExtension file
-    let owner =
-      if filename = "internal.tests" then testAdmin.Force() else testOwner.Force()
+    let owner = testOwner.Force()
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
