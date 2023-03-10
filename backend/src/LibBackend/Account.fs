@@ -162,7 +162,6 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
     | Some v -> v
     | None -> Exception.raiseGrandUser "User not found")
 
-//used in internalFn
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
     "SELECT username
