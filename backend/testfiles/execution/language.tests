@@ -5,6 +5,7 @@
 module Float =
   Test.nan != Test.nan = true
   Float.multiply -0.0 -1.0 = 0.0
+  Float.multiply 6.02e22 -10.0 = -6.02e23
 
 module Let =
   (let x = Test.typeError_v0 "a" in 5) = Test.typeError "a"
