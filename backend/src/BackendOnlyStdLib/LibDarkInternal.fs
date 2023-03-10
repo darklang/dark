@@ -49,7 +49,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
         Exception.raiseInternal $"User not found" [ "id", state.program.accountID ]
         return DUnit
       | Some username ->
-        let! canAccess = Account.canAccessOperations username
+        let canAccess = true
         if canAccess then
           let fnName =
             state.executingFnName
@@ -142,7 +142,6 @@ that's already taken, returns an error."
               match username with
               | Ok username ->
                 let! _user = Account.insertUser username email name
-                Analytics.identifyUser username
                 let toCanvasName =
                   $"{username}-{LibService.Config.gettingStartedCanvasName}"
                 let fromCanvasName = LibService.Config.gettingStartedCanvasSource
@@ -164,22 +163,6 @@ that's already taken, returns an error."
       previewable = Impure
       deprecated = NotDeprecated }
 
-
-    { name = fn "DarkInternal" "getUserID" 0
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TOption(TUuid)
-      description = "Return a user's userID"
-      fn =
-        internalFn (function
-          | _, [ DStr username ] ->
-            uply {
-              let! info = Account.getUser (UserName.create username)
-              return info |> Option.map (fun user -> DUuid user.id) |> DOption
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
 
 
     { name = fn "DarkInternal" "getAllCanvases" 0
