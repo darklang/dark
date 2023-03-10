@@ -3,15 +3,20 @@
 This is the main repo for [Dark](https://darklang.com), a combined language, editor,
 and infrastructure to make it easy to build backends.
 
-This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
-[source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
+This repo is intended to help Dark users solve their needs by fixing bugs,
+expanding features, or otherwise contributing. Dark is [source available, not
+open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
+
+Note that the production version of Darklang is not in this repo. That is
+currently in https://github.com/darklang/stable-dark.
+
+Darklang is currently undergoing an experimental shift to discern how AI
+technologies will change what Darklang does and how it operates. This is being
+tracked in https://darklang.com/magicbox
 
 See also:
 
-- [Project Tracking](https://github.com/orgs/darklang/projects/5) - what we're actually
-  working on right
 - [Darklang Community Discord](https://darklang.com/discord-invite)
-- [Roadmap](https://github.com/darklang/dark/issues/3284)
 - [Contributor guide](https://docs.darklang.com/contributing/getting-started)
 
 See our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing.
@@ -82,10 +87,6 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 - If you see "initial compile failed", it may be a memory issue. Sometimes
   trying again will work. If not, ensure you have Docker configured to provide
   4GB or more of memory, then try again.
-- Open your browser to http://darklang.localhost:9000/a/dark/, username "dark",
-  password "what"
-- Edit code normally - on each save to your filesystem, the app will be rebuilt
-  and the browser will reload as necessary
 
 ### Using Dark scripts
 
@@ -99,10 +100,6 @@ by a human, though they are often also called by other scripts as well.
 ## Read the contributor docs
 
 If you've gotten this far, you're now ready to [contribute your first PR](https://darklang.github.io/docs/contributing/getting-started#first-contribution).
-
-## Advanced setup
-
-- [setting up dnsmasq](docs/dnsmasq.md)
 
 ## Testing
 
@@ -140,17 +137,6 @@ You can get a REPL with all of the Dark libraries loaded by running:
 
 - [`scripts/build/dotnet-fsi`](scripts/build/dotnet-fsi)
 
-### Segfaults and crashes
-
-When dotnet crashes, you can debug it by running:
-
-- `lldb -- [your command]`
-
-In LLDB, you can use [dotnet's SOS
-plugin](https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension)
-to read the stack, values, etc. The plugin is automatically loaded in lldb in
-the dev container.
-
 ## Production Services
 
 These are compiled to create libraries and binaries.
@@ -166,14 +152,12 @@ these have a self-contained codebase).
 - [Setting up your editor](docs/editor-setup.md)
 - [Running unit tests](docs/unittests.md)
 - [Dark unit tests](backend/testfiles/README.md)
-- [If you're interviewing at Dark, read this](docs/interviewing.md)
 
 ### Less important docs
 
 - [Docs around running Dark in production](docs/production)
 - [Oplist serialization](docs/oplist-serialization.md)
 - [Writing Stdlib docstrings](docs/writing-docstrings.md)
-- [Add an account for yourself](docs/add-account.md)
 - [Using fuzzers to develop Dark](docs/fuzzer.md)
 - [Logging and telemetry](docs/logging-and-telemetry.md)
 - [Writing docstrings in the Dark Standard library](docs/writing-docstrings.md)
