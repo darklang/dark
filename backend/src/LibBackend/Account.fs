@@ -71,7 +71,6 @@ let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>
     | Error _ as result -> return result
   }
 
-let upsertAdmin = upsertAccount true
 let upsertNonAdmin = upsertAccount false
 
 // Any external calls to this should also call Analytics.identifyUser;
@@ -162,6 +161,7 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
     | Some v -> v
     | None -> Exception.raiseGrandUser "User not found")
 
+//used in internalFn
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
     "SELECT username
