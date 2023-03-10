@@ -1388,6 +1388,138 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
+    { name = fn "List" "groupAdjacentBy" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA; varA ], TBool)) "" [ "a"; "b" ] ]
+      returnType = TList(TList varA)
+      description =
+        "Groups <param list> into sublists, where each sublist contains values that
+         are equal according to <param fn>.
+
+         For example, if <param list> is {{[1, 2, 2, 3, 2, 2, 2, 1, 1, 1]}} and <param fn>
+         is {{fn a b -> a == b}}, returns {{[[1], [2, 2], [3], [2, 2, 2], [1, 1, 1]]}}.
+
+         Important: It behaves differently from Haskell's groupBy: https://stackoverflow.com/a/1316392
+         Each value is compared to the next value in the list, not the initial value in the group.
+
+         Preserves the order of values."
+      fn =
+        (function
+        | state, _, [ DList l; DFnVal fn ] ->
+          uply {
+            let group l =
+              let applyFn dvalA dvalB =
+                Interpreter.applyFnVal state fn [ dvalA; dvalB ]
+
+              let rec loop currentGroup groups l =
+                uply {
+                  match currentGroup, groups, l with
+                  | [], [], [] -> return Ok([])
+                  | _, _, hd :: tl ->
+                    match currentGroup with
+                    | [] -> return! loop [ hd ] groups tl
+                    | cgHd :: _ ->
+                      let! fnResult = applyFn cgHd hd
+
+                      match fnResult with
+                      | DBool true -> return! loop (hd :: currentGroup) groups tl
+                      | DBool false ->
+                        return! loop [ hd ] (List.rev currentGroup :: groups) tl
+
+                      | (DIncomplete _
+                      | DError _) as dv ->
+                        // fake dvals
+                        return Error dv
+
+                      | v ->
+                        return
+                          Exception.raiseCode (
+                            Errors.expectedLambdaType "fn" TBool v
+                          )
+                  | cg, [], [] -> return Ok(List.rev (List.rev cg :: groups))
+                  | cg, gs, [] -> return Ok(List.rev (List.rev cg :: gs))
+                }
+
+              loop [] [] l
+
+            match! group l with
+            | Ok result -> return DList(List.map (fun g -> DList g) result)
+            | Error fakeDval -> return fakeDval
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+
+    { name = fn "List" "groupBy" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "item" ] ]
+      returnType = TList(TTuple(varB, TList varA, []))
+      description =
+        "Groups <param list> into tuples (key, elements), where the key is computed by applying
+         <param fn> to each element in the list.
+
+         For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
+         is {{fn item -> Int.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
+
+         Preserves the order of values and of the keys."
+      fn =
+        (function
+        | state, _, [ DList l; DFnVal fn ] ->
+          uply {
+            let groupBy l =
+              let applyFn dval = Interpreter.applyFnVal state fn [ dval ]
+
+              let rec loop groups l =
+                uply {
+                  match l with
+                  | hd :: tl ->
+                    let! key = applyFn hd
+
+                    if not (Dval.isFake key) then
+                      let foundGroup = List.tryFind (fun (k, _) -> k = key) groups
+
+                      let newGroups =
+                        match foundGroup with
+                        | Some (_, elements) ->
+                          let updatedGroup = (key, elements @ [ hd ])
+                          List.map
+                            (fun (k, v) -> if k = key then updatedGroup else (k, v))
+                            groups
+                        | None -> groups @ [ (key, [ hd ]) ]
+
+                      return! loop newGroups tl
+                    else
+                      return Error key
+                  | [] ->
+                    return
+                      Ok(
+                        List.map
+                          (fun (k, elements) -> DTuple(k, DList elements, []))
+                          groups
+                      )
+                }
+
+              loop [] l
+
+            match! groupBy l with
+            | Ok result -> return DList result
+            | Error fakeDval -> return fakeDval
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+
     { name = fn "List" "partition" 0
       typeParams = []
       parameters =
