@@ -179,28 +179,6 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read -> { id = read.uuid "id" })
 
-let getUserAndCreatedAt
-  (username : UserName.T)
-  : Task<Option<UserInfoAndCreatedAt>> =
-  Sql.query
-    "SELECT created_at, id
-     FROM accounts
-     WHERE accounts.username = @username"
-  |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    { id = read.uuid "id"; createdAt = read.instantWithoutTimeZone "created_at" })
-
-let isAdmin (username : UserName.T) : Task<bool> =
-  Sql.query
-    "SELECT TRUE
-     FROM accounts
-     WHERE accounts.username = @username
-       AND admin = true"
-  |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeExistsAsync
-
-
-let canAccessOperations (username : UserName.T) : Task<bool> = isAdmin username
 
 // formerly called auth_domain_for
 let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
