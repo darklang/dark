@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
 
               | Error (HttpClient.BadUrl details) ->
                 // TODO: include a DvalSource rather than SourceNone
-                return DError(SourceNone, $"Bad URL: {details}")
+                return DResult(Error(DStr $"Bad URL: {details}"))
 
               | Error (HttpClient.Timeout) ->
                 return DResult(Error(DStr $"Request timed out"))
@@ -306,11 +306,11 @@ let fns : List<BuiltInFn> =
             }
 
           | Error reqHeadersErr, _ ->
-            uply { return DError(SourceNone, reqHeadersErr) }
+            uply { return DResult(Error(DStr reqHeadersErr)) }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return DError(SourceNone, error) }
+            uply { return DResult(Error(DStr error)) }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

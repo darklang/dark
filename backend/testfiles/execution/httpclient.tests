@@ -25,22 +25,22 @@ HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
 // Tests that try to make requests to the internet
 
 // type errors for bad `headers` are OK
-HttpClient.request "get" "https://darklang.com" [1] Bytes.empty = Test.typeError_v0 "Expected request headers to be a List of (string * string), but got: 1"
-HttpClient.request "get" "https://darklang.com" [("", "")] Bytes.empty = Test.typeError_v0 "Empty request header key provided"
+HttpClient.request "get" "https://darklang.com" [1] Bytes.empty = Error "Expected request headers to be a List of (string * string), but got: 1"
+HttpClient.request "get" "https://darklang.com" [("", "")] Bytes.empty = Error "Empty request header key provided"
 
 // type errors for bad `method` are OK
-HttpClient.request "" "https://darklang.com" [] Bytes.empty = Test.typeError_v0 "Expected valid HTTP method (e.g. 'get' or 'POST')"
-HttpClient.request " get " "https://darklang.com" [] Bytes.empty = Test.typeError_v0 "Expected valid HTTP method (e.g. 'get' or 'POST')"
-HttpClient.request "🇵🇷" "https://darklang.com" [] Bytes.empty = Test.typeError_v0 "Expected valid HTTP method (e.g. 'get' or 'POST')"
+HttpClient.request "" "https://darklang.com" [] Bytes.empty = Error "Expected valid HTTP method (e.g. 'get' or 'POST')"
+HttpClient.request " get " "https://darklang.com" [] Bytes.empty = Error "Expected valid HTTP method (e.g. 'get' or 'POST')"
+HttpClient.request "🇵🇷" "https://darklang.com" [] Bytes.empty = Error "Expected valid HTTP method (e.g. 'get' or 'POST')"
 
 // unsupported protocols
-HttpClient.request "get" "ftp://darklang.com" [] Bytes.empty = Test.typeError_v0 "Bad URL: Unsupported Protocol"
-HttpClient.request "put" "file:///etc/passwd" [] Bytes.empty = Test.typeError_v0 "Bad URL: Unsupported Protocol"
-HttpClient.request "put" "/just-a-path" [] Bytes.empty = Test.typeError_v0 "Bad URL: Unsupported Protocol"
+HttpClient.request "get" "ftp://darklang.com" [] Bytes.empty = Error "Bad URL: Unsupported Protocol"
+HttpClient.request "put" "file:///etc/passwd" [] Bytes.empty = Error"Bad URL: Unsupported Protocol"
+HttpClient.request "put" "/just-a-path" [] Bytes.empty = Error "Bad URL: Unsupported Protocol"
 
 // totally bogus URLs
-HttpClient.request "get" "" [] Bytes.empty = Test.typeError_v0 "Bad URL: Invalid URI"
-HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = Test.typeError_v0 "Bad URL: Invalid URI"
+HttpClient.request "get" "" [] Bytes.empty = Error "Bad URL: Invalid URI"
+HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = Error "Bad URL: Invalid URI"
 
 // basic requests work
 ((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map_v1 (fun response -> response.statusCode)) = Ok 200
