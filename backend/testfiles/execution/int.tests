@@ -59,19 +59,20 @@ List.map_v0 (List.range_v0 (-5) 5) (fun v -> Int.mod_v0 v 4) = [3;0;1;2;3;0;1;2;
 5 % (-5) = Test.typeError_v0 "Expected the argument `b` to be positive, but it was `-5`"
 List.map_v0 (List.range_v0 -5 5) (fun v -> v % 4) = [ 3; 0; 1; 2; 3; 0; 1; 2; 3; 0; 1 ]
 
-Int.power_v0 8 5 = 32768
-Int.power_v0 0 1 = 0
-Int.power_v0 1 0 = 1
-Int.power_v0 1000 0 = 1
-Int.power_v0 -8 5 = -32768
-Int.power_v0 200 20 = Test.typeError_v0 "Error raising to exponent"
-Int.power_v0 200 7 = 12800000000000000L
-Int.power_v0 1 2147483649I = 1
-Int.power_v0 -1 2147483649I = -1
+Int.power_v0 8 5 = Ok 32768
+Int.power_v0 0 1 = Ok 0
+Int.power_v0 1 0 = Ok 1
+Int.power_v0 1000 0 = Ok 1
+Int.power_v0 -8 5 = Ok -32768
+Int.power_v0 200 20 = Error "Error raising to exponent"
+Int.power_v0 200 7 = Ok 12800000000000000L
+Int.power_v0 1 2147483649I = Ok 1
+Int.power_v0 -1 2147483649I = Ok -1
+Int.power_v0 2 -3 = Error "Expected the argument `exponent` to be positive, but it was `-3`"
 
-5 ^ 2 = 25
--8 ^ 5 = -32768
-50 ^ 2 = 2500
+5 ^ 2 = Ok 25
+-8 ^ 5 = Ok -32768
+50 ^ 2 = Ok 2500
 
 Int.greaterThan_v0 20 1 = true
 20 > 1 = true
