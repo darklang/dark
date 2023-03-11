@@ -317,7 +317,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "value" TFloat ""
           Param.make "limitA" TFloat ""
           Param.make "limitB" TFloat "" ]
-      returnType = TFloat
+      returnType = TResult(TFloat, TStr)
       description =
         "If <param value> is within the range given by <param limitA> and <param
          limitB>, returns <param value>.
@@ -325,15 +325,21 @@ let fns : List<BuiltInFn> =
          If <param value> is outside the range, returns <param limitA> or <param
          limitB>, whichever is closer to <param value>.
 
+         Returns <param value> wrapped in a {{Result}}.
+
          <param limitA> and <param limitB> can be provided in any order."
       fn =
         (function
         | _, [ DFloat v; DFloat a; DFloat b ] ->
           if System.Double.IsNaN a || System.Double.IsNaN b then
-            Ply(DError(SourceNone, "clamp requires arguments to be valid numbers"))
+            "clamp requires arguments to be valid numbers"
+            |> DStr
+            |> Error
+            |> DResult
+            |> Ply
           else
             let min, max = if a < b then (a, b) else (b, a)
-            Ply(DFloat(Math.Clamp(v, min, max)))
+            Math.Clamp(v, min, max) |> DFloat |> Ok |> DResult |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -356,7 +362,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "parse" 0
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TFloat, TStr)
-      description = "Returns the <type float> value of the <type string>"
+      description =
+        "Returns the <type float> value wrapped in a {{Result}} of the <type string>"
       fn =
         (function
         | _, [ DStr s ] ->
