@@ -154,28 +154,33 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Int" "power" 0
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
-      returnType = TInt
-      description = "Raise <param base> to the power of <param exponent>"
+      returnType = TResult(TInt, TStr)
+      description =
+        "Raise <param base> to the power of <param exponent>.
+        <param exponent> must to be positive.
+        Return value wrapped in a {{Result}} "
       fn =
         (function
         | _, [ DInt number; DInt exp as expdv ] ->
+          let errPipe e = e |> DStr |> Error |> DResult |> Ply
+          let okPipe r = r |> DInt |> Ok |> DResult |> Ply
           (try
             if exp < 0L then
-              err (Errors.argumentWasnt "positive" "exponent" expdv)
+              Errors.argumentWasnt "positive" "exponent" expdv |> errPipe
             // Handle some edge cases around 1. We want to make this match
             // OCaml, so we have to support an exponent above int32, but
             // below int63. This only matters for 1 or -1, and otherwise a
             // number raised to an int63 exponent wouldn't fit in an int63
             else if number = 1L then
-              Ply(DInt(1L))
+              1L |> okPipe
             else if number = -1L && exp % 2L = 0L then
-              Ply(DInt(1L))
+              1L |> okPipe
             else if number = -1L then
-              Ply(DInt(-1L))
+              -1L |> okPipe
             else
-              (bigint number) ** (int exp) |> int64 |> DInt |> Ply
+              (bigint number) ** (int exp) |> int64 |> okPipe
            with
-           | _ -> err "Error raising to exponent")
+           | _ -> "Error raising to exponent" |> errPipe)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
