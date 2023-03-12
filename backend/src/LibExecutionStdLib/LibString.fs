@@ -384,9 +384,10 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "base64Decode" 0
       parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
+      returnType = TResult(TStr, TStr)
       description =
-        "Base64 decodes a string. Works with both the URL-safe and standard Base64
+        "Base64 decodes a string. The returned value is wrapped in {{Result}}.
+         Works with both the URL-safe and standard Base64
          alphabets defined in [RFC 4648
          sections](https://www.rfc-editor.org/rfc/rfc4648.html)
          [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
@@ -394,7 +395,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr s ] ->
-          // CLEANUP this should be a result
+          let errPipe e = e |> DStr |> Error |> DResult |> Ply
+          let okPipe r = r |> DStr |> Ok |> DResult |> Ply
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -405,10 +407,10 @@ let fns : List<BuiltInFn> =
 
           if s = "" then
             // This seems like we should allow it
-            Ply(DStr "")
+            "" |> okPipe
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            err "Not a valid base64 string"
+            "Not a valid base64 string" |> errPipe
           else
             try
               s
@@ -416,10 +418,9 @@ let fns : List<BuiltInFn> =
               |> Convert.FromBase64String
               |> System.Text.Encoding.UTF8.GetString
               |> String.normalize
-              |> DStr
-              |> Ply
+              |> okPipe
             with
-            | e -> err "Not a valid base64 string"
+            | e -> "Not a valid base64 string" |> errPipe
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
