@@ -24,7 +24,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   let styles = System.Globalization.DateTimeStyles.AssumeUniversal
   let mutable (result : System.DateTime) = Unchecked.defaultof<System.DateTime>
   if
-    not (s.EndsWith('z') || s.Contains("GMT"))
+    not (s.Contains("GMT"))
     && System.DateTime.TryParseExact(s, ISO8601Format, culture, styles, &result)
   then
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
