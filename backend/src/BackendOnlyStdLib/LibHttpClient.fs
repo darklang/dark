@@ -306,7 +306,7 @@ let fns : List<BuiltInFn> =
             }
 
           | Error reqHeadersErr, _ ->
-            uply { return DResult(Error(DStr reqHeadersErr)) }
+            uply { return DError(SourceNone, reqHeadersErr) }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
