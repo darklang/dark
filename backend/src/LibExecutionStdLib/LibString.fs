@@ -759,18 +759,20 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TStr ""
           Param.make "padWith" TStr ""
           Param.make "goalLength" TInt "" ]
-      returnType = TStr
+      returnType = TResult(TStr, TStr)
       description =
         "If <param string> is shorter than <param goalLength> characters, returns a
          copy of <param string> starting with enough copies of <param padWith> for the
-         result have <param goalLength>.
+         result have <param goalLength>. A returning value is wrapped in a {{Result}}.
 
          If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>"
       fn =
         (function
         | _, [ DStr s; DStr padWith as dv; DInt l ] ->
+          let errPipe e = e |> DStr |> Error |> DResult |> Ply
+          let okPipe r = r |> DStr |> Ok |> DResult |> Ply
           if String.lengthInEgcs padWith <> 1 then
-            err (Errors.argumentWasnt "1 character long" "padWith" dv)
+            Errors.argumentWasnt "1 character long" "padWith" dv |> errPipe
           else
             let targetLength = int l
             let currentLength = String.lengthInEgcs s
@@ -783,7 +785,7 @@ let fns : List<BuiltInFn> =
 
             stringBuilder.Append(s) |> ignore<StringBuilder>
 
-            stringBuilder |> string |> String.normalize |> DStr |> Ply
+            stringBuilder |> string |> String.normalize |> okPipe
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -795,19 +797,21 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TStr ""
           Param.make "padWith" TStr ""
           Param.make "goalLength" TInt "" ]
-      returnType = TStr
+      returnType = TResult(TStr, TStr)
       description =
         "If <param string> is shorter than <param goalLength> characters, returns a
          copy of <param string> ending with enough copies of <param padWith> for the
-         result have <param goalLength>.
+         result have <param goalLength>. A returning value is wrapped in a {{Result}}.
 
          If the <param string> is longer than <param goalLength>, returns an unchanged copy of
          <param string>."
       fn =
         (function
         | _, [ DStr s; DStr padWith as dv; DInt l ] ->
+          let errPipe e = e |> DStr |> Error |> DResult |> Ply
+          let okPipe r = r |> DStr |> Ok |> DResult |> Ply
           if String.lengthInEgcs padWith <> 1 then
-            err (Errors.argumentWasnt "1 character long" "padWith" dv)
+            Errors.argumentWasnt "1 character long" "padWith" dv |> errPipe
           else
             let targetLength = int l
             let currentLength = String.lengthInEgcs s
@@ -819,7 +823,7 @@ let fns : List<BuiltInFn> =
             for _ = 1 to requiredPads do
               stringBuilder.Append(padWith) |> ignore<StringBuilder>
 
-            stringBuilder |> string |> String.normalize |> DStr |> Ply
+            stringBuilder |> string |> String.normalize |> okPipe
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
