@@ -1,8 +1,5 @@
 module LibExecutionStdLib.LibDateTime
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open LibExecution.RuntimeTypes
 open Prelude
 
@@ -12,9 +9,6 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let product lists =
-  let folder list state = state |> Seq.allPairs list |> Seq.map List.Cons
-  Seq.singleton List.empty |> List.foldBack folder lists
 
 let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"
 
