@@ -1,0 +1,37 @@
+-- -- drop triggers
+-- DROP TRIGGER IF EXISTS set_account_timestamp ON accounts_v0;
+-- DROP TRIGGER IF EXISTS set_canvas_timestamp ON canvases_v0;
+-- DROP TRIGGER IF EXISTS set_toplevel_oplist_timestamp ON toplevel_oplists_v0;
+-- DROP TRIGGER IF EXISTS set_user_data_timestamp ON user_data_v0;
+
+-- -- drop indexes
+-- DROP INDEX IF EXISTS idx_accounts_email_uniqueness;
+-- DROP INDEX IF EXISTS idx_cron_records_tlid_canvas_id_id;
+-- DROP INDEX IF EXISTS idx_events_count;
+-- DROP INDEX IF EXISTS function_arguments_most_recent;
+-- DROP INDEX IF EXISTS function_arguments_for_trace;
+-- DROP INDEX IF EXISTS idx_function_results_v0_most_recent;
+-- DROP INDEX IF EXISTS idx_stored_events_v0_most_recent;
+-- DROP INDEX IF EXISTS stored_events_v0_traceid;
+-- DROP INDEX IF EXISTS idx_stored_events_v0_most_recent_with_text;
+-- DROP INDEX IF EXISTS idx_user_data_fetch;
+-- DROP INDEX IF EXISTS idx_user_data_current_data_for_tlid;
+-- DROP INDEX IF EXISTS idx_user_data_row_uniqueness;
+-- DROP INDEX IF EXISTS idx_user_data_gin_data;
+
+-- -- drop tables
+-- DROP TABLE IF EXISTS accounts_v0;
+-- DROP TABLE IF EXISTS canvases_v0 CASCADE;
+-- DROP TABLE IF EXISTS cron_records_v0 CASCADE;
+-- DROP TABLE IF EXISTS custom_domains_v0;
+-- DROP TABLE IF EXISTS events_v0;
+-- DROP TABLE IF EXISTS function_arguments_v0 CASCADE;
+-- DROP TABLE IF EXISTS function_results_v0 CASCADE;
+-- DROP TABLE IF EXISTS packages_v0;
+-- DROP TABLE IF EXISTS scheduling_rules_v0 CASCADE;
+-- DROP TABLE IF EXISTS secrets_v0 CASCADE;
+-- DROP TABLE IF EXISTS stored_events_v0 CASCADE;
+-- DROP TABLE IF EXISTS system_migrations_v0;
+-- DROP TABLE IF EXISTS toplevel_oplists_v0 CASCADE;
+-- DROP TABLE IF EXISTS traces_v0;
+-- DROP TABLE IF EXISTS user_data_v0;
