@@ -174,7 +174,11 @@ type Expr =
   ///   `EConstructor(Some UserType.MyEnum, "C", [EInteger(1), EString("title")]`
   /// TODO: the UserTypeName should eventually be a non-optional
   /// FQTypeName.
-  | EConstructor of id * Option<UserTypeName> * caseName: string * fields: List<Expr>
+  | EConstructor of
+    id *
+    Option<UserTypeName> *
+    caseName : string *
+    fields : List<Expr>
 
   /// Supports `match` expressions
   /// ```fsharp
@@ -200,20 +204,20 @@ type Expr =
     caseB : Expr
 
 
-  // TODO:
-  // - define EUser
-  // migrate existing ERecords to EUserRecords and
-  // /// Given a User type of:
-  // ///   `type MyRecord = { A: int;  B: int * MyRecord }`
-  // /// , this is the expression
-  // ///   `EUserRecord(UserType.MyRecord, [EInteger(1), EString("title")]`
-  // | EUserRecord of id * UserTypeName * fields: List<string * Expr>
+// TODO:
+// - define EUser
+// migrate existing ERecords to EUserRecords and
+// /// Given a User type of:
+// ///   `type MyRecord = { A: int;  B: int * MyRecord }`
+// /// , this is the expression
+// ///   `EUserRecord(UserType.MyRecord, [EInteger(1), EString("title")]`
+// | EUserRecord of id * UserTypeName * fields: List<string * Expr>
 
 
-  // TODO one of these:
-  // - implement EStdlibEnum and EStdlibRecord, then EPackageEnum and EPackageRecord
-  // - implement a more generic EDefinedEnum and EDefinedRecord
-  //   that reference awith `User`, `Stdlib`, and `Package` cases
+// TODO one of these:
+// - implement EStdlibEnum and EStdlibRecord, then EPackageEnum and EPackageRecord
+// - implement a more generic EDefinedEnum and EDefinedRecord
+//   that reference awith `User`, `Stdlib`, and `Package` cases
 
 
 and StringSegment =

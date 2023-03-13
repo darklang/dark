@@ -113,7 +113,7 @@ module FormatV0 =
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DUserEnum _ -> DUnit // TODO why?
+    | RT.DConstructor _ -> DUnit // TODO why?
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -145,7 +145,7 @@ module Test =
     | RT.DChar _
     | RT.DBytes _
     | RT.DDateTime _
-    | RT.DUserEnum _
+    | RT.DConstructor _
     | RT.DOption None
     | RT.DPassword _ -> true
     | RT.DList dvals -> List.all isRoundtrippableDval dvals

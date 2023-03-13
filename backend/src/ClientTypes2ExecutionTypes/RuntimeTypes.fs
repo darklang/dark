@@ -313,8 +313,8 @@ module Dval =
     | Dval.DResult (Ok dv) -> RT.DResult(Ok(r dv))
     | Dval.DResult (Error dv) -> RT.DResult(Error(r dv))
     | Dval.DBytes bytes -> RT.DBytes bytes
-    | Dval.DUserEnum (typeName, caseName, fields) ->
-      RT.DUserEnum(UserTypeName.fromCT typeName, caseName, List.map r fields)
+    | Dval.DConstructor (typeName, caseName, fields) ->
+      RT.DConstructor(UserTypeName.fromCT typeName, caseName, List.map r fields)
 
   and toCT (dv : RT.Dval) : Dval.T =
     let r = toCT
@@ -352,4 +352,4 @@ module Dval =
     | RT.DResult (Ok dv) -> Dval.DResult(Ok(r dv))
     | RT.DResult (Error dv) -> Dval.DResult(Error(r dv))
     | RT.DBytes bytes -> Dval.DBytes bytes
-    | RT.DUserEnum (typeName, caseName, fields) -> Dval.DUnit // todo
+    | RT.DConstructor (typeName, caseName, fields) -> Dval.DUnit // todo

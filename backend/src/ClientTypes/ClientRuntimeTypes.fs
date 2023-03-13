@@ -138,4 +138,4 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DUserEnum of typeName : UserTypeName * caseName : string * fields : List<T>
+    | DConstructor of typeName : UserTypeName * caseName : string * fields : List<T>

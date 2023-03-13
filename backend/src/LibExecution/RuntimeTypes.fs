@@ -284,7 +284,8 @@ and Dval =
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
   | DBytes of byte array
-  | DUserEnum of typeName : UserTypeName * caseName : string * fields : List<Dval>
+  // TODO: merge DOption and DResult into DConstructor
+  | DConstructor of typeName : UserTypeName * caseName : string * fields : List<Dval>
 
 and DvalTask = Ply<Dval>
 
@@ -454,7 +455,7 @@ module Dval =
     | DResult (Ok v) -> TResult(toType v, any)
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
-    | DUserEnum (typeName, _caseName, _fields) -> TUserType(typeName)
+    | DConstructor (typeName, _caseName, _fields) -> TUserType(typeName)
 
   /// <summary>
   /// Checks if a runtime's value matches a given type
@@ -520,7 +521,7 @@ module Dval =
       //    ...
       false
 
-    | DUserEnum _, TUserType _ ->
+    | DConstructor _, TUserType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<UserTypeName, UserType.Definition>)` passed in
@@ -556,7 +557,7 @@ module Dval =
     | DResult _, _
     | DHttpResponse _, _
     | DObj _, _
-    | DUserEnum _, _ -> false
+    | DConstructor _, _ -> false
 
 
   let int (i : int) = DInt(int64 i)

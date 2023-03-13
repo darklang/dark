@@ -303,7 +303,12 @@ module ProgramTypes =
                                        689802831UL,
                                        None,
                                        "Just",
-                                       [ PT.EConstructor(957916875UL, None, "Nothing", []) ]
+                                       [ PT.EConstructor(
+                                           957916875UL,
+                                           None,
+                                           "Nothing",
+                                           []
+                                         ) ]
                                      ) ]
                                  ) ]
                              )) ]

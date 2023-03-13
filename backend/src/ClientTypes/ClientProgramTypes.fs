@@ -88,7 +88,11 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EConstructor of id * Option<UserTypeName> * caseName: string * fields: List<Expr>
+  | EConstructor of
+    id *
+    Option<UserTypeName> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr

@@ -57,7 +57,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDB a, DDB b -> a = b
   | DHttpResponse (code1, headers1, body1), DHttpResponse (code2, headers2, body2) ->
     code1 = code2 && headers1 = headers2 && equals body1 body2
-  | DUserEnum (a1, a2, a3), DUserEnum (b1, b2, b3) ->
+  | DConstructor (a1, a2, a3), DConstructor (b1, b2, b3) ->
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
   // exhaustivenss check
   | DInt _, _
@@ -78,7 +78,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DBytes _, _
   | DDB _, _
   | DHttpResponse _, _
-  | DUserEnum _, _
+  | DConstructor _, _
   | DError _, _
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
@@ -139,10 +139,11 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
            name1 = name2 && equalsExpr expr1 expr2)
          fields1
          fields2
-  | EConstructor (_, tag1, args1), EConstructor (_, tag2, args2) ->
-    tag1 = tag2
-    && args1.Length = args2.Length
-    && List.forall2 equalsExpr args1 args2
+  | EConstructor (_, typeName, caseName, fields), EConstructor (_, typeName', caseName', fields') ->
+    typeName = typeName'
+    && caseName = caseName'
+    && fields.Length = fields'.Length
+    && List.forall2 equalsExpr fields fields'
   | EMatch (_, target1, cases1), EMatch (_, target2, cases2) ->
     equalsExpr target1 target2
     && cases1.Length = cases2.Length
@@ -156,11 +157,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
   | EOr (_, lhs1, rhs1), EOr (_, lhs2, rhs2) ->
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
-  | EUserEnum (_, name1, case1, args1), EUserEnum (_, name2, case2, args2) ->
-    name1 = name2
-    && case1 = case2
-    && args1.Length = args2.Length
-    && List.forall2 equalsExpr args1 args2
+
   // exhaustiveness check
   | EInteger _, _
   | EBool _, _
@@ -183,7 +180,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFeatureFlag _, _
   | EAnd _, _
   | EOr _, _
-  | EUserEnum _, _ -> false
+  | EConstructor _, _ -> false
 
 
 and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =

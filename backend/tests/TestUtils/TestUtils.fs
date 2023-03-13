@@ -463,7 +463,7 @@ module Expect =
     | DObj vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DUserEnum (_typeName, _caseName, fields) ->
+    | DConstructor (_typeName, _caseName, fields) ->
       // TODO: revisit
       fields |> List.all check
 
@@ -728,8 +728,8 @@ module Expect =
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DUserEnum (typeName, caseName, fields),
-      DUserEnum (typeName', caseName', fields') ->
+    | DConstructor (typeName, caseName, fields),
+      DConstructor (typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn path (Some typeName) (Some typeName') errorFn
 
       check ("caseName" :: path) caseName caseName'
@@ -754,7 +754,7 @@ module Expect =
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DObj _, _
-    | DUserEnum _, _
+    | DConstructor _, _
     | DList _, _
     | DTuple _, _
     | DResult _, _
@@ -816,7 +816,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DUserEnum (_typeName, _caseName, fields) ->
+    | DConstructor (_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->

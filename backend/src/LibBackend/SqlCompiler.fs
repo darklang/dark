@@ -50,7 +50,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | _, DOption _ // CLEANUP allow
   | _, DResult _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
-  | _, DUserEnum _ // TODO: revisit
+  | _, DConstructor _ // TODO: revisit
   | _, DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | TDateTime, DDateTime date ->

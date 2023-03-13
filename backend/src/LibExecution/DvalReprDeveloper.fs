@@ -117,7 +117,7 @@ let toRepr (dv : Dval) : string =
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
-    | DUserEnum (typeName, caseName, fields) ->
+    | DConstructor (typeName, caseName, fields) ->
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 

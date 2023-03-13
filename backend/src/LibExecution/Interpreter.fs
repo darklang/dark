@@ -465,7 +465,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         // EConstructorTODO: reconsider (stole this from DList)
         match List.tryFind Dval.isFake fields with
         | Some fakeDval -> return fakeDval
-        | None -> return DUserEnum(typeName, caseName, fields)
+        | None -> return DConstructor(typeName, caseName, fields)
   }
 
 /// Interprets an expression and reduces to a Dark value
