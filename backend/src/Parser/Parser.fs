@@ -204,7 +204,7 @@ let rec convertToExpr
     PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [])
 
   | SynExpr.Ident ident when ident.idText = "Nothing" ->
-    PT.EConstructor(id, "Nothing", [])
+    PT.EConstructor(id, None, "Nothing", [])
 
   | SynExpr.Ident name ->
     let matchingEnumCases =
@@ -227,10 +227,10 @@ let rec convertToExpr
         // as apps wrapping other apps.
         //
         // In any case, the fields are filled in shortly - search through
-        // this file for other cases of "EUserEnum" to locate such.
+        // this file for other cases of "EConstructor" to locate such.
         []
 
-      PT.EUserEnum(id, userFnName, name.idText, fields)
+      PT.EConstructor(id, Some userFnName, name.idText, fields)
     | _ ->
       Exception.raiseInternal
         "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
@@ -404,7 +404,7 @@ let rec convertToExpr
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
     List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
     ->
-    PT.EConstructor(id, name.idText, [ c arg ])
+    PT.EConstructor(id, None, name.idText, [ c arg ])
 
   // Feature flag now or else it'll get recognized as a var
   | SynExpr.App (_,
@@ -441,13 +441,13 @@ let rec convertToExpr
         PT.EFnCall(id, PT.FQFnName.User name, [ c arg ])
 
     // Enums
-    | PT.EUserEnum (id, typeName, caseName, _fields) ->
+    | PT.EConstructor (id, typeName, caseName, _fields) ->
       let fields =
         match c arg with
         | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
         | other -> [ other ]
 
-      PT.EUserEnum(id, typeName, caseName, fields)
+      PT.EConstructor(id, typeName, caseName, fields)
 
     | e ->
       Exception.raiseInternal

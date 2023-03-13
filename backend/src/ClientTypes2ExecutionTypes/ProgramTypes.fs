@@ -184,8 +184,6 @@ module Expr =
       PT.ERecord(id, pairs |> List.map (fun (name, expr) -> (name, fromCT expr)))
     | CTPT.Expr.EPipe (id, expr1, expr2, exprs) ->
       PT.EPipe(id, fromCT expr1, fromCT expr2, List.map fromCT exprs)
-    | CTPT.Expr.EConstructor (id, name, args) ->
-      PT.EConstructor(id, name, List.map fromCT args)
     | CTPT.Expr.EMatch (id, matchExpr, cases) ->
       PT.EMatch(
         id,
@@ -195,10 +193,10 @@ module Expr =
     | CTPT.Expr.EPipeTarget (id) -> PT.EPipeTarget(id)
     | CTPT.Expr.EFeatureFlag (id, name, cond, caseA, caseB) ->
       PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
-    | CTPT.EUserEnum (id, typeName, caseName, fields) ->
-      PT.Expr.EUserEnum(
+    | CTPT.EConstructor (id, typeName, caseName, fields) ->
+      PT.Expr.EConstructor(
         id,
-        UserTypeName.fromCT typeName,
+        Option.map UserTypeName.fromCT typeName,
         caseName,
         List.map fromCT fields
       )
@@ -245,8 +243,13 @@ module Expr =
       )
     | PT.EPipe (id, expr1, expr2, exprs) ->
       CTPT.Expr.EPipe(id, toCT expr1, toCT expr2, List.map toCT exprs)
-    | PT.EConstructor (id, name, args) ->
-      CTPT.Expr.EConstructor(id, name, List.map toCT args)
+    | PT.EConstructor (id, typeName, caseName, fields) ->
+      CTPT.Expr.EConstructor(
+        id,
+        Option.map UserTypeName.toCT typeName,
+        caseName,
+        List.map toCT fields
+      )
     | PT.EMatch (id, matchExpr, cases) ->
       CTPT.Expr.EMatch(
         id,
@@ -256,13 +259,7 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
-    | PT.EUserEnum (id, typeName, caseName, fields) ->
-      CTPT.Expr.EUserEnum(
-        id,
-        UserTypeName.toCT typeName,
-        caseName,
-        List.map toCT fields
-      )
+
 
   and stringSegmentToCT (segment : PT.StringSegment) : CTPT.StringSegment =
     match segment with

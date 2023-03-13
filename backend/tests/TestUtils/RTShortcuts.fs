@@ -65,5 +65,5 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 let eLambda (varNames : string list) (body : Expr) : Expr =
   ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
 
-let eConstructor (name : string) (args : Expr list) : Expr =
-  EConstructor(gid (), name, args)
+let eConstructor (typeName: Option<UserTypeName>) (name : string) (args : Expr list) : Expr =
+  EConstructor(gid (), typeName, name, args)

@@ -100,7 +100,7 @@ module RuntimeTypes =
         [ RT.EUnit(7167384UL) ]
       )
       RT.ERecord(8167384UL, [ "a9df8", RT.EUnit(71631UL) ])
-      RT.EConstructor(64617UL, "Just", [ RT.EUnit(8173UL) ])
+      RT.EConstructor(64617UL, None, "Just", [ RT.EUnit(8173UL) ])
       RT.EMatch(
         712743UL,
         RT.EInteger(712373UL, 123),
@@ -114,9 +114,9 @@ module RuntimeTypes =
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
-      RT.EUserEnum(
+      RT.EConstructor(
         8375723UL,
-        { typ = "MyEnum"; version = 0 },
+        Some { typ = "MyEnum"; version = 0 },
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -293,14 +293,17 @@ module ProgramTypes =
                             ("constructor",
                              PT.EConstructor(
                                567764301UL,
+                               None,
                                "Ok",
                                [ PT.EConstructor(
                                    646107057UL,
+                                   None,
                                    "Error",
                                    [ PT.EConstructor(
                                        689802831UL,
+                                       None,
                                        "Just",
-                                       [ PT.EConstructor(957916875UL, "Nothing", []) ]
+                                       [ PT.EConstructor(957916875UL, None, "Nothing", []) ]
                                      ) ]
                                  ) ]
                              )) ]

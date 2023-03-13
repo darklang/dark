@@ -31,11 +31,10 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     EMatch(id, f mexpr, List.map (fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, fields) ->
     ERecord(id, List.map (fun (name, expr) -> (name, f expr)) fields)
-  | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map f exprs)
   | EFeatureFlag (id, name, cond, casea, caseb) ->
     EFeatureFlag(id, name, f cond, f casea, f caseb)
-  | EUserEnum (id, name, caseName, fields) ->
-    EUserEnum(id, name, caseName, List.map f fields)
+  | EConstructor (id, typeName, caseName, fields) ->
+    EConstructor(id, typeName, caseName, List.map f fields)
 
 
 

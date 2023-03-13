@@ -166,11 +166,15 @@ type Expr =
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
 
-  // Constructors include `Just`, `Nothing`, `Error`, `Ok`.  In practice the
-  // expr list is currently always length 1 (for `Just`, `Error`, and `Ok`)
-  // or length 0 (for `Nothing`).
-  // TODO: migrate usages of this to usages of EDefinedEnum(FQTypeName.T, ...
-  | EConstructor of id * string * List<Expr>
+  // Constructors include `Just`, `Nothing`, `Error`, `Ok`, as well
+  // as user-defined enums.
+  /// Given an Enum type of:
+  ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
+  /// , this is the expression
+  ///   `EConstructor(Some UserType.MyEnum, "C", [EInteger(1), EString("title")]`
+  /// TODO: the UserTypeName should eventually be a non-optional
+  /// FQTypeName.
+  | EConstructor of id * Option<UserTypeName> * caseName: string * fields: List<Expr>
 
   /// Supports `match` expressions
   /// ```fsharp
@@ -210,12 +214,6 @@ type Expr =
   // - implement EStdlibEnum and EStdlibRecord, then EPackageEnum and EPackageRecord
   // - implement a more generic EDefinedEnum and EDefinedRecord
   //   that reference awith `User`, `Stdlib`, and `Package` cases
-
-  /// Given a User type of:
-  ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
-  /// , this is the expression
-  ///   `EUserEnum(UserType.MyEnum, "C", [EInteger(1), EString("title")]`
-  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 
 and StringSegment =

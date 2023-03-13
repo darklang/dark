@@ -193,8 +193,13 @@ module Expr =
     | Expr.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, r first, r second, List.map r theRest)
     | Expr.ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
-    | Expr.EConstructor (id, name, exprs) ->
-      RT.EConstructor(id, name, List.map r exprs)
+    | Expr.EConstructor (id, typeName, caseName, fields) ->
+      RT.EConstructor(
+        id,
+        Option.map UserTypeName.fromCT typeName,
+        caseName,
+        List.map r fields
+      )
     | Expr.EMatch (id, mexpr, pairs) ->
       RT.EMatch(
         id,
@@ -205,8 +210,6 @@ module Expr =
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
     | Expr.EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | Expr.EOr (id, left, right) -> RT.EOr(id, r left, r right)
-    | Expr.EUserEnum (id, typeName, caseName, fields) ->
-      RT.EUserEnum(id, UserTypeName.fromCT typeName, caseName, List.map r fields)
 
   and stringSegmentToRT (segment : Expr.StringSegment) : RT.StringSegment =
     match segment with
@@ -239,8 +242,13 @@ module Expr =
     | RT.ETuple (id, first, second, theRest) ->
       Expr.ETuple(id, r first, r second, List.map r theRest)
     | RT.ERecord (id, pairs) -> Expr.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
-    | RT.EConstructor (id, name, exprs) ->
-      Expr.EConstructor(id, name, List.map r exprs)
+    | RT.EConstructor (id, typeName, casename, fields) ->
+      Expr.EConstructor(
+        id,
+        Option.map UserTypeName.toCT typeName,
+        casename,
+        List.map r fields
+      )
     | RT.EMatch (id, mexpr, pairs) ->
       Expr.EMatch(
         id,
@@ -251,8 +259,6 @@ module Expr =
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
-    | RT.EUserEnum (id, typeName, casename, fields) ->
-      Expr.EUserEnum(id, UserTypeName.toCT typeName, casename, List.map r fields)
 
   and stringSegmentToCT (segment : RT.StringSegment) : Expr.StringSegment =
     match segment with

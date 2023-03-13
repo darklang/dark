@@ -519,7 +519,6 @@ let partiallyEvaluate
             | EFQFnValue _
             | EBool _
             | EUnit _
-            | EUserEnum _ // EUserEnumTODO: revisit
             | EFloat _ -> return expr
             | ELet (id, pat, rhs, next) ->
               let! rhs = r rhs
@@ -571,9 +570,9 @@ let partiallyEvaluate
                   fields
 
               return ERecord(id, fields)
-            | EConstructor (id, name, exprs) ->
-              let! exprs = Ply.List.mapSequentially r exprs
-              return EConstructor(id, name, exprs)
+            | EConstructor (id, typeName, caseName, fields) ->
+              let! fields = Ply.List.mapSequentially r fields
+              return EConstructor(id, typeName, caseName, fields)
             | EFeatureFlag (id, cond, casea, caseb) ->
               let! cond = r cond
               let! casea = r casea

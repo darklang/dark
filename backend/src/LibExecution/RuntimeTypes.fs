@@ -178,12 +178,15 @@ type Expr =
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * List<string * Expr>
-  | EConstructor of id * string * List<Expr>
+  | EConstructor of
+    id *
+    Option<UserTypeName> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
-  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and LetPattern = LPVariable of id * name : string
 
@@ -368,12 +371,11 @@ module Expr =
     | ETuple (id, _, _, _)
     | ERecord (id, _)
     | EFQFnValue (id, _)
-    | EConstructor (id, _, _)
+    | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _)
     | EAnd (id, _, _)
-    | EOr (id, _, _)
-    | EUserEnum (id, _, _, _) -> id
+    | EOr (id, _, _) -> id
 
 /// Functions for working with Dark Let patterns
 module LetPattern =

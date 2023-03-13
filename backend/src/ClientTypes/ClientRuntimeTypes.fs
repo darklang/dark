@@ -86,12 +86,11 @@ module Expr =
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
     | ERecord of id * List<string * T>
-    | EConstructor of id * string * List<T>
+    | EConstructor of id * Option<UserTypeName> * string * List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
-    | EUserEnum of id * UserTypeName * caseName : string * fields : List<T>
 
   and StringSegment =
     | StringText of string

@@ -110,8 +110,13 @@ module Expr =
       ST.ERecord(id, List.map (Tuple2.mapSecond toST) pairs)
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, toST expr2, List.map toST rest)
-    | PT.EConstructor (id, name, exprs) ->
-      ST.EConstructor(id, name, List.map toST exprs)
+    | PT.EConstructor (id, typeName, caseName, fields) ->
+      ST.EConstructor(
+        id,
+        Option.map UserTypeName.toST typeName,
+        caseName,
+        List.map toST fields
+      )
     | PT.EMatch (id, mexpr, pairs) ->
       ST.EMatch(
         id,
@@ -121,8 +126,6 @@ module Expr =
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       ST.EFeatureFlag(id, name, toST cond, toST caseA, toST caseB)
-    | PT.EUserEnum (id, typeName, caseName, fields) ->
-      ST.EUserEnum(id, UserTypeName.toST typeName, caseName, List.map toST fields)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with

@@ -442,29 +442,30 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return DError(sourceID id, "&& only supports Booleans")
 
 
-    | EConstructor (id, name, args) ->
-      match (name, args) with
-      | "Nothing", [] -> return DOption None
-      | "Just", [ arg ] ->
-        let! dv = (eval state st arg)
-        return Dval.optionJust dv
-      | "Ok", [ arg ] ->
-        let! dv = eval state st arg
-        return Dval.resultOk dv
-      | "Error", [ arg ] ->
-        let! dv = eval state st arg
-        return Dval.resultError dv
-      | name, _ ->
-        return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+    | EConstructor (id, typeName, caseName, fields) ->
+      match typeName with
+      | None ->
+        match (caseName, fields) with
+        | "Nothing", [] -> return DOption None
+        | "Just", [ arg ] ->
+          let! dv = (eval state st arg)
+          return Dval.optionJust dv
+        | "Ok", [ arg ] ->
+          let! dv = eval state st arg
+          return Dval.resultOk dv
+        | "Error", [ arg ] ->
+          let! dv = eval state st arg
+          return Dval.resultError dv
+        | name, _ ->
+          return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+      | Some typeName ->
+        // EConstructorTODO: handle analysis/preview
+        let! fields = Ply.List.mapSequentially (eval state st) fields
 
-    | EUserEnum (_id, name, caseName, fields) ->
-      // EUserEnumTODO: handle analysis/preview
-      let! fields = Ply.List.mapSequentially (eval state st) fields
-
-      // EUserEnumTODO: reconsider (stole this from DList)f
-      match List.tryFind Dval.isFake fields with
-      | Some fakeDval -> return fakeDval
-      | None -> return DUserEnum(name, caseName, fields)
+        // EConstructorTODO: reconsider (stole this from DList)
+        match List.tryFind Dval.isFake fields with
+        | Some fakeDval -> return fakeDval
+        | None -> return DUserEnum(typeName, caseName, fields)
   }
 
 /// Interprets an expression and reduces to a Dark value

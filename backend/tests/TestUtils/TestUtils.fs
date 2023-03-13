@@ -490,15 +490,18 @@ module Expect =
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)
-    (actual : UserTypeName)
-    (expected : UserTypeName)
+    (actual : Option<UserTypeName>)
+    (expected : Option<UserTypeName>)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let check path (a : 'a) (e : 'a) =
-      if a <> e then errorFn path (string actual) (string expected)
+    let err () = errorFn path (string actual) (string expected)
 
-    check path (actual.typ) (actual.typ)
-    check path (actual.version) (actual.version)
+    match actual, expected with
+    | None, None -> ()
+    | Some a, Some e ->
+      if a.typ <> e.typ then err ()
+      if a.version <> e.version then err ()
+    | _ -> err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -609,9 +612,13 @@ module Expect =
       eq ("flagCond" :: path) cond cond'
       eq ("flagOld" :: path) old old'
       eq ("flagNew" :: path) knew knew'
-    | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
-      check path s s'
-      eqList (s :: path) ts ts'
+
+    | EConstructor (_, typeName, caseName, fields),
+      EConstructor (_, typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      check path caseName caseName'
+      eqList path fields fields'
+      ()
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
@@ -632,13 +639,6 @@ module Expect =
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
 
-    | EUserEnum (_, typeName, caseName, fields),
-      EUserEnum (_, typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
-      check path caseName caseName'
-      eqList path fields fields'
-      ()
-
     // exhaustiveness check
     | EUnit _, _
     | EInteger _, _
@@ -654,7 +654,6 @@ module Expect =
     | EFQFnValue _, _
     | EApply _, _
     | ERecord _, _
-    | EUserEnum _, _
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
@@ -731,7 +730,7 @@ module Expect =
 
     | DUserEnum (typeName, caseName, fields),
       DUserEnum (typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      userTypeNameEqualityBaseFn path (Some typeName) (Some typeName') errorFn
 
       check ("caseName" :: path) caseName caseName'
 

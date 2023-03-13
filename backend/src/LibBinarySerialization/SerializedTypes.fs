@@ -151,13 +151,16 @@ type Expr =
   | EList of id * List<Expr>
   | ERecord of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EConstructor of id * string * List<Expr>
+  | EConstructor of
+    id *
+    Option<UserTypeName> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
-  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and StringSegment =
   | StringText of string
