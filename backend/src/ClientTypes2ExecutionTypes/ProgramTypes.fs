@@ -438,8 +438,11 @@ module UserType =
   module Definition =
     let fromCT (def : CTPT.UserType.Definition) : PT.UserType.Definition =
       match def with
-      | CTPT.UserType.Definition.Record fields ->
-        PT.UserType.Record(List.map RecordField.fromCT fields)
+      | CTPT.UserType.Definition.Record (firstField, additionalFields) ->
+        PT.UserType.Record(
+          RecordField.fromCT firstField,
+          List.map RecordField.fromCT additionalFields
+        )
       | CTPT.UserType.Definition.Enum (firstCase, additionalCases) ->
         PT.UserType.Enum(
           EnumCase.fromCT firstCase,
@@ -448,8 +451,11 @@ module UserType =
 
     let toCT (def : PT.UserType.Definition) : CTPT.UserType.Definition =
       match def with
-      | PT.UserType.Record fields ->
-        CTPT.UserType.Definition.Record(List.map RecordField.toCT fields)
+      | PT.UserType.Record (firstField, additionalFields) ->
+        CTPT.UserType.Definition.Record(
+          RecordField.toCT firstField,
+          List.map RecordField.toCT additionalFields
+        )
       | PT.UserType.Definition.Enum (firstCase, additionalCases) ->
         CTPT.UserType.Enum(
           EnumCase.toCT firstCase,

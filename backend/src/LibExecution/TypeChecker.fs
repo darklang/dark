@@ -103,7 +103,8 @@ let rec unify
      | None -> Error [ TypeLookupFailure typeName ]
      | Some ut ->
        (match ut.definition with
-        | UserType.Record utd -> unifyUserRecordWithDvalMap userTypes utd dmap
+        | UserType.Record (firstField, additionalFields) ->
+          unifyUserRecordWithDvalMap userTypes (firstField :: additionalFields) dmap
         | UserType.Enum _ ->
           Error [ TypeUnificationFailure
                     { expectedType = expected; actualValue = value } ]))

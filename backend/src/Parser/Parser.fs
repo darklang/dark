@@ -666,10 +666,23 @@ let parseTestFile (filename : string) : Module =
                    _,
                    _,
                    _) ->
-      { tlid = gid ()
-        name = { typ = id.idText; version = 0 }
-        definition =
-          PT.UserType.Record(List.map (parseUserRecordTypeField userTypes) fields) }
+
+      match fields with
+      | [] ->
+        Exception.raiseInternal
+          $"Unsupported record type with no fields"
+          [ "typeDef", typeDef ]
+      | firstField :: additionalFields ->
+        let parseField = parseUserRecordTypeField userTypes
+
+
+        { tlid = gid ()
+          name = { typ = id.idText; version = 0 }
+          definition =
+            PT.UserType.Record(
+              parseField firstField,
+              List.map parseField additionalFields
+            ) }
 
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Union (_, cases, _),

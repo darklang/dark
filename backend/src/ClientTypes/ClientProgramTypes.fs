@@ -169,7 +169,7 @@ module UserType =
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type Definition =
-    | Record of List<RecordField>
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
   type T = { tlid : tlid; name : UserTypeName; definition : Definition }

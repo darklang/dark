@@ -208,15 +208,17 @@ module DB =
           db.cols }
 
 module UserType =
+  module RecordField =
+    let toST (f : PT.UserType.RecordField) : ST.UserType.RecordField =
+      { id = f.id; name = f.name; typ = DType.toST f.typ }
+
   module Definition =
     let toST (d : PT.UserType.Definition) : ST.UserType.Definition =
       match d with
-      | PT.UserType.Record fields ->
+      | PT.UserType.Record (firstField, additionalFields) ->
         ST.UserType.Record(
-          List.map
-            (fun (rf : PT.UserType.RecordField) ->
-              { id = rf.id; name = rf.name; typ = DType.toST rf.typ })
-            fields
+          RecordField.toST firstField,
+          List.map RecordField.toST additionalFields
         )
       | PT.UserType.Enum (firstCase, additionalCases) ->
         let mapCase (c : PT.UserType.EnumCase) : ST.UserType.EnumCase =

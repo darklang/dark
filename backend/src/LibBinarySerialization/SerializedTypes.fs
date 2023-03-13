@@ -291,7 +291,7 @@ module UserType =
 
   [<MessagePack.MessagePackObject>]
   type Definition =
-    | Record of List<RecordField>
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
   [<MessagePack.MessagePackObject>]

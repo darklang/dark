@@ -525,7 +525,9 @@ module ProgramTypes =
     { tlid = 0UL
       name = { typ = "User"; version = 0 }
       definition =
-        PT.UserType.Record [ { id = 0698978UL; name = "prop1"; typ = dtype } ] }
+        let firstField : PT.UserType.RecordField =
+          { id = 0698978UL; name = "prop1"; typ = dtype }
+        PT.UserType.Record(firstField, []) }
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL

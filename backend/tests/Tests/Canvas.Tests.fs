@@ -65,7 +65,7 @@ let testHttpOplistLoadsUserTypes =
     let! meta = initializeTestCanvas "http_oplist_loads_user_tipes"
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
-    let typ = tesTUserType ({ typ = "test-tipe"; version = 0 }) [ ("age", PT.TInt) ]
+    let typ = testUserType ({ typ = "test-tipe"; version = 0 }) ("age", PT.TInt) []
     do!
       Canvas.saveTLIDs
         meta

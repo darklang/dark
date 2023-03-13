@@ -8861,42 +8861,40 @@
         },
         "definition": [
           "Record",
-          [
-            {
-              "id": 698978,
-              "name": "prop1",
-              "typ": [
-                "TRecord",
+          {
+            "id": 698978,
+            "name": "prop1",
+            "typ": [
+              "TRecord",
+              [
                 [
+                  "nested",
                   [
-                    "nested",
+                    "TList",
                     [
-                      "TList",
+                      "TDict",
                       [
-                        "TDict",
+                        "TDB",
                         [
-                          "TDB",
+                          "THttpResponse",
                           [
-                            "THttpResponse",
+                            "TOption",
                             [
-                              "TOption",
+                              "TDbList",
                               [
-                                "TDbList",
+                                "TResult",
                                 [
-                                  "TResult",
+                                  "TInt"
+                                ],
+                                [
+                                  "TFn",
                                   [
-                                    "TInt"
+                                    [
+                                      "TFloat"
+                                    ]
                                   ],
                                   [
-                                    "TFn",
-                                    [
-                                      [
-                                        "TFloat"
-                                      ]
-                                    ],
-                                    [
-                                      "TUnit"
-                                    ]
+                                    "TUnit"
                                   ]
                                 ]
                               ]
@@ -8905,198 +8903,199 @@
                         ]
                       ]
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "int",
                   [
-                    "int",
+                    "TInt"
+                  ]
+                ],
+                [
+                  "float",
+                  [
+                    "TFloat"
+                  ]
+                ],
+                [
+                  "bool",
+                  [
+                    "TBool"
+                  ]
+                ],
+                [
+                  "null",
+                  [
+                    "TUnit"
+                  ]
+                ],
+                [
+                  "str",
+                  [
+                    "TStr"
+                  ]
+                ],
+                [
+                  "list",
+                  [
+                    "TList",
                     [
                       "TInt"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "tuple",
                   [
-                    "float",
+                    "TTuple",
                     [
-                      "TFloat"
-                    ]
-                  ],
-                  [
-                    "bool",
+                      "TInt"
+                    ],
                     [
-                      "TBool"
-                    ]
-                  ],
+                      "TStr"
+                    ],
+                    []
+                  ]
+                ],
+                [
+                  "dict",
                   [
-                    "null",
+                    "TDict",
                     [
-                      "TUnit"
+                      "TInt"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "incomplete",
                   [
-                    "str",
+                    "TIncomplete"
+                  ]
+                ],
+                [
+                  "error",
+                  [
+                    "TError"
+                  ]
+                ],
+                [
+                  "httpresponse",
+                  [
+                    "THttpResponse",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "db",
+                  [
+                    "TDB",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "date",
+                  [
+                    "TDateTime"
+                  ]
+                ],
+                [
+                  "char",
+                  [
+                    "TChar"
+                  ]
+                ],
+                [
+                  "password",
+                  [
+                    "TPassword"
+                  ]
+                ],
+                [
+                  "uuid",
+                  [
+                    "TUuid"
+                  ]
+                ],
+                [
+                  "option",
+                  [
+                    "TOption",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "usertype",
+                  [
+                    "TUserType",
+                    {
+                      "typ": "name",
+                      "version": 0
+                    }
+                  ]
+                ],
+                [
+                  "bytes",
+                  [
+                    "TBytes"
+                  ]
+                ],
+                [
+                  "result",
+                  [
+                    "TResult",
+                    [
+                      "TInt"
+                    ],
                     [
                       "TStr"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "variable",
                   [
-                    "list",
+                    "TVariable",
+                    "v"
+                  ]
+                ],
+                [
+                  "fn",
+                  [
+                    "TFn",
                     [
-                      "TList",
                       [
                         "TInt"
                       ]
-                    ]
-                  ],
-                  [
-                    "tuple",
+                    ],
                     [
-                      "TTuple",
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "record",
+                  [
+                    "TRecord",
+                    [
                       [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ],
-                      []
-                    ]
-                  ],
-                  [
-                    "dict",
-                    [
-                      "TDict",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "incomplete",
-                    [
-                      "TIncomplete"
-                    ]
-                  ],
-                  [
-                    "error",
-                    [
-                      "TError"
-                    ]
-                  ],
-                  [
-                    "httpresponse",
-                    [
-                      "THttpResponse",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "db",
-                    [
-                      "TDB",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "date",
-                    [
-                      "TDateTime"
-                    ]
-                  ],
-                  [
-                    "char",
-                    [
-                      "TChar"
-                    ]
-                  ],
-                  [
-                    "password",
-                    [
-                      "TPassword"
-                    ]
-                  ],
-                  [
-                    "uuid",
-                    [
-                      "TUuid"
-                    ]
-                  ],
-                  [
-                    "option",
-                    [
-                      "TOption",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "usertype",
-                    [
-                      "TUserType",
-                      {
-                        "typ": "name",
-                        "version": 0
-                      }
-                    ]
-                  ],
-                  [
-                    "bytes",
-                    [
-                      "TBytes"
-                    ]
-                  ],
-                  [
-                    "result",
-                    [
-                      "TResult",
-                      [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ]
-                    ]
-                  ],
-                  [
-                    "variable",
-                    [
-                      "TVariable",
-                      "v"
-                    ]
-                  ],
-                  [
-                    "fn",
-                    [
-                      "TFn",
-                      [
+                        "field1",
                         [
                           "TInt"
-                        ]
-                      ],
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "record",
-                    [
-                      "TRecord",
-                      [
-                        [
-                          "field1",
-                          [
-                            "TInt"
-                          ]
                         ]
                       ]
                     ]
                   ]
                 ]
               ]
-            }
-          ]
+            ]
+          },
+          []
         ]
       },
       {

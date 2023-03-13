@@ -197,17 +197,18 @@ let testUserFn
           { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
         parameters }
 
-let tesTUserType
+let testUserType
   (name : PT.UserTypeName)
-  (definition : List<string * PT.DType>)
+  (firstField : string * PT.DType)
+  (additionalFields : List<string * PT.DType>)
   : PT.UserType.T =
+  let mapField (name, typ) : PT.UserType.RecordField =
+    { id = gid (); name = name; typ = typ }
+
   { tlid = gid ()
     name = name
     definition =
-      definition
-      |> List.map (fun (name, typ) ->
-        ({ id = gid (); name = name; typ = typ } : PT.UserType.RecordField))
-      |> PT.UserType.Record }
+      PT.UserType.Record(mapField firstField, List.map mapField additionalFields) }
 
 
 

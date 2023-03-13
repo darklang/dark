@@ -252,15 +252,17 @@ module DB =
 
 module UserType =
 
+  module RecordField =
+    let toRT (rf : PT.UserType.RecordField) : RT.UserType.RecordField =
+      { id = rf.id; name = rf.name; typ = DType.toRT rf.typ }
+
   module Definition =
     let toRT (d : PT.UserType.Definition) : RT.UserType.Definition =
       match d with
-      | PT.UserType.Record fields ->
+      | PT.UserType.Record (firstField, additionalFields) ->
         RT.UserType.Record(
-          List.map
-            (fun (rf : PT.UserType.RecordField) ->
-              { id = rf.id; name = rf.name; typ = DType.toRT rf.typ })
-            fields
+          RecordField.toRT firstField,
+          List.map RecordField.toRT additionalFields
         )
       | PT.UserType.Enum (firstCase, additionalCases) ->
         let mapCase (c : PT.UserType.EnumCase) : RT.UserType.EnumCase =

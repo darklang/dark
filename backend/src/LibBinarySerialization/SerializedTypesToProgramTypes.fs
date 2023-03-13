@@ -226,8 +226,11 @@ module UserType =
   module Definition =
     let toPT (d : ST.UserType.Definition) : PT.UserType.Definition =
       match d with
-      | ST.UserType.Record fields ->
-        PT.UserType.Record(List.map RecordField.toPT fields)
+      | ST.UserType.Record (firstField, additionalFields) ->
+        PT.UserType.Record(
+          RecordField.toPT firstField,
+          List.map RecordField.toPT additionalFields
+        )
       | ST.UserType.Enum (firstCase, additionalCases) ->
         PT.UserType.Enum(
           EnumCase.toPT firstCase,
