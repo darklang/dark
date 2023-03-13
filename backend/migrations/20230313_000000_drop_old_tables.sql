@@ -1,0 +1,20 @@
+-- -- drop tables
+-- DROP TABLE IF EXISTS access;
+-- DROP TABLE IF EXISTS accounts CASCADE;
+-- DROP TABLE IF EXISTS canvases CASCADE;
+-- DROP TABLE IF EXISTS cron_records CASCADE;
+-- DROP TABLE IF EXISTS custom_domains;
+-- DROP TABLE IF EXISTS events;
+-- DROP TABLE IF EXISTS events_v2 CASCADE;
+-- DROP TABLE IF EXISTS function_arguments CASCADE;
+-- DROP TABLE IF EXISTS function_results_v3 CASCADE;
+-- DROP TABLE IF EXISTS op_ctrs;
+-- DROP TABLE IF EXISTS packages_v0 CASCADE;
+-- DROP TABLE IF EXISTS scheduling_rules CASCADE;
+-- DROP TABLE IF EXISTS secrets CASCADE;
+-- DROP TABLE IF EXISTS static_asset_deploys CASCADE;
+-- DROP TABLE IF EXISTS stored_events_v2 CASCADE;
+-- DROP TABLE IF EXISTS system_migrations;
+-- DROP TABLE IF EXISTS toplevel_oplists CASCADE;
+-- DROP TABLE IF EXISTS traces_v0;
+-- DROP TABLE IF EXISTS user_data CASCADE;
