@@ -85,7 +85,7 @@ function_arguments_v0
 ( id UUID PRIMARY KEY
 , canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
 , tlid BIGINT NOT NULL
-, trace_id UUID; -- nullable for now
+, trace_id UUID NOT NULL
 , timestamp TIMESTAMPTZ NOT NULL
 , arguments_json TEXT NOT NULL
 );
@@ -103,10 +103,10 @@ ON function_arguments_v0
 
 CREATE TABLE IF NOT EXISTS
 function_results_v0
-( canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+( id BIGINT PRIMARY KEY
+, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
 , tlid BIGINT NOT NULL
 , fnname TEXT NOT NULL
-, id BIGINT NOT NULL
 , hash TEXT NOT NULL
 , timestamp TIMESTAMPTZ NOT NULL
 , value TEXT NOT NULL
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS packages_v0
 ( id UUID PRIMARY KEY
 , tlid BIGINT
   /* owner/namespace part of the string, eg dark */
-, user_id UUID REFERENCES accounts_v0 (id) NOT NULL
+, user_id UUID NOT NULL
 , package TEXT NOT NULL /* eg stdlib */
 , module TEXT NOT NULL /* eg Twitter */
 , fnname TEXT NOT NULL /* eg sendText */
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS packages_v0
 , body BYTEA NOT NULL
 , return_type TEXT NOT NULL
 , parameters jsonb NOT NULL
-, author_id UUID REFERENCES accounts_v0(id) NOT NULL /* who uploaded this */
+, author_id UUID NOT NULL /* who uploaded this */
 , deprecated BOOL NOT NULL
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
