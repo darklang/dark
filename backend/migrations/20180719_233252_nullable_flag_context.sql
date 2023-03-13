@@ -1,3 +1,0 @@
-ALTER TABLE events
-ALTER COLUMN flag_context
-DROP NOT NULL
