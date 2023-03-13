@@ -52,7 +52,9 @@ type LetPattern = LPVariable of id * name : string
 
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<MatchPattern>
+  // TODO: do we need typeNme here for anything?
+  // feels like it could ensure extra type-safety, but also maybe excessive.
+  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string

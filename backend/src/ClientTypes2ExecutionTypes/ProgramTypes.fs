@@ -107,8 +107,8 @@ module MatchPattern =
   let rec fromCT (pat : CTPT.MatchPattern) : PT.MatchPattern =
     match pat with
     | CTPT.MPVariable (id, str) -> PT.MPVariable(id, str)
-    | CTPT.MPConstructor (id, name, args) ->
-      PT.MPConstructor(id, name, List.map fromCT args)
+    | CTPT.MPConstructor (id, caseName, fieldPats) ->
+      PT.MPConstructor(id, caseName, List.map fromCT fieldPats)
     | CTPT.MPInteger (id, i) -> PT.MPInteger(id, i)
     | CTPT.MPBool (id, b) -> PT.MPBool(id, b)
     | CTPT.MPCharacter (id, str) -> PT.MPCharacter(id, str)
@@ -121,8 +121,8 @@ module MatchPattern =
   let rec toCT (pat : PT.MatchPattern) : CTPT.MatchPattern =
     match pat with
     | PT.MPVariable (id, str) -> CTPT.MPVariable(id, str)
-    | PT.MPConstructor (id, name, args) ->
-      CTPT.MPConstructor(id, name, List.map toCT args)
+    | PT.MPConstructor (id, caseName, fieldPats) ->
+      CTPT.MPConstructor(id, caseName, List.map toCT fieldPats)
     | PT.MPInteger (id, i) -> CTPT.MPInteger(id, i)
     | PT.MPBool (id, b) -> CTPT.MPBool(id, b)
     | PT.MPCharacter (id, str) -> CTPT.MPCharacter(id, str)

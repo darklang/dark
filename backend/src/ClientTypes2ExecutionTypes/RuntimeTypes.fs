@@ -132,7 +132,8 @@ module MatchPattern =
     let r = fromCT
     match p with
     | MPVariable (id, str) -> RT.MPVariable(id, str)
-    | MPConstructor (id, name, pats) -> RT.MPConstructor(id, name, List.map r pats)
+    | MPConstructor (id, caseName, fieldPats) ->
+      RT.MPConstructor(id, caseName, List.map r fieldPats)
     | MPInteger (id, i) -> RT.MPInteger(id, i)
     | MPBool (id, b) -> RT.MPBool(id, b)
     | MPCharacter (id, c) -> RT.MPCharacter(id, c)
@@ -146,7 +147,8 @@ module MatchPattern =
     let r = toCT
     match p with
     | RT.MPVariable (id, str) -> MPVariable(id, str)
-    | RT.MPConstructor (id, name, pats) -> MPConstructor(id, name, List.map r pats)
+    | RT.MPConstructor (id, caseName, fieldPats) ->
+      MPConstructor(id, caseName, List.map r fieldPats)
     | RT.MPInteger (id, i) -> MPInteger(id, i)
     | RT.MPBool (id, b) -> MPBool(id, b)
     | RT.MPCharacter (id, c) -> MPCharacter(id, c)

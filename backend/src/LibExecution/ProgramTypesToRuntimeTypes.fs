@@ -58,8 +58,8 @@ module MatchPattern =
   let rec toRT (p : PT.MatchPattern) : RT.MatchPattern =
     match p with
     | PT.MPVariable (id, str) -> RT.MPVariable(id, str)
-    | PT.MPConstructor (id, name, pats) ->
-      RT.MPConstructor(id, name, List.map toRT pats)
+    | PT.MPConstructor (id, caseName, fieldPats) ->
+      RT.MPConstructor(id, caseName, List.map toRT fieldPats)
     | PT.MPInteger (id, i) -> RT.MPInteger(id, i)
     | PT.MPBool (id, b) -> RT.MPBool(id, b)
     | PT.MPCharacter (id, c) -> RT.MPCharacter(id, c)

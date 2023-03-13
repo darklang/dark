@@ -67,14 +67,14 @@ module UserEnums =
    | Just z -> Ok z
    | Nothing -> Error "Failure") = Ok (Z ("testZ", 2))
 
-  //([W; X "testX"; Y(5); Z("testZ", 2)]
-  // |> List.map_v0(fun v ->
-  //    match v with
-  //    | X s -> "X " ++ s
-  //    | Z tpl -> "Z " ++ (Tuple2.first tpl)
-  //    | Y y -> "Y " ++ (Int.toString_v0 y)
-  //    | W -> "a simple W")
-  //) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
+  ([W; X "testX"; Y(5); Z("testZ", 2)]
+   |> List.map_v0(fun v ->
+    match v with
+    | X s -> "X " ++ s
+    | Z (s, _i) -> "Z " ++ s
+    | Y y -> "Y " ++ (Int.toString_v0 y)
+    | W -> "a simple W")
+  ) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
 
 
   // You can define enums based on previously-defined enums

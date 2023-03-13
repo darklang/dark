@@ -66,8 +66,8 @@ module MatchPattern =
   let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
     | PT.MPVariable (id, str) -> ST.MPVariable(id, str)
-    | PT.MPConstructor (id, name, pats) ->
-      ST.MPConstructor(id, name, List.map toST pats)
+    | PT.MPConstructor (id, caseName, fieldPats) ->
+      ST.MPConstructor(id, caseName, List.map toST fieldPats)
     | PT.MPInteger (id, i) -> ST.MPInteger(id, i)
     | PT.MPBool (id, b) -> ST.MPBool(id, b)
     | PT.MPCharacter (id, c) -> ST.MPCharacter(id, c)

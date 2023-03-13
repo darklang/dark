@@ -524,9 +524,10 @@ module Expect =
 
     match actual, expected with
     | MPVariable (_, name), MPVariable (_, name') -> check path name name'
-    | (MPConstructor (_, name, patterns), MPConstructor (_, name', patterns')) ->
-      check path name name'
-      eqList (name :: path) patterns patterns'
+    | (MPConstructor (_, caseName, fieldPats),
+       MPConstructor (_, caseName', fieldPats')) ->
+      check path caseName caseName'
+      eqList (caseName :: path) fieldPats fieldPats'
     | MPString (_, str), MPString (_, str') -> check path str str'
     | MPInteger (_, l), MPInteger (_, l') -> check path l l'
     | MPFloat (_, d), MPFloat (_, d') -> check path d d'

@@ -204,7 +204,7 @@ and IsInPipe =
 
 and MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<MatchPattern>
+  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
@@ -351,6 +351,7 @@ and Param =
     : Param =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
+
 
 /// Functions for working with Dark runtime expressions
 module Expr =

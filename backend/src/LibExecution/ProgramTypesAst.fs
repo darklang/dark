@@ -63,8 +63,8 @@ let rec matchPatternPreTraversal
   | MPString _
   | MPUnit _
   | MPFloat _ -> pattern
-  | MPConstructor (patternID, name, patterns) ->
-    MPConstructor(patternID, name, List.map (fun p -> r p) patterns)
+  | MPConstructor (patternID, caseName, fieldPats) ->
+    MPConstructor(patternID, caseName, List.map (fun p -> r p) fieldPats)
   | MPTuple (patternID, first, second, theRest) ->
     MPTuple(patternID, r first, r second, List.map r theRest)
 
@@ -83,8 +83,8 @@ let rec matchPatternPostTraversal
     | MPString _
     | MPUnit _
     | MPFloat _ -> pattern
-    | MPConstructor (patternID, name, patterns) ->
-      MPConstructor(patternID, name, List.map r patterns)
+    | MPConstructor (patternID, caseName, fieldPats) ->
+      MPConstructor(patternID, caseName, List.map r fieldPats)
     | MPTuple (patternID, first, second, theRest) ->
       MPTuple(patternID, r first, r second, List.map r theRest)
   f result

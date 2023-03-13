@@ -294,8 +294,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPVariable (id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-        | MPConstructor (id, name, args) ->
-          match (name, args, dv) with
+        | MPConstructor (id, caseName, fieldPats) ->
+          match (caseName, fieldPats, dv) with
           | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
           | "Just", [ p ], DOption (Some v)
@@ -316,10 +316,36 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let (_, newVars, traces) = checkPattern (incomplete pID) p
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
-          | _name, argPatterns, _dv ->
-            let traces = traceIncompleteWithArgs id argPatterns
-            false, [], traces
+          | caseName, fieldPats, DConstructor (_dTypeName, dCaseName, dFields) ->
 
+            // TODO: Should MPConstructor have a UserTypeName in it?
+            // and if so, should we ensure that the DVal's UTN matches the MP's UTN?
+            // or, maybe we don't need the type name in the Dval?
+
+            let fieldPats =
+              match fieldPats with
+              | [ MPTuple (_, first, second, theRest) ] -> first :: second :: theRest
+              | pats -> pats
+
+            if List.length dFields = List.length fieldPats && caseName = dCaseName then
+              let (passResults, newVarResults, traceResults) =
+                List.zip dFields fieldPats
+                |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                |> List.unzip3
+
+              let allPass = passResults |> List.forall identity
+              let allVars = newVarResults |> List.collect identity
+              let allSubTraces = traceResults |> List.collect identity
+
+              if allPass then
+                true, allVars, (id, dv) :: allSubTraces
+              else
+                false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces
+            else
+              false, [], traceIncompleteWithArgs id fieldPats
+
+          | _caseName, fieldPats, _dv ->
+            false, [], traceIncompleteWithArgs id fieldPats
 
         | MPTuple (id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat

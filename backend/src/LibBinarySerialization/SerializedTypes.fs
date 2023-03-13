@@ -115,7 +115,7 @@ type LetPattern = LPVariable of id * name : string
 [<MessagePack.MessagePackObject>]
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<MatchPattern>
+  | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
