@@ -222,14 +222,18 @@ let rec convertToExpr
     | [] -> PT.EVariable(id, name.idText)
     | [ userFnName ] ->
       let fields =
-        // These are filled in later..
-        // look "EUserEnum" elsewhere in the parser and you'll find it.
+        // The fields of an enum ctor are filled in later, since
+        // the F# parser encodes callers with multiple args
+        // as apps wrapping other apps.
+        //
+        // In any case, the fields are filled in shortly - search through
+        // this file for other cases of "EUserEnum" to locate such.
         []
 
       PT.EUserEnum(id, userFnName, name.idText, fields)
     | _ ->
       Exception.raiseInternal
-        "Too many things match the identifier"
+        "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
         [ "name", name.idText ]
 
   // lists and arrays
@@ -508,7 +512,8 @@ let parseTestFile (filename : string) : Module =
     checker.ParseFile(fsharpFilename, Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
-  // TODO: support non-0 versions of user-defined types
+  // TODO: support user-defined types that aren't the 0th
+  // version of the type
   let matchingUserTypes
     (userTypes : List<PT.UserTypeName * PT.UserType.Definition>)
     (nameOfType : string)

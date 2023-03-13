@@ -46,6 +46,10 @@ module UserEnums =
    let b = B
    a == b) = false
 
+  (let a1 = A
+   let a2 = A
+   a1 == a2) = true
+
   (A == A) = true
   (A == B) = false
   List.unique_v0 [A; B; A; A; B] = [A; B]
@@ -58,10 +62,19 @@ module UserEnums =
   (W == (Y 1)) = false
   (Y 1 == Y 1) = true
 
-  (let cards = [W; X "testX"; Y(5); Z("testZ", 2)]
-   match List.getAt_v1 cards 3 with
+  (let values = [W; X "testX"; Y(5); Z("testZ", 2)]
+   match List.getAt_v1 values 3 with
    | Just z -> Ok z
    | Nothing -> Error "Failure") = Ok (Z ("testZ", 2))
+
+  //([W; X "testX"; Y(5); Z("testZ", 2)]
+  // |> List.map_v0(fun v ->
+  //    match v with
+  //    | X s -> "X " ++ s
+  //    | Z tpl -> "Z " ++ (Tuple2.first tpl)
+  //    | Y y -> "Y " ++ (Int.toString_v0 y)
+  //    | W -> "a simple W")
+  //) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
 
 
   // You can define enums based on previously-defined enums
