@@ -21,7 +21,6 @@ module Roundtrip =
     uuid : UUID
     list : List<int>
     datetime : DateTime
-    // pw : Password
   }
 
   let sample () = {
@@ -40,7 +39,7 @@ module Roundtrip =
     emojiChar = (Test.toChar "👍") |> Test.unwrap
     uuid = (Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap
     datetime = (DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap
-    // pw = Password.hash_v0 "password"
+    // dont test password because hashing it twice will get different values
   }
 
   // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
@@ -49,9 +48,15 @@ module Roundtrip =
    (z, DB.get_v2 "all" DB)) = (sample (), Just (sample ()))
 
 
+  [<DB>] type Passwords = { password : Password }
+  (let pw = Password.hash_v0 "password" in
+   let x = DB.set_v1 { password = pw } "test" Passwords in
+   let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
+   Password.check_v0 y.password "password") = true
+
+
 module ValueMissingColumnGivesGoodError =
   (DB.set_v1 { x = "x"; col = "v" } "i" X) = Test.typeError_v0 "Found but did not expect: [col]"
-
 
 
 module SetDoesUpsert =
@@ -250,7 +255,8 @@ let friends (lambda: ('a -> bool)) =
   |> List.map_v0 (fun p -> p.name)
   |> List.sort_v0
 
-// Test standard language features
+
+  // Test standard language features
 module FindAll =
   (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
