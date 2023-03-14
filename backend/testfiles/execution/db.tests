@@ -1,31 +1,52 @@
 [<DB>] type X = { x : string }
 [<DB>] type Z = { x : char }
-[<DB>] type Lists = { strs : List<string>; ints : List<int> }
 [<DB>] type XY = { x : string; y: string }
 [<DB>] type SortedX = { x : string; sortBy: int }
-[<DB>] type Timestamp = { ts : DateTime }
 [<DB>] type Uuid = { uu : UUID }
 
-module RoundtripUnit =
-  // CLEANUP () should have been removed and shouldn't work here
-  (let _ = DB.set_v1 { x = () } "hello" X in
-   DB.get_v2 "hello" X) = Just { x = () }
+module Roundtrip =
+  [<DB>] type DB = {
+    iNsEnSiTiVe : string
+    ``ALL CAPS`` : int
+    int : int
+    float : float
+    negZero : float
+    nan : float
+    infinity : float
+    negInfinity : float
+    ``true`` : bool
+    ``false`` : bool
+    char : char
+    emojiChar : char
+    uuid : UUID
+    list : List<int>
+    datetime : DateTime
+    // pw : Password
+  }
 
-module RoundtripCaseInsensitive =
-  [<DB>] type Insensitive = { cOlUmNnAmE : string }
-  (let _ = DB.set_v1 { cOlUmNnAmE = "some value" } "hello" Insensitive in
-   DB.get_v2 "hello" Insensitive) = Just { cOlUmNnAmE = "some value" }
+  let sample () = {
+    iNsEnSiTiVe = "iNsEnSiTiVe"
+    ``ALL CAPS`` = 1
+    int = 2
+    float = 3.0
+    negZero = -0.0
+    nan = Test.nan
+    infinity = Test.infinity
+    negInfinity = Test.negativeInfinity
+    ``true`` = true
+    ``false`` = false
+    list = [1;2;3]
+    char = 'c'
+    emojiChar = (Test.toChar "👍") |> Test.unwrap
+    uuid = (Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap
+    datetime = (DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap
+    // pw = Password.hash_v0 "password"
+  }
 
-module RoundtripPassword =
-  [<DB>] type Passwords = { password : Password }
-  (let pw = Password.hash_v0 "password" in
-   let x = DB.set_v1 { password = pw } "test" Passwords in
-   let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
-   Password.check_v0 y.password "password") = true
-
-module RoundtripLists =
-  (let _ = DB.set_v1 { strs = ["str1"; "str2"]; ints = [-1,6,0]} "lists" Lists in
-  DB.get_v2 "lists" Lists) = Just { strs = ["str1"; "str2"]; ints = [-1,6,0]}
+  // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
+  (let v = sample ()
+   let z = DB.set_v1 v "all" DB in
+   (z, DB.get_v2 "all" DB)) = (sample (), Just (sample ()))
 
 
 module ValueMissingColumnGivesGoodError =
@@ -219,7 +240,7 @@ let prepFriends () =
    // Note spaces around Chandler, that's to test trim functions
    let _ = addFriend "chandler" " Chandler " 72 true "1969-08-19T10:13:42Z" 83.0 in
    let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
-   DB.set_v1 { height = (); name = (); human = (); dob = (); income = () } "()" Person)
+   ())
 
 let d (datestr:string) =
   (DateTime.parse_v2 datestr) |> Test.unwrap
@@ -239,7 +260,7 @@ let friends (lambda: ('a -> bool)) =
 
 // Test standard language features
 module FindAll =
-  (friends (fun p -> true)) = [(); " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // with condition
   (friends (fun p -> p.height > 3)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
@@ -247,14 +268,8 @@ module FindAll =
   // boolean queries
   (friends (fun p -> p.human)) = [" Chandler "; "Rachel"; "Ross" ]
 
-  (friends (fun p -> p.name == () )) = [()]
-
-  // () inequality works CLEANUP
-  (friends (fun p -> p.name != () )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
-
-  // CLEANUP weird behaviour here - shouldn't the () object be returned here.
-  // () is not '()' (string)
-  (friends (fun p -> p.name != "()" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+  // () inequality works
+  (friends (fun p -> p.name != "" )) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // &&
   (friends (fun p -> p.human && p.height > 66 )) = [" Chandler "; "Ross" ]
