@@ -8,9 +8,14 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
-module UserTypeName =
-  let toRT (u : PT.UserTypeName) : RT.UserTypeName =
-    { typ = u.typ; version = u.version }
+module FQTypeName =
+  module UserTypeName =
+    let toRT (u : PT.FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
+
+  let toRT (t : PT.FQTypeName.T) : RT.FQTypeName.T =
+    match t with
+    | PT.FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.toRT u)
 
 
 module FQFnName =
@@ -114,7 +119,11 @@ module Expr =
     | PT.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
     | PT.ERecord (id, typeName, fields) ->
-      RT.ERecord(id, Option.map UserTypeName.toRT typeName, List.map (Tuple2.mapSecond toRT) fields)
+      RT.ERecord(
+        id,
+        Option.map FQTypeName.toRT typeName,
+        List.map (Tuple2.mapSecond toRT) fields
+      )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       // Convert v |> fn1 a |> fn2 |> fn3 b c
       // into fn3 (fn2 (fn1 v a)) b c
@@ -171,7 +180,7 @@ module Expr =
     | PT.EConstructor (id, typeName, caseName, fields) ->
       RT.EConstructor(
         id,
-        Option.map UserTypeName.toRT typeName,
+        Option.map FQTypeName.toRT typeName,
         caseName,
         List.map toRT fields
       )
@@ -203,7 +212,7 @@ module DType =
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
     | PT.TOption typ -> RT.TOption(toRT typ)
-    | PT.TUserType typeName -> RT.TUserType(UserTypeName.toRT typeName)
+    | PT.TUserType typeName -> RT.TUserType(FQTypeName.toRT typeName)
     | PT.TBytes -> RT.TBytes
     | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)
     | PT.TVariable (name) -> RT.TVariable(name)
@@ -278,7 +287,7 @@ module UserType =
 
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
-      name = UserTypeName.toRT t.name
+      name = FQTypeName.UserTypeName.toRT t.name
       definition = Definition.toRT t.definition }
 
 module UserFunction =

@@ -10,13 +10,21 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
+module FQTypeName =
+  module UserTypeName =
+    let fromCT (u : CTPT.FQTypeName.UserTypeName) : PT.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
 
-module UserTypeName =
-  let fromCT (u : CTPT.UserTypeName) : PT.UserTypeName =
-    { typ = u.typ; version = u.version }
+    let toCT (u : PT.FQTypeName.UserTypeName) : CTPT.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
 
-  let toCT (u : PT.UserTypeName) : CTPT.UserTypeName =
-    { typ = u.typ; version = u.version }
+  let fromCT (t : CTPT.FQTypeName.T) : PT.FQTypeName.T =
+    match t with
+    | CTPT.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.fromCT u)
+
+  let toCT (t : PT.FQTypeName.T) : CTPT.FQTypeName.T =
+    match t with
+    | PT.FQTypeName.User u -> CTPT.FQTypeName.User(UserTypeName.toCT u)
 
 
 
@@ -181,7 +189,11 @@ module Expr =
     | CTPT.Expr.ETuple (id, first, second, theRest) ->
       PT.ETuple(id, fromCT first, fromCT second, List.map fromCT theRest)
     | CTPT.Expr.ERecord (id, typeName, fields) ->
-      PT.ERecord(id, Option.map UserTypeName.fromCT typeName, fields |> List.map (fun (name, expr) -> (name, fromCT expr)))
+      PT.ERecord(
+        id,
+        Option.map FQTypeName.fromCT typeName,
+        fields |> List.map (fun (name, expr) -> (name, fromCT expr))
+      )
     | CTPT.Expr.EPipe (id, expr1, expr2, exprs) ->
       PT.EPipe(id, fromCT expr1, fromCT expr2, List.map fromCT exprs)
     | CTPT.Expr.EMatch (id, matchExpr, cases) ->
@@ -196,7 +208,7 @@ module Expr =
     | CTPT.EConstructor (id, typeName, caseName, fields) ->
       PT.Expr.EConstructor(
         id,
-        Option.map UserTypeName.fromCT typeName,
+        Option.map FQTypeName.fromCT typeName,
         caseName,
         List.map fromCT fields
       )
@@ -239,7 +251,7 @@ module Expr =
     | PT.ERecord (id, typeName, fields) ->
       CTPT.Expr.ERecord(
         id,
-        Option.map UserTypeName.toCT typeName,
+        Option.map FQTypeName.toCT typeName,
         fields |> List.map (fun (name, expr) -> (name, toCT expr))
       )
     | PT.EPipe (id, expr1, expr2, exprs) ->
@@ -247,7 +259,7 @@ module Expr =
     | PT.EConstructor (id, typeName, caseName, fields) ->
       CTPT.Expr.EConstructor(
         id,
-        Option.map UserTypeName.toCT typeName,
+        Option.map FQTypeName.toCT typeName,
         caseName,
         List.map toCT fields
       )
@@ -288,7 +300,7 @@ module DType =
     | CTPT.DType.TPassword -> PT.TPassword
     | CTPT.DType.TUuid -> PT.TUuid
     | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
-    | CTPT.DType.TUserType t -> PT.TUserType(UserTypeName.fromCT t)
+    | CTPT.DType.TUserType t -> PT.TUserType(FQTypeName.fromCT t)
     | CTPT.DType.TBytes -> PT.TBytes
     | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
     | CTPT.DType.TVariable (name) -> PT.TVariable(name)
@@ -317,7 +329,7 @@ module DType =
     | PT.TPassword -> CTPT.DType.TPassword
     | PT.TUuid -> CTPT.DType.TUuid
     | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
-    | PT.TUserType t -> CTPT.DType.TUserType(UserTypeName.toCT t)
+    | PT.TUserType t -> CTPT.DType.TUserType(FQTypeName.toCT t)
     | PT.TBytes -> CTPT.DType.TBytes
     | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
     | PT.TVariable (name) -> CTPT.DType.TVariable(name)
@@ -440,7 +452,10 @@ module UserType =
     let fromCT (def : CTPT.UserType.Definition) : PT.UserType.Definition =
       match def with
       | CTPT.UserType.Definition.Record (firstField, additionalFields) ->
-        PT.UserType.Record(RecordField.fromCT firstField, List.map RecordField.fromCT additionalFields)
+        PT.UserType.Record(
+          RecordField.fromCT firstField,
+          List.map RecordField.fromCT additionalFields
+        )
       | CTPT.UserType.Definition.Enum (firstCase, additionalCases) ->
         PT.UserType.Enum(
           EnumCase.fromCT firstCase,
@@ -450,7 +465,10 @@ module UserType =
     let toCT (def : PT.UserType.Definition) : CTPT.UserType.Definition =
       match def with
       | PT.UserType.Record (firstField, additionalFields) ->
-        CTPT.UserType.Definition.Record(RecordField.toCT firstField,  List.map RecordField.toCT additionalFields)
+        CTPT.UserType.Definition.Record(
+          RecordField.toCT firstField,
+          List.map RecordField.toCT additionalFields
+        )
       | PT.UserType.Definition.Enum (firstCase, additionalCases) ->
         CTPT.UserType.Enum(
           EnumCase.toCT firstCase,
@@ -459,12 +477,12 @@ module UserType =
 
   let fromCT (ut : CTPT.UserType.T) : PT.UserType.T =
     { tlid = ut.tlid
-      name = UserTypeName.fromCT ut.name
+      name = FQTypeName.UserTypeName.fromCT ut.name
       definition = Definition.fromCT ut.definition }
 
   let toCT (ut : PT.UserType.T) : CTPT.UserType.T =
     { tlid = ut.tlid
-      name = UserTypeName.toCT ut.name
+      name = FQTypeName.UserTypeName.toCT ut.name
       definition = Definition.toCT ut.definition }
 
 

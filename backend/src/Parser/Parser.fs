@@ -73,7 +73,7 @@ let parseFn (fnName : string) : string * int =
 
 
 let rec convertToExpr
-  (userTypes : List<PT.UserTypeName * PT.UserType.Definition>)
+  (userTypes : List<PT.FQTypeName.UserTypeName * PT.UserType.Definition>)
   (ast : SynExpr)
   : PT.Expr =
   let c = convertToExpr userTypes
@@ -220,7 +220,7 @@ let rec convertToExpr
 
     match matchingEnumCases with
     | [] -> PT.EVariable(id, name.idText)
-    | [ userFnName ] ->
+    | [ userTypeName ] ->
       let fields =
         // The fields of an enum ctor are filled in later, since
         // the F# parser encodes callers with multiple args
@@ -230,7 +230,7 @@ let rec convertToExpr
         // this file for other cases of "EConstructor" to locate such.
         []
 
-      PT.EConstructor(id, Some userFnName, name.idText, fields)
+      PT.EConstructor(id, Some(PT.FQTypeName.User userTypeName), name.idText, fields)
     | _ ->
       Exception.raiseInternal
         "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
@@ -519,7 +519,7 @@ let parseTestFile (filename : string) : Module =
   // TODO: support user-defined types that aren't the 0th
   // version of the type
   let matchingUserTypes
-    (userTypes : List<PT.UserTypeName * PT.UserType.Definition>)
+    (userTypes : List<PT.FQTypeName.UserTypeName * PT.UserType.Definition>)
     (nameOfType : string)
     =
     userTypes
@@ -527,7 +527,7 @@ let parseTestFile (filename : string) : Module =
     |> List.filter (fun typeName -> typeName.typ = nameOfType)
 
   let rec convertType
-    (userTypes : List<PT.UserTypeName * PT.UserType.Definition>)
+    (userTypes : List<PT.FQTypeName.UserTypeName * PT.UserType.Definition>)
     (typ : SynType)
     : PT.DType =
     let c = convertType userTypes
@@ -542,7 +542,7 @@ let parseTestFile (filename : string) : Module =
       match ident.idText, matchingUserTypes userTypes ident.idText, args with
       | "List", _, [ arg ] -> PT.TList(c arg)
       | "Option", _, [ arg ] -> PT.TOption(c arg)
-      | _, [ typeName ], _ -> PT.TUserType typeName
+      | _, [ typeName ], _ -> PT.TUserType(PT.FQTypeName.User typeName)
       | _ ->
         Exception.raiseInternal
           $"Unsupported type (outer)"
@@ -565,7 +565,7 @@ let parseTestFile (filename : string) : Module =
       | "Password" -> PT.TPassword
       | _ ->
         match matchingUserTypes userTypes ident.idText with
-        | [ matched ] -> PT.TUserType matched
+        | [ matched ] -> PT.TUserType(PT.FQTypeName.User matched)
         | _ ->
           Exception.raiseInternal
             $"Unsupported type"

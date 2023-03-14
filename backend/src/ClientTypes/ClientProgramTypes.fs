@@ -13,8 +13,15 @@ type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
 
-/// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { typ : string; version : int }
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  /// A type written by a Developer in their canvas
+  type UserTypeName = { typ : string; version : int }
+
+  // TODO:
+  // | Stdlib of StdlibTypeName
+  // | Package of PackageTypeName
+  type T = User of UserTypeName
 
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
@@ -88,11 +95,11 @@ type Expr =
   | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * Option<UserTypeName> * List<string * Expr>
+  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of
     id *
-    Option<UserTypeName> *
+    Option<FQTypeName.T> *
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
@@ -121,7 +128,8 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  // TODO: rename TCustomType or TDefinedType or something else
+  | TUserType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -172,7 +180,7 @@ module UserType =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
-  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 
 module UserFunction =

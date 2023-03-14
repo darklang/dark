@@ -36,8 +36,15 @@ open VendoredTablecloth
 
 module J = Prelude.Json
 
-/// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { typ : string; version : int }
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  /// A type written by a Developer in their canvas
+  type UserTypeName = { typ : string; version : int }
+
+  // TODO:
+  // | Stdlib of StdlibTypeName
+  // | Package of PackageTypeName
+  type T = User of UserTypeName
 
 module FQFnName =
 
@@ -176,10 +183,10 @@ type Expr =
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * Option<UserTypeName> * List<string * Expr>
+  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
   | EConstructor of
     id *
-    Option<UserTypeName> *
+    Option<FQTypeName.T> *
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
@@ -284,7 +291,7 @@ and Dval =
   | DResult of Result<Dval, Dval>
   | DBytes of byte array
   // TODO: merge DOption and DResult into DConstructor
-  | DConstructor of typeName : UserTypeName * caseName : string * fields : List<Dval>
+  | DConstructor of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
 
 and DvalTask = Ply<Dval>
 
@@ -309,7 +316,8 @@ and DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  // TODO: rename to TCustomType or TDefinedType
+  | TUserType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
@@ -512,7 +520,7 @@ module Dval =
     | DObj _, TUserType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
-      //   we likely need a `(userTypeMap: Map<UserTypeName, UserType.Definition>)` passed in
+      //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
       //
       // 2. match against that
       //  match def with
@@ -524,7 +532,7 @@ module Dval =
     | DConstructor _, TUserType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
-      //   we likely need a `(userTypeMap: Map<UserTypeName, UserType.Definition>)` passed in
+      //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
       //
       // 2. match against that
       //  match def with
@@ -650,7 +658,7 @@ module UserType =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
-  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =
   type Parameter = { name : string; typ : DType; description : string }
@@ -850,7 +858,7 @@ and ProgramContext =
     accountID : UserID
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
-    userTypes : Map<UserTypeName, UserType.T>
+    userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
 
 /// Set of callbacks used to trace the interpreter

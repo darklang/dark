@@ -197,8 +197,8 @@ let testUserFn
           { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
         parameters }
 
-let testUserType
-  (name : PT.UserTypeName)
+let testUserRecordType
+  (name : PT.FQTypeName.UserTypeName)
   (firstField : string * PT.DType)
   (additionalFields : List<string * PT.DType>)
   : PT.UserType.T =
@@ -491,8 +491,8 @@ module Expect =
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)
-    (actual : Option<UserTypeName>)
-    (expected : Option<UserTypeName>)
+    (actual : Option<FQTypeName.T>)
+    (expected : Option<FQTypeName.T>)
     (errorFn : Path -> string -> string -> unit)
     : unit =
     let err () = errorFn path (string actual) (string expected)
@@ -500,8 +500,10 @@ module Expect =
     match actual, expected with
     | None, None -> ()
     | Some a, Some e ->
-      if a.typ <> e.typ then err ()
-      if a.version <> e.version then err ()
+      match a, e with
+      | FQTypeName.User a, FQTypeName.User e ->
+        if a.typ <> e.typ then err ()
+        if a.version <> e.version then err ()
     | _ -> err ()
 
   let rec matchPatternEqualityBaseFn

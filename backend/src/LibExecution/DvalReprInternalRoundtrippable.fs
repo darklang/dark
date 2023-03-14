@@ -23,8 +23,15 @@ module FormatV0 =
   // 2. This needs to be backwards compatible, but we don't want to constrain how we
   //    change RT.Dval.
 
-  /// A UserType is a type written by a Developer in their canvas
-  type UserTypeName = { type_ : string; version : int }
+  /// Used to reference a type defined by a User, Standard Library module, or Package
+  module FQTypeName =
+    /// A type written by a Developer in their canvas
+    type UserTypeName = { typ : string; version : int }
+
+    // TODO:
+    // | Stdlib of StdlibTypeName
+    // | Package of PackageTypeName
+    type T = User of UserTypeName
 
   type DvalMap = Map<string, Dval>
   and DvalSource =

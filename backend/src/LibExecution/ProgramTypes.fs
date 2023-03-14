@@ -5,18 +5,15 @@ type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
-/// Used to reference a canvas-level type written by a Developer
-///
-/// TODO: wrap this in a FQTypeName module+type,
-/// once we support stdlib-defined types (soon!)
-/// ```fsharp
-/// type FQTypeName =
-///   | User of UserTypeName
-///   | Stdlib of StdlibTypeName
-///   | Package of PackageTypeName
-/// ```
-/// (steal from `FQFnName`)
-type UserTypeName = { typ : string; version : int }
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  /// A type written by a Developer in their canvas
+  type UserTypeName = { typ : string; version : int }
+
+  // TODO:
+  // | Stdlib of StdlibTypeName
+  // | Package of PackageTypeName
+  type T = User of UserTypeName
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
@@ -165,7 +162,7 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * Expr * List<Expr>
 
-  | ERecord of id  * Option<UserTypeName> * List<string * Expr>
+  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
 
   // Constructors include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.
@@ -180,7 +177,7 @@ type Expr =
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
   | EConstructor of
     id *
-    Option<UserTypeName> * // TODO: this shouldn't be an Option
+    Option<FQTypeName.T> *  // TODO: this shouldn't be an Option
     caseName : string *
     fields : List<Expr>
 
@@ -237,7 +234,8 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  // TODO: rename to TCustom (or something else -- maybe TDefined?)
+  | TUserType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`, matches anything
@@ -288,7 +286,7 @@ module UserType =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
-  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =
   type Parameter = { id : id; name : string; typ : DType; description : string }

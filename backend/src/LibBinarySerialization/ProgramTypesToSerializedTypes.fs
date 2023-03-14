@@ -9,9 +9,14 @@ module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-module UserTypeName =
-  let toST (u : PT.UserTypeName) : ST.UserTypeName =
-    { typ = u.typ; version = u.version }
+module FQTypeName =
+  module UserTypeName =
+    let toST (u : PT.FQTypeName.UserTypeName) : ST.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
+
+  let toST (t : PT.FQTypeName.T) : ST.FQTypeName.T =
+    match t with
+    | PT.FQTypeName.User u -> ST.FQTypeName.User(UserTypeName.toST u)
 
 
 module FQFnName =
@@ -107,13 +112,17 @@ module Expr =
     | PT.ETuple (id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
     | PT.ERecord (id, typeName, fields) ->
-      ST.ERecord(id, Option.map UserTypeName.toST typeName, List.map (Tuple2.mapSecond toST) fields)
+      ST.ERecord(
+        id,
+        Option.map FQTypeName.toST typeName,
+        List.map (Tuple2.mapSecond toST) fields
+      )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, toST expr2, List.map toST rest)
     | PT.EConstructor (id, typeName, caseName, fields) ->
       ST.EConstructor(
         id,
-        Option.map UserTypeName.toST typeName,
+        Option.map FQTypeName.toST typeName,
         caseName,
         List.map toST fields
       )
@@ -153,7 +162,7 @@ module DType =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TUserType t -> ST.TUserType(UserTypeName.toST t)
+    | PT.TUserType t -> ST.TUserType(FQTypeName.toST t)
     | PT.TBytes -> ST.TBytes
     | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
     | PT.TVariable (name) -> ST.TVariable(name)
@@ -234,7 +243,7 @@ module UserType =
 
   let toST (t : PT.UserType.T) : ST.UserType.T =
     { tlid = t.tlid
-      name = UserTypeName.toST t.name
+      name = FQTypeName.UserTypeName.toST t.name
       definition = Definition.toST t.definition }
 
 module UserFunction =

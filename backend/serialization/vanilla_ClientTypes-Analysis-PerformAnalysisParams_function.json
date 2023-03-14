@@ -175,10 +175,13 @@
             "usertype",
             [
               "TUserType",
-              {
-                "typ": "name",
-                "version": 0
-              }
+              [
+                "User",
+                {
+                  "typ": "name",
+                  "version": 0
+                }
+              ]
             ]
           ],
           [
@@ -409,10 +412,13 @@
                 "usertype",
                 [
                   "TUserType",
-                  {
-                    "typ": "name",
-                    "version": 0
-                  }
+                  [
+                    "User",
+                    {
+                      "typ": "name",
+                      "version": 0
+                    }
+                  ]
                 ]
               ],
               [
@@ -7877,10 +7883,13 @@
               "usertype",
               [
                 "TUserType",
-                {
-                  "typ": "name",
-                  "version": 0
-                }
+                [
+                  "User",
+                  {
+                    "typ": "name",
+                    "version": 0
+                  }
+                ]
               ]
             ],
             [
@@ -8111,10 +8120,13 @@
                   "usertype",
                   [
                     "TUserType",
-                    {
-                      "typ": "name",
-                      "version": 0
-                    }
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ]
                   ]
                 ],
                 [
@@ -9035,10 +9047,13 @@
                   "usertype",
                   [
                     "TUserType",
-                    {
-                      "typ": "name",
-                      "version": 0
-                    }
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ]
                   ]
                 ],
                 [
@@ -9289,10 +9304,13 @@
                         "usertype",
                         [
                           "TUserType",
-                          {
-                            "typ": "name",
-                            "version": 0
-                          }
+                          [
+                            "User",
+                            {
+                              "typ": "name",
+                              "version": 0
+                            }
+                          ]
                         ]
                       ],
                       [
@@ -10214,10 +10232,13 @@
                   "usertype",
                   [
                     "TUserType",
-                    {
-                      "typ": "name",
-                      "version": 0
-                    }
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ]
                   ]
                 ],
                 [
@@ -10447,10 +10468,13 @@
               "usertype",
               [
                 "TUserType",
-                {
-                  "typ": "name",
-                  "version": 0
-                }
+                [
+                  "User",
+                  {
+                    "typ": "name",
+                    "version": 0
+                  }
+                ]
               ]
             ],
             [

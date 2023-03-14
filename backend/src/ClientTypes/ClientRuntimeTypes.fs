@@ -9,8 +9,15 @@ open Prelude
 open Tablecloth
 
 
-/// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { typ : string; version : int }
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  /// A type written by a Developer in their canvas
+  type UserTypeName = { typ : string; version : int }
+
+  // TODO:
+  // | Stdlib of StdlibTypeName
+  // | Package of PackageTypeName
+  type T = User of UserTypeName
 
 module FQFnName =
   type UserFnName = string
@@ -48,7 +55,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  | TUserType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -85,8 +92,8 @@ module Expr =
     | EFQFnValue of id * FQFnName.T
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
-    | ERecord of id * Option<UserTypeName> * List<string * T>
-    | EConstructor of id * Option<UserTypeName> * string * List<T>
+    | ERecord of id * Option<FQTypeName.T> * List<string * T>
+    | EConstructor of id * Option<FQTypeName.T> * string * List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
@@ -138,4 +145,4 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DConstructor of typeName : UserTypeName * caseName : string * fields : List<T>
+    | DConstructor of typeName : FQTypeName.T * caseName : string * fields : List<T>

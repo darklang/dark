@@ -41,7 +41,7 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TUserType({ typ = "User"; version = 0 })
+      RT.TUserType(RT.FQTypeName.User { typ = "User"; version = 0 })
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
       RT.TVariable "test"
@@ -116,7 +116,7 @@ module RuntimeTypes =
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EConstructor(
         8375723UL,
-        Some { typ = "MyEnum"; version = 0 },
+        Some(RT.FQTypeName.User { typ = "MyEnum"; version = 0 }),
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -436,7 +436,8 @@ module ProgramTypes =
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
-                 ("usertype", PT.TUserType({ typ = "name"; version = 0 }))
+                 ("usertype",
+                  PT.TUserType(PT.FQTypeName.User { typ = "name"; version = 0 }))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))
                  ("variable", PT.TVariable "v")

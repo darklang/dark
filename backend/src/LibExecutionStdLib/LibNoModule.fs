@@ -132,8 +132,9 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     && equalsExpr elem2_1 elem2_2
     && elems1.Length = elems2.Length
     && List.forall2 equalsExpr elems1 elems2
-  | ERecord (_, fields1), ERecord (_, fields2) ->
-    fields1.Length = fields2.Length
+  | ERecord (_, typeName, fields1), ERecord (_, typeName', fields2) ->
+    typeName = typeName'
+    && fields1.Length = fields2.Length
     && List.forall2
          (fun (name1, expr1) (name2, expr2) ->
            name1 = name2 && equalsExpr expr1 expr2)

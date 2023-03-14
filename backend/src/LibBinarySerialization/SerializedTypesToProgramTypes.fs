@@ -9,9 +9,14 @@ module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-module UserTypeName =
-  let toPT (u : ST.UserTypeName) : PT.UserTypeName =
-    { typ = u.typ; version = u.version }
+module FQTypeName =
+  module UserTypeName =
+    let toPT (u : ST.FQTypeName.UserTypeName) : PT.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
+
+  let toPT (t : ST.FQTypeName.T) : PT.FQTypeName.T =
+    match t with
+    | ST.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.toPT u)
 
 
 module FQFnName =
@@ -108,13 +113,17 @@ module Expr =
     | ST.ETuple (id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
     | ST.ERecord (id, typeName, fields) ->
-      PT.ERecord(id, Option.map UserTypeName.toPT typeName, List.map (Tuple2.mapSecond toPT) fields)
+      PT.ERecord(
+        id,
+        Option.map FQTypeName.toPT typeName,
+        List.map (Tuple2.mapSecond toPT) fields
+      )
     | ST.EPipe (pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, toPT expr2, List.map toPT rest)
     | ST.EConstructor (id, typeName, caseName, exprs) ->
       PT.EConstructor(
         id,
-        Option.map UserTypeName.toPT typeName,
+        Option.map FQTypeName.toPT typeName,
         caseName,
         List.map toPT exprs
       )
@@ -156,7 +165,7 @@ module DType =
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TOption typ -> PT.TOption(toPT typ)
-    | ST.TUserType t -> PT.TUserType(UserTypeName.toPT t)
+    | ST.TUserType t -> PT.TUserType(FQTypeName.toPT t)
     | ST.TBytes -> PT.TBytes
     | ST.TResult (okType, errType) -> PT.TResult(toPT okType, toPT errType)
     | ST.TVariable (name) -> PT.TVariable(name)
@@ -239,7 +248,7 @@ module UserType =
 
   let toPT (t : ST.UserType.T) : PT.UserType.T =
     { tlid = t.tlid
-      name = UserTypeName.toPT t.name
+      name = FQTypeName.UserTypeName.toPT t.name
       definition = Definition.toPT t.definition }
 
 module UserFunction =

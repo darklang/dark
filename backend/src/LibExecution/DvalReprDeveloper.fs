@@ -31,7 +31,9 @@ let rec typeName (t : DType) : string =
   | TUuid -> "UUID"
   | TOption nested -> $"Option<{typeName nested}>"
   | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
-  | TUserType t -> $"{t.typ}_v{t.version}"
+  | TUserType t ->
+    match t with
+    | FQTypeName.User t -> $"{t.typ}_v{t.version}"
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName

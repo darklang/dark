@@ -300,7 +300,9 @@ that's already taken, returns an error."
           | TUuid -> "uuid"
           | TOption _ -> "option"
           | TResult _ -> "result"
-          | TUserType t -> t.typ
+          | TUserType t ->
+            match t with
+            | FQTypeName.User u -> u.typ
           | TBytes -> "bytes"
 
         internalFn (function
