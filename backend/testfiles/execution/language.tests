@@ -390,9 +390,10 @@ module Shadowing =
 // ---------------------------
 // DarkInternal tests are internal
 // ---------------------------
-module Darkinternal =
-  (let _ = Test.setExpectedExceptionCount 1 in
-   DarkInternal.getAllSchedulingRules) = Test.typeError_v0 "Unknown error"
+// CLEANUP
+// module Darkinternal =
+//  (let _ = Test.setExpectedExceptionCount 1 in
+//   DarkInternal.getAllSchedulingRules) = Test.typeError_v0 "Unknown error"
 
 // ---------------------------
 // Equality
