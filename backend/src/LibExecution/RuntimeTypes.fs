@@ -319,36 +319,6 @@ and DType =
     | TFn _ -> true
     | _ -> false
 
-  // This string was created in the very old days, and is barely used anymore
-  member this.toOldString() : string =
-    // Used in DB::schema_v0, to save type in honeycomb after queue execution
-    // TODO CLEANUP After merge, inline into DB::schema and use better types for honeycomb
-    match this with
-    | TInt -> "Int"
-    | TFloat -> "Float"
-    | TBool -> "Bool"
-    | TUnit -> "Nothing"
-    | TChar -> "Character"
-    | TStr -> "Str"
-    | TList _ -> "List"
-    | TTuple _ -> "Tuple"
-    | TFn _ -> "Block"
-    | TRecord _ -> "Dict"
-    | TVariable _ -> "Any"
-    | TIncomplete -> "Incomplete"
-    | TError -> "Error"
-    | THttpResponse _ -> "Response"
-    | TDB _ -> "Datastore"
-    | TDateTime -> "DateTime"
-    | TDict _ -> "Dict"
-    | TPassword -> "Password"
-    | TUuid -> "UUID"
-    | TOption _ -> "Option"
-    | TResult _ -> "Result"
-    | TUserType t -> t.type_
-    | TBytes -> "Bytes"
-
-
 /// Record the source of an incomplete or error. Would be useful to add more
 /// information later, such as the iteration count that led to this, or
 /// something like a stack trace
