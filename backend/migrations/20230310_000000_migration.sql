@@ -8,7 +8,6 @@ accounts_v0
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , segment_metadata JSONB
-, CONSTRAINT emails UNIQUE USING INDEX idx_accounts_email_uniqueness
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS
@@ -75,7 +74,7 @@ events_v0
 -- search term is in the index or it will need to hit disk. This is true even though
 -- the module rarely changes
 -- 2) fetch the indexes for all items we're unpausing. This is rare so it's fine to
-CREATE INDEX CONCURENTLY IF NOT EXISTS
+CREATE INDEX CONCURRENTLY IF NOT EXISTS
 idx_events_count
 ON events_v0 (canvas_id, module, name);
 
@@ -252,8 +251,10 @@ user_data_v0
 , data JSONB NOT NULL
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, key TEXT NOT NULL DEFAULT (id::text)
+, key TEXT NOT NULL
 );
+
+UPDATE user_data_v0 SET key = id::text;
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_fetch
