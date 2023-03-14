@@ -339,6 +339,55 @@ module DType =
     | PT.TDbList (t) -> CTPT.DType.TDbList(toCT t)
 
 
+module CustomType =
+  module RecordField =
+    let fromCT (rf : CTPT.CustomType.RecordField) : PT.CustomType.RecordField =
+      { id = rf.id; name = rf.name; typ = DType.fromCT rf.typ }
+
+    let toCT (rf : PT.CustomType.RecordField) : CTPT.CustomType.RecordField =
+      { id = rf.id; name = rf.name; typ = DType.toCT rf.typ }
+
+  module EnumField =
+    let fromCT (ef : CTPT.CustomType.EnumField) : PT.CustomType.EnumField =
+      { id = ef.id; typ = DType.fromCT ef.typ; label = ef.label }
+
+    let toCT (ef : PT.CustomType.EnumField) : CTPT.CustomType.EnumField =
+      { id = ef.id; typ = DType.toCT ef.typ; label = ef.label }
+
+  module EnumCase =
+    let fromCT (ec : CTPT.CustomType.EnumCase) : PT.CustomType.EnumCase =
+      { id = ec.id; name = ec.name; fields = List.map EnumField.fromCT ec.fields }
+
+    let toCT (ec : PT.CustomType.EnumCase) : CTPT.CustomType.EnumCase =
+      { id = ec.id; name = ec.name; fields = List.map EnumField.toCT ec.fields }
+
+  let fromCT (def : CTPT.CustomType.T) : PT.CustomType.T =
+    match def with
+    | CTPT.CustomType.Record (firstField, additionalFields) ->
+      PT.CustomType.Record(
+        RecordField.fromCT firstField,
+        List.map RecordField.fromCT additionalFields
+      )
+    | CTPT.CustomType.Enum (firstCase, additionalCases) ->
+      PT.CustomType.Enum(
+        EnumCase.fromCT firstCase,
+        List.map EnumCase.fromCT additionalCases
+      )
+
+  let toCT (def : PT.CustomType.T) : CTPT.CustomType.T =
+    match def with
+    | PT.CustomType.Record (firstField, additionalFields) ->
+      CTPT.CustomType.Record(
+        RecordField.toCT firstField,
+        List.map RecordField.toCT additionalFields
+      )
+    | PT.CustomType.Enum (firstCase, additionalCases) ->
+      CTPT.CustomType.Enum(
+        EnumCase.toCT firstCase,
+        List.map EnumCase.toCT additionalCases
+      )
+
+
 module Handler =
   module CronInterval =
     let fromCT (ci : CTPT.Handler.CronInterval) : PT.Handler.CronInterval =
@@ -425,65 +474,16 @@ module DB =
       version = db.version
       cols = List.map Col.toCT db.cols }
 
-
 module UserType =
-  module RecordField =
-    let fromCT (rf : CTPT.UserType.RecordField) : PT.UserType.RecordField =
-      { id = rf.id; name = rf.name; typ = DType.fromCT rf.typ }
-
-    let toCT (rf : PT.UserType.RecordField) : CTPT.UserType.RecordField =
-      { id = rf.id; name = rf.name; typ = DType.toCT rf.typ }
-
-  module EnumField =
-    let fromCT (ef : CTPT.UserType.EnumField) : PT.UserType.EnumField =
-      { id = ef.id; typ = DType.fromCT ef.typ; label = ef.label }
-
-    let toCT (ef : PT.UserType.EnumField) : CTPT.UserType.EnumField =
-      { id = ef.id; typ = DType.toCT ef.typ; label = ef.label }
-
-  module EnumCase =
-    let fromCT (ec : CTPT.UserType.EnumCase) : PT.UserType.EnumCase =
-      { id = ec.id; name = ec.name; fields = List.map EnumField.fromCT ec.fields }
-
-    let toCT (ec : PT.UserType.EnumCase) : CTPT.UserType.EnumCase =
-      { id = ec.id; name = ec.name; fields = List.map EnumField.toCT ec.fields }
-
-  module Definition =
-    let fromCT (def : CTPT.UserType.Definition) : PT.UserType.Definition =
-      match def with
-      | CTPT.UserType.Definition.Record (firstField, additionalFields) ->
-        PT.UserType.Record(
-          RecordField.fromCT firstField,
-          List.map RecordField.fromCT additionalFields
-        )
-      | CTPT.UserType.Definition.Enum (firstCase, additionalCases) ->
-        PT.UserType.Enum(
-          EnumCase.fromCT firstCase,
-          List.map EnumCase.fromCT additionalCases
-        )
-
-    let toCT (def : PT.UserType.Definition) : CTPT.UserType.Definition =
-      match def with
-      | PT.UserType.Record (firstField, additionalFields) ->
-        CTPT.UserType.Definition.Record(
-          RecordField.toCT firstField,
-          List.map RecordField.toCT additionalFields
-        )
-      | PT.UserType.Definition.Enum (firstCase, additionalCases) ->
-        CTPT.UserType.Enum(
-          EnumCase.toCT firstCase,
-          List.map EnumCase.toCT additionalCases
-        )
-
   let fromCT (ut : CTPT.UserType.T) : PT.UserType.T =
     { tlid = ut.tlid
       name = FQTypeName.UserTypeName.fromCT ut.name
-      definition = Definition.fromCT ut.definition }
+      definition = CustomType.fromCT ut.definition }
 
   let toCT (ut : PT.UserType.T) : CTPT.UserType.T =
     { tlid = ut.tlid
       name = FQTypeName.UserTypeName.toCT ut.name
-      definition = Definition.toCT ut.definition }
+      definition = CustomType.toCT ut.definition }
 
 
 module UserFunction =

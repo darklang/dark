@@ -211,12 +211,12 @@ let rec convertToExpr
       userTypes
       |> List.choose (fun (typeName, typeDef) ->
         match typeDef with
-        | PT.UserType.Enum (firstCase, additionalCases) ->
+        | PT.CustomType.Enum (firstCase, additionalCases) ->
           firstCase :: additionalCases
           |> List.tryFind (fun enumCase -> enumCase.name = name.idText)
           |> Option.map (fun _ -> typeName)
 
-        | PT.UserType.Record _ -> None)
+        | PT.CustomType.Record _ -> None)
 
     match matchingEnumCases with
     | [] -> PT.EVariable(id, name.idText)
@@ -638,20 +638,20 @@ let parseTestFile (filename : string) : Module =
   let parseUserRecordTypeField
     userTypes
     (field : SynField)
-    : PT.UserType.RecordField =
+    : PT.CustomType.RecordField =
     match field with
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
       { id = gid (); name = id.idText; typ = convertType userTypes typ }
     | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
-  let parseUserEnumTypeField userTypes (typ : SynField) : PT.UserType.EnumField =
+  let parseUserEnumTypeField userTypes (typ : SynField) : PT.CustomType.EnumField =
     match typ with
     | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
       { id = gid ()
         typ = convertType userTypes typ
         label = fieldName |> Option.map (fun id -> id.idText) }
 
-  let parseUserEnumTypeCase userTypes (case : SynUnionCase) : PT.UserType.EnumCase =
+  let parseUserEnumTypeCase userTypes (case : SynUnionCase) : PT.CustomType.EnumCase =
     match case with
     | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
       match typ with
@@ -679,11 +679,10 @@ let parseTestFile (filename : string) : Module =
       | firstField :: additionalFields ->
         let parseField = parseUserRecordTypeField userTypes
 
-
         { tlid = gid ()
           name = { typ = id.idText; version = 0 }
           definition =
-            PT.UserType.Record(
+            PT.CustomType.Record(
               parseField firstField,
               List.map parseField additionalFields
             ) }
@@ -707,7 +706,7 @@ let parseTestFile (filename : string) : Module =
                 [ "typeDef", typeDef ]
             | firstCase :: additionalCases -> firstCase, additionalCases
 
-          PT.UserType.Enum(parseCase firstCase, List.map parseCase additionalCases) }
+          PT.CustomType.Enum(parseCase firstCase, List.map parseCase additionalCases) }
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 

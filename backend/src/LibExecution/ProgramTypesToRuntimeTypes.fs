@@ -222,6 +222,32 @@ module DType =
       RT.TRecord(List.map (fun (f, t : PT.DType) -> f, toRT t) rows)
     | PT.TDbList typ -> RT.TList(toRT typ)
 
+module CustomType =
+  module RecordField =
+    let toRT (f : PT.CustomType.RecordField) : RT.CustomType.RecordField =
+      { id = f.id; name = f.name; typ = DType.toRT f.typ }
+
+  module EnumField =
+    let toRT (f : PT.CustomType.EnumField) : RT.CustomType.EnumField =
+      { id = f.id; typ = DType.toRT f.typ; label = f.label }
+
+  module EnumCase =
+    let toRT (c : PT.CustomType.EnumCase) : RT.CustomType.EnumCase =
+      { id = c.id; name = c.name; fields = List.map EnumField.toRT c.fields }
+
+  let toRT (d : PT.CustomType.T) : RT.CustomType.T =
+    match d with
+    | PT.CustomType.Record (firstField, additionalFields) ->
+      RT.CustomType.Record(
+        RecordField.toRT firstField,
+        List.map RecordField.toRT additionalFields
+      )
+    | PT.CustomType.Enum (firstCase, additionalCases) ->
+      RT.CustomType.Enum(
+        EnumCase.toRT firstCase,
+        List.map EnumCase.toRT additionalCases
+      )
+
 
 module Handler =
   module CronInterval =
@@ -260,35 +286,10 @@ module DB =
           db.cols }
 
 module UserType =
-
-  module RecordField =
-    let toRT (rf : PT.UserType.RecordField) : RT.UserType.RecordField =
-      { id = rf.id; name = rf.name; typ = DType.toRT rf.typ }
-
-  module Definition =
-    let toRT (d : PT.UserType.Definition) : RT.UserType.Definition =
-      match d with
-      | PT.UserType.Record (firstField, additionalFields) ->
-        RT.UserType.Record(
-          RecordField.toRT firstField,
-          List.map RecordField.toRT additionalFields
-        )
-      | PT.UserType.Enum (firstCase, additionalCases) ->
-        let mapCase (c : PT.UserType.EnumCase) : RT.UserType.EnumCase =
-          { id = c.id
-            name = c.name
-            fields =
-              List.map
-                (fun (f : PT.UserType.EnumField) ->
-                  { id = f.id; typ = DType.toRT f.typ; label = f.label })
-                c.fields }
-
-        RT.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)
-
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
       name = FQTypeName.UserTypeName.toRT t.name
-      definition = Definition.toRT t.definition }
+      definition = CustomType.toRT t.definition }
 
 module UserFunction =
   module Parameter =

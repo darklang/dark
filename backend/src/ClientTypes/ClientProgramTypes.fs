@@ -137,6 +137,17 @@ type DType =
   | TDbList of DType
 
 
+module CustomType =
+  type RecordField = { id : id; name : string; typ : DType }
+
+  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+
+  type T =
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+
 module Handler =
   type CronInterval =
     | EveryDay
@@ -170,15 +181,7 @@ module DB =
 
 
 module UserType =
-  type RecordField = { id : id; name : string; typ : DType }
-
-  type EnumField = { id : id; typ : DType; label : Option<string> }
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
-
-  type Definition =
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
-
+  type Definition = CustomType.T
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 

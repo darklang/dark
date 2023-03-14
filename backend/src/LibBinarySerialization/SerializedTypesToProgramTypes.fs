@@ -175,6 +175,32 @@ module DType =
       PT.TRecord(List.map (fun (f, t : ST.DType) -> f, toPT t) rows)
     | ST.TDbList typ -> PT.TDbList(toPT typ)
 
+module CustomType =
+  module EnumField =
+    let toPT (f : ST.CustomType.EnumField) : PT.CustomType.EnumField =
+      { id = f.id; typ = DType.toPT f.typ; label = f.label }
+
+  module EnumCase =
+    let toPT (c : ST.CustomType.EnumCase) : PT.CustomType.EnumCase =
+      { id = c.id; name = c.name; fields = List.map EnumField.toPT c.fields }
+
+  module RecordField =
+    let toPT (f : ST.CustomType.RecordField) : PT.CustomType.RecordField =
+      { id = f.id; name = f.name; typ = DType.toPT f.typ }
+
+  let toPT (d : ST.CustomType.T) : PT.CustomType.T =
+    match d with
+    | ST.CustomType.Record (firstField, additionalFields) ->
+      PT.CustomType.Record(
+        RecordField.toPT firstField,
+        List.map RecordField.toPT additionalFields
+      )
+    | ST.CustomType.Enum (firstCase, additionalCases) ->
+      PT.CustomType.Enum(
+        EnumCase.toPT firstCase,
+        List.map EnumCase.toPT additionalCases
+      )
+
 
 module Handler =
   module IDs =
@@ -220,36 +246,10 @@ module DB =
           db.cols }
 
 module UserType =
-  module EnumField =
-    let toPT (f : ST.UserType.EnumField) : PT.UserType.EnumField =
-      { id = f.id; typ = DType.toPT f.typ; label = f.label }
-
-  module EnumCase =
-    let toPT (c : ST.UserType.EnumCase) : PT.UserType.EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.toPT c.fields }
-
-  module RecordField =
-    let toPT (f : ST.UserType.RecordField) : PT.UserType.RecordField =
-      { id = f.id; name = f.name; typ = DType.toPT f.typ }
-
-  module Definition =
-    let toPT (d : ST.UserType.Definition) : PT.UserType.Definition =
-      match d with
-      | ST.UserType.Record (firstField, additionalFields) ->
-        PT.UserType.Record(
-          RecordField.toPT firstField,
-          List.map RecordField.toPT additionalFields
-        )
-      | ST.UserType.Enum (firstCase, additionalCases) ->
-        PT.UserType.Enum(
-          EnumCase.toPT firstCase,
-          List.map EnumCase.toPT additionalCases
-        )
-
   let toPT (t : ST.UserType.T) : PT.UserType.T =
     { tlid = t.tlid
       name = FQTypeName.UserTypeName.toPT t.name
-      definition = Definition.toPT t.definition }
+      definition = CustomType.toPT t.definition }
 
 module UserFunction =
   module Parameter =

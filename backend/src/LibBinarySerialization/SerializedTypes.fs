@@ -201,6 +201,41 @@ type DType =
   | TDbList of DType // TODO: cleanup and remove
   | TTuple of DType * DType * List<DType>
 
+
+module CustomType =
+  [<MessagePack.MessagePackObject>]
+  type RecordField =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      typ : DType }
+
+  [<MessagePack.MessagePackObject>]
+  type EnumField =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      typ : DType
+      [<MessagePack.Key 2>]
+      label : Option<string> }
+
+  [<MessagePack.MessagePackObject>]
+  type EnumCase =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      fields : List<EnumField> }
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+
 module Handler =
   [<MessagePack.MessagePackObject>]
   type CronInterval =
@@ -269,39 +304,8 @@ module DB =
       [<MessagePack.Key 4>]
       cols : List<Col> }
 
+
 module UserType =
-  [<MessagePack.MessagePackObject>]
-  type RecordField =
-    { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      typ : DType }
-
-  [<MessagePack.MessagePackObject>]
-  type EnumField =
-    { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
-      typ : DType
-      [<MessagePack.Key 2>]
-      label : Option<string> }
-
-  [<MessagePack.MessagePackObject>]
-  type EnumCase =
-    { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      fields : List<EnumField> }
-
-  [<MessagePack.MessagePackObject>]
-  type Definition =
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
-
   [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
@@ -309,7 +313,8 @@ module UserType =
       [<MessagePack.Key 1>]
       name : FQTypeName.UserTypeName
       [<MessagePack.Key 2>]
-      definition : Definition }
+      definition : CustomType.T }
+
 
 module UserFunction =
   [<MessagePack.MessagePackObject>]

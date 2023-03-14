@@ -202,13 +202,13 @@ let testUserRecordType
   (firstField : string * PT.DType)
   (additionalFields : List<string * PT.DType>)
   : PT.UserType.T =
-  let mapField (name, typ) : PT.UserType.RecordField =
+  let mapField (name, typ) : PT.CustomType.RecordField =
     { id = gid (); name = name; typ = typ }
 
   { tlid = gid ()
     name = name
     definition =
-      PT.UserType.Record(mapField firstField, List.map mapField additionalFields) }
+      PT.CustomType.Record(mapField firstField, List.map mapField additionalFields) }
 
 
 

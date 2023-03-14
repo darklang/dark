@@ -358,6 +358,15 @@ and Param =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
+module CustomType =
+  type RecordField = { id : id; name : string; typ : DType }
+
+  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+
+  type T =
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
 /// Functions for working with Dark runtime expressions
 module Expr =
@@ -648,15 +657,8 @@ module DB =
   type T = { tlid : tlid; name : string; cols : List<Col>; version : int }
 
 module UserType =
-  type RecordField = { id : id; name : string; typ : DType }
-
-  type EnumField = { id : id; typ : DType; label : Option<string> }
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
-
-  type Definition =
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
-
+  // TODO: consider flattening this (just type UserType = { ... }, without the module level)
+  type Definition = CustomType.T
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =

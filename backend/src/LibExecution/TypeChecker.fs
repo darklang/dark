@@ -105,12 +105,12 @@ let rec unify
        | None -> Error [ TypeLookupFailure typeName ]
        | Some ut ->
          (match ut.definition with
-          | UserType.Record (firstField, additionalFields) ->
+          | CustomType.Record (firstField, additionalFields) ->
             unifyUserRecordWithDvalMap
               userTypes
               (firstField :: additionalFields)
               dmap
-          | UserType.Enum _ ->
+          | CustomType.Enum _ ->
             Error [ TypeUnificationFailure
                       { expectedType = expected; actualValue = value } ]))
   | expectedType, actualValue ->
@@ -120,12 +120,12 @@ let rec unify
 
 and unifyUserRecordWithDvalMap
   (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
-  (definition : List<UserType.RecordField>)
+  (definition : List<CustomType.RecordField>)
   (value : DvalMap)
   : Result<unit, List<Error.T>> =
   let completeDefinition =
     definition
-    |> List.filterMap (fun (d : UserType.RecordField) ->
+    |> List.filterMap (fun (d : CustomType.RecordField) ->
       if d.name = "" then None else Some(d.name, d.typ))
     |> Map.ofList
 

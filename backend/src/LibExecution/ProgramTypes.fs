@@ -243,6 +243,16 @@ type DType =
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
 
+/// A type defined by a standard library module, a canvas/user, or a package
+module CustomType =
+  type RecordField = { id : id; name : string; typ : DType }
+
+  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+
+  type T =
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
 module Handler =
   type CronInterval =
@@ -276,15 +286,8 @@ module DB =
       cols : List<Col> }
 
 module UserType =
-  type RecordField = { id : id; name : string; typ : DType }
-
-  type EnumField = { id : id; typ : DType; label : Option<string> }
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
-
-  type Definition =
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
-
+  // TODO: consider flattening this (just type UserType = { ... }, without the module level)
+  type Definition = CustomType.T
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =
