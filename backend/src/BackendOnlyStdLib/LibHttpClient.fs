@@ -217,6 +217,9 @@ let fn = FQFnName.stdlibFnName
 
 let headersType = TList(TTuple(TStr, TStr, []))
 
+type HeaderError =
+  | BadInput of string
+  | TypeMismatch of string
 
 
 let fns : List<BuiltInFn> =
@@ -238,7 +241,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
-          let reqHeaders : Result<List<string * string>, string> =
+          let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold (Ok []) (fun agg item ->
               match agg, item with
@@ -246,14 +249,15 @@ let fns : List<BuiltInFn> =
               | (Ok pairs, DTuple (DStr k, DStr v, [])) ->
                 // TODO: what about whitespace? What else can break?
                 if k = "" then
-                  Error "Empty request header key provided"
+                  BadInput "Empty request header key provided" |> Error
                 else
                   Ok((k, v) :: pairs)
 
               | (_, notAPair) ->
                 // this should be a DError, not a "normal" error
-                Error
-                  $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}")
+                TypeMismatch
+                  $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}"
+                |> Error)
             |> Result.map (fun pairs -> List.rev pairs)
 
           let method =
@@ -306,7 +310,11 @@ let fns : List<BuiltInFn> =
             }
 
           | Error reqHeadersErr, _ ->
-            uply { return DError(SourceNone, reqHeadersErr) }
+            uply {
+              match reqHeadersErr with
+              | BadInput details -> return DResult(Error(DStr details))
+              | TypeMismatch details -> return DError(SourceNone, details)
+            }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
