@@ -296,26 +296,12 @@ let rec lambdaToSql
       | Some v -> v
       | None -> error2 "The datastore does not have a field named" fieldname
 
-    if expectedType <> TUnit // Fields are allowed to be null
-    then
-      typecheck fieldname dbFieldType expectedType
+    typecheck fieldname dbFieldType expectedType
 
     let fieldname = escapeFieldname fieldname
     let typename = typeToSqlType dbFieldType
+    $"(CAST(data::jsonb->>'{fieldname}' as {typename}))", []
 
-    // CLEANUP this should be dbFieldType, since we know it. We could have a TAny
-    // function with a Date field and this would query it wrong
-    (match expectedType with
-     | TDateTime ->
-       // This match arm handles types that are serialized in
-       // unsafeDvalToJson using wrapUserType or wrapUserStr, meaning
-       // they are wrapped in {type:, value:}. Right now, of the types sql
-       // compiler supports, that's just TDate.
-       // Likely future candidates include DPassword and DUuid; at time of
-       // writing, DCharacter and DBytes also serialize this way but are not
-       // allowed as DB field types.
-       ($"(CAST(data::jsonb->'{fieldname}'->>'value' as {typename}))", [])
-     | _ -> ($"(CAST(data::jsonb->>'{fieldname}' as {typename}))", []))
   | _ -> error $"We do not yet support compiling this code: {expr}"
 
 
