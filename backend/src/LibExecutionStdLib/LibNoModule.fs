@@ -11,8 +11,6 @@ let fn = FQFnName.stdlibFnName
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
-let varB = TVariable "b"
-
 
 
 let fns : List<BuiltInFn> =
@@ -32,7 +30,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "" "notEquals" 0
-      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
+      parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
       description = "Returns true if the two value are not equal"
       fn =
