@@ -195,7 +195,7 @@ let parseJsonV0 (typ : DType) (str : string) : Dval =
         Exception.raiseInternal "Invalid fields" []
     | _ ->
       Exception.raiseInternal
-        "Value in Datastore does not match Datastoreected type"
+        "Value in Datastore does not match Datastore expected type"
         [ "type", typ; "value", j ]
 
   str |> parseJson |> convert typ
