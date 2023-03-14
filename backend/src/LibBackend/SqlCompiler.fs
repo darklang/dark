@@ -50,16 +50,15 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DError _
   | DIncomplete _ -> Errors.foundFakeDval dval
   | DObj _
-  | DList _
+  | DList _ // CLEANUP allow
   | DHttpResponse _
   | DFnVal _
-  | DChar _
+  | DChar _ // CLEANUP allow
   | DDB _
   | DPassword _
-  | DOption _
-  | DResult _
-  | DBytes _
-  | DUnit
+  | DOption _ // CLEANUP allow
+  | DResult _ // CLEANUP allow
+  | DBytes _ // CLEANUP allow
   | DUserEnum _ // TODO: revisit
   | DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
@@ -69,6 +68,7 @@ let dvalToSql (dval : Dval) : SqlValue =
   | DBool b -> Sql.bool b
   | DStr s -> Sql.string s
   | DUuid id -> Sql.uuid id
+  | DUnit -> Sql.dbnull
 
 
 let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit =
