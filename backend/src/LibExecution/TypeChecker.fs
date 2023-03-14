@@ -98,7 +98,7 @@ let rec unify
   | TDB _, DDB _ -> Ok()
   | THttpResponse _, DHttpResponse _ -> Ok()
   | TBytes, DBytes _ -> Ok()
-  | TUserType typeName, DObj dmap ->
+  | TCustomType typeName, DObj dmap ->
     match typeName with
     | FQTypeName.User typeName ->
       (match Map.tryFind typeName userTypes with

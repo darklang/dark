@@ -41,7 +41,7 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TUserType(RT.FQTypeName.User { typ = "User"; version = 0 })
+      RT.TCustomType(RT.FQTypeName.User { typ = "User"; version = 0 })
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
       RT.TVariable "test"
@@ -437,7 +437,7 @@ module ProgramTypes =
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
                  ("usertype",
-                  PT.TUserType(PT.FQTypeName.User { typ = "name"; version = 0 }))
+                  PT.TCustomType(PT.FQTypeName.User { typ = "name"; version = 0 }))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))
                  ("variable", PT.TVariable "v")

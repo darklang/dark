@@ -128,8 +128,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  // TODO: rename TCustomType or TDefinedType or something else
-  | TUserType of FQTypeName.T
+  | TCustomType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   | TVariable of string

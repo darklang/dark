@@ -7416,7 +7416,7 @@
             [
               "usertype",
               [
-                "TUserType",
+                "TCustomType",
                 [
                   "User",
                   {
@@ -7653,7 +7653,7 @@
                 [
                   "usertype",
                   [
-                    "TUserType",
+                    "TCustomType",
                     [
                       "User",
                       {
@@ -8580,7 +8580,7 @@
                 [
                   "usertype",
                   [
-                    "TUserType",
+                    "TCustomType",
                     [
                       "User",
                       {
@@ -8837,7 +8837,7 @@
                       [
                         "usertype",
                         [
-                          "TUserType",
+                          "TCustomType",
                           [
                             "User",
                             {
@@ -9765,7 +9765,7 @@
                 [
                   "usertype",
                   [
-                    "TUserType",
+                    "TCustomType",
                     [
                       "User",
                       {
@@ -10001,7 +10001,7 @@
             [
               "usertype",
               [
-                "TUserType",
+                "TCustomType",
                 [
                   "User",
                   {

@@ -316,14 +316,13 @@ and DType =
   | TPassword
   | TUuid
   | TOption of DType
-  // TODO: rename to TCustomType or TDefinedType
-  | TUserType of FQTypeName.T
+  | TCustomType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`
   | TVariable of string // replaces TAny
   | TFn of List<DType> * DType // replaces TLambda
-  | TRecord of List<string * DType> // TODO: remove in favor of TUserType (though, that'll be renamed)
+  | TRecord of List<string * DType> // TODO: remove in favor of TCustomType
 
   member this.isFn() : bool =
     match this with
@@ -463,7 +462,7 @@ module Dval =
     | DResult (Ok v) -> TResult(toType v, any)
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
-    | DConstructor (typeName, _caseName, _fields) -> TUserType(typeName)
+    | DConstructor (typeName, _caseName, _fields) -> TCustomType(typeName)
 
   /// <summary>
   /// Checks if a runtime's value matches a given type
@@ -517,7 +516,7 @@ module Dval =
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
-    | DObj _, TUserType _ ->
+    | DObj _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
@@ -529,7 +528,7 @@ module Dval =
       //    ...
       false
 
-    | DConstructor _, TUserType _ ->
+    | DConstructor _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in

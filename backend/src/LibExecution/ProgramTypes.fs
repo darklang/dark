@@ -234,8 +234,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  // TODO: rename to TCustom (or something else -- maybe TDefined?)
-  | TUserType of FQTypeName.T
+  | TCustomType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`, matches anything

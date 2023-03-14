@@ -542,7 +542,7 @@ let parseTestFile (filename : string) : Module =
       match ident.idText, matchingUserTypes userTypes ident.idText, args with
       | "List", _, [ arg ] -> PT.TList(c arg)
       | "Option", _, [ arg ] -> PT.TOption(c arg)
-      | _, [ typeName ], _ -> PT.TUserType(PT.FQTypeName.User typeName)
+      | _, [ typeName ], _ -> PT.TCustomType(PT.FQTypeName.User typeName)
       | _ ->
         Exception.raiseInternal
           $"Unsupported type (outer)"
@@ -565,7 +565,7 @@ let parseTestFile (filename : string) : Module =
       | "Password" -> PT.TPassword
       | _ ->
         match matchingUserTypes userTypes ident.idText with
-        | [ matched ] -> PT.TUserType(PT.FQTypeName.User matched)
+        | [ matched ] -> PT.TCustomType(PT.FQTypeName.User matched)
         | _ ->
           Exception.raiseInternal
             $"Unsupported type"

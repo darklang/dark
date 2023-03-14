@@ -55,7 +55,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of FQTypeName.T
+  | TCustomType of FQTypeName.T
   | TBytes
   | TResult of DType * DType
   | TVariable of string
