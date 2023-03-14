@@ -192,6 +192,8 @@ module Password =
       let roundtrips name serialize deserialize =
         let bytes = UTF8.toBytes "encryptedbytes"
         let password = RT.DObj(Map.ofList [ "x", RT.DPassword(Password bytes) ])
+        let fieldTypes = [ "x", RT.TPassword ]
+        let typ = RT.TRecord fieldTypes
 
         let wrappedSerialize dval =
           dval
@@ -199,15 +201,15 @@ module Password =
             match dval with
             | RT.DObj dvalMap -> dvalMap
             | _ -> Exception.raiseInternal "dobj only here" [])
-          |> serialize
+          |> serialize fieldTypes
 
         Expect.equalDval
           password
           (password
            |> wrappedSerialize
-           |> deserialize
+           |> deserialize typ
            |> wrappedSerialize
-           |> deserialize)
+           |> deserialize typ)
           $"Passwords serialize in non-redaction function: {name}"
       // roundtrips
       roundtrips

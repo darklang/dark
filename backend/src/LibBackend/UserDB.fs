@@ -40,6 +40,7 @@ let rec queryExactFields
   (queryObj : RT.DvalMap)
   : Task<List<string * RT.Dval>> =
   task {
+    let fieldTypes = schemaToTypes db
     let! results =
       Sql.query
         "SELECT key, data
@@ -55,17 +56,21 @@ let rec queryExactFields
                           "canvasID", Sql.uuid state.program.canvasID
                           "fields",
                           Sql.jsonb (
-                            DvalReprInternalQueryable.toJsonStringV0 queryObj
+                            DvalReprInternalQueryable.toJsonStringV0 fieldTypes queryObj
                           ) ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
     return results |> List.map (fun (key, data) -> (key, toObj db data))
   }
 
+and schemaToTypes (db : RT.DB.T) : List<string*RT.DType> =
+    db.cols
+    |> List.map (fun (name, typ) -> (name, typ))
 
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
+  let fieldTypes = schemaToTypes db
   let pObj =
-    match DvalReprInternalQueryable.parseJsonV0 obj with
+    match DvalReprInternalQueryable.parseJsonV0 (RT.TRecord fieldTypes) obj with
     | RT.DObj o -> o
     | _ -> Exception.raiseInternal "failed format, expected DObj" [ "actual", obj ]
   let typeChecked = typeCheck db pObj
@@ -138,6 +143,7 @@ and set
   (vals : RT.DvalMap)
   : Task<Uuid> =
   let id = System.Guid.NewGuid()
+  let fieldTypes = schemaToTypes db
   let merged = typeCheck db vals
 
   let upsertQuery =
@@ -159,7 +165,7 @@ and set
                       "darkVersion", Sql.int currentDarkVersion
                       "key", Sql.string key
                       "data",
-                      Sql.jsonb (DvalReprInternalQueryable.toJsonStringV0 merged) ]
+                      Sql.jsonb (DvalReprInternalQueryable.toJsonStringV0 fieldTypes merged) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
 
