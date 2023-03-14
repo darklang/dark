@@ -85,7 +85,7 @@ module Expr =
     | EFQFnValue of id * FQFnName.T
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
-    | ERecord of id * List<string * T>
+    | ERecord of id * Option<UserTypeName> * List<string * T>
     | EConstructor of id * Option<UserTypeName> * string * List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EFeatureFlag of id * T * T * T

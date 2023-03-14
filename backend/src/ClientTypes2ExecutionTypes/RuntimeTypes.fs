@@ -194,7 +194,7 @@ module Expr =
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | Expr.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, r first, r second, List.map r theRest)
-    | Expr.ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
+    | Expr.ERecord (id, typeName, fields) -> RT.ERecord(id, Option.map UserTypeName.fromCT typeName, List.map (Tuple2.mapSecond r) fields)
     | Expr.EConstructor (id, typeName, caseName, fields) ->
       RT.EConstructor(
         id,
@@ -243,7 +243,7 @@ module Expr =
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
     | RT.ETuple (id, first, second, theRest) ->
       Expr.ETuple(id, r first, r second, List.map r theRest)
-    | RT.ERecord (id, pairs) -> Expr.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
+    | RT.ERecord (id, typeName, fields) -> Expr.ERecord(id, Option.map UserTypeName.toCT typeName, List.map (Tuple2.mapSecond r) fields)
     | RT.EConstructor (id, typeName, casename, fields) ->
       Expr.EConstructor(
         id,

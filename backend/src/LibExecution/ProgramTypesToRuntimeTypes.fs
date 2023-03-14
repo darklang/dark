@@ -113,8 +113,8 @@ module Expr =
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
-    | PT.ERecord (id, pairs) ->
-      RT.ERecord(id, List.map (Tuple2.mapSecond toRT) pairs)
+    | PT.ERecord (id, typeName, fields) ->
+      RT.ERecord(id, Option.map UserTypeName.toRT typeName, List.map (Tuple2.mapSecond toRT) fields)
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       // Convert v |> fn1 a |> fn2 |> fn3 b c
       // into fn3 (fn2 (fn1 v a)) b c

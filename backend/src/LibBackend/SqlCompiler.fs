@@ -559,7 +559,7 @@ let partiallyEvaluate
                   pairs
 
               return EMatch(id, mexpr, pairs)
-            | ERecord (id, fields) ->
+            | ERecord (id, typeName, fields) ->
               let! fields =
                 Ply.List.mapSequentially
                   (fun (name, expr) ->
@@ -569,7 +569,7 @@ let partiallyEvaluate
                     })
                   fields
 
-              return ERecord(id, fields)
+              return ERecord(id, typeName, fields)
             | EConstructor (id, typeName, caseName, fields) ->
               let! fields = Ply.List.mapSequentially r fields
               return EConstructor(id, typeName, caseName, fields)

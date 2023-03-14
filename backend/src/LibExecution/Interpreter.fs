@@ -133,7 +133,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | Some other -> return other
 
 
-    | ERecord (id, pairs) ->
+    | ERecord (id, typeName, fields) ->
       return!
         Ply.List.foldSequentially
           (fun r (k, expr) ->
@@ -148,7 +148,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, v -> return r
             })
           (DObj(Map.empty))
-          pairs
+          fields
 
 
     | EApply (id, fnVal, exprs, inPipe) ->

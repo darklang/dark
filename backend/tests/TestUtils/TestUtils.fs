@@ -600,16 +600,20 @@ module Expect =
       | InPipe id, InPipe id' -> if checkIDs then check path id id'
       | _ -> check path inPipe inPipe'
 
-    | ERecord (_, pairs), ERecord (_, pairs') ->
+    | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+
       List.iter2
         (fun (k, v) (k', v') ->
           check path k k'
           eq (k :: path) v v')
-        pairs
-        pairs'
+        fields
+        fields'
+
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
       eq (f :: path) e e'
       check path f f'
+
     | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
       eq ("flagCond" :: path) cond cond'
       eq ("flagOld" :: path) old old'
@@ -621,6 +625,7 @@ module Expect =
       check path caseName caseName'
       eqList path fields fields'
       ()
+
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'

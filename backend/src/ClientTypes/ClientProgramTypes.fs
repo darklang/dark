@@ -88,7 +88,7 @@ type Expr =
   | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * List<string * Expr>
+  | ERecord of id * Option<UserTypeName> * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of
     id *

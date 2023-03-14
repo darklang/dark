@@ -354,13 +354,17 @@ let rec convertToExpr
     PT.EMatch(id, c cond, List.map convertClause clauses)
 
   | SynExpr.Record (_, _, fields, _) ->
-    fields
-    |> List.map (fun field ->
-      match field with
-      | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
-        (nameOrBlank name.idText, c expr)
-      | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
-    |> fun rows -> PT.ERecord(id, rows)
+    let fields =
+      fields
+      |> List.map (fun field ->
+        match field with
+        | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
+          (nameOrBlank name.idText, c expr)
+        | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
+
+    let typeName = None // TODO: determine the appropriate typeName based on the fields and types available
+
+    PT.ERecord(id, typeName, fields)
 
   | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
 

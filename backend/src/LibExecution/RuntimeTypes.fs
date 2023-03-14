@@ -142,7 +142,6 @@ type Expr =
   | EFloat of id * double
   | EUnit of id
 
-
   /// <summary>
   /// Composed of binding pattern, the expression to create bindings for,
   /// and the expression that follows, where the bound values are available
@@ -177,7 +176,7 @@ type Expr =
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * List<string * Expr>
+  | ERecord of id * Option<UserTypeName> * List<string * Expr>
   | EConstructor of
     id *
     Option<UserTypeName> *
@@ -316,7 +315,7 @@ and DType =
   // A named variable, eg `a` in `List<a>`
   | TVariable of string // replaces TAny
   | TFn of List<DType> * DType // replaces TLambda
-  | TRecord of List<string * DType>
+  | TRecord of List<string * DType> // TODO: remove in favor of TUserType (though, that'll be renamed)
 
   member this.isFn() : bool =
     match this with
@@ -371,7 +370,7 @@ module Expr =
     | EApply (id, _, _, _)
     | EList (id, _)
     | ETuple (id, _, _, _)
-    | ERecord (id, _)
+    | ERecord (id, _, _)
     | EFQFnValue (id, _)
     | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)

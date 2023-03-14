@@ -31,8 +31,8 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     ETuple(id, r first, r second, List.map r theRest)
   | EMatch (id, mexpr, pairs) ->
     EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
-  | ERecord (id, fields) ->
-    ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+  | ERecord (id, typeName, fields) ->
+    ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
   | EFeatureFlag (id, cond, casea, caseb) ->
     EFeatureFlag(id, r cond, r casea, r caseb)
   | EAnd (id, left, right) -> EAnd(id, r left, r right)
@@ -63,8 +63,8 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
       ETuple(id, r first, r second, List.map r theRest)
     | EMatch (id, mexpr, pairs) ->
       EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
-    | ERecord (id, fields) ->
-      ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
+    | ERecord (id, typeName, fields) ->
+      ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
     | EFeatureFlag (id, cond, casea, caseb) ->
       EFeatureFlag(id, r cond, r casea, r caseb)
     | EAnd (id, left, right) -> EAnd(id, r left, r right)

@@ -99,7 +99,7 @@ module RuntimeTypes =
         RT.EUnit(84718341UL),
         [ RT.EUnit(7167384UL) ]
       )
-      RT.ERecord(8167384UL, [ "a9df8", RT.EUnit(71631UL) ])
+      RT.ERecord(8167384UL, None, [ "a9df8", RT.EUnit(71631UL) ])
       RT.EConstructor(64617UL, None, "Just", [ RT.EUnit(8173UL) ])
       RT.EMatch(
         712743UL,
@@ -278,6 +278,7 @@ module ProgramTypes =
                         PT.LPVariable(7567123UL, "r"),
                         PT.ERecord(
                           109539183UL,
+                          None,
                           [ ("field",
                              PT.EPipe(
                                786862131UL,

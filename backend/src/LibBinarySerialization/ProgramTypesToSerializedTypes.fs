@@ -106,8 +106,8 @@ module Expr =
     | PT.EList (id, exprs) -> ST.EList(id, List.map toST exprs)
     | PT.ETuple (id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
-    | PT.ERecord (id, pairs) ->
-      ST.ERecord(id, List.map (Tuple2.mapSecond toST) pairs)
+    | PT.ERecord (id, typeName, fields) ->
+      ST.ERecord(id, Option.map UserTypeName.toST typeName, List.map (Tuple2.mapSecond toST) fields)
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, toST expr2, List.map toST rest)
     | PT.EConstructor (id, typeName, caseName, fields) ->
@@ -117,11 +117,11 @@ module Expr =
         caseName,
         List.map toST fields
       )
-    | PT.EMatch (id, mexpr, pairs) ->
+    | PT.EMatch (id, mexpr, cases) ->
       ST.EMatch(
         id,
         toST mexpr,
-        List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) pairs
+        List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
