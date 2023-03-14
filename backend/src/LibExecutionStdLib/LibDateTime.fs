@@ -17,13 +17,22 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   let culture = System.Globalization.CultureInfo.InvariantCulture
   let styles = System.Globalization.DateTimeStyles.AssumeUniversal
   let mutable (result : System.DateTime) = Unchecked.defaultof<System.DateTime>
-  if
-    not (s.Contains("GMT"))
-    && System.DateTime.TryParseExact(s, ISO8601Format, culture, styles, &result)
-  then
+  match s with
+  | date when date.Contains("GMT") -> Error()
+  | date when date.EndsWith('z') -> Error()
+  | date when
+    System.DateTime.TryParseExact
+      (
+        s,
+        ISO8601Format,
+        culture,
+        styles,
+        &result
+      )
+    ->
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
-  else
-    Error()
+  | _ -> Error()
+
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DateTime" "parse" 2
