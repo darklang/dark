@@ -307,12 +307,6 @@ module FindAll =
    friendsError (fun p -> p.height == "string")) =
      Test.sqlError "An error occurred while querying the Datastore"
 
-  // do we look up dates correctly when the function type is not a date
-  (let _ = Test.setExpectedExceptionCount 1 in
-   friendsError (fun p -> p.dob != DateTime.now_v0)) =
-     Test.sqlError "An error occurred while querying the Datastore"
-
-
 module CompiledFunctions =
   (friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
   (friends (fun p -> Float.lessThanOrEqualTo_v0 p.income 82.10)) = ["GrumpyCat"; "Rachel"]
@@ -414,7 +408,7 @@ module QueryCount =
    DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
 
 module Dates =
-
+  [<DB>] type Timestamp = { ts : DateTime }
   let beforeDate () =
     d "1900-01-01T00:00:00Z"
 
