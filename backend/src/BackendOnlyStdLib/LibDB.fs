@@ -336,48 +336,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // previously called DB::keys
-    { name = fn "DB" "schemaFields" 1
-      parameters = [ tableParam ]
-      returnType = TList varA
-      description = "Fetch all the fieldNames in <param table>"
-      fn =
-        (function
-        | state, [ DDB dbname ] ->
-          let db = state.program.dbs[dbname]
-
-          db.cols
-          |> List.filter (fun (k, _v) -> k <> "")
-          |> List.map (fun (k, _v) -> DStr k)
-          |> DList
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "schema" 1
-      parameters = [ tableParam ]
-      returnType = ocamlTObj
-      description =
-        "Returns a <type Dict> representing {{ { fieldName: fieldType } }} in <param table>"
-      fn =
-        (function
-        | state, [ DDB dbname ] ->
-          let db = state.program.dbs[dbname]
-
-          db.cols
-          |> List.filter (fun (k, _v) -> k <> "")
-          |> List.map (fun (k, v) -> (k, (v.toOldString () |> DStr)))
-          |> Dval.obj
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "DB" "generateKey" 0
       parameters = []
       returnType = TStr

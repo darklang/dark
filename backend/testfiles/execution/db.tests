@@ -54,14 +54,6 @@ module ValueMissingColumnGivesGoodError =
 
 
 
-module Schemas =
-  DB.schemaFields_v1 X = ["x"]
-  DB.schemaFields_v1 XY = ["x", "y"]
-  DB.schema_v1 X = { x = "Str" }
-  DB.schema_v1 SortedX = { x = "Str"; sortBy = "Int" }
-
-
-
 module SetDoesUpsert =
   (let old = DB.set_v1 { x = "hello" } "hello" X in
   let newval = DB.set_v1 { x = "goodbye" } "hello" X in
