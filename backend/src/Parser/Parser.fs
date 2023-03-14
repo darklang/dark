@@ -73,10 +73,10 @@ let parseFn (fnName : string) : string * int =
 
 
 let rec convertToExpr
-  (userTypes : List<PT.FQTypeName.UserTypeName * PT.UserType.Definition>)
+  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
   (ast : SynExpr)
   : PT.Expr =
-  let c = convertToExpr userTypes
+  let c = convertToExpr availableTypes
 
   let rec convertMatchPattern (pat : SynPat) : PT.MatchPattern =
     let id = gid ()
@@ -208,7 +208,7 @@ let rec convertToExpr
 
   | SynExpr.Ident name ->
     let matchingEnumCases =
-      userTypes
+      availableTypes
       |> List.choose (fun (typeName, typeDef) ->
         match typeDef with
         | PT.CustomType.Enum (firstCase, additionalCases) ->
@@ -220,7 +220,7 @@ let rec convertToExpr
 
     match matchingEnumCases with
     | [] -> PT.EVariable(id, name.idText)
-    | [ userTypeName ] ->
+    | [ typeName ] ->
       let fields =
         // The fields of an enum ctor are filled in later, since
         // the F# parser encodes callers with multiple args
@@ -230,7 +230,7 @@ let rec convertToExpr
         // this file for other cases of "EConstructor" to locate such.
         []
 
-      PT.EConstructor(id, Some(PT.FQTypeName.User userTypeName), name.idText, fields)
+      PT.EConstructor(id, Some typeName, name.idText, fields)
     | _ ->
       Exception.raiseInternal
         "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
@@ -467,8 +467,8 @@ let rec convertToExpr
 
 type Test = { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
 
-let convertToTest userTypes (ast : SynExpr) : Test =
-  let convert (x : SynExpr) : PT.Expr = convertToExpr userTypes x
+let convertToTest availableTypes (ast : SynExpr) : Test =
+  let convert (x : SynExpr) : PT.Expr = convertToExpr availableTypes x
 
   match ast with
   | SynExpr.App (_,
@@ -516,21 +516,28 @@ let parseTestFile (filename : string) : Module =
     checker.ParseFile(fsharpFilename, Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
-  // TODO: support user-defined types that aren't the 0th
-  // version of the type
-  let matchingUserTypes
-    (userTypes : List<PT.FQTypeName.UserTypeName * PT.UserType.Definition>)
+  // TODO: support custom types that aren't the 0th version of the type
+  // TODO: figure out how to handle conflicts:
+  // - in type names
+  // - in enum case names
+  // - (probably) in collisions where multiple record types have the same shape/fields
+  // (the latter 2 bullets here belong somewhere else)
+  let matchingCustomTypes
+    // TODO: we don't used the defs here - just the names
+    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (nameOfType : string)
-    =
-    userTypes
-    |> List.map (fun (typeName, _def) -> typeName)
-    |> List.filter (fun typeName -> typeName.typ = nameOfType)
+    : List<PT.FQTypeName.T> =
+    availableTypes
+    |> List.choose (fun (typeName, _def) ->
+      match typeName with
+      | PT.FQTypeName.User u -> if u.typ = nameOfType then Some typeName else None)
 
   let rec convertType
-    (userTypes : List<PT.FQTypeName.UserTypeName * PT.UserType.Definition>)
+    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (typ : SynType)
     : PT.DType =
-    let c = convertType userTypes
+    let c = convertType availableTypes
+
     match typ with
     | SynType.App (SynType.LongIdent (SynLongIdent ([ ident ], _, _)),
                    _,
@@ -539,10 +546,10 @@ let parseTestFile (filename : string) : Module =
                    _,
                    _,
                    _) ->
-      match ident.idText, matchingUserTypes userTypes ident.idText, args with
+      match ident.idText, matchingCustomTypes availableTypes ident.idText, args with
       | "List", _, [ arg ] -> PT.TList(c arg)
       | "Option", _, [ arg ] -> PT.TOption(c arg)
-      | _, [ typeName ], _ -> PT.TCustomType(PT.FQTypeName.User typeName)
+      | _, [ typeName ], _ -> PT.TCustomType typeName
       | _ ->
         Exception.raiseInternal
           $"Unsupported type (outer)"
@@ -564,59 +571,59 @@ let parseTestFile (filename : string) : Module =
       | "unit" -> PT.TUnit
       | "Password" -> PT.TPassword
       | _ ->
-        match matchingUserTypes userTypes ident.idText with
-        | [ matched ] -> PT.TCustomType(PT.FQTypeName.User matched)
+        match matchingCustomTypes availableTypes ident.idText with
+        | [ matched ] -> PT.TCustomType matched
         | _ ->
           Exception.raiseInternal
             $"Unsupported type"
             [ "name", ident.idText; "type", typ; "range", ident.idRange ]
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
-  let rec parseArgPat userTypes (pat : SynPat) : PT.UserFunction.Parameter =
+  let rec parseArgPat availableTypes (pat : SynPat) : PT.UserFunction.Parameter =
     match pat with
-    | SynPat.Paren (pat, _) -> parseArgPat userTypes pat
+    | SynPat.Paren (pat, _) -> parseArgPat availableTypes pat
     | SynPat.Const (SynConst.Unit, _) ->
       { id = gid (); name = "unit"; typ = PT.TUnit; description = "" }
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
       { id = gid ()
         name = id.idText
-        typ = convertType userTypes typ
+        typ = convertType availableTypes typ
         description = "" }
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let parseSignature
-    userTypes
+    availableTypes
     (pat : SynPat)
     : string * List<PT.UserFunction.Parameter> =
     match pat with
     | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, _, argPats, _, _) ->
       let parameters =
         match argPats with
-        | SynArgPats.Pats pats -> List.map (parseArgPat userTypes) pats
+        | SynArgPats.Pats pats -> List.map (parseArgPat availableTypes) pats
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
       (name.idText, parameters)
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
-  let parseBinding userTypes (binding : SynBinding) : PT.UserFunction.T =
+  let parseBinding availableTypes (binding : SynBinding) : PT.UserFunction.T =
     match binding with
     // CLEANUP returnInfo
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) as x ->
-      let (name, parameters) = parseSignature userTypes pat
+      let (name, parameters) = parseSignature availableTypes pat
       { tlid = gid ()
         name = name
         parameters = parameters
         returnType = PT.TVariable "a"
         description = ""
         infix = false
-        body = convertToExpr userTypes expr }
+        body = convertToExpr availableTypes expr }
 
   let parsePackageFn
     ((p1, p2, p3) : string * string * string)
     (binding : SynBinding)
     : PT.Package.Fn =
-    let userTypes = [] // eventually, we'll likely need custom types supported here
-    let userFn = parseBinding userTypes binding
+    let availableTypes = [] // eventually, we'll likely need package types supported here
+    let userFn = parseBinding availableTypes binding
     { name =
         { owner = p1
           package = p2
@@ -636,32 +643,38 @@ let parseTestFile (filename : string) : Module =
 
 
   let parseUserRecordTypeField
-    userTypes
+    availableTypes
     (field : SynField)
     : PT.CustomType.RecordField =
     match field with
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-      { id = gid (); name = id.idText; typ = convertType userTypes typ }
+      { id = gid (); name = id.idText; typ = convertType availableTypes typ }
     | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
-  let parseUserEnumTypeField userTypes (typ : SynField) : PT.CustomType.EnumField =
+  let parseUserEnumTypeField
+    availableTypes
+    (typ : SynField)
+    : PT.CustomType.EnumField =
     match typ with
     | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
       { id = gid ()
-        typ = convertType userTypes typ
+        typ = convertType availableTypes typ
         label = fieldName |> Option.map (fun id -> id.idText) }
 
-  let parseUserEnumTypeCase userTypes (case : SynUnionCase) : PT.CustomType.EnumCase =
+  let parseUserEnumTypeCase
+    availableTypes
+    (case : SynUnionCase)
+    : PT.CustomType.EnumCase =
     match case with
     | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
       match typ with
       | SynUnionCaseKind.Fields fields ->
         { id = gid ()
           name = id.idText
-          fields = List.map (parseUserEnumTypeField userTypes) fields }
+          fields = List.map (parseUserEnumTypeField availableTypes) fields }
       | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
-  let parseType userTypes (typeDef : SynTypeDefn) : PT.UserType.T =
+  let parseType availableTypes (typeDef : SynTypeDefn) : PT.UserType.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -677,7 +690,7 @@ let parseTestFile (filename : string) : Module =
           $"Unsupported record type with no fields"
           [ "typeDef", typeDef ]
       | firstField :: additionalFields ->
-        let parseField = parseUserRecordTypeField userTypes
+        let parseField = parseUserRecordTypeField availableTypes
 
         { tlid = gid ()
           name = { typ = id.idText; version = 0 }
@@ -694,7 +707,7 @@ let parseTestFile (filename : string) : Module =
                    _,
                    _,
                    _) ->
-      let parseCase = parseUserEnumTypeCase userTypes
+      let parseCase = parseUserEnumTypeCase availableTypes
       { tlid = gid ()
         name = { typ = id.idText; version = 0 }
         definition =
@@ -710,18 +723,17 @@ let parseTestFile (filename : string) : Module =
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
-  let parseDBSchemaField userTypes (field : SynField) : PT.DB.Col =
+  let parseDBSchemaField availableTypes (field : SynField) : PT.DB.Col =
     match field with
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
       { name = Some(id.idText) // CLEANUP
         nameID = gid ()
-        typ = Some(convertType userTypes typ)
+        typ = Some(convertType availableTypes typ)
         typeID = gid () }
     | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
 
 
-
-  let parseDB userTypes (typeDef : SynTypeDefn) : PT.DB.T =
+  let parseDB availableTypes (typeDef : SynTypeDefn) : PT.DB.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -734,12 +746,12 @@ let parseTestFile (filename : string) : Module =
         name = id.idText
         nameID = gid ()
         version = 0
-        cols = List.map (parseDBSchemaField userTypes) fields }
+        cols = List.map (parseDBSchemaField availableTypes) fields }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
   let parseTypeDecl
-    userTypes
+    availableTypes
     (typeDef : SynTypeDefn)
     : List<PT.DB.T> * List<PT.UserType.T> =
     match typeDef with
@@ -750,9 +762,9 @@ let parseTestFile (filename : string) : Module =
         |> List.exists (fun attr ->
           longIdentToList attr.TypeName.LongIdent = [ "DB" ])
       if isDB then
-        [ parseDB userTypes typeDef ], []
+        [ parseDB availableTypes typeDef ], []
       else
-        [], [ parseType userTypes typeDef ]
+        [], [ parseType availableTypes typeDef ]
 
   let getPackage (attrs : SynAttributes) : Option<string * string * string> =
     attrs
@@ -793,7 +805,10 @@ let parseTestFile (filename : string) : Module =
         tests = [] }
       (fun m decl ->
         let availableTypes =
-          (m.types @ parent.types) |> List.map (fun t -> t.name, t.definition)
+          // these are currently just _user_ types
+          // TODO support other (stdlib, package) types as well
+          (m.types @ parent.types)
+          |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
 
         match decl with
         | SynModuleDecl.Let (_, bindings, _) ->
@@ -861,11 +876,11 @@ let parseTestFile (filename : string) : Module =
       [ "parseTree", results.ParseTree; "input", input; "filename", filename ]
 
 
-let parsePTExprWithTypes userTypes (code : string) : PT.Expr =
-  code |> parse |> convertToExpr userTypes
+let parsePTExprWithTypes availableTypes (code : string) : PT.Expr =
+  code |> parse |> convertToExpr availableTypes
 
-let parseRTExprWithTypes userTypes (code : string) : RT.Expr =
-  parsePTExprWithTypes userTypes code
+let parseRTExprWithTypes availableTypes (code : string) : RT.Expr =
+  parsePTExprWithTypes availableTypes code
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
 let parsePTExpr = parsePTExprWithTypes []
