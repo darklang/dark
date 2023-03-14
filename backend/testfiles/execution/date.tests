@@ -11,6 +11,11 @@ module DateParsing =
 // Parse in both
 p "2018-09-24T18:01:24Z" = Ok "2018-09-24T18:01:24Z"
 
+
+// Lowercase `z` aren't allowed
+p "2023-09-23T18:01:24z" = Error "Invalid date format"
+
+
 // Time zones aren't allowed
 p "2000-11-22 09:10:15z" = Error "Invalid date format" // special cased in F#
 p "2008-09-15T09:30:41GMT" = Error "Invalid date format" // special cased in F#
