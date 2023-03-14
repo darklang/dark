@@ -145,11 +145,11 @@ CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
-( id SERIAL PRIMARY KEY,
-, rule_type scheduling_rule_type NOT NULL,
-, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL,
-, handler_name TEXT NOT NULL,
-, event_space TEXT NOT NULL,
+( id SERIAL PRIMARY KEY
+, rule_type scheduling_rule_type NOT NULL
+, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+, handler_name TEXT NOT NULL
+, event_space TEXT NOT NULL
 , created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
