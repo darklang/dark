@@ -501,6 +501,7 @@ let parseTestFile (filename : string) : Module =
       | "float" -> PT.TFloat
       | "DateTime" -> PT.TDateTime
       | "UUID" -> PT.TUuid
+      | "unit" -> PT.TUnit
       | "Password" -> PT.TPassword
       | _ ->
         Exception.raiseInternal

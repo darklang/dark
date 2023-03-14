@@ -89,6 +89,7 @@ let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only
   // TODO: should allow hyphen?
+  // CLEANUP: error on bad field name
   System.Text.RegularExpressions.Regex.Replace(str, "[^a-zA-Z0-9_]", "")
 
 
