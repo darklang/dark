@@ -23,7 +23,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   | date when
     System.DateTime.TryParseExact
       (
-        s,
+        date,
         ISO8601Format,
         culture,
         styles,
