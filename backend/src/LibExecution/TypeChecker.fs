@@ -99,20 +99,39 @@ let rec unify
   | TOption _, DOption _ -> Ok()
   | TResult _, DResult _ -> Ok()
   | TRecord _, DObj _ -> Ok()
-  // TODO: don't we also need TCustomType, DConstructor?
-  | TCustomType typeName, DObj dmap ->
+
+  | TCustomType typeName, value ->
     match Map.tryFind typeName availableTypes with
     | None -> Error [ TypeLookupFailure typeName ]
     | Some ut ->
-      match ut with
-      | CustomType.Record (firstField, additionalFields) ->
+      // TODO: review usages; consider better error reporting
+      let err =
+        Error [ TypeUnificationFailure
+                  { expectedType = expected; actualValue = value } ]
+
+      match ut, value with
+      | CustomType.Record (firstField, additionalFields), DObj dmap ->
         unifyUserRecordWithDvalMap
           availableTypes
           (firstField :: additionalFields)
           dmap
-      | CustomType.Enum _ ->
-        Error [ TypeUnificationFailure
-                  { expectedType = expected; actualValue = value } ]
+      | CustomType.Enum (firstCase, additionalCases),
+        DConstructor (typeName, caseName, valFields) ->
+        let matchingCase : Option<CustomType.EnumCase> =
+          firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
+
+        match matchingCase with
+        | None -> err
+        | Some case ->
+          if List.length case.fields = List.length valFields then
+            List.zip case.fields valFields
+            |> List.map (fun (expected, actual) ->
+              unify availableTypes expected.typ actual)
+            |> combineErrorsUnit
+            |> Result.mapError List.concat
+          else
+            err
+      | _, _ -> err
 
   // TODO: support Tuple type-checking.
   // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
@@ -134,9 +153,8 @@ and unifyUserRecordWithDvalMap
 
   let definitionNames = completeDefinition |> Map.keys |> Set.ofList
   let objNames = value |> Map.keys |> Set.ofList
-  let sameNames = definitionNames = objNames in
 
-  if sameNames then
+  if definitionNames = objNames then
     value
     |> Map.toList
     |> List.map (fun (key, data) ->

@@ -84,6 +84,15 @@ module UserEnums =
   (D(A) == D(A)) = true
 
 
+  // TODO: The typechecker has been adjusted to handle this,
+  //       but the type checker isn't yet integrated into the interpreter fully
+  // Type errors are reported when an enum ctor is used with an incorrect # of fields
+  //type EnumWithASingleCaseOfTwoFields = | HasTwoFields of a: int * b: int
+  //
+  //(HasTwoFields 1 2) = HasTwoFields 1 2
+  //HasTwoFields 1 = Test.typeError "Enum ctor HasTwoFields expects 2 fields, but was given 1"
+
+
   // TODO: support recursively-defined UserEnums
 
 

@@ -239,7 +239,7 @@ and Dval =
   // compound types
   | DList of List<Dval>
   | DTuple of Dval * Dval * List<Dval>
-  | DObj of DvalMap
+
   | DFnVal of FnValImpl
 
   /// Represents something that shouldn't have happened in the engine,
@@ -281,22 +281,30 @@ and Dval =
   /// </remarks>
   | DIncomplete of DvalSource
 
-  // user types: awaiting a better type system
-  | DHttpResponse of int64 * List<string * string> * Dval
   | DDB of string
   | DDateTime of DarkDateTime.T
   | DPassword of Password
   | DUuid of System.Guid
-  | DOption of Option<Dval>
-  | DResult of Result<Dval, Dval>
   | DBytes of byte array
 
-  // TODO: merge DOption and DResult into DConstructor
+  // TODO: remove DHttpResponse eventually - this should really just be a DRecord
+  // of a type that is defined in the standard library (http module)
+  | DHttpResponse of int64 * List<string * string> * Dval
+
+  // TODO: replace with something like
+  // `| DObj of FQTypeName.T * DvalMap`
+  | DObj of DvalMap
+
+  // TODO: merge DOption and DResult into DConstructor once the Option and Result types
+  // are defined in the Option and Result modules of the standard library
+  | DOption of Option<Dval>
+  | DResult of Result<Dval, Dval>
 
   // TODO: I'm not a big fan of the term DConstructor because this is a _value_
   //   the enum has already been "Constructed"
   //   that's why I was leaning towards something like DEnumValue - it's a value, not a tool to be used to construct
   | DConstructor of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
+
 
 and DvalTask = Ply<Dval>
 
