@@ -1,8 +1,5 @@
 module LibExecutionStdLib.LibDateTime
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open LibExecution.RuntimeTypes
 open Prelude
 
@@ -12,101 +9,43 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
-let product lists =
-  let folder list state = state |> Seq.allPairs list |> Seq.map List.Cons
-  Seq.singleton List.empty |> List.foldBack folder lists
 
-let ocamlDateTimeFormats : array<string> =
-  // List of Instant custom formats intented to exactly match the behaviour of OCaml Core.Time.of_string.
-  // https://github.com/janestreet/core/blob/b0be1daa71b662bd38ef2bb406f7b3e70d63d05f/core/src/time.ml#L398
-  // I looked at every permutation of separators and optional fields to match it
-  // exactly. We generate about 600 different patterns.
+let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"
 
-  // All the different variations
-  let dateFieldSeparators = [ " "; "-"; "" ]
-  let dateTimeSeparator = [ "T"; " "; "" ]
-  let timeSeparator = [ ":"; "" ]
-  let millisecondFormat =
-    // Support up to 7-digits of sub-second precision
-    [ ""; ".f"; ".ff"; ".fff"; ".ffff"; ".fffff"; ".ffffff"; ".fffffff" ]
-  let seconds = [ "ss"; "" ]
-  let meridians = [ "tt"; "" ] // am or pm
-  let tzSuffixes = [ "zzz"; "Z"; "" ] // +01:30 or just 'Z'
+let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
 
-  // Cartesian product
-  [ dateFieldSeparators
-    dateTimeSeparator
-    timeSeparator
-    seconds
-    meridians
-    millisecondFormat
-    tzSuffixes ]
-  |> product
-  |> Seq.map (fun parts ->
-    match parts with
-    | [ dfs; dts; ts; ss; tt; msf; tzs ] ->
-      // Dont use a time separator for seconds if there are no seconds
-      let ss = if ss = "" then "" else ts + ss
+  let culture = System.Globalization.CultureInfo.InvariantCulture
+  let styles = System.Globalization.DateTimeStyles.AssumeUniversal
+  let mutable (result : System.DateTime) = Unchecked.defaultof<System.DateTime>
+  match s with
+  | date when date.Contains("GMT") -> Error()
+  | date when date.EndsWith('z') -> Error()
+  | date when
+    System.DateTime.TryParseExact
+      (
+        date,
+        ISO8601Format,
+        culture,
+        styles,
+        &result
+      )
+    ->
+    Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
+  | _ -> Error()
 
-      // AM/PM requires the 12-hour hour format, but otherwise we support 24 hour
-      let hh = if tt = "" then "HH" else "hh"
-
-      // Don't allow milliseconds if no seconds
-      let msf = if ss = "" then "" else msf
-
-      $"yyyy{dfs}MM{dfs}dd{dts}{hh}{ts}mm{ss}{msf}{tt}{tzs}"
-    | _ -> Exception.raiseInternal "ocamlDateTimeFormats is wrong shape" [])
-  |> Set.ofSeq // remove dups
-  |> Set.toArray
-  |> (fun allFormats ->
-    let mostCommon =
-      [|
-         // Do the most common ones first
-         "yyyy-MM-ddTHH:mm:ssZ"
-         "yyyy-MM-ddTHH:mm:ss"
-         "yyyy-MM-dd HH:mm:ssZ"
-         "yyyy-MM-dd HH:mm:ss"
-         "yyyy MM dd HH:mm:ssZ"
-         "yyyy MM dd HH:mm:ss" |]
-    Array.append mostCommon allFormats)
-// |> debugBy "formats" (String.concat "\n  ")
-
-// CLEANUP The Date parser was OCaml's Core.Time.of_string, which supported an awful
-// lot of use cases. Our docs say that we only want to support the format
-// "yyyy-MM-ddTHH:mm:ssZ", so add a new version that only supports that format.
-let ocamlCompatibleDateParser (s : string) : Result<DarkDateTime.T, unit> =
-  if s.EndsWith('z') || s.Contains("GMT") then
-    Error()
-  else
-    let culture = System.Globalization.CultureInfo.InvariantCulture
-    let styles = System.Globalization.DateTimeStyles.AssumeUniversal
-    let mutable (result : System.DateTime) = Unchecked.defaultof<System.DateTime>
-    if
-      System.DateTime.TryParseExact
-        (
-          s,
-          ocamlDateTimeFormats,
-          culture,
-          styles,
-          &result
-        )
-    then
-      // print $"SUCCESS parsed {s}"
-      Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
-    else
-      // print $"              failed to parse {s}"
-      Error()
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DateTime" "parse" 2
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TDateTime, TStr)
       description =
-        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}."
+        "Parses a string representing a date and time in the ISO 8601 format exactly {{"
+        + ISO8601Format
+        + "}} (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}."
       fn =
         (function
         | _, [ DStr s ] ->
-          ocamlCompatibleDateParser s
+          ISO8601DateParser s
           |> Result.map DDateTime
           |> Result.mapError (fun () -> DStr "Invalid date format")
           |> DResult
