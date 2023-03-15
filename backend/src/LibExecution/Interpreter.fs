@@ -801,7 +801,7 @@ and execFn
             // For now, always store these results
             state.tracing.storeFnResult fnRecord arglist result
 
-            return result |> typeErrorOrValue state.program.userTypes
+            return result |> typeErrorOrValue state.program.allTypes
 
           | Error errs ->
             return
@@ -811,7 +811,7 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
         | UserFunction (tlid, body) ->
-          match TypeChecker.checkFunctionCall state.program.userTypes fn args with
+          match TypeChecker.checkFunctionCall state.program.allTypes fn args with
           | Ok () ->
             state.tracing.traceTLID tlid
             // Don't execute user functions if it's preview mode and we have a result
@@ -828,7 +828,7 @@ and execFn
               let! result = eval state argsWithGlobals body
               state.tracing.storeFnResult fnRecord arglist result
 
-              return result |> typeErrorOrValue state.program.userTypes
+              return result |> typeErrorOrValue state.program.allTypes
           | Error errs ->
             return
               DError(

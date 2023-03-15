@@ -87,13 +87,6 @@ module UserEnums =
   // TODO: support recursively-defined UserEnums
 
 
-  // TODO: support enum deconstruction in `match` exprs
-  //
-  //(let cards = [W; X "test"; Y(5); Z("test2", 2)]
-  // match List.getAt_v1 cards 3 with
-  // | Just (Z(str, _num)) -> Ok (Tuple2.first z)
-  // | Nothing -> Error "Failure") = Ok "test2"
-
 
 
 

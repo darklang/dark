@@ -10,10 +10,11 @@ module FQTypeName =
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
-  // TODO:
-  // | Stdlib of StdlibTypeName
-  // | Package of PackageTypeName
-  type T = User of UserTypeName
+  type T =
+    // TODO:
+    // | Stdlib of StdlibTypeName
+    // | Package of PackageTypeName
+    | User of UserTypeName
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
@@ -104,6 +105,8 @@ type LetPattern = LPVariable of id * name : string
 /// Used for pattern matching in a match statement
 type MatchPattern =
   | MPVariable of id * string
+  // TODO: do we need typeName here for anything?
+  // feels like it could ensure extra type-safety, but also maybe excessive.
   | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
@@ -204,12 +207,10 @@ type Expr =
     caseA : Expr *
     caseB : Expr
 
-
-
-
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
+
 
 /// Darklang's available types
 /// - `int`
@@ -233,15 +234,28 @@ type DType =
   | TChar
   | TPassword
   | TUuid
-  | TOption of DType
-  | TCustomType of FQTypeName.T
   | TBytes
-  | TResult of DType * DType
   // A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string // replaces TAny
   | TFn of List<DType> * DType // replaces TLambda
-  | TRecord of List<string * DType>
+
   | TDbList of DType // TODO: cleanup and remove
+
+  // TODO: needs a `* genArgs: List<DType>` to support generic custom types
+  // e.g. Option<T>  would be represented as `TCustomType("Option", [TInt])`
+  // e.g. Result<T, E> would be represented as `TCustomType("Result", [TInt, TStr])`
+  | TCustomType of FQTypeName.T
+
+  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
+  // and the Option module defines the custom `Option` type
+  | TOption of DType
+
+  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
+  // and the Result module defines the custom `Result` type
+  | TResult of DType * DType
+
+  // TODO: remove in favor of `TCustomType` referring to defined `CustomType.Record`s
+  | TRecord of List<string * DType>
 
 /// A type defined by a standard library module, a canvas/user, or a package
 module CustomType =

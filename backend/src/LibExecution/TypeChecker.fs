@@ -24,13 +24,13 @@ module Error =
       actualFields : Set<string> }
 
   type T =
-    | TypeLookupFailure of FQTypeName.UserTypeName
+    | TypeLookupFailure of FQTypeName.T
     | TypeUnificationFailure of UnificationError
     | MismatchedRecordFields of MismatchedFields
 
     override this.ToString() : string =
       match this with
-      | TypeLookupFailure typeName ->
+      | TypeLookupFailure (FQTypeName.User typeName) ->
         let lookupString = $"({typeName.typ}, v{typeName.version})"
         $"Type {lookupString} could not be found on the canvas"
       | TypeUnificationFailure uf ->
@@ -67,12 +67,12 @@ module Error =
 open Error
 
 let rec unify
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (expected : DType)
   (value : Dval)
   : Result<unit, List<Error.T>> =
   match (expected, value) with
-  // Any should be removed, but we currently allow it as a param tipe
+  // Any should be removed, but we currently allow it as a param type
   // in user functions, so we should allow it here.
   //
   // Potentially needs to be removed before we use this type checker for DBs?
@@ -84,42 +84,45 @@ let rec unify
   | TUnit, DUnit -> Ok()
   | TStr, DStr _ -> Ok()
   | TList _, DList _ -> Ok()
-  // TODO: support Tuple type-checking.
-  // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
   | TDateTime, DDateTime _ -> Ok()
   | TDict _, DObj _ -> Ok()
-  | TRecord _, DObj _ -> Ok()
   | TFn _, DFnVal _ -> Ok()
   | TPassword, DPassword _ -> Ok()
   | TUuid, DUuid _ -> Ok()
-  | TOption _, DOption _ -> Ok()
-  | TResult _, DResult _ -> Ok()
   | TChar, DChar _ -> Ok()
   | TDB _, DDB _ -> Ok()
   | THttpResponse _, DHttpResponse _ -> Ok()
   | TBytes, DBytes _ -> Ok()
+
+  // TODO: fold these cases all into TCustomType,
+  // and type-check the generic type args.
+  | TOption _, DOption _ -> Ok()
+  | TResult _, DResult _ -> Ok()
+  | TRecord _, DObj _ -> Ok()
+  // TODO: don't we also need TCustomType, DConstructor?
   | TCustomType typeName, DObj dmap ->
-    match typeName with
-    | FQTypeName.User typeName ->
-      (match Map.tryFind typeName userTypes with
-       | None -> Error [ TypeLookupFailure typeName ]
-       | Some ut ->
-         (match ut.definition with
-          | CustomType.Record (firstField, additionalFields) ->
-            unifyUserRecordWithDvalMap
-              userTypes
-              (firstField :: additionalFields)
-              dmap
-          | CustomType.Enum _ ->
-            Error [ TypeUnificationFailure
-                      { expectedType = expected; actualValue = value } ]))
+    match Map.tryFind typeName availableTypes with
+    | None -> Error [ TypeLookupFailure typeName ]
+    | Some ut ->
+      match ut with
+      | CustomType.Record (firstField, additionalFields) ->
+        unifyUserRecordWithDvalMap
+          availableTypes
+          (firstField :: additionalFields)
+          dmap
+      | CustomType.Enum _ ->
+        Error [ TypeUnificationFailure
+                  { expectedType = expected; actualValue = value } ]
+
+  // TODO: support Tuple type-checking.
+  // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
   | expectedType, actualValue ->
     Error [ TypeUnificationFailure
               { expectedType = expectedType; actualValue = actualValue } ]
 
 
 and unifyUserRecordWithDvalMap
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (definition : List<CustomType.RecordField>)
   (value : DvalMap)
   : Result<unit, List<Error.T>> =
@@ -138,7 +141,7 @@ and unifyUserRecordWithDvalMap
     |> Map.toList
     |> List.map (fun (key, data) ->
       unify
-        userTypes
+        availableTypes
         (Map.get key completeDefinition
          |> Exception.unwrapOptionInternal
               "field name missing from type"
@@ -152,7 +155,7 @@ and unifyUserRecordWithDvalMap
 
 
 let checkFunctionCall
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (fn : Fn)
   (args : DvalMap)
   : Result<unit, List<Error.T>> =
@@ -172,14 +175,14 @@ let checkFunctionCall
       args
 
   withParams
-  |> List.map (fun (param, value) -> unify userTypes param.typ value)
+  |> List.map (fun (param, value) -> unify availableTypes param.typ value)
   |> combineErrorsUnit
   |> Result.mapError List.concat
 
 
 let checkFunctionReturnType
-  (userTypes : Map<FQTypeName.UserTypeName, UserType.T>)
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (fn : Fn)
   (result : Dval)
   : Result<unit, Error.T list> =
-  unify userTypes fn.returnType result
+  unify availableTypes fn.returnType result

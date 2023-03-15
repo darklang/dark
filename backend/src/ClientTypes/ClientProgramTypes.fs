@@ -18,9 +18,6 @@ module FQTypeName =
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
-  // TODO:
-  // | Stdlib of StdlibTypeName
-  // | Package of PackageTypeName
   type T = User of UserTypeName
 
 module FQFnName =
@@ -59,8 +56,6 @@ type LetPattern = LPVariable of id * name : string
 
 type MatchPattern =
   | MPVariable of id * string
-  // TODO: do we need typeNme here for anything?
-  // feels like it could ensure extra type-safety, but also maybe excessive.
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
@@ -69,7 +64,6 @@ type MatchPattern =
   | MPFloat of id * Sign * string * string
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
 
 type BinaryOperation =
   | BinOpAnd

@@ -8,16 +8,13 @@ module ClientTypes.Runtime
 open Prelude
 open Tablecloth
 
-
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
-  // TODO:
-  // | Stdlib of StdlibTypeName
-  // | Package of PackageTypeName
   type T = User of UserTypeName
+
 
 module FQFnName =
   type UserFnName = string
@@ -62,7 +59,9 @@ type DType =
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
 
+
 type LetPattern = LPVariable of id * name : string
+
 
 type MatchPattern =
   | MPVariable of id * string
@@ -74,6 +73,7 @@ type MatchPattern =
   | MPFloat of id * double
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
 
 module Expr =
   type T =

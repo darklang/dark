@@ -28,9 +28,6 @@ module FormatV0 =
     /// A type written by a Developer in their canvas
     type UserTypeName = { typ : string; version : int }
 
-    // TODO:
-    // | Stdlib of StdlibTypeName
-    // | Package of PackageTypeName
     type T = User of UserTypeName
 
   type DvalMap = Map<string, Dval>
@@ -120,7 +117,7 @@ module FormatV0 =
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DConstructor _ -> DUnit // TODO why?
+    | RT.DConstructor _ -> DUnit // TODO revisit
 
 
 let toJsonV0 (dv : RT.Dval) : string =

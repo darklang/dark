@@ -57,9 +57,6 @@ module FQTypeName =
       [<MessagePack.Key 1>]
       version : int }
 
-  // TODO:
-  // | Stdlib of StdlibTypeName
-  // | Package of PackageTypeName
   [<MessagePack.MessagePackObject>]
   type T = User of UserTypeName
 

@@ -290,7 +290,12 @@ and Dval =
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
   | DBytes of byte array
+
   // TODO: merge DOption and DResult into DConstructor
+
+  // TODO: I'm not a big fan of the term DConstructor because this is a _value_
+  //   the enum has already been "Constructed"
+  //   that's why I was leaning towards something like DEnumValue - it's a value, not a tool to be used to construct
   | DConstructor of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
 
 and DvalTask = Ply<Dval>
@@ -861,6 +866,19 @@ and ProgramContext =
     userFns : Map<string, UserFunction.T>
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
+
+  // TODO remove this, probably?
+  // this is theoretically prepared for stdlibTypes and packageTypes to exist
+  // I'm not sure how else to handle this, but this likely isn't ideal
+  // TODO: at the _very_ least, review all usages - consider if we should treat each case special in any way
+  member this.allTypes : Map<FQTypeName.T, CustomType.T> =
+    this.userTypes
+    // TODO: I'd normally use F#'s native "Map.map"
+    // but we've overwritten that such that this turns out ugly
+    // Is there a better way to do this, even with the overwriting?
+    |> Map.toList
+    |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
+    |> Map
 
 /// Set of callbacks used to trace the interpreter
 and Tracing =
