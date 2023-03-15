@@ -10,11 +10,16 @@ module FQTypeName =
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
+  /// if we come up with a better name for this, that'd be great
+  /// ideas: Source
   type T =
     // TODO:
     // | Stdlib of StdlibTypeName
     // | Package of PackageTypeName
     | User of UserTypeName
+
+
+
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
@@ -180,7 +185,13 @@ type Expr =
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
   | EConstructor of
     id *
+
     Option<FQTypeName.T> *  // TODO: this shouldn't be an Option
+
+    // we need something (either on this line or as part of the previous)
+    // to represent the generic type parameters of the defined type referenced.
+    // or do we? maybe not,
+
     caseName : string *
     fields : List<Expr>
 
@@ -241,10 +252,11 @@ type DType =
 
   | TDbList of DType // TODO: cleanup and remove
 
-  // TODO: needs a `* genArgs: List<DType>` to support generic custom types
-  // e.g. Option<T>  would be represented as `TCustomType("Option", [TInt])`
-  // e.g. Result<T, E> would be represented as `TCustomType("Result", [TInt, TStr])`
-  | TCustomType of FQTypeName.T
+
+  /// A type defined by a standard library module, a canvas/user, or a package
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// `genArgs` is the list of type arguments, if any
+  | TCustomType of FQTypeName.T * genArgs : List<DType>
 
   // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
   // and the Option module defines the custom `Option` type
@@ -257,6 +269,10 @@ type DType =
   // TODO: remove in favor of `TCustomType` referring to defined `CustomType.Record`s
   | TRecord of List<string * DType>
 
+
+
+
+
 /// A type defined by a standard library module, a canvas/user, or a package
 module CustomType =
   type RecordField = { id : id; name : string; typ : DType }
@@ -265,6 +281,8 @@ module CustomType =
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type T =
+    // Hmm maybe this need to have some 'variables' (type args) embedded somewhere
+    // or we have some separate context for the fully realized versions of these?
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 

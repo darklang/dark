@@ -90,7 +90,8 @@ module DType =
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
     | RT.TOption t -> TOption(r t)
-    | RT.TCustomType typeName -> TCustomType(FQTypeName.toCT typeName)
+    | RT.TCustomType (typeName, argTypes) ->
+      TCustomType(FQTypeName.toCT typeName, List.map r argTypes)
     | RT.TBytes -> TBytes
     | RT.TResult (ok, error) -> TResult(r ok, r error)
     | RT.TVariable (name) -> TVariable(name)
@@ -119,7 +120,8 @@ module DType =
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid
     | TOption t -> RT.TOption(r t)
-    | TCustomType t -> RT.TCustomType(FQTypeName.fromCT t)
+    | TCustomType (t, argTypes) ->
+      RT.TCustomType(FQTypeName.fromCT t, List.map r argTypes)
     | TBytes -> RT.TBytes
     | TResult (ok, error) -> RT.TResult(r ok, r error)
     | TVariable (name) -> RT.TVariable(name)

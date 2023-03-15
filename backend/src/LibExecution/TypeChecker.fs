@@ -100,7 +100,7 @@ let rec unify
   | TResult _, DResult _ -> Ok()
   | TRecord _, DObj _ -> Ok()
 
-  | TCustomType typeName, value ->
+  | TCustomType (typeName, argTypes), value ->
     match Map.tryFind typeName availableTypes with
     | None -> Error [ TypeLookupFailure typeName ]
     | Some ut ->

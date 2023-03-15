@@ -189,7 +189,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TCustomType of FQTypeName.T
+  | TCustomType of FQTypeName.T * genArgs : List<DType>
   | TBytes
   | TResult of DType * DType
   | TVariable of string

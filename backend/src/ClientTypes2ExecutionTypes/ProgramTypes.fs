@@ -300,7 +300,8 @@ module DType =
     | CTPT.DType.TPassword -> PT.TPassword
     | CTPT.DType.TUuid -> PT.TUuid
     | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
-    | CTPT.DType.TCustomType t -> PT.TCustomType(FQTypeName.fromCT t)
+    | CTPT.DType.TCustomType (t, argTypes) ->
+      PT.TCustomType(FQTypeName.fromCT t, List.map fromCT argTypes)
     | CTPT.DType.TBytes -> PT.TBytes
     | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
     | CTPT.DType.TVariable (name) -> PT.TVariable(name)
@@ -329,7 +330,8 @@ module DType =
     | PT.TPassword -> CTPT.DType.TPassword
     | PT.TUuid -> CTPT.DType.TUuid
     | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
-    | PT.TCustomType t -> CTPT.DType.TCustomType(FQTypeName.toCT t)
+    | PT.TCustomType (t, argTypes) ->
+      CTPT.DType.TCustomType(FQTypeName.toCT t, List.map toCT argTypes)
     | PT.TBytes -> CTPT.DType.TBytes
     | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
     | PT.TVariable (name) -> CTPT.DType.TVariable(name)

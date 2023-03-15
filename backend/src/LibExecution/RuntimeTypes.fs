@@ -312,30 +312,46 @@ and Symtable = Map<string, Dval>
 
 /// Dark runtime type
 and DType =
+  // simple types
+  | TUnit
+  | TBool
   | TInt
   | TFloat
-  | TBool
-  | TUnit
+  | TChar
   | TStr
+  | TUuid
+  | TBytes
+  | TDateTime
+  | TPassword
+
+  // nested types
   | TList of DType
   | TTuple of DType * DType * List<DType>
-  | TDict of DType
+  | TFn of List<DType> * DType // replaces TLambda
+  | TDB of DType
+
+  // fake types
   | TIncomplete
   | TError
-  | THttpResponse of DType
-  | TDB of DType
-  | TDateTime
-  | TChar
-  | TPassword
-  | TUuid
+
+  /// A named variable, eg `a` in `List<a>`
+  /// TODO: maybe this is replaced by TCustomType?
+  | TVariable of string
+
+  /// A type defined by a standard library module, a canvas/user, or a package
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// `genArgs` is the list of type arguments, if any
+  | TCustomType of FQTypeName.T * genArgs : List<DType>
+
+  // TODO: remove all of thse in favor of TCustomType
+  // Enums
   | TOption of DType
-  | TCustomType of FQTypeName.T
-  | TBytes
   | TResult of DType * DType
-  // A named variable, eg `a` in `List<a>`
-  | TVariable of string // replaces TAny
-  | TFn of List<DType> * DType // replaces TLambda
+
+  // Records
+  | TDict of DType
   | TRecord of List<string * DType> // TODO: remove in favor of TCustomType
+  | THttpResponse of DType
 
   member this.isFn() : bool =
     match this with
@@ -484,7 +500,9 @@ module Dval =
     | DResult (Ok v) -> TResult(toType v, any)
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
-    | DConstructor (typeName, _caseName, _fields) -> TCustomType(typeName)
+    | DConstructor (typeName, _caseName, _fields) ->
+      let args = [] // TODO: this probably isn't sufficient
+      TCustomType(typeName, args)
 
   /// <summary>
   /// Checks if a runtime's value matches a given type

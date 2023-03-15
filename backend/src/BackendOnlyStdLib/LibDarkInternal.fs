@@ -300,9 +300,15 @@ that's already taken, returns an error."
           | TUuid -> "uuid"
           | TOption _ -> "option"
           | TResult _ -> "result"
-          | TCustomType t ->
+          | TCustomType (t, argTypes) ->
             match t with
-            | FQTypeName.User u -> u.typ
+            | FQTypeName.User t ->
+              match argTypes with
+              | [] -> t.typ
+              | args ->
+                let betweenBrackets =
+                  args |> List.map (fun t -> t.toOldString ()) |> String.concat ", "
+                t.typ + "<" + betweenBrackets + ">"
           | TBytes -> "bytes"
 
         internalFn (function
