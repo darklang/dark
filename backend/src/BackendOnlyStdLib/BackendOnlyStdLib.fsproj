@@ -17,7 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="LibCrypto.fs" />
     <Compile Include="LibDB.fs" />
     <Compile Include="LibDarkInternal.fs" />
     <Compile Include="LibEvent.fs" />

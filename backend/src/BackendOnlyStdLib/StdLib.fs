@@ -14,7 +14,6 @@ let renames = []
 
 let fns : List<RT.BuiltInFn> =
   [ LibDB.fns
-    LibCrypto.fns
     LibDarkInternal.fns
     LibEvent.fns
     LibHttpClient.fns
