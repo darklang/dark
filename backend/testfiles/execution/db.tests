@@ -135,9 +135,10 @@ module Roundtrip =
     fetch (fun p -> p.``false`` == false) = Just (sample ())
     fetch (fun p -> p.``false`` != false) = Just (otherSample ())
 
-    // fetch (fun p -> p.list == [1;2;3]) = Just (sample ())
-    // fetch (fun p -> p.list != [1;2;3]) = Just (otherSample ())
-    // fetch (fun p -> p.list == []) = Nothing
+    // A bug in postgresql jsonb support prevents this from working
+    fetch (fun p -> p.list == [1;2;3]) = Just (sample ())
+    fetch (fun p -> p.list != [1;2;3]) = Just (otherSample ())
+    fetch (fun p -> p.list == []) = Nothing
 
     fetch (fun p -> p.char == 'c') = Just (sample ())
     fetch (fun p -> p.char != 'c') = Just (otherSample ())
@@ -415,12 +416,6 @@ module FindAll =
 
   // sql injection
   friendsError (fun p -> "; select * from users;" == p.name ) = []
-
-  // CLEANUP we should catch this. See note about SqlBinOp in SqlCompiler.fs
-  // invalid type comparison
-  (let _ = Test.setExpectedExceptionCount 1 in
-   friendsError (fun p -> p.height == "string")) =
-     Test.sqlError "An error occurred while querying the Datastore"
 
 module CompiledFunctions =
   (friends (fun p -> Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]

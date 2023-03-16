@@ -107,6 +107,12 @@ module Sql =
     idsParam.Value <- ids |> List.map int64 |> List.toArray
     Sql.parameter idsParam
 
+  let array (npgsqlType) (vs : 'a []) : SqlValue =
+    let typ = NpgsqlTypes.NpgsqlDbType.Array ||| npgsqlType
+    let param = NpgsqlParameter("vals", typ)
+    param.Value <- vs
+    Sql.parameter param
+
   let traceID (traceID : LibExecution.AnalysisTypes.TraceID.T) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Uuid
     let idParam =

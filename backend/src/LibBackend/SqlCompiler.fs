@@ -19,7 +19,6 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
-// CLEANUP mention Discord explicitly. Maybe even try to get a clickable URL into this.
 let errorTemplate =
   "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
 
@@ -34,17 +33,6 @@ type position =
   | First
   | Last
 
-let rec typeToSqlType (t : DType) : string =
-  match t with
-  | TStr -> "text"
-  | TInt -> "integer"
-  | TFloat -> "double precision"
-  | TBool -> "bool"
-  | TDateTime -> "timestamp with time zone"
-  | TChar -> "text"
-  | TUuid -> "uuid"
-  | TList t -> $"{typeToSqlType t}[]"
-  | _ -> error $"We do not support this type of DB field yet: {t}"
 
 // This canonicalizes an expression, meaning it removes multiple ways of
 // representing the same thing. Currently nothing needs to be canonicalized.
@@ -74,16 +62,35 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | TChar, DChar c -> Sql.string c
   | TUuid, DUuid id -> Sql.uuid id
   | TUnit, DUnit -> Sql.dbnull
-  | TList _, DList l ->
-    l
-    |> List.map (function
-      | DInt i -> i
-      | v ->
-        error2
-          "Int list should contain int but contains"
-          (DvalReprDeveloper.toRepr v))
-    |> List.toArray
-    |> Sql.int64Array
+  // CLEANUP: add test first
+  // | TList typ, DList l ->
+  //   let typeName = DvalReprDeveloper.typeName typ
+  //   let typeToNpgSqlType (t : DType) : NpgsqlTypes.NpgsqlDbType =
+  //     match t with
+  //     | TStr -> NpgsqlTypes.NpgsqlDbType.Text
+  //     | TInt -> NpgsqlTypes.NpgsqlDbType.Bigint
+  //     | TFloat -> NpgsqlTypes.NpgsqlDbType.Double
+  //     | TBool -> NpgsqlTypes.NpgsqlDbType.Boolean
+  //     | TDateTime -> NpgsqlTypes.NpgsqlDbType.TimestampTz
+  //     | TChar -> NpgsqlTypes.NpgsqlDbType.Text
+  //     | TUuid -> NpgsqlTypes.NpgsqlDbType.Uuid
+  //     | _ -> error $"We do not support this type of DB field yet: {t}"
+  //   l
+  //   |> List.map (fun v ->
+  //     match v with
+  //     | DStr s -> s : obj
+  //     | DInt i -> i
+  //     | DFloat f -> f
+  //     | DBool b -> b
+  //     | DDateTime date -> string date
+  //     | DChar c -> c
+  //     | DUuid uuid -> string uuid
+  //     | _ ->
+  //       error2
+  //         $"{typeName} list should contain {typeName} but contains"
+  //         (DvalReprDeveloper.toRepr v))
+  //   |> List.toArray
+  //   |> Sql.array (typeToNpgSqlType typ)
   | _ ->
     error3
       "This value is not of the expected type"
@@ -91,24 +98,25 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
       (DvalReprDeveloper.typeName expectedType)
 
 
-let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit =
-  match expectedType with
-  | TVariable _ -> ()
-  | other when actualType = other -> ()
+let rec typecheck
+  (name : string)
+  (actualType : DType)
+  (expectedType : DType)
+  : unit =
+  match actualType, expectedType with
+  | _, TVariable _ -> ()
+  | TVariable _, _ -> () // actual can be variable, eg [] is (TList (TVariable "a"))
+  | TList actualType, TList expectedType -> typecheck name actualType expectedType
   | _ ->
-    let actual = DvalReprDeveloper.typeName actualType
-    let expected = DvalReprDeveloper.typeName expectedType
-    error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
-
-// TODO: support character. And maybe lists and bytes.
-// Probably something can be done with options and results.
-let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
-  if Dval.isFake dval then Errors.foundFakeDval dval
-  typecheck name (Dval.toType dval) expectedType
+    if actualType = expectedType then
+      ()
+    else
+      let actual = DvalReprDeveloper.typeName actualType
+      let expected = DvalReprDeveloper.typeName expectedType
+      error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only
-  // TODO: should allow hyphen?
   // CLEANUP: error on bad field name
   System.Text.RegularExpressions.Regex.Replace(str, "[^a-zA-Z0-9_]", "")
 
@@ -229,7 +237,7 @@ let rec lambdaToSql
           // as have the types for the correct Npgsql wrapper for lists and other
           // polymorphic values
           List.fold2
-            (fun (actualTypes, stateSqls, stateVars) argExpr param ->
+            (fun (actualTypes, prevSqls, prevVars) argExpr param ->
               let sql, vars, argActualType = lts param.typ argExpr
               let newActuals =
                 match param.typ with
@@ -242,7 +250,7 @@ let rec lambdaToSql
                   | None -> Map.add name argActualType actualTypes
                 | _ -> actualTypes
 
-              newActuals, sql :: stateSqls, stateVars @ vars)
+              newActuals, prevSqls @ [ sql ], prevVars @ vars)
 
             (Map.empty, [], [])
             args
@@ -258,6 +266,10 @@ let rec lambdaToSql
         | TVariable name ->
           match Map.get name actualTypes with
           | Some typ -> typ
+          | None -> error "Could not find return type"
+        | TList (TVariable name) ->
+          match Map.get name actualTypes with
+          | Some typ -> TList typ
           | None -> error "Could not find return type"
         | typ -> typ
 
@@ -315,7 +327,7 @@ let rec lambdaToSql
   | EInteger (_, v) ->
     typecheck $"integer {v}" TInt expectedType
     let name = randomString 10
-    $"(@{name})", [ name, v |> int64 |> Sql.int64 ], TInt
+    $"(@{name})", [ name, v |> Sql.int64 ], TInt
 
   | EBool (_, v) ->
     typecheck $"bool {v}" TBool expectedType
@@ -356,18 +368,59 @@ let rec lambdaToSql
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ], TChar
 
+  | EList (_, items) ->
+    match expectedType with
+    | TVariable _ as expectedType
+    | TList expectedType ->
+      let sqls, vars, actualType =
+        List.fold
+          ([], [], expectedType)
+          (fun (prevSqls, prevVars, prevActualType) v ->
+            let sql, vars, actualType = lts expectedType v
+            typecheck $"list item" actualType prevActualType
+            prevSqls @ [ sql ], prevVars @ vars, actualType)
+          items
+      let sql =
+        sqls |> String.concat ", " |> (fun s -> "((ARRAY[ " + s + " ] )::bigint[])")
+      (sql, vars, TList actualType)
+    | _ -> error "Expected a list"
+
+
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
     let dbFieldType =
       match Map.get fieldname dbFields with
       | Some v -> v
       | None -> error2 "The datastore does not have a field named" fieldname
-
     typecheck fieldname dbFieldType expectedType
 
-    let fieldname = escapeFieldname fieldname
-    let typename = typeToSqlType dbFieldType
-    $"(CAST(data::jsonb->>'{fieldname}' as {typename}))", [], dbFieldType
+    let primitiveFieldType t =
+      match t with
+      | TStr -> "text"
+      | TInt -> "bigint"
+      | TFloat -> "double precision"
+      | TBool -> "bool"
+      | TDateTime -> "timestamp with time zone"
+      | TChar -> "text"
+      | TUuid -> "uuid"
+      | _ -> error $"We do not support this type of DB field yet: {t}"
 
+    let fieldname = escapeFieldname fieldname
+    match dbFieldType with
+    | TStr
+    | TInt
+    | TFloat
+    | TBool
+    | TDateTime
+    | TChar
+    | TUuid ->
+      let typename = primitiveFieldType dbFieldType
+      $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
+    | TList t ->
+      let typename = primitiveFieldType t
+      let sql =
+        $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
+      (sql, [], dbFieldType)
+    | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
   | _ -> error $"We do not yet support compiling this code: {expr}"
 
 
