@@ -80,11 +80,14 @@ module Roundtrip =
     let fetch (fn : 'a -> bool) =
       let z = DB.set_v1 (sample ()) "sample" DB in
       let z = DB.set_v1 (otherSample ()) "other" DB in
-      DB.queryOne_v4 DB fn
+      DB.query_v4 DB fn
 
     // invalid type comparisons errors
-    fetch (fun p -> 5 == "str") = Nothing
-    fetch (fun p -> 5 != "str") = Nothing
+    // these work, but the DError has a random string in it that we can't match
+    // fetch (fun p -> 5 == "str") =
+    //   Test.sqlError "Incorrect type in variable, expected Bool, but got a Error"
+    // fetch (fun p -> 5 != "str") =
+    //   Test.sqlError "Incorrect type in variable, expected Bool, but got a Error"
 
     fetch (fun p -> p.int == "str") =
       Test.sqlError "Incorrect type in b, expected Int, but got a String"
@@ -96,64 +99,70 @@ module Roundtrip =
     fetch (fun p -> "str" == p.int) =
       Test.sqlError "Incorrect type in b, expected String, but got a Int"
 
-    fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = Just (sample ())
-    fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = Just (otherSample ())
-    fetch (fun p -> p.iNsEnSiTiVe == "nothing") = Nothing
+    fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [sample ()]
+    fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = [otherSample ()]
+    fetch (fun p -> p.iNsEnSiTiVe == "nothing") = []
 
-    fetch (fun p -> p.``ALLCAPS`` == 1) = Just (sample ())
-    fetch (fun p -> p.``ALLCAPS`` != 1) = Just (otherSample ())
-    fetch (fun p -> p.``ALLCAPS`` == 1000) = Nothing
+    fetch (fun p -> p.``ALLCAPS`` == 1) = [sample ()]
+    fetch (fun p -> p.``ALLCAPS`` != 1) = [otherSample ()]
+    fetch (fun p -> p.``ALLCAPS`` == 1000) = []
 
-    fetch (fun p -> p.int == 2) = Just (sample ())
-    fetch (fun p -> p.int != 2) = Just (otherSample ())
-    fetch (fun p -> p.int == 200) = Nothing
+    fetch (fun p -> p.int == 2) = [sample ()]
+    fetch (fun p -> p.int != 2) = [otherSample ()]
+    fetch (fun p -> p.int == 200) = []
 
-    fetch (fun p -> p.float == 3.0) = Just (sample ())
-    fetch (fun p -> p.float != 3.0) = Just (otherSample ())
-    fetch (fun p -> p.float == 30.0) = Nothing
+    fetch (fun p -> p.float == 3.0) = [sample ()]
+    fetch (fun p -> p.float != 3.0) = [otherSample ()]
+    fetch (fun p -> p.float == 30.0) = []
 
-    fetch (fun p -> p.negZero == -0.0) = Just (sample ())
-    fetch (fun p -> p.negZero != -0.0) = Just (otherSample ())
-    fetch (fun p -> p.negZero == 19000.0) = Nothing
+    fetch (fun p -> p.negZero == -0.0) = [sample ()]
+    fetch (fun p -> p.negZero != -0.0) = [otherSample ()]
+    fetch (fun p -> p.negZero == 19000.0) = []
 
     // CLEANUP: nan shouldn't be equal
-    fetch (fun p -> p.nan == Test.nan) = Just (sample ())
-    fetch (fun p -> p.nan != Test.nan) = Just (otherSample ())
-    fetch (fun p -> p.nan == 14.0) = Nothing
+    fetch (fun p -> p.nan == Test.nan) = [sample ()]
+    fetch (fun p -> p.nan != Test.nan) = [otherSample ()]
+    fetch (fun p -> p.nan == 14.0) = []
 
-    fetch (fun p -> p.infinity == Test.infinity) = Just (sample ())
-    fetch (fun p -> p.infinity != Test.infinity) = Just (otherSample ())
-    fetch (fun p -> p.infinity == 1.0) = Nothing
+    fetch (fun p -> p.infinity == Test.infinity) = [sample ()]
+    fetch (fun p -> p.infinity != Test.infinity) = [otherSample ()]
+    fetch (fun p -> p.infinity == 1.0) = []
 
-    fetch (fun p -> p.negInfinity == Test.negativeInfinity) = Just (sample ())
-    fetch (fun p -> p.negInfinity != Test.negativeInfinity) = Just (otherSample ())
-    fetch (fun p -> p.negInfinity == 1.0) = Nothing
+    fetch (fun p -> p.negInfinity == Test.negativeInfinity) = [sample ()]
+    fetch (fun p -> p.negInfinity != Test.negativeInfinity) = [otherSample ()]
+    fetch (fun p -> p.negInfinity == 1.0) = []
 
-    fetch (fun p -> p.``true`` == true) = Just (sample ())
-    fetch (fun p -> p.``true`` != true) = Just (otherSample ())
+    fetch (fun p -> p.``true`` == true) = [sample ()]
+    fetch (fun p -> p.``true`` != true) = [otherSample ()]
 
-    fetch (fun p -> p.``false`` == false) = Just (sample ())
-    fetch (fun p -> p.``false`` != false) = Just (otherSample ())
+    fetch (fun p -> p.``false`` == false) = [sample ()]
+    fetch (fun p -> p.``false`` != false) = [otherSample ()]
 
     // A bug in postgresql jsonb support prevents this from working
-    fetch (fun p -> p.list == [1;2;3]) = Just (sample ())
-    fetch (fun p -> p.list != [1;2;3]) = Just (otherSample ())
-    fetch (fun p -> p.list == []) = Nothing
+    fetch (fun p -> p.list == [1;2;3]) = [sample ()]
+    fetch (fun p -> p.list != [1;2;3]) = [otherSample ()]
+    fetch (fun p -> p.list == []) = []
 
-    fetch (fun p -> p.char == 'c') = Just (sample ())
-    fetch (fun p -> p.char != 'c') = Just (otherSample ())
-    fetch (fun p -> p.char == 'x') = Nothing
+    fetch (fun p -> p.char == 'c') = [sample ()]
+    fetch (fun p -> p.char != 'c') = [otherSample ()]
+    fetch (fun p -> p.char == 'x') = []
 
-    fetch (fun p -> p.emojiChar == ((Test.toChar "👍") |> Test.unwrap)) = Just (sample ())
-    fetch (fun p -> p.emojiChar != ((Test.toChar "👍") |> Test.unwrap)) = Just (otherSample ())
-    fetch (fun p -> p.emojiChar == 'x') = Nothing
+    fetch (fun p -> p.emojiChar == ((Test.toChar "👍") |> Test.unwrap)) = [sample ()]
+    fetch (fun p -> p.emojiChar != ((Test.toChar "👍") |> Test.unwrap)) = [otherSample ()]
+    fetch (fun p -> p.emojiChar == 'x') = []
 
-    fetch (fun p -> p.uuid == ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap)) = Just (sample ())
-    fetch (fun p -> p.uuid != ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap)) = Just (otherSample ())
-    fetch (fun p -> p.uuid == ((Uuid.parse "11111111-1111-1111-1111-000000000000") |> Test.unwrap)) = Nothing
+    fetch (fun p -> p.uuid == ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap)) = [sample ()]
+    fetch (fun p -> p.uuid != ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap)) = [otherSample ()]
+    fetch (fun p -> p.uuid == ((Uuid.parse "11111111-1111-1111-1111-000000000000") |> Test.unwrap)) = []
 
-// CLEANUP test equality of two different types
-// CLEANUP finish testing these types
+    fetch (fun p -> p.datetime == ((DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap)) = [sample ()]
+    fetch (fun p -> p.datetime != ((DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap)) = [otherSample ()]
+    fetch (fun p -> p.datetime == ((DateTime.parse_v2 "2019-12-31T23:59:59Z") |> Test.unwrap)) = []
+
+    (fetch (fun p -> p.unit == ())) |> List.sortBy (fun v -> v.int) = [sample (), otherSample ()]
+    fetch (fun p -> p.unit != ()) = []
+
+
 // CLEANUP test ``ALL CAPS``
 // CLEANUP test partial evaluation of lists and tuples
 
@@ -247,7 +256,9 @@ module GetMany =
 
   (let one = DB.set_v1 { x = "hello" } "one" X in
    let two = DB.set_v1 { x = "goodbye" } "two" X in
-   DB.getMany_v3 ["one"; "two"] X) = Just [ { x = "hello"}; { x = "goodbye"}]
+   (DB.getMany_v3 ["one"; "two"] X)
+   |> Test.unwrap
+   |> List.sortBy (fun v -> v.x)) = [ { x = "goodbye"}; { x = "hello"}]
 
 
 module QueryWithKey =
