@@ -18,12 +18,21 @@ module FQTypeName =
     let toCT (u : PT.FQTypeName.UserTypeName) : CTPT.FQTypeName.UserTypeName =
       { typ = u.typ; version = u.version }
 
+  module StdlibTypeName =
+    let fromCT (t : CTPT.FQTypeName.StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
+      { typ = t.typ }
+
+    let toCT (t : PT.FQTypeName.StdlibTypeName) : CTPT.FQTypeName.StdlibTypeName =
+      { typ = t.typ }
+
   let fromCT (t : CTPT.FQTypeName.T) : PT.FQTypeName.T =
     match t with
+    | CTPT.FQTypeName.Stdlib t -> PT.FQTypeName.Stdlib(StdlibTypeName.fromCT t)
     | CTPT.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.fromCT u)
 
   let toCT (t : PT.FQTypeName.T) : CTPT.FQTypeName.T =
     match t with
+    | PT.FQTypeName.Stdlib t -> CTPT.FQTypeName.Stdlib(StdlibTypeName.toCT t)
     | PT.FQTypeName.User u -> CTPT.FQTypeName.User(UserTypeName.toCT u)
 
 

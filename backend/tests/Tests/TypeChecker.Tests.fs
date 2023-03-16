@@ -32,7 +32,7 @@ let testBasicTypecheckWorks : Test =
     let fn =
       libraries
       |> Lazy.force
-      |> fun l -> l.stdlib
+      |> fun l -> l.stdlibFns
       |> Map.get fn
       |> Exception.unwrapOptionInternal "missing library function" [ "fn", fn ]
       |> RT.builtInFnToFn

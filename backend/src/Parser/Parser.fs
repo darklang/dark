@@ -530,7 +530,8 @@ let parseTestFile (filename : string) : Module =
     availableTypes
     |> List.choose (fun (typeName, _def) ->
       match typeName with
-      | PT.FQTypeName.User u -> if u.typ = nameOfType then Some typeName else None)
+      | PT.FQTypeName.User u -> if u.typ = nameOfType then Some typeName else None
+      | PT.FQTypeName.Stdlib t -> if t.typ = nameOfType then Some typeName else None)
 
   let rec convertType
     (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)

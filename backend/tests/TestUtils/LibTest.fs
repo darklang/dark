@@ -20,6 +20,8 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
+let types : List<BuiltInType> = []
+
 let fns : List<BuiltInFn> =
   [ { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]

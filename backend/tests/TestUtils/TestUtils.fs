@@ -225,11 +225,20 @@ let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
 /// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<RT.Libraries> =
   lazy
-    (let testFns =
-      LibTest.fns
-      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
-     { stdlib = testFns; packageFns = Map.empty })
+    (
+
+     let testTypes =
+       LibTest.types
+       |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibTypes
+
+     let testFns =
+       LibTest.fns
+       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
+
+
+     { stdlibTypes = testTypes; stdlibFns = testFns; packageFns = Map.empty })
 
 let executionStateFor
   (meta : Canvas.Meta)
@@ -501,9 +510,11 @@ module Expect =
     | None, None -> ()
     | Some a, Some e ->
       match a, e with
+      | FQTypeName.Stdlib a, FQTypeName.Stdlib e -> if a.typ <> e.typ then err ()
       | FQTypeName.User a, FQTypeName.User e ->
         if a.typ <> e.typ then err ()
         if a.version <> e.version then err ()
+      | _ -> err ()
     | _ -> err ()
 
   let rec matchPatternEqualityBaseFn

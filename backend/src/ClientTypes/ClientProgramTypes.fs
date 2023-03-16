@@ -15,10 +15,14 @@ type Sign = Prelude.Sign
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
+  type StdlibTypeName = { typ : string }
+
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
-  type T = User of UserTypeName
+  type T =
+    | Stdlib of StdlibTypeName
+    | User of UserTypeName
 
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }

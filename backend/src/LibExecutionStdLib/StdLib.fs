@@ -11,6 +11,8 @@ let renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName> =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
+let types : List<BuiltInType> = [ ] |> List.concat
+
 let fns : List<BuiltInFn> =
   [ LibBool.fns
     LibBytes.fns

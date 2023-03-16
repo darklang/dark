@@ -7,6 +7,8 @@ type Sign = Prelude.Sign
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
+  type StdlibTypeName = { typ : string }
+
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
@@ -14,11 +16,20 @@ module FQTypeName =
   /// ideas: Source
   type T =
     // TODO:
-    // | Stdlib of StdlibTypeName
+    | Stdlib of StdlibTypeName
     // | Package of PackageTypeName
     | User of UserTypeName
 
 
+// I'm not sure when we'll need this, but probably soon
+// Some of the FQTypeName references might need to be replaced with FQResolvedTypeName ones
+//
+/// A FQTypeName with any relevant named type arguments "applied"
+/// The StdLib-defined type "Option" is an example of a type with type arguments
+/// - the Stdlib defines `Option<a>`, whic has a type argument `a`
+///   This would look like `{ typ: Option, args: ["a"]}
+/// - Map.map is defined as `Map.map<a, b>(f: a -> b, map: Map<a>): Map<b>`
+type FQResolvedTypeName = { typ : FQTypeName.T; args : List<string> }
 
 
 /// A Fully-Qualified Function Name
@@ -281,8 +292,7 @@ module CustomType =
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type T =
-    // Hmm maybe this need to have some 'variables' (type args) embedded somewhere
-    // or we have some separate context for the fully realized versions of these?
+    // TODO: | Abbreviation/Alias of DType
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 

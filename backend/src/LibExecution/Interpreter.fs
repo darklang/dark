@@ -591,7 +591,7 @@ and callFn
       match desc with
       | FQFnName.Stdlib _std ->
         // CLEANUP: do this when the libraries are loaded
-        state.libraries.stdlib.TryFind desc |> Option.map builtInFnToFn
+        state.libraries.stdlibFns.TryFind desc |> Option.map builtInFnToFn
       | FQFnName.User name ->
         state.program.userFns.TryFind name |> Option.map userFnToFn
       | FQFnName.Package _pkg ->

@@ -38,13 +38,22 @@ module J = Prelude.Json
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
+  type StdlibTypeName = { typ : string }
+
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
-  // TODO:
-  // | Stdlib of StdlibTypeName
-  // | Package of PackageTypeName
-  type T = User of UserTypeName
+  type T =
+    | Stdlib of StdlibTypeName
+    | User of UserTypeName
+
+
+  let stdlibTypeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+
+  let stdlibTypeName (typ : string) : StdlibTypeName =
+    Prelude.assertRe "stdlib type name must match" stdlibTypeNamePat typ
+
+    { typ = typ }
 
 module FQFnName =
 
@@ -823,6 +832,16 @@ type SqlSpec =
     | SqlFunctionWithSuffixArgs _
     | SqlCallback2 _ -> true
 
+
+/// A built-in standard library type
+type BuiltInType =
+  { name : FQTypeName.StdlibTypeName
+    typeArgs : List<string>
+    definition : CustomType.T
+    description : string }
+
+let types = []
+
 /// A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
@@ -833,7 +852,6 @@ type BuiltInFn =
     deprecated : Deprecation
     sqlSpec : SqlSpec
     fn : BuiltInFnSig }
-
 
 and Fn =
   { name : FQFnName.T
@@ -926,7 +944,9 @@ and TestContext =
 
 /// Non-user-specific functionality needed to run code
 and Libraries =
-  { stdlib : Map<FQFnName.T, BuiltInFn>
+  { stdlibTypes : Map<FQTypeName.T, BuiltInType>
+    stdlibFns : Map<FQFnName.T, BuiltInFn>
+
     packageFns : Map<FQFnName.T, Package.Fn> }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit

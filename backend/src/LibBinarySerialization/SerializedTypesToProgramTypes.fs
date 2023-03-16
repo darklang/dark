@@ -14,8 +14,13 @@ module FQTypeName =
     let toPT (u : ST.FQTypeName.UserTypeName) : PT.FQTypeName.UserTypeName =
       { typ = u.typ; version = u.version }
 
+  module StdlibTypeName =
+    let toPT (s : ST.FQTypeName.StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
+      { typ = s.typ }
+
   let toPT (t : ST.FQTypeName.T) : PT.FQTypeName.T =
     match t with
+    | ST.FQTypeName.Stdlib s -> PT.FQTypeName.Stdlib(StdlibTypeName.toPT s)
     | ST.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.toPT u)
 
 

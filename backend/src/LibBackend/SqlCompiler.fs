@@ -618,7 +618,7 @@ let compileLambda
       |> Ply.TplPrimitives.runPlyAsTask
 
     let sql, vars, _expectedType =
-      lambdaToSql state.libraries.stdlib symtable paramName dbFields TBool body
+      lambdaToSql state.libraries.stdlibFns symtable paramName dbFields TBool body
 
     return (sql, vars)
   }

@@ -32,14 +32,18 @@ let rec typeName (t : DType) : string =
   | TOption nested -> $"Option<{typeName nested}>"
   | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
   | TCustomType (t, args) ->
-    match t with
-    | FQTypeName.User t ->
+    let typeArgsPortion =
       match args with
-      | [] -> t.typ
+      | [] -> ""
       | args ->
-        let betweenBrackets =
-          args |> List.map (fun t -> typeName t) |> String.concat ", "
-        $"{t.typ}_v{t.version}<{betweenBrackets}>"
+        args
+        |> List.map (fun t -> typeName t)
+        |> String.concat ", "
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+    match t with
+    | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
+    | FQTypeName.User t -> $"{t.typ}_v{t.version}{typeArgsPortion}"
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName

@@ -30,8 +30,12 @@ module Error =
 
     override this.ToString() : string =
       match this with
-      | TypeLookupFailure (FQTypeName.User typeName) ->
-        let lookupString = $"({typeName.typ}, v{typeName.version})"
+      | TypeLookupFailure typeName ->
+        let lookupString =
+          match typeName with
+          | FQTypeName.User t -> $"({t.typ}, v{t.version})"
+          | FQTypeName.Stdlib t -> $"({t.typ})"
+
         $"Type {lookupString} could not be found on the canvas"
       | TypeUnificationFailure uf ->
         let expected = DvalReprDeveloper.typeName uf.expectedType

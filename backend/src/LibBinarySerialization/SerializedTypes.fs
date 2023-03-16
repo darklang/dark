@@ -48,6 +48,11 @@ type Sign = Prelude.Sign
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
+  [<MessagePack.MessagePackObject>]
+  type StdlibTypeName =
+    { [<MessagePack.Key 0>]
+      typ : string }
+
   /// A type written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
   type UserTypeName =
@@ -58,7 +63,9 @@ module FQTypeName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type T = User of UserTypeName
+  type T =
+    | Stdlib of StdlibTypeName
+    | User of UserTypeName
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.

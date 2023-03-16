@@ -101,7 +101,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
       executionStateForPreview "test" (Map [ "MyDB", db ]) Map.empty
 
     let state =
-      { state with libraries = { state.libraries with stdlib = Map.empty } }
+      { state with libraries = { state.libraries with stdlibFns = Map.empty } }
 
     let! _value = Exe.executeExpr state Map.empty ast
 

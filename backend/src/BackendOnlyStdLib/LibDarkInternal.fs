@@ -300,20 +300,24 @@ that's already taken, returns an error."
           | TUuid -> "uuid"
           | TOption _ -> "option"
           | TResult _ -> "result"
-          | TCustomType (t, argTypes) ->
-            match t with
-            | FQTypeName.User t ->
-              match argTypes with
-              | [] -> t.typ
-              | args ->
-                let betweenBrackets =
-                  args |> List.map (fun t -> t.toOldString ()) |> String.concat ", "
-                t.typ + "<" + betweenBrackets + ">"
           | TBytes -> "bytes"
+          | TCustomType (t, argTypes) ->
+            let typeArgsPortion =
+              match argTypes with
+              | [] -> ""
+              | args ->
+                args
+                |> List.map (fun t -> typeName t)
+                |> String.concat ", "
+                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+            match t with
+            | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
+            | FQTypeName.User t -> t.typ + typeArgsPortion
 
         internalFn (function
           | state, [] ->
-            state.libraries.stdlib
+            state.libraries.stdlibFns
             |> Map.toList
             |> List.filter (fun (key, data) ->
               (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)
