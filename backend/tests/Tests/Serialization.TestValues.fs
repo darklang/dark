@@ -71,7 +71,7 @@ module RuntimeTypes =
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
-      RT.EString(86749UL, [ RT.StringText "asdfasedf" ]) //CLEANUP
+      RT.EString(86749UL, [ RT.StringText "asdfasedf" ])
       RT.ECharacter(7683UL, "c")
       RT.EFloat(5495UL, 444.333)
       RT.EUnit(59485UL)
@@ -109,8 +109,8 @@ module RuntimeTypes =
       RT.EFeatureFlag(
         1823UL,
         RT.EBool(81273UL, false),
-        RT.EString(1283UL, [ RT.StringText "true" ]), //CLEANUP
-        RT.EString(18329472UL, [ RT.StringText "false" ]) //CLEANUP
+        RT.EString(1283UL, [ RT.StringText "true" ]),
+        RT.EString(18329472UL, [ RT.StringText "false" ])
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))

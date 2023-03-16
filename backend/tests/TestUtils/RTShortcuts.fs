@@ -42,7 +42,7 @@ let eApply (fnVal : Expr) (args : List<Expr>) : Expr = eApply' fnVal args NotInP
 let ePipeApply (fnVal : Expr) (args : List<Expr>) : Expr =
   eApply' fnVal args (InPipe(gid ()))
 
-let eStr (str : string) : Expr = EString(gid (), [ StringText str ]) //CLEANUP
+let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 
 let eChar (c : string) : Expr = ECharacter(gid (), c)
 
