@@ -314,7 +314,6 @@ let initSerializers () =
   Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
   Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
   Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"

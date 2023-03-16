@@ -49,7 +49,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
         Exception.raiseInternal $"User not found" [ "id", state.program.accountID ]
         return DUnit
       | Some username ->
-        let! canAccess = Account.canAccessOperations username
+        let canAccess = true
         if canAccess then
           let fnName =
             state.executingFnName
@@ -142,7 +142,6 @@ that's already taken, returns an error."
               match username with
               | Ok username ->
                 let! _user = Account.insertUser username email name
-                Analytics.identifyUser username
                 let toCanvasName =
                   $"{username}-{LibService.Config.gettingStartedCanvasName}"
                 let fromCanvasName = LibService.Config.gettingStartedCanvasSource
@@ -165,93 +164,6 @@ that's already taken, returns an error."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getUser" 1
-      parameters = [ Param.make "username" TStr "" ]
-      returnType =
-        TOption(
-          TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
-        )
-      description = "Return a user for the username. Does not include passwords"
-      fn =
-        internalFn (function
-          | _, [ DStr username ] ->
-            uply {
-              let! info = Account.getUser (UserName.create username)
-              return
-                info
-                |> Option.map (fun user ->
-                  Dval.obj [ ("username", DStr(string user.username))
-                             ("name", DStr user.name)
-                             ("email", DStr user.email)
-                             ("admin", DBool user.admin) ])
-                |> DOption
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getUserByEmail" 0
-      parameters = [ Param.make "email" TStr "" ]
-      returnType =
-        TOption(
-          TRecord [ "username", TStr; "name", TStr; "email", TStr; "admin", TBool ]
-        )
-      description = "Return a user for the email. Does not include passwords"
-      fn =
-        internalFn (function
-          | _, [ DStr email ] ->
-            uply {
-              let! info = Account.getUserByEmail email
-              return
-                info
-                |> Option.map (fun user ->
-                  Dval.obj [ ("username", DStr(string user.username))
-                             ("name", DStr user.name)
-                             ("email", DStr user.email)
-                             ("admin", DBool user.admin) ])
-                |> DOption
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getUserID" 0
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TOption(TUuid)
-      description = "Return a user's userID"
-      fn =
-        internalFn (function
-          | _, [ DStr username ] ->
-            uply {
-              let! info = Account.getUser (UserName.create username)
-              return info |> Option.map (fun user -> DUuid user.id) |> DOption
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getUsers" 0
-      parameters = []
-      returnType = TList TStr
-      description = "Return a list of username of all the accounts in Dark"
-      fn =
-        internalFn (function
-          | _, [] ->
-            uply {
-              let! users = Account.getUsers ()
-              return users |> List.map string |> List.map DStr |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
 
     { name = fn "DarkInternal" "getAllCanvases" 0
       parameters = []
@@ -263,26 +175,6 @@ that's already taken, returns an error."
             let! hosts = Serialize.currentHosts ()
             return hosts |> List.map DStr |> DList
           })
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "canvasesFor" 0
-      parameters = [ Param.make "account" TStr "" ]
-      returnType = TList TStr
-      description =
-        "Returns a list of all canvases owned by a particular account (user OR org)"
-      fn =
-        internalFn (function
-          | _, [ DStr username ] ->
-            uply {
-              let owner = UserName.create username
-              let! userID = Account.userIDForUserName owner
-              let! cs = Account.ownedCanvases userID
-              return cs |> List.map string |> List.map DStr |> DList
-            }
-          | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -346,33 +238,6 @@ that's already taken, returns an error."
                 return meta.name |> string |> DStr |> Ok |> DResult
               with
               | _ -> return DResult(Error(DStr "Canvas not found"))
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "usernameToUserInfo" 0
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TOption varA
-      description = "Gives userinfo {username, name, admin, email} for a username"
-      fn =
-        internalFn (function
-          | _, [ DStr username ] ->
-            uply {
-              let username = UserName.create username
-              match! Account.getUser username with
-              | None -> return DOption None
-              | Some userInfo ->
-                return
-                  Map [ ("username", DStr(string userInfo.username))
-                        ("email", DStr userInfo.email)
-                        ("name", DStr userInfo.name)
-                        ("admin", DBool userInfo.admin) ]
-                  |> DObj
-                  |> Some
-                  |> DOption
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -813,27 +678,6 @@ human-readable data."
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
-
-    // ---------------------
-    // Apis - canvases and org metadata
-    // ---------------------
-    { name = fn "DarkInternal" "getCanvasList" 0
-      parameters = [ Param.make "userID" TUuid "" ]
-      returnType = TList TStr
-      description = "Returns all canvases owned by a user"
-      fn =
-        internalFn (function
-          | _, [ DUuid userID ] ->
-            uply {
-              let! canvasList = Account.ownedCanvases userID
-              return canvasList |> List.map string |> List.map DStr |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
 
 
     { name = fn "DarkInternal" "getOpsForToplevel" 0
