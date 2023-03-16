@@ -1,0 +1,9 @@
+Nah = Nah
+Totally 4 = Totally 4
+Maybe.map_v0 (Totally 4) (fun x -> Int.divide_v0 x 2) = Totally 2
+Maybe.map_v0 Nah (fun x -> Int.divide_v0 x 2) = Nah
+
+Maybe.map2_v0 (Totally 10) (Totally 1) (fun (a, b) -> a - b) = Totally 9
+Maybe.map2_v0 (Totally 10) Nah (fun (a, b) -> a - b) = Nah
+Maybe.map2_v0 Nah (Totally 1) (fun (a, b) -> a - b) = Nah
+Maybe.map2_v0 Nah Nah (fun (a, b) -> a - b) = Nothing

@@ -225,12 +225,10 @@ let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
 /// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<RT.Libraries> =
   lazy
-    (
-
-     let testTypes =
-       LibTest.types
-       |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibTypes
+    (let testTypes =
+      LibTest.types
+      |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibTypes
 
      let testFns =
        LibTest.fns

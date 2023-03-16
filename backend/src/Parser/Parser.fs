@@ -404,11 +404,13 @@ let rec convertToExpr
 
 
 
-
+  // handle old enum values (EConstructors)
+  // TODO: remove these when the Option and Result types are defined in StdLib
   | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
     List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
     ->
     PT.EConstructor(id, None, name.idText, [ c arg ])
+
 
   // Feature flag now or else it'll get recognized as a var
   | SynExpr.App (_,
@@ -501,7 +503,10 @@ type Module =
 let emptyModule =
   { types = []; dbs = []; fns = []; modules = []; tests = []; packageFns = [] }
 
-let parseTestFile (filename : string) : Module =
+let parseTestFile
+  (stdlibTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (filename : string)
+  : Module =
   let checker = FSharpChecker.Create()
   let input = System.IO.File.ReadAllText filename
 
@@ -814,6 +819,7 @@ let parseTestFile (filename : string) : Module =
           // TODO support other (stdlib, package) types as well
           (m.types @ parent.types)
           |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
+        let availableTypes = availableTypes @ stdlibTypes
 
         match decl with
         | SynModuleDecl.Let (_, bindings, _) ->

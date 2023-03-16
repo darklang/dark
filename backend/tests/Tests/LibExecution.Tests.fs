@@ -212,7 +212,13 @@ let fileTests () : Test =
     if shouldSkip then
       testList $"skipped - {testName}" []
     else
-      (baseDir + filename) |> Parser.parseTestFile |> moduleToTests testName)
+      let stdlibTypes =
+        LibExecutionStdLib.StdLib.types @ BackendOnlyStdLib.StdLib.types
+        |> List.map (fun typ -> PT.FQTypeName.Stdlib typ.name, typ.definition)
+
+      (baseDir + filename)
+      |> Parser.parseTestFile stdlibTypes
+      |> moduleToTests testName)
   |> Array.toList
   |> testList "All"
 

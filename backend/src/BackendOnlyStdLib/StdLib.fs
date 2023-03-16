@@ -7,10 +7,13 @@ module BackendOnlyStdLib.StdLib
 // F#, esp LibCrypto and LibX509, plus at least some of LibHttpClient*
 
 module RT = LibExecution.RuntimeTypes
+module PT = LibExecution.ProgramTypes
 
 let fn = RT.FQFnName.stdlibFnName
 
 let renames = []
+
+let types : List<PT.BuiltInType> = [] |> List.concat
 
 let fns : List<RT.BuiltInFn> =
   [ LibDB.fns

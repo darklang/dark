@@ -47,14 +47,6 @@ module FQTypeName =
     | Stdlib of StdlibTypeName
     | User of UserTypeName
 
-
-  let stdlibTypeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
-
-  let stdlibTypeName (typ : string) : StdlibTypeName =
-    Prelude.assertRe "stdlib type name must match" stdlibTypeNamePat typ
-
-    { typ = typ }
-
 module FQFnName =
 
   /// Standard Library Function Name

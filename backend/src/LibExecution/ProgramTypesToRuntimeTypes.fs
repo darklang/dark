@@ -336,3 +336,10 @@ module Package =
       author = f.author
       deprecated = f.deprecated
       tlid = f.tlid }
+
+module BuiltInType =
+  let toRT (t : PT.BuiltInType) : RT.BuiltInType =
+    { name = FQTypeName.StdlibTypeName.toRT t.name
+      typeArgs = t.typeArgs
+      definition = CustomType.toRT t.definition
+      description = t.description }

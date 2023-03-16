@@ -23,6 +23,7 @@
     <Compile Include="LibList.fs" />
     <Compile Include="LibMath.fs" />
     <Compile Include="LibNoModule.fs" />
+    <Compile Include="LibMaybe.fs" />
     <Compile Include="LibOption.fs" />
     <Compile Include="LibResult.fs" />
     <Compile Include="LibString.fs" />

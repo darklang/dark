@@ -7,11 +7,13 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
   LibExecutionStdLib.StdLib.types
+  |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =

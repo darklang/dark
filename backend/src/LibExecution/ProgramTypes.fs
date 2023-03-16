@@ -20,6 +20,13 @@ module FQTypeName =
     // | Package of PackageTypeName
     | User of UserTypeName
 
+  let stdlibTypeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+
+  let stdlibTypeName (typ : string) : StdlibTypeName =
+    Prelude.assertRe "stdlib type name must match" stdlibTypeNamePat typ
+
+    { typ = typ }
+
 
 // I'm not sure when we'll need this, but probably soon
 // Some of the FQTypeName references might need to be replaced with FQResolvedTypeName ones
@@ -403,3 +410,11 @@ module Package =
       author : string
       deprecated : bool
       tlid : tlid }
+
+
+/// A built-in standard library type
+type BuiltInType =
+  { name : FQTypeName.StdlibTypeName
+    typeArgs : List<string>
+    definition : CustomType.T
+    description : string }
