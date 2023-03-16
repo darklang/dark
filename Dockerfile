@@ -21,7 +21,7 @@
 
 FROM ubuntu:22.04 as dark-base
 
-ENV FORCE_BUILD 3
+ENV FORCE_BUILD 8
 
 # Creates variables to allow builds to work on both amd64 and arm64
 ARG TARGETARCH
@@ -66,7 +66,6 @@ RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key ad
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
-# We want postgres 9.6, but it is not in later ubuntus
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
 RUN echo "deb https://deb.nodesource.com/node_14.x jammy main" > /etc/apt/sources.list.d/nodesource.list
@@ -103,9 +102,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       brotli \
       sudo \
       locales \
-      postgresql-9.6 \
-      postgresql-client-9.6 \
-      postgresql-contrib-9.6 \
+      postgresql-14 \
+      postgresql-client-14 \
+      postgresql-contrib-14 \
       git-restore-mtime \
       nodejs \
       google-cloud-sdk \
@@ -182,8 +181,8 @@ RUN /etc/init.d/postgresql start && \
 
 # Adjust PostgreSQL configuration so that remote connections to the
 # database are possible.
-RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.6/main/pg_hba.conf
-RUN echo "listen_addresses='*'" >> /etc/postgresql/9.6/main/postgresql.conf
+RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/14/main/pg_hba.conf
+RUN echo "listen_addresses='*'" >> /etc/postgresql/14/main/postgresql.conf
 
 USER dark
 # Add VOLUMEs to allow backup of config, logs and databases
