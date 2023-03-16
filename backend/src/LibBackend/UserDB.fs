@@ -56,15 +56,16 @@ let rec queryExactFields
                           "canvasID", Sql.uuid state.program.canvasID
                           "fields",
                           Sql.jsonb (
-                            DvalReprInternalQueryable.toJsonStringV0 fieldTypes queryObj
+                            DvalReprInternalQueryable.toJsonStringV0
+                              fieldTypes
+                              queryObj
                           ) ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
     return results |> List.map (fun (key, data) -> (key, toObj db data))
   }
 
-and schemaToTypes (db : RT.DB.T) : List<string*RT.DType> =
-    db.cols
-    |> List.map (fun (name, typ) -> (name, typ))
+and schemaToTypes (db : RT.DB.T) : List<string * RT.DType> =
+  db.cols |> List.map (fun (name, typ) -> (name, typ))
 
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
@@ -165,7 +166,9 @@ and set
                       "darkVersion", Sql.int currentDarkVersion
                       "key", Sql.string key
                       "data",
-                      Sql.jsonb (DvalReprInternalQueryable.toJsonStringV0 fieldTypes merged) ]
+                      Sql.jsonb (
+                        DvalReprInternalQueryable.toJsonStringV0 fieldTypes merged
+                      ) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
 
