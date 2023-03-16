@@ -121,4 +121,44 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    // Just demonstrating another way to write the same function
+    // deconstructing Enum constructors earlier like this may help
+    // stdlib fns to be more concise
+    { name = fn "Maybe" "map2alt" 0
+      parameters =
+        [ maybeParamOf "maybe1" varA
+          maybeParamOf "maybe2" varB
+          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
+      returnType = maybeOf varC
+      description =
+        "If both arguments are {{Just}} (<param maybe1> is {{Just <var v1>}} and
+         <param maybe2> is {{Just <var v2>}}), then return {{Just (fn <var v1> <var
+         v2>)}}. The lambda <param fn> should have two parameters, representing <var
+         v1> and <var v2>. But if either <param maybe1> or <param maybe2> are
+         {{Nothing}}, returns {{Nothing}} without applying <param fn>."
+      fn =
+        (function
+        | _, [ DConstructor (_, "Nah", []); _maybe2; _fn ] ->
+          DConstructor(maybeTypeName, "Nah", []) |> Ply
+
+        | _, [ _arg1; DConstructor (_, "Nah", []); _fn ] ->
+          DConstructor(maybeTypeName, "Nah", []) |> Ply
+
+        | state,
+          [ DConstructor (_, "Totally", [ dv1 ])
+            DConstructor (_, "Totally", [ dv2 ])
+            DFnVal b ] ->
+          uply {
+            let! result =
+              Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
+
+            return DConstructor(maybeTypeName, "Totally", [ result ])
+          }
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated } ]

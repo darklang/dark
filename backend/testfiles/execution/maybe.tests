@@ -7,3 +7,8 @@ Maybe.map2_v0 (Totally 10) (Totally 1) (fun (a, b) -> a - b) = Totally 9
 Maybe.map2_v0 (Totally 10) Nah (fun (a, b) -> a - b) = Nah
 Maybe.map2_v0 Nah (Totally 1) (fun (a, b) -> a - b) = Nah
 Maybe.map2_v0 Nah Nah (fun (a, b) -> a - b) = Nah
+
+Maybe.map2alt_v0 (Totally 10) (Totally 1) (fun (a, b) -> a - b) = Totally 9
+Maybe.map2alt_v0 (Totally 10) Nah (fun (a, b) -> a - b) = Nah
+Maybe.map2alt_v0 Nah (Totally 1) (fun (a, b) -> a - b) = Nah
+Maybe.map2alt_v0 Nah Nah (fun (a, b) -> a - b) = Nah
