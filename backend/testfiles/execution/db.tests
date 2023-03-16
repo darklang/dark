@@ -407,7 +407,7 @@ module FindAll =
 
   // lambda doesnt return a bool
   friendsError (fun p -> "x") =
-    Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a Str"
+    Test.sqlError "Incorrect type in string \"x\", expected Bool, but got a String"
 
   // bad variable name
   friendsError (fun p -> let x = 32 in true && p.height > y) =

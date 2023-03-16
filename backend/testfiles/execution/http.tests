@@ -18,7 +18,7 @@ module Errors =
 
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
-Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a Str."
+Http.badRequest_v0 1 = Test.typeError_v0 "Http::badRequest was called with a Int (1), but `error` expected a String."
 Http.notFound_v0 = Http.response_v0 () 404
 
 Http.unauthorized_v0 = Http.response_v0 () 401
