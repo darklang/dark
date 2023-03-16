@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> List.map snd |> DList |> Some |> DOption
+              return items |> DList |> Some |> DOption
             else
               return DOption None
           }
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getMany state db skeys
-            return result |> List.map snd |> DList
+            return result |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

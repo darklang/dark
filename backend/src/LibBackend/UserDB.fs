@@ -201,16 +201,15 @@ and getOption
   }
 
 
-// CLEANUP: this is identical to getManyWithKeys, remove the key
 and getMany
   (state : RT.ExecutionState)
   (db : RT.DB.T)
   (keys : string list)
-  : Task<List<string * RT.Dval>> =
+  : Task<List<RT.Dval>> =
   task {
     let! results =
       Sql.query
-        "SELECT key, data
+        "SELECT data
         FROM user_data
         WHERE table_tlid = @tlid
           AND account_id = @accountID
@@ -224,8 +223,8 @@ and getMany
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion
                           "keys", Sql.stringArray (Array.ofList keys) ]
-      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-    return results |> List.map (fun (key, data) -> (key, toObj db data))
+      |> Sql.executeAsync (fun read -> read.string "data")
+    return results |> List.map (fun (data) -> (toObj db data))
   }
 
 
