@@ -56,6 +56,8 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDB a, DDB b -> a = b
   | DHttpResponse (code1, headers1, body1), DHttpResponse (code2, headers2, body2) ->
     code1 = code2 && headers1 = headers2 && equals body1 body2
+  | DUserEnum (a1, a2, a3), DUserEnum (b1, b2, b3) ->
+    a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
   // exhaustivenss check
   | DInt _, _
   | DFloat _, _
@@ -75,6 +77,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DBytes _, _
   | DDB _, _
   | DHttpResponse _, _
+  | DUserEnum _, _
   | DError _, _
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
@@ -116,6 +119,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFeatureFlag (_, flag1, on1, off1), EFeatureFlag (_, flag2, on2, off2) -> equalsExpr flag1 flag2 && equalsExpr on1 on2 && equalsExpr off1 off2
   | EAnd (_, lhs1, rhs1), EAnd (_, lhs2, rhs2) -> equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
   | EOr (_, lhs1, rhs1), EOr (_, lhs2, rhs2) -> equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
+  | EUserEnum (_, name1, case1, args1), EUserEnum (_, name2, case2, args2) -> name1 = name2 && case1 = case2 && args1.Length = args2.Length && List.forall2 equalsExpr args1 args2
   // exhaustiveness check
   | EInteger _, _
   | EBool _, _
@@ -137,7 +141,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EMatch _, _
   | EFeatureFlag _, _
   | EAnd _, _
-  | EOr _, _ -> false
+  | EOr _, _
+  | EUserEnum _, _ -> false
 
 
 and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =
