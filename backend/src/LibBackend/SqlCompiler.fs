@@ -61,7 +61,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | TStr, DStr s -> Sql.string s
   | TChar, DChar c -> Sql.string c
   | TUuid, DUuid id -> Sql.uuid id
-  | TUnit, DUnit -> Sql.dbnull
+  | TUnit, DUnit -> Sql.int64 0
   // CLEANUP: add test first
   // | TList typ, DList l ->
   //   let typeName = DvalReprDeveloper.typeName typ
@@ -206,19 +206,6 @@ let rec lambdaToSql
     lambdaToSql fns symtable paramName dbFields typ e
 
   match expr with
-  // The correct way to handle null in SQL is "is null" or "is not null"
-  // rather than a comparison with null.
-  | Fn "" "equals" 0 [ EUnit _; e ]
-  | Fn "" "equals" 0 [ e; EUnit _ ] ->
-    let sql, vars, actualType = lts TUnit e
-    typecheck "equals unit" actualType TUnit
-    $"({sql} is null)", vars, TUnit
-  | Fn "" "notEquals" 0 [ EUnit _; e ]
-  | Fn "" "notEquals" 0 [ e; EUnit _ ] ->
-    let sql, vars, actualType = lts TUnit e
-    typecheck "not equals unit" actualType TUnit
-    $"({sql} is not null)", vars, TUnit
-
   | EApply (_, EFQFnValue (_, name), args, _) ->
 
     match Map.get name fns with
@@ -327,7 +314,7 @@ let rec lambdaToSql
   | EInteger (_, v) ->
     typecheck $"integer {v}" TInt expectedType
     let name = randomString 10
-    $"(@{name})", [ name, v |> Sql.int64 ], TInt
+    $"(@{name})", [ name, Sql.int64 v ], TInt
 
   | EBool (_, v) ->
     typecheck $"bool {v}" TBool expectedType
@@ -337,7 +324,7 @@ let rec lambdaToSql
   | EUnit _ ->
     typecheck "unit" TUnit expectedType
     let name = randomString 10
-    $"(@{name})", [ name, Sql.dbnull ], TUnit
+    $"(@{name})", [ name, Sql.int64 0L ], TUnit
 
   | EFloat (_, v) ->
     typecheck $"float {v}" TFloat expectedType
@@ -402,6 +389,7 @@ let rec lambdaToSql
       | TDateTime -> "timestamp with time zone"
       | TChar -> "text"
       | TUuid -> "uuid"
+      | TUnit -> "bigint"
       | _ -> error $"We do not support this type of DB field yet: {t}"
 
     let fieldname = escapeFieldname fieldname
@@ -412,7 +400,8 @@ let rec lambdaToSql
     | TBool
     | TDateTime
     | TChar
-    | TUuid ->
+    | TUuid
+    | TUnit ->
       let typename = primitiveFieldType dbFieldType
       $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
     | TList t ->

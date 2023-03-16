@@ -86,7 +86,7 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
       let result = if result.Contains "." then result else $"{result}.0"
       w.WriteRawValue result
   | TBool, DBool b -> w.WriteBooleanValue b
-  | TUnit, DUnit -> w.WriteNullValue()
+  | TUnit, DUnit -> w.WriteNumberValue(0)
   | TStr, DStr s -> w.WriteStringValue s
   | TList ltype, DList l -> w.writeArray (fun () -> List.iter (writeDval ltype) l)
   | TDict objType, DObj o ->
@@ -174,7 +174,7 @@ let parseJsonV0 (typ : DType) (str : string) : Dval =
       |> NodaTime.Instant.ofIsoString
       |> DarkDateTime.fromInstant
       |> DDateTime
-    | TUnit, JsonValueKind.Null -> DUnit
+    | TUnit, JsonValueKind.Number -> DUnit
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
     // | TTuple (t1, t2, rest), JsonValueKind.Array ->
