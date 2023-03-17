@@ -83,6 +83,7 @@ events_v0
 -- search term is in the index or it will need to hit disk. This is true even though
 -- the module rarely changes
 -- 2) fetch the indexes for all items we're unpausing. This is rare so it's fine to
+
 CREATE INDEX CONCURRENTLY IF NOT EXISTS
 idx_events_count
 ON events_v0 (canvas_id, module, name);
