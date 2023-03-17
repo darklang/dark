@@ -140,7 +140,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
            name1 = name2 && equalsExpr expr1 expr2)
          fields1
          fields2
-  | EConstructor (_, typeName, caseName, fields), EConstructor (_, typeName', caseName', fields') ->
+  | EConstructor (_, typeName, caseName, fields),
+    EConstructor (_, typeName', caseName', fields') ->
     typeName = typeName'
     && caseName = caseName'
     && fields.Length = fields'.Length
