@@ -14,14 +14,6 @@ module C = LibBackend.Canvas
 
 let initSerializers () = ()
 
-let print (s : string) = System.Console.WriteLine(s)
-
-let parseExpr (name : string) (s : string) =
-  try
-    Parser.parsePTExpr s
-  with
-  | e -> Exception.raiseCode $"Couldn't parse expression {name}\n{s}\n{e.Message}"
-
 module CommandNames =
   [<Literal>]
   let import = "load-from-disk"
@@ -97,13 +89,14 @@ let main (args : string []) =
           config.HttpHandlers
           |> Map.toList
           |> List.map (fun (name, details) ->
-            let handlerId = Prelude.gid ()
+            let handlerId = gid ()
+            let ast =
+              System.IO.File.ReadAllText $"{baseDir}/{name}.dark"
+              |> Parser.parsePTExpr
 
             let handler : PT.Handler.T =
               { tlid = handlerId
-                ast =
-                  System.IO.File.ReadAllText $"{baseDir}/{name}.dark"
-                  |> parseExpr name
+                ast = ast
                 spec =
                   PT.Handler.Spec.HTTP(
                     details.Path,
@@ -158,5 +151,5 @@ let main (args : string []) =
     |> fun x -> x.Result
   with
   | e ->
-    System.Console.WriteLine $"Error starting CanvasHack: {e}"
+    printException "" [] e
     1
