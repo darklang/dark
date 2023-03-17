@@ -71,22 +71,6 @@
       },
       "group": "build",
       "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "build-fuzztests",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "/property:GenerateFullPaths=true",
-        "--no-restore",
-        "/consoleloggerparameters:NoSummary",
-        "tests/FuzzTests/FuzzTests.fsproj"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
-      },
-      "group": "build",
-      "problemMatcher": "$msCompile"
     }
   ]
 }
