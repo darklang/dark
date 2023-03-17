@@ -22,6 +22,3 @@ Or to run only testlists with XXX in their names:
 `scripts/run-backend-tests --filter-test-list XXX`
 
 Tests are _not_ automatically discovered; they must be added to `Tests.fs`.
-
-We also have a number of property-based tests, which we currently keep separate
-in `backend/tests/FuzzTests`. Run them with `scripts/run-backend-fuzzer`.

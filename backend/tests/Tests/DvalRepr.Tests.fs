@@ -20,11 +20,28 @@ module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippa
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Errors = LibExecution.Errors
 
+let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
+  dv
+  |> DvalReprInternalRoundtrippable.toJsonV0
+  |> DvalReprInternalRoundtrippable.parseJsonV0
+  |> Expect.dvalEquality dv
+
+
+let queryableRoundtripsSuccessfully (dv : RT.Dval) : bool =
+  let dvm = Map.ofList [ "field", dv ]
+  let fieldTypes = [ "field", RT.Dval.toType dv ]
+  let typ = RT.TRecord fieldTypes
+
+  dvm
+  |> DvalReprInternalQueryable.toJsonStringV0 fieldTypes
+  |> DvalReprInternalQueryable.parseJsonV0 typ
+  |> Expect.dvalEquality (RT.DObj dvm)
 
 let testDvalRoundtrippableRoundtrips =
+
   testMany
     "special roundtrippable dvals roundtrip"
-    FuzzTests.InternalJson.Roundtrippable.roundtripsSuccessfully
+    roundtrippableRoundtripsSuccessfully
     [ RT.DObj(Map.ofList [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]),
       true ]
 
@@ -90,11 +107,11 @@ let allRoundtrips =
     "roundtrips"
     [ t
         "roundtrippable"
-        FuzzTests.InternalJson.Roundtrippable.roundtripsSuccessfully
+        roundtrippableRoundtripsSuccessfully
         (dvs (DvalReprInternalRoundtrippable.Test.isRoundtrippableDval))
       t
         "queryable v0"
-        FuzzTests.InternalJson.Queryable.canV1Roundtrip
+        queryableRoundtripsSuccessfully
         (dvs DvalReprInternalQueryable.Test.isQueryableDval)
       t
         "vanilla"

@@ -23,7 +23,6 @@
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
     <ProjectReference Include="../../src/LibAnalysis/LibAnalysis.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
-    <ProjectReference Include="../../tests/FuzzTests/FuzzTests.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestConfig.fs" />

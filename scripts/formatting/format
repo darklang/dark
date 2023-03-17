@@ -97,8 +97,7 @@ all_prettier_files() {
     -o -name "*.js" \
     -o -name "*.ts" \
     -o -name "*.html" \
-    \) -print0 \
-    | grep --null-data --invert-match reset-normalize
+    \) -print0
 }
 
 all_fsharp_files() {
@@ -162,7 +161,9 @@ for i in "${FILES[@]}"; do
       all_fsharp_files $i | do_fantomas
     fi
     if [[ 0 -eq "$PRETTIER" ]]; then
-      all_prettier_files "$i" | do_prettier
+      # CLEANUP there's no JS/CSS files at the moment
+      # all_prettier_files "$i" | do_prettier
+      echo "No JS files at the moment - reenable this"
     fi
   elif is_allowed "$i"; then
     if is_fsharp "$i"; then

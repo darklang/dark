@@ -53,19 +53,6 @@
         "DARK_CONFIG_DB_USER": "dark",
         "DARK_CONFIG_DB_PASSWORD": "darklang"
       }
-    },
-
-    {
-      "name": "FuzzTests",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build-fuzztests",
-      "program": "/home/dark/app/backend/Build/out/FuzzTests/Debug/net7.0/linux-x64/FuzzTests",
-      "args": ["--filter-test-list", "executePure"],
-      "cwd": "${workspaceFolder}/backend",
-      "stopAtEntry": false,
-      "console": "internalConsole",
-      "env": {}
     }
   ]
 }
