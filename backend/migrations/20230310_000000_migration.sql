@@ -19,6 +19,14 @@
 -- DROP TABLE IF EXISTS traces_v0;
 -- DROP TABLE IF EXISTS user_data CASCADE;
 
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $t$
+  BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+  END;
+$t$ LANGUAGE plpgsql;
+
 
 CREATE TABLE IF NOT EXISTS
 accounts_v0
