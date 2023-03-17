@@ -1,0 +1,107 @@
+(
+  let body =
+    """
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dark Editor - GPT-4 API</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body,
+      html {
+        margin: 0;
+        height: 100%;
+      }
+      .split-container {
+        display: flex;
+        height: 100%;
+      }
+      .left-half,
+      .right-half {
+        height: 100%;
+        flex: 1;
+        padding: 20px;
+      }
+      .left-half {
+        background-color: #f9f9f9;
+      }
+      .right-half {
+        background-color: #ddd;
+      }
+      textarea {
+        width: 100%;
+        height: 80%;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        resize: none;
+      }
+      input[type="text"],
+      input[type="submit"] {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+      }
+      input[type="submit"] {
+        background-color: #4caf50;
+        color: white;
+        cursor: pointer;
+      }
+      input[type="submit"]:hover {
+        background-color: #45a049;
+      }
+      textarea:disabled {
+        background-color: #f2f2f2;
+        color: #aaa;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="split-container">
+      <div class="left-half">
+        <form id="gpt4-form">
+          <input type="text" name="dark-editor" value="dark-editor" />
+          <textarea name="prompt" placeholder="Insert prompt here"></textarea>
+          <input type="submit" value="Submit" />
+        </form>
+      </div>
+      <div class="right-half">
+        <textarea id="output" disabled></textarea>
+      </div>
+    </div>
+    <script>
+      document
+        .getElementById("gpt4-form")
+        .addEventListener("submit", async event => {
+          event.preventDefault();
+          const formData = new FormData(event.target);
+          const prompt = formData.get("prompt");
+
+          const response = await fetch("/api/gpt4", {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: prompt,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            document.getElementById("output").value = data.choices[0].text;
+          } else {
+            document.getElementById("output").value =
+              "Error calling the GPT-4 API";
+          }
+        });
+    </script>
+  </body>
+</html>
+  """
+
+  Http.responseWithHeaders(String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
+)

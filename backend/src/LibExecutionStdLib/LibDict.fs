@@ -100,7 +100,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
-      parameters = [ Param.make "entries" (TTuple(varA, varB, [])) "" ]
+      parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TDict varA
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
@@ -133,8 +133,8 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromList" 0
-      parameters = [ Param.make "entries" (TTuple(varA, varB, [])) "" ]
-      returnType = TOption(TDict varA)
+      parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
+      returnType = TOption(TDict varB)
       description =
         "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
          key> is a <type String>.

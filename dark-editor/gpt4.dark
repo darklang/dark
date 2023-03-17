@@ -1,0 +1,22 @@
+(
+  let prompt = Bytes.parseAsText request.Body
+  let openaiApiKey = "your_openai_api_key_here"
+
+  let openaiHeaders = [
+      "Content-Type", "application/json"
+      "Authorization", "Bearer " + openaiApiKey
+  ]
+
+  let openaiBody =
+      sprintf "{\"prompt\": \"%s\", \"max_tokens\": 50}" prompt
+      |> Bytes.fromText
+
+  let openaiResponse =
+      HttpBaseClient.request "POST" "https://api.openai.com/v4/engines/davinci-codex/completions" openaiHeaders openaiBody
+
+  match openaiResponse.statusCode with
+  | 200 ->
+      let responseBody = Bytes.parseAsText openaiResponse.body
+      HttpResponse.ok [("Content-Type", "application/json")], responseBody
+  | _ ->
+    HttpResponse.internalServerError [("Content-Type", "application/json")], "{\"error\": \"GPT-4 API call failed\"}")
