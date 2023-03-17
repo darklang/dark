@@ -107,7 +107,7 @@ let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>)
       |> List.filter (fun (p, a) -> not (Dval.typeMatches p.typ a))
 
     match invalid with
-    | [] -> Dval.errSStr source $"unknown error calling {FQFnName.toString fn.name}"
+    | [] -> Dval.errSStr source $"unknown error calling {FQFnName.toString fn.name}, with args {argList} and params {fn.parameters}"
     | (p, actual) :: _ ->
       let msg = incorrectArgsMsg fn.name p actual
       Dval.errSStr source msg
