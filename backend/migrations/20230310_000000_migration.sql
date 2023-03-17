@@ -1,18 +1,29 @@
+-- -- drop tables
+-- DROP TABLE IF EXISTS access;
+-- DROP TABLE IF EXISTS accounts CASCADE;
+-- DROP TABLE IF EXISTS canvases CASCADE;
+-- DROP TABLE IF EXISTS cron_records CASCADE;
+-- DROP TABLE IF EXISTS custom_domains;
+-- DROP TABLE IF EXISTS events;
+-- DROP TABLE IF EXISTS events_v2 CASCADE;
+-- DROP TABLE IF EXISTS function_arguments CASCADE;
+-- DROP TABLE IF EXISTS function_results_v3 CASCADE;
+-- DROP TABLE IF EXISTS op_ctrs;
+-- DROP TABLE IF EXISTS packages_v0 CASCADE;
+-- DROP TABLE IF EXISTS scheduling_rules CASCADE;
+-- DROP TABLE IF EXISTS secrets CASCADE;
+-- DROP TABLE IF EXISTS static_asset_deploys CASCADE;
+-- DROP TABLE IF EXISTS stored_events_v2 CASCADE;
+-- DROP TABLE IF EXISTS system_migrations;
+-- DROP TABLE IF EXISTS toplevel_oplists CASCADE;
+-- DROP TABLE IF EXISTS traces_v0;
+-- DROP TABLE IF EXISTS user_data CASCADE;
+
+
 CREATE TABLE IF NOT EXISTS
 accounts_v0
 ( id UUID PRIMARY KEY
-, username VARCHAR(255) UNIQUE NOT NULL
-, email VARCHAR(255) UNIQUE NOT NULL
-, admin BOOL NOT NULL DEFAULT FALSE
-, password VARCHAR(255) NOT NULL
-, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, segment_metadata JSONB
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS
-idx_accounts_email_uniqueness
-ON accounts_v0 (email);
 
 CREATE TRIGGER set_account_timestamp
 BEFORE UPDATE ON accounts_v0
@@ -39,8 +50,8 @@ CREATE TABLE IF NOT EXISTS
 cron_records_v0
 ( id SERIAL PRIMARY KEY
 , tlid BIGINT NOT NULL
-, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
-, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
+, canvas_id UUID NOT NULL
+, ran_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -63,11 +74,9 @@ events_v0
 , name TEXT NOT NULL
 , modifier TEXT NOT NULL
 , locked_at TIMESTAMPTZ -- nullable
-, enqueued_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+, enqueued_at TIMESTAMPTZ NOT NULL
 , value TEXT NOT NULL
 );
-
---#[no_tx]
 
 -- We want to use this index to:
 -- 1) count the number of items in this queue, so it's important that the entire
@@ -82,7 +91,7 @@ ON events_v0 (canvas_id, module, name);
 CREATE TABLE IF NOT EXISTS
 function_arguments_v0
 ( id UUID PRIMARY KEY
-, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+, canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
 , timestamp TIMESTAMPTZ NOT NULL
@@ -103,14 +112,14 @@ ON function_arguments_v0
 CREATE TABLE IF NOT EXISTS
 function_results_v0
 ( id BIGINT PRIMARY KEY
-, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+, canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
 , fnname TEXT NOT NULL
 , hash TEXT NOT NULL
 , timestamp TIMESTAMPTZ NOT NULL
 , value TEXT NOT NULL
 , trace_id UUID NOT NULL
-, hash_version INTEGER
+, hash_version INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -122,7 +131,7 @@ ON function_results_v0
  /* associate it back to the function. */
 CREATE TABLE IF NOT EXISTS packages_v0
 ( id UUID PRIMARY KEY
-, tlid BIGINT
+, tlid BIGINT NOT NULL
   /* owner/namespace part of the string, eg dark */
 , user_id UUID NOT NULL
 , package TEXT NOT NULL /* eg stdlib */
@@ -144,9 +153,9 @@ CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
-( id SERIAL PRIMARY KEY
+( id UUID PRIMARY KEY
 , rule_type scheduling_rule_type NOT NULL
-, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+, canvas_id UUID NOT NULL
 , handler_name TEXT NOT NULL
 , event_space TEXT NOT NULL
 , created_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -156,7 +165,7 @@ scheduling_rules_v0
 CREATE TABLE IF NOT EXISTS
 secrets_v0
 ( id UUID PRIMARY KEY
-, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+, canvas_id UUID NOT NULL
 , secret_name VARCHAR(255) NOT NULL
 , secret_value TEXT NOT NULL
 , secret_version INT NOT NULL DEFAULT 0
@@ -166,7 +175,7 @@ secrets_v0
 
 CREATE TABLE IF NOT EXISTS
 stored_events_v0
-( canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+( canvas_id UUID NOT NULL
 , module TEXT NOT NULL
 , path TEXT NOT NULL
 , modifier TEXT NOT NULL
@@ -206,18 +215,18 @@ ENUM ('handler', 'db', 'user_function');
 
 CREATE TABLE IF NOT EXISTS
 toplevel_oplists_v0
-( canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+( canvas_id UUID NOT NULL
 , tlid INTEGER NOT NULL
 , digest CHAR(32) NOT NULL
-, tipe toplevel_type
+, tipe toplevel_type NOT NULL
 , name TEXT /* handlers only - used for http lookups */
 , module TEXT /* handlers only */
 , modifier TEXT /* handlers only */
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, deleted BOOLEAN
-, oplist BYTEA
-, oplist_cache BYTEA
+, deleted BOOLEAN NOT NULL
+, oplist BYTEA NOT NULL
+, oplist_cache BYTEA NOT NULL
 , PRIMARY KEY (canvas_id, tlid)
 );
 
@@ -244,7 +253,7 @@ traces_v0
 CREATE TABLE IF NOT EXISTS
 user_data_v0
 ( id UUID PRIMARY KEY
-, canvas_id UUID REFERENCES canvases_v0(id) NOT NULL
+, canvas_id UUID NOT NULL
 , table_tlid BIGINT NOT NULL
 , user_version INT NOT NULL
 , dark_version INT NOT NULL
