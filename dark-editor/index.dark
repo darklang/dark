@@ -1,3 +1,6 @@
+(
+  let body =
+    """
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -98,3 +101,7 @@
     </script>
   </body>
 </html>
+  """
+
+  Http.responseWithHeaders(String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
+)
