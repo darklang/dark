@@ -222,12 +222,9 @@ let rec convertToExpr
     | [] -> PT.EVariable(id, name.idText)
     | [ typeName ] ->
       let fields =
-        // The fields of an enum ctor are filled in later, since
-        // the F# parser encodes callers with multiple args
-        // as apps wrapping other apps.
-        //
-        // In any case, the fields are filled in shortly - search through
-        // this file for other cases of "EConstructor" to locate such.
+        // When parsing an enum ctor, we don't know the fields _here_.
+        // They are filled in shortly elsewhere - review this file for other cases
+        // of "EConstructor" to locate such.
         []
 
       PT.EConstructor(id, Some typeName, name.idText, fields)
@@ -362,7 +359,10 @@ let rec convertToExpr
           (nameOrBlank name.idText, c expr)
         | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
-    let typeName = None // TODO: determine the appropriate typeName based on the fields and types available
+    let typeName =
+      // TODO: determine the appropriate typeName
+      // based on the fields and types available
+      None
 
     PT.ERecord(id, typeName, fields)
 
@@ -555,8 +555,8 @@ let parseTestFile
       match ident.idText, matchingCustomTypes availableTypes ident.idText, args with
       | "List", _, [ arg ] -> PT.TList(c arg)
       | "Option", _, [ arg ] -> PT.TOption(c arg)
-      | _, [ typeName ], _ ->
-        let typeArgs = [] // TODO: revisit. Probably use the third part of the trip in the previous line
+      | _, [ typeName ], args ->
+        let typeArgs = List.map c args
         PT.TCustomType(typeName, typeArgs)
       | _ ->
         Exception.raiseInternal
@@ -581,8 +581,8 @@ let parseTestFile
       | _ ->
         match matchingCustomTypes availableTypes ident.idText with
         | [ matchedType ] ->
-          let argTypes = [] // TODO: revisit. not sure where to get this from
-          PT.TCustomType(matchedType, argTypes)
+          let typeArgs = [] // TODO: List.map c args
+          PT.TCustomType(matchedType, typeArgs)
         | _ ->
           Exception.raiseInternal
             $"Unsupported type"
@@ -815,11 +815,9 @@ let parseTestFile
         tests = [] }
       (fun m decl ->
         let availableTypes =
-          // these are currently just _user_ types
-          // TODO support other (stdlib, package) types as well
           (m.types @ parent.types)
           |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
-        let availableTypes = availableTypes @ stdlibTypes
+          |> (@) stdlibTypes
 
         match decl with
         | SynModuleDecl.Let (_, bindings, _) ->

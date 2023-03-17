@@ -97,7 +97,7 @@ type Expr =
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of
     id *
-    Option<FQTypeName.T> *
+    typeName : Option<FQTypeName.T> *
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
@@ -126,7 +126,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TCustomType of FQTypeName.T * genArgs : List<DType>
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
   | TBytes
   | TResult of DType * DType
   | TVariable of string

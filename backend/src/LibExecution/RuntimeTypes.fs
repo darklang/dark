@@ -293,7 +293,7 @@ and Dval =
   | DHttpResponse of int64 * List<string * string> * Dval
 
   // TODO: replace with something like
-  // `| DObj of FQTypeName.T * DvalMap`
+  // `| DRecord of FQTypeName.T * DvalMap`
   | DObj of DvalMap
 
   // TODO: merge DOption and DResult into DConstructor once the Option and Result types
@@ -301,10 +301,11 @@ and Dval =
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
 
-  // TODO: I'm not a big fan of the term DConstructor because this is a _value_
-  //   the enum has already been "Constructed"
-  //   that's why I was leaning towards something like DEnumValue - it's a value, not a tool to be used to construct
-  | DConstructor of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
+  // TODO: consider renaming - this is a _value_ so it's already been "Constructed"
+  | DConstructor of
+    typeName : Option<FQTypeName.T> *
+    caseName : string *
+    fields : List<Dval>
 
 
 and DvalTask = Ply<Dval>
@@ -335,14 +336,14 @@ and DType =
   | TIncomplete
   | TError
 
-  /// A named variable, eg `a` in `List<a>`
-  /// TODO: maybe this is replaced by TCustomType?
+  /// Used to refer to a named type argument defined in a generic type
+  /// e.g. `a` in `List<a>`
   | TVariable of string
 
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
-  /// `genArgs` is the list of type arguments, if any
-  | TCustomType of FQTypeName.T * genArgs : List<DType>
+  /// `typeArgs` is the list of type arguments, if any
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
 
   // TODO: remove all of thse in favor of TCustomType
   // Enums
@@ -501,9 +502,24 @@ module Dval =
     | DResult (Ok v) -> TResult(toType v, any)
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
-    | DConstructor (typeName, _caseName, _fields) ->
-      let args = [] // TODO: this probably isn't sufficient
-      TCustomType(typeName, args)
+    | DConstructor (typeName, caseName, fields) ->
+      match typeName with
+      | Some typeName ->
+        let typeArgs = List.map toType fields
+        TCustomType(typeName, typeArgs)
+      | None ->
+        match caseName, fields with
+        // option
+        | "Nothing", [] -> TOption any
+        | "Just", [ arg ] -> TOption(toType arg)
+
+        // result
+        | "Ok", [ arg ] -> TResult(any, any)
+        | "Error", [ arg ] -> TResult(any, any)
+
+        // unrecognized
+        | _ -> any // might be better to error here
+
 
   /// <summary>
   /// Checks if a runtime's value matches a given type
@@ -831,8 +847,6 @@ type BuiltInType =
     typeArgs : List<string>
     definition : CustomType.T
     description : string }
-
-let types = []
 
 /// A built-in standard library function
 type BuiltInFn =

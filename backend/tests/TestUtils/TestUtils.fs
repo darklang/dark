@@ -472,7 +472,7 @@ module Expect =
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DConstructor (_typeName, _caseName, fields) ->
-      // TODO: revisit
+      // TODO: revisit - I'm not sure what to do here.
       fields |> List.all check
 
   type Path = string list
@@ -748,7 +748,7 @@ module Expect =
 
     | DConstructor (typeName, caseName, fields),
       DConstructor (typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path (Some typeName) (Some typeName') errorFn
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
 
       check ("caseName" :: path) caseName caseName'
 

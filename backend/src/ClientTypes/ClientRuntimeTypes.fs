@@ -56,7 +56,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TCustomType of FQTypeName.T * genArgs : List<DType>
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -96,8 +96,12 @@ module Expr =
     | EFQFnValue of id * FQFnName.T
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
-    | ERecord of id * Option<FQTypeName.T> * List<string * T>
-    | EConstructor of id * Option<FQTypeName.T> * string * List<T>
+    | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
+    | EConstructor of
+      id *
+      typeName : Option<FQTypeName.T> *
+      caseName : string *
+      fields : List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
@@ -149,4 +153,7 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DConstructor of typeName : FQTypeName.T * caseName : string * fields : List<T>
+    | DConstructor of
+      typeName : Option<FQTypeName.T> *
+      caseName : string *
+      fields : List<T>

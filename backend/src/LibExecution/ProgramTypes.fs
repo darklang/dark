@@ -12,14 +12,12 @@ module FQTypeName =
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
-  /// if we come up with a better name for this, that'd be great
-  /// ideas: Source
   type T =
-    // TODO:
+    // TODO: add `| Package of PackageTypeName` case
     | Stdlib of StdlibTypeName
-    // | Package of PackageTypeName
     | User of UserTypeName
 
+  // TODO: review this - OK?
   let stdlibTypeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
   let stdlibTypeName (typ : string) : StdlibTypeName =
@@ -27,16 +25,6 @@ module FQTypeName =
 
     { typ = typ }
 
-
-// I'm not sure when we'll need this, but probably soon
-// Some of the FQTypeName references might need to be replaced with FQResolvedTypeName ones
-//
-/// A FQTypeName with any relevant named type arguments "applied"
-/// The StdLib-defined type "Option" is an example of a type with type arguments
-/// - the Stdlib defines `Option<a>`, whic has a type argument `a`
-///   This would look like `{ typ: Option, args: ["a"]}
-/// - Map.map is defined as `Map.map<a, b>(f: a -> b, map: Map<a>): Map<b>`
-type FQResolvedTypeName = { typ : FQTypeName.T; args : List<string> }
 
 
 /// A Fully-Qualified Function Name
@@ -128,8 +116,6 @@ type LetPattern = LPVariable of id * name : string
 /// Used for pattern matching in a match statement
 type MatchPattern =
   | MPVariable of id * string
-  // TODO: do we need typeName here for anything?
-  // feels like it could ensure extra type-safety, but also maybe excessive.
   | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
@@ -192,7 +178,6 @@ type Expr =
 
   // Constructors include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.
-  // TODO:
   //
   /// Given an Enum type of:
   ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
@@ -203,13 +188,7 @@ type Expr =
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
   | EConstructor of
     id *
-
-    Option<FQTypeName.T> *  // TODO: this shouldn't be an Option
-
-    // we need something (either on this line or as part of the previous)
-    // to represent the generic type parameters of the defined type referenced.
-    // or do we? maybe not,
-
+    typeName : Option<FQTypeName.T> *
     caseName : string *
     fields : List<Expr>
 
@@ -270,11 +249,10 @@ type DType =
 
   | TDbList of DType // TODO: cleanup and remove
 
-
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
-  /// `genArgs` is the list of type arguments, if any
-  | TCustomType of FQTypeName.T * genArgs : List<DType>
+  /// `typeArgs` is the list of type arguments, if any
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
 
   // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
   // and the Option module defines the custom `Option` type
@@ -288,9 +266,6 @@ type DType =
   | TRecord of List<string * DType>
 
 
-
-
-
 /// A type defined by a standard library module, a canvas/user, or a package
 module CustomType =
   type RecordField = { id : id; name : string; typ : DType }
@@ -299,8 +274,12 @@ module CustomType =
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type T =
-    // TODO: | Abbreviation/Alias of DType
+    // TODO: //| Abbreviation/Alias of DType
+
+    /// `type MyRecord = { a : int; b : string }`
     | Record of firstField : RecordField * additionalFields : List<RecordField>
+
+    /// `type MyEnum = A | B of int | C of int * (label: string)`
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
 module Handler =

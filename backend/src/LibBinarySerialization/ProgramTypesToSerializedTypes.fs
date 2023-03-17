@@ -167,8 +167,8 @@ module DType =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TCustomType (t, argTypes) ->
-      ST.TCustomType(FQTypeName.toST t, List.map toST argTypes)
+    | PT.TCustomType (t, typeArgs) ->
+      ST.TCustomType(FQTypeName.toST t, List.map toST typeArgs)
     | PT.TBytes -> ST.TBytes
     | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
     | PT.TVariable (name) -> ST.TVariable(name)

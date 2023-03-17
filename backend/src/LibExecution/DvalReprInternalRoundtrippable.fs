@@ -26,14 +26,39 @@ module FormatV0 =
   /// Used to reference a type defined by a User, Standard Library module, or Package
   module FQTypeName =
 
-    type StdlibTypeName = { typ : string }
+    module StdlibTypeName =
+      type T = { typ : string }
+
+      let fromRT (t : RT.FQTypeName.StdlibTypeName) : T = { typ = t.typ }
+
+      let toRT (t : T) : RT.FQTypeName.StdlibTypeName = { typ = t.typ }
+
 
     /// A type written by a Developer in their canvas
-    type UserTypeName = { typ : string; version : int }
+    module UserTypeName =
+      type T = { typ : string; version : int }
+
+      let fromRT (u : RT.FQTypeName.UserTypeName) : T =
+        { typ = u.typ; version = u.version }
+
+      let toRT (u : T) : RT.FQTypeName.UserTypeName =
+        { typ = u.typ; version = u.version }
+
 
     type T =
-      | Stdlib of StdlibTypeName
-      | User of UserTypeName
+      | Stdlib of StdlibTypeName.T
+      | User of UserTypeName.T
+
+    let fromRT (t : RT.FQTypeName.T) : T =
+      match t with
+      | RT.FQTypeName.Stdlib t -> Stdlib(StdlibTypeName.fromRT t)
+      | RT.FQTypeName.User u -> User(UserTypeName.fromRT u)
+
+    let toRT (t : T) : RT.FQTypeName.T =
+      match t with
+      | Stdlib t -> RT.FQTypeName.Stdlib(StdlibTypeName.toRT t)
+      | User u -> RT.FQTypeName.User(UserTypeName.toRT u)
+
 
   type DvalMap = Map<string, Dval>
   and DvalSource =
@@ -61,6 +86,10 @@ module FormatV0 =
     | DOption of Option<Dval>
     | DResult of Result<Dval, Dval>
     | DBytes of byte array
+    | DConstructor of
+      typeName : Option<FQTypeName.T> *
+      caseName : string *
+      fields : List<Dval>
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
@@ -92,6 +121,12 @@ module FormatV0 =
     | DResult (Ok dv) -> RT.DResult(Ok(toRT dv))
     | DResult (Error dv) -> RT.DResult(Error(toRT dv))
     | DBytes bytes -> RT.DBytes bytes
+    | DConstructor (typeName, caseName, fields) ->
+      RT.DConstructor(
+        Option.map FQTypeName.toRT typeName,
+        caseName,
+        List.map toRT fields
+      )
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
@@ -122,7 +157,12 @@ module FormatV0 =
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DConstructor _ -> DUnit // TODO revisit
+    | RT.DConstructor (typeName, caseName, fields) ->
+      DConstructor(
+        Option.map FQTypeName.fromRT typeName,
+        caseName,
+        List.map fromRT fields
+      )
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -154,9 +194,10 @@ module Test =
     | RT.DChar _
     | RT.DBytes _
     | RT.DDateTime _
-    | RT.DConstructor _
     | RT.DOption None
     | RT.DPassword _ -> true
+    | RT.DConstructor (_typeName, _caseName, fields) ->
+      List.all isRoundtrippableDval fields
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
     | RT.DObj map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true

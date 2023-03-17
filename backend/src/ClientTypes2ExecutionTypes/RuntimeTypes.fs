@@ -99,8 +99,8 @@ module DType =
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
     | RT.TOption t -> TOption(r t)
-    | RT.TCustomType (typeName, argTypes) ->
-      TCustomType(FQTypeName.toCT typeName, List.map r argTypes)
+    | RT.TCustomType (typeName, typeArgs) ->
+      TCustomType(FQTypeName.toCT typeName, List.map r typeArgs)
     | RT.TBytes -> TBytes
     | RT.TResult (ok, error) -> TResult(r ok, r error)
     | RT.TVariable (name) -> TVariable(name)
@@ -129,8 +129,8 @@ module DType =
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid
     | TOption t -> RT.TOption(r t)
-    | TCustomType (t, argTypes) ->
-      RT.TCustomType(FQTypeName.fromCT t, List.map r argTypes)
+    | TCustomType (t, typeArgs) ->
+      RT.TCustomType(FQTypeName.fromCT t, List.map r typeArgs)
     | TBytes -> RT.TBytes
     | TResult (ok, error) -> RT.TResult(r ok, r error)
     | TVariable (name) -> RT.TVariable(name)
@@ -345,7 +345,11 @@ module Dval =
     | Dval.DResult (Error dv) -> RT.DResult(Error(r dv))
     | Dval.DBytes bytes -> RT.DBytes bytes
     | Dval.DConstructor (typeName, caseName, fields) ->
-      RT.DConstructor(FQTypeName.fromCT typeName, caseName, List.map r fields)
+      RT.DConstructor(
+        Option.map FQTypeName.fromCT typeName,
+        caseName,
+        List.map r fields
+      )
 
   and toCT (dv : RT.Dval) : Dval.T =
     let r = toCT

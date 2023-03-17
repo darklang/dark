@@ -104,11 +104,11 @@ let rec unify
   | TResult _, DResult _ -> Ok()
   | TRecord _, DObj _ -> Ok()
 
-  | TCustomType (typeName, argTypes), value ->
+  | TCustomType (typeName, typeArgs), value ->
+    // TODO: typeArgs isn't used here, but it should be - right?
     match Map.tryFind typeName availableTypes with
     | None -> Error [ TypeLookupFailure typeName ]
     | Some ut ->
-      // TODO: review usages; consider better error reporting
       let err =
         Error [ TypeUnificationFailure
                   { expectedType = expected; actualValue = value } ]

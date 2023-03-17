@@ -301,9 +301,9 @@ that's already taken, returns an error."
           | TOption _ -> "option"
           | TResult _ -> "result"
           | TBytes -> "bytes"
-          | TCustomType (t, argTypes) ->
+          | TCustomType (t, typeArgs) ->
             let typeArgsPortion =
-              match argTypes with
+              match typeArgs with
               | [] -> ""
               | args ->
                 args
@@ -313,7 +313,9 @@ that's already taken, returns an error."
 
             match t with
             | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
-            | FQTypeName.User t -> t.typ + typeArgsPortion
+            | FQTypeName.User t ->
+              let versionPart = if t.version = 0 then "" else $"_v{t.version}"
+              t.typ + versionPart + typeArgsPortion
 
         internalFn (function
           | state, [] ->

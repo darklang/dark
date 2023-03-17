@@ -31,9 +31,9 @@ let rec typeName (t : DType) : string =
   | TUuid -> "UUID"
   | TOption nested -> $"Option<{typeName nested}>"
   | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
-  | TCustomType (t, args) ->
+  | TCustomType (t, typeArgs) ->
     let typeArgsPortion =
-      match args with
+      match typeArgs with
       | [] -> ""
       | args ->
         args
@@ -133,7 +133,7 @@ let toRepr (dv : Dval) : string =
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 
-      $"{typeName}.{caseName}([{fieldStr}])"
+      $"{typeName}.{caseName}({fieldStr})"
 
 
   toRepr_ 0 dv

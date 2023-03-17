@@ -38,6 +38,18 @@ let maybeParamOf name (arg : DType) = Param.make name (maybeOf arg) ""
 
 let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 
+// Misc idea of how we could use active patterns for stdlib fns.
+let (|DNah|_|) (dval : Dval) =
+  match dval with
+  | DConstructor (_, "Nah", []) -> Some()
+  | _ -> None
+
+let (|DTotally|_|) (dval : Dval) =
+  match dval with
+  | DConstructor (_, "Totally", [ arg ]) -> Some(arg)
+  | _ -> None
+
+
 // TODO: having to assign IDs below is really annoying.
 let types : List<PT.BuiltInType> =
   [ { name = tp "Maybe"
@@ -74,9 +86,9 @@ let fns : List<BuiltInFn> =
 
               // TODO: this used to use `maybeJust` which did some isFake checking,
               // we should see if that's still necessary
-              return DConstructor(maybeTypeName, "Totally", [ result ])
+              return DConstructor(Some maybeTypeName, "Totally", [ result ])
 
-            | "Nah", [] -> return DConstructor(maybeTypeName, "Nah", [])
+            | "Nah", [] -> return DConstructor(Some maybeTypeName, "Nah", [])
 
             | _ -> return incorrectArgs ()
           }
@@ -106,15 +118,15 @@ let fns : List<BuiltInFn> =
             DFnVal b ] ->
           uply {
             match (caseNameA, fieldsA), (caseNameB, fieldsB) with
-            | ("Nah", []), _ -> return DConstructor(maybeTypeName, "Nah", [])
+            | ("Nah", []), _ -> return DConstructor(Some maybeTypeName, "Nah", [])
 
-            | _, ("Nah", []) -> return DConstructor(maybeTypeName, "Nah", [])
+            | _, ("Nah", []) -> return DConstructor(Some maybeTypeName, "Nah", [])
 
             | ("Totally", [ dv1 ]), ("Totally", [ dv2 ]) ->
               let! result =
                 Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
 
-              return DConstructor(maybeTypeName, "Totally", [ result ])
+              return DConstructor(Some maybeTypeName, "Totally", [ result ])
 
             | _ -> return incorrectArgs ()
           }
@@ -142,10 +154,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DConstructor (_, "Nah", []); _maybe2; _fn ] ->
-          DConstructor(maybeTypeName, "Nah", []) |> Ply
+          DConstructor(Some maybeTypeName, "Nah", []) |> Ply
 
         | _, [ _arg1; DConstructor (_, "Nah", []); _fn ] ->
-          DConstructor(maybeTypeName, "Nah", []) |> Ply
+          DConstructor(Some maybeTypeName, "Nah", []) |> Ply
 
         | state,
           [ DConstructor (_, "Totally", [ dv1 ])
@@ -155,7 +167,44 @@ let fns : List<BuiltInFn> =
             let! result =
               Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
 
-            return DConstructor(maybeTypeName, "Totally", [ result ])
+            return DConstructor(Some maybeTypeName, "Totally", [ result ])
+          }
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    // Just demonstrating another way to write the same function
+    // deconstructing Enum constructors earlier like this may help
+    // stdlib fns to be more concise
+    { name = fn "Maybe" "map2alt2" 0
+      parameters =
+        [ maybeParamOf "maybe1" varA
+          maybeParamOf "maybe2" varB
+          Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "v1"; "v2" ] ]
+      returnType = maybeOf varC
+      description =
+        "If both arguments are {{Just}} (<param maybe1> is {{Just <var v1>}} and
+         <param maybe2> is {{Just <var v2>}}), then return {{Just (fn <var v1> <var
+         v2>)}}. The lambda <param fn> should have two parameters, representing <var
+         v1> and <var v2>. But if either <param maybe1> or <param maybe2> are
+         {{Nothing}}, returns {{Nothing}} without applying <param fn>."
+      fn =
+        (function
+        | _, [ DNah; _maybe2; _fn ] ->
+          DConstructor(Some maybeTypeName, "Nah", []) |> Ply
+
+        | _, [ _arg1; DConstructor (_, "Nah", []); _fn ] ->
+          DConstructor(Some maybeTypeName, "Nah", []) |> Ply
+
+        | state, [ DTotally (dv1); DTotally (dv2); DFnVal b ] ->
+          uply {
+            let! result =
+              Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
+
+            return DConstructor(Some maybeTypeName, "Totally", [ result ])
           }
 
         | _ -> incorrectArgs ())

@@ -161,11 +161,11 @@ type Expr =
   | EVariable of id * string
   | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
-  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of
     id *
-    Option<FQTypeName.T> *
+    typeName : Option<FQTypeName.T> *
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
@@ -196,7 +196,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TCustomType of FQTypeName.T * genArgs : List<DType>
+  | TCustomType of typeName : FQTypeName.T * typeArgs : List<DType>
   | TBytes
   | TResult of DType * DType
   | TVariable of string

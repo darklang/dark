@@ -160,7 +160,7 @@ module ProgramTypes =
 
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
-      PT.MPConstructor(7471263UL, "None", [])
+      PT.MPConstructor(7471263UL, "Nothing", [])
       PT.MPInteger(74816UL, 84871728)
       PT.MPBool(66453UL, false)
       PT.MPCharacter(83749178UL, "w")
@@ -546,6 +546,10 @@ module ProgramTypes =
         ) }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
+
+
+  // TODO: serialize stdlib types?
+  // (also make sure we roundtrip test them)
 
   let packageFn : PT.Package.Fn =
     { name =

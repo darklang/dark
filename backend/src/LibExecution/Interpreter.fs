@@ -317,11 +317,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
           | caseName, fieldPats, DConstructor (_dTypeName, dCaseName, dFields) ->
-
-            // TODO: Should MPConstructor have a UserTypeName in it?
-            // and if so, should we ensure that the DVal's UTN matches the MP's UTN?
-            // or, maybe we don't need the type name in the Dval?
-
             let fieldPats =
               match fieldPats with
               | [ MPTuple (_, first, second, theRest) ] -> first :: second :: theRest
@@ -491,7 +486,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         // EConstructorTODO: reconsider (stole this from DList)
         match List.tryFind Dval.isFake fields with
         | Some fakeDval -> return fakeDval
-        | None -> return DConstructor(typeName, caseName, fields)
+        | None -> return DConstructor(Some typeName, caseName, fields)
   }
 
 /// Interprets an expression and reduces to a Dark value

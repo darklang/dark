@@ -132,7 +132,6 @@ let t
 
       let msg = $"\n\n{actualExpr}\n=\n{expectedExpr} ->"
 
-      // how do I make this typecheck?
       let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedExpr)
 
       // Initialize
