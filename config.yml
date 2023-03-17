@@ -1,3 +1,4 @@
 http-handlers:
-  Method: POST
-  Path: /api/gpt4
+  gpt4:
+    Method: POST
+    Path: /api/gpt4
