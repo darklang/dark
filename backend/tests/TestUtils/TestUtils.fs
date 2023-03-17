@@ -582,7 +582,7 @@ module Expect =
     // expressions with no values
     | EUnit _, EUnit _ -> ()
     // expressions with single string values
-    | EString (_, v), EString (_, v') -> ()
+    | EString (_, s), EString (_, s') -> check path s s'
     | ECharacter (_, v), ECharacter (_, v')
     | EVariable (_, v), EVariable (_, v') -> check path v v'
     | EInteger (_, v), EInteger (_, v') -> check path v v'

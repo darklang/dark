@@ -71,9 +71,7 @@ module RuntimeTypes =
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
-      RT.EString(86749UL, [ RT.StringText "asdfasedf" ])
-      RT.ECharacter(7683UL, "c")
-      RT.EFloat(5495UL, 444.333)
+      RT.EString(86749UL, [ RT.StringText "asdfasedf"; RT.StringInterpolation (RT.EVariable(68496UL, "var")) ])
       RT.EUnit(59485UL)
       RT.ELet(
         49583UL,
