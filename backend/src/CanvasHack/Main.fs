@@ -48,6 +48,21 @@ let main (args : string []) =
     initSerializers ()
 
     task {
+      // See if "dark" user exists and create them if not
+      let username = UserName.create "dark"
+      match! LibBackend.Account.getUser username with
+      | None ->
+        print "creating dark user"
+        let! r =
+          LibBackend.Account.upsertNonAdmin
+            { username = username
+              password = LibBackend.Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
+              email = "test@darklang.com"
+              name = "Dark CanvasHack user " }
+        Result.unwrap () r
+      | Some _ -> print "Using existing dark user"
+
+
       match args with
       | [||] ->
         print
@@ -69,9 +84,9 @@ let main (args : string []) =
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
         let canvasName =
-          match Prelude.CanvasName.create "dark-editor" with
+          match CanvasName.create "dark-editor" with
           | Ok (c) -> c
-          | Result.Error (_) -> Exception.raiseInternal "yolo" []
+          | Error (_) -> Exception.raiseInternal "yolo" []
         let! c = LibBackend.Canvas.getMetaAndCreate canvasName
 
         // For each of the handlers defined in `config.yml`,
