@@ -84,7 +84,7 @@ events_v0
 -- the module rarely changes
 -- 2) fetch the indexes for all items we're unpausing. This is rare so it's fine to
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS
+CREATE INDEX IF NOT EXISTS
 idx_events_count
 ON events_v0 (canvas_id, module, name);
 
@@ -291,4 +291,4 @@ USING GIN
 CREATE TRIGGER set_user_data_timestamp
 BEFORE UPDATE ON user_data_v0
 FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
+EXECUTE PROCEDURE trigger_set_timestamp()
