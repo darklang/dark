@@ -4,8 +4,6 @@ open System
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Legivel.Serialization
-open Legivel.Attributes
 
 open Prelude
 open Tablecloth
@@ -32,14 +30,14 @@ module CommandNames =
   let export = "save-to-disk"
 
 type CanvasHackConfig =
-  { [<YamlField("http-handlers")>]
+  { [<Legivel.Attributes.YamlField("http-handlers")>]
     HttpHandlers : Map<string, CanvasHackHttpHandler> }
 
 and CanvasHackHttpHandler =
-  { [<YamlField("method")>]
+  { [<Legivel.Attributes.YamlField("method")>]
     Method : string
 
-    [<YamlField("path")>]
+    [<Legivel.Attributes.YamlField("path")>]
     Path : string }
 
 let baseDir = $"dark-editor"
@@ -61,12 +59,13 @@ let main (args : string []) =
         let configFileContents : string =
           $"{baseDir}/config.yml" |> System.IO.File.ReadAllText
 
-        let config = Deserialize<CanvasHackConfig> configFileContents
+        let config =
+          Legivel.Serialization.Deserialize<CanvasHackConfig> configFileContents
 
         // TODO: better error-handling here
         let config : CanvasHackConfig =
           match List.head config with
-          | Some (Success s) -> s.Data
+          | Some (Legivel.Serialization.Success s) -> s.Data
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
         let canvasName =
@@ -112,10 +111,6 @@ let main (args : string []) =
             match Map.get tlid (C.toplevels canvasWithTopLevels) with
             | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
             | None -> None)
-        // let _addOpsResponse =
-        //   CanvasHack.AddOps.addOp c addOpsParams
-        //   |> Async.AwaitTask
-        //   |> Async.RunSynchronously
 
         do! C.saveTLIDs c oplists
 
