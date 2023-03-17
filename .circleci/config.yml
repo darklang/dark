@@ -211,49 +211,13 @@ jobs:
             - backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/QueueWorker
             - backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish/CronChecker
             - backend/Build/out/ExecHost/Release/net7.0/linux-x64/publish/ExecHost
-            - backend/Build/out/Executor/Release/net7.0/linux-x64/publish/Executor
+            # - backend/Build/out/Executor/Release/net7.0/linux-x64/publish/Executor
       - show-large-files-and-directories
       - save_cache:
           paths:
             - backend/Build/obj
             - /home/dark/.nuget
           key: v1-backend-{{ checksum "../checksum" }}
-      - store_artifacts: { path: rundir }
-      - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  # Build Executor on all platforms
-  build-multiplatform-executor:
-    executor: in-container
-    resource_class: xlarge
-    steps:
-      - darkcheckout
-      - setup-app
-      # The date is used to get a fresh cache each week
-      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
-      - restore_cache:
-          keys:
-            - v0-executor-{{ checksum "../checksum" }}
-      - show-large-files-and-directories
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
-      # Build the executors and save them
-      - run: ./scripts/build/dotnet-publish-all-executors.sh
-      - assert-clean-worktree
-      - run: mkdir executors
-      - run: ./scripts/deployment/_executor-collect executors
-      - run: ./scripts/deployment/_executor-compress executors
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - executors/
-      - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - backend/Build/obj
-            - /home/dark/.nuget
-          key: v0-executors-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
@@ -311,18 +275,6 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-  push-executor-to-cdn:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - auth-with-gcp: { background: true }
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - run: scripts/deployment/_executor-push-to-cdn executors
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
   deploy-lock:
     # Note that it doesn't matter if the in-container executor is a bit slow: they
     # deploy according the timestamp on the commit. Even if builds add their locks in
@@ -345,7 +297,6 @@ jobs:
       # - auth-with-gcp: { background: false }
       # - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - run: ./scripts/deployment/_executor-set-latest.sh
       # LIGHTTODO
       # # deploy lock is removed as part of the gke-deploy script
       - run: ./scripts/deployment/deploy-lock-one-remove
@@ -370,7 +321,6 @@ workflows:
             branches:
               ignore: /^(pull|dependabot)\/.*$/
       - build-backend
-      - build-multiplatform-executor
 
       # LightTODO the below has all been commented out until we
       # get to a point where this is worth 'hosting'.
@@ -384,16 +334,6 @@ workflows:
       #     requires:
       #       - build-backend
 
-      # pre-deploy
-      - push-executor-to-cdn:
-          context:
-            - gcp context
-          filters:
-            branches:
-              only: main
-          requires:
-            - build-multiplatform-executor
-
       # actual deploy
       - deploy:
           context:
@@ -405,7 +345,6 @@ workflows:
             - deploy-lock
             # LIGHTTODO
             # - push-containers-to-gcp
-            - push-executor-to-cdn
             - static-checks
             - predeployment-checks
 

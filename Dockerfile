@@ -99,7 +99,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       rsync \
       git \
       wget \
-      brotli \
       sudo \
       locales \
       postgresql-14 \
