@@ -131,9 +131,7 @@ module Generators =
 
         | RT.TFn (paramTypes, returnType) ->
           let parameters =
-            List.mapi
-              (fun i (v : RT.DType) -> (id i, $"{v.toOldString().ToLower()}_{i}"))
-              paramTypes
+            List.mapi (fun i (v : RT.DType) -> (id i, string v)) paramTypes
 
           let! returnType =
             Gen.frequency [ (98, Gen.constant returnType)
@@ -261,9 +259,7 @@ module Generators =
                            Gen.map Error (genDval' errType s) ])
         | RT.TFn (paramTypes, returnType) ->
           let parameters =
-            List.mapi
-              (fun i (v : RT.DType) -> (id i, $"{v.toOldString ()}_{i}"))
-              paramTypes
+            List.mapi (fun i (v : RT.DType) -> (id i, string v)) paramTypes
 
           let! body = exprFromType returnType
 

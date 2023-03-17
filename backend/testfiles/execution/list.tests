@@ -41,7 +41,7 @@ List.filter_v2 [-20; 5; 9;] (fun x -> x > 20) = []
 List.filter_v2 [] (fun item -> "a") = []
 
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then Nothing else (Just (item * 2))) = [ 2; 6 ]
-List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected `fn` to return a Option, but it returned `false`"
+List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected `fn` to return a Option<'b>, but it returned `false`"
 List.filterMap_v0 [] (fun item -> 0) = []
 
 List.findFirst_v2 [1;2;3] (fun x -> x > 5) = Nothing

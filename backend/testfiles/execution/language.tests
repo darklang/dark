@@ -381,7 +381,7 @@ module Constructors =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a Str (\"not an option\"), but `option2` expected a Option."
+  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a String (\"not an option\"), but `option2` expected a Option<'b>."
 
 module ErrorPropagation =
   List.head_v2 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
@@ -434,17 +434,17 @@ module Equality =
   (5.6 == 5.6) = true
   (-55555555555555555555555555555.5 == -55555555555555555555555555555.5) = true
   (5.6 != 5.7) = true
-  (5.7 != 6) = true
-  (5.7 != 5) = true
+  (5.7 != 6) = Test.typeError_v0 "Both values must be the same type"
+  (5.7 != 5) = Test.typeError_v0 "Both values must be the same type"
   (Test.typeError_v0 "test" != Test.typeError_v0 "different msg") = Test.typeError_v0 "test"
   (true == true) = true
   (false == false) = true
   (true != false) = true
   (() == ()) = true
-  (() != Nothing) = true
-  (() != false) = true
-  (() != 0) = true
-  (() != 0.0) = true
+  (() != Nothing) = Test.typeError_v0 "Both values must be the same type"
+  (() != false) = Test.typeError_v0 "Both values must be the same type"
+  (() != 0) = Test.typeError_v0 "Both values must be the same type"
+  (() != 0.0) = Test.typeError_v0 "Both values must be the same type"
   ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
   ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
   ({ x = 6; y = 7 } == { x = 6; y = 7 }) = true
@@ -466,12 +466,12 @@ module Equality =
   (Ok 0 == Ok 0) = true
   (Ok 0 != Error 0) = true
   ((String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼") == (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
-  //(fun x -> y) = (fun x -> y) // CLEANUP: they have different IDs so they're not equal
-  ((fun x -> let y = 1 in y) != (fun x -> let y = 1 in x)) = true
+  (fun x -> y) = (fun x -> y)
+  ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x)) = true
 
   [<DB>] type MyDB = { x : string; y: string }
   (MyDB == MyDB) = true
-  (MyDB != 5) = true
+  (MyDB != 5) = Test.typeError_v0 "Both values must be the same type"
 
 
 // ---------------------------
@@ -520,7 +520,7 @@ module FunctionCalls =
 
 module InvalidFnCalls =
   functionWhichDoesntExist 6 = Test.incomplete // CLEANUP
-  stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
+  stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int"
   stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
 
   (let _ = Test.setExpectedExceptionCount 1 in
@@ -581,7 +581,7 @@ module Packages =
   Test.Test.Test.returnsResultError () = Error false
 
   module Invalid =
-    Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type Str but found a Int"
+    Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int"
     Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
     Test.Test.Test.derrorFn "test" = Test.typeError "test"
 

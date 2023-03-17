@@ -91,11 +91,13 @@ module Queryable =
       |> Arb.filter DvalReprInternalQueryable.Test.isQueryableDval
 
   let canV1Roundtrip (dv : RT.Dval) : bool =
-    let dvm = (Map.ofList [ "field", dv ])
+    let dvm = Map.ofList [ "field", dv ]
+    let fieldTypes = [ "field", RT.Dval.toType dv ]
+    let typ = RT.TRecord fieldTypes
 
     dvm
-    |> DvalReprInternalQueryable.toJsonStringV0
-    |> DvalReprInternalQueryable.parseJsonV0
+    |> DvalReprInternalQueryable.toJsonStringV0 fieldTypes
+    |> DvalReprInternalQueryable.parseJsonV0 typ
     |> Expect.dvalEquality (RT.DObj dvm)
 
   let tests config =

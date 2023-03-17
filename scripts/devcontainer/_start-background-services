@@ -14,7 +14,7 @@ for name in "${@}"; do
     # for some reason, uncommenting the equivalent line in the Dockerfile doesn't do the
     # job. don't have time right now to figure out why.
     LA="listen_addresses = '*'"
-    echo "$LA" | sudo tee -a /etc/postgresql/9.6/main/postgresql.conf
+    echo "$LA" | sudo tee -a /etc/postgresql/14/main/postgresql.conf
 
     # Fix weird permission problem, see from https://github.com/puntonim/docker-postgresql93/issues/2
     sudo chmod 766 /etc/ssl/private

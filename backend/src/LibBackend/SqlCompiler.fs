@@ -19,76 +19,105 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 module Errors = LibExecution.Errors
 
-// CLEANUP mention Discord explicitly. Maybe even try to get a clickable URL into this.
 let errorTemplate =
   "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
 
 let error (str : string) : 'a = Exception.raiseCode (errorTemplate + str)
 
-let error2 (msg : string) (str : string) : 'a = error $"{msg}: {str}"
+let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
+
+let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
+  error $"{msg}: {v1}, {v2}"
 
 type position =
   | First
   | Last
 
-let typeToSqlType (t : DType) : string =
-  match t with
-  | TStr -> "text"
-  | TInt -> "integer"
-  | TFloat -> "double precision"
-  | TBool -> "bool"
-  | TDateTime -> "timestamp with time zone"
-  | TChar -> "text"
-  | _ -> error $"We do not support this type of DB field yet: {t}"
 
 // This canonicalizes an expression, meaning it removes multiple ways of
 // representing the same thing. Currently nothing needs to be canonicalized.
 let rec canonicalize (expr : Expr) : Expr = expr
 
-let dvalToSql (dval : Dval) : SqlValue =
-  match dval with
-  | DError _
-  | DIncomplete _ -> Errors.foundFakeDval dval
-  | DObj _
-  | DList _
-  | DHttpResponse _
-  | DFnVal _
-  | DChar _
-  | DDB _
-  | DPassword _
-  | DOption _
-  | DResult _
-  | DBytes _
-  | DUnit
-  | DUserEnum _ // TODO: revisit
-  | DTuple _ ->
+let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
+  match expectedType, dval with
+  | _, DError _
+  | _, DIncomplete _ -> Errors.foundFakeDval dval
+  | _, DHttpResponse _
+  | _, DFnVal _
+  | _, DDB _
+  | _, DObj _ // CLEANUP allow
+  | _, DPassword _ // CLEANUP allow
+  | _, DOption _ // CLEANUP allow
+  | _, DResult _ // CLEANUP allow
+  | _, DBytes _ // CLEANUP allow
+  | _, DUserEnum _ // TODO: revisit
+  | _, DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
-  | DDateTime date -> date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz
-  | DInt i -> Sql.int64 i
-  | DFloat v -> Sql.double v
-  | DBool b -> Sql.bool b
-  | DStr s -> Sql.string s
-  | DUuid id -> Sql.uuid id
-
-
-let typecheck (name : string) (actualType : DType) (expectedType : DType) : unit =
-  match expectedType with
-  | TVariable _ -> ()
-  | other when actualType = other -> ()
+  | TDateTime, DDateTime date ->
+    date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz
+  | TInt, DInt i -> Sql.int64 i
+  | TFloat, DFloat v -> Sql.double v
+  | TBool, DBool b -> Sql.bool b
+  | TStr, DStr s -> Sql.string s
+  | TChar, DChar c -> Sql.string c
+  | TUuid, DUuid id -> Sql.uuid id
+  | TUnit, DUnit -> Sql.int64 0
+  // CLEANUP: add test first
+  // | TList typ, DList l ->
+  //   let typeName = DvalReprDeveloper.typeName typ
+  //   let typeToNpgSqlType (t : DType) : NpgsqlTypes.NpgsqlDbType =
+  //     match t with
+  //     | TStr -> NpgsqlTypes.NpgsqlDbType.Text
+  //     | TInt -> NpgsqlTypes.NpgsqlDbType.Bigint
+  //     | TFloat -> NpgsqlTypes.NpgsqlDbType.Double
+  //     | TBool -> NpgsqlTypes.NpgsqlDbType.Boolean
+  //     | TDateTime -> NpgsqlTypes.NpgsqlDbType.TimestampTz
+  //     | TChar -> NpgsqlTypes.NpgsqlDbType.Text
+  //     | TUuid -> NpgsqlTypes.NpgsqlDbType.Uuid
+  //     | _ -> error $"We do not support this type of DB field yet: {t}"
+  //   l
+  //   |> List.map (fun v ->
+  //     match v with
+  //     | DStr s -> s : obj
+  //     | DInt i -> i
+  //     | DFloat f -> f
+  //     | DBool b -> b
+  //     | DDateTime date -> string date
+  //     | DChar c -> c
+  //     | DUuid uuid -> string uuid
+  //     | _ ->
+  //       error2
+  //         $"{typeName} list should contain {typeName} but contains"
+  //         (DvalReprDeveloper.toRepr v))
+  //   |> List.toArray
+  //   |> Sql.array (typeToNpgSqlType typ)
   | _ ->
-    let actual = DvalReprDeveloper.typeName actualType
-    let expected = DvalReprDeveloper.typeName expectedType
-    error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
+    error3
+      "This value is not of the expected type"
+      (DvalReprDeveloper.toRepr dval)
+      (DvalReprDeveloper.typeName expectedType)
 
-// TODO: support character. And maybe lists and bytes.
-// Probably something can be done with options and results.
-let typecheckDval (name : string) (dval : Dval) (expectedType : DType) : unit =
-  if Dval.isFake dval then Errors.foundFakeDval dval
-  typecheck name (Dval.toType dval) expectedType
+
+let rec typecheck
+  (name : string)
+  (actualType : DType)
+  (expectedType : DType)
+  : unit =
+  match actualType, expectedType with
+  | _, TVariable _ -> ()
+  | TVariable _, _ -> () // actual can be variable, eg [] is (TList (TVariable "a"))
+  | TList actualType, TList expectedType -> typecheck name actualType expectedType
+  | _ ->
+    if actualType = expectedType then
+      ()
+    else
+      let actual = DvalReprDeveloper.typeName actualType
+      let expected = DvalReprDeveloper.typeName expectedType
+      error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only
-  // TODO: should allow hyphen?
+  // CLEANUP: error on bad field name
   System.Text.RegularExpressions.Regex.Replace(str, "[^a-zA-Z0-9_]", "")
 
 
@@ -163,6 +192,8 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 
 /// Generate SQL from an Expr. This expects that all the hard stuff has been
 /// removed by previous passes, and should only be called as the final pass.
+/// Returns the sql snippet for this expression, the variables that need to be
+/// bound to it, and the actual type of the expression.
 let rec lambdaToSql
   (fns : Map<FQFnName.T, BuiltInFn>)
   (symtable : DvalMap)
@@ -170,56 +201,84 @@ let rec lambdaToSql
   (dbFields : Map<string, DType>)
   (expectedType : DType)
   (expr : Expr)
-  : string * List<string * SqlValue> =
+  : string * List<string * SqlValue> * DType =
   let lts (typ : DType) (e : Expr) =
     lambdaToSql fns symtable paramName dbFields typ e
 
   match expr with
-  // The correct way to handle null in SQL is "is null" or "is not null"
-  // rather than a comparison with null.
-  | Fn "" "equals" 0 [ EUnit _; e ]
-  | Fn "" "equals" 0 [ e; EUnit _ ] ->
-    let sql, vars = lts TUnit e
-    $"({sql} is null)", vars
-  | Fn "" "notEquals" 0 [ EUnit _; e ]
-  | Fn "" "notEquals" 0 [ e; EUnit _ ] ->
-    let sql, vars = lts TUnit e
-    $"({sql} is not null)", vars
-
   | EApply (_, EFQFnValue (_, name), args, _) ->
+
     match Map.get name fns with
     | Some fn ->
+      // check the abstract type here. We will check the concrete type later
       typecheck (FQFnName.toString name) fn.returnType expectedType
 
-      let argSqls, sqlVars =
+      let actualTypes, argSqls, sqlVars =
         let paramCount = List.length fn.parameters
         let argCount = List.length args
 
         if argCount = paramCount then
-          List.map2 (fun arg param -> lts param.typ arg) args fn.parameters
-          |> List.unzip
-          |> (fun (sqls, vars) -> (sqls, List.concat vars))
+
+          // While checking the arguments, record the actual types for any abstract
+          // types so that we can compare them and give a good error message as well
+          // as have the types for the correct Npgsql wrapper for lists and other
+          // polymorphic values
+          List.fold2
+            (fun (actualTypes, prevSqls, prevVars) argExpr param ->
+              let sql, vars, argActualType = lts param.typ argExpr
+              let newActuals =
+                match param.typ with
+                | TVariable name ->
+                  match Map.get name actualTypes with
+                  // We've seen this type before, check it matches
+                  | Some expected ->
+                    typecheck param.name argActualType expected
+                    actualTypes
+                  | None -> Map.add name argActualType actualTypes
+                | _ -> actualTypes
+
+              newActuals, prevSqls @ [ sql ], prevVars @ vars)
+
+            (Map.empty, [], [])
+            args
+            fn.parameters
         else
           error
             $"{FQFnName.StdlibFnName.toString fn.name} has {paramCount} functions but we have {argCount} arguments"
 
+      // Check the unified return type (basic on the actual arguments) against the
+      // expected type
+      let returnType =
+        match fn.returnType with
+        | TVariable name ->
+          match Map.get name actualTypes with
+          | Some typ -> typ
+          | None -> error "Could not find return type"
+        | TList (TVariable name) ->
+          match Map.get name actualTypes with
+          | Some typ -> TList typ
+          | None -> error "Could not find return type"
+        | typ -> typ
+
+      typecheck (FQFnName.toString name) returnType expectedType
+
+
       match fn, argSqls with
       | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
-        // CLEANUP there's a type checking bug here. If the parameter types of fn are
-        // both (TVariable "a"), we do not check that they are the same type. If they
-        // are not, it becomes a runtime error when we actually make the call to the DB
-        $"({argL} {op} {argR})", sqlVars
-      | { sqlSpec = SqlUnaryOp op }, [ argSql ] -> $"({op} {argSql})", sqlVars
+        $"({argL} {op} {argR})", sqlVars, returnType
+      | { sqlSpec = SqlUnaryOp op }, [ argSql ] ->
+        $"({op} {argSql})", sqlVars, returnType
       | { sqlSpec = SqlFunction fnname }, _ ->
         let argSql = String.concat ", " argSqls
-        $"({fnname}({argSql}))", sqlVars
+        $"({fnname}({argSql}))", sqlVars, returnType
       | { sqlSpec = SqlFunctionWithPrefixArgs (fnName, fnArgs) }, _ ->
         let argSql = fnArgs @ argSqls |> String.concat ", "
-        $"({fnName} ({argSql}))", sqlVars
+        $"({fnName} ({argSql}))", sqlVars, returnType
       | { sqlSpec = SqlFunctionWithSuffixArgs (fnName, fnArgs) }, _ ->
         let argSql = argSqls @ fnArgs |> String.concat ", "
-        $"({fnName} ({argSql}))", sqlVars
-      | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] -> $"({fn arg1 arg2})", sqlVars
+        $"({fnName} ({argSql}))", sqlVars, returnType
+      | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
+        $"({fn arg1 arg2})", sqlVars, returnType
       | _, _ ->
         error $"This function ({FQFnName.toString name}) is not yet implemented"
     | None ->
@@ -227,45 +286,50 @@ let rec lambdaToSql
         $"Only builtin functions can be used in queries right now; {FQFnName.toString name} is not a builtin function"
 
   | EAnd (_, left, right) ->
-    let leftSql, leftVars = lts TBool left
-    let rightSql, rightVars = lts TBool right
-    $"({leftSql} AND {rightSql})", leftVars @ rightVars
+    let leftSql, leftVars, leftActual = lts TBool left
+    let rightSql, rightVars, rightActual = lts TBool right
+    typecheck "left side of and" leftActual TBool
+    typecheck "right side of and" rightActual TBool
+    $"({leftSql} AND {rightSql})", leftVars @ rightVars, TBool
 
 
   | EOr (_, left, right) ->
-    let leftSql, leftVars = lts TBool left
-    let rightSql, rightVars = lts TBool right
-    $"({leftSql} OR {rightSql})", leftVars @ rightVars
+    let leftSql, leftVars, leftActual = lts TBool left
+    let rightSql, rightVars, rightActual = lts TBool right
+    typecheck "left side of or" leftActual TBool
+    typecheck "right side of or" rightActual TBool
+    $"({leftSql} OR {rightSql})", leftVars @ rightVars, TBool
 
 
   | EVariable (_, varname) ->
     match Map.get varname symtable with
     | Some dval ->
-      typecheckDval $"variable {varname}" dval expectedType
+      let actualType = Dval.toType dval
+      typecheck $"variable {varname}" actualType expectedType
       let random = randomString 8
       let newname = $"{varname}_{random}"
-      $"(@{newname})", [ newname, dvalToSql dval ]
+      $"(@{newname})", [ newname, dvalToSql actualType dval ], actualType
     | None -> error $"This variable is not defined: {varname}"
 
   | EInteger (_, v) ->
     typecheck $"integer {v}" TInt expectedType
     let name = randomString 10
-    $"(@{name})", [ name, v |> int64 |> Sql.int64 ]
+    $"(@{name})", [ name, Sql.int64 v ], TInt
 
   | EBool (_, v) ->
     typecheck $"bool {v}" TBool expectedType
     let name = randomString 10
-    $"(@{name})", [ name, Sql.bool v ]
+    $"(@{name})", [ name, Sql.bool v ], TBool
 
   | EUnit _ ->
     typecheck "unit" TUnit expectedType
     let name = randomString 10
-    $"(@{name})", [ name, Sql.dbnull ]
+    $"(@{name})", [ name, Sql.int64 0L ], TUnit
 
   | EFloat (_, v) ->
     typecheck $"float {v}" TFloat expectedType
     let name = randomString 10
-    $"(@{name})", [ name, Sql.double v ]
+    $"(@{name})", [ name, Sql.double v ], TFloat
 
   | EString (_, parts) ->
     let strParts, vars =
@@ -277,45 +341,75 @@ let rec lambdaToSql
           let name = randomString 10
           $"(@{name})", [ name, Sql.string s ]
         | StringInterpolation e ->
-          let strPart, vars = lts TStr e
+          let strPart, vars, actualType = lts TStr e
+          typecheck $"string interpolation" TStr actualType
           strPart, vars)
       |> List.unzip
     let result = String.concat ", " strParts
     let strPart = $"concat({result})"
     let vars = vars |> List.concat
-    strPart, vars
+    strPart, vars, TStr
 
   | ECharacter (_, v) ->
     typecheck $"char '{v}'" TChar expectedType
     let name = randomString 10
-    $"(@{name})", [ name, Sql.string v ]
+    $"(@{name})", [ name, Sql.string v ], TChar
+
+  | EList (_, items) ->
+    match expectedType with
+    | TVariable _ as expectedType
+    | TList expectedType ->
+      let sqls, vars, actualType =
+        List.fold
+          ([], [], expectedType)
+          (fun (prevSqls, prevVars, prevActualType) v ->
+            let sql, vars, actualType = lts expectedType v
+            typecheck $"list item" actualType prevActualType
+            prevSqls @ [ sql ], prevVars @ vars, actualType)
+          items
+      let sql =
+        sqls |> String.concat ", " |> (fun s -> "((ARRAY[ " + s + " ] )::bigint[])")
+      (sql, vars, TList actualType)
+    | _ -> error "Expected a list"
+
 
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
     let dbFieldType =
       match Map.get fieldname dbFields with
       | Some v -> v
       | None -> error2 "The datastore does not have a field named" fieldname
+    typecheck fieldname dbFieldType expectedType
 
-    if expectedType <> TUnit // Fields are allowed to be null
-    then
-      typecheck fieldname dbFieldType expectedType
+    let primitiveFieldType t =
+      match t with
+      | TStr -> "text"
+      | TInt -> "bigint"
+      | TFloat -> "double precision"
+      | TBool -> "bool"
+      | TDateTime -> "timestamp with time zone"
+      | TChar -> "text"
+      | TUuid -> "uuid"
+      | TUnit -> "bigint"
+      | _ -> error $"We do not support this type of DB field yet: {t}"
 
     let fieldname = escapeFieldname fieldname
-    let typename = typeToSqlType dbFieldType
-
-    // CLEANUP this should be dbFieldType, since we know it. We could have a TAny
-    // function with a Date field and this would query it wrong
-    (match expectedType with
-     | TDateTime ->
-       // This match arm handles types that are serialized in
-       // unsafeDvalToJson using wrapUserType or wrapUserStr, meaning
-       // they are wrapped in {type:, value:}. Right now, of the types sql
-       // compiler supports, that's just TDate.
-       // Likely future candidates include DPassword and DUuid; at time of
-       // writing, DCharacter and DBytes also serialize this way but are not
-       // allowed as DB field types.
-       ($"(CAST(data::jsonb->'{fieldname}'->>'value' as {typename}))", [])
-     | _ -> ($"(CAST(data::jsonb->>'{fieldname}' as {typename}))", []))
+    match dbFieldType with
+    | TStr
+    | TInt
+    | TFloat
+    | TBool
+    | TDateTime
+    | TChar
+    | TUuid
+    | TUnit ->
+      let typename = primitiveFieldType dbFieldType
+      $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
+    | TList t ->
+      let typename = primitiveFieldType t
+      let sql =
+        $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
+      (sql, [], dbFieldType)
+    | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
   | _ -> error $"We do not yet support compiling this code: {expr}"
 
 
@@ -388,23 +482,25 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EApply (_, EFQFnValue _, args, _) when
-          // functions that are fully specified
-          List.all
-            (fun expr ->
-              match expr with
-              | EInteger _
-              | EBool _
-              | EUnit _
-              | EFloat _
-              | EString _
-              | ECharacter _
-              | EVariable _ -> true
-              | _ -> false)
-            args
-          ->
-          // TODO: should limit this further to pure functions.
-          return! exec expr
+        | EApply (_, EFQFnValue _, args, _) ->
+          let rec fullySpecified (expr : Expr) =
+            match expr with
+            | EInteger _
+            | EBool _
+            | EUnit _
+            | EFloat _
+            | EString _
+            | ECharacter _
+            | EVariable _ -> true
+            | ETuple (_, e1, e2, rest) -> List.all fullySpecified (e1 :: e2 :: rest)
+            | EList (_, exprs) -> List.all fullySpecified exprs
+            | _ -> false
+
+          if List.all fullySpecified args then
+            // TODO: should limit this further to pure functions.
+            return! exec expr
+          else
+            return expr
         | _ -> return expr
       }
 
@@ -522,5 +618,8 @@ let compileLambda
       |> partiallyEvaluate state paramName symtable
       |> Ply.TplPrimitives.runPlyAsTask
 
-    return lambdaToSql state.libraries.stdlib symtable paramName dbFields TBool body
+    let sql, vars, _expectedType =
+      lambdaToSql state.libraries.stdlib symtable paramName dbFields TBool body
+
+    return (sql, vars)
   }

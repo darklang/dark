@@ -68,111 +68,137 @@ type Utf8JsonWriter with
 // Password
 // UUID
 
-let rec private toJsonV0 (w : Utf8JsonWriter) (dv : Dval) : unit =
+let rec private toJsonV0 (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
   let writeDval = toJsonV0 w
 
-  let wrapStringValue (typ : string) (str : string) =
-    w.writeObject (fun () ->
-      w.WritePropertyName "type"
-      w.WriteStringValue(typ)
-      w.WritePropertyName "value"
-      w.WriteStringValue(str))
-
-  match dv with
+  match typ, dv with
   // basic types
-  | DInt i -> w.WriteNumberValue i
-  | DFloat f ->
-    // TODO: These can't be parsed as System.Text.Json doesn't allow it. I went ahead
-    // with implementing this anyway as when we use types during serialization, we'll
-    // be able to use `"Infinity"` (a string) and we'll know from the type that we
-    // want a float not a string here. So I've disabled the infinity/NaN tests until
-    // we have this in place.
+  | TInt, DInt i -> w.WriteNumberValue i // CLEANUP if the number is outside the range, store as a string?
+  | TFloat, DFloat f ->
     if System.Double.IsNaN f then
-      w.WriteRawValue "NaN"
+      w.WriteStringValue "NaN"
     else if System.Double.IsNegativeInfinity f then
-      w.WriteRawValue "-Infinity"
+      w.WriteStringValue "-Infinity"
     else if System.Double.IsPositiveInfinity f then
-      w.WriteRawValue "Infinity"
+      w.WriteStringValue "Infinity"
     else
       let result = sprintf "%.12g" f
       let result = if result.Contains "." then result else $"{result}.0"
       w.WriteRawValue result
-  | DBool b -> w.WriteBooleanValue b
-  | DUnit -> w.WriteNullValue()
-  | DStr s -> w.WriteStringValue s
-  | DList l -> w.writeArray (fun () -> List.iter writeDval l)
-  | DObj o ->
+  | TBool, DBool b -> w.WriteBooleanValue b
+  | TUnit, DUnit -> w.WriteNumberValue(0)
+  | TStr, DStr s -> w.WriteStringValue s
+  | TList ltype, DList l -> w.writeArray (fun () -> List.iter (writeDval ltype) l)
+  | TDict objType, DObj o ->
     w.writeObject (fun () ->
       Map.iter
         (fun k v ->
           w.WritePropertyName k
-          writeDval v)
+          writeDval objType v)
         o)
-  | DChar c -> wrapStringValue "character" c
-  | DDateTime date -> wrapStringValue "date" (DarkDateTime.toIsoString date)
-  | DPassword (Password hashed) ->
-    hashed |> Base64.defaultEncodeToString |> wrapStringValue "password"
-  | DUuid uuid -> wrapStringValue "uuid" (string uuid)
-
+  | TRecord fields, DObj dvalMap ->
+    let schema = Map.ofList fields
+    w.writeObject (fun () ->
+      dvalMap
+      |> Map.toList
+      |> List.iter (fun (k, dval) ->
+        w.WritePropertyName k
+        writeDval (Map.find k schema) dval))
+  | TChar, DChar c -> w.WriteStringValue c
+  | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
+  | TPassword, DPassword (Password hashed) ->
+    hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
+  | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
   // Not supported
-  | DTuple _
-  | DFnVal _
-  | DError _
-  | DIncomplete _
-  | DHttpResponse _
-  | DUserEnum _
-  | DDB _
-  | DOption _
-  | DResult _
-  | DBytes _ -> Exception.raiseInternal "Not supported in queryable" []
+  | TTuple (t1, t2, trest), DTuple (d1, d2, rest) ->
+    w.writeArray (fun () ->
+      List.iter2 writeDval (t1 :: t2 :: trest) (d1 :: d2 :: rest))
+  | TBytes, DBytes bytes ->
+    bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
+  | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
+  | TOption oType, DOption (Some dv) ->
+    w.writeObject (fun () ->
+      w.WritePropertyName "Just"
+      writeDval oType dv)
+  | TResult (okType, _), DResult (Ok dv) ->
+    w.writeObject (fun () ->
+      w.WritePropertyName "Ok"
+      writeDval okType dv)
+  | TResult (_, errType), DResult (Error dv) ->
+    w.writeObject (fun () ->
+      w.WritePropertyName "Error"
+      writeDval errType dv)
+  | THttpResponse _, DHttpResponse _
+  | TFn _, DFnVal _
+  | TError _, DError _
+  | TIncomplete, DIncomplete _
+  | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
+  | _ ->
+    Exception.raiseInternal
+      "Value to be stored does not match Datastore type"
+      [ "value", dv; "type", typ ]
 
 
 
-let toJsonStringV0 (dvalMap : DvalMap) : string =
+let toJsonStringV0 (fieldTypes : List<string * DType>) (dvalMap : DvalMap) : string =
+  let fieldTypes = Map fieldTypes
   writeJson (fun w ->
     w.writeObject (fun () ->
       dvalMap
       |> Map.toList
       |> List.iter (fun (k, dval) ->
         w.WritePropertyName k
-        toJsonV0 w dval)))
+        toJsonV0 w (Map.find k fieldTypes) dval)))
 
 
-let parseJsonV0 (str : string) : Dval =
-  let rec convert (j : JsonElement) : Dval =
-    match j.ValueKind with
-    | JsonValueKind.Number ->
-      let mutable i : int64 = 0L
-      if j.TryGetInt64(&i) then DInt i else DFloat(j.GetDouble())
-    | JsonValueKind.True -> DBool true
-    | JsonValueKind.False -> DBool false
-    | JsonValueKind.String -> DStr(j.GetString())
-    | JsonValueKind.Null -> DUnit
-    | JsonValueKind.Array ->
-      j.EnumerateArray() |> Seq.map convert |> Seq.toList |> DList
-    | JsonValueKind.Object ->
-      let fields =
-        j.EnumerateObject()
-        |> Seq.map (fun jp -> (jp.Name, convert jp.Value))
-        |> Seq.toList
-        |> List.sortBy (fun (k, _) -> k)
-      // These are the only types that are allowed in the queryable
-      // representation. We may allow more in the future, but the real thing to
-      // do is to use the DB's type and version to encode/decode them correctly
-      match fields with
-      | [ ("type", DStr "character"); ("value", DStr v) ] -> DChar v
-      | [ ("type", DStr "date"); ("value", DStr v) ] ->
-        DDateTime(NodaTime.Instant.ofIsoString v |> DarkDateTime.fromInstant)
-      | [ ("type", DStr "password"); ("value", DStr v) ] ->
-        v |> Base64.decodeFromString |> Password |> DPassword
-      | [ ("type", DStr "uuid"); ("value", DStr v) ] -> DUuid(System.Guid v)
-      | _ -> fields |> Map.ofList |> DObj
+let parseJsonV0 (typ : DType) (str : string) : Dval =
+  let rec convert (typ : DType) (j : JsonElement) : Dval =
+    match typ, j.ValueKind with
+    | TInt, JsonValueKind.Number -> j.GetInt64() |> DInt
+    | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat
+    | TFloat, JsonValueKind.String ->
+      match j.GetString() with
+      | "NaN" -> DFloat System.Double.NaN
+      | "Infinity" -> DFloat System.Double.PositiveInfinity
+      | "-Infinity" -> DFloat System.Double.NegativeInfinity
+      | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
+    | TBool, JsonValueKind.True -> DBool true
+    | TBool, JsonValueKind.False -> DBool false
+    | TStr, JsonValueKind.String -> DStr(j.GetString())
+    | TChar, JsonValueKind.String -> DChar(j.GetString())
+    | TUuid, JsonValueKind.String -> DUuid(System.Guid(j.GetString()))
+    | TPassword, JsonValueKind.String ->
+      j.GetString() |> Base64.decodeFromString |> Password |> DPassword
+    | TDateTime, JsonValueKind.String ->
+      j.GetString()
+      |> NodaTime.Instant.ofIsoString
+      |> DarkDateTime.fromInstant
+      |> DDateTime
+    | TUnit, JsonValueKind.Number -> DUnit
+    | TList nested, JsonValueKind.Array ->
+      j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
+    // | TTuple (t1, t2, rest), JsonValueKind.Array ->
+    //   j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
+    | TRecord typFields, JsonValueKind.Object ->
+      // Use maps to cooalesce duplicate keys and ensure the obj matches the type
+      let typFields = Map typFields
+      let objFields =
+        j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
+      if Map.count objFields = Map.count typFields then
+        objFields
+        |> Map.mapWithIndex (fun k v ->
+          match Map.tryFind k typFields with
+          | Some t -> convert t v
+          | None -> Exception.raiseInternal "Missing field" [ "field", k ])
+        |> DObj
+      else
+        Exception.raiseInternal "Invalid fields" []
     | _ ->
       Exception.raiseInternal
-        "Invalid type in internalQueryableV1 json"
-        [ "json", j ]
+        "Value in Datastore does not match Datastore expected type"
+        [ "type", typ; "value", j ]
 
-  str |> parseJson |> convert
+  str |> parseJson |> convert typ
 
 
 
@@ -185,8 +211,9 @@ module Test =
     | DBool _
     | DDateTime _
     | DPassword _
+    | DChar _
+    | DFloat _
     | DUuid _ -> true
-    | DFloat f -> System.Double.IsFinite f // See comment above
     | DList dvals -> List.all isQueryableDval dvals
     | DObj map -> map |> Map.values |> List.all isQueryableDval
     | DUserEnum (_typeName, _caseName, fields) ->
@@ -195,7 +222,6 @@ module Test =
 
     // TODO support
     | DTuple _
-    | DChar _
     | DBytes _
     | DHttpResponse _
     | DOption _

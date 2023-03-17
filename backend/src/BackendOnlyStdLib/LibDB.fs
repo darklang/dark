@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> List.map snd |> DList |> Some |> DOption
+              return items |> DList |> Some |> DOption
             else
               return DOption None
           }
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
                 keys
 
             let! result = UserDB.getMany state db skeys
-            return result |> List.map snd |> DList
+            return result |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -330,48 +330,6 @@ let fns : List<BuiltInFn> =
             let! (count : int) = UserDB.count state db
             return count |> int64 |> DInt
           }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    // previously called DB::keys
-    { name = fn "DB" "schemaFields" 1
-      parameters = [ tableParam ]
-      returnType = TList varA
-      description = "Fetch all the fieldNames in <param table>"
-      fn =
-        (function
-        | state, [ DDB dbname ] ->
-          let db = state.program.dbs[dbname]
-
-          db.cols
-          |> List.filter (fun (k, _v) -> k <> "")
-          |> List.map (fun (k, _v) -> DStr k)
-          |> DList
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DB" "schema" 1
-      parameters = [ tableParam ]
-      returnType = ocamlTObj
-      description =
-        "Returns a <type Dict> representing {{ { fieldName: fieldType } }} in <param table>"
-      fn =
-        (function
-        | state, [ DDB dbname ] ->
-          let db = state.program.dbs[dbname]
-
-          db.cols
-          |> List.filter (fun (k, _v) -> k <> "")
-          |> List.map (fun (k, v) -> (k, (v.toOldString () |> DStr)))
-          |> Dval.obj
-          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

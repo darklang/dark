@@ -6,9 +6,6 @@ open Tablecloth
 
 open RuntimeTypes
 
-// CLEANUP: make these clearer/better messages for developers.
-// They don't need to be backwards-compatible.
-
 let rec typeName (t : DType) : string =
   match t with
   | TInt -> "Int"
@@ -16,13 +13,15 @@ let rec typeName (t : DType) : string =
   | TBool -> "Bool"
   | TUnit -> "Unit"
   | TChar -> "Character"
-  | TStr -> "Str" // CLEANUP change to String
-  | TList _ -> "List"
-  | TTuple _ -> "Tuple"
-  | TDict _ -> "Dict"
+  | TStr -> "String"
+  | TList nested -> $"List<{typeName nested}>"
+  | TTuple (n1, n2, rest) ->
+    let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
+    $"({nested})"
+  | TDict nested -> $"Dict<{typeName nested}>"
   | TRecord _ -> "Dict"
   | TFn _ -> "Block"
-  | TVariable _varname -> "Any"
+  | TVariable varname -> $"'{varname}"
   | TIncomplete -> "Incomplete"
   | TError -> "Error"
   | THttpResponse _ -> "Response"
@@ -30,9 +29,9 @@ let rec typeName (t : DType) : string =
   | TDateTime -> "DateTime"
   | TPassword -> "Password"
   | TUuid -> "UUID"
-  | TOption _ -> "Option"
-  | TResult _ -> "Result"
-  | TUserType t -> t.type_
+  | TOption nested -> $"Option<{typeName nested}>"
+  | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
+  | TUserType t -> $"{t.type_}_v{t.version}"
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName
