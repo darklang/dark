@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Split Screen Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dark Editor - GPT-4 API</title>
     <style>
       * {
         box-sizing: border-box;
@@ -62,13 +63,38 @@
   <body>
     <div class="split-container">
       <div class="left-half">
-        <input type="text" name="dark-editor" value="dark-editor" />
-        <textarea placeholder="Insert prompt here"></textarea>
-        <input type="submit" value="Submit" />
+        <form id="gpt4-form">
+          <input type="text" name="dark-editor" value="dark-editor" />
+          <textarea name="prompt" placeholder="Insert prompt here"></textarea>
+          <input type="submit" value="Submit" />
+        </form>
       </div>
       <div class="right-half">
-        <textarea disabled></textarea>
+        <textarea id="output" disabled></textarea>
       </div>
     </div>
+    <script>
+      document
+        .getElementById("gpt4-form")
+        .addEventListener("submit", async event => {
+          event.preventDefault();
+          const formData = new FormData(event.target);
+          const prompt = formData.get("prompt");
+
+          const response = await fetch("/api/gpt4", {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: prompt,
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            document.getElementById("output").value = data.choices[0].text;
+          } else {
+            document.getElementById("output").value =
+              "Error calling the GPT-4 API";
+          }
+        });
+    </script>
   </body>
 </html>
