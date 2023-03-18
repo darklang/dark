@@ -582,7 +582,13 @@ module Expect =
     // expressions with no values
     | EUnit _, EUnit _ -> ()
     // expressions with single string values
-    | EString (_, s), EString (_, s') -> check path s s'
+    | EString (_, s), EString (_, s') ->
+      let rec checkSegment s s' =
+        match s, s' with
+        | StringText s, StringText s' -> check path s s'
+        | StringInterpolation e, StringInterpolation e' -> eq path e e'
+        |  _ -> check path s s'
+      List.iter2 checkSegment s s'
     | ECharacter (_, v), ECharacter (_, v')
     | EVariable (_, v), EVariable (_, v') -> check path v v'
     | EInteger (_, v), EInteger (_, v') -> check path v v'
