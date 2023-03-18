@@ -257,16 +257,26 @@ module InfixFnName =
     | PT.StringConcat -> StringConcat
 
 
-type LetPattern = LPVariable of id * name : string
+type LetPattern =
+  | LPVariable of id * name : string
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 module LetPattern =
   let rec fromCT (p : LetPattern) : PT.LetPattern =
     match p with
     | LPVariable (id, str) -> PT.LPVariable(id, str)
+    | LPTuple (id, first, second, theRest) ->
+      PT.LPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (p : PT.LetPattern) : LetPattern =
     match p with
     | PT.LPVariable (id, str) -> LPVariable(id, str)
+    | PT.LPTuple (id, first, second, theRest) ->
+      LPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 
 type MatchPattern =

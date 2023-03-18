@@ -196,6 +196,14 @@ and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =
   match pattern1, pattern2 with
   | LPVariable (_, name1), LPVariable (_, name2) -> name1 = name2
 
+  | LPTuple (_, first, second, theRest), LPTuple (_, first', second', theRest') ->
+    let all = first :: second :: theRest
+    let all' = first' :: second' :: theRest'
+    all.Length = all'.Length && List.forall2 equalsLetPattern all all'
+
+  | LPTuple _, LPVariable _
+  | LPVariable _, LPTuple _ -> false
+
 and equalsStringSegments
   (segments1 : List<StringSegment>)
   (segments2 : List<StringSegment>)
