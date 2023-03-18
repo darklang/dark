@@ -195,7 +195,13 @@ type Expr =
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
-and LetPattern = LPVariable of id * name : string
+and LetPattern =
+  | LPVariable of id * name : string
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 and StringSegment =
   | StringText of string
@@ -430,6 +436,7 @@ module LetPattern =
   let toID (pat : LetPattern) : id =
     match pat with
     | LPVariable (id, _) -> id
+    | LPTuple (id, _, _, _) -> id
 
 /// Functions for working with Dark match patterns
 module MatchPattern =

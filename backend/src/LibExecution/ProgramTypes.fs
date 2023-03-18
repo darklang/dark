@@ -111,7 +111,13 @@ module FQFnName =
   let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
     Stdlib(stdlibFnName module_ function_ version)
 
-type LetPattern = LPVariable of id * name : string
+type LetPattern =
+  | LPVariable of id * name : string
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 /// Used for pattern matching in a match statement
 type MatchPattern =

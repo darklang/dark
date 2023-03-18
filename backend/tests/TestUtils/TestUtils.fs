@@ -495,6 +495,19 @@ module Expect =
 
     match actual, expected with
     | LPVariable (_, name), LPVariable (_, name') -> check path name name'
+    | LPTuple (_, first, second, theRest), LPTuple (_, first', second', theRest') ->
+      let all = first :: second :: theRest
+      let all' = first' :: second' :: theRest'
+      let zipped = List.zip all all'
+      List.iter
+        (fun (a, e) ->
+          letPatternEqualityBaseFn checkIDs (path @ [ "tuple" ]) a e errorFn)
+        zipped
+
+    // exhaustive match
+    | LPVariable _, _
+    | LPTuple _, _ -> errorFn path (string actual) (string expected)
+
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)

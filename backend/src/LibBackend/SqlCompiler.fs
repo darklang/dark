@@ -165,12 +165,10 @@ let rec inline'
   RuntimeTypesAst.postTraversal
     (fun expr ->
       match expr with
-      | ELet (_, pat, expr, body) ->
-        let varName =
-          match pat with
-          | LPVariable (_id, name) -> name
-
+      | ELet (_, LPVariable (_, varName), expr, body) ->
         inline' paramName (Map.add varName expr symtable) body
+
+      // TODO: handle ELets with tuple patterns
 
       | EVariable (_, name) as expr when name <> paramName ->
         (match Map.get name symtable with

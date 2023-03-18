@@ -115,10 +115,14 @@ module LetPattern =
   let rec fromCT (p : CTPT.LetPattern) : PT.LetPattern =
     match p with
     | CTPT.LPVariable (id, str) -> PT.LPVariable(id, str)
+    | CTPT.LPTuple (id, first, second, theRest) ->
+      PT.LPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (p : PT.LetPattern) : CTPT.LetPattern =
     match p with
     | PT.LPVariable (id, str) -> CTPT.LPVariable(id, str)
+    | PT.LPTuple (id, first, second, theRest) ->
+      CTPT.LPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 module MatchPattern =
   let rec fromCT (pat : CTPT.MatchPattern) : PT.MatchPattern =

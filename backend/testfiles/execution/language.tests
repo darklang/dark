@@ -13,6 +13,11 @@ module Let =
   (let x = 5 in x) = 5
   (let x = 5 in let x = 6 in x) = 6
 
+  (let (a, b) = (1, 2) in 2) = 2
+  (let (a, b) = (1, 2) in b) = 2
+  (let (a, b) = (1, 2) in (b, a)) = (2, 1)
+  (let (d, d) = (2, 1) in d) = 1
+  (let (_, _) = (1, 2) in 2) = 2
 
 module Lists =
   [] = []

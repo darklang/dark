@@ -333,9 +333,20 @@ let rec convertToExpr
     let rec mapPat (pat : SynPat) : PT.LetPattern =
       match pat with
       | SynPat.Paren (subPat, _) -> mapPat subPat
+
       | SynPat.Wild (_) -> PT.LPVariable(gid (), "_")
+
       | SynPat.Named (SynIdent (name, _), _, _, _) ->
         PT.LPVariable(gid (), name.idText)
+
+      | SynPat.Tuple (_, (first :: second :: theRest), _) ->
+        PT.LetPattern.LPTuple(
+          gid (),
+          mapPat first,
+          mapPat second,
+          List.map mapPat theRest
+        )
+
       | _ ->
         Exception.raiseInternal
           "Unsupported let or use expr pat type"

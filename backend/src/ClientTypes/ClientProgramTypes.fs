@@ -56,7 +56,13 @@ type InfixFnName =
   | ComparisonNotEquals
   | StringConcat
 
-type LetPattern = LPVariable of id * name : string
+type LetPattern =
+  | LPVariable of id * name : string
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 type MatchPattern =
   | MPVariable of id * string
