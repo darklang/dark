@@ -7,9 +7,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -694,9 +704,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -1382,9 +1402,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -2072,9 +2102,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -2759,9 +2799,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -3449,9 +3499,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -4136,9 +4196,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -4824,9 +4894,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -5514,9 +5594,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -6201,9 +6291,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -7907,9 +8007,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -9065,9 +9175,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
@@ -10774,9 +10894,19 @@
             "ELet",
             "14219007199254740992",
             [
-              "LPVariable",
+              "LPTuple",
               189271,
-              "x1"
+              [
+                "LPVariable",
+                18274132,
+                "x0"
+              ],
+              [
+                "LPVariable",
+                27838182,
+                "x1"
+              ],
+              []
             ],
             [
               "EInteger",
@@ -11970,9 +12100,19 @@
             "ELet",
             "14219007199254740992",
             [
-              "LPVariable",
+              "LPTuple",
               189271,
-              "x1"
+              [
+                "LPVariable",
+                18274132,
+                "x0"
+              ],
+              [
+                "LPVariable",
+                27838182,
+                "x1"
+              ],
+              []
             ],
             [
               "EInteger",
@@ -12671,9 +12811,19 @@
           "ELet",
           "14219007199254740992",
           [
-            "LPVariable",
+            "LPTuple",
             189271,
-            "x1"
+            [
+              "LPVariable",
+              18274132,
+              "x0"
+            ],
+            [
+              "LPVariable",
+              27838182,
+              "x1"
+            ],
+            []
           ],
           [
             "EInteger",
