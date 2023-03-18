@@ -587,7 +587,7 @@ module Expect =
         match s, s' with
         | StringText s, StringText s' -> check path s s'
         | StringInterpolation e, StringInterpolation e' -> eq path e e'
-        |  _ -> check path s s'
+        | _ -> check path s s'
       List.iter2 checkSegment s s'
     | ECharacter (_, v), ECharacter (_, v')
     | EVariable (_, v), EVariable (_, v') -> check path v v'
