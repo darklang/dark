@@ -2,7 +2,7 @@
 /// Standard Library "custom" enum type. Once Option and Result are defined in this
 /// way, this module may be deleted. (along with the corresponding test file
 /// `maybe.tests`)
-module LibExecutionStdLib.LibMaybe
+module TestUtils.LibMaybe
 
 open System.Threading.Tasks
 open System.Numerics

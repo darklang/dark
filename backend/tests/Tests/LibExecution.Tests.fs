@@ -212,7 +212,8 @@ let fileTests () : Test =
       testList $"skipped - {testName}" []
     else
       let stdlibTypes =
-        LibExecutionStdLib.StdLib.types @ BackendOnlyStdLib.StdLib.types
+        LibExecutionStdLib.StdLib.types
+        @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
         |> List.map (fun typ -> PT.FQTypeName.Stdlib typ.name, typ.definition)
 
       (baseDir + filename)
