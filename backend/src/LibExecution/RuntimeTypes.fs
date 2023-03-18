@@ -36,8 +36,16 @@ open VendoredTablecloth
 
 module J = Prelude.Json
 
-/// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { type_ : string; version : int }
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  type StdlibTypeName = { typ : string }
+
+  /// A type written by a Developer in their canvas
+  type UserTypeName = { typ : string; version : int }
+
+  type T =
+    | Stdlib of StdlibTypeName
+    | User of UserTypeName
 
 module FQFnName =
 
@@ -142,7 +150,6 @@ type Expr =
   | EFloat of id * double
   | EUnit of id
 
-
   /// <summary>
   /// Composed of binding pattern, the expression to create bindings for,
   /// and the expression that follows, where the bound values are available
@@ -177,13 +184,16 @@ type Expr =
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * List<string * Expr>
-  | EConstructor of id * string * List<Expr>
+  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | EConstructor of
+    id *
+    Option<FQTypeName.T> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
-  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and LetPattern = LPVariable of id * name : string
 
@@ -201,7 +211,7 @@ and IsInPipe =
 
 and MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<MatchPattern>
+  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
@@ -230,7 +240,7 @@ and Dval =
   // compound types
   | DList of List<Dval>
   | DTuple of Dval * Dval * List<Dval>
-  | DObj of DvalMap
+
   | DFnVal of FnValImpl
 
   /// Represents something that shouldn't have happened in the engine,
@@ -272,16 +282,31 @@ and Dval =
   /// </remarks>
   | DIncomplete of DvalSource
 
-  // user types: awaiting a better type system
-  | DHttpResponse of int64 * List<string * string> * Dval
   | DDB of string
   | DDateTime of DarkDateTime.T
   | DPassword of Password
   | DUuid of System.Guid
+  | DBytes of byte array
+
+  // TODO: remove DHttpResponse eventually - this should really just be a DRecord
+  // of a type that is defined in the standard library (http module)
+  | DHttpResponse of int64 * List<string * string> * Dval
+
+  // TODO: replace with something like
+  // `| DRecord of FQTypeName.T * DvalMap`
+  | DObj of DvalMap
+
+  // TODO: merge DOption and DResult into DConstructor once the Option and Result types
+  // are defined in the Option and Result modules of the standard library
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
-  | DBytes of byte array
-  | DUserEnum of typeName : UserTypeName * caseName : string * fields : List<Dval>
+
+  // TODO: consider renaming - this is a _value_ so it's already been "Constructed"
+  | DConstructor of
+    typeName : Option<FQTypeName.T> *
+    caseName : string *
+    fields : List<Dval>
+
 
 and DvalTask = Ply<Dval>
 
@@ -289,30 +314,46 @@ and Symtable = Map<string, Dval>
 
 /// Dark runtime type
 and DType =
+  // simple types
+  | TUnit
+  | TBool
   | TInt
   | TFloat
-  | TBool
-  | TUnit
+  | TChar
   | TStr
+  | TUuid
+  | TBytes
+  | TDateTime
+  | TPassword
+
+  // nested types
   | TList of DType
   | TTuple of DType * DType * List<DType>
-  | TDict of DType
+  | TFn of List<DType> * DType // replaces TLambda
+  | TDB of DType
+
+  // fake types
   | TIncomplete
   | TError
-  | THttpResponse of DType
-  | TDB of DType
-  | TDateTime
-  | TChar
-  | TPassword
-  | TUuid
+
+  /// Used to refer to a named type argument defined in a generic type
+  /// e.g. `a` in `List<a>`
+  | TVariable of string
+
+  /// A type defined by a standard library module, a canvas/user, or a package
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// `typeArgs` is the list of type arguments, if any
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+
+  // TODO: remove all of thse in favor of TCustomType
+  // Enums
   | TOption of DType
-  | TUserType of UserTypeName // this should probably be split into TUserEnum and TUserRecord
-  | TBytes
   | TResult of DType * DType
-  // A named variable, eg `a` in `List<a>`
-  | TVariable of string // replaces TAny
-  | TFn of List<DType> * DType // replaces TLambda
-  | TRecord of List<string * DType>
+
+  // Records
+  | TDict of DType
+  | TRecord of List<string * DType> // TODO: remove in favor of TCustomType
+  | THttpResponse of DType
 
   member this.isFn() : bool =
     match this with
@@ -348,6 +389,16 @@ and Param =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
+module CustomType =
+  type RecordField = { id : id; name : string; typ : DType }
+
+  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+
+  type T =
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
 /// Functions for working with Dark runtime expressions
 module Expr =
   let toID (expr : Expr) : id =
@@ -366,14 +417,13 @@ module Expr =
     | EApply (id, _, _, _)
     | EList (id, _)
     | ETuple (id, _, _, _)
-    | ERecord (id, _)
+    | ERecord (id, _, _)
     | EFQFnValue (id, _)
-    | EConstructor (id, _, _)
+    | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _)
     | EAnd (id, _, _)
-    | EOr (id, _, _)
-    | EUserEnum (id, _, _, _) -> id
+    | EOr (id, _, _) -> id
 
 /// Functions for working with Dark Let patterns
 module LetPattern =
@@ -452,7 +502,24 @@ module Dval =
     | DResult (Ok v) -> TResult(toType v, any)
     | DResult (Error v) -> TResult(any, toType v)
     | DBytes _ -> TBytes
-    | DUserEnum (typeName, _caseName, _fields) -> TUserType(typeName)
+    | DConstructor (typeName, caseName, fields) ->
+      match typeName with
+      | Some typeName ->
+        let typeArgs = List.map toType fields
+        TCustomType(typeName, typeArgs)
+      | None ->
+        match caseName, fields with
+        // option
+        | "Nothing", [] -> TOption any
+        | "Just", [ arg ] -> TOption(toType arg)
+
+        // result
+        | "Ok", [ arg ] -> TResult(any, any)
+        | "Error", [ arg ] -> TResult(any, any)
+
+        // unrecognized
+        | _ -> any // might be better to error here
+
 
   /// <summary>
   /// Checks if a runtime's value matches a given type
@@ -506,10 +573,10 @@ module Dval =
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
-    | DObj _, TUserType _ ->
+    | DObj _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
-      //   we likely need a `(userTypeMap: Map<UserTypeName, UserType.Definition>)` passed in
+      //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
       //
       // 2. match against that
       //  match def with
@@ -518,10 +585,10 @@ module Dval =
       //    ...
       false
 
-    | DUserEnum _, TUserType _ ->
+    | DConstructor _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
-      //   we likely need a `(userTypeMap: Map<UserTypeName, UserType.Definition>)` passed in
+      //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
       //
       // 2. match against that
       //  match def with
@@ -554,7 +621,7 @@ module Dval =
     | DResult _, _
     | DHttpResponse _, _
     | DObj _, _
-    | DUserEnum _, _ -> false
+    | DConstructor _, _ -> false
 
 
   let int (i : int) = DInt(int64 i)
@@ -638,16 +705,9 @@ module DB =
   type T = { tlid : tlid; name : string; cols : List<Col>; version : int }
 
 module UserType =
-  type RecordField = { id : id; name : string; typ : DType }
-
-  type EnumField = { id : id; type_ : DType; label : Option<string> }
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
-
-  type Definition =
-    | Record of fields : List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
-
-  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
+  // TODO: consider flattening this (just type UserType = { ... }, without the module level)
+  type Definition = CustomType.T
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =
   type Parameter = { name : string; typ : DType; description : string }
@@ -780,6 +840,14 @@ type SqlSpec =
     | SqlFunctionWithSuffixArgs _
     | SqlCallback2 _ -> true
 
+
+/// A built-in standard library type
+type BuiltInType =
+  { name : FQTypeName.StdlibTypeName
+    typeArgs : List<string>
+    definition : CustomType.T
+    description : string }
+
 /// A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
@@ -790,7 +858,6 @@ type BuiltInFn =
     deprecated : Deprecation
     sqlSpec : SqlSpec
     fn : BuiltInFnSig }
-
 
 and Fn =
   { name : FQFnName.T
@@ -847,8 +914,21 @@ and ProgramContext =
     accountID : UserID
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
-    userTypes : Map<UserTypeName, UserType.T>
+    userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
+
+  // TODO remove this, probably?
+  // this is theoretically prepared for stdlibTypes and packageTypes to exist
+  // I'm not sure how else to handle this, but this likely isn't ideal
+  // TODO: at the _very_ least, review all usages - consider if we should treat each case special in any way
+  member this.allTypes : Map<FQTypeName.T, CustomType.T> =
+    this.userTypes
+    // TODO: I'd normally use F#'s native "Map.map"
+    // but we've overwritten that such that this turns out ugly
+    // Is there a better way to do this, even with the overwriting?
+    |> Map.toList
+    |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
+    |> Map
 
 /// Set of callbacks used to trace the interpreter
 and Tracing =
@@ -870,7 +950,9 @@ and TestContext =
 
 /// Non-user-specific functionality needed to run code
 and Libraries =
-  { stdlib : Map<FQFnName.T, BuiltInFn>
+  { stdlibTypes : Map<FQTypeName.T, BuiltInType>
+    stdlibFns : Map<FQFnName.T, BuiltInFn>
+
     packageFns : Map<FQFnName.T, Package.Fn> }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit

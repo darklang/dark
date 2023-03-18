@@ -7,6 +7,7 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module AT = LibExecution.AnalysisTypes
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
@@ -51,14 +52,20 @@ module Eval =
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
           secrets = request.secrets }
 
-      let stdlib =
+      let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
+        LibExecutionStdLib.StdLib.types
+        |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
+        |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+
+      let stdlibFns =
         LibExecutionStdLib.StdLib.fns
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       let packageFns =
         request.packageFns |> Map.fromListBy (fun fn -> RT.FQFnName.Package fn.name)
 
-      let libraries : RT.Libraries = { stdlib = stdlib; packageFns = packageFns }
+      let libraries : RT.Libraries =
+        { stdlibTypes = stdlibTypes; stdlibFns = stdlibFns; packageFns = packageFns }
       let results, traceDvalFn = Exe.traceDvals ()
       let functionResults = request.traceData.function_results
 

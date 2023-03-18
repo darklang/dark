@@ -13,8 +13,16 @@ type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 
 
-/// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { type_ : string; version : int }
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  type StdlibTypeName = { typ : string }
+
+  /// A type written by a Developer in their canvas
+  type UserTypeName = { typ : string; version : int }
+
+  type T =
+    | Stdlib of StdlibTypeName
+    | User of UserTypeName
 
 module FQFnName =
   type StdlibFnName = { module_ : string; function_ : string; version : int }
@@ -52,7 +60,7 @@ type LetPattern = LPVariable of id * name : string
 
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<MatchPattern>
+  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
@@ -60,7 +68,6 @@ type MatchPattern =
   | MPFloat of id * Sign * string * string
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
 
 type BinaryOperation =
   | BinOpAnd
@@ -86,13 +93,16 @@ type Expr =
   | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * List<string * Expr>
+  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EConstructor of id * string * List<Expr>
+  | EConstructor of
+    id *
+    typeName : Option<FQTypeName.T> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
-  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and StringSegment =
   | StringText of string
@@ -116,13 +126,24 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
   | TBytes
   | TResult of DType * DType
   | TVariable of string
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
   | TDbList of DType
+
+
+module CustomType =
+  type RecordField = { id : id; name : string; typ : DType }
+
+  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+
+  type T =
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
 
 module Handler =
@@ -158,16 +179,8 @@ module DB =
 
 
 module UserType =
-  type RecordField = { id : id; name : string; typ : DType }
-
-  type EnumField = { id : id; type_ : DType; label : Option<string> }
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
-
-  type Definition =
-    | Record of List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
-
-  type T = { tlid : tlid; name : UserTypeName; definition : Definition }
+  type Definition = CustomType.T
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 
 module UserFunction =

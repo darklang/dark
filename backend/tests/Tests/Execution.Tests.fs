@@ -101,7 +101,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
       executionStateForPreview "test" (Map [ "MyDB", db ]) Map.empty
 
     let state =
-      { state with libraries = { state.libraries with stdlib = Map.empty } }
+      { state with libraries = { state.libraries with stdlibFns = Map.empty } }
 
     let! _value = Exe.executeExpr state Map.empty ast
 
@@ -603,7 +603,7 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (eConstructor "Ok" [ eStr "y" ])
+        (eConstructor None "Ok" [ eStr "y" ])
         [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DStr "y"))))
 
           (binopFnValId,
@@ -623,7 +623,7 @@ let testMatchPreview : Test =
 
       t
         "nothing"
-        (eConstructor "Nothing" [])
+        (eConstructor None "Nothing" [])
         [ (pNothingId, "ok pat", er (DOption None))
           (nothingRhsId, "rhs", er (DStr "constructor nothing")) ]
 

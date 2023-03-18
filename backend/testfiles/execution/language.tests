@@ -37,27 +37,64 @@ module Records =
   { col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
   { col1 = 2 ; ___ = 3 } = Test.typeError "Record key is empty"
 
+
 module UserEnums =
-  // TODO: support recursive UserEnums
-  type Card = | A | B of string | C of i: int | D of c: string * i: int
+  // Simple enums work
+  type AorB = A | B
 
-  // TODO: fix parser - "A" below is currently interpreted as a variable we can't find.
-  //(let cards = [A; B "test"; C(5)]
+  (let a = A
+   let b = B
+   a == b) = false
+
+  (let a1 = A
+   let a2 = A
+   a1 == a2) = true
+
+  (A == A) = true
+  (A == B) = false
+  List.unique_v0 [A; B; A; A; B] = [A; B]
+
+
+  // Mixed kinds of enums are OK
+  type EnumOfMixedCases =
+    | W | X of string | Y of i: int | Z of c: string * i: int
+
+  (W == (Y 1)) = false
+  (Y 1 == Y 1) = true
+
+  (let values = [W; X "testX"; Y(5); Z("testZ", 2)]
+   match List.getAt_v1 values 3 with
+   | Just z -> Ok z
+   | Nothing -> Error "Failure") = Ok (Z ("testZ", 2))
+
+  ([W; X "testX"; Y(5); Z("testZ", 2)]
+   |> List.map_v0(fun v ->
+    match v with
+    | X s -> "X " ++ s
+    | Z (s, _i) -> "Z " ++ s
+    | Y y -> "Y " ++ (Int.toString_v0 y)
+    | W -> "a simple W")
+  ) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
+
+
+  // You can define enums based on previously-defined enums
+  type CorD = | C of int | D of AorB
+
+  (C != D(B)) = true
+  (D(A) == D(A)) = true
+
+
+  // TODO: The typechecker has been adjusted to handle this,
+  //       but the type checker isn't yet integrated into the interpreter fully
+  // Type errors are reported when an enum ctor is used with an incorrect # of fields
+  //type EnumWithASingleCaseOfTwoFields = | HasTwoFields of a: int * b: int
   //
-  // match List.getAt_v1 cards 1 with
-  // | Some b -> Ok b
-  // | None -> Error "Failure") = Ok (B "test")
+  //(HasTwoFields 1 2) = HasTwoFields 1 2
+  //HasTwoFields 1 = Test.typeError "Enum ctor HasTwoFields expects 2 fields, but was given 1"
 
-  // TODO: support enum deconstruction in `match` exprs
-  // (let cards = [A; B "test"; C 5]
 
-  // match List.getAt_v1 cards 1 with
-  // | Some (B(s)) -> Ok s
-  // | None -> Error "Failure") = Ok ("test")
+  // TODO: support recursively-defined UserEnums
 
-  // a simple test so the module is happy until the above
-  // tests may be uncommented
-  1 = 1
 
 
 

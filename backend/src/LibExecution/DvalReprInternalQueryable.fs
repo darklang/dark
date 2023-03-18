@@ -216,8 +216,8 @@ module Test =
     | DUuid _ -> true
     | DList dvals -> List.all isQueryableDval dvals
     | DObj map -> map |> Map.values |> List.all isQueryableDval
-    | DUserEnum (_typeName, _caseName, fields) ->
-      // TODO: check the fields in `typeName.caseName`? Not sure if needed, rethink later.
+    | DConstructor (_typeName, _caseName, fields) ->
+      // TODO I'm not sure what's appropriate here.
       fields |> List.all isQueryableDval
 
     // TODO support

@@ -300,12 +300,26 @@ that's already taken, returns an error."
           | TUuid -> "uuid"
           | TOption _ -> "option"
           | TResult _ -> "result"
-          | TUserType t -> t.type_
           | TBytes -> "bytes"
+          | TCustomType (t, typeArgs) ->
+            let typeArgsPortion =
+              match typeArgs with
+              | [] -> ""
+              | args ->
+                args
+                |> List.map (fun t -> typeName t)
+                |> String.concat ", "
+                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+            match t with
+            | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
+            | FQTypeName.User t ->
+              let versionPart = if t.version = 0 then "" else $"_v{t.version}"
+              t.typ + versionPart + typeArgsPortion
 
         internalFn (function
           | state, [] ->
-            state.libraries.stdlib
+            state.libraries.stdlibFns
             |> Map.toList
             |> List.filter (fun (key, data) ->
               (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)

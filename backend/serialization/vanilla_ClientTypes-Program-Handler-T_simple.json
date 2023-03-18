@@ -303,6 +303,7 @@
                       [
                         "ERecord",
                         109539183,
+                        null,
                         [
                           [
                             "field",
@@ -341,21 +342,25 @@
                             [
                               "EConstructor",
                               567764301,
+                              null,
                               "Ok",
                               [
                                 [
                                   "EConstructor",
                                   646107057,
+                                  null,
                                   "Error",
                                   [
                                     [
                                       "EConstructor",
                                       689802831,
+                                      null,
                                       "Just",
                                       [
                                         [
                                           "EConstructor",
                                           957916875,
+                                          null,
                                           "Nothing",
                                           []
                                         ]

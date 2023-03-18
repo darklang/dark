@@ -8,9 +8,19 @@ open VendoredTablecloth
 module RT = RuntimeTypes
 module PT = ProgramTypes
 
-module UserTypeName =
-  let toRT (u : PT.UserTypeName) : RT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+module FQTypeName =
+  module StdlibTypeName =
+    let toRT (t : PT.FQTypeName.StdlibTypeName) : RT.FQTypeName.StdlibTypeName =
+      { typ = t.typ }
+
+  module UserTypeName =
+    let toRT (u : PT.FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
+
+  let toRT (t : PT.FQTypeName.T) : RT.FQTypeName.T =
+    match t with
+    | PT.FQTypeName.Stdlib s -> RT.FQTypeName.Stdlib(StdlibTypeName.toRT s)
+    | PT.FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.toRT u)
 
 
 module FQFnName =
@@ -58,8 +68,8 @@ module MatchPattern =
   let rec toRT (p : PT.MatchPattern) : RT.MatchPattern =
     match p with
     | PT.MPVariable (id, str) -> RT.MPVariable(id, str)
-    | PT.MPConstructor (id, name, pats) ->
-      RT.MPConstructor(id, name, List.map toRT pats)
+    | PT.MPConstructor (id, caseName, fieldPats) ->
+      RT.MPConstructor(id, caseName, List.map toRT fieldPats)
     | PT.MPInteger (id, i) -> RT.MPInteger(id, i)
     | PT.MPBool (id, b) -> RT.MPBool(id, b)
     | PT.MPCharacter (id, c) -> RT.MPCharacter(id, c)
@@ -113,8 +123,12 @@ module Expr =
     | PT.EList (id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
-    | PT.ERecord (id, pairs) ->
-      RT.ERecord(id, List.map (Tuple2.mapSecond toRT) pairs)
+    | PT.ERecord (id, typeName, fields) ->
+      RT.ERecord(
+        id,
+        Option.map FQTypeName.toRT typeName,
+        List.map (Tuple2.mapSecond toRT) fields
+      )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       // Convert v |> fn1 a |> fn2 |> fn3 b c
       // into fn3 (fn2 (fn1 v a)) b c
@@ -158,8 +172,6 @@ module Expr =
 
         (expr2 :: rest)
 
-    | PT.EConstructor (id, name, exprs) ->
-      RT.EConstructor(id, name, List.map toRT exprs)
     | PT.EMatch (id, mexpr, pairs) ->
       RT.EMatch(
         id,
@@ -170,8 +182,13 @@ module Expr =
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EFeatureFlag (id, _name, cond, caseA, caseB) ->
       RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
-    | PT.EUserEnum (id, name, caseName, fields) ->
-      RT.EUserEnum(id, UserTypeName.toRT name, caseName, List.map toRT fields)
+    | PT.EConstructor (id, typeName, caseName, fields) ->
+      RT.EConstructor(
+        id,
+        Option.map FQTypeName.toRT typeName,
+        caseName,
+        List.map toRT fields
+      )
 
 
   and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
@@ -200,7 +217,8 @@ module DType =
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
     | PT.TOption typ -> RT.TOption(toRT typ)
-    | PT.TUserType typeName -> RT.TUserType(UserTypeName.toRT typeName)
+    | PT.TCustomType (typeName, typArgs) ->
+      RT.TCustomType(FQTypeName.toRT typeName, List.map toRT typArgs)
     | PT.TBytes -> RT.TBytes
     | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)
     | PT.TVariable (name) -> RT.TVariable(name)
@@ -209,6 +227,32 @@ module DType =
     | PT.TRecord (rows) ->
       RT.TRecord(List.map (fun (f, t : PT.DType) -> f, toRT t) rows)
     | PT.TDbList typ -> RT.TList(toRT typ)
+
+module CustomType =
+  module RecordField =
+    let toRT (f : PT.CustomType.RecordField) : RT.CustomType.RecordField =
+      { id = f.id; name = f.name; typ = DType.toRT f.typ }
+
+  module EnumField =
+    let toRT (f : PT.CustomType.EnumField) : RT.CustomType.EnumField =
+      { id = f.id; typ = DType.toRT f.typ; label = f.label }
+
+  module EnumCase =
+    let toRT (c : PT.CustomType.EnumCase) : RT.CustomType.EnumCase =
+      { id = c.id; name = c.name; fields = List.map EnumField.toRT c.fields }
+
+  let toRT (d : PT.CustomType.T) : RT.CustomType.T =
+    match d with
+    | PT.CustomType.Record (firstField, additionalFields) ->
+      RT.CustomType.Record(
+        RecordField.toRT firstField,
+        List.map RecordField.toRT additionalFields
+      )
+    | PT.CustomType.Enum (firstCase, additionalCases) ->
+      RT.CustomType.Enum(
+        EnumCase.toRT firstCase,
+        List.map EnumCase.toRT additionalCases
+      )
 
 
 module Handler =
@@ -248,33 +292,10 @@ module DB =
           db.cols }
 
 module UserType =
-
-  module Definition =
-    let toRT (d : PT.UserType.Definition) : RT.UserType.Definition =
-      match d with
-      | PT.UserType.Record fields ->
-        RT.UserType.Record(
-          List.map
-            (fun (rf : PT.UserType.RecordField) ->
-              { id = rf.id; name = rf.name; typ = DType.toRT rf.typ })
-            fields
-        )
-      | PT.UserType.Enum (firstCase, additionalCases) ->
-        let mapCase (c : PT.UserType.EnumCase) : RT.UserType.EnumCase =
-          { id = c.id
-            name = c.name
-            fields =
-              List.map
-                (fun (f : PT.UserType.EnumField) ->
-                  { id = f.id; type_ = DType.toRT f.type_; label = f.label })
-                c.fields }
-
-        RT.UserType.Enum(mapCase firstCase, List.map mapCase additionalCases)
-
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
-      name = UserTypeName.toRT t.name
-      definition = Definition.toRT t.definition }
+      name = FQTypeName.UserTypeName.toRT t.name
+      definition = CustomType.toRT t.definition }
 
 module UserFunction =
   module Parameter =
@@ -315,3 +336,10 @@ module Package =
       author = f.author
       deprecated = f.deprecated
       tlid = f.tlid }
+
+module BuiltInType =
+  let toRT (t : PT.BuiltInType) : RT.BuiltInType =
+    { name = FQTypeName.StdlibTypeName.toRT t.name
+      typeArgs = t.typeArgs
+      definition = CustomType.toRT t.definition
+      description = t.description }

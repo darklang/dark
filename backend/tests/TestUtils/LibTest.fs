@@ -11,6 +11,9 @@ open Npgsql
 open LibBackend.Db
 
 open LibExecution.RuntimeTypes
+
+module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 open Prelude
 
 let fn = FQFnName.stdlibFnName
@@ -20,7 +23,13 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 let varA = TVariable "a"
 let varB = TVariable "b"
 
+let types : List<BuiltInType> =
+  [ LibMaybe.types ]
+  |> List.concat
+  |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
+
 let fns : List<BuiltInFn> =
+
   [ { name = fn "Test" "typeError" 0
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
@@ -462,3 +471,4 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
+  @ LibMaybe.fns

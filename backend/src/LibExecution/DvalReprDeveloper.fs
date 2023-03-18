@@ -31,7 +31,19 @@ let rec typeName (t : DType) : string =
   | TUuid -> "UUID"
   | TOption nested -> $"Option<{typeName nested}>"
   | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
-  | TUserType t -> $"{t.type_}_v{t.version}"
+  | TCustomType (t, typeArgs) ->
+    let typeArgsPortion =
+      match typeArgs with
+      | [] -> ""
+      | args ->
+        args
+        |> List.map (fun t -> typeName t)
+        |> String.concat ", "
+        |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+    match t with
+    | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
+    | FQTypeName.User t -> $"{t.typ}_v{t.version}{typeArgsPortion}"
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName
@@ -117,11 +129,11 @@ let toRepr (dv : Dval) : string =
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
-    | DUserEnum (typeName, caseName, fields) ->
+    | DConstructor (typeName, caseName, fields) ->
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 
-      $"{typeName}.{caseName}([{fieldStr}])"
+      $"{typeName}.{caseName}({fieldStr})"
 
 
   toRepr_ 0 dv

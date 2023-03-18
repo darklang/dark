@@ -121,7 +121,7 @@ let oldFunctionsAreDeprecated =
   test "old functions are deprecated" {
     let counts = ref Map.empty
 
-    let fns = libraries.Force().stdlib |> Map.values
+    let fns = libraries.Force().stdlibFns |> Map.values
 
     fns
     |> List.iter (fun fn ->

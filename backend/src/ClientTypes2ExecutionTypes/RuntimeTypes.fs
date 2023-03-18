@@ -12,13 +12,30 @@ open ClientTypes.Runtime
 
 module RT = LibExecution.RuntimeTypes
 
+module FQTypeName =
+  module UserTypeName =
+    let fromCT (u : FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
 
-module UserTypeName =
-  let fromCT (u : UserTypeName) : RT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+    let toCT (u : RT.FQTypeName.UserTypeName) : FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
 
-  let toCT (u : RT.UserTypeName) : UserTypeName =
-    { type_ = u.type_; version = u.version }
+  module StdlibTypeName =
+    let fromCT (s : FQTypeName.StdlibTypeName) : RT.FQTypeName.StdlibTypeName =
+      { typ = s.typ }
+
+    let toCT (s : RT.FQTypeName.StdlibTypeName) : FQTypeName.StdlibTypeName =
+      { typ = s.typ }
+
+  let fromCT (t : FQTypeName.T) : RT.FQTypeName.T =
+    match t with
+    | FQTypeName.Stdlib s -> RT.FQTypeName.Stdlib(StdlibTypeName.fromCT s)
+    | FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.fromCT u)
+
+  let toCT (t : RT.FQTypeName.T) : FQTypeName.T =
+    match t with
+    | RT.FQTypeName.Stdlib s -> FQTypeName.Stdlib(StdlibTypeName.toCT s)
+    | RT.FQTypeName.User u -> FQTypeName.User(UserTypeName.toCT u)
 
 
 module FQFnName =
@@ -82,7 +99,8 @@ module DType =
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
     | RT.TOption t -> TOption(r t)
-    | RT.TUserType typeName -> TUserType(UserTypeName.toCT typeName)
+    | RT.TCustomType (typeName, typeArgs) ->
+      TCustomType(FQTypeName.toCT typeName, List.map r typeArgs)
     | RT.TBytes -> TBytes
     | RT.TResult (ok, error) -> TResult(r ok, r error)
     | RT.TVariable (name) -> TVariable(name)
@@ -111,7 +129,8 @@ module DType =
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid
     | TOption t -> RT.TOption(r t)
-    | TUserType t -> RT.TUserType(UserTypeName.fromCT t)
+    | TCustomType (t, typeArgs) ->
+      RT.TCustomType(FQTypeName.fromCT t, List.map r typeArgs)
     | TBytes -> RT.TBytes
     | TResult (ok, error) -> RT.TResult(r ok, r error)
     | TVariable (name) -> RT.TVariable(name)
@@ -132,7 +151,8 @@ module MatchPattern =
     let r = fromCT
     match p with
     | MPVariable (id, str) -> RT.MPVariable(id, str)
-    | MPConstructor (id, name, pats) -> RT.MPConstructor(id, name, List.map r pats)
+    | MPConstructor (id, caseName, fieldPats) ->
+      RT.MPConstructor(id, caseName, List.map r fieldPats)
     | MPInteger (id, i) -> RT.MPInteger(id, i)
     | MPBool (id, b) -> RT.MPBool(id, b)
     | MPCharacter (id, c) -> RT.MPCharacter(id, c)
@@ -146,7 +166,8 @@ module MatchPattern =
     let r = toCT
     match p with
     | RT.MPVariable (id, str) -> MPVariable(id, str)
-    | RT.MPConstructor (id, name, pats) -> MPConstructor(id, name, List.map r pats)
+    | RT.MPConstructor (id, caseName, fieldPats) ->
+      MPConstructor(id, caseName, List.map r fieldPats)
     | RT.MPInteger (id, i) -> MPInteger(id, i)
     | RT.MPBool (id, b) -> MPBool(id, b)
     | RT.MPCharacter (id, c) -> MPCharacter(id, c)
@@ -192,9 +213,19 @@ module Expr =
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | Expr.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, r first, r second, List.map r theRest)
-    | Expr.ERecord (id, pairs) -> RT.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
-    | Expr.EConstructor (id, name, exprs) ->
-      RT.EConstructor(id, name, List.map r exprs)
+    | Expr.ERecord (id, typeName, fields) ->
+      RT.ERecord(
+        id,
+        Option.map FQTypeName.fromCT typeName,
+        List.map (Tuple2.mapSecond r) fields
+      )
+    | Expr.EConstructor (id, typeName, caseName, fields) ->
+      RT.EConstructor(
+        id,
+        Option.map FQTypeName.fromCT typeName,
+        caseName,
+        List.map r fields
+      )
     | Expr.EMatch (id, mexpr, pairs) ->
       RT.EMatch(
         id,
@@ -205,8 +236,6 @@ module Expr =
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
     | Expr.EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | Expr.EOr (id, left, right) -> RT.EOr(id, r left, r right)
-    | Expr.EUserEnum (id, typeName, caseName, fields) ->
-      RT.EUserEnum(id, UserTypeName.fromCT typeName, caseName, List.map r fields)
 
   and stringSegmentToRT (segment : Expr.StringSegment) : RT.StringSegment =
     match segment with
@@ -238,9 +267,19 @@ module Expr =
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
     | RT.ETuple (id, first, second, theRest) ->
       Expr.ETuple(id, r first, r second, List.map r theRest)
-    | RT.ERecord (id, pairs) -> Expr.ERecord(id, List.map (Tuple2.mapSecond r) pairs)
-    | RT.EConstructor (id, name, exprs) ->
-      Expr.EConstructor(id, name, List.map r exprs)
+    | RT.ERecord (id, typeName, fields) ->
+      Expr.ERecord(
+        id,
+        Option.map FQTypeName.toCT typeName,
+        List.map (Tuple2.mapSecond r) fields
+      )
+    | RT.EConstructor (id, typeName, caseName, fields) ->
+      Expr.EConstructor(
+        id,
+        Option.map FQTypeName.toCT typeName,
+        caseName,
+        List.map r fields
+      )
     | RT.EMatch (id, mexpr, pairs) ->
       Expr.EMatch(
         id,
@@ -251,8 +290,6 @@ module Expr =
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
-    | RT.EUserEnum (id, typeName, casename, fields) ->
-      Expr.EUserEnum(id, UserTypeName.toCT typeName, casename, List.map r fields)
 
   and stringSegmentToCT (segment : RT.StringSegment) : Expr.StringSegment =
     match segment with
@@ -307,8 +344,12 @@ module Dval =
     | Dval.DResult (Ok dv) -> RT.DResult(Ok(r dv))
     | Dval.DResult (Error dv) -> RT.DResult(Error(r dv))
     | Dval.DBytes bytes -> RT.DBytes bytes
-    | Dval.DUserEnum (typeName, caseName, fields) ->
-      RT.DUserEnum(UserTypeName.fromCT typeName, caseName, List.map r fields)
+    | Dval.DConstructor (typeName, caseName, fields) ->
+      RT.DConstructor(
+        Option.map FQTypeName.fromCT typeName,
+        caseName,
+        List.map r fields
+      )
 
   and toCT (dv : RT.Dval) : Dval.T =
     let r = toCT
@@ -346,4 +387,4 @@ module Dval =
     | RT.DResult (Ok dv) -> Dval.DResult(Ok(r dv))
     | RT.DResult (Error dv) -> Dval.DResult(Error(r dv))
     | RT.DBytes bytes -> Dval.DBytes bytes
-    | RT.DUserEnum (typeName, caseName, fields) -> Dval.DUnit // todo
+    | RT.DConstructor (typeName, caseName, fields) -> Dval.DUnit // todo

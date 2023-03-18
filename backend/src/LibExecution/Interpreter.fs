@@ -133,7 +133,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | Some other -> return other
 
 
-    | ERecord (id, pairs) ->
+    | ERecord (id, typeName, fields) ->
       return!
         Ply.List.foldSequentially
           (fun r (k, expr) ->
@@ -148,7 +148,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, v -> return r
             })
           (DObj(Map.empty))
-          pairs
+          fields
 
 
     | EApply (id, fnVal, exprs, inPipe) ->
@@ -294,8 +294,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPVariable (id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-        | MPConstructor (id, name, args) ->
-          match (name, args, dv) with
+        | MPConstructor (id, caseName, fieldPats) ->
+          match (caseName, fieldPats, dv) with
           | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
           | "Just", [ p ], DOption (Some v)
@@ -316,10 +316,31 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let (_, newVars, traces) = checkPattern (incomplete pID) p
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
-          | _name, argPatterns, _dv ->
-            let traces = traceIncompleteWithArgs id argPatterns
-            false, [], traces
+          | caseName, fieldPats, DConstructor (_dTypeName, dCaseName, dFields) ->
+            let fieldPats =
+              match fieldPats with
+              | [ MPTuple (_, first, second, theRest) ] -> first :: second :: theRest
+              | pats -> pats
 
+            if List.length dFields = List.length fieldPats && caseName = dCaseName then
+              let (passResults, newVarResults, traceResults) =
+                List.zip dFields fieldPats
+                |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                |> List.unzip3
+
+              let allPass = passResults |> List.forall identity
+              let allVars = newVarResults |> List.collect identity
+              let allSubTraces = traceResults |> List.collect identity
+
+              if allPass then
+                true, allVars, (id, dv) :: allSubTraces
+              else
+                false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces
+            else
+              false, [], traceIncompleteWithArgs id fieldPats
+
+          | _caseName, fieldPats, _dv ->
+            false, [], traceIncompleteWithArgs id fieldPats
 
         | MPTuple (id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
@@ -442,29 +463,30 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return DError(sourceID id, "&& only supports Booleans")
 
 
-    | EConstructor (id, name, args) ->
-      match (name, args) with
-      | "Nothing", [] -> return DOption None
-      | "Just", [ arg ] ->
-        let! dv = (eval state st arg)
-        return Dval.optionJust dv
-      | "Ok", [ arg ] ->
-        let! dv = eval state st arg
-        return Dval.resultOk dv
-      | "Error", [ arg ] ->
-        let! dv = eval state st arg
-        return Dval.resultError dv
-      | name, _ ->
-        return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+    | EConstructor (id, typeName, caseName, fields) ->
+      match typeName with
+      | None ->
+        match (caseName, fields) with
+        | "Nothing", [] -> return DOption None
+        | "Just", [ arg ] ->
+          let! dv = (eval state st arg)
+          return Dval.optionJust dv
+        | "Ok", [ arg ] ->
+          let! dv = eval state st arg
+          return Dval.resultOk dv
+        | "Error", [ arg ] ->
+          let! dv = eval state st arg
+          return Dval.resultError dv
+        | name, _ ->
+          return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+      | Some typeName ->
+        // EConstructorTODO: handle analysis/preview
+        let! fields = Ply.List.mapSequentially (eval state st) fields
 
-    | EUserEnum (_id, name, caseName, fields) ->
-      // EUserEnumTODO: handle analysis/preview
-      let! fields = Ply.List.mapSequentially (eval state st) fields
-
-      // EUserEnumTODO: reconsider (stole this from DList)f
-      match List.tryFind Dval.isFake fields with
-      | Some fakeDval -> return fakeDval
-      | None -> return DUserEnum(name, caseName, fields)
+        // EConstructorTODO: reconsider (stole this from DList)
+        match List.tryFind Dval.isFake fields with
+        | Some fakeDval -> return fakeDval
+        | None -> return DConstructor(Some typeName, caseName, fields)
   }
 
 /// Interprets an expression and reduces to a Dark value
@@ -564,7 +586,7 @@ and callFn
       match desc with
       | FQFnName.Stdlib _std ->
         // CLEANUP: do this when the libraries are loaded
-        state.libraries.stdlib.TryFind desc |> Option.map builtInFnToFn
+        state.libraries.stdlibFns.TryFind desc |> Option.map builtInFnToFn
       | FQFnName.User name ->
         state.program.userFns.TryFind name |> Option.map userFnToFn
       | FQFnName.Package _pkg ->
@@ -774,7 +796,7 @@ and execFn
             // For now, always store these results
             state.tracing.storeFnResult fnRecord arglist result
 
-            return result |> typeErrorOrValue state.program.userTypes
+            return result |> typeErrorOrValue state.program.allTypes
 
           | Error errs ->
             return
@@ -784,7 +806,7 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
         | UserFunction (tlid, body) ->
-          match TypeChecker.checkFunctionCall state.program.userTypes fn args with
+          match TypeChecker.checkFunctionCall state.program.allTypes fn args with
           | Ok () ->
             state.tracing.traceTLID tlid
             // Don't execute user functions if it's preview mode and we have a result
@@ -801,7 +823,7 @@ and execFn
               let! result = eval state argsWithGlobals body
               state.tracing.storeFnResult fnRecord arglist result
 
-              return result |> typeErrorOrValue state.program.userTypes
+              return result |> typeErrorOrValue state.program.allTypes
           | Error errs ->
             return
               DError(

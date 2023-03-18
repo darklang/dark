@@ -8,9 +8,17 @@ module ClientTypes.Runtime
 open Prelude
 open Tablecloth
 
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  type StdlibTypeName = { typ : string }
 
-/// A UserType is a type written by a Developer in their canvas
-type UserTypeName = { type_ : string; version : int }
+  /// A type written by a Developer in their canvas
+  type UserTypeName = { typ : string; version : int }
+
+  type T =
+    | Stdlib of StdlibTypeName
+    | User of UserTypeName
+
 
 module FQFnName =
   type UserFnName = string
@@ -48,18 +56,20 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
   | TBytes
   | TResult of DType * DType
   | TVariable of string
   | TFn of List<DType> * DType
   | TRecord of List<string * DType>
 
+
 type LetPattern = LPVariable of id * name : string
+
 
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<MatchPattern>
+  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
@@ -67,6 +77,7 @@ type MatchPattern =
   | MPFloat of id * double
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
 
 module Expr =
   type T =
@@ -85,13 +96,16 @@ module Expr =
     | EFQFnValue of id * FQFnName.T
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
-    | ERecord of id * List<string * T>
-    | EConstructor of id * string * List<T>
+    | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
+    | EConstructor of
+      id *
+      typeName : Option<FQTypeName.T> *
+      caseName : string *
+      fields : List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
-    | EUserEnum of id * UserTypeName * caseName : string * fields : List<T>
 
   and StringSegment =
     | StringText of string
@@ -139,4 +153,7 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DUserEnum of typeName : UserTypeName * caseName : string * fields : List<T>
+    | DConstructor of
+      typeName : Option<FQTypeName.T> *
+      caseName : string *
+      fields : List<T>

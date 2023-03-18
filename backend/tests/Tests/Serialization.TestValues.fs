@@ -41,7 +41,7 @@ module RuntimeTypes =
       RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TUserType({ type_ = "User"; version = 0 })
+      RT.TCustomType(RT.FQTypeName.User { typ = "User"; version = 0 }, [ RT.TBool ])
       RT.TBytes
       RT.TResult(RT.TBool, RT.TStr)
       RT.TVariable "test"
@@ -99,8 +99,8 @@ module RuntimeTypes =
         RT.EUnit(84718341UL),
         [ RT.EUnit(7167384UL) ]
       )
-      RT.ERecord(8167384UL, [ "a9df8", RT.EUnit(71631UL) ])
-      RT.EConstructor(64617UL, "Just", [ RT.EUnit(8173UL) ])
+      RT.ERecord(8167384UL, None, [ "a9df8", RT.EUnit(71631UL) ])
+      RT.EConstructor(64617UL, None, "Just", [ RT.EUnit(8173UL) ])
       RT.EMatch(
         712743UL,
         RT.EInteger(712373UL, 123),
@@ -114,9 +114,9 @@ module RuntimeTypes =
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
-      RT.EUserEnum(
+      RT.EConstructor(
         8375723UL,
-        { type_ = "MyEnum"; version = 0 },
+        Some(RT.FQTypeName.User { typ = "MyEnum"; version = 0 }),
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -160,7 +160,7 @@ module ProgramTypes =
 
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
-      PT.MPConstructor(7471263UL, "None", [])
+      PT.MPConstructor(7471263UL, "Nothing", [])
       PT.MPInteger(74816UL, 84871728)
       PT.MPBool(66453UL, false)
       PT.MPCharacter(83749178UL, "w")
@@ -278,6 +278,7 @@ module ProgramTypes =
                         PT.LPVariable(7567123UL, "r"),
                         PT.ERecord(
                           109539183UL,
+                          None,
                           [ ("field",
                              PT.EPipe(
                                786862131UL,
@@ -293,14 +294,22 @@ module ProgramTypes =
                             ("constructor",
                              PT.EConstructor(
                                567764301UL,
+                               None,
                                "Ok",
                                [ PT.EConstructor(
                                    646107057UL,
+                                   None,
                                    "Error",
                                    [ PT.EConstructor(
                                        689802831UL,
+                                       None,
                                        "Just",
-                                       [ PT.EConstructor(957916875UL, "Nothing", []) ]
+                                       [ PT.EConstructor(
+                                           957916875UL,
+                                           None,
+                                           "Nothing",
+                                           []
+                                         ) ]
                                      ) ]
                                  ) ]
                              )) ]
@@ -427,7 +436,11 @@ module ProgramTypes =
                  ("password", PT.TPassword)
                  ("uuid", PT.TUuid)
                  ("option", PT.TOption(PT.TInt))
-                 ("usertype", PT.TUserType({ type_ = "name"; version = 0 }))
+                 ("usertype",
+                  PT.TCustomType(
+                    PT.FQTypeName.User { typ = "name"; version = 0 },
+                    []
+                  ))
                  ("bytes", PT.TBytes)
                  ("result", PT.TResult(PT.TInt, PT.TStr))
                  ("variable", PT.TVariable "v")
@@ -515,22 +528,28 @@ module ProgramTypes =
 
   let userRecordType : PT.UserType.T =
     { tlid = 0UL
-      name = { type_ = "User"; version = 0 }
+      name = { typ = "User"; version = 0 }
       definition =
-        PT.UserType.Record [ { id = 0698978UL; name = "prop1"; typ = dtype } ] }
+        let firstField : PT.CustomType.RecordField =
+          { id = 0698978UL; name = "prop1"; typ = dtype }
+        PT.CustomType.Record(firstField, []) }
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
-      name = { type_ = "User"; version = 0 }
+      name = { typ = "User"; version = 0 }
       definition =
-        PT.UserType.Enum(
+        PT.CustomType.Enum(
           { id = 0698978UL; name = "caseA"; fields = [] },
           [ { id = 0698978UL
               name = "caseB"
-              fields = [ { id = 178567123UL; type_ = dtype; label = Some "i" } ] } ]
+              fields = [ { id = 178567123UL; typ = dtype; label = Some "i" } ] } ]
         ) }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
+
+
+  // TODO: serialize stdlib types?
+  // (also make sure we roundtrip test them)
 
   let packageFn : PT.Package.Fn =
     { name =

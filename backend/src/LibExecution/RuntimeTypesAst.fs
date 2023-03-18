@@ -31,15 +31,14 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     ETuple(id, r first, r second, List.map r theRest)
   | EMatch (id, mexpr, pairs) ->
     EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
-  | ERecord (id, fields) ->
-    ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
-  | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
+  | ERecord (id, typeName, fields) ->
+    ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
   | EFeatureFlag (id, cond, casea, caseb) ->
     EFeatureFlag(id, r cond, r casea, r caseb)
   | EAnd (id, left, right) -> EAnd(id, r left, r right)
   | EOr (id, left, right) -> EOr(id, r left, r right)
-  | EUserEnum (id, typeName, caseName, fields) ->
-    EUserEnum(id, typeName, caseName, List.map r fields)
+  | EConstructor (id, typeName, caseName, fields) ->
+    EConstructor(id, typeName, caseName, List.map r fields)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
@@ -64,15 +63,14 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
       ETuple(id, r first, r second, List.map r theRest)
     | EMatch (id, mexpr, pairs) ->
       EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
-    | ERecord (id, fields) ->
-      ERecord(id, List.map (fun (name, expr) -> (name, r expr)) fields)
-    | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map r exprs)
+    | ERecord (id, typeName, fields) ->
+      ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
     | EFeatureFlag (id, cond, casea, caseb) ->
       EFeatureFlag(id, r cond, r casea, r caseb)
     | EAnd (id, left, right) -> EAnd(id, r left, r right)
     | EOr (id, left, right) -> EOr(id, r left, r right)
-    | EUserEnum (id, typeName, caseName, fields) ->
-      EUserEnum(id, typeName, caseName, List.map r fields)
+    | EConstructor (id, typeName, caseName, fields) ->
+      EConstructor(id, typeName, caseName, List.map r fields)
 
 
   f result

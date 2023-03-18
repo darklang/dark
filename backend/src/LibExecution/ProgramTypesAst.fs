@@ -29,13 +29,12 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     ETuple(id, f first, f second, List.map f theRest)
   | EMatch (id, mexpr, pairs) ->
     EMatch(id, f mexpr, List.map (fun (name, expr) -> (name, f expr)) pairs)
-  | ERecord (id, fields) ->
-    ERecord(id, List.map (fun (name, expr) -> (name, f expr)) fields)
-  | EConstructor (id, name, exprs) -> EConstructor(id, name, List.map f exprs)
+  | ERecord (id, typeName, fields) ->
+    ERecord(id, typeName, List.map (fun (name, expr) -> (name, f expr)) fields)
   | EFeatureFlag (id, name, cond, casea, caseb) ->
     EFeatureFlag(id, name, f cond, f casea, f caseb)
-  | EUserEnum (id, name, caseName, fields) ->
-    EUserEnum(id, name, caseName, List.map f fields)
+  | EConstructor (id, typeName, caseName, fields) ->
+    EConstructor(id, typeName, caseName, List.map f fields)
 
 
 
@@ -64,8 +63,8 @@ let rec matchPatternPreTraversal
   | MPString _
   | MPUnit _
   | MPFloat _ -> pattern
-  | MPConstructor (patternID, name, patterns) ->
-    MPConstructor(patternID, name, List.map (fun p -> r p) patterns)
+  | MPConstructor (patternID, caseName, fieldPats) ->
+    MPConstructor(patternID, caseName, List.map (fun p -> r p) fieldPats)
   | MPTuple (patternID, first, second, theRest) ->
     MPTuple(patternID, r first, r second, List.map r theRest)
 
@@ -84,8 +83,8 @@ let rec matchPatternPostTraversal
     | MPString _
     | MPUnit _
     | MPFloat _ -> pattern
-    | MPConstructor (patternID, name, patterns) ->
-      MPConstructor(patternID, name, List.map r patterns)
+    | MPConstructor (patternID, caseName, fieldPats) ->
+      MPConstructor(patternID, caseName, List.map r fieldPats)
     | MPTuple (patternID, first, second, theRest) ->
       MPTuple(patternID, r first, r second, List.map r theRest)
   f result

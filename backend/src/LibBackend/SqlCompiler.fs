@@ -50,7 +50,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | _, DOption _ // CLEANUP allow
   | _, DResult _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
-  | _, DUserEnum _ // TODO: revisit
+  | _, DConstructor _ // TODO: revisit
   | _, DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | TDateTime, DDateTime date ->
@@ -519,7 +519,6 @@ let partiallyEvaluate
             | EFQFnValue _
             | EBool _
             | EUnit _
-            | EUserEnum _ // EUserEnumTODO: revisit
             | EFloat _ -> return expr
             | ELet (id, pat, rhs, next) ->
               let! rhs = r rhs
@@ -560,7 +559,7 @@ let partiallyEvaluate
                   pairs
 
               return EMatch(id, mexpr, pairs)
-            | ERecord (id, fields) ->
+            | ERecord (id, typeName, fields) ->
               let! fields =
                 Ply.List.mapSequentially
                   (fun (name, expr) ->
@@ -570,10 +569,10 @@ let partiallyEvaluate
                     })
                   fields
 
-              return ERecord(id, fields)
-            | EConstructor (id, name, exprs) ->
-              let! exprs = Ply.List.mapSequentially r exprs
-              return EConstructor(id, name, exprs)
+              return ERecord(id, typeName, fields)
+            | EConstructor (id, typeName, caseName, fields) ->
+              let! fields = Ply.List.mapSequentially r fields
+              return EConstructor(id, typeName, caseName, fields)
             | EFeatureFlag (id, cond, casea, caseb) ->
               let! cond = r cond
               let! casea = r casea
@@ -619,7 +618,7 @@ let compileLambda
       |> Ply.TplPrimitives.runPlyAsTask
 
     let sql, vars, _expectedType =
-      lambdaToSql state.libraries.stdlib symtable paramName dbFields TBool body
+      lambdaToSql state.libraries.stdlibFns symtable paramName dbFields TBool body
 
     return (sql, vars)
   }

@@ -9,9 +9,19 @@ module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-module UserTypeName =
-  let toPT (u : ST.UserTypeName) : PT.UserTypeName =
-    { type_ = u.type_; version = u.version }
+module FQTypeName =
+  module UserTypeName =
+    let toPT (u : ST.FQTypeName.UserTypeName) : PT.FQTypeName.UserTypeName =
+      { typ = u.typ; version = u.version }
+
+  module StdlibTypeName =
+    let toPT (s : ST.FQTypeName.StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
+      { typ = s.typ }
+
+  let toPT (t : ST.FQTypeName.T) : PT.FQTypeName.T =
+    match t with
+    | ST.FQTypeName.Stdlib s -> PT.FQTypeName.Stdlib(StdlibTypeName.toPT s)
+    | ST.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.toPT u)
 
 
 module FQFnName =
@@ -72,8 +82,8 @@ module MatchPattern =
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
     match p with
     | ST.MPVariable (id, str) -> PT.MPVariable(id, str)
-    | ST.MPConstructor (id, name, pats) ->
-      PT.MPConstructor(id, name, List.map toPT pats)
+    | ST.MPConstructor (id, caseName, fieldPats) ->
+      PT.MPConstructor(id, caseName, List.map toPT fieldPats)
     | ST.MPInteger (id, i) -> PT.MPInteger(id, i)
     | ST.MPBool (id, b) -> PT.MPBool(id, b)
     | ST.MPCharacter (id, c) -> PT.MPCharacter(id, c)
@@ -107,12 +117,21 @@ module Expr =
     | ST.EList (id, exprs) -> PT.EList(id, List.map toPT exprs)
     | ST.ETuple (id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
-    | ST.ERecord (id, pairs) ->
-      PT.ERecord(id, List.map (Tuple2.mapSecond toPT) pairs)
+    | ST.ERecord (id, typeName, fields) ->
+      PT.ERecord(
+        id,
+        Option.map FQTypeName.toPT typeName,
+        List.map (Tuple2.mapSecond toPT) fields
+      )
     | ST.EPipe (pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, toPT expr2, List.map toPT rest)
-    | ST.EConstructor (id, name, exprs) ->
-      PT.EConstructor(id, name, List.map toPT exprs)
+    | ST.EConstructor (id, typeName, caseName, exprs) ->
+      PT.EConstructor(
+        id,
+        Option.map FQTypeName.toPT typeName,
+        caseName,
+        List.map toPT exprs
+      )
     | ST.EMatch (id, mexpr, pairs) ->
       PT.EMatch(
         id,
@@ -124,8 +143,6 @@ module Expr =
       PT.EFeatureFlag(id, name, toPT cond, toPT caseA, toPT caseB)
     | ST.EInfix (id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
-    | ST.EUserEnum (id, typeName, caseName, fields) ->
-      PT.EUserEnum(id, UserTypeName.toPT typeName, caseName, List.map toPT fields)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with
@@ -153,7 +170,8 @@ module DType =
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TOption typ -> PT.TOption(toPT typ)
-    | ST.TUserType t -> PT.TUserType(UserTypeName.toPT t)
+    | ST.TCustomType (t, typeArgs) ->
+      PT.TCustomType(FQTypeName.toPT t, List.map toPT typeArgs)
     | ST.TBytes -> PT.TBytes
     | ST.TResult (okType, errType) -> PT.TResult(toPT okType, toPT errType)
     | ST.TVariable (name) -> PT.TVariable(name)
@@ -162,6 +180,32 @@ module DType =
     | ST.TRecord (rows) ->
       PT.TRecord(List.map (fun (f, t : ST.DType) -> f, toPT t) rows)
     | ST.TDbList typ -> PT.TDbList(toPT typ)
+
+module CustomType =
+  module EnumField =
+    let toPT (f : ST.CustomType.EnumField) : PT.CustomType.EnumField =
+      { id = f.id; typ = DType.toPT f.typ; label = f.label }
+
+  module EnumCase =
+    let toPT (c : ST.CustomType.EnumCase) : PT.CustomType.EnumCase =
+      { id = c.id; name = c.name; fields = List.map EnumField.toPT c.fields }
+
+  module RecordField =
+    let toPT (f : ST.CustomType.RecordField) : PT.CustomType.RecordField =
+      { id = f.id; name = f.name; typ = DType.toPT f.typ }
+
+  let toPT (d : ST.CustomType.T) : PT.CustomType.T =
+    match d with
+    | ST.CustomType.Record (firstField, additionalFields) ->
+      PT.CustomType.Record(
+        RecordField.toPT firstField,
+        List.map RecordField.toPT additionalFields
+      )
+    | ST.CustomType.Enum (firstCase, additionalCases) ->
+      PT.CustomType.Enum(
+        EnumCase.toPT firstCase,
+        List.map EnumCase.toPT additionalCases
+      )
 
 
 module Handler =
@@ -208,33 +252,10 @@ module DB =
           db.cols }
 
 module UserType =
-  module EnumField =
-    let toPT (f : ST.UserType.EnumField) : PT.UserType.EnumField =
-      { id = f.id; type_ = DType.toPT f.type_; label = f.label }
-
-  module EnumCase =
-    let toPT (c : ST.UserType.EnumCase) : PT.UserType.EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.toPT c.fields }
-
-  module RecordField =
-    let toPT (f : ST.UserType.RecordField) : PT.UserType.RecordField =
-      { id = f.id; name = f.name; typ = DType.toPT f.typ }
-
-  module Definition =
-    let toPT (d : ST.UserType.Definition) : PT.UserType.Definition =
-      match d with
-      | ST.UserType.Record fields ->
-        PT.UserType.Record(List.map RecordField.toPT fields)
-      | ST.UserType.Enum (firstCase, additionalCases) ->
-        PT.UserType.Enum(
-          EnumCase.toPT firstCase,
-          List.map EnumCase.toPT additionalCases
-        )
-
   let toPT (t : ST.UserType.T) : PT.UserType.T =
     { tlid = t.tlid
-      name = UserTypeName.toPT t.name
-      definition = Definition.toPT t.definition }
+      name = FQTypeName.UserTypeName.toPT t.name
+      definition = CustomType.toPT t.definition }
 
 module UserFunction =
   module Parameter =

@@ -46,14 +46,26 @@ type Sign = Prelude.Sign
 // - removing a field from a variant (eg remove b to X(a,b))
 
 
-/// A UserType is a type written by a Developer in their canvas
-[<MessagePack.MessagePackObject>]
-type UserTypeName =
-  { [<MessagePack.Key 0>]
-    type_ : string
+/// Used to reference a type defined by a User, Standard Library module, or Package
+module FQTypeName =
+  [<MessagePack.MessagePackObject>]
+  type StdlibTypeName =
+    { [<MessagePack.Key 0>]
+      typ : string }
 
-    [<MessagePack.Key 1>]
-    version : int }
+  /// A type written by a Developer in their canvas
+  [<MessagePack.MessagePackObject>]
+  type UserTypeName =
+    { [<MessagePack.Key 0>]
+      typ : string
+
+      [<MessagePack.Key 1>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    | Stdlib of StdlibTypeName
+    | User of UserTypeName
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.
@@ -115,7 +127,7 @@ type LetPattern = LPVariable of id * name : string
 [<MessagePack.MessagePackObject>]
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * string * List<MatchPattern>
+  | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
   | MPCharacter of id * string
@@ -149,15 +161,18 @@ type Expr =
   | EVariable of id * string
   | EFnCall of id * FQFnName.T * List<Expr>
   | EList of id * List<Expr>
-  | ERecord of id * List<string * Expr>
+  | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EConstructor of id * string * List<Expr>
+  | EConstructor of
+    id *
+    typeName : Option<FQTypeName.T> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
-  | EUserEnum of id * UserTypeName * caseName : string * fields : List<Expr>
 
 and StringSegment =
   | StringText of string
@@ -181,7 +196,7 @@ type DType =
   | TPassword
   | TUuid
   | TOption of DType
-  | TUserType of UserTypeName
+  | TCustomType of typeName : FQTypeName.T * typeArgs : List<DType>
   | TBytes
   | TResult of DType * DType
   | TVariable of string
@@ -189,6 +204,41 @@ type DType =
   | TRecord of List<string * DType>
   | TDbList of DType // TODO: cleanup and remove
   | TTuple of DType * DType * List<DType>
+
+
+module CustomType =
+  [<MessagePack.MessagePackObject>]
+  type RecordField =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      typ : DType }
+
+  [<MessagePack.MessagePackObject>]
+  type EnumField =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      typ : DType
+      [<MessagePack.Key 2>]
+      label : Option<string> }
+
+  [<MessagePack.MessagePackObject>]
+  type EnumCase =
+    { [<MessagePack.Key 0>]
+      id : id
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      fields : List<EnumField> }
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
 
 module Handler =
   [<MessagePack.MessagePackObject>]
@@ -258,47 +308,17 @@ module DB =
       [<MessagePack.Key 4>]
       cols : List<Col> }
 
+
 module UserType =
-  [<MessagePack.MessagePackObject>]
-  type RecordField =
-    { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      typ : DType }
-
-  [<MessagePack.MessagePackObject>]
-  type EnumField =
-    { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
-      type_ : DType
-      [<MessagePack.Key 2>]
-      label : Option<string> }
-
-  [<MessagePack.MessagePackObject>]
-  type EnumCase =
-    { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      fields : List<EnumField> }
-
-  [<MessagePack.MessagePackObject>]
-  type Definition =
-    | Record of List<RecordField>
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
-
   [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : UserTypeName
+      name : FQTypeName.UserTypeName
       [<MessagePack.Key 2>]
-      definition : Definition }
+      definition : CustomType.T }
+
 
 module UserFunction =
   [<MessagePack.MessagePackObject>]

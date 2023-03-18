@@ -197,17 +197,18 @@ let testUserFn
           { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
         parameters }
 
-let tesTUserType
-  (name : PT.UserTypeName)
-  (definition : List<string * PT.DType>)
+let testUserRecordType
+  (name : PT.FQTypeName.UserTypeName)
+  (firstField : string * PT.DType)
+  (additionalFields : List<string * PT.DType>)
   : PT.UserType.T =
+  let mapField (name, typ) : PT.CustomType.RecordField =
+    { id = gid (); name = name; typ = typ }
+
   { tlid = gid ()
     name = name
     definition =
-      definition
-      |> List.map (fun (name, typ) ->
-        ({ id = gid (); name = name; typ = typ } : PT.UserType.RecordField))
-      |> PT.UserType.Record }
+      PT.CustomType.Record(mapField firstField, List.map mapField additionalFields) }
 
 
 
@@ -224,11 +225,18 @@ let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
 /// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<RT.Libraries> =
   lazy
-    (let testFns =
-      LibTest.fns
-      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
-     { stdlib = testFns; packageFns = Map.empty })
+    (let testTypes =
+      LibTest.types
+      |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibTypes
+
+     let testFns =
+       LibTest.fns
+       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
+
+
+     { stdlibTypes = testTypes; stdlibFns = testFns; packageFns = Map.empty })
 
 let executionStateFor
   (meta : Canvas.Meta)
@@ -463,8 +471,8 @@ module Expect =
     | DObj vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DUserEnum (_typeName, _caseName, fields) ->
-      // TODO: revisit
+    | DConstructor (_typeName, _caseName, fields) ->
+      // TODO: revisit - I'm not sure what to do here.
       fields |> List.all check
 
   type Path = string list
@@ -490,15 +498,22 @@ module Expect =
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)
-    (actual : UserTypeName)
-    (expected : UserTypeName)
+    (actual : Option<FQTypeName.T>)
+    (expected : Option<FQTypeName.T>)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let check path (a : 'a) (e : 'a) =
-      if a <> e then errorFn path (string actual) (string expected)
+    let err () = errorFn path (string actual) (string expected)
 
-    check path (actual.type_) (actual.type_)
-    check path (actual.version) (actual.version)
+    match actual, expected with
+    | None, None -> ()
+    | Some a, Some e ->
+      match a, e with
+      | FQTypeName.Stdlib a, FQTypeName.Stdlib e -> if a.typ <> e.typ then err ()
+      | FQTypeName.User a, FQTypeName.User e ->
+        if a.typ <> e.typ then err ()
+        if a.version <> e.version then err ()
+      | _ -> err ()
+    | _ -> err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -521,9 +536,10 @@ module Expect =
 
     match actual, expected with
     | MPVariable (_, name), MPVariable (_, name') -> check path name name'
-    | (MPConstructor (_, name, patterns), MPConstructor (_, name', patterns')) ->
-      check path name name'
-      eqList (name :: path) patterns patterns'
+    | (MPConstructor (_, caseName, fieldPats),
+       MPConstructor (_, caseName', fieldPats')) ->
+      check path caseName caseName'
+      eqList (caseName :: path) fieldPats fieldPats'
     | MPString (_, str), MPString (_, str') -> check path str str'
     | MPInteger (_, l), MPInteger (_, l') -> check path l l'
     | MPFloat (_, d), MPFloat (_, d') -> check path d d'
@@ -595,23 +611,32 @@ module Expect =
       | InPipe id, InPipe id' -> if checkIDs then check path id id'
       | _ -> check path inPipe inPipe'
 
-    | ERecord (_, pairs), ERecord (_, pairs') ->
+    | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+
       List.iter2
         (fun (k, v) (k', v') ->
           check path k k'
           eq (k :: path) v v')
-        pairs
-        pairs'
+        fields
+        fields'
+
     | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
       eq (f :: path) e e'
       check path f f'
+
     | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
       eq ("flagCond" :: path) cond cond'
       eq ("flagOld" :: path) old old'
       eq ("flagNew" :: path) knew knew'
-    | EConstructor (_, s, ts), EConstructor (_, s', ts') ->
-      check path s s'
-      eqList (s :: path) ts ts'
+
+    | EConstructor (_, typeName, caseName, fields),
+      EConstructor (_, typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      check path caseName caseName'
+      eqList path fields fields'
+      ()
+
     | ELambda (_, vars, e), ELambda (_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
@@ -632,13 +657,6 @@ module Expect =
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
 
-    | EUserEnum (_, typeName, caseName, fields),
-      EUserEnum (_, typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
-      check path caseName caseName'
-      eqList path fields fields'
-      ()
-
     // exhaustiveness check
     | EUnit _, _
     | EInteger _, _
@@ -654,7 +672,6 @@ module Expect =
     | EFQFnValue _, _
     | EApply _, _
     | ERecord _, _
-    | EUserEnum _, _
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
@@ -729,8 +746,8 @@ module Expect =
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DUserEnum (typeName, caseName, fields),
-      DUserEnum (typeName', caseName', fields') ->
+    | DConstructor (typeName, caseName, fields),
+      DConstructor (typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
 
       check ("caseName" :: path) caseName caseName'
@@ -755,7 +772,7 @@ module Expect =
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DObj _, _
-    | DUserEnum _, _
+    | DConstructor _, _
     | DList _, _
     | DTuple _, _
     | DResult _, _
@@ -817,7 +834,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DUserEnum (_typeName, _caseName, fields) ->
+    | DConstructor (_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->

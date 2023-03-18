@@ -306,6 +306,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -344,21 +345,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -988,6 +993,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -1026,21 +1032,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -1671,6 +1681,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -1709,21 +1720,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -2356,6 +2371,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -2394,21 +2410,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -3038,6 +3058,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -3076,21 +3097,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -3723,6 +3748,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -3761,21 +3787,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -4405,6 +4435,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -4443,21 +4474,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -5088,6 +5123,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -5126,21 +5162,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -5773,6 +5813,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -5811,21 +5852,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -6455,6 +6500,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -6493,21 +6539,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -7031,11 +7081,15 @@
                 [
                   "usertype",
                   [
-                    "TUserType",
-                    {
-                      "type_": "name",
-                      "version": 0
-                    }
+                    "TCustomType",
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ],
+                    []
                   ]
                 ],
                 [
@@ -7296,11 +7350,15 @@
                 [
                   "usertype",
                   [
-                    "TUserType",
-                    {
-                      "type_": "name",
-                      "version": 0
-                    }
+                    "TCustomType",
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ],
+                    []
                   ]
                 ],
                 [
@@ -7536,11 +7594,15 @@
             [
               "usertype",
               [
-                "TUserType",
-                {
-                  "type_": "name",
-                  "version": 0
-                }
+                "TCustomType",
+                [
+                  "User",
+                  {
+                    "typ": "name",
+                    "version": 0
+                  }
+                ],
+                []
               ]
             ],
             [
@@ -7770,11 +7832,15 @@
                 [
                   "usertype",
                   [
-                    "TUserType",
-                    {
-                      "type_": "name",
-                      "version": 0
-                    }
+                    "TCustomType",
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ],
+                    []
                   ]
                 ],
                 [
@@ -8140,6 +8206,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -8178,21 +8245,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -8681,11 +8752,15 @@
             [
               "usertype",
               [
-                "TUserType",
-                {
-                  "type_": "name",
-                  "version": 0
-                }
+                "TCustomType",
+                [
+                  "User",
+                  {
+                    "typ": "name",
+                    "version": 0
+                  }
+                ],
+                []
               ]
             ],
             [
@@ -8915,11 +8990,15 @@
                 [
                   "usertype",
                   [
-                    "TUserType",
-                    {
-                      "type_": "name",
-                      "version": 0
-                    }
+                    "TCustomType",
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ],
+                    []
                   ]
                 ],
                 [
@@ -9285,6 +9364,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -9323,21 +9403,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -9658,47 +9742,45 @@
       {
         "tlid": 0,
         "name": {
-          "type_": "User",
+          "typ": "User",
           "version": 0
         },
         "definition": [
           "Record",
-          [
-            {
-              "id": 698978,
-              "name": "prop1",
-              "typ": [
-                "TRecord",
+          {
+            "id": 698978,
+            "name": "prop1",
+            "typ": [
+              "TRecord",
+              [
                 [
+                  "nested",
                   [
-                    "nested",
+                    "TList",
                     [
-                      "TList",
+                      "TDict",
                       [
-                        "TDict",
+                        "TDB",
                         [
-                          "TDB",
+                          "THttpResponse",
                           [
-                            "THttpResponse",
+                            "TOption",
                             [
-                              "TOption",
+                              "TDbList",
                               [
-                                "TDbList",
+                                "TResult",
                                 [
-                                  "TResult",
+                                  "TInt"
+                                ],
+                                [
+                                  "TFn",
                                   [
-                                    "TInt"
+                                    [
+                                      "TFloat"
+                                    ]
                                   ],
                                   [
-                                    "TFn",
-                                    [
-                                      [
-                                        "TFloat"
-                                      ]
-                                    ],
-                                    [
-                                      "TUnit"
-                                    ]
+                                    "TUnit"
                                   ]
                                 ]
                               ]
@@ -9707,204 +9789,209 @@
                         ]
                       ]
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "int",
                   [
-                    "int",
+                    "TInt"
+                  ]
+                ],
+                [
+                  "float",
+                  [
+                    "TFloat"
+                  ]
+                ],
+                [
+                  "bool",
+                  [
+                    "TBool"
+                  ]
+                ],
+                [
+                  "null",
+                  [
+                    "TUnit"
+                  ]
+                ],
+                [
+                  "str",
+                  [
+                    "TStr"
+                  ]
+                ],
+                [
+                  "list",
+                  [
+                    "TList",
                     [
                       "TInt"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "tuple",
                   [
-                    "float",
+                    "TTuple",
                     [
-                      "TFloat"
-                    ]
-                  ],
-                  [
-                    "bool",
+                      "TInt"
+                    ],
                     [
-                      "TBool"
-                    ]
-                  ],
+                      "TStr"
+                    ],
+                    []
+                  ]
+                ],
+                [
+                  "dict",
                   [
-                    "null",
+                    "TDict",
                     [
-                      "TUnit"
+                      "TInt"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "incomplete",
                   [
-                    "str",
+                    "TIncomplete"
+                  ]
+                ],
+                [
+                  "error",
+                  [
+                    "TError"
+                  ]
+                ],
+                [
+                  "httpresponse",
+                  [
+                    "THttpResponse",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "db",
+                  [
+                    "TDB",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "date",
+                  [
+                    "TDateTime"
+                  ]
+                ],
+                [
+                  "char",
+                  [
+                    "TChar"
+                  ]
+                ],
+                [
+                  "password",
+                  [
+                    "TPassword"
+                  ]
+                ],
+                [
+                  "uuid",
+                  [
+                    "TUuid"
+                  ]
+                ],
+                [
+                  "option",
+                  [
+                    "TOption",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "usertype",
+                  [
+                    "TCustomType",
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ],
+                    []
+                  ]
+                ],
+                [
+                  "bytes",
+                  [
+                    "TBytes"
+                  ]
+                ],
+                [
+                  "result",
+                  [
+                    "TResult",
+                    [
+                      "TInt"
+                    ],
                     [
                       "TStr"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "variable",
                   [
-                    "list",
+                    "TVariable",
+                    "v"
+                  ]
+                ],
+                [
+                  "fn",
+                  [
+                    "TFn",
                     [
-                      "TList",
                       [
                         "TInt"
                       ]
-                    ]
-                  ],
-                  [
-                    "tuple",
+                    ],
                     [
-                      "TTuple",
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "record",
+                  [
+                    "TRecord",
+                    [
                       [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ],
-                      []
-                    ]
-                  ],
-                  [
-                    "dict",
-                    [
-                      "TDict",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "incomplete",
-                    [
-                      "TIncomplete"
-                    ]
-                  ],
-                  [
-                    "error",
-                    [
-                      "TError"
-                    ]
-                  ],
-                  [
-                    "httpresponse",
-                    [
-                      "THttpResponse",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "db",
-                    [
-                      "TDB",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "date",
-                    [
-                      "TDateTime"
-                    ]
-                  ],
-                  [
-                    "char",
-                    [
-                      "TChar"
-                    ]
-                  ],
-                  [
-                    "password",
-                    [
-                      "TPassword"
-                    ]
-                  ],
-                  [
-                    "uuid",
-                    [
-                      "TUuid"
-                    ]
-                  ],
-                  [
-                    "option",
-                    [
-                      "TOption",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "usertype",
-                    [
-                      "TUserType",
-                      {
-                        "type_": "name",
-                        "version": 0
-                      }
-                    ]
-                  ],
-                  [
-                    "bytes",
-                    [
-                      "TBytes"
-                    ]
-                  ],
-                  [
-                    "result",
-                    [
-                      "TResult",
-                      [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ]
-                    ]
-                  ],
-                  [
-                    "variable",
-                    [
-                      "TVariable",
-                      "v"
-                    ]
-                  ],
-                  [
-                    "fn",
-                    [
-                      "TFn",
-                      [
+                        "field1",
                         [
                           "TInt"
-                        ]
-                      ],
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "record",
-                    [
-                      "TRecord",
-                      [
-                        [
-                          "field1",
-                          [
-                            "TInt"
-                          ]
                         ]
                       ]
                     ]
                   ]
                 ]
               ]
-            }
-          ]
+            ]
+          },
+          []
         ]
       },
       {
         "tlid": 0,
         "name": {
-          "type_": "User",
+          "typ": "User",
           "version": 0
         },
         "definition": [
@@ -9921,7 +10008,7 @@
               "fields": [
                 {
                   "id": 178567123,
-                  "type_": [
+                  "typ": [
                     "TRecord",
                     [
                       [
@@ -10089,11 +10176,15 @@
                       [
                         "usertype",
                         [
-                          "TUserType",
-                          {
-                            "type_": "name",
-                            "version": 0
-                          }
+                          "TCustomType",
+                          [
+                            "User",
+                            {
+                              "typ": "name",
+                              "version": 0
+                            }
+                          ],
+                          []
                         ]
                       ],
                       [
@@ -10163,47 +10254,45 @@
       {
         "tlid": 0,
         "name": {
-          "type_": "User",
+          "typ": "User",
           "version": 0
         },
         "definition": [
           "Record",
-          [
-            {
-              "id": 698978,
-              "name": "prop1",
-              "typ": [
-                "TRecord",
+          {
+            "id": 698978,
+            "name": "prop1",
+            "typ": [
+              "TRecord",
+              [
                 [
+                  "nested",
                   [
-                    "nested",
+                    "TList",
                     [
-                      "TList",
+                      "TDict",
                       [
-                        "TDict",
+                        "TDB",
                         [
-                          "TDB",
+                          "THttpResponse",
                           [
-                            "THttpResponse",
+                            "TOption",
                             [
-                              "TOption",
+                              "TDbList",
                               [
-                                "TDbList",
+                                "TResult",
                                 [
-                                  "TResult",
+                                  "TInt"
+                                ],
+                                [
+                                  "TFn",
                                   [
-                                    "TInt"
+                                    [
+                                      "TFloat"
+                                    ]
                                   ],
                                   [
-                                    "TFn",
-                                    [
-                                      [
-                                        "TFloat"
-                                      ]
-                                    ],
-                                    [
-                                      "TUnit"
-                                    ]
+                                    "TUnit"
                                   ]
                                 ]
                               ]
@@ -10212,204 +10301,209 @@
                         ]
                       ]
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "int",
                   [
-                    "int",
+                    "TInt"
+                  ]
+                ],
+                [
+                  "float",
+                  [
+                    "TFloat"
+                  ]
+                ],
+                [
+                  "bool",
+                  [
+                    "TBool"
+                  ]
+                ],
+                [
+                  "null",
+                  [
+                    "TUnit"
+                  ]
+                ],
+                [
+                  "str",
+                  [
+                    "TStr"
+                  ]
+                ],
+                [
+                  "list",
+                  [
+                    "TList",
                     [
                       "TInt"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "tuple",
                   [
-                    "float",
+                    "TTuple",
                     [
-                      "TFloat"
-                    ]
-                  ],
-                  [
-                    "bool",
+                      "TInt"
+                    ],
                     [
-                      "TBool"
-                    ]
-                  ],
+                      "TStr"
+                    ],
+                    []
+                  ]
+                ],
+                [
+                  "dict",
                   [
-                    "null",
+                    "TDict",
                     [
-                      "TUnit"
+                      "TInt"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "incomplete",
                   [
-                    "str",
+                    "TIncomplete"
+                  ]
+                ],
+                [
+                  "error",
+                  [
+                    "TError"
+                  ]
+                ],
+                [
+                  "httpresponse",
+                  [
+                    "THttpResponse",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "db",
+                  [
+                    "TDB",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "date",
+                  [
+                    "TDateTime"
+                  ]
+                ],
+                [
+                  "char",
+                  [
+                    "TChar"
+                  ]
+                ],
+                [
+                  "password",
+                  [
+                    "TPassword"
+                  ]
+                ],
+                [
+                  "uuid",
+                  [
+                    "TUuid"
+                  ]
+                ],
+                [
+                  "option",
+                  [
+                    "TOption",
+                    [
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "usertype",
+                  [
+                    "TCustomType",
+                    [
+                      "User",
+                      {
+                        "typ": "name",
+                        "version": 0
+                      }
+                    ],
+                    []
+                  ]
+                ],
+                [
+                  "bytes",
+                  [
+                    "TBytes"
+                  ]
+                ],
+                [
+                  "result",
+                  [
+                    "TResult",
+                    [
+                      "TInt"
+                    ],
                     [
                       "TStr"
                     ]
-                  ],
+                  ]
+                ],
+                [
+                  "variable",
                   [
-                    "list",
+                    "TVariable",
+                    "v"
+                  ]
+                ],
+                [
+                  "fn",
+                  [
+                    "TFn",
                     [
-                      "TList",
                       [
                         "TInt"
                       ]
-                    ]
-                  ],
-                  [
-                    "tuple",
+                    ],
                     [
-                      "TTuple",
+                      "TInt"
+                    ]
+                  ]
+                ],
+                [
+                  "record",
+                  [
+                    "TRecord",
+                    [
                       [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ],
-                      []
-                    ]
-                  ],
-                  [
-                    "dict",
-                    [
-                      "TDict",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "incomplete",
-                    [
-                      "TIncomplete"
-                    ]
-                  ],
-                  [
-                    "error",
-                    [
-                      "TError"
-                    ]
-                  ],
-                  [
-                    "httpresponse",
-                    [
-                      "THttpResponse",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "db",
-                    [
-                      "TDB",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "date",
-                    [
-                      "TDateTime"
-                    ]
-                  ],
-                  [
-                    "char",
-                    [
-                      "TChar"
-                    ]
-                  ],
-                  [
-                    "password",
-                    [
-                      "TPassword"
-                    ]
-                  ],
-                  [
-                    "uuid",
-                    [
-                      "TUuid"
-                    ]
-                  ],
-                  [
-                    "option",
-                    [
-                      "TOption",
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "usertype",
-                    [
-                      "TUserType",
-                      {
-                        "type_": "name",
-                        "version": 0
-                      }
-                    ]
-                  ],
-                  [
-                    "bytes",
-                    [
-                      "TBytes"
-                    ]
-                  ],
-                  [
-                    "result",
-                    [
-                      "TResult",
-                      [
-                        "TInt"
-                      ],
-                      [
-                        "TStr"
-                      ]
-                    ]
-                  ],
-                  [
-                    "variable",
-                    [
-                      "TVariable",
-                      "v"
-                    ]
-                  ],
-                  [
-                    "fn",
-                    [
-                      "TFn",
-                      [
+                        "field1",
                         [
                           "TInt"
-                        ]
-                      ],
-                      [
-                        "TInt"
-                      ]
-                    ]
-                  ],
-                  [
-                    "record",
-                    [
-                      "TRecord",
-                      [
-                        [
-                          "field1",
-                          [
-                            "TInt"
-                          ]
                         ]
                       ]
                     ]
                   ]
                 ]
               ]
-            }
-          ]
+            ]
+          },
+          []
         ]
       },
       {
         "tlid": 0,
         "name": {
-          "type_": "User",
+          "typ": "User",
           "version": 0
         },
         "definition": [
@@ -10426,7 +10520,7 @@
               "fields": [
                 {
                   "id": 178567123,
-                  "type_": [
+                  "typ": [
                     "TRecord",
                     [
                       [
@@ -10594,11 +10688,15 @@
                       [
                         "usertype",
                         [
-                          "TUserType",
-                          {
-                            "type_": "name",
-                            "version": 0
-                          }
+                          "TCustomType",
+                          [
+                            "User",
+                            {
+                              "typ": "name",
+                              "version": 0
+                            }
+                          ],
+                          []
                         ]
                       ],
                       [
@@ -10975,6 +11073,7 @@
                               [
                                 "ERecord",
                                 109539183,
+                                null,
                                 [
                                   [
                                     "field",
@@ -11013,21 +11112,25 @@
                                     [
                                       "EConstructor",
                                       567764301,
+                                      null,
                                       "Ok",
                                       [
                                         [
                                           "EConstructor",
                                           646107057,
+                                          null,
                                           "Error",
                                           [
                                             [
                                               "EConstructor",
                                               689802831,
+                                              null,
                                               "Just",
                                               [
                                                 [
                                                   "EConstructor",
                                                   957916875,
+                                                  null,
                                                   "Nothing",
                                                   []
                                                 ]
@@ -11554,11 +11657,15 @@
               [
                 "usertype",
                 [
-                  "TUserType",
-                  {
-                    "type_": "name",
-                    "version": 0
-                  }
+                  "TCustomType",
+                  [
+                    "User",
+                    {
+                      "typ": "name",
+                      "version": 0
+                    }
+                  ],
+                  []
                 ]
               ],
               [
@@ -11788,11 +11895,15 @@
                   [
                     "usertype",
                     [
-                      "TUserType",
-                      {
-                        "type_": "name",
-                        "version": 0
-                      }
+                      "TCustomType",
+                      [
+                        "User",
+                        {
+                          "typ": "name",
+                          "version": 0
+                        }
+                      ],
+                      []
                     ]
                   ],
                   [
@@ -12158,6 +12269,7 @@
                               [
                                 "ERecord",
                                 109539183,
+                                null,
                                 [
                                   [
                                     "field",
@@ -12196,21 +12308,25 @@
                                     [
                                       "EConstructor",
                                       567764301,
+                                      null,
                                       "Ok",
                                       [
                                         [
                                           "EConstructor",
                                           646107057,
+                                          null,
                                           "Error",
                                           [
                                             [
                                               "EConstructor",
                                               689802831,
+                                              null,
                                               "Just",
                                               [
                                                 [
                                                   "EConstructor",
                                                   957916875,
+                                                  null,
                                                   "Nothing",
                                                   []
                                                 ]
@@ -12854,6 +12970,7 @@
                             [
                               "ERecord",
                               109539183,
+                              null,
                               [
                                 [
                                   "field",
@@ -12892,21 +13009,25 @@
                                   [
                                     "EConstructor",
                                     567764301,
+                                    null,
                                     "Ok",
                                     [
                                       [
                                         "EConstructor",
                                         646107057,
+                                        null,
                                         "Error",
                                         [
                                           [
                                             "EConstructor",
                                             689802831,
+                                            null,
                                             "Just",
                                             [
                                               [
                                                 "EConstructor",
                                                 957916875,
+                                                null,
                                                 "Nothing",
                                                 []
                                               ]
@@ -13251,47 +13372,45 @@
         {
           "tlid": 0,
           "name": {
-            "type_": "User",
+            "typ": "User",
             "version": 0
           },
           "definition": [
             "Record",
-            [
-              {
-                "id": 698978,
-                "name": "prop1",
-                "typ": [
-                  "TRecord",
+            {
+              "id": 698978,
+              "name": "prop1",
+              "typ": [
+                "TRecord",
+                [
                   [
+                    "nested",
                     [
-                      "nested",
+                      "TList",
                       [
-                        "TList",
+                        "TDict",
                         [
-                          "TDict",
+                          "TDB",
                           [
-                            "TDB",
+                            "THttpResponse",
                             [
-                              "THttpResponse",
+                              "TOption",
                               [
-                                "TOption",
+                                "TDbList",
                                 [
-                                  "TDbList",
+                                  "TResult",
                                   [
-                                    "TResult",
+                                    "TInt"
+                                  ],
+                                  [
+                                    "TFn",
                                     [
-                                      "TInt"
+                                      [
+                                        "TFloat"
+                                      ]
                                     ],
                                     [
-                                      "TFn",
-                                      [
-                                        [
-                                          "TFloat"
-                                        ]
-                                      ],
-                                      [
-                                        "TUnit"
-                                      ]
+                                      "TUnit"
                                     ]
                                   ]
                                 ]
@@ -13300,198 +13419,203 @@
                           ]
                         ]
                       ]
-                    ],
+                    ]
+                  ],
+                  [
+                    "int",
                     [
-                      "int",
+                      "TInt"
+                    ]
+                  ],
+                  [
+                    "float",
+                    [
+                      "TFloat"
+                    ]
+                  ],
+                  [
+                    "bool",
+                    [
+                      "TBool"
+                    ]
+                  ],
+                  [
+                    "null",
+                    [
+                      "TUnit"
+                    ]
+                  ],
+                  [
+                    "str",
+                    [
+                      "TStr"
+                    ]
+                  ],
+                  [
+                    "list",
+                    [
+                      "TList",
                       [
                         "TInt"
                       ]
-                    ],
+                    ]
+                  ],
+                  [
+                    "tuple",
                     [
-                      "float",
+                      "TTuple",
                       [
-                        "TFloat"
-                      ]
-                    ],
-                    [
-                      "bool",
+                        "TInt"
+                      ],
                       [
-                        "TBool"
-                      ]
-                    ],
+                        "TStr"
+                      ],
+                      []
+                    ]
+                  ],
+                  [
+                    "dict",
                     [
-                      "null",
+                      "TDict",
                       [
-                        "TUnit"
+                        "TInt"
                       ]
-                    ],
+                    ]
+                  ],
+                  [
+                    "incomplete",
                     [
-                      "str",
+                      "TIncomplete"
+                    ]
+                  ],
+                  [
+                    "error",
+                    [
+                      "TError"
+                    ]
+                  ],
+                  [
+                    "httpresponse",
+                    [
+                      "THttpResponse",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "db",
+                    [
+                      "TDB",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "date",
+                    [
+                      "TDateTime"
+                    ]
+                  ],
+                  [
+                    "char",
+                    [
+                      "TChar"
+                    ]
+                  ],
+                  [
+                    "password",
+                    [
+                      "TPassword"
+                    ]
+                  ],
+                  [
+                    "uuid",
+                    [
+                      "TUuid"
+                    ]
+                  ],
+                  [
+                    "option",
+                    [
+                      "TOption",
+                      [
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "usertype",
+                    [
+                      "TCustomType",
+                      [
+                        "User",
+                        {
+                          "typ": "name",
+                          "version": 0
+                        }
+                      ],
+                      []
+                    ]
+                  ],
+                  [
+                    "bytes",
+                    [
+                      "TBytes"
+                    ]
+                  ],
+                  [
+                    "result",
+                    [
+                      "TResult",
+                      [
+                        "TInt"
+                      ],
                       [
                         "TStr"
                       ]
-                    ],
+                    ]
+                  ],
+                  [
+                    "variable",
                     [
-                      "list",
+                      "TVariable",
+                      "v"
+                    ]
+                  ],
+                  [
+                    "fn",
+                    [
+                      "TFn",
                       [
-                        "TList",
                         [
                           "TInt"
                         ]
-                      ]
-                    ],
-                    [
-                      "tuple",
+                      ],
                       [
-                        "TTuple",
+                        "TInt"
+                      ]
+                    ]
+                  ],
+                  [
+                    "record",
+                    [
+                      "TRecord",
+                      [
                         [
-                          "TInt"
-                        ],
-                        [
-                          "TStr"
-                        ],
-                        []
-                      ]
-                    ],
-                    [
-                      "dict",
-                      [
-                        "TDict",
-                        [
-                          "TInt"
-                        ]
-                      ]
-                    ],
-                    [
-                      "incomplete",
-                      [
-                        "TIncomplete"
-                      ]
-                    ],
-                    [
-                      "error",
-                      [
-                        "TError"
-                      ]
-                    ],
-                    [
-                      "httpresponse",
-                      [
-                        "THttpResponse",
-                        [
-                          "TInt"
-                        ]
-                      ]
-                    ],
-                    [
-                      "db",
-                      [
-                        "TDB",
-                        [
-                          "TInt"
-                        ]
-                      ]
-                    ],
-                    [
-                      "date",
-                      [
-                        "TDateTime"
-                      ]
-                    ],
-                    [
-                      "char",
-                      [
-                        "TChar"
-                      ]
-                    ],
-                    [
-                      "password",
-                      [
-                        "TPassword"
-                      ]
-                    ],
-                    [
-                      "uuid",
-                      [
-                        "TUuid"
-                      ]
-                    ],
-                    [
-                      "option",
-                      [
-                        "TOption",
-                        [
-                          "TInt"
-                        ]
-                      ]
-                    ],
-                    [
-                      "usertype",
-                      [
-                        "TUserType",
-                        {
-                          "type_": "name",
-                          "version": 0
-                        }
-                      ]
-                    ],
-                    [
-                      "bytes",
-                      [
-                        "TBytes"
-                      ]
-                    ],
-                    [
-                      "result",
-                      [
-                        "TResult",
-                        [
-                          "TInt"
-                        ],
-                        [
-                          "TStr"
-                        ]
-                      ]
-                    ],
-                    [
-                      "variable",
-                      [
-                        "TVariable",
-                        "v"
-                      ]
-                    ],
-                    [
-                      "fn",
-                      [
-                        "TFn",
-                        [
+                          "field1",
                           [
                             "TInt"
-                          ]
-                        ],
-                        [
-                          "TInt"
-                        ]
-                      ]
-                    ],
-                    [
-                      "record",
-                      [
-                        "TRecord",
-                        [
-                          [
-                            "field1",
-                            [
-                              "TInt"
-                            ]
                           ]
                         ]
                       ]
                     ]
                   ]
                 ]
-              }
-            ]
+              ]
+            },
+            []
           ]
         }
       ],
