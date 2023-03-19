@@ -119,8 +119,8 @@ module InterpolatedString =
 module FnCall =
   5 + 3 = 8
   5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
-  //(Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error" // CLEANUP
-  //(Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
+  (Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error"
+  (Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
   "xx" ++ "yy" = "xxyy"
   (5 + (3)) = 8
   Int.add_v0 5 3 = 8
@@ -128,10 +128,10 @@ module FnCall =
 
 module If =
   (if true then "correct" else 0) = "correct"
-  //(if true then Test.typeError_v0 "a" else 0) = Test.typeError_v0 "a" // CLEANUP
-  //(if false then 0 else Test.typeError_v0 "a") = Test.typeError_v0 "a" // CLEANUP
-  //(if false then Test.typeError_v0 "a" else 0) = 0 // CLEANUP
-  //(if true then 0 else Test.typeError_v0 "a") = 0 // CLEANUP
+  (if true then Test.typeError_v0 "a" else 0) = Test.typeError_v0 "a"
+  (if false then 0 else Test.typeError_v0 "a") = Test.typeError_v0 "a"
+  (if false then Test.typeError_v0 "a" else 0) = 0
+  (if true then 0 else Test.typeError_v0 "a") = 0
   (if false then "" else "correct") = "correct"
   (if () then "" else "") = Test.typeError_v0 "If only supports Booleans"
   (if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
@@ -192,9 +192,9 @@ module FeatureFlag =
 module Lambdas =
   List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
   (let y = (fun x ___ -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
-  //(let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ] // CLEANUP switch
-  //(let y = (fun msg -> Test.typeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.typeError "1" // CLEANUP
-  //(let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
+  (let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
+  (let y = (fun msg -> Test.typeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.typeError "1"
+  (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
 
   (let x = 5 in
   let y = (fun c -> x + c) in
@@ -206,18 +206,17 @@ module Lambdas =
       (String.toList_v1 "some string")
       (fun var -> String.toUppercase_v1 (String.fromChar_v1 var))) "") = "SOME STRING"
 
-  // CLEANUP
   (let y = (fun c -> if c > 2 then Test.typeError_v0 "err" else 18) in
    [1; 2; 3; 4] |> List.map_v0 y) = Test.typeError_v0 "err"
 
 
 module Pipes =
   ([] |> List.push_v0 2) = [2]
-  //+([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
-  //+([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
-  //+([] |> Test.typeError_v0 "err") = Test.typeError_v0 "err" // CLEANUP
-  //+(Test.typeError_v0 "err" |> []) = Test.typeError_v0 "err" // CLEANUP
-  //+(Test.typeError_v0 "one" |> Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
+  ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
+  // ([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
+  // ([] |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
+  ((Test.typeError_v0 "err") |> []) = Test.typeError_v0 "err"
+  // ((Test.typeError_v0 "one") |> (Test.typeError_v0 "two")) = Test.typeError_v0 "one"
 
   ([5]
   |> List.head_v2
