@@ -863,9 +863,7 @@ and Fn =
   { name : FQFnName.T
     parameters : List<Param>
     returnType : DType
-    description : string
     previewable : Previewable
-    deprecated : Deprecation
     sqlSpec : SqlSpec
 
     // Functions can be run in JS if they have an implementation in LibExecution.
@@ -1008,9 +1006,7 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
     parameters = fn.parameters
     returnType = fn.returnType
-    description = fn.description
     previewable = fn.previewable
-    deprecated = fn.deprecated
     sqlSpec = fn.sqlSpec
     fn = StdLib fn.fn }
 
@@ -1021,9 +1017,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
   { name = FQFnName.User fn.name
     parameters = fn.parameters |> List.map toParam
     returnType = fn.returnType
-    description = ""
     previewable = Impure
-    deprecated = NotDeprecated
     sqlSpec = NotQueryable
     fn = UserFunction(fn.tlid, fn.body) }
 
@@ -1035,13 +1029,7 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     parameters = fn.parameters |> List.map toParam
 
     returnType = fn.returnType
-    description = fn.description
     previewable = Impure
-    deprecated =
-      if fn.deprecated then
-        DeprecatedBecause("a new version of the function exists")
-      else
-        NotDeprecated
     sqlSpec = NotQueryable
     fn = PackageFunction(fn.tlid, fn.body) }
 
