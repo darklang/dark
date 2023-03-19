@@ -241,15 +241,16 @@ module Match =
   (match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
   (match () with | () -> "pass" | var -> "fail") = "pass"
   (match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
-  (match "nothing matches" with | "not this" -> "fail") = Test.incomplete // CLEANUP
-  (match Test.typeError_v0 "msg" with | 5 -> 5 | _ -> 6) = Test.incomplete // CLEANUP
 
-  //+(match Test.typeError_v0 "err with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "err" // CLEANUP
-  //+(match 1 with | 1 -> Test.typeError_v0 "a" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "a" // CLEANUP
-  //+(match 1 with | 2 -> Test.typeError_v0 "a" | 1 -> "pass" | var -> "fail") = "pass" // CLEANUP
-  //+(match 1 with | 1 -> "pass" | 6 -> Test.typeError_v0 "a" | var -> "fail") = "pass" // CLEANUP
-  //+(match 1 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "fail") = Test.typeError_v0 "a" // CLEANUP
-  //+(match 3 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "pass") = "pass" // CLEANUP
+  // Errors
+  (match "nothing matches" with | "not this" -> "fail") = Test.typeError "No match"
+  (match Test.typeError_v0 "cond is error" with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "cond is error"
+  (match Test.typeError_v0 "cond is error, wildcard" with | 5 -> 5 | _ -> 6) = Test.typeError_v0 "cond is error, wildcard"
+  (match 1 with | 1 -> Test.typeError_v0 "a" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "a"
+  (match 1 with | 2 -> Test.typeError_v0 "a" | 1 -> "pass" | var -> "fail") = "pass"
+  (match 1 with | 1 -> "pass" | 6 -> Test.typeError_v0 "a" | var -> "fail") = "pass"
+  (match 1 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "fail") = Test.typeError_v0 "a"
+  (match 3 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "pass") = "pass"
 
   // int
   (match 5 with

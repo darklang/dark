@@ -378,7 +378,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let! matchVal = eval state st matchExpr
 
       let mutable hasMatched = false
-      let mutable matchResult = incomplete id
+      let mutable matchResult =
+        // Even though we know it's fakeval, we still run through each pattern for analysis
+        if Dval.isFake matchVal then matchVal else DError(sourceID id, "No match")
 
       for (pattern, rhsExpr) in cases do
         if hasMatched && isRealExecution then
