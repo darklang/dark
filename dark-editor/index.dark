@@ -103,5 +103,5 @@
 </html>
   """
 
-  Http.responseWithHeaders(String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
+  Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
 )
