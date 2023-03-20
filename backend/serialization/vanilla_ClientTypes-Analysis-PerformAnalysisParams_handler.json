@@ -72,6 +72,14 @@
                     [
                       "StringText",
                       "a string"
+                    ],
+                    [
+                      "StringInterpolation",
+                      [
+                        "EVariable",
+                        402203255,
+                        "var"
+                      ]
                     ]
                   ]
                 ],
@@ -471,6 +479,14 @@
                                       [
                                         "StringText",
                                         "string"
+                                      ],
+                                      [
+                                        "StringInterpolation",
+                                        [
+                                          "EVariable",
+                                          1002893266,
+                                          "var"
+                                        ]
                                       ]
                                     ]
                                   ]
@@ -7784,6 +7800,14 @@
                       [
                         "StringText",
                         "a string"
+                      ],
+                      [
+                        "StringInterpolation",
+                        [
+                          "EVariable",
+                          402203255,
+                          "var"
+                        ]
                       ]
                     ]
                   ],
@@ -8183,6 +8207,14 @@
                                         [
                                           "StringText",
                                           "string"
+                                        ],
+                                        [
+                                          "StringInterpolation",
+                                          [
+                                            "EVariable",
+                                            1002893266,
+                                            "var"
+                                          ]
                                         ]
                                       ]
                                     ]
@@ -8982,6 +9014,14 @@
                       [
                         "StringText",
                         "a string"
+                      ],
+                      [
+                        "StringInterpolation",
+                        [
+                          "EVariable",
+                          402203255,
+                          "var"
+                        ]
                       ]
                     ]
                   ],
@@ -9381,6 +9421,14 @@
                                         [
                                           "StringText",
                                           "string"
+                                        ],
+                                        [
+                                          "StringInterpolation",
+                                          [
+                                            "EVariable",
+                                            1002893266,
+                                            "var"
+                                          ]
                                         ]
                                       ]
                                     ]

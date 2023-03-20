@@ -71,9 +71,11 @@ module RuntimeTypes =
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
-      RT.EString(86749UL, [ RT.StringText "asdfasedf" ]) //CLEANUP
-      RT.ECharacter(7683UL, "c")
-      RT.EFloat(5495UL, 444.333)
+      RT.EString(
+        86749UL,
+        [ RT.StringText "asdfasedf"
+          RT.StringInterpolation(RT.EVariable(68496UL, "var")) ]
+      )
       RT.EUnit(59485UL)
       RT.ELet(
         49583UL,
@@ -119,8 +121,8 @@ module RuntimeTypes =
       RT.EFeatureFlag(
         1823UL,
         RT.EBool(81273UL, false),
-        RT.EString(1283UL, [ RT.StringText "true" ]), //CLEANUP
-        RT.EString(18329472UL, [ RT.StringText "false" ]) //CLEANUP
+        RT.EString(1283UL, [ RT.StringText "true" ]),
+        RT.EString(18329472UL, [ RT.StringText "false" ])
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
@@ -185,7 +187,6 @@ module ProgramTypes =
       ) ]
 
   // Note: this is aimed to contain all cases of `Expr`
-  // When updating this, also update `FluidTestData.complexExpr` in the client
   let expr =
     let e = PT.EInteger(34545UL, 5)
     PT.ELet(
@@ -207,7 +208,11 @@ module ProgramTypes =
             PT.ELet(
               244891515UL,
               PT.LPVariable(1856712UL, "str"),
-              PT.EString(446488682UL, [ PT.StringText "a string" ]),
+              PT.EString(
+                446488682UL,
+                [ PT.StringText "a string"
+                  PT.StringInterpolation(PT.EVariable(402203255UL, "var")) ]
+              ),
               PT.ELet(
                 537517627UL,
                 PT.LPVariable(567161UL, "char"),
@@ -350,7 +355,13 @@ module ProgramTypes =
                               (PT.MPCharacter(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
                               (PT.MPString(491115870UL, "string"),
-                               PT.EString(820329949UL, [ PT.StringText "string" ]))
+                               PT.EString(
+                                 820329949UL,
+                                 [ PT.StringText "string"
+                                   PT.StringInterpolation(
+                                     PT.EVariable(1002893266UL, "var")
+                                   ) ]
+                               ))
                               (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
                               (PT.MPVariable(722099983UL, "var"),
                                PT.EInfix(

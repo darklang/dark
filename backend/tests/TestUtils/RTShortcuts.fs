@@ -53,7 +53,7 @@ let ePipeFn
   : Expr =
   EApply(gid (), eStdFnName module_ function_ version, args, InPipe(gid ()))
 
-let eStr (str : string) : Expr = EString(gid (), [ StringText str ]) //CLEANUP
+let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 
 let eChar (c : string) : Expr = ECharacter(gid (), c)
 
