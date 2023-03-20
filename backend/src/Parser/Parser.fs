@@ -73,7 +73,7 @@ let parseFn (fnName : string) : string * int =
 
 
 let rec convertToExpr
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
   (ast : SynExpr)
   : PT.Expr =
   let c = convertToExpr availableTypes
@@ -209,6 +209,7 @@ let rec convertToExpr
   | SynExpr.Ident name ->
     let matchingEnumCases =
       availableTypes
+      |> Map.toList
       |> List.choose (fun (typeName, typeDef) ->
         match typeDef with
         | PT.CustomType.Enum (firstCase, additionalCases) ->
@@ -469,7 +470,10 @@ let rec convertToExpr
 
 type Test = { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
 
-let convertToTest availableTypes (ast : SynExpr) : Test =
+let convertToTest
+  (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
+  (ast : SynExpr)
+  : Test =
   let convert (x : SynExpr) : PT.Expr = convertToExpr availableTypes x
 
   match ast with
@@ -529,17 +533,18 @@ let parseTestFile
   // (the latter 2 bullets here belong somewhere else)
   let matchingCustomTypes
     // TODO: we don't used the defs here - just the names
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
     (nameOfType : string)
     : List<PT.FQTypeName.T> =
     availableTypes
+    |> Map.toList
     |> List.choose (fun (typeName, _def) ->
       match typeName with
       | PT.FQTypeName.User u -> if u.typ = nameOfType then Some typeName else None
       | PT.FQTypeName.Stdlib t -> if t.typ = nameOfType then Some typeName else None)
 
   let rec convertType
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
     (typ : SynType)
     : PT.DType =
     let c = convertType availableTypes
@@ -602,7 +607,7 @@ let parseTestFile
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let parseSignature
-    availableTypes
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
     (pat : SynPat)
     : string * List<PT.UserFunction.Parameter> =
     match pat with
@@ -615,7 +620,10 @@ let parseTestFile
       (name.idText, parameters)
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
-  let parseBinding availableTypes (binding : SynBinding) : PT.UserFunction.T =
+  let parseBinding
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
+    (binding : SynBinding)
+    : PT.UserFunction.T =
     match binding with
     // CLEANUP returnInfo
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) as x ->
@@ -632,7 +640,7 @@ let parseTestFile
     ((p1, p2, p3) : string * string * string)
     (binding : SynBinding)
     : PT.Package.Fn =
-    let availableTypes = [] // eventually, we'll likely need package types supported here
+    let availableTypes = Map.empty // eventually, we'll likely need package types supported here
     let userFn = parseBinding availableTypes binding
     { name =
         { owner = p1
@@ -653,7 +661,7 @@ let parseTestFile
 
 
   let parseUserRecordTypeField
-    availableTypes
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
     (field : SynField)
     : PT.CustomType.RecordField =
     match field with
@@ -662,7 +670,7 @@ let parseTestFile
     | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
   let parseUserEnumTypeField
-    availableTypes
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
     (typ : SynField)
     : PT.CustomType.EnumField =
     match typ with
@@ -672,7 +680,7 @@ let parseTestFile
         label = fieldName |> Option.map (fun id -> id.idText) }
 
   let parseUserEnumTypeCase
-    availableTypes
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
     (case : SynUnionCase)
     : PT.CustomType.EnumCase =
     match case with
@@ -684,7 +692,10 @@ let parseTestFile
           fields = List.map (parseUserEnumTypeField availableTypes) fields }
       | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
-  let parseType availableTypes (typeDef : SynTypeDefn) : PT.UserType.T =
+  let parseType
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
+    (typeDef : SynTypeDefn)
+    : PT.UserType.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -733,7 +744,10 @@ let parseTestFile
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
-  let parseDBSchemaField availableTypes (field : SynField) : PT.DB.Col =
+  let parseDBSchemaField
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
+    (field : SynField)
+    : PT.DB.Col =
     match field with
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
       { name = Some(id.idText) // CLEANUP
@@ -743,7 +757,10 @@ let parseTestFile
     | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
 
 
-  let parseDB availableTypes (typeDef : SynTypeDefn) : PT.DB.T =
+  let parseDB
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
+    (typeDef : SynTypeDefn)
+    : PT.DB.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -761,7 +778,7 @@ let parseTestFile
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
   let parseTypeDecl
-    availableTypes
+    (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
     (typeDef : SynTypeDefn)
     : List<PT.DB.T> * List<PT.UserType.T> =
     match typeDef with
@@ -818,6 +835,7 @@ let parseTestFile
           (m.types @ parent.types)
           |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
           |> (@) stdlibTypes
+          |> Map.ofList
 
         match decl with
         | SynModuleDecl.Let (_, bindings, _) ->
@@ -885,13 +903,19 @@ let parseTestFile
       [ "parseTree", results.ParseTree; "input", input; "filename", filename ]
 
 
-let parsePTExprWithTypes availableTypes (code : string) : PT.Expr =
+let parsePTExprWithTypes
+  (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
+  (code : string)
+  : PT.Expr =
   code |> parse |> convertToExpr availableTypes
 
-let parseRTExprWithTypes availableTypes (code : string) : RT.Expr =
+let parseRTExprWithTypes
+  (availableTypes : Map<PT.FQTypeName.T, PT.CustomType.T>)
+  (code : string)
+  : RT.Expr =
   parsePTExprWithTypes availableTypes code
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
-let parsePTExpr = parsePTExprWithTypes []
+let parsePTExpr = parsePTExprWithTypes Map.empty
 
-let parseRTExpr = parseRTExprWithTypes []
+let parseRTExpr = parseRTExprWithTypes Map.empty
