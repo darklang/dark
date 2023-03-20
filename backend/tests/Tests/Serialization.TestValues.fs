@@ -177,7 +177,6 @@ module ProgramTypes =
       ) ]
 
   // Note: this is aimed to contain all cases of `Expr`
-  // When updating this, also update `FluidTestData.complexExpr` in the client
   let expr =
     let e = PT.EInteger(34545UL, 5)
     PT.ELet(
@@ -199,7 +198,11 @@ module ProgramTypes =
             PT.ELet(
               244891515UL,
               PT.LPVariable(1856712UL, "str"),
-              PT.EString(446488682UL, [ PT.StringText "a string" ]),
+              PT.EString(
+                446488682UL,
+                [ PT.StringText "a string"
+                  PT.StringInterpolation(PT.EVariable(402203255UL, "var")) ]
+              ),
               PT.ELet(
                 537517627UL,
                 PT.LPVariable(567161UL, "char"),
@@ -342,7 +345,13 @@ module ProgramTypes =
                               (PT.MPCharacter(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
                               (PT.MPString(491115870UL, "string"),
-                               PT.EString(820329949UL, [ PT.StringText "string" ]))
+                               PT.EString(
+                                 820329949UL,
+                                 [ PT.StringText "string"
+                                   PT.StringInterpolation(
+                                     PT.EVariable(1002893266UL, "var")
+                                   ) ]
+                               ))
                               (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
                               (PT.MPVariable(722099983UL, "var"),
                                PT.EInfix(
