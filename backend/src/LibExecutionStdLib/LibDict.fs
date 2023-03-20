@@ -306,11 +306,7 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result =
-                    Interpreter.applyFnVal
-                      state
-                      b
-                      [ DStr key; data ]
+                  let! result = Interpreter.applyFnVal state b [ DStr key; data ]
 
                   match result with
                   | DOption (Some o) -> return Some o

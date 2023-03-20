@@ -601,16 +601,19 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList l ] ->
-            try
-              List.distinct l |> List.sortWith DvalComparator.compareDval |> DList |> Ply
-            with
-            | _ ->
-              // TODO: we should prevent this as soon as the different types are added
-              // Ideally we'd catch the exception thrown during comparison but the sort
-              // catches it so we lose the error message
-              "List::unique: Unable to sort list, perhaps the list elements are different types"
-              |> Dval.errStr
-              |> Ply
+          try
+            List.distinct l
+            |> List.sortWith DvalComparator.compareDval
+            |> DList
+            |> Ply
+          with
+          | _ ->
+            // TODO: we should prevent this as soon as the different types are added
+            // Ideally we'd catch the exception thrown during comparison but the sort
+            // catches it so we lose the error message
+            "List::unique: Unable to sort list, perhaps the list elements are different types"
+            |> Dval.errStr
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -643,16 +646,16 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, [ DList list ] ->
-            try
-              list |> List.sortWith DvalComparator.compareDval |> DList |> Ply
-            with
-            | _ ->
-              // TODO: we should prevent this as soon as the different types are added
-              // Ideally we'd catch the exception thrown during comparison but the sort
-              // catches it so we lose the error message
-              "List::sort: Unable to sort list, perhaps the list elements are different types"
-              |> Dval.errStr
-              |> Ply
+          try
+            list |> List.sortWith DvalComparator.compareDval |> DList |> Ply
+          with
+          | _ ->
+            // TODO: we should prevent this as soon as the different types are added
+            // Ideally we'd catch the exception thrown during comparison but the sort
+            // catches it so we lose the error message
+            "List::sort: Unable to sort list, perhaps the list elements are different types"
+            |> Dval.errStr
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

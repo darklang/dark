@@ -206,8 +206,8 @@ and IsInPipe =
   | NotInPipe
 
 and FnTarget =
-    | FnName of FQFnName.T
-    | FnTargetExpr of Expr
+  | FnName of FQFnName.T
+  | FnTargetExpr of Expr
 
 and MatchPattern =
   | MPVariable of id * string
@@ -224,8 +224,7 @@ type DvalMap = Map<string, Dval>
 
 and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : Expr }
 
-and FnValImpl =
-  | Lambda of LambdaImpl
+and FnValImpl = Lambda of LambdaImpl
 
 and DDateTime = NodaTime.LocalDate
 
