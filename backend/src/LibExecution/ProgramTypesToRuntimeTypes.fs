@@ -153,7 +153,7 @@ module Expr =
               match op with
               | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
-            | other -> RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID)
+            | other -> RT.EApply(pipeID, toRT other, [ prev ], RT.NotInPipe)
           convert next)
 
         (expr2 :: rest)
