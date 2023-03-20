@@ -50,20 +50,11 @@ let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>
     | Ok () ->
       return!
         Sql.query
-          "INSERT INTO accounts
-             (id, username, name, email, admin, password)
+          "INSERT INTO accounts_v0
+             (id)
              VALUES
-             (@id, @username, @name, @email, @admin, @password)
-             ON CONFLICT (username)
-             DO UPDATE SET name = EXCLUDED.name,
-                           email = EXCLUDED.email,
-                           password = EXCLUDED.password"
-        |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                            "username", Sql.string (string account.username)
-                            "admin", Sql.bool admin
-                            "name", Sql.string account.name
-                            "email", Sql.string account.email
-                            ("password", account.password |> string |> Sql.string) ]
+             (@id)"
+        |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid()) ]
         |> Sql.executeStatementAsync
         |> Task.map Ok
     | Error _ as result -> return result
@@ -98,23 +89,18 @@ let insertUser
         // insert
         do!
           Sql.query
-            "INSERT INTO accounts
-              (id, username, name, email, admin, password)
+            "INSERT INTO accounts_v0
+              (id)
               VALUES
-              (@id, @username, @name, @email, false, @password)
-              ON CONFLICT DO NOTHING"
-          |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                              "username", Sql.string (string username)
-                              "name", Sql.string name
-                              "email", Sql.string email
-                              ("password", Sql.string (string Password.invalid)) ]
+              (@id)"
+          |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid()) ]
           |> Sql.executeStatementAsync
 
         // verify insert worked
         let! accountExists =
           // CLEANUP: if this was added with a different email/name/etc this won't pick it up
           Sql.query
-            "SELECT TRUE from ACCOUNTS
+            "SELECT TRUE FROM accounts_v0
               WHERE username = @username
                 AND name = @name
                 AND email = @email
@@ -150,8 +136,8 @@ let insertUser
 let userIDForUserName (username : UserName.T) : Task<UserID> =
   Sql.query
     "SELECT id
-       FROM accounts
-       WHERE accounts.username = @username"
+       FROM accounts_v0
+       WHERE accounts_v0.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
   |> Task.map (fun user ->
@@ -163,16 +149,16 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
     "SELECT username
-     FROM accounts
-     WHERE accounts.id = @userid"
+     FROM accounts_v0
+     WHERE accounts_v0.id = @userid"
   |> Sql.parameters [ "userid", Sql.uuid userID ]
   |> Sql.executeRowOptionAsync (fun read -> read.string "username" |> UserName.create)
 
 let getUser (username : UserName.T) : Task<Option<UserInfo>> =
   Sql.query
     "SELECT id
-     FROM accounts
-     WHERE accounts.username = @username"
+     FROM accounts_v0
+     WHERE accounts_v0.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read -> { id = read.uuid "id" })
 

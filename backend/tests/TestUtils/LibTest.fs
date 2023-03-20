@@ -223,7 +223,7 @@ let fns : List<BuiltInFn> =
             do!
               // This is unsafe. A user has canvases, and canvases have traces. It
               // will either break or cascade (haven't checked)
-              Sql.query "DELETE from ACCOUNTS WHERE username = @username"
+              Sql.query "DELETE FROM accounts_v0 WHERE username = @username"
               |> Sql.parameters [ "username", Sql.string (string username) ]
               |> Sql.executeStatementAsync
             return DUnit
