@@ -32,7 +32,7 @@ type CronScheduleData = Serialize.CronScheduleData
 let lastRanAt (cron : CronScheduleData) : Task<Option<NodaTime.Instant>> =
   Sql.query
     "SELECT ran_at
-       FROM cron_records
+       FROM cron_records_v0
        WHERE tlid = @tlid
        AND canvas_id = @canvasID
        ORDER BY id DESC
@@ -85,7 +85,7 @@ let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
 
 let recordExecution (cron : CronScheduleData) : Task<unit> =
   Sql.query
-    "INSERT INTO cron_records
+    "INSERT INTO cron_records_v0
     (tlid, canvas_id)
     VALUES (@tlid, @canvasID)"
   |> Sql.parameters [ "tlid", Sql.tlid cron.tlid

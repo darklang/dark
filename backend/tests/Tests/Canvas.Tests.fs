@@ -114,7 +114,7 @@ let testUndoTooFarDoesntBreak =
     let! dbRow =
       Sql.query
         "SELECT name, module, modifier, deleted
-         FROM toplevel_oplists
+         FROM toplevel_oplists_v0
          WHERE canvas_id = @canvasID
            AND tlid = @tlid"
       |> Sql.parameters [ "canvasID", Sql.uuid meta.id
@@ -160,7 +160,7 @@ let testHttpLoadIgnoresDeletedHandler =
     let! dbRow =
       Sql.query
         "SELECT name, module, modifier, deleted
-         FROM toplevel_oplists
+         FROM toplevel_oplists_v0
          WHERE canvas_id = @canvasID
            AND tlid = @tlid"
       |> Sql.parameters [ "canvasID", Sql.uuid meta.id

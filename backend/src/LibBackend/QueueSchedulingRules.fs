@@ -75,15 +75,6 @@ module WorkerStates =
   type T = Map<string, State>
 
 
-/// Sets all 'new' events to 'scheduled', bypassing actual scheduling logic
-///
-/// Meant only for testing, so the queue-scheduler process doesn't have to be involved
-let testingScheduleAll () : Task<unit> =
-  Sql.query
-    "UPDATE events SET status = 'scheduled'
-      WHERE status = 'new' AND delay_until <= CURRENT_TIMESTAMP"
-  |> Sql.executeStatementAsync
-
 let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
   let ruleType = read.string "rule_type"
   { id = read.int "id"
@@ -104,14 +95,14 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
 let getAllSchedulingRules () : Task<List<SchedulingRule.T>> =
   Sql.query
     "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
-     FROM scheduling_rules"
+     FROM scheduling_rules_v0"
   |> Sql.executeAsync (fun read -> rowToSchedulingRule read)
 
 /// Gets event scheduling rules for the specified canvas
 let getSchedulingRules (canvasID : CanvasID) : Task<List<SchedulingRule.T>> =
   Sql.query
     "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
-     FROM scheduling_rules
+     FROM scheduling_rules_v0
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> rowToSchedulingRule read)
@@ -132,7 +123,7 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
     let! states =
       Sql.query
         "SELECT name
-         FROM toplevel_oplists T
+         FROM toplevel_oplists_v0 T
          WHERE canvas_id = @canvasID
            AND tipe = 'handler'
            AND module = 'WORKER'"
@@ -176,7 +167,7 @@ let addSchedulingRule
   task {
     do!
       Sql.query
-        "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
+        "INSERT INTO scheduling_rules_v0 (rule_type, canvas_id, handler_name, event_space)
          VALUES ( @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
          ON CONFLICT DO NOTHING"
       |> Sql.parameters [ "ruleType", Sql.string ruleType
@@ -185,6 +176,7 @@ let addSchedulingRule
       |> Sql.executeStatementAsync
 
     do!
+      // CLEANUP: this table doesn't exist anymore
       Sql.query
         "UPDATE events
             SET status = 'new'

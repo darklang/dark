@@ -39,12 +39,13 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
   |> Task.flatten
   |> Task.map Map.ofList
 
-
+// CLEANUP maybe keep one of them workerV2Stats or workerStats ?
+// CLEANUP table events doesn't exist anymore
 let workerV1Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
   Sql.query
     "SELECT COUNT(1) AS num
      FROM events E
-     INNER JOIN toplevel_oplists TL
+     INNER JOIN toplevel_oplists_v0 TL
         ON TL.canvas_id = E.canvas_id
        AND TL.module = E.space
        AND TL.name = E.name
@@ -57,8 +58,8 @@ let workerV1Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
 let workerV2Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
   Sql.query
     "SELECT COUNT(1) AS num
-     FROM events_v2 E
-     INNER JOIN toplevel_oplists TL
+     FROM events_v0 E
+     INNER JOIN toplevel_oplists_v0 TL
         ON TL.canvas_id = E.canvas_id
        AND TL.module = E.module
        AND TL.name = E.name

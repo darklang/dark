@@ -69,7 +69,7 @@ let compileTests =
         matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
       }
       testTask "check escaped fields" {
-        let injection = "'; select * from user_data ;'field"
+        let injection = "'; select * from user_data_v0 ;'field"
 
         let expr =
           S.eFn
@@ -82,19 +82,19 @@ let compileTests =
 
         matchSql
           sql
-          @"\(CAST\(data::jsonb->>'''; select * from user_data ;''field' as text\)\) = \('x'\)\)"
+          @"\(CAST\(data::jsonb->>'''; select * from user_data_v0;''field' as text\)\) = \('x'\)\)"
           args
           []
       }
       testTask "symtable values escaped" {
         let expr = p "var == value.name"
-        let symtable = Map.ofList [ "var", DStr "';select * from user_data;'" ]
+        let symtable = Map.ofList [ "var", DStr "';select * from user_data_v0;'" ]
 
         let! sql, args = compile symtable "value" [ "name", TStr ] expr
 
         matchSql
           sql
-          @"\(\(''';select * from user_data;'''\) = \(CAST\(data::jsonb->>'name' as text\)\)\)"
+          @"\(\(''';select * from user_data_v0;'''\) = \(CAST\(data::jsonb->>'name' as text\)\)\)"
           args
           []
       }

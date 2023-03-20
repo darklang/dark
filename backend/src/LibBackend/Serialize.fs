@@ -40,6 +40,7 @@ let isLatestOpRequest
         // This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
         // that it also handles the initial case where there is no
         // browser_id record yet
+        // CLEANUP: this table doesn't exist anymore
         "INSERT INTO op_ctrs(browser_id, ctr, canvas_id)
            VALUES(@clientOpCtrID, @opCtr, @canvasID)
            ON CONFLICT (browser_id)
@@ -51,6 +52,7 @@ let isLatestOpRequest
        |> Sql.executeStatementAsync)
 
     return!
+      // CLEANUP: this table doesn't exist anymore
       Sql.query
         "SELECT TRUE FROM op_ctrs
            WHERE browser_id = @clientOpCtrID
@@ -84,13 +86,13 @@ let loadOplists
     // Deleted can be null is which case it is DeletedForever
     match loadAmount with
     | LiveToplevels ->
-      "SELECT tlid, oplist FROM toplevel_oplists
+      "SELECT tlid, oplist FROM toplevel_oplists_v0
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
             AND deleted IS FALSE"
     | IncludeDeletedToplevels ->
       // IS NOT NULL just skipped DeletedForever
-      "SELECT tlid, oplist FROM toplevel_oplists
+      "SELECT tlid, oplist FROM toplevel_oplists_v0
           WHERE canvas_id = @canvasID
             AND tlid = ANY(@tlids)
             AND deleted IS NOT NULL"
@@ -128,13 +130,12 @@ let loadOnlyCachedTLIDs
     // the `deleted` column.
     let! data =
       Sql.query
-        "SELECT tlid, oplist_cache FROM toplevel_oplists
+        "SELECT tlid, oplist_cache FROM toplevel_oplists_v0
           WHERE canvas_id = @canvasID
           AND tlid = ANY (@tlids)
           AND deleted IS FALSE
           AND (
-              ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type)
-                AND pos IS NOT NULL)
+              ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type))
               OR tipe = 'user_function'::toplevel_type
               OR tipe = 'user_tipe'::toplevel_type)"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
@@ -155,7 +156,7 @@ let fetchReleventTLIDsForHTTP
   // pattern matching to solve our routing.
   Sql.query
     "SELECT tlid
-     FROM toplevel_oplists
+     FROM toplevel_oplists_v0
      WHERE canvas_id = @canvasID
        AND (((module = 'HTTP' OR module = 'HTTP_BASIC')
              AND @path like name
@@ -169,7 +170,7 @@ let fetchReleventTLIDsForHTTP
 
 let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists
+    "SELECT tlid FROM toplevel_oplists_v0
       WHERE canvas_id = @canvasID
       AND tipe <> 'handler'::toplevel_type
       AND deleted IS FALSE"
@@ -183,7 +184,7 @@ let fetchRelevantTLIDsForEvent
   (modifier : string)
   : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists
+    "SELECT tlid FROM toplevel_oplists_v0
       WHERE canvas_id = @canvasID
         AND ((module = @space
               AND name = @name
@@ -199,7 +200,7 @@ let fetchRelevantTLIDsForEvent
 
 let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists
+    "SELECT tlid FROM toplevel_oplists_v0
      WHERE canvas_id = @canvasID
        AND tipe = 'db'::toplevel_type
        AND deleted IS FALSE"
@@ -208,7 +209,7 @@ let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
 
 let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists
+    "SELECT tlid FROM toplevel_oplists_v0
      WHERE canvas_id = @canvasID
        AND tipe = 'handler'::toplevel_type
        AND module <> 'CRON'
@@ -221,7 +222,7 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
 
 let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists
+    "SELECT tlid FROM toplevel_oplists_v0
      WHERE canvas_id = @canvasID
        AND deleted is NOT NULL"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
@@ -229,7 +230,7 @@ let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 
 let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists
+    "SELECT tlid FROM toplevel_oplists_v0
      WHERE canvas_id = @canvasID
        AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
@@ -253,11 +254,10 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
     "SELECT canvas_id,
                   tlid,
                   modifier,
-                  toplevel_oplists.name as handler_name,
-                  toplevel_oplists.account_id,
-                  canvases.name as canvas_name
-       FROM toplevel_oplists
-       JOIN canvases ON toplevel_oplists.canvas_id = canvases.id
+                  toplevel_oplists_v0.name as handler_name,
+                  canvases_v0.name as canvas_name
+       FROM toplevel_oplists_v0
+       JOIN canvases_v0 ON toplevel_oplists_v0.canvas_id = canvases_v0.id
       WHERE module = 'CRON'
         AND modifier IS NOT NULL
         AND modifier <> ''
@@ -286,7 +286,7 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
 let currentHosts () : Task<string list> =
   task {
     let! hosts =
-      Sql.query "SELECT DISTINCT name FROM canvases"
+      Sql.query "SELECT DISTINCT name FROM canvases_v0"
       |> Sql.executeAsync (fun read -> read.string "name")
     return
       hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort

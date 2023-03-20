@@ -46,7 +46,7 @@ let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
 /// We want to use this in nearly all cases, with the only exception being when a
 /// user enters a URL to open an editor for a canvas.
 let getMeta (canvasName : CanvasName.T) : Task<Option<Meta>> =
-  Sql.query "SELECT id, account_id from canvases where name = @canvasName"
+  Sql.query "SELECT id, account_id from canvases_v0 where name = @canvasName"
   |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"; owner = read.uuid "account_id"; name = canvasName })
@@ -68,7 +68,7 @@ let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
 let getMetaForCustomDomain (customDomain : string) : Task<Option<Meta>> =
   Sql.query
     "SELECT c.id, c.account_id, c.name
-           FROM canvases c, custom_domains d
+           FROM canvases_v0 c, custom_domains_v0 d
           WHERE d.canvas = c.name
             AND d.host = @customDomain"
   |> Sql.parameters [ "customDomain", Sql.string customDomain ]
@@ -79,7 +79,7 @@ let getMetaForCustomDomain (customDomain : string) : Task<Option<Meta>> =
 
 
 let getMetaFromID (id : CanvasID) : Task<Meta> =
-  Sql.query "SELECT name, account_id FROM canvases WHERE id = @canvasID"
+  Sql.query "SELECT name, account_id FROM canvases_v0 WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid id ]
   |> Sql.executeRowAsync (fun read ->
     { id = id
@@ -306,7 +306,7 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
 
 
 let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
-  Sql.query "SELECT created_at from canvases WHERE id = @canvasID"
+  Sql.query "SELECT created_at from canvases_v0 WHERE id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
 
@@ -562,28 +562,22 @@ let saveTLIDs
 
         return!
           Sql.query
-            "INSERT INTO toplevel_oplists
-                    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier,
-                     deleted, pos, oplist, oplist_cache, data, rendered_oplist_cache)
+            "INSERT INTO toplevel_oplists_v0
+                    (canvas_id, tlid, digest, tipe, name, module, modifier,
+                     deleted, oplist, oplist_cache)
                     VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
-                            @module, @modifier, @deleted, @pos,
-                            @oplist, @oplistCache,
-                            @ocamlData, @ocamlOplistCache)
+                            @module, @modifier, @deleted,
+                            @oplist, @oplistCache)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
-                    SET account_id = @accountID,
-                        digest = @digest,
+                    SET digest = @digest,
                         tipe = @typ::toplevel_type,
                         name = @name,
                         module = @module,
                         modifier = @modifier,
                         deleted = @deleted,
-                        pos = @pos,
                         oplist = @oplist,
-                        oplist_cache = @oplistCache,
-                        data = @ocamlData,
-                        rendered_oplist_cache = @ocamlOplistCache"
+                        oplist_cache = @oplistCache"
           |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                              "accountID", Sql.uuid meta.owner
                               "tlid", Sql.id tlid
                               "digest", Sql.string "fsharp"
                               "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
@@ -591,11 +585,8 @@ let saveTLIDs
                               "module", Sql.stringOrNone module_
                               "modifier", Sql.stringOrNone modifier
                               "deleted", Sql.bool deleted
-                              "pos", Sql.jsonbOrNone pos
                               "oplist", Sql.bytea serializedOplist
-                              "oplistCache", Sql.bytea serializedOplistCache
-                              "ocamlData", Sql.bytea [||]
-                              "ocamlOplistCache", Sql.bytea [||] ]
+                              "oplistCache", Sql.bytea serializedOplistCache ]
           |> Sql.executeStatementAsync
       })
   with

@@ -286,8 +286,8 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
   task {
     let binary = BinarySerialization.serializeExpr tlid expr
     return!
-      Sql.query "UPDATE packages_v0 SET body2 = @body2 where tlid = @tlid"
-      |> Sql.parameters [ "body2", Sql.bytea binary; "tlid", Sql.tlid tlid ]
+      Sql.query "UPDATE packages_v0 SET body = @body where tlid = @tlid"
+      |> Sql.parameters [ "body", Sql.bytea binary; "tlid", Sql.tlid tlid ]
       |> Sql.executeStatementAsync
   }
 
@@ -333,11 +333,11 @@ type ParametersDBFormat = List<Parameter>
 let allFunctions () : Task<List<PT.Package.Fn>> =
   task {
     let! fns =
+    // CLEANUP: why do we have both accounts_v0 A and accounts_v0 O?
       Sql.query
         "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
-                P.body, P.body2, P.description, P.return_type, P.parameters, P.deprecated,
-                A.username, O.username as author
-          FROM packages_v0 P, accounts A, accounts O
+                P.body, P.description, P.return_type, P.parameters, P.deprecated
+          FROM packages_v0 P, accounts_v0 A, accounts_v0 O
           WHERE P.user_id = A.id
             AND P.author_id = O.id"
       |> Sql.parameters []
@@ -347,7 +347,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
          read.string "module",
          read.string "fnname",
          read.int "version",
-         read.bytea "body2",
+         read.bytea "body",
          read.string "return_type",
          read.string "parameters",
          read.string "description",
