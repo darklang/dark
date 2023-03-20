@@ -17,6 +17,7 @@ module Let =
 module Lists =
   [] = []
   [1] = [1]
+  [1; 2] = [1; 2]
   [ 5; Int.add_v0 1 5; 0 ] = [5; 6; 0]
   [ 5; Test.typeError_v0 "test"; 0 ] = Test.typeError_v0 "test"
   [ 5; Test.typeError_v0 "1"; Test.typeError_v0 "2" ] = Test.typeError_v0 "1"
@@ -113,6 +114,8 @@ module Variable =
 module InterpolatedString =
   $"""test {"1"}""" = "test 1"
   (let one = "1" in  $"test {one}") = "test 1"
+  (let one = 1.0 in  $"test {one}") = Test.typeError_v0 "Expected string, got 1.0"
+  (let one = 1 in  $"test {one}") = Test.typeError_v0 "Expected string, got 1"
   (let name = "John" in let age = "30" in $"Name: {name}, Age: {age} years old.") = "Name: John, Age: 30 years old."
   (let two = 2 in "test 1" == $"test {one}") = Test.typeError_v0 "There is no variable named: one"
 
@@ -195,6 +198,8 @@ module Lambdas =
   (let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
   (let y = (fun msg -> Test.typeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.typeError "1"
   (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
+  // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
+  (let y = (fun a b -> a * b) in List.fold_v0 [1; 2; 3; 4] 1 y) = 24
 
   (let x = 5 in
   let y = (fun c -> x + c) in
