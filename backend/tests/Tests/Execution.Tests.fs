@@ -142,7 +142,7 @@ let testRecursionInEditor : Test =
       )
 
     let recurse = testUserFn "recurse" [ "i" ] fnExpr |> PT2RT.UserFunction.toRT
-    let ast = EApply(callerID, eUserFnVal "recurse", [ eInt 0 ], NotInPipe)
+    let ast = EApply(callerID, eUserFnName "recurse", [ eInt 0 ], NotInPipe)
     let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 
     Expect.equal
@@ -463,10 +463,9 @@ let testMatchPreview : Test =
       (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
-         EFQFnValue(
-           binopFnValId,
-           PT.FQFnName.stdlibFqName "String" "append" 1 |> PT2RT.FQFnName.toRT
-         ),
+         PT.FQFnName.stdlibFqName "String" "append" 1
+         |> PT2RT.FQFnName.toRT
+         |> FnName,
          [ EString(okVarRhsStrId, [ StringText "ok: " ])
            EVariable(okVarRhsVarId, "x") ], //CLEANUP
          NotInPipe
@@ -605,17 +604,6 @@ let testMatchPreview : Test =
         "ok: y"
         (eConstructor None "Ok" [ eStr "y" ])
         [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DStr "y"))))
-
-          (binopFnValId,
-           "fnval",
-           er (
-             DFnVal(
-               FnName(
-                 FQFnName.Stdlib
-                   { module_ = "String"; function_ = "append"; version = 1 }
-               )
-             )
-           ))
           (pOkVarVarId, "var pat", er (DStr "y"))
           (okVarRhsId, "rhs", er (DStr "ok: y"))
           (okVarRhsVarId, "rhs", er (DStr "y"))

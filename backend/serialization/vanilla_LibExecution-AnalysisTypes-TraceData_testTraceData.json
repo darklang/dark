@@ -64,8 +64,7 @@
                   "EApply",
                   92356985,
                   [
-                    "EFQFnValue",
-                    700731989,
+                    "FnName",
                     [
                       "Stdlib",
                       {
@@ -80,8 +79,7 @@
                       "EApply",
                       93459985,
                       [
-                        "EFQFnValue",
-                        707841989,
+                        "FnName",
                         [
                           "Stdlib",
                           {
@@ -96,8 +94,7 @@
                           "EApply",
                           394567785,
                           [
-                            "EFQFnValue",
-                            700766785,
+                            "FnName",
                             [
                               "Stdlib",
                               {
@@ -112,8 +109,7 @@
                               "EApply",
                               44444485,
                               [
-                                "EFQFnValue",
-                                893346989,
+                                "FnName",
                                 [
                                   "Stdlib",
                                   {
@@ -3332,8 +3328,7 @@
                   "EApply",
                   92356985,
                   [
-                    "EFQFnValue",
-                    700731989,
+                    "FnName",
                     [
                       "Stdlib",
                       {
@@ -3348,8 +3343,7 @@
                       "EApply",
                       93459985,
                       [
-                        "EFQFnValue",
-                        707841989,
+                        "FnName",
                         [
                           "Stdlib",
                           {
@@ -3364,8 +3358,7 @@
                           "EApply",
                           394567785,
                           [
-                            "EFQFnValue",
-                            700766785,
+                            "FnName",
                             [
                               "Stdlib",
                               {
@@ -3380,8 +3373,7 @@
                               "EApply",
                               44444485,
                               [
-                                "EFQFnValue",
-                                893346989,
+                                "FnName",
                                 [
                                   "Stdlib",
                                   {

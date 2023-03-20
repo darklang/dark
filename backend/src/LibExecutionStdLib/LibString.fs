@@ -51,12 +51,7 @@ let fns : List<BuiltInFn> =
           (String.toEgcSeq s
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
-             (LibExecution.Interpreter.applyFnVal
-               state
-               (id 0)
-               b
-               [ DChar te ]
-               NotInPipe))
+             LibExecution.Interpreter.applyFnVal state b [ DChar te ])
            |> (fun dvals ->
              (uply {
                let! (dvals : List<Dval>) = dvals

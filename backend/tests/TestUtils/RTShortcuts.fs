@@ -8,14 +8,13 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-let eStdFnVal (module_ : string) (function_ : string) (version : int) : Expr =
-  EFQFnValue(
-    gid (),
-    PT.FQFnName.stdlibFqName module_ function_ version |> PT2RT.FQFnName.toRT
-  )
+let eStdFnName (module_ : string) (function_ : string) (version : int) : FnTarget =
+  PT.FQFnName.stdlibFqName module_ function_ version
+  |> PT2RT.FQFnName.toRT
+  |> FnName
 
-let eUserFnVal (function_ : string) : Expr =
-  EFQFnValue(gid (), PT.FQFnName.userFqName function_ |> PT2RT.FQFnName.toRT)
+let eUserFnName (function_ : string) : FnTarget =
+  PT.FQFnName.userFqName function_ |> PT2RT.FQFnName.toRT |> FnName
 
 
 let eFn'
@@ -24,7 +23,7 @@ let eFn'
   (version : int)
   (args : List<Expr>)
   : Expr =
-  EApply(gid (), (eStdFnVal module_ function_ version), args, NotInPipe)
+  EApply(gid (), (eStdFnName module_ function_ version), args, NotInPipe)
 
 let eFn
   (module_ : string)
@@ -34,13 +33,25 @@ let eFn
   : Expr =
   eFn' module_ function_ version args
 
-let eApply' (fnVal : Expr) (args : List<Expr>) (isInPipe : IsInPipe) : Expr =
-  EApply(gid (), fnVal, args, isInPipe)
+let eUserFn (function_ : string) (args : List<Expr>) : Expr =
+  EApply(gid (), (eUserFnName function_), args, NotInPipe)
 
-let eApply (fnVal : Expr) (args : List<Expr>) : Expr = eApply' fnVal args NotInPipe
+let eApply' (target : FnTarget) (args : List<Expr>) (isInPipe : IsInPipe) : Expr =
+  EApply(gid (), target, args, isInPipe)
 
-let ePipeApply (fnVal : Expr) (args : List<Expr>) : Expr =
-  eApply' fnVal args (InPipe(gid ()))
+let eApply (target : Expr) (args : List<Expr>) : Expr =
+  eApply' (FnTargetExpr target) args NotInPipe
+
+let ePipeApply (target : Expr) (args : List<Expr>) : Expr =
+  eApply' (FnTargetExpr target) args (InPipe(gid ()))
+
+let ePipeFn
+  (module_ : string)
+  (function_ : string)
+  (version : int)
+  (args : List<Expr>)
+  : Expr =
+  EApply(gid (), eStdFnName module_ function_ version, args, InPipe(gid ()))
 
 let eStr (str : string) : Expr = EString(gid (), [ StringText str ]) //CLEANUP
 

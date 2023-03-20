@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
           uply {
             match o with
             | Some dv ->
-              let! result = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+              let! result = Interpreter.applyFnVal state b [ dv ]
 
               return Dval.optionJust result
             | None -> return DOption None
@@ -69,8 +69,7 @@ let fns : List<BuiltInFn> =
             | None, _ -> return DOption None
             | _, None -> return DOption None
             | Some dv1, Some dv2 ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
+              let! result = Interpreter.applyFnVal state b [ dv1; dv2 ]
 
               return Dval.optionJust result
           }
@@ -96,7 +95,7 @@ let fns : List<BuiltInFn> =
           uply {
             match o with
             | Some dv ->
-              let! result = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+              let! result = Interpreter.applyFnVal state b [ dv ]
 
               match result with
               | DOption result -> return DOption result

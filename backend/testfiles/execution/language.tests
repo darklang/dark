@@ -17,6 +17,7 @@ module Let =
 module Lists =
   [] = []
   [1] = [1]
+  [1; 2] = [1; 2]
   [ 5; Int.add_v0 1 5; 0 ] = [5; 6; 0]
   [ 5; Test.typeError_v0 "test"; 0 ] = Test.typeError_v0 "test"
   [ 5; Test.typeError_v0 "1"; Test.typeError_v0 "2" ] = Test.typeError_v0 "1"
@@ -113,14 +114,16 @@ module Variable =
 module InterpolatedString =
   $"""test {"1"}""" = "test 1"
   (let one = "1" in  $"test {one}") = "test 1"
+  (let one = 1.0 in  $"test {one}") = Test.typeError_v0 "Expected string, got 1.0"
+  (let one = 1 in  $"test {one}") = Test.typeError_v0 "Expected string, got 1"
   (let name = "John" in let age = "30" in $"Name: {name}, Age: {age} years old.") = "Name: John, Age: 30 years old."
   (let two = 2 in "test 1" == $"test {one}") = Test.typeError_v0 "There is no variable named: one"
 
 module FnCall =
   5 + 3 = 8
   5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
-  //(Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error" // CLEANUP
-  //(Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
+  (Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error"
+  (Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
   "xx" ++ "yy" = "xxyy"
   (5 + (3)) = 8
   Int.add_v0 5 3 = 8
@@ -128,10 +131,10 @@ module FnCall =
 
 module If =
   (if true then "correct" else 0) = "correct"
-  //(if true then Test.typeError_v0 "a" else 0) = Test.typeError_v0 "a" // CLEANUP
-  //(if false then 0 else Test.typeError_v0 "a") = Test.typeError_v0 "a" // CLEANUP
-  //(if false then Test.typeError_v0 "a" else 0) = 0 // CLEANUP
-  //(if true then 0 else Test.typeError_v0 "a") = 0 // CLEANUP
+  (if true then Test.typeError_v0 "a" else 0) = Test.typeError_v0 "a"
+  (if false then 0 else Test.typeError_v0 "a") = Test.typeError_v0 "a"
+  (if false then Test.typeError_v0 "a" else 0) = 0
+  (if true then 0 else Test.typeError_v0 "a") = 0
   (if false then "" else "correct") = "correct"
   (if () then "" else "") = Test.typeError_v0 "If only supports Booleans"
   (if Test.typeError_v0 "msg" then "" else "") = Test.typeError_v0 "msg"
@@ -192,9 +195,11 @@ module FeatureFlag =
 module Lambdas =
   List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
   (let y = (fun x ___ -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
-  //(let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ] // CLEANUP switch
-  //(let y = (fun msg -> Test.typeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.typeError "1" // CLEANUP
-  //(let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
+  (let y = (fun x -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]
+  (let y = (fun msg -> Test.typeError msg) in List.map_v0 ["1";"2";"3";"4"] y) = Test.typeError "1"
+  (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
+  // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
+  (let y = (fun a b -> a * b) in List.fold_v0 [1; 2; 3; 4] 1 y) = 24
 
   (let x = 5 in
   let y = (fun c -> x + c) in
@@ -206,18 +211,17 @@ module Lambdas =
       (String.toList_v1 "some string")
       (fun var -> String.toUppercase_v1 (String.fromChar_v1 var))) "") = "SOME STRING"
 
-  // CLEANUP
   (let y = (fun c -> if c > 2 then Test.typeError_v0 "err" else 18) in
    [1; 2; 3; 4] |> List.map_v0 y) = Test.typeError_v0 "err"
 
 
 module Pipes =
   ([] |> List.push_v0 2) = [2]
-  //+([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
-  //+([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
-  //+([] |> Test.typeError_v0 "err") = Test.typeError_v0 "err" // CLEANUP
-  //+(Test.typeError_v0 "err" |> []) = Test.typeError_v0 "err" // CLEANUP
-  //+(Test.typeError_v0 "one" |> Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
+  ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
+  // ([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
+  // ([] |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
+  ((Test.typeError_v0 "err") |> []) = Test.typeError_v0 "err"
+  // ((Test.typeError_v0 "one") |> (Test.typeError_v0 "two")) = Test.typeError_v0 "one"
 
   ([5]
   |> List.head_v2
@@ -241,15 +245,16 @@ module Match =
   (match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
   (match () with | () -> "pass" | var -> "fail") = "pass"
   (match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
-  (match "nothing matches" with | "not this" -> "fail") = Test.incomplete // CLEANUP
-  (match Test.typeError_v0 "msg" with | 5 -> 5 | _ -> 6) = Test.incomplete // CLEANUP
 
-  //+(match Test.typeError_v0 "err with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "err" // CLEANUP
-  //+(match 1 with | 1 -> Test.typeError_v0 "a" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "a" // CLEANUP
-  //+(match 1 with | 2 -> Test.typeError_v0 "a" | 1 -> "pass" | var -> "fail") = "pass" // CLEANUP
-  //+(match 1 with | 1 -> "pass" | 6 -> Test.typeError_v0 "a" | var -> "fail") = "pass" // CLEANUP
-  //+(match 1 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "fail") = Test.typeError_v0 "a" // CLEANUP
-  //+(match 3 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "pass") = "pass" // CLEANUP
+  // Errors
+  (match "nothing matches" with | "not this" -> "fail") = Test.typeError "No match"
+  (match Test.typeError_v0 "cond is error" with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "cond is error"
+  (match Test.typeError_v0 "cond is error, wildcard" with | 5 -> 5 | _ -> 6) = Test.typeError_v0 "cond is error, wildcard"
+  (match 1 with | 1 -> Test.typeError_v0 "a" | 6 -> "pass" | var -> "fail") = Test.typeError_v0 "a"
+  (match 1 with | 2 -> Test.typeError_v0 "a" | 1 -> "pass" | var -> "fail") = "pass"
+  (match 1 with | 1 -> "pass" | 6 -> Test.typeError_v0 "a" | var -> "fail") = "pass"
+  (match 1 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "fail") = Test.typeError_v0 "a"
+  (match 3 with | 2 -> "pass" | 1 -> Test.typeError_v0 "a" | var -> "pass") = "pass"
 
   // int
   (match 5 with
@@ -317,7 +322,7 @@ module Match =
   | Nothing -> "constructor nothing"
   | name -> name ++ "var") = "otherStrvar"
 
-  // () CLEANUP
+  // ()
   (match () with
   | 5 -> "int"
   | 5.6 -> "float"
@@ -397,15 +402,14 @@ module Match =
   | Nothing -> "constructor nothing"
   | name -> name ++ "var") = "not matched: var"
 
-  // no match // CLEANUP this should be an error
-  // (match "not matched: " with
-  // | 5 -> "int"
-  // | 5.6 -> "float"
-  // | false -> "bool"
-  // | "myStr" -> "string"
-  // | () -> "()"
-  // | Ok x -> "ok: " ++ x
-  // | Nothing -> "constructor nothing") = Test.typeError "x"
+  (match "not matched: " with
+  | 5 -> "int"
+  | 5.6 -> "float"
+  | false -> "bool"
+  | "myStr" -> "string"
+  | () -> "()"
+  | Ok x -> "ok: " ++ x
+  | Nothing -> "constructor nothing") = Test.typeError "No match"
 
 
 module Constructors =

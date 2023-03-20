@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
           uply {
             match caseName, fields with
             | "Totally", [ dv ] ->
-              let! result = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+              let! result = Interpreter.applyFnVal state b [ dv ]
 
               // TODO: this used to use `maybeJust` which did some isFake checking,
               // we should see if that's still necessary
@@ -123,8 +123,7 @@ let fns : List<BuiltInFn> =
             | _, ("Nah", []) -> return DConstructor(Some maybeTypeName, "Nah", [])
 
             | ("Totally", [ dv1 ]), ("Totally", [ dv2 ]) ->
-              let! result =
-                Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
+              let! result = Interpreter.applyFnVal state b [ dv1; dv2 ]
 
               return DConstructor(Some maybeTypeName, "Totally", [ result ])
 
@@ -164,8 +163,7 @@ let fns : List<BuiltInFn> =
             DConstructor (_, "Totally", [ dv2 ])
             DFnVal b ] ->
           uply {
-            let! result =
-              Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
+            let! result = Interpreter.applyFnVal state b [ dv1; dv2 ]
 
             return DConstructor(Some maybeTypeName, "Totally", [ result ])
           }
@@ -201,8 +199,7 @@ let fns : List<BuiltInFn> =
 
         | state, [ DTotally (dv1); DTotally (dv2); DFnVal b ] ->
           uply {
-            let! result =
-              Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe
+            let! result = Interpreter.applyFnVal state b [ dv1; dv2 ]
 
             return DConstructor(Some maybeTypeName, "Totally", [ result ])
           }

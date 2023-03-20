@@ -176,11 +176,7 @@ type Expr =
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
-  | EApply of id * Expr * List<Expr> * IsInPipe
-
-  /// Reference a fully-qualified function name
-  /// Since functions aren't real values in the symbol table, we look them up directly
-  | EFQFnValue of id * FQFnName.T
+  | EApply of id * FnTarget * List<Expr> * IsInPipe
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -209,6 +205,10 @@ and IsInPipe =
   | InPipe of id // the ID of the original pipe
   | NotInPipe
 
+and FnTarget =
+  | FnName of FQFnName.T
+  | FnTargetExpr of Expr
+
 and MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
@@ -224,12 +224,12 @@ type DvalMap = Map<string, Dval>
 
 and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : Expr }
 
-and FnValImpl =
-  | Lambda of LambdaImpl
-  | FnName of FQFnName.T
+and FnValImpl = Lambda of LambdaImpl
 
 and DDateTime = NodaTime.LocalDate
-and Dval =
+
+// We use NoComparison here to avoid accidentally using structural comparison
+and [<NoComparison>] Dval =
   | DInt of int64
   | DFloat of double
   | DBool of bool
@@ -418,7 +418,6 @@ module Expr =
     | EList (id, _)
     | ETuple (id, _, _, _)
     | ERecord (id, _, _)
-    | EFQFnValue (id, _)
     | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _)
@@ -566,7 +565,6 @@ module Dval =
 
     | DFnVal (Lambda l), TFn (parameters, _) ->
       List.length parameters = List.length l.parameters
-    | DFnVal (FnName _fnName), TFn _ -> false // not used
     | DOption None, TOption _ -> true
     | DOption (Some v), TOption t
     | DResult (Ok v), TResult (t, _) -> typeMatches t v
@@ -863,9 +861,7 @@ and Fn =
   { name : FQFnName.T
     parameters : List<Param>
     returnType : DType
-    description : string
     previewable : Previewable
-    deprecated : Deprecation
     sqlSpec : SqlSpec
 
     // Functions can be run in JS if they have an implementation in LibExecution.
@@ -1008,9 +1004,7 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
     parameters = fn.parameters
     returnType = fn.returnType
-    description = fn.description
     previewable = fn.previewable
-    deprecated = fn.deprecated
     sqlSpec = fn.sqlSpec
     fn = StdLib fn.fn }
 
@@ -1021,9 +1015,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
   { name = FQFnName.User fn.name
     parameters = fn.parameters |> List.map toParam
     returnType = fn.returnType
-    description = ""
     previewable = Impure
-    deprecated = NotDeprecated
     sqlSpec = NotQueryable
     fn = UserFunction(fn.tlid, fn.body) }
 
@@ -1035,13 +1027,7 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     parameters = fn.parameters |> List.map toParam
 
     returnType = fn.returnType
-    description = fn.description
     previewable = Impure
-    deprecated =
-      if fn.deprecated then
-        DeprecatedBecause("a new version of the function exists")
-      else
-        NotDeprecated
     sqlSpec = NotQueryable
     fn = PackageFunction(fn.tlid, fn.body) }
 

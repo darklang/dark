@@ -99,10 +99,10 @@ module Expr =
     | PT.EVariable (id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       RT.EFieldAccess(id, toRT obj, fieldname)
-    | PT.EFnCall (id, name, args) ->
+    | PT.EFnCall (id, fnName, args) ->
       RT.EApply(
         id,
-        RT.EFQFnValue(gid (), FQFnName.toRT name),
+        RT.FnName(FQFnName.toRT fnName),
         List.map toRT args,
         RT.NotInPipe
       )
@@ -142,15 +142,14 @@ module Expr =
           let rec convert thisExpr =
             match thisExpr with
             // TODO: support currying
-            | PT.EFnCall (id, name, PT.EPipeTarget ptID :: exprs) ->
+            | PT.EFnCall (id, fnName, PT.EPipeTarget ptID :: exprs) ->
               RT.EApply(
                 id,
-                RT.EFQFnValue(ptID, FQFnName.toRT name),
+                RT.FnName(FQFnName.toRT fnName),
                 prev :: List.map toRT exprs,
                 RT.InPipe pipeID
               )
-            // TODO: support currying
-            | PT.EInfix (id, PT.InfixFnCall (fnName), PT.EPipeTarget ptID, expr2) ->
+            | PT.EInfix (id, PT.InfixFnCall fnName, PT.EPipeTarget ptID, expr2) ->
               let (module_, fn, version) = InfixFnName.toFnName fnName
               let name =
                 PT.FQFnName.Stdlib(
@@ -158,7 +157,7 @@ module Expr =
                 )
               RT.EApply(
                 id,
-                RT.EFQFnValue(ptID, FQFnName.toRT name),
+                RT.FnName(FQFnName.toRT name),
                 [ prev; toRT expr2 ],
                 RT.InPipe pipeID
               )
@@ -167,7 +166,13 @@ module Expr =
               match op with
               | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
-            | other -> RT.EApply(pipeID, toRT other, [ prev ], RT.InPipe pipeID)
+            | other ->
+              RT.EApply(
+                pipeID,
+                RT.FnTargetExpr(toRT other),
+                [ prev ],
+                RT.InPipe pipeID
+              )
           convert next)
 
         (expr2 :: rest)
@@ -195,6 +200,7 @@ module Expr =
     match segment with
     | PT.StringText text -> RT.StringText text
     | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
+
 
 module DType =
   let rec toRT (t : PT.DType) : RT.DType =

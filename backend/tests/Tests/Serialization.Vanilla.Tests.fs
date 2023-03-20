@@ -610,8 +610,8 @@ module RoundtripTests =
         testRoundtripList
           "RT.IsInPipe"
           V.RuntimeTypes.isInPipes
-          CT2Runtime.Expr.pipeFromRT
-          CT2Runtime.Expr.pipeToRT
+          CT2Runtime.Expr.pipeToCT
+          CT2Runtime.Expr.pipefromCT
           None
         testRoundtripList
           "RT.Expr"

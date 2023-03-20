@@ -1,7 +1,6 @@
 /// Runtime Types used for client-server communication so we may update backend
 /// types without affecting APIs.
 ///
-/// These should all directly match `RuntimeTypes.res` in `client`.
 /// See `RuntimeTypes.fs` for documentation of these types.
 module ClientTypes2ExecutionTypes.Runtime
 
@@ -178,12 +177,12 @@ module MatchPattern =
       MPTuple(id, r first, r second, List.map r theRest)
 
 module Expr =
-  let pipeToRT (pipe : Expr.IsInPipe) : RT.IsInPipe =
+  let pipefromCT (pipe : Expr.IsInPipe) : RT.IsInPipe =
     match pipe with
     | Expr.InPipe (id) -> RT.InPipe(id)
     | Expr.NotInPipe -> RT.NotInPipe
 
-  let pipeFromRT (pipe : RT.IsInPipe) : Expr.IsInPipe =
+  let pipeToCT (pipe : RT.IsInPipe) : Expr.IsInPipe =
     match pipe with
     | RT.InPipe (id) -> Expr.InPipe(id)
     | RT.NotInPipe -> Expr.NotInPipe
@@ -207,9 +206,8 @@ module Expr =
       RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | Expr.EApply (id, expr, exprs, pipe) ->
-      RT.EApply(id, r expr, List.map r exprs, pipeToRT pipe)
-    | Expr.EFQFnValue (id, name) -> RT.EFQFnValue(id, FQFnName.fromCT name)
+    | Expr.EApply (id, target, exprs, pipe) ->
+      RT.EApply(id, fnTargetFromCT target, List.map r exprs, pipefromCT pipe)
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | Expr.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, r first, r second, List.map r theRest)
@@ -242,6 +240,13 @@ module Expr =
     | Expr.StringText text -> RT.StringText text
     | Expr.StringInterpolation expr -> RT.StringInterpolation(fromCT expr)
 
+  and fnTargetFromCT (target : Expr.FnTarget) : RT.FnTarget =
+    match target with
+    | Expr.FnName name -> RT.FnName(FQFnName.fromCT name)
+    | Expr.FnTargetExpr expr -> RT.FnTargetExpr(fromCT expr)
+
+
+
 
   let rec toCT (e : RT.Expr) : Expr.T =
     let r = toCT
@@ -261,9 +266,8 @@ module Expr =
       Expr.ELet(id, LetPattern.toCT pat, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EApply (id, expr, exprs, pipe) ->
-      Expr.EApply(id, r expr, List.map r exprs, pipeFromRT pipe)
-    | RT.EFQFnValue (id, name) -> Expr.EFQFnValue(id, FQFnName.toCT name)
+    | RT.EApply (id, target, exprs, pipe) ->
+      Expr.EApply(id, fnTargetToCT target, List.map r exprs, pipeToCT pipe)
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
     | RT.ETuple (id, first, second, theRest) ->
       Expr.ETuple(id, r first, r second, List.map r theRest)
@@ -296,6 +300,11 @@ module Expr =
     | RT.StringText text -> Expr.StringText text
     | RT.StringInterpolation expr -> Expr.StringInterpolation(toCT expr)
 
+  and fnTargetToCT (target : RT.FnTarget) : Expr.FnTarget =
+    match target with
+    | RT.FnName name -> Expr.FnName(FQFnName.toCT name)
+    | RT.FnTargetExpr expr -> Expr.FnTargetExpr(toCT expr)
+
 module Dval =
   module DvalSource =
     let fromCT (s : Dval.DvalSource) : RT.DvalSource =
@@ -326,15 +335,13 @@ module Dval =
             symtable = symtable
             body = Expr.fromCT impl.body }
       )
-    | Dval.DFnVal (Dval.FnName (name)) -> RT.DFnVal(RT.FnName(FQFnName.fromCT name))
     | Dval.DIncomplete (source) -> RT.DIncomplete(DvalSource.fromCT source)
     | Dval.DError (source, msg) -> RT.DError(DvalSource.fromCT source, msg)
     | Dval.DDateTime d -> RT.DDateTime d
     | Dval.DDB name -> RT.DDB name
     | Dval.DUuid uuid -> RT.DUuid uuid
     | Dval.DPassword pw -> RT.DPassword(pw)
-    | Dval.DHttpResponse (id, pairs, dval) ->
-      RT.DHttpResponse(id, pairs, fromCT dval)
+    | Dval.DHttpResponse (id, pairs, dval) -> RT.DHttpResponse(id, pairs, r dval)
     | Dval.DList list -> RT.DList(List.map r list)
     | Dval.DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
@@ -369,7 +376,6 @@ module Dval =
             symtable = symtable
             body = Expr.toCT impl.body }
       )
-    | RT.DFnVal (RT.FnName (name)) -> Dval.DFnVal(Dval.FnName(FQFnName.toCT name))
     | RT.DIncomplete (source) -> Dval.DIncomplete(DvalSource.toCT source)
     | RT.DError (source, msg) -> Dval.DError(DvalSource.toCT source, msg)
     | RT.DDateTime d -> Dval.DDateTime d

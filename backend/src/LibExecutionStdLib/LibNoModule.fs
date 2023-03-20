@@ -35,9 +35,6 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DFnVal a, DFnVal b ->
     match a, b with
     | Lambda a, Lambda b -> equalsLambdaImpl a b
-    | FnName a, FnName b -> a = b
-    | Lambda _, FnName _
-    | FnName _, Lambda _ -> false
   | DDateTime a, DDateTime b -> a = b
   | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
@@ -120,11 +117,10 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFieldAccess (_, target1, fieldName1), EFieldAccess (_, target2, fieldName2) ->
     equalsExpr target1 target2 && fieldName1 = fieldName2
   | EVariable (_, name1), EVariable (_, name2) -> name1 = name2
-  | EApply (_, fn1, args1, isInPipe1), EApply (_, fn2, args2, isInPipe2) ->
-    equalsExpr fn1 fn2
+  | EApply (_, name1, args1, isInPipe1), EApply (_, name2, args2, isInPipe2) ->
+    name1 = name2
     && List.forall2 equalsExpr args1 args2
     && equalsIsInPipe isInPipe1 isInPipe2
-  | EFQFnValue (_, fqfn1), EFQFnValue (_, fqfn2) -> fqfn1 = fqfn2
   | EList (_, elems1), EList (_, elems2) ->
     elems1.Length = elems2.Length && List.forall2 equalsExpr elems1 elems2
   | ETuple (_, elem1_1, elem2_1, elems1), ETuple (_, elem1_2, elem2_2, elems2) ->
@@ -173,7 +169,6 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFieldAccess _, _
   | EVariable _, _
   | EApply _, _
-  | EFQFnValue _, _
   | EList _, _
   | ETuple _, _
   | ERecord _, _

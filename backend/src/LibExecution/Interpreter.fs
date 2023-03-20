@@ -151,10 +151,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           fields
 
 
-    | EApply (id, fnVal, exprs, inPipe) ->
-      let! fnVal = eval state st fnVal
+    | EApply (id, fnTarget, exprs, inPipe) ->
       let! args = Ply.List.mapSequentially (eval state st) exprs
-      let! result = applyFn state id fnVal (Seq.toList args) inPipe
+      let! result =
+        match fnTarget with
+        | FnName name -> callFn state id name (Seq.toList args) inPipe
+        | FnTargetExpr e ->
+          uply {
+            let! target = eval' state st e
+            return! applyFn state target id args inPipe
+          }
 
       do
         // Pipes have been removed at this point, but the editor still needs to
@@ -167,8 +173,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | NotInPipe -> ()
       return result
 
-
-    | EFQFnValue (_id, desc) -> return DFnVal(FnName(desc))
 
 
     | EFieldAccess (id, e, field) ->
@@ -378,7 +382,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let! matchVal = eval state st matchExpr
 
       let mutable hasMatched = false
-      let mutable matchResult = incomplete id
+      let mutable matchResult =
+        // Even though we know it's fakeval, we still run through each pattern for analysis
+        if Dval.isFake matchVal then matchVal else DError(sourceID id, "No match")
 
       for (pattern, rhsExpr) in cases do
         if hasMatched && isRealExecution then
@@ -501,40 +507,34 @@ and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 /// Unwrap the dval, which we expect to be a function, and error if it's not
 and applyFn
   (state : ExecutionState)
-  (id : id)
   (fn : Dval)
+  (id : id)
   (args : List<Dval>)
   (isInPipe : IsInPipe)
   : DvalTask =
-  let sourceID = SourceID(state.tlid, id)
-
-  // Unwrap
-  match fn, isInPipe with
-  | DFnVal fnVal, _ -> applyFnVal state id fnVal args isInPipe
-  // Incompletes are allowed in pipes
-  | DIncomplete _, InPipe _ -> Ply(Option.defaultValue fn (List.tryHead args))
-  | _other, InPipe _ ->
-    // CLEANUP: this matches the old pipe behaviour, no need to preserve that
-    Ply(Option.defaultValue fn (List.tryHead args))
-  | other, _ ->
-    Ply(
-      Dval.errSStr
-        sourceID
-        $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
-    )
-
+  uply {
+    // Unwrap
+    match fn, isInPipe with
+    | DFnVal fnVal, _ -> return! applyFnVal state fnVal args
+    // Incompletes are allowed in pipes
+    | DIncomplete _, InPipe _ -> return Option.defaultValue fn (List.tryHead args)
+    | _other, InPipe _ ->
+      // CLEANUP: this matches the old pipe behaviour, no need to preserve that
+      return Option.defaultValue fn (List.tryHead args)
+    | other, _ ->
+      return
+        Dval.errSStr
+          (SourceID(state.tlid, id))
+          $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
+  }
 
 and applyFnVal
   (state : ExecutionState)
-  (callerID : id)
   (fnVal : FnValImpl)
   (argList : List<Dval>)
-  (isInPipe : IsInPipe)
   : DvalTask =
   match fnVal with
   | Lambda l -> executeLambda state l argList
-  // CLEANUP: fetch the name when we load it, then we won't need to find it again
-  | FnName name -> callFn state callerID name argList isInPipe
 
 and executeLambda
   (state : ExecutionState)
@@ -737,13 +737,6 @@ and execFn
                     match e with
                     | Errors.IncorrectArgs ->
                       Errors.incorrectArgsToDError sourceID fn arglist
-                    | Errors.FakeDvalFound dv ->
-                      // We don't expect to see fakeDvals inside functions, so let's
-                      // learn where they are so that they can be removed.
-                      if fn.deprecated = NotDeprecated then
-                        let context = (context @ [ "dval", dv ])
-                        state.notify state "fakedval found" context
-                      dv
                     | (:? CodeException
                     | :? GrandUserException) as e ->
                       // There errors are created by us, within the libraries, so they are

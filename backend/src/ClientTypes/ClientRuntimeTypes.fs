@@ -92,8 +92,7 @@ module Expr =
     | ELambda of id * List<id * string> * T
     | EFieldAccess of id * T * string
     | EVariable of id * string
-    | EApply of id * T * List<T> * IsInPipe
-    | EFQFnValue of id * FQFnName.T
+    | EApply of id * FnTarget * List<T> * IsInPipe
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
@@ -115,6 +114,10 @@ module Expr =
     | InPipe of id
     | NotInPipe
 
+  and FnTarget =
+    | FnName of FQFnName.T
+    | FnTargetExpr of T
+
 
 module Dval =
   type DvalSource =
@@ -128,9 +131,7 @@ module Dval =
       symtable : Symtable
       body : Expr.T }
 
-  and FnValImpl =
-    | Lambda of LambdaImpl
-    | FnName of FQFnName.T
+  and FnValImpl = Lambda of LambdaImpl
 
   and T =
     | DInt of int64

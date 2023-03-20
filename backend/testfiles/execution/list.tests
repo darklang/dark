@@ -156,10 +156,12 @@ List.singleton_v0 1 = [ 1 ]
 
 List.sortBy_v0 [6;2;8;3] (fun x -> 0 - x) = [8;6;3;2]
 List.sortBy_v0 [] (fun x -> 0 - x) = []
+List.sortBy_v0 [6;2.0] (fun x -> x) = Test.typeError "List::sortBy: Unable to sort list, perhaps the list elements are different types"
 
 List.sort_v0 ["6";"2";"8";"3"] = ["2";"3";"6";"8"]
 List.sort_v0 [6;2;8;3] = [2;3;6;8]
 List.sort_v0 [] = []
+List.sort_v0 [6;2.0] = Test.typeError "List::sort: Unable to sort list, perhaps the list elements are different types"
 
 List.sortByComparator_v0 [3;1;2] (fun a b -> 0.1) = Error "Expected `fn` to return -1, 0, 1, but it returned `0.1`"
 List.sortByComparator_v0 [3;1;2] (fun a b -> 3) = Error "Expected `fn` to return -1, 0, 1, but it returned `3`"
@@ -167,6 +169,7 @@ List.sortByComparator_v0 [1;2;3] (fun a b -> "㧑༷釺") = Error "Expected `fn`
 List.sortByComparator_v0 [3;1;2] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [ 1; 2; 3 ]
 List.sortByComparator_v0 [] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok []
 List.sortByComparator_v0 [3;1;2;67;3;-1;6;3;5;6;2;5;63;2;3;5;-1;-1;-1] (fun a b -> if Int.lessThan_v0 a b then -1 else 1) = Ok [-1; -1; -1; -1; 1; 2; 2; 2; 3; 3; 3; 3; 5; 5; 5; 6; 6; 63; 67]
+List.sortByComparator_v0 [6;2.0] (fun x -> x) = Error "Expected `fn` to return -1, 0, 1, but it returned `<error: Expected 1 arguments, got 2>`"
 
 List.tail_v0 [10; 20; 30; 40] = Just [20; 30; 40]
 List.tail_v0 [] = Nothing
@@ -191,11 +194,13 @@ List.uniqueBy_v0 [1;2;3;4] (fun x -> x) = [ 1; 2; 3; 4 ]
 List.uniqueBy_v0 [1;1;1;1] (fun x -> x) = [ 1 ]
 List.uniqueBy_v0 [7;42;7;2;10] (fun x -> x) = [ 2; 7; 10; 42 ]
 List.uniqueBy_v0 [] (fun x -> x) = []
+List.uniqueBy_v0 [6;2.0] (fun x -> x) = Test.typeError "List::uniqueBy: Unable to sort list, perhaps the list elements are different types"
 
 List.unique_v0 [1;2;3;4] = [ 1; 2; 3; 4 ]
 List.unique_v0 [1;1;1;1] = [ 1 ]
 List.unique_v0 [7;42;7;2;10] = [ 2; 7; 10; 42 ]
 List.unique_v0 [] = []
+List.unique_v0 [6;2.0] = Test.typeError "List::unique: Unable to sort list, perhaps the list elements are different types"
 
 List.unzip_v0 [(1,10);10;(3,30)] = Test.typeError_v0 "Expected the argument `pairs` to be a tuple with exactly two values, but it was `10`. It is of type Int instead of `Tuple`"
 List.unzip_v0 [(1,10);(2,20);(3,30,40)] = Test.typeError_v0 "Expected the argument `pairs` to be a tuple with exactly two values, but it was `(\n  3, 30, 40\n)`. It has length 3 but should have length 2"

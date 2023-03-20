@@ -184,7 +184,7 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
-  | EApply (_, EFQFnValue (_, FQFnName.Stdlib std), args, _) when
+  | EApply (_, FnName (FQFnName.Stdlib std), args, _) when
     std.module_ = mName && std.function_ = fName && std.version = v
     ->
     Some args
@@ -206,7 +206,7 @@ let rec lambdaToSql
     lambdaToSql fns symtable paramName dbFields typ e
 
   match expr with
-  | EApply (_, EFQFnValue (_, name), args, _) ->
+  | EApply (_, FnName name, args, _) ->
 
     match Map.get name fns with
     | Some fn ->
@@ -482,7 +482,7 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EApply (_, EFQFnValue _, args, _) ->
+        | EApply (_, _, args, _) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
             | EInteger _
@@ -501,7 +501,25 @@ let partiallyEvaluate
             return! exec expr
           else
             return expr
-        | _ -> return expr
+        | EString _
+        | EInteger _
+        | EFloat _
+        | EBool _
+        | EUnit _
+        | ECharacter _
+        | ELet _
+        | EIf _
+        | ELambda _
+        | EFieldAccess _
+        | EVariable _
+        | EList _
+        | ETuple _
+        | ERecord _
+        | EConstructor _
+        | EMatch _
+        | EFeatureFlag _
+        | EAnd _
+        | EOr _ -> return expr
       }
 
     // This is a copy of Ast.postTraversal, made to  work with uplys
@@ -516,7 +534,6 @@ let partiallyEvaluate
             | EString _
             | EVariable _
             | ECharacter _
-            | EFQFnValue _
             | EBool _
             | EUnit _
             | EFloat _ -> return expr
@@ -524,9 +541,9 @@ let partiallyEvaluate
               let! rhs = r rhs
               let! next = r next
               return ELet(id, pat, rhs, next)
-            | EApply (id, name, exprs, inPipe) ->
+            | EApply (id, fnName, exprs, inPipe) ->
               let! exprs = Ply.List.mapSequentially r exprs
-              return EApply(id, name, exprs, inPipe)
+              return EApply(id, fnName, exprs, inPipe)
             | EIf (id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr

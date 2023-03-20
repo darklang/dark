@@ -13,8 +13,110 @@ let incorrectArgs = Errors.incorrectArgs
 
 let err (str : string) = Ply(Dval.errStr str)
 
+module DvalComparator =
+  let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
+    match dv1, dv2 with
+    | DInt i1, DInt i2 -> compare i1 i2
+    | DFloat f1, DFloat f2 -> compare f1 f2
+    | DBool b1, DBool b2 -> compare b1 b2
+    | DUnit, DUnit -> 0
+    | DStr s1, DStr s2 -> compare s1 s2
+    | DChar c1, DChar c2 -> compare c1 c2
+    | DList l1, DList l2 -> compareLists l1 l2
+    | DTuple (a1, b1, l1), DTuple (a2, b2, l2) ->
+      compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
+    | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
+      let c = compare (List.map snd l1.parameters) (List.map snd l2.parameters)
+      if c = 0 then
+        let c = compareExprs l1.body l2.body
+        if c = 0 then
+          compareMaps (Map.toList l1.symtable) (Map.toList l2.symtable)
+        else
+          c
+      else
+        c
+    | DError (_, str1), DError (_, str2) -> compare str1 str2
+    | DIncomplete _, DIncomplete _ -> 0
+    | DDB name1, DDB name2 -> compare name1 name2
+    | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
+    | DPassword _, DPassword _ -> 0 // CLEANUP - how do we handle this?
+    | DUuid u1, DUuid u2 -> compare u1 u2
+    | DBytes b1, DBytes b2 -> compare b1 b2
+    | DHttpResponse _, DHttpResponse _ -> 0 // this is being deleted soon
+    | DObj o1, DObj o2 -> compareMaps (Map.toList o1) (Map.toList o2)
+    | DOption o1, DOption o2 ->
+      match o1, o2 with
+      | None, None -> 0
+      | None, Some _ -> -1
+      | Some _, None -> 1
+      | Some v1, Some v2 -> compareDval v1 v2
+    | DResult r1, DResult r2 ->
+      match r1, r2 with
+      | Ok v1, Ok v2 -> compareDval v1 v2
+      | Ok _, Error _ -> -1
+      | Error _, Ok _ -> 1
+      | Error e1, Error e2 -> compareDval e1 e2
+    | DConstructor (tn1, c1, f1), DConstructor (tn2, c2, f2) ->
+      let c = compare tn1 tn2
+      if c = 0 then
+        let c = compare c1 c2
+        if c = 0 then compareLists f1 f2 else c
+      else
+        c
+    // exhaustiveness check
+    | DInt _, _
+    | DFloat _, _
+    | DBool _, _
+    | DUnit, _
+    | DStr _, _
+    | DChar _, _
+    | DList _, _
+    | DTuple _, _
+    | DFnVal _, _
+    | DError _, _
+    | DIncomplete _, _
+    | DDB _, _
+    | DDateTime _, _
+    | DPassword _, _
+    | DUuid _, _
+    | DBytes _, _
+    | DHttpResponse _, _
+    | DObj _, _
+    | DOption _, _
+    | DResult _, _
+    | DConstructor _, _ ->
+      Exception.raiseCode "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
+
+  and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =
+    match l1, l2 with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | h1 :: t1, h2 :: t2 ->
+      let c = compareDval h1 h2
+      if c = 0 then compareLists t1 t2 else c
+
+  and compareMaps (o1 : List<string * Dval>) (o2 : List<string * Dval>) : int =
+    match o1, o2 with
+    | [], [] -> 0
+    | [], _ -> -1
+    | _, [] -> 1
+    | (k1, v1) :: t1, (k2, v2) :: t2 ->
+      let c = compare k1 k2
+      if c = 0 then
+        let c = compareDval v1 v2
+        if c = 0 then compareMaps t1 t2 else c
+      else
+        c
+
+  and compareExprs (e1 : Expr) (e2 : Expr) : int = 0 // CLEAP
+
+
+
 // Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
 module Sort =
+
+
   type Comparer = Dval -> Dval -> Ply<int>
 
   type Array = array<Dval>
@@ -120,6 +222,8 @@ module Sort =
 
   let sort (comparer : Comparer) (arrayToSort : Array) : Ply<unit> =
     sequentialSort arrayToSort 0 arrayToSort.Length comparer
+
+
 
 
 let varA = TVariable "a"
@@ -257,7 +361,7 @@ let fns : List<BuiltInFn> =
           uply {
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! result = Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe
+                let! result = Interpreter.applyFnVal state fn [ dv ]
 
                 return result = DBool true
               }
@@ -359,14 +463,7 @@ let fns : List<BuiltInFn> =
             let f (accum : DvalTask) (item : Dval) : DvalTask =
               uply {
                 let! accum = accum
-
-                return!
-                  Interpreter.applyFnVal
-                    state
-                    (id 0) // CLEANUP should use real id here
-                    b
-                    [ accum; item ]
-                    NotInPipe
+                return! Interpreter.applyFnVal state b [ accum; item ]
               }
 
             return! List.fold f (Ply init) l
@@ -447,7 +544,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: type check to ensure `varB` is "comparable"
     { name = fn "List" "uniqueBy" 0
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -461,19 +557,32 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList l; DFnVal b ] ->
           uply {
-            let! projected =
-              Ply.List.mapSequentially
-                (fun dv ->
-                  uply {
-                    let! key = Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+            try
+              let! projected =
+                Ply.List.mapSequentially
+                  (fun dv ->
+                    uply {
+                      let! key = Interpreter.applyFnVal state b [ dv ]
 
-                    return (dv, key)
-                  })
-                l
+                      // TODO: type check to ensure `varB` is "comparable"
+                      return (dv, key)
+                    })
+                  l
 
-            let distinct = List.distinctBy snd projected
-
-            return distinct |> List.sortBy fst |> List.map fst |> DList
+              return
+                projected
+                |> List.distinctBy snd
+                |> List.map fst
+                |> List.sortWith DvalComparator.compareDval
+                |> DList
+            with
+            | _ ->
+              // TODO: we should prevent this as soon as the different types are added
+              // Ideally we'd catch the exception thrown during comparison but the sort
+              // catches it so we lose the error message
+              return
+                "List::uniqueBy: Unable to sort list, perhaps the list elements are different types"
+                |> Dval.errStr
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -491,7 +600,20 @@ let fns : List<BuiltInFn> =
          order will not be maintained."
       fn =
         (function
-        | _, [ DList l ] -> List.distinct l |> List.sort |> DList |> Ply
+        | _, [ DList l ] ->
+          try
+            List.distinct l
+            |> List.sortWith DvalComparator.compareDval
+            |> DList
+            |> Ply
+          with
+          | _ ->
+            // TODO: we should prevent this as soon as the different types are added
+            // Ideally we'd catch the exception thrown during comparison but the sort
+            // catches it so we lose the error message
+            "List::unique: Unable to sort list, perhaps the list elements are different types"
+            |> Dval.errStr
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -523,7 +645,17 @@ let fns : List<BuiltInFn> =
          control over the sorting process."
       fn =
         (function
-        | _, [ DList list ] -> list |> List.sort |> DList |> Ply
+        | _, [ DList list ] ->
+          try
+            list |> List.sortWith DvalComparator.compareDval |> DList |> Ply
+          with
+          | _ ->
+            // TODO: we should prevent this as soon as the different types are added
+            // Ideally we'd catch the exception thrown during comparison but the sort
+            // catches it so we lose the error message
+            "List::sort: Unable to sort list, perhaps the list elements are different types"
+            |> Dval.errStr
+            |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -548,18 +680,30 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DList list; DFnVal b ] ->
           uply {
-            let fn dv = Interpreter.applyFnVal state 0UL b [ dv ] NotInPipe
-            // NOTE: This isn't exactly the same as the ocaml one. We get all the
-            // keys in one pass.
-            let! withKeys =
-              list
-              |> Ply.List.mapSequentially (fun v ->
-                uply {
-                  let! key = fn v
-                  return (key, v)
-                })
+            try
+              let fn dv = Interpreter.applyFnVal state b [ dv ]
+              let! withKeys =
+                list
+                |> Ply.List.mapSequentially (fun v ->
+                  uply {
+                    let! key = fn v
+                    return (key, v)
+                  })
 
-            return withKeys |> List.sortBy fst |> List.map snd |> DList
+              return
+                withKeys
+                |> List.sortWith (fun (k1, _) (k2, _) ->
+                  DvalComparator.compareDval k1 k2)
+                |> List.map snd
+                |> DList
+            with
+            | _ ->
+              // TODO: we should prevent this as soon as the different types are added
+              // Ideally we'd catch the exception thrown during comparison but the sort
+              // catches it so we lose the error message
+              return
+                "List::sortBy: Unable to sort list, perhaps the list elements are different types"
+                |> Dval.errStr
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -587,8 +731,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList list; DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
-              let! result =
-                Interpreter.applyFnVal state (id 0) f [ dv1; dv2 ] NotInPipe
+              let! result = Interpreter.applyFnVal state f [ dv1; dv2 ]
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
@@ -649,8 +792,7 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! r =
-                  LibExecution.Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+                let! r = LibExecution.Interpreter.applyFnVal state b [ dv ]
 
                 match r with
                 | DBool b -> return b
@@ -696,8 +838,7 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) fn [ dv ] NotInPipe
+                  let! result = Interpreter.applyFnVal state fn [ dv ]
 
                   match result with
                   | DBool b -> return b
@@ -751,8 +892,7 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result =
-                    Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+                  let! result = Interpreter.applyFnVal state b [ dv ]
 
                   match result with
                   | DOption (Some o) -> return Some o
@@ -819,8 +959,7 @@ let fns : List<BuiltInFn> =
                   let run = abortReason = None
 
                   if run then
-                    let! result =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+                    let! result = Interpreter.applyFnVal state b [ dv ]
 
                     match result with
                     | DBool true -> return! f dvs
@@ -885,8 +1024,7 @@ let fns : List<BuiltInFn> =
                   let run = abortReason = None
 
                   if run then
-                    let! result =
-                      Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe
+                    let! result = Interpreter.applyFnVal state b [ dv ]
 
                     match result with
                     | DBool true ->
@@ -932,7 +1070,7 @@ let fns : List<BuiltInFn> =
           uply {
             let! result =
               Ply.List.mapSequentially
-                (fun dv -> Interpreter.applyFnVal state (id 0) b [ dv ] NotInPipe)
+                (fun dv -> Interpreter.applyFnVal state b [ dv ])
                 l
 
             return Dval.list result
@@ -962,12 +1100,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((i, dv) : int * Dval) ->
-                  Interpreter.applyFnVal
-                    state
-                    (id 0)
-                    b
-                    [ DInt(int64 i); dv ]
-                    NotInPipe)
+                  Interpreter.applyFnVal state b [ DInt(int64 i); dv ])
                 list
 
             return Dval.list result
@@ -1008,7 +1141,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
-                  Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe)
+                  Interpreter.applyFnVal state b [ dv1; dv2 ])
                 list
 
             return Dval.list result
@@ -1049,7 +1182,7 @@ let fns : List<BuiltInFn> =
               let! result =
                 Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
-                    Interpreter.applyFnVal state (id 0) b [ dv1; dv2 ] NotInPipe)
+                    Interpreter.applyFnVal state b [ dv1; dv2 ])
                   list
 
               return DOption(Some(Dval.list result))
@@ -1229,8 +1362,7 @@ let fns : List<BuiltInFn> =
         | state, [ DList l; DFnVal fn ] ->
           uply {
             let partition l =
-              let applyFn dval =
-                Interpreter.applyFnVal state (id 0) fn [ dval ] NotInPipe
+              let applyFn dval = Interpreter.applyFnVal state fn [ dval ]
 
               let rec loop acc l =
                 uply {
