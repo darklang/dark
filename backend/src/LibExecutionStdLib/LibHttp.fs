@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
          respond with HTTP status <param code> and <param response> body."
       fn =
         (function
-        | _, [ dv; DInt code ] -> Ply(DHttpResponse(code, [], dv))
+        | _, _, [ dv; DInt code ] -> Ply(DHttpResponse(code, [], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
          headers>."
       fn =
         (function
-        | _, [ dv; DObj o; DInt code ] ->
+        | _, _, [ dv; DObj o; DInt code ] ->
           let pairs =
             Map.toList o
             |> List.map (fun (k, v) ->
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
          respond with HTTP status 200 and <param response> body."
       fn =
         (function
-        | _, [ dv ] -> Ply(DHttpResponse(200L, [], dv))
+        | _, _, [ dv ] -> Ply(DHttpResponse(200L, [], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
          {{content-type}} set to {{\"text/html\"}}"
       fn =
         (function
-        | _, [ dv; DInt code ] ->
+        | _, _, [ dv; DInt code ] ->
           Ply(DHttpResponse(code, [ ("Content-Type", "text/html") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
          {{content-type}} set to {{\"text/plain\"}}"
       fn =
         (function
-        | _, [ dv; DInt code ] ->
+        | _, _, [ dv; DInt code ] ->
           Ply(DHttpResponse(code, [ ("Content-Type", "text/plain") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -120,7 +120,7 @@ let fns : List<BuiltInFn> =
          {{content-type}} set to {{\"application/json\"}}"
       fn =
         (function
-        | _, [ dv; DInt code ] ->
+        | _, _, [ dv; DInt code ] ->
           Ply(DHttpResponse(code, [ ("Content-Type", "application/json") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
          respond with a {{302}} redirect to <param url>"
       fn =
         (function
-        | _, [ DStr url ] ->
+        | _, _, [ DStr url ] ->
           Ply(DHttpResponse(302L, [ ("Location", url) ], DBytes([||])))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
          respond with a {{400}} status and string <param error> message"
       fn =
         (function
-        | _, [ DStr _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
+        | _, _, [ DStr _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -167,7 +167,7 @@ let fns : List<BuiltInFn> =
          respond with {{404}} status code (not found)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(404L, [], DUnit))
+        | _, _, [] -> Ply(DHttpResponse(404L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -182,7 +182,7 @@ let fns : List<BuiltInFn> =
          respond with {{401}} status code (unauthorized)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(401L, [], DUnit))
+        | _, _, [] -> Ply(DHttpResponse(401L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -197,7 +197,7 @@ let fns : List<BuiltInFn> =
          respond with {{403}} status code (forbidden)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(403L, [], DUnit))
+        | _, _, [] -> Ply(DHttpResponse(403L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
          and/or {{SameSite}})."
       fn =
         (function
-        | _, [ DStr name; DStr value; DObj o ] ->
+        | _, _, [ DStr name; DStr value; DObj o ] ->
 
           let fold_cookie_params acc key value =
             match (String.toLowercase key, value) with

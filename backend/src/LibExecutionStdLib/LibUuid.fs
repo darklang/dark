@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       description = "Generate a new UUID v4 according to RFC 4122"
       fn =
         (function
-        | _, [] -> Ply(DUuid(System.Guid.NewGuid()))
+        | _, _, [] -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       // similarly to DateTime::now, it's not particularly fun for this to change
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
         "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         (function
-        | _, [ DStr s ] ->
+        | _, _, [ DStr s ] ->
           match System.Guid.TryParse s with
           | true, x -> x |> DUuid |> Ok |> DResult |> Ply
           | _ ->
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
         "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
       fn =
         (function
-        | _, [ DUuid uuid ] -> Ply(DStr(string uuid))
+        | _, _, [ DUuid uuid ] -> Ply(DStr(string uuid))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | _, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
+        | _, _, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
       description = "Return a DIncomplet"
       fn =
         (function
-        | _, [] -> Ply(DIncomplete(SourceNone))
+        | _, _, [] -> Ply(DIncomplete(SourceNone))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value that matches errors thrown by the SqlCompiler"
       fn =
         (function
-        | _, [ DStr errorString ] ->
+        | _, _, [ DStr errorString ] ->
           let msg = LibBackend.SqlCompiler.errorTemplate + errorString
           Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
@@ -76,7 +76,7 @@ let fns : List<BuiltInFn> =
       description = "Return a NaN"
       fn =
         (function
-        | _, [] -> Ply(DFloat(System.Double.NaN))
+        | _, _, [] -> Ply(DFloat(System.Double.NaN))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -89,7 +89,7 @@ let fns : List<BuiltInFn> =
       description = "Returns positive infitity"
       fn =
         (function
-        | _, [] -> Ply(DFloat(System.Double.PositiveInfinity))
+        | _, _, [] -> Ply(DFloat(System.Double.PositiveInfinity))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
       description = "Turns a string of length 1 into a character"
       fn =
         (function
-        | _, [ DStr s ] ->
+        | _, _, [ DStr s ] ->
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
@@ -121,7 +121,7 @@ let fns : List<BuiltInFn> =
       description = "Returns negative infinity"
       fn =
         (function
-        | _, [] -> Ply(DFloat(System.Double.NegativeInfinity))
+        | _, _, [] -> Ply(DFloat(System.Double.NegativeInfinity))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
       fn =
         (function
-        | state, [ arg ] ->
+        | state, _, [ arg ] ->
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Ply(arg)
         | _ -> incorrectArgs ())
@@ -151,7 +151,7 @@ let fns : List<BuiltInFn> =
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, [] -> Ply(Dval.int state.test.sideEffectCount)
+        | state, _, [] -> Ply(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -164,7 +164,7 @@ let fns : List<BuiltInFn> =
       description = "Prints the value into stdout"
       fn =
         (function
-        | _, [ v; DStr msg ] ->
+        | _, _, [ v; DStr msg ] ->
           print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
@@ -179,7 +179,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Just"
       fn =
         (function
-        | _, [ DStr msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
+        | _, _, [ DStr msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -192,7 +192,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in an OK"
       fn =
         (function
-        | _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -205,7 +205,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Result.Error"
       fn =
         (function
-        | _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
       description = "Delete a user (test only)"
       fn =
         (function
-        | _, [ DStr username ] ->
+        | _, _, [ DStr username ] ->
           uply {
             do!
               // This is unsafe. A user has canvases, and canvases have traces. It
@@ -240,7 +240,7 @@ let fns : List<BuiltInFn> =
       description = "Fetch a queue (test only)"
       fn =
         (function
-        | state, [ DStr eventName ] ->
+        | state, _, [ DStr eventName ] ->
           uply {
             let canvasID = state.program.canvasID
             let! results =
@@ -262,7 +262,7 @@ let fns : List<BuiltInFn> =
       description = "Turns a list of ints into bytes"
       fn =
         (function
-        | _, [ DList l ] ->
+        | _, _, [ DList l ] ->
           l
           |> List.map (fun x ->
             match x with
@@ -283,7 +283,7 @@ let fns : List<BuiltInFn> =
       description = "A function that raises an F# exception"
       fn =
         (function
-        | _, [ DStr message ] -> raise (System.Exception(message))
+        | _, _, [ DStr message ] -> raise (System.Exception(message))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -296,7 +296,7 @@ let fns : List<BuiltInFn> =
       description = "Create a bytes structure from an array of ints"
       fn =
         (function
-        | _, [ DList bytes ] ->
+        | _, _, [ DList bytes ] ->
           bytes
           |> List.toArray
           |> Array.map (fun dval ->
@@ -321,7 +321,7 @@ let fns : List<BuiltInFn> =
       description = "Replaces regex patterns in a string"
       fn =
         (function
-        | _, [ DStr str; DStr pattern; DStr replacement ] ->
+        | _, _, [ DStr str; DStr pattern; DStr replacement ] ->
           FsRegEx.replace pattern replacement str |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -335,7 +335,7 @@ let fns : List<BuiltInFn> =
       description = "Get the status code from a HttpResponse"
       fn =
         (function
-        | _, [ DHttpResponse (code, _, _) ] -> DInt code |> Ply
+        | _, _, [ DHttpResponse (code, _, _) ] -> DInt code |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -348,7 +348,7 @@ let fns : List<BuiltInFn> =
       description = "Get headers from a HttpResponse"
       fn =
         (function
-        | _, [ DHttpResponse (_, headers, _) ] ->
+        | _, _, [ DHttpResponse (_, headers, _) ] ->
           headers
           |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
           |> DList
@@ -365,7 +365,7 @@ let fns : List<BuiltInFn> =
       description = "Get the body from a HttpResponse"
       fn =
         (function
-        | _, [ DHttpResponse (_, _, body) ] -> body |> Ply
+        | _, _, [ DHttpResponse (_, _, body) ] -> body |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -378,7 +378,7 @@ let fns : List<BuiltInFn> =
       description = "Get the name of the canvas that's running"
       fn =
         (function
-        | state, [] -> state.program.canvasName |> string |> DStr |> Ply
+        | state, _, [] -> state.program.canvasName |> string |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -391,7 +391,7 @@ let fns : List<BuiltInFn> =
       description = "Get the name of the canvas that's running"
       fn =
         (function
-        | state, [] -> state.program.canvasID |> DUuid |> Ply
+        | state, _, [] -> state.program.canvasID |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -404,7 +404,7 @@ let fns : List<BuiltInFn> =
       description = "Get the ID of the user"
       fn =
         (function
-        | state, [] -> state.program.accountID |> DUuid |> Ply
+        | state, _, [] -> state.program.accountID |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -418,13 +418,13 @@ let fns : List<BuiltInFn> =
         "Unwrap an Option or Result, returning the value or a DError if Nothing"
       fn =
         (function
-        | _, [ DOption opt ] ->
+        | _, _, [ DOption opt ] ->
           uply {
             match opt with
             | Some value -> return value
             | None -> return (DError(SourceNone, "Nothing"))
           }
-        | _, [ DResult res ] ->
+        | _, _, [ DResult res ] ->
           uply {
             match res with
             | Ok value -> return value
@@ -446,7 +446,7 @@ let fns : List<BuiltInFn> =
       description = "Set the expected exception count for the current test"
       fn =
         (function
-        | state, [ DInt count ] ->
+        | state, _, [ DInt count ] ->
           uply {
             state.test.expectedExceptionCount <- int count
             return DUnit

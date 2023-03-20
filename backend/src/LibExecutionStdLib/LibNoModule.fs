@@ -247,7 +247,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, [ a; b ] -> equals a b |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -260,7 +260,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, [ a; b ] -> equals a b |> not |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
@@ -273,7 +273,7 @@ let fns : List<BuiltInFn> =
       description = "Url encode a string per AWS' requirements"
       fn =
         (function
-        | _, [ DStr s ] ->
+        | _, _, [ DStr s ] ->
           // Based on the original OCaml implementation which was slightly modified from
           // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
           // Buffer.add_string instead of add_bytes); see also
@@ -331,7 +331,7 @@ let fns : List<BuiltInFn> =
       description = "Url encode a string per Twitter's requirements"
       fn =
         (function
-        | _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
+        | _, _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

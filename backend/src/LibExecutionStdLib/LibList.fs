@@ -237,7 +237,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a one-element list containing the given <param val>"
       fn =
         (function
-        | _, [ v ] -> Ply(DList [ v ])
+        | _, _, [ v ] -> Ply(DList [ v ])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -252,7 +252,7 @@ let fns : List<BuiltInFn> =
          the list is empty."
       fn =
         (function
-        | _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Ply
+        | _, _, [ DList l ] -> l |> List.tryHead |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
         // means you don't need to handle unwrapping the option
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
-        | _, [ DList l ] ->
+        | _, _, [ DList l ] ->
           (if List.isEmpty l then None else Some(DList l.Tail)) |> DOption |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -284,7 +284,7 @@ let fns : List<BuiltInFn> =
       description = "Returns an empty list"
       fn =
         (function
-        | _, [] -> Ply(DList [])
+        | _, _, [] -> Ply(DList [])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -298,7 +298,7 @@ let fns : List<BuiltInFn> =
       fn =
         // fakeval handled by call
         (function
-        | _, [ DList l; i ] -> Ply(DList(i :: l))
+        | _, _, [ DList l; i ] -> Ply(DList(i :: l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -311,7 +311,7 @@ let fns : List<BuiltInFn> =
       description = "Add element <param val> to back of <type list> <param list>"
       fn =
         (function
-        | _, [ DList l; i ] -> Ply(DList(l @ [ i ]))
+        | _, _, [ DList l; i ] -> Ply(DList(l @ [ i ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -326,7 +326,7 @@ let fns : List<BuiltInFn> =
          Nothing> if the list is empty)"
       fn =
         (function
-        | _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Ply
+        | _, _, [ DList l ] -> l |> List.tryLast |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -339,7 +339,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a reversed copy of <param list>"
       fn =
         (function
-        | _, [ DList l ] -> Ply(DList(List.rev l))
+        | _, _, [ DList l ] -> Ply(DList(List.rev l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -357,7 +357,7 @@ let fns : List<BuiltInFn> =
          value exists"
       fn =
         (function
-        | state, [ DList l; DFnVal fn ] ->
+        | state, _, [ DList l; DFnVal fn ] ->
           uply {
             let f (dv : Dval) : Ply<bool> =
               uply {
@@ -381,7 +381,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param val> is in the list"
       fn =
         (function
-        | _, [ DList l; i ] -> Ply(DBool(List.contains i l))
+        | _, _, [ DList l; i ] -> Ply(DBool(List.contains i l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -395,7 +395,7 @@ let fns : List<BuiltInFn> =
         "Returns a list containing <param val> repeated <param times> times"
       fn =
         (function
-        | _, [ DInt times; v ] ->
+        | _, _, [ DInt times; v ] ->
           let errPipe e = e |> DStr |> Error |> DResult |> Ply
           if times < 0L then
             Errors.argumentWasnt "positive" "times" (DInt times) |> errPipe
@@ -416,7 +416,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | _, [ DList l ] -> Ply(Dval.int (l.Length))
+        | _, _, [ DList l ] -> Ply(Dval.int (l.Length))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -434,7 +434,7 @@ let fns : List<BuiltInFn> =
          list."
       fn =
         (function
-        | _, [ DInt start; DInt stop ] ->
+        | _, _, [ DInt start; DInt stop ] ->
           [ start..stop ] |> List.map DInt |> DList |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -457,7 +457,7 @@ let fns : List<BuiltInFn> =
          any two pairs."
       fn =
         (function
-        | state, [ DList l; init; DFnVal b ] ->
+        | state, _, [ DList l; init; DFnVal b ] ->
           // Fake cf should be propagated by the blocks so we dont need to check
           uply {
             let f (accum : DvalTask) (item : Dval) : DvalTask =
@@ -482,7 +482,7 @@ let fns : List<BuiltInFn> =
          list> (does not recursively flatten nested lists)"
       fn =
         (function
-        | _, [ DList l ] ->
+        | _, _, [ DList l ] ->
           let f acc i =
             match i with
             | DList l -> List.append acc l
@@ -502,7 +502,7 @@ let fns : List<BuiltInFn> =
         "Returns a single list containing the values of <param list> separated by <param sep>"
       fn =
         (function
-        | _, [ DList l; i ] ->
+        | _, _, [ DList l; i ] ->
           let rec join ls =
             match ls with
             | [] -> []
@@ -528,7 +528,7 @@ let fns : List<BuiltInFn> =
          other list."
       fn =
         (function
-        | _, [ DList l1; DList l2 ] ->
+        | _, _, [ DList l1; DList l2 ] ->
           let rec f l1 l2 =
             match l1 with
             | [] -> l2
@@ -555,7 +555,7 @@ let fns : List<BuiltInFn> =
          order will not be maintained."
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, _, [ DList l; DFnVal b ] ->
           uply {
             try
               let! projected =
@@ -600,7 +600,7 @@ let fns : List<BuiltInFn> =
          order will not be maintained."
       fn =
         (function
-        | _, [ DList l ] ->
+        | _, _, [ DList l ] ->
           try
             List.distinct l
             |> List.sortWith DvalComparator.compareDval
@@ -626,7 +626,7 @@ let fns : List<BuiltInFn> =
       description = "Returns true if <param list> has no values"
       fn =
         (function
-        | _, [ DList l ] -> Ply(DBool(List.isEmpty l))
+        | _, _, [ DList l ] -> Ply(DBool(List.isEmpty l))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -645,7 +645,7 @@ let fns : List<BuiltInFn> =
          control over the sorting process."
       fn =
         (function
-        | _, [ DList list ] ->
+        | _, _, [ DList list ] ->
           try
             list |> List.sortWith DvalComparator.compareDval |> DList |> Ply
           with
@@ -678,7 +678,7 @@ let fns : List<BuiltInFn> =
          List::sortByComparator> if you want more control over the sorting process."
       fn =
         (function
-        | state, [ DList list; DFnVal b ] ->
+        | state, _, [ DList list; DFnVal b ] ->
           uply {
             try
               let fn dv = Interpreter.applyFnVal state b [ dv ]
@@ -728,7 +728,7 @@ let fns : List<BuiltInFn> =
          of control."
       fn =
         (function
-        | state, [ DList list; DFnVal f ] ->
+        | state, _, [ DList list; DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
               let! result = Interpreter.applyFnVal state f [ dv1; dv2 ]
@@ -766,7 +766,7 @@ let fns : List<BuiltInFn> =
          preserving the order."
       fn =
         (function
-        | _, [ DList l1; DList l2 ] -> Ply(DList(List.append l1 l2)) // no checking for DError required
+        | _, _, [ DList l1; DList l2 ] -> Ply(DList(List.append l1 l2)) // no checking for DError required
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -786,7 +786,7 @@ let fns : List<BuiltInFn> =
         "Return {{true}} if all elements in the list meet the function's criteria, else {{false}}"
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, _, [ DList l; DFnVal b ] ->
           uply {
             let mutable incomplete = false
 
@@ -829,7 +829,7 @@ let fns : List<BuiltInFn> =
          List::filterMap> if you also want to transform the values."
       fn =
         (function
-        | state, [ DList l; DFnVal fn ] ->
+        | state, _, [ DList l; DFnVal fn ] ->
           uply {
             let abortReason = ref None
 
@@ -883,7 +883,7 @@ let fns : List<BuiltInFn> =
          This function combines <fn List::filter> and <fn List::map>."
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, _, [ DList l; DFnVal b ] ->
           uply {
             let abortReason = ref None
 
@@ -928,7 +928,7 @@ let fns : List<BuiltInFn> =
       description = "Drops the first <param count> values from <param list>"
       fn =
         (function
-        | _, [ DList l; DInt c ] ->
+        | _, _, [ DList l; DInt c ] ->
           if c < 0L then Ply(DList l)
           elif c > int64 (List.length l) then Ply(DList [])
           else Ply(DList(List.skip (int c) l))
@@ -947,7 +947,7 @@ let fns : List<BuiltInFn> =
         "Drops the longest prefix of <param list> which satisfies the predicate <param val>"
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, _, [ DList l; DFnVal b ] ->
           uply {
             let mutable abortReason = None
 
@@ -993,7 +993,7 @@ let fns : List<BuiltInFn> =
       description = "Drops all but the first <param count> values from <param list>"
       fn =
         (function
-        | _, [ DList l; DInt c ] ->
+        | _, _, [ DList l; DInt c ] ->
           if c < 0L then Ply(DList [])
           elif c >= int64 (List.length l) then Ply(DList l)
           else Ply(DList(List.take (int c) l))
@@ -1012,7 +1012,7 @@ let fns : List<BuiltInFn> =
         "Return the longest prefix of <param list> which satisfies the predicate <param fn>"
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, _, [ DList l; DFnVal b ] ->
           uply {
             let mutable abortReason = None
 
@@ -1066,7 +1066,7 @@ let fns : List<BuiltInFn> =
       returnType = TList varB
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, _, [ DList l; DFnVal b ] ->
           uply {
             let! result =
               Ply.List.mapSequentially
@@ -1093,7 +1093,7 @@ let fns : List<BuiltInFn> =
          Consider <fn List::map> if you don't need the index."
       fn =
         (function
-        | state, [ DList l; DFnVal b ] ->
+        | state, _, [ DList l; DFnVal b ] ->
           uply {
             let list = List.mapi (fun i v -> (i, v)) l
 
@@ -1130,7 +1130,7 @@ let fns : List<BuiltInFn> =
          and <param bs>."
       fn =
         (function
-        | state, [ DList l1; DList l2; DFnVal b ] ->
+        | state, _, [ DList l1; DList l2; DFnVal b ] ->
           uply {
             let len = min (List.length l1) (List.length l2)
             let l1 = List.take (int len) l1
@@ -1172,7 +1172,7 @@ let fns : List<BuiltInFn> =
          instead)."
       fn =
         (function
-        | state, [ DList l1; DList l2; DFnVal b ] ->
+        | state, _, [ DList l1; DList l2; DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
               return DOption None
@@ -1212,7 +1212,7 @@ let fns : List<BuiltInFn> =
         and <param bs> again."
       fn =
         (function
-        | _, [ DList l1; DList l2 ] ->
+        | _, _, [ DList l1; DList l2 ] ->
           // We have to do this munging because OCaml's map2
           // and Fsharp's zip enforces lists of the same length
           let len = min (List.length l1) (List.length l2)
@@ -1248,7 +1248,7 @@ let fns : List<BuiltInFn> =
         instead)."
       fn =
         (function
-        | _, [ DList l1; DList l2 ] ->
+        | _, _, [ DList l1; DList l2 ] ->
           if List.length l1 <> List.length l2 then
             Ply(DOption None)
           else
@@ -1277,7 +1277,7 @@ let fns : List<BuiltInFn> =
          {{[[1,2,3], [\"x\",\"y\",\"z\"]]}}."
       fn =
         (function
-        | _, [ DList l ] ->
+        | _, _, [ DList l ] ->
 
           let f (acc1, acc2) i =
             match i with
@@ -1316,7 +1316,7 @@ let fns : List<BuiltInFn> =
          less than the length of the list otherwise returns {{Nothing}}."
       fn =
         (function
-        | _, [ DList l; DInt index ] ->
+        | _, _, [ DList l; DInt index ] ->
           (List.tryItem (int index) l) |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1333,8 +1333,8 @@ let fns : List<BuiltInFn> =
          empty."
       fn =
         (function
-        | _, [ DList [] ] -> Ply(DOption None)
-        | _, [ DList l ] ->
+        | _, _, [ DList [] ] -> Ply(DOption None)
+        | _, _, [ DList l ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
@@ -1359,7 +1359,7 @@ let fns : List<BuiltInFn> =
          Preserves the order of values."
       fn =
         (function
-        | state, [ DList l; DFnVal fn ] ->
+        | state, _, [ DList l; DFnVal fn ] ->
           uply {
             let partition l =
               let applyFn dval = Interpreter.applyFnVal state fn [ dval ]

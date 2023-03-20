@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
       fn =
         (function
-        | _, [ DStr certString ] ->
+        | _, _, [ DStr certString ] ->
           try
             let cert = new X509Certificates.X509Certificate2(UTF8.toBytes certString)
             // Workaround to support ECC certs

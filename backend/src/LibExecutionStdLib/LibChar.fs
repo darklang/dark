@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
         "Return the uppercase value of <param c>. If <param c> does not have an uppercase value, returns <param c>"
       fn =
         function
-        | _, [ DChar c ] -> Ply(DChar(c.ToUpper()))
+        | _, _, [ DChar c ] -> Ply(DChar(c.ToUpper()))
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
         "Return the lowercase value of <param c>. If <param c> does not have a lowercase value, returns <param c>"
       fn =
         function
-        | _, [ DChar c ] -> Ply(DChar(c.ToLower()))
+        | _, _, [ DChar c ] -> Ply(DChar(c.ToLower()))
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c> is a lowercase character."
       fn =
         function
-        | _, [ DChar c ] ->
+        | _, _, [ DChar c ] ->
           // If we just check that the uppercase value of the char is the same, then
           // chars that are not letters would be incorrectly reported as uppercase
           Ply(DBool(c.ToLower() = c && c.ToUpper() <> c))
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c> is an uppercase character."
       fn =
         function
-        | _, [ DChar c ] ->
+        | _, _, [ DChar c ] ->
           // If we just check that the uppercase value of the char is the same, then
           // chars that are not letters would be incorrectly reported as uppercase
           Ply(DBool(c.ToUpper() = c && c.ToLower() <> c))
@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c> is a digit (that is, the digits 0-9)"
       fn =
         function
-        | _, [ DChar c ] ->
+        | _, _, [ DChar c ] ->
           (if c.Length = 1 then System.Char.IsDigit(c[0]) else false) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c> is an ASCII letter"
       fn =
         function
-        | _, [ DChar c ] ->
+        | _, _, [ DChar c ] ->
           (if c.Length = 1 then
              System.Char.IsAscii c[0] && System.Char.IsLetter c[0]
            else
@@ -114,7 +114,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c> is a valid ASCII character"
       fn =
         function
-        | _, [ DChar c ] ->
+        | _, _, [ DChar c ] ->
           (if c.Length = 1 then System.Char.IsAscii c[0] else false) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c1> is less than <param c2>"
       fn =
         function
-        | _, [ DChar c1; DChar c2 ] -> (c1 < c2) |> DBool |> Ply
+        | _, _, [ DChar c1; DChar c2 ] -> (c1 < c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -139,7 +139,7 @@ let fns : List<BuiltInFn> =
       description = "Return whether <param c1> is greater than <param c2>"
       fn =
         function
-        | _, [ DChar c1; DChar c2 ] -> (c1 > c2) |> DBool |> Ply
+        | _, _, [ DChar c1; DChar c2 ] -> (c1 > c2) |> DBool |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -152,7 +152,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param c>"
       fn =
         (function
-        | _, [ DChar c ] -> Ply(DStr(c))
+        | _, _, [ DChar c ] -> Ply(DStr(c))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

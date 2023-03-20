@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
       description = "Emit a <param event> to the <param name> worker"
       fn =
         (function
-        | state, [ data; DStr name ] ->
+        | state, _, [ data; DStr name ] ->
           uply {
             let canvasID = state.program.canvasID
 

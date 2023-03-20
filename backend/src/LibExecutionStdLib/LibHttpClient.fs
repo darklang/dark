@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
          requests or responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(
             DObj(
               Map.ofList [ "Content-Type", DStr "application/x-www-form-urlencoded" ]
@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
          responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(
             DObj(
               Map.ofList [ "Content-Type", DStr "application/json; charset=utf-8" ]
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
          requests or responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(DObj(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
          or responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(DObj(Map.ofList [ "Content-Type", DStr "text/html; charset=utf-8" ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -100,7 +100,7 @@ let fns : List<BuiltInFn> =
         "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
       fn =
         (function
-        | _, [ DStr token ] ->
+        | _, _, [ DStr token ] ->
           let authString = "Bearer " + token
           Ply(DObj(Map.ofList [ "Authorization", DStr authString ]))
         | _ -> incorrectArgs ())

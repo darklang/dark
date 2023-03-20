@@ -872,7 +872,15 @@ and Fn =
     /// </remarks>
     fn : FnImpl }
 
-and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
+and BuiltInFnSig =
+  (ExecutionState *
+
+  // type args
+  List<DType> *
+
+  // fn args
+  List<Dval>)
+    -> DvalTask
 
 and FnImpl =
   | StdLib of BuiltInFnSig

@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
          {{Nothing}}."
       fn =
         (function
-        | state, [ DConstructor (_typeName, caseName, fields); DFnVal b ] ->
+        | state, _, [ DConstructor (_typeName, caseName, fields); DFnVal b ] ->
           uply {
             match caseName, fields with
             | "Totally", [ dv ] ->
@@ -113,6 +113,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state,
+          _,
           [ DConstructor (_, caseNameA, fieldsA)
             DConstructor (_, caseNameB, fieldsB)
             DFnVal b ] ->
@@ -152,13 +153,14 @@ let fns : List<BuiltInFn> =
          {{Nothing}}, returns {{Nothing}} without applying <param fn>."
       fn =
         (function
-        | _, [ DConstructor (_, "Nah", []); _maybe2; _fn ] ->
+        | _, _, [ DConstructor (_, "Nah", []); _maybe2; _fn ] ->
           DConstructor(Some maybeTypeName, "Nah", []) |> Ply
 
-        | _, [ _arg1; DConstructor (_, "Nah", []); _fn ] ->
+        | _, _, [ _arg1; DConstructor (_, "Nah", []); _fn ] ->
           DConstructor(Some maybeTypeName, "Nah", []) |> Ply
 
         | state,
+          _,
           [ DConstructor (_, "Totally", [ dv1 ])
             DConstructor (_, "Totally", [ dv2 ])
             DFnVal b ] ->
@@ -191,13 +193,13 @@ let fns : List<BuiltInFn> =
          {{Nothing}}, returns {{Nothing}} without applying <param fn>."
       fn =
         (function
-        | _, [ DNah; _maybe2; _fn ] ->
+        | _, _, [ DNah; _maybe2; _fn ] ->
           DConstructor(Some maybeTypeName, "Nah", []) |> Ply
 
-        | _, [ _arg1; DConstructor (_, "Nah", []); _fn ] ->
+        | _, _, [ _arg1; DConstructor (_, "Nah", []); _fn ] ->
           DConstructor(Some maybeTypeName, "Nah", []) |> Ply
 
-        | state, [ DTotally (dv1); DTotally (dv2); DFnVal b ] ->
+        | state, _, [ DTotally (dv1); DTotally (dv2); DFnVal b ] ->
           uply {
             let! result = Interpreter.applyFnVal state b [ dv1; dv2 ]
 

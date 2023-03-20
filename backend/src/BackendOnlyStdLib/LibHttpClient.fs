@@ -240,7 +240,7 @@ let fns : List<BuiltInFn> =
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         (function
-        | _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
+        | _, _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold (Ok []) (fun agg item ->

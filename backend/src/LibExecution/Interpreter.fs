@@ -660,6 +660,8 @@ and execFn
   (isInPipe : IsInPipe)
   : DvalTask =
   uply {
+    let typeArgs = [] // TODO
+
     let sourceID = SourceID(state.tlid, id) in
 
     let typeErrorOrValue userTypes result =
@@ -730,7 +732,7 @@ and execFn
             let! result =
               uply {
                 try
-                  return! f (state, arglist)
+                  return! f (state, typeArgs, arglist)
                 with
                 | e ->
                   let context : Metadata =

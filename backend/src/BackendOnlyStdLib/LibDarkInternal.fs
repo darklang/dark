@@ -42,7 +42,7 @@ module Types =
 ///
 /// Also reports usage to telemetry
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
-  (fun (state, args) ->
+  (fun (state, typeArgs, args) ->
     uply {
       let canAccess = true
       if canAccess then
@@ -56,7 +56,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
             [ "canvas", state.program.canvasName
               "user", state.program.accountID
               "fnName", fnName ]
-        return! f (state, args)
+        return! f (state, typeArgs, args)
       else
         return
           Exception.raiseInternal
@@ -66,10 +66,10 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
 
 // only accessible to the `dark-editor canvas`
 let darkEditorFn (f : BuiltInFnSig) : BuiltInFnSig =
-  (fun (state, args) ->
+  (fun (state, typeArgs, args) ->
     uply {
       if state.program.canvasName.ToString() = "dark-editor" then
-        return! f (state, args)
+        return! f (state, typeArgs, args)
       else
         return
           Exception.raiseInternal
@@ -79,7 +79,7 @@ let darkEditorFn (f : BuiltInFnSig) : BuiltInFnSig =
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   internalFn (function
-    | _, [ DUuid canvasID; DStr handlerName ] ->
+    | _, _, [ DUuid canvasID; DStr handlerName ] ->
       uply {
         do! fn canvasID handlerName
         let! s = SchedulingRules.getWorkerSchedules canvasID
@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username ] ->
+          | _, _, [ DStr username ] ->
             uply {
               let username =
                 Exception.catchError (fun () ->
@@ -143,7 +143,7 @@ that's already taken, returns an error."
       description = "Returns a list of toplevel ids of dbs in <param canvasName>"
       fn =
         internalFn (function
-          | _, [ DStr canvasName ] ->
+          | _, _, [ DStr canvasName ] ->
             uply {
               let! dbTLIDs =
                 Sql.query
@@ -167,7 +167,7 @@ that's already taken, returns an error."
       description = "Gives canvasID for a canvasName"
       fn =
         internalFn (function
-          | _, [ DStr canvasName ] ->
+          | _, _, [ DStr canvasName ] ->
             uply {
               try
                 match! Canvas.getMeta (CanvasName.createExn canvasName) with
@@ -188,7 +188,7 @@ that's already taken, returns an error."
       description = "Returns the name of canvas"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID ] ->
+          | _, _, [ DUuid canvasID ] ->
             uply {
               try
                 let! meta = Canvas.getMetaFromID canvasID
@@ -212,7 +212,7 @@ that's already taken, returns an error."
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         internalFn (function
-          | _, [ DStr level; DStr name; DObj log as result ] ->
+          | _, _, [ DStr level; DStr name; DObj log as result ] ->
             let args =
               log
               |> Map.toList
@@ -275,7 +275,7 @@ that's already taken, returns an error."
               t.typ + versionPart + typeArgsPortion
 
         internalFn (function
-          | state, [] ->
+          | state, _, [] ->
             state.libraries.stdlibFns
             |> Map.toList
             |> List.filter (fun (key, data) ->
@@ -312,7 +312,7 @@ in OCaml; its primary purpose is to send data to honeycomb, but also gives
 human-readable data."
       fn =
         internalFn (function
-          | _, [] ->
+          | _, _, [] ->
             uply {
               let! tableStats = Db.tableStats ()
               // Send events to honeycomb. We could save some events by sending
@@ -372,7 +372,7 @@ human-readable data."
         and exception tracking, not for any real use."
       fn =
         internalFn (function
-          | _, [ arg ] ->
+          | _, _, [ arg ] ->
             Exception.raiseInternal
               "DarkInternal::raiseInternalException"
               [ "arg", arg ]
@@ -388,7 +388,7 @@ human-readable data."
       description = "Returns the git hash of the server's current deploy"
       fn =
         internalFn (function
-          | _, [] -> uply { return DStr LibService.Config.buildHash }
+          | _, _, [] -> uply { return DStr LibService.Config.buildHash }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -408,7 +408,7 @@ human-readable data."
       description = "Deletes a specific 404 for a canvas"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID; DStr space; DStr path; DStr modifier ] ->
+          | _, _, [ DUuid canvasID; DStr space; DStr path; DStr modifier ] ->
             uply {
               Telemetry.addTags [ "space", space
                                   "path", path
@@ -435,7 +435,7 @@ human-readable data."
       description = "Fetch a list of recent 404s"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID ] ->
+          | _, _, [ DUuid canvasID ] ->
             uply {
               let! f404s = TraceInputs.getRecent404s canvasID
               return
@@ -466,7 +466,7 @@ human-readable data."
       description = "Get list of secrets in the canvas"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID ] ->
+          | _, _, [ DUuid canvasID ] ->
             uply {
               let! secrets = Secret.getCanvasSecrets canvasID
               return
@@ -485,7 +485,7 @@ human-readable data."
       description = "Delete a secret"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID; DStr secretName ] ->
+          | _, _, [ DUuid canvasID; DStr secretName ] ->
             uply {
               do! Secret.delete canvasID secretName
               return DUnit
@@ -505,7 +505,7 @@ human-readable data."
       description = "Add a secret"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID; DStr secretName; DStr secretValue ] ->
+          | _, _, [ DUuid canvasID; DStr secretName; DStr secretValue ] ->
             uply {
               try
                 do! Secret.insert canvasID secretName secretValue
@@ -529,7 +529,7 @@ human-readable data."
         "Delete a toplevel forever. Requires that the toplevel already by deleted. If so, deletes and returns true. Otherwise returns false"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID; DInt tlid ] ->
+          | _, _, [ DUuid canvasID; DInt tlid ] ->
             uply {
               let! meta = Canvas.getMetaFromID canvasID
               let tlid = uint64 tlid
@@ -559,7 +559,7 @@ human-readable data."
       description = "Get a list of unlocked DBs"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID ] ->
+          | _, _, [ DUuid canvasID ] ->
             uply {
               let! meta = Canvas.getMetaFromID canvasID
               let! unlocked = UserDB.unlocked meta.owner meta.id
@@ -580,7 +580,7 @@ human-readable data."
       description = "Get count of how many events are in the queue for this tlid"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID; DInt tlid ] ->
+          | _, _, [ DUuid canvasID; DInt tlid ] ->
             uply {
               let tlid = uint64 tlid
               let! count = Stats.workerStats canvasID tlid
@@ -598,7 +598,7 @@ human-readable data."
       description = "Returns a list of all queue scheduling rules"
       fn =
         internalFn (function
-          | _, [] ->
+          | _, _, [] ->
             uply {
               let! rules = SchedulingRules.getAllSchedulingRules ()
               return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
@@ -616,7 +616,7 @@ human-readable data."
         "Returns a list of all queue scheduling rules for the specified canvasID"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID ] ->
+          | _, _, [ DUuid canvasID ] ->
             uply {
               let! rules = SchedulingRules.getSchedulingRules canvasID
               return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
@@ -657,7 +657,7 @@ human-readable data."
       description = "Returns all ops for a tlid in the given canvas"
       fn =
         internalFn (function
-          | _, [ DUuid canvasID; DInt tlid ] ->
+          | _, _, [ DUuid canvasID; DInt tlid ] ->
             uply {
               let tlid = uint64 tlid
               let! ops =
@@ -686,7 +686,7 @@ human-readable data."
       description = "Returns basic details of the dark-editor canvas"
       fn =
         darkEditorFn (function
-          | state, [] ->
+          | state, _, [] ->
             uply {
               return
                 [ "id", DUuid(state.program.canvasID)
@@ -710,7 +710,7 @@ human-readable data."
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
         darkEditorFn (function
-          | _, [ DUuid canvasId ] ->
+          | _, _, [ DUuid canvasId ] ->
             uply {
               let! meta = Canvas.getMetaFromID canvasId
               let! canvas = Canvas.loadAll meta
