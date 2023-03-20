@@ -17,18 +17,16 @@ CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 = 'test-';")
 SCRIPT=""
 for cid in $CANVASES; do
-  SCRIPT+="DELETE FROM scheduling_rules WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM events WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM function_results_v3 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM scheduling_rules_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM function_results_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM traces_v0 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM stored_events_v2 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM cron_records WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM toplevel_oplists WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM function_arguments WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM static_asset_deploys WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM canvases WHERE id = '$cid';";
-  SCRIPT+="DELETE FROM secrets WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM stored_events_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM user_data_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM cron_records_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM toplevel_oplists_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM function_arguments_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM canvases_v0 WHERE id = '$cid';";
+  SCRIPT+="DELETE FROM secrets_v0 WHERE canvas_id = '$cid';";
 done
 
 SCRIPT+="DELETE FROM packages_v0 WHERE author_id IN (SELECT id FROM accounts_v0

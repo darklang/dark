@@ -270,7 +270,7 @@ let delete404s
   (modifier : string)
   : Task<unit> =
   Sql.query
-    "DELETE FROM stored_events_v2
+    "DELETE FROM stored_events_v0
      WHERE canvas_id = @canvasID
      AND module = @module
      AND path = @path
@@ -286,7 +286,7 @@ let delete404s
 
 let clearAllEvents (canvasID : CanvasID) : Task<unit> =
   Sql.query
-    "DELETE FROM stored_events_v2
+    "DELETE FROM stored_events_v0
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeStatementAsync

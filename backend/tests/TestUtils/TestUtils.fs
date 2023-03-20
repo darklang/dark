@@ -32,32 +32,27 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
     let! canvasID = Canvas.canvasIDForCanvasName owner name
 
     let cronRecords =
-      Sql.query "DELETE FROM cron_records where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM cron_records_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let customDomains =
-      Sql.query "DELETE FROM custom_domains where canvas = @name"
+      Sql.query "DELETE FROM custom_domains_v0 where canvas = @name"
       |> Sql.parameters [ "name", Sql.string (string name) ]
       |> Sql.executeStatementAsync
 
-    let events =
-      Sql.query "DELETE FROM events where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let eventsV2 =
-      Sql.query "DELETE FROM events_v2 where canvas_id = @id::uuid"
+    let eventsV0 =
+      Sql.query "DELETE FROM events_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let functionArguments =
-      Sql.query "DELETE FROM function_arguments where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM function_arguments_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
-    let functionResultsV3 =
-      Sql.query "DELETE FROM function_results_v3 where canvas_id = @id::uuid"
+    let functionResultsV0 =
+      Sql.query "DELETE FROM function_results_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
@@ -67,40 +62,39 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
 
     let schedulingRules =
-      Sql.query "DELETE FROM scheduling_rules where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM scheduling_rules_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let secrets =
-      Sql.query "DELETE FROM secrets where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM secrets_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
-    let storedEventsV2 =
-      Sql.query "DELETE FROM stored_events_v2 where canvas_id = @id::uuid"
+    let storedEventsV0 =
+      Sql.query "DELETE FROM stored_events_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let toplevelOplists =
-      Sql.query "DELETE FROM toplevel_oplists where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM toplevel_oplists_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let userData =
-      Sql.query "DELETE FROM user_data where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM user_data_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let! (_ : List<unit>) =
       Task.flatten [ cronRecords
                      customDomains
-                     events
-                     eventsV2
+                     eventsV0
                      functionArguments
-                     functionResultsV3
+                     functionResultsV0
                      schedulingRules
                      secrets
-                     storedEventsV2
+                     storedEventsV0
                      tracesV0
                      toplevelOplists
                      userData ]

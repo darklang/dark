@@ -198,7 +198,7 @@ let removeSchedulingRule
   (workerName : string)
   : Task<unit> =
   Sql.query
-    "DELETE FROM scheduling_rules
+    "DELETE FROM scheduling_rules_v0
      WHERE canvas_id = @canvasID
        AND handler_name = @workerName
        AND event_space = 'WORKER'
