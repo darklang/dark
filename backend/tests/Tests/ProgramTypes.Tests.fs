@@ -25,12 +25,18 @@ let testPipesToRuntimeTypes =
     let actual = Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
 
     let expected =
-      S.ePipeApply
-        (S.eStdFnVal "Int" "lessThan" 0)
-        [ S.ePipeApply
-            (S.eStdFnVal "Int" "add" 0)
-            [ S.ePipeApply
-                (S.eStdFnVal "Int" "subtract" 0)
+      S.ePipeFn
+        "Int"
+        "lessThan"
+        0
+        [ S.ePipeFn
+            "Int"
+            "add"
+            0
+            [ S.ePipeFn
+                "Int"
+                "subtract"
+                0
                 [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
               S.eFieldAccess (S.eVar "value") "age" ]
           S.eInt 3 ]

@@ -221,7 +221,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.Map.mapSequentially
                 (fun ((key, dv) : string * Dval) ->
-                  Interpreter.applyFnVal state (id 0) b [ DStr key; dv ] NotInPipe)
+                  Interpreter.applyFnVal state b [ DStr key; dv ])
                 mapped
 
             return DObj result
@@ -254,13 +254,7 @@ let fns : List<BuiltInFn> =
               | Error dv -> Ply(Error dv)
               | Ok m ->
                 uply {
-                  let! result =
-                    Interpreter.applyFnVal
-                      state
-                      (id 0)
-                      b
-                      [ DStr key; data ]
-                      NotInPipe
+                  let! result = Interpreter.applyFnVal state b [ DStr key; data ]
 
                   match result with
                   | DBool true -> return Ok(Map.add key data m)
@@ -315,10 +309,8 @@ let fns : List<BuiltInFn> =
                   let! result =
                     Interpreter.applyFnVal
                       state
-                      (id 0)
                       b
                       [ DStr key; data ]
-                      NotInPipe
 
                   match result with
                   | DOption (Some o) -> return Some o

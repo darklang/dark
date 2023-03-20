@@ -100,8 +100,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
-            let! newFirst =
-              Interpreter.applyFnVal state (id 0) fn [ first ] NotInPipe
+            let! newFirst = Interpreter.applyFnVal state fn [ first ]
             return DTuple(newFirst, second, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -127,8 +126,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
-            let! newSecond =
-              Interpreter.applyFnVal state (id 0) fn [ second ] NotInPipe
+            let! newSecond = Interpreter.applyFnVal state fn [ second ]
             return DTuple(first, newSecond, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -154,8 +152,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
-            let! newThird =
-              Interpreter.applyFnVal state (id 0) fn [ third ] NotInPipe
+            let! newThird = Interpreter.applyFnVal state fn [ third ]
             return DTuple(first, second, [ newThird ])
           }
         | _ -> incorrectArgs ())
@@ -198,14 +195,11 @@ let fns : List<BuiltInFn> =
             DFnVal fnThird
             DTuple (first, second, [ third ]) ] ->
           uply {
-            let! newFirst =
-              Interpreter.applyFnVal state (id 0) fnFirst [ first ] NotInPipe
+            let! newFirst = Interpreter.applyFnVal state fnFirst [ first ]
 
-            let! newSecond =
-              Interpreter.applyFnVal state (id 0) fnSecond [ second ] NotInPipe
+            let! newSecond = Interpreter.applyFnVal state fnSecond [ second ]
 
-            let! newThird =
-              Interpreter.applyFnVal state (id 0) fnThird [ third ] NotInPipe
+            let! newThird = Interpreter.applyFnVal state fnThird [ third ]
 
             return DTuple(newFirst, newSecond, [ newThird ])
           }

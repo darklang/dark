@@ -601,10 +601,10 @@ module Expect =
       eq ("first" :: path) first first'
       eq ("second" :: path) second second'
       eqList path theRest theRest'
-    | EFQFnValue (_, v), EFQFnValue (_, v') -> check path v v'
+
     | EApply (_, name, args, inPipe), EApply (_, name', args', inPipe') ->
       let path = (string name :: path)
-      eq path name name'
+      check path name name'
       eqList path args args'
 
       match (inPipe, inPipe') with
@@ -669,7 +669,6 @@ module Expect =
     | EIf _, _
     | EList _, _
     | ETuple _, _
-    | EFQFnValue _, _
     | EApply _, _
     | ERecord _, _
     | EFieldAccess _, _
@@ -993,28 +992,24 @@ let interestingDvals =
          { body =
              EApply(
                92356985UL,
-               (EFQFnValue(
-                 700731989UL,
+               (FnName(
                  FQFnName.Stdlib
                    { module_ = "List"; function_ = "push"; version = 0 }
                )),
                [ EApply(
                    93459985UL,
-                   (EFQFnValue(
-                     707841989UL,
+                   (FnName(
                      FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }
                    )),
                    [ EApply(
                        394567785UL,
-                       (EFQFnValue(
-                         700766785UL,
+                       (FnName(
                          FQFnName.Stdlib
                            { module_ = ""; function_ = "+"; version = 0 }
                        )),
                        [ EApply(
                            44444485UL,
-                           (EFQFnValue(
-                             893346989UL,
+                           (FnName(
                              FQFnName.Stdlib
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),

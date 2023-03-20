@@ -176,11 +176,7 @@ type Expr =
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
-  | EApply of id * Expr * List<Expr> * IsInPipe
-
-  /// Reference a fully-qualified function name
-  /// Since functions aren't real values in the symbol table, we look them up directly
-  | EFQFnValue of id * FQFnName.T
+  | EApply of id * FnTarget * List<Expr> * IsInPipe
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -209,6 +205,10 @@ and IsInPipe =
   | InPipe of id // the ID of the original pipe
   | NotInPipe
 
+and FnTarget =
+    | FnName of FQFnName.T
+    | FnTargetExpr of Expr
+
 and MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
@@ -226,10 +226,11 @@ and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : E
 
 and FnValImpl =
   | Lambda of LambdaImpl
-  | FnName of FQFnName.T
 
 and DDateTime = NodaTime.LocalDate
-and Dval =
+
+// We use NoComparison here to avoid accidentally using structural comparison
+and [<NoComparison>] Dval =
   | DInt of int64
   | DFloat of double
   | DBool of bool
@@ -418,7 +419,6 @@ module Expr =
     | EList (id, _)
     | ETuple (id, _, _, _)
     | ERecord (id, _, _)
-    | EFQFnValue (id, _)
     | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _)
@@ -566,7 +566,6 @@ module Dval =
 
     | DFnVal (Lambda l), TFn (parameters, _) ->
       List.length parameters = List.length l.parameters
-    | DFnVal (FnName _fnName), TFn _ -> false // not used
     | DOption None, TOption _ -> true
     | DOption (Some v), TOption t
     | DResult (Ok v), TResult (t, _) -> typeMatches t v

@@ -148,7 +148,7 @@ let makeTest versionName filename =
       let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"
       let! state = executionStateFor meta Map.empty Map.empty
 
-      let userTypes = []
+      let userTypes = Map.empty
 
       // Parse the Dark code
       let test =

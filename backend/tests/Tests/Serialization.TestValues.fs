@@ -90,8 +90,18 @@ module RuntimeTypes =
       RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.EUnit(17384UL))
       RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
-      RT.EApply(128384UL, RT.EUnit(1235123UL), [ RT.EUnit(7756UL) ], RT.NotInPipe)
-      RT.EFQFnValue(8737481UL, RT.FQFnName.User "sadflkjwerp")
+      RT.EApply(
+        128384UL,
+        RT.FnTargetExpr(RT.EUnit(1235123UL)),
+        [ RT.EUnit(7756UL) ],
+        RT.NotInPipe
+      )
+      RT.EApply(
+        128384UL,
+        RT.FnName(RT.FQFnName.User "user fn"),
+        [ RT.EUnit(7756UL) ],
+        RT.NotInPipe
+      )
       RT.EList(737481UL, [ RT.EUnit(74618UL) ])
       RT.ETuple(
         73847UL,
