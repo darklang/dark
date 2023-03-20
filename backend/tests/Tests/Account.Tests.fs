@@ -9,13 +9,6 @@ open TestUtils.TestUtils
 module Account = LibBackend.Account
 
 
-let testEmailValidationWorks =
-  testMany
-    "validateEmail"
-    Account.validateEmail
-    [ "novalidemail", (Error "Invalid email 'novalidemail'") ]
-
-
 let testUsernameValidationWorks =
   testMany
     "validateUsername"
@@ -43,16 +36,9 @@ let testUsernameValidationWorks =
       "paul", Ok "paul" ]
 
 let testCannotCreateReservedUser =
-  let reservedAccount () : Account.Account =
-    { username = UserName.create "admin"
-      password = LibBackend.Password.invalid
-      email = $"test+cannot-create-reserved@darklang.com"
-      name = "test account" }
+  let reservedAccount () : Account.Account = { username = UserName.create "admin" }
   let okAccount (suffix : string) : Account.Account =
-    { username = UserName.create $"notreserved_{suffix}"
-      password = LibBackend.Password.invalid
-      email = $"test+notreserved_{suffix}@darklang.com"
-      name = "test account" }
+    { username = UserName.create $"notreserved_{suffix}" }
   testList
     "reservedUser"
     [ testTask "upsert reserved" {
@@ -67,19 +53,15 @@ let testCannotCreateReservedUser =
       }
       testTask "insert reserved" {
         let a = reservedAccount ()
-        let! inserted = Account.insertUser a.username a.email a.name
+        let! inserted = Account.insertUser a.username
         Expect.equal inserted (Error "Username is not allowed") "reserved"
       }
       testTask "insert not reserved" {
         let a = okAccount "b"
-        let! inserted = Account.insertUser a.username a.email a.name
+        let! inserted = Account.insertUser a.username
         Expect.equal inserted (Ok()) "not reserved"
       } ]
 
 
 let tests =
-  testList
-    "Account"
-    [ testEmailValidationWorks
-      testUsernameValidationWorks
-      testCannotCreateReservedUser ]
+  testList "Account" [ testUsernameValidationWorks; testCannotCreateReservedUser ]

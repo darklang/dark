@@ -333,7 +333,7 @@ type ParametersDBFormat = List<Parameter>
 let allFunctions () : Task<List<PT.Package.Fn>> =
   task {
     let! fns =
-    // CLEANUP: why do we have both accounts_v0 A and accounts_v0 O?
+      // CLEANUP: why do we have both accounts_v0 A and accounts_v0 O?
       Sql.query
         "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
                 P.body, P.description, P.return_type, P.parameters, P.deprecated

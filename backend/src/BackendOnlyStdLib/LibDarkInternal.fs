@@ -119,7 +119,7 @@ that's already taken, returns an error."
                   UserName.create username)
               match username with
               | Ok username ->
-                let! _user = Account.insertUser username email name
+                let! _user = Account.insertUser username
                 let toCanvasName =
                   $"{username}-{LibService.Config.gettingStartedCanvasName}"
                 let fromCanvasName = LibService.Config.gettingStartedCanvasSource
@@ -170,7 +170,7 @@ that's already taken, returns an error."
                 Sql.query
                   "SELECT tlid
                      FROM toplevel_oplists_v0
-                     JOIN canvases ON canvases.id = canvas_id
+                     JOIN canvases_v0 ON canvases_v0.id = canvas_id
                     WHERE canvases_v0.name = @name AND tipe = 'db'"
                 |> Sql.parameters [ "name", Sql.string canvasName ]
                 |> Sql.executeAsync (fun read -> read.tlid "tlid")

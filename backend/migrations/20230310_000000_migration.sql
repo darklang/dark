@@ -31,6 +31,7 @@ $t$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS
 accounts_v0
 ( id UUID PRIMARY KEY
+, username VARCHAR(255) UNIQUE NOT NULL
 );
 
 CREATE TRIGGER set_account_timestamp
