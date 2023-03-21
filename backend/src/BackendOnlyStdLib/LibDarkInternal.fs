@@ -95,6 +95,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DarkInternal" "insertUser" 2
+      typeArgs = []
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TUnit, TStr)
       description =
@@ -123,6 +124,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "getAllCanvases" 0
+      typeArgs = []
       parameters = []
       returnType = TList TStr
       description = "Get a list of all canvas names"
@@ -138,6 +140,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "dbs" 0
+      typeArgs = []
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TList TStr
       description = "Returns a list of toplevel ids of dbs in <param canvasName>"
@@ -162,6 +165,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "canvasIDOfCanvasName" 0
+      typeArgs = []
       parameters = [ Param.make "canvasName" TStr "" ]
       returnType = TResult(TUuid, TStr)
       description = "Gives canvasID for a canvasName"
@@ -183,6 +187,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "canvasNameOfCanvasID" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TResult(TStr, TStr)
       description = "Returns the name of canvas"
@@ -203,6 +208,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "log" 0
+      typeArgs = []
       parameters =
         [ Param.make "level" TStr ""
           Param.make "name" TStr ""
@@ -229,6 +235,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "allFunctions" 0
+      typeArgs = []
       parameters = []
       returnType = TList varA
       description =
@@ -302,6 +309,7 @@ that's already taken, returns an error."
 
 
     { name = fn "DarkInternal" "getAndLogTableSizes" 0
+      typeArgs = []
       parameters = []
       returnType = TDict(varA)
       // returnType = varA CLEANUP
@@ -365,6 +373,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "raiseInternalException" 0
+      typeArgs = []
       parameters = [ Param.make "argument" varA "Added as a tag" ]
       returnType = TUnit
       description =
@@ -383,6 +392,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "serverBuildHash" 0
+      typeArgs = []
       parameters = []
       returnType = TStr
       description = "Returns the git hash of the server's current deploy"
@@ -399,6 +409,7 @@ human-readable data."
     // Apis - 404s
     // ---------------------
     { name = fn "DarkInternal" "delete404" 0
+      typeArgs = []
       parameters =
         [ Param.make "canvasID" TUuid ""
           Param.make "space" TStr ""
@@ -423,6 +434,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "getRecent404s" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
         TList(
@@ -461,6 +473,7 @@ human-readable data."
     // Apis - secrets
     // ---------------------
     { name = fn "DarkInternal" "getSecrets" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TDict TStr
       description = "Get list of secrets in the canvas"
@@ -479,6 +492,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "deleteSecret" 0
+      typeArgs = []
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
       returnType = TUnit
@@ -497,6 +511,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "insertSecret" 0
+      typeArgs = []
       parameters =
         [ Param.make "canvasID" TUuid ""
           Param.make "secretName" TStr ""
@@ -523,6 +538,7 @@ human-readable data."
     // Apis - toplevels
     // ---------------------
     { name = fn "DarkInternal" "deleteToplevelForever" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
       returnType = TBool
       description =
@@ -554,6 +570,7 @@ human-readable data."
     // Apis - DBs
     // ---------------------
     { name = fn "DarkInternal" "unlockedDBs" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TInt
       description = "Get a list of unlocked DBs"
@@ -575,6 +592,7 @@ human-readable data."
     // Apis - workers
     // ---------------------
     { name = fn "DarkInternal" "getQueueCount" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
       returnType = TList TInt
       description = "Get count of how many events are in the queue for this tlid"
@@ -593,6 +611,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "getAllSchedulingRules" 0
+      typeArgs = []
       parameters = []
       returnType = TList varA
       description = "Returns a list of all queue scheduling rules"
@@ -610,6 +629,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList varA
       description =
@@ -628,6 +648,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
+      typeArgs = []
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
       returnType = TUnit
@@ -640,6 +661,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
+      typeArgs = []
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
       returnType = TUnit
@@ -652,6 +674,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "getOpsForToplevel" 0
+      typeArgs = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
       returnType = TList TStr
       description = "Returns all ops for a tlid in the given canvas"
@@ -681,6 +704,7 @@ human-readable data."
     // TODO: any tlids below should somehow really be uint64s
 
     { name = fn "DarkInternal" "darkEditorCanvas" 0
+      typeArgs = []
       parameters = []
       returnType = Types.Canvas.meta
       description = "Returns basic details of the dark-editor canvas"
@@ -704,6 +728,7 @@ human-readable data."
 
     // TODO: this name is bad?
     { name = fn "DarkInternal" "canvasProgram" 0
+      typeArgs = []
       parameters = [ Param.make "canvasId" TUuid "" ]
       returnType = TResult(Types.Canvas.program, TStr)
       description =

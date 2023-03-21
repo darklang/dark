@@ -275,6 +275,7 @@ module UserFunction =
   let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
     { tlid = f.tlid
       name = f.name
+      typeArgs = List.map DType.toPT f.typeArgs
       parameters = List.map Parameter.toPT f.parameters
       returnType = DType.toPT f.returnType
       description = f.description

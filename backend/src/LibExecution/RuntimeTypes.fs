@@ -713,6 +713,7 @@ module UserFunction =
   type T =
     { tlid : tlid
       name : string
+      typeArgs : List<DType>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -747,6 +748,7 @@ module Package =
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
+      typeArgs : List<DType>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -849,6 +851,7 @@ type BuiltInType =
 /// A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
+    typeArgs : List<DType>
     parameters : List<Param>
     returnType : DType
     description : string

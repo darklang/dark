@@ -339,14 +339,16 @@ module UserFunction =
       [<MessagePack.Key 1>]
       name : string
       [<MessagePack.Key 2>]
-      parameters : List<Parameter>
+      typeArgs : List<DType>
       [<MessagePack.Key 3>]
-      returnType : DType
+      parameters : List<Parameter>
       [<MessagePack.Key 4>]
-      description : string
+      returnType : DType
       [<MessagePack.Key 5>]
-      infix : bool
+      description : string
       [<MessagePack.Key 6>]
+      infix : bool
+      [<MessagePack.Key 7>]
       body : Expr }
 
 module Toplevel =

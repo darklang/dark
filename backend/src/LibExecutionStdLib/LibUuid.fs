@@ -20,6 +20,7 @@ let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Uuid" "generate" 0
+      typeArgs = []
       parameters = []
       returnType = TUuid
       description = "Generate a new UUID v4 according to RFC 4122"
@@ -35,6 +36,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Uuid" "parse" 0
+      typeArgs = []
       parameters = [ Param.make "uuid" TStr "" ]
       returnType = TResult(TUuid, TStr)
       description =
@@ -57,6 +59,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Uuid" "toString" 0
+      typeArgs = []
       parameters = [ Param.make "uuid" TUuid "" ]
       returnType = TStr
       description =

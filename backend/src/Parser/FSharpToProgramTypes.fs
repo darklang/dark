@@ -1,8 +1,6 @@
 /// Converts F# types to Dark ProgramTypes
 module FSharpToProgramTypes
 
-open FSharp.Compiler
-open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
 
 open Prelude
@@ -33,9 +31,6 @@ let private matchingCustomTypes
 
 
 module DType =
-
-
-
   let rec fromSynType
     (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (typ : SynType)
@@ -68,9 +63,7 @@ module DType =
       // Some user- or stdlib- type
       | _ ->
         match matchingCustomTypes availableTypes name with
-        | [ matchedType ] ->
-          let typeArgs = [] // TODO: List.map c args
-          PT.TCustomType(matchedType, typeArgs)
+        | [ matchedType ] -> PT.TCustomType(matchedType, List.map c typeArgs)
         | _ ->
           Exception.raiseInternal $"Unsupported type" [ "name", name; "type", typ ]
 
@@ -615,6 +608,7 @@ module UserFunction =
       let (name, parameters) = parseSignature availableTypes pat
       { tlid = gid ()
         name = name
+        typeArgs = [] // TODO: review
         parameters = parameters
         returnType = PT.TVariable "a"
         description = ""
@@ -754,6 +748,7 @@ module PackageFn =
           module_ = p3
           function_ = userFn.name
           version = 0 }
+      typeArgs = [] // TODO: review
       parameters =
         userFn.parameters
         |> List.map (fun (p : PT.UserFunction.Parameter) ->

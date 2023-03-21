@@ -31,6 +31,7 @@ let types : List<BuiltInType> =
 let fns : List<BuiltInFn> =
 
   [ { name = fn "Test" "typeError" 0
+      typeArgs = []
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
       description = "Return a value representing a type error"
@@ -43,6 +44,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "Test" "incomplete" 0
+      typeArgs = []
       parameters = []
       returnType = TVariable "a"
       description = "Return a DIncomplet"
@@ -56,6 +58,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "sqlError" 0
+      typeArgs = []
       parameters = [ Param.make "errorString" TStr "" ]
       returnType = TInt
       description = "Return a value that matches errors thrown by the SqlCompiler"
@@ -71,6 +74,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "nan" 0
+      typeArgs = []
       parameters = []
       returnType = TFloat
       description = "Return a NaN"
@@ -84,6 +88,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "infinity" 0
+      typeArgs = []
       parameters = []
       returnType = TFloat
       description = "Returns positive infitity"
@@ -97,6 +102,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "toChar" 0
+      typeArgs = []
       parameters = [ Param.make "c" TStr "" ]
       returnType = TOption TChar
       description = "Turns a string of length 1 into a character"
@@ -116,6 +122,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "negativeInfinity" 0
+      typeArgs = []
       parameters = []
       returnType = TFloat
       description = "Returns negative infinity"
@@ -129,6 +136,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "incrementSideEffectCounter" 0
+      typeArgs = []
       parameters =
         [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
       returnType = TVariable "a"
@@ -146,6 +154,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "sideEffectCount" 0
+      typeArgs = []
       parameters = []
       returnType = TInt
       description = "Return the value of the side-effect counter"
@@ -159,6 +168,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "inspect" 0
+      typeArgs = []
       parameters = [ Param.make "var" varA ""; Param.make "msg" TStr "" ]
       returnType = varA
       description = "Prints the value into stdout"
@@ -174,6 +184,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "justWithTypeError" 0
+      typeArgs = []
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TOption varA
       description = "Returns a DError in a Just"
@@ -187,6 +198,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "okWithTypeError" 0
+      typeArgs = []
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TResult(varA, varB)
       description = "Returns a DError in an OK"
@@ -200,6 +212,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "errorWithTypeError" 0
+      typeArgs = []
       parameters = [ Param.make "msg" TStr "" ]
       returnType = TResult(varA, varB)
       description = "Returns a DError in a Result.Error"
@@ -213,6 +226,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "deleteUser" 0
+      typeArgs = []
       parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TUnit, varB)
       description = "Delete a user (test only)"
@@ -235,6 +249,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "getQueue" 0
+      typeArgs = []
       parameters = [ Param.make "eventName" TStr "" ]
       returnType = TList TStr
       description = "Fetch a queue (test only)"
@@ -257,6 +272,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "asBytes" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList TInt) "" ]
       returnType = TBytes
       description = "Turns a list of ints into bytes"
@@ -278,6 +294,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "raiseException" 0
+      typeArgs = []
       parameters = [ Param.make "message" TStr "" ]
       returnType = TVariable "a"
       description = "A function that raises an F# exception"
@@ -291,6 +308,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "intArrayToBytes" 0
+      typeArgs = []
       parameters = [ Param.make "bytes" (TList TInt) "" ]
       returnType = TBytes
       description = "Create a bytes structure from an array of ints"
@@ -313,6 +331,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "regexReplace" 0
+      typeArgs = []
       parameters =
         [ Param.make "subject" TStr ""
           Param.make "pattern" TStr ""
@@ -330,6 +349,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "httpResponseStatusCode" 0
+      typeArgs = []
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = TInt
       description = "Get the status code from a HttpResponse"
@@ -343,6 +363,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "httpResponseHeaders" 0
+      typeArgs = []
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = TList(TList TStr)
       description = "Get headers from a HttpResponse"
@@ -360,6 +381,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "httpResponseBody" 0
+      typeArgs = []
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
       returnType = varA
       description = "Get the body from a HttpResponse"
@@ -373,6 +395,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "getCanvasName" 0
+      typeArgs = []
       parameters = []
       returnType = TStr
       description = "Get the name of the canvas that's running"
@@ -386,6 +409,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "getCanvasID" 0
+      typeArgs = []
       parameters = []
       returnType = TUuid
       description = "Get the name of the canvas that's running"
@@ -399,6 +423,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "getUserID" 0
+      typeArgs = []
       parameters = []
       returnType = TUuid
       description = "Get the ID of the user"
@@ -412,6 +437,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Test" "unwrap" 0
+      typeArgs = []
       parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
       returnType = TVariable "a"
       description =
@@ -441,6 +467,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "Test" "setExpectedExceptionCount" 0
+      typeArgs = []
       parameters = [ Param.make "count" TInt "" ]
       returnType = TUnit
       description = "Set the expected exception count for the current test"

@@ -541,6 +541,7 @@ module ProgramTypes =
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
       name = "myFunc"
+      typeArgs = [ dtype ]
       parameters =
         [ { id = 23824935UL; name = "myparam1"; typ = dtype; description = "param1" } ]
       returnType = dtype
@@ -583,6 +584,7 @@ module ProgramTypes =
           function_ = "mod"
           version = 0 }
       body = expr
+      typeArgs = [ dtype ]
       parameters = [ { name = "param"; typ = dtype; description = "desc" } ]
       returnType = dtype
       description = "test"

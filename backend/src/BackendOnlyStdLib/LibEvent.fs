@@ -17,6 +17,7 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "" "emit" 1
+      typeArgs = []
       parameters = [ Param.make "event" varA ""; Param.make "name" TStr "" ]
       returnType = varA
       description = "Emit a <param event> to the <param name> worker"

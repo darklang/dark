@@ -25,6 +25,7 @@ let varC = TVariable "c"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Result" "map" 1
+      typeArgs = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
@@ -52,6 +53,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "mapError" 1
+      typeArgs = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
@@ -79,6 +81,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "withDefault" 0
+      typeArgs = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.make "default" varB "" ]
@@ -99,6 +102,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "fromOption" 2
+      typeArgs = []
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" varErr "" ]
       returnType = TResult(varOk, varErr)
@@ -117,6 +121,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "toOption" 1
+      typeArgs = []
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
       description = "Turn a <type result> into an <type option>"
@@ -133,6 +138,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "map2" 0
+      typeArgs = []
       parameters =
         [ Param.make "result1" (TResult(varA, varErr)) ""
           Param.make "result2" (TResult(varB, varErr)) ""
@@ -163,6 +169,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "andThen" 1
+      typeArgs = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]

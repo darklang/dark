@@ -16,6 +16,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Char" "toUppercase" 1
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description =
@@ -30,6 +31,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Char" "toLowercase" 1
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description =
@@ -44,6 +46,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Char" "isLowercase" 0
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
       description = "Return whether <param c> is a lowercase character."
@@ -60,6 +63,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Char" "isUppercase" 0
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
       description = "Return whether <param c> is an uppercase character."
@@ -76,6 +80,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Char" "isDigit" 0
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
       description = "Return whether <param c> is a digit (that is, the digits 0-9)"
@@ -90,6 +95,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Char" "isASCIILetter" 0
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
       description = "Return whether <param c> is an ASCII letter"
@@ -109,6 +115,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Char" "isASCII" 0
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
       description = "Return whether <param c> is a valid ASCII character"
@@ -122,6 +129,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "Char" "isLessThan" 0
+      typeArgs = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
       description = "Return whether <param c1> is less than <param c2>"
@@ -134,6 +142,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "Char" "isGreaterThan" 0
+      typeArgs = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
       description = "Return whether <param c1> is greater than <param c2>"
@@ -147,6 +156,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Char" "toString" 0
+      typeArgs = []
       parameters = [ Param.make "c" TInt "" ]
       returnType = TStr
       description = "Stringify <param c>"

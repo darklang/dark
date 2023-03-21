@@ -25,6 +25,7 @@ let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Option" "map" 1
+      typeArgs = []
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
       description =
@@ -50,6 +51,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Option" "map2" 0
+      typeArgs = []
       parameters =
         [ Param.make "option1" (TOption varA) ""
           Param.make "option2" (TOption varB) ""
@@ -80,6 +82,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Option" "andThen" 0
+      typeArgs = []
       parameters =
         [ optionA
           Param.makeWithArgs "fn" (TFn([ TOption varA ], TOption varB)) "" [ "val" ] ]
@@ -113,6 +116,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Option" "withDefault" 0
+      typeArgs = []
       parameters = [ optionA; Param.make "default" varA "" ]
       returnType = varA
       description =

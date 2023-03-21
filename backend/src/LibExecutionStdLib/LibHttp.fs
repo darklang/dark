@@ -20,6 +20,7 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "response" 0
+      typeArgs = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -35,6 +36,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithHeaders" 0
+      typeArgs = []
       parameters =
         [ Param.make "response" varA ""
           Param.make "headers" (TDict TStr) ""
@@ -63,6 +65,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "success" 0
+      typeArgs = []
       parameters = [ Param.make "response" varA "" ]
       returnType = THttpResponse varA
       description =
@@ -78,6 +81,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithHtml" 0
+      typeArgs = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -95,6 +99,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithText" 0
+      typeArgs = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -112,6 +117,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithJson" 0
+      typeArgs = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -129,6 +135,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "redirectTo" 0
+      typeArgs = []
       parameters = [ Param.make "url" TStr "" ]
       returnType = THttpResponse varA
       description =
@@ -145,6 +152,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "badRequest" 0
+      typeArgs = []
       parameters = [ Param.make "error" TStr "" ]
       returnType = THttpResponse varA
       description =
@@ -160,6 +168,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "notFound" 0
+      typeArgs = []
       parameters = []
       returnType = THttpResponse varA
       description =
@@ -175,6 +184,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "unauthorized" 0
+      typeArgs = []
       parameters = []
       returnType = THttpResponse varA
       description =
@@ -190,6 +200,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "forbidden" 0
+      typeArgs = []
       parameters = []
       returnType = THttpResponse varA
       description =
@@ -205,6 +216,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "setCookie" 2
+      typeArgs = []
       parameters =
         [ Param.make "name" TStr ""
           Param.make "value" TStr ""

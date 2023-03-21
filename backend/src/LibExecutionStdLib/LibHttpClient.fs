@@ -22,6 +22,7 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
+      typeArgs = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -42,6 +43,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "jsonContentType" 0
+      typeArgs = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -62,6 +64,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "plainTextContentType" 0
+      typeArgs = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -78,6 +81,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "htmlContentType" 0
+      typeArgs = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -94,6 +98,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "bearerToken" 1
+      typeArgs = []
       parameters = [ Param.make "token" TStr "" ]
       returnType = TDict TStr
       description =

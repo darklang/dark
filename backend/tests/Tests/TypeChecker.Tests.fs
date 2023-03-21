@@ -59,6 +59,7 @@ let testArguments : Test =
       let userFn : RT.UserFunction.T =
         { tlid = id 7
           name = name
+          typeArgs = []
           parameters = []
           returnType = returnType
           description = ""
@@ -84,6 +85,6 @@ let testArguments : Test =
       (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]
 
 
-
+// TODO: add tests around type args
 
 let tests = testList "typeChecker" [ testBasicTypecheckWorks; testArguments ]

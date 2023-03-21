@@ -25,6 +25,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TBool
       description = "Returns {{true}} if <param s> is the empty string {{\"\"}}"
@@ -38,6 +39,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "foreach" 1
+      typeArgs = []
       parameters =
         [ Param.make "s" TStr ""
           Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
@@ -78,6 +80,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "newline" 0
+      typeArgs = []
       parameters = []
       returnType = TStr
       description = "Returns a string containing a single '\n'"
@@ -91,6 +94,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "toList" 1
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TList TChar
       description = "Returns the list of Characters (EGC, not byte) in the string"
@@ -110,6 +114,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "replaceAll" 0
+      typeArgs = []
       parameters =
         [ Param.make "s" TStr "The string to operate on"
           Param.make "searchFor" TStr "The string to search for within <param s>"
@@ -142,6 +147,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "toUppercase" 1
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Returns the string, uppercased"
@@ -155,6 +161,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "toLowercase" 1
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Returns the string, lowercased"
@@ -168,6 +175,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "length" 1
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TInt
       description = "Returns the length of the string"
@@ -181,6 +189,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "append" 1
+      typeArgs = []
       parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
       returnType = TStr
       description =
@@ -197,6 +206,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "prepend" 0
+      typeArgs = []
       parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
       returnType = TStr
       description =
@@ -212,6 +222,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "slugify" 2
+      typeArgs = []
       parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
       description =
@@ -242,6 +253,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "reverse" 0
+      typeArgs = []
       parameters = [ Param.make "string" TStr "" ]
       returnType = TStr
       description = "Reverses <param string>"
@@ -256,6 +268,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "split" 1
+      typeArgs = []
       parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
       returnType = TList TStr
       description =
@@ -299,6 +312,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "join" 0
+      typeArgs = []
       parameters = [ Param.make "l" (TList TStr) ""; Param.make "separator" TStr "" ]
       returnType = TStr
       description = "Combines a list of strings with the provided separator"
@@ -322,6 +336,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "fromList" 1
+      typeArgs = []
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TStr
       description = "Returns the list of characters as a string"
@@ -344,6 +359,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "fromChar" 1
+      typeArgs = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TStr
       description = "Converts a <type char> to a <type string>"
@@ -357,6 +373,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "base64Encode" 0
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
@@ -378,6 +395,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "base64Decode" 0
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TStr, TStr)
       description =
@@ -424,6 +442,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "digest" 0
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description =
@@ -448,6 +467,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "random" 2
+      typeArgs = []
       parameters = [ Param.make "length" TInt "" ]
       returnType = TResult(TStr, TStr)
       description =
@@ -484,6 +504,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "htmlEscape" 0
+      typeArgs = []
       parameters = [ Param.make "html" TStr "" ]
       returnType = TStr
       description =
@@ -517,6 +538,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "contains" 0
+      typeArgs = []
       parameters =
         [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
       returnType = TBool
@@ -535,6 +557,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "slice" 0
+      typeArgs = []
       parameters =
         [ Param.make "string" TStr ""
           Param.make "from" TInt ""
@@ -577,6 +600,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "first" 0
+      typeArgs = []
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
@@ -607,6 +631,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "last" 0
+      typeArgs = []
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
@@ -659,6 +684,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "dropLast" 0
+      typeArgs = []
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
@@ -708,6 +734,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "dropFirst" 0
+      typeArgs = []
       parameters =
         [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
       returnType = TStr
@@ -751,6 +778,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "padStart" 0
+      typeArgs = []
       parameters =
         [ Param.make "string" TStr ""
           Param.make "padWith" TStr ""
@@ -789,6 +817,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "padEnd" 0
+      typeArgs = []
       parameters =
         [ Param.make "string" TStr ""
           Param.make "padWith" TStr ""
@@ -828,6 +857,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "trim" 0
+      typeArgs = []
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description =
@@ -845,6 +875,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "trimStart" 0
+      typeArgs = []
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description =
@@ -861,6 +892,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "trimEnd" 0
+      typeArgs = []
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description =
@@ -877,6 +909,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "toBytes" 0
+      typeArgs = []
       parameters = [ Param.make "str" TStr "" ]
       returnType = TBytes
       description =
@@ -893,6 +926,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "startsWith" 0
+      typeArgs = []
       parameters = [ Param.make "subject" TStr ""; Param.make "prefix" TStr "" ]
       returnType = TBool
       description = "Checks if <param subject> starts with <param prefix>"
@@ -907,6 +941,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "String" "endsWith" 0
+      typeArgs = []
       parameters =
         [ Param.make "subject" TStr "String to test"; Param.make "suffix" TStr "" ]
       returnType = TBool

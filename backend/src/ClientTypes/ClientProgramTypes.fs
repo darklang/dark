@@ -190,6 +190,7 @@ module UserFunction =
     { tlid : tlid
       name : string
       returnType : DType
+      typeArgs : List<DType>
       parameters : List<Parameter>
       description : string
       infix : bool
@@ -234,6 +235,7 @@ module Package =
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
+      typeArgs : List<DType>
       parameters : List<Parameter>
       returnType : DType
       description : string

@@ -232,6 +232,7 @@ let varC = TVariable "c"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "List" "singleton" 0
+      typeArgs = []
       parameters = [ Param.make "val" (TVariable "a") "" ]
       returnType = TList(TVariable "a")
       description = "Returns a one-element list containing the given <param val>"
@@ -245,6 +246,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "head" 2
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
       description =
@@ -260,6 +262,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "tail" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption(TList varA)
       description =
@@ -279,6 +282,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "empty" 0
+      typeArgs = []
       parameters = []
       returnType = TList varA
       description = "Returns an empty list"
@@ -292,6 +296,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "push" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
       description = "Add element <param val> to front of <type list> <param list>"
@@ -306,6 +311,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "pushBack" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
       description = "Add element <param val> to back of <type list> <param list>"
@@ -319,6 +325,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "last" 2
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
       description =
@@ -334,6 +341,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "reverse" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description = "Returns a reversed copy of <param list>"
@@ -347,6 +355,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "findFirst" 2
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
@@ -376,6 +385,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "member" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TBool
       description = "Returns {{true}} if <param val> is in the list"
@@ -389,6 +399,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "repeat" 0
+      typeArgs = []
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
       returnType = TResult(TList varA, TStr)
       description =
@@ -411,6 +422,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "length" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TInt
       description = "Returns the number of values in <param list>"
@@ -424,6 +436,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "range" 0
+      typeArgs = []
       parameters =
         [ Param.make "lowest" TInt "First, smallest number in the list"
           Param.make "highest" TInt "Last, largest number in the list" ]
@@ -443,6 +456,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "fold" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) "The list of items to process one at a time"
           Param.make "init" varB "The initial starting value"
@@ -475,6 +489,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "flatten" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
       returnType = TList varA
       description =
@@ -496,6 +511,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "interpose" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "sep" varA "" ]
       returnType = TList varA
       description =
@@ -519,6 +535,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "interleave" 0
+      typeArgs = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
       returnType = TList varA
@@ -545,6 +562,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "uniqueBy" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
@@ -592,6 +610,7 @@ let fns : List<BuiltInFn> =
 
     // TODO: type check to ensure `varA` is "comparable"
     { name = fn "List" "unique" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description =
@@ -621,6 +640,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "isEmpty" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TBool
       description = "Returns true if <param list> has no values"
@@ -634,6 +654,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "sort" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description =
@@ -663,6 +684,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "sortBy" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
@@ -712,6 +734,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "sortByComparator" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
@@ -758,6 +781,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "append" 0
+      typeArgs = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varA) "" ]
       returnType = TList varA
@@ -774,6 +798,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "all" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs
@@ -817,6 +842,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "filter" 2
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
@@ -866,6 +892,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "filterMap" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], TOption varB)) "" [ "val" ] ]
@@ -923,6 +950,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "drop" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
       description = "Drops the first <param count> values from <param list>"
@@ -939,6 +967,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "dropWhile" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
@@ -988,6 +1017,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "take" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
       description = "Drops all but the first <param count> values from <param list>"
@@ -1004,6 +1034,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "takeWhile" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
@@ -1055,6 +1086,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "map" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
           Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ] ]
@@ -1082,6 +1114,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "indexedMap" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ TInt; varA ], varB)) "" [ "index"; "val" ] ]
@@ -1112,6 +1145,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "map2shortest" 0
+      typeArgs = []
       parameters =
         [ Param.make "as" (TList varA) ""
           Param.make "bs" (TList varB) ""
@@ -1153,6 +1187,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "map2" 0
+      typeArgs = []
       parameters =
         [ Param.make "as" (TList varA) ""
           Param.make "bs" (TList varB) ""
@@ -1194,6 +1229,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "zipShortest" 0
+      typeArgs = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
       returnType = TList(TTuple(varA, varB, []))
@@ -1230,6 +1266,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "zip" 0
+      typeArgs = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
       returnType = TOption(TList(TTuple(varA, varB, [])))
@@ -1265,6 +1302,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "unzip" 0
+      typeArgs = []
       parameters = [ Param.make "pairs" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TList(TList varA)
       description =
@@ -1309,6 +1347,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "getAt" 1
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA
       description =
@@ -1325,6 +1364,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "List" "randomElement" 0
+      typeArgs = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
       description =
@@ -1347,6 +1387,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "List" "partition" 0
+      typeArgs = []
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]

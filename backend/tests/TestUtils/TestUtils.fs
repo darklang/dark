@@ -186,12 +186,13 @@ let testUserFn
     description = ""
     infix = false
     name = name
-    returnType = PT.TVariable "a"
+    typeArgs = [] // TODO: review
     parameters =
       List.map
         (fun (p : string) ->
           { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
-        parameters }
+        parameters
+    returnType = PT.TVariable "a" }
 
 let testUserRecordType
   (name : PT.FQTypeName.UserTypeName)

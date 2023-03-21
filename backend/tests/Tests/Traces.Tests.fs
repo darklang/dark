@@ -212,6 +212,7 @@ let testFunctionTracesAreStored =
     let (userFn : RT.UserFunction.T) =
       { tlid = 12312345234UL
         name = "test_fn"
+        typeArgs = []
         parameters = []
         returnType = RT.TInt
         description = ""

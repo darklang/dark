@@ -242,6 +242,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
 
 let fns : List<BuiltInFn> =
   [ { name = fn "" "equals" 0
+      typeArgs = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
       description = "Returns true if the two value are equal"
@@ -255,6 +256,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "" "notEquals" 0
+      typeArgs = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
       description = "Returns true if the two value are not equal"
@@ -268,6 +270,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "AWS" "urlencode" 0
+      typeArgs = []
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description = "Url encode a string per AWS' requirements"
@@ -326,6 +329,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Twitter" "urlencode" 0
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Url encode a string per Twitter's requirements"

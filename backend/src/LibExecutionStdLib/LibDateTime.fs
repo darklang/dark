@@ -36,6 +36,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DateTime" "parse" 2
+      typeArgs = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TDateTime, TStr)
       description =
@@ -57,6 +58,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "toString" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TStr
       description =
@@ -75,6 +77,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "toStringISO8601BasicDateTime" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TStr
       description =
@@ -90,6 +93,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "toStringISO8601BasicDate" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TStr
       description = "Stringify <param date> to the ISO 8601 basic format YYYYMMDD"
@@ -104,6 +108,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "now" 0
+      typeArgs = []
       parameters = []
       returnType = TDateTime
       description = "Returns the current time"
@@ -117,6 +122,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "today" 0
+      typeArgs = []
       parameters = []
       returnType = TDateTime
       description = "Returns the <type Date> with the time set to midnight"
@@ -132,6 +138,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "add" 0
+      typeArgs = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt "" ]
       returnType = TDateTime
       description = "Returns a <type Date> <param seconds> seconds after <param d>"
@@ -151,6 +158,7 @@ let fns : List<BuiltInFn> =
     // you are subtracting one date from another, so subtracting anything else
     // should include the name of the relevant unit in the fn name.
     { name = fn "DateTime" "subtractSeconds" 0
+      typeArgs = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt "" ]
       returnType = TDateTime
       description = "Returns a <type Date> <param seconds> seconds before <param d>"
@@ -165,6 +173,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "greaterThan" 0
+      typeArgs = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
       description = "Returns whether {{<param d1> > <param d2>}}"
@@ -178,6 +187,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "lessThan" 0
+      typeArgs = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
       description = "Returns whether {{<param d1> < <param d2>}}"
@@ -191,6 +201,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "greaterThanOrEqualTo" 0
+      typeArgs = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
       description = "Returns whether {{<param d1> >= <param d2>}}"
@@ -204,6 +215,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "lessThanOrEqualTo" 0
+      typeArgs = []
       parameters = [ Param.make "d1" TDateTime ""; Param.make "d2" TDateTime "" ]
       returnType = TBool
       description = "Returns whether {{<param d1> <= <param d2>}}"
@@ -217,6 +229,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "toSeconds" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description =
@@ -232,6 +245,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "fromSeconds" 0
+      typeArgs = []
       parameters = [ Param.make "seconds" TInt "" ]
       returnType = TDateTime
       description =
@@ -251,6 +265,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "year" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description = "Returns the year portion of <param date> as an <type int>"
@@ -264,6 +279,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "month" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description =
@@ -278,6 +294,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "day" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description = "Returns the day portion of <param date> as an <type int>"
@@ -291,6 +308,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "weekday" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description =
@@ -305,6 +323,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "hour" 2
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description = "Returns the hour portion of <param date> as an <type int>"
@@ -318,6 +337,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "minute" 1
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description = "Returns the minute portion of <param date> as an <type int>"
@@ -331,6 +351,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "second" 1
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description = "Returns the second portion of <param date> as an <type int>"
@@ -344,6 +365,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DateTime" "atStartOfDay" 0
+      typeArgs = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TDateTime
       description = "Returns <type date> with the time set to midnight"
@@ -363,6 +385,7 @@ let fns : List<BuiltInFn> =
     // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
     // currently support such a complex sqlSpec in Dark fns.
     { name = fn "DateTime" "subtract" 1
+      typeArgs = []
       parameters = [ Param.make "end" TDateTime ""; Param.make "start" TDateTime "" ]
       returnType = TInt
       description = "Returns the difference of the two dates, in seconds"

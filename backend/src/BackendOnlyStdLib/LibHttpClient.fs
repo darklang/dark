@@ -224,6 +224,7 @@ type HeaderError =
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "request" 0
+      typeArgs = []
       parameters =
         [ Param.make "method" TStr ""
           Param.make "uri" TStr ""

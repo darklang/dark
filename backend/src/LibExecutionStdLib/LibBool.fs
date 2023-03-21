@@ -13,6 +13,7 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bool" "not" 0
+      typeArgs = []
       parameters = [ Param.make "b" TBool "" ]
       returnType = TBool
       description =
@@ -27,6 +28,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bool" "and" 0
+      typeArgs = []
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
       description = "Returns {{true}} if both <param a> and <param b> are {{true}}"
@@ -40,6 +42,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bool" "or" 0
+      typeArgs = []
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
       description =
@@ -54,6 +57,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bool" "xor" 0
+      typeArgs = []
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
       description =
@@ -68,6 +72,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bool" "toString" 0
+      typeArgs = []
       parameters = [ Param.make "v" TBool "" ]
       returnType = TStr
       description = "Return {\"true\"} or {\"false\"}"

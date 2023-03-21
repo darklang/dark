@@ -17,6 +17,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple3" "create" 0
+      typeArgs = []
       parameters =
         [ Param.make "first" (TVariable "a") ""
           Param.make "second" (TVariable "b") ""
@@ -33,6 +34,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "first" 0
+      typeArgs = []
       parameters =
         [ Param.make
             "tuple"
@@ -50,6 +52,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "second" 0
+      typeArgs = []
       parameters =
         [ Param.make
             "tuple"
@@ -67,6 +70,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "third" 0
+      typeArgs = []
       parameters =
         [ Param.make
             "tuple"
@@ -84,6 +88,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapFirst" 0
+      typeArgs = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -110,6 +115,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapSecond" 0
+      typeArgs = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -136,6 +142,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapThird" 0
+      typeArgs = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -162,6 +169,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapAllThree" 0
+      typeArgs = []
       parameters =
         [ Param.makeWithArgs
             "fnFirst"

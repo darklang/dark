@@ -21,6 +21,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Crypto" "sha256" 0
+      typeArgs = []
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
       description = "Computes the SHA-256 digest of the given <param data>"
@@ -35,6 +36,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Crypto" "sha384" 0
+      typeArgs = []
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
       description = "Computes the SHA-384 digest of the given <param data>"
@@ -49,6 +51,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Crypto" "md5" 0
+      typeArgs = []
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
       description =
@@ -63,6 +66,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Crypto" "sha256hmac" 0
+      typeArgs = []
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
       description =
@@ -79,6 +83,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Crypto" "sha1hmac" 0
+      typeArgs = []
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
       description =
