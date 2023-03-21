@@ -27,6 +27,29 @@ RETURNS TRIGGER AS $t$
   END;
 $t$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
+  $func$
+  BEGIN
+  LOOP
+    SELECT id
+    FROM   canvases_v0
+    WHERE  name = _name
+    INTO   _id;
+
+    EXIT WHEN FOUND;
+
+    INSERT INTO canvases_v0 AS c
+    (id, account_id, name)
+    VALUES (_new_id, _account_id, _name)
+    ON     CONFLICT (name) DO NOTHING
+    RETURNING c.id
+    INTO   _id;
+
+    EXIT WHEN FOUND;
+  END LOOP;
+  END;
+$func$ LANGUAGE plpgsql;
+
 
 CREATE TABLE IF NOT EXISTS
 accounts_v0
@@ -221,7 +244,7 @@ system_migrations_v0
 
 
 CREATE TYPE toplevel_type AS
-ENUM ('handler', 'db', 'user_function');
+ENUM ('handler', 'db', 'user_function', 'user_tipe');
 
 CREATE TABLE IF NOT EXISTS
 toplevel_oplists_v0
@@ -300,4 +323,7 @@ USING GIN
 CREATE TRIGGER set_user_data_timestamp
 BEFORE UPDATE ON user_data_v0
 FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp()
+EXECUTE PROCEDURE trigger_set_timestamp();
+
+
+ALTER TABLE user_data_v0 ADD constraint user_data_key_uniq UNIQUE USING INDEX idx_user_data_row_uniqueness
