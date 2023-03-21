@@ -580,7 +580,7 @@ and callFn
   (isInPipe : IsInPipe)
   : DvalTask =
   uply {
-    let sourceID id = SourceID(state.tlid, id) in
+    let sourceID = SourceID(state.tlid, callerID) in
 
     let fn =
       match desc with
@@ -623,7 +623,9 @@ and callFn
 
           match fnResult with
           | Some (result, _ts) -> return result
-          | _ -> return DIncomplete(sourceID callerID)
+          | None ->
+            return
+              DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
         | Some fn ->
           // equalize length
@@ -640,7 +642,7 @@ and callFn
           else
             return
               DError(
-                sourceID callerID,
+                sourceID,
                 $"{FQFnName.toString desc} has {expectedLength} parameters, but here was called"
                 + $" with {actualLength} arguments."
               )
@@ -675,7 +677,7 @@ and execFn
        && Set.contains fnDesc state.callstack then
       // Don't recurse (including transitively!) when previewing unexecuted paths
       // in the editor. If we do, we'll recurse forever and blow the stack.
-      return DIncomplete(SourceID(state.tlid, id))
+      return DIncomplete(sourceID)
     else
       // CLEANUP: optimization opportunity
       let state =
