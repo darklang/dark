@@ -33,58 +33,77 @@ let private matchingCustomTypes
 
 
 module DType =
+
+
+
   let rec fromSynType
     (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (typ : SynType)
     : PT.DType =
+
+
     let c = fromSynType availableTypes
 
-    match typ with
-    | SynType.App (SynType.LongIdent (SynLongIdent ([ ident ], _, _)),
-                   _,
-                   args,
-                   _,
-                   _,
-                   _,
-                   _) ->
-      // TODO: start enforcing all typed fns require explicit type args
-      // i.e. remove this branch in favor of the TypeApp one.
+    let rec fromNameAndTypeArgs
+      availableTypes
+      (name : string)
+      (typeArgs : List<SynType>)
+      : PT.DType =
+      match name, typeArgs with
+      // no type args
+      | "bool", [] -> PT.TBool
+      | "int", [] -> PT.TInt
+      | "string", [] -> PT.TStr
+      | "char", [] -> PT.TChar
+      | "float", [] -> PT.TFloat
+      | "DateTime", [] -> PT.TDateTime
+      | "UUID", [] -> PT.TUuid
+      | "unit", [] -> PT.TUnit
+      | "Password", [] -> PT.TPassword
 
-      match ident.idText, matchingCustomTypes availableTypes ident.idText, args with
-      | "List", _, [ arg ] -> PT.TList(c arg)
-      | "Option", _, [ arg ] -> PT.TOption(c arg)
-      | _, [ typeName ], args ->
-        let typeArgs = List.map c args
-        PT.TCustomType(typeName, typeArgs)
+      // with type args
+      | "List", [ arg ] -> PT.TList(c arg)
+      | "Option", [ arg ] -> PT.TOption(c arg)
+
+      // Some user- or stdlib- type
       | _ ->
-        Exception.raiseInternal
-          $"Unsupported type (outer)"
-          [ "type", typ; "name", ident.idText; "range", ident; "id", ident.idRange ]
-
-    | SynType.Paren (t, _) -> c t
-    | SynType.Fun (arg, ret, _, _) -> PT.TFn([ c arg ], c ret)
-    | SynType.Var (SynTypar (id, _, _), _) -> PT.TVariable(id.idText)
-    | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
-
-      match ident.idText with
-      | "bool" -> PT.TBool
-      | "int" -> PT.TInt
-      | "string" -> PT.TStr
-      | "char" -> PT.TChar
-      | "float" -> PT.TFloat
-      | "DateTime" -> PT.TDateTime
-      | "UUID" -> PT.TUuid
-      | "unit" -> PT.TUnit
-      | "Password" -> PT.TPassword
-      | _ ->
-        match matchingCustomTypes availableTypes ident.idText with
+        match matchingCustomTypes availableTypes name with
         | [ matchedType ] ->
           let typeArgs = [] // TODO: List.map c args
           PT.TCustomType(matchedType, typeArgs)
         | _ ->
-          Exception.raiseInternal
-            $"Unsupported type"
-            [ "name", ident.idText; "type", typ; "range", ident.idRange ]
+          Exception.raiseInternal $"Unsupported type" [ "name", name; "type", typ ]
+
+
+    match typ with
+    | SynType.Paren (t, _) -> c t
+
+    // Variable types (i.e. "generic types")
+    // e.g. `'a` in `'a -> bool`
+    | SynType.Var (SynTypar (id, _, _), _) -> PT.TVariable(id.idText)
+
+
+    // Function types
+    // e.g. `'a -> bool` in `let friends (lambda: ('a -> bool)) = ...`
+    | SynType.Fun (arg, ret, _, _) -> PT.TFn([ c arg ], c ret)
+
+
+    // Named types. covers:
+    // - built-in F# types like `bool`
+    // - Stdlib-defined types
+    // - User-defined types
+    | SynType.App (SynType.LongIdent (SynLongIdent ([ ident ], _, _)),
+                   _,
+                   typeArgs,
+                   _,
+                   _,
+                   _,
+                   _) -> fromNameAndTypeArgs availableTypes ident.idText typeArgs
+
+    | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
+      let typeArgs = []
+      fromNameAndTypeArgs availableTypes ident.idText typeArgs
+
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
 
