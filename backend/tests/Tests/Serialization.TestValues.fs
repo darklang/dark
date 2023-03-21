@@ -234,6 +234,7 @@ module ProgramTypes =
                           898531080UL,
                           PT.FQFnName.Stdlib
                             { module_ = "Bool"; function_ = "isError"; version = 0 },
+                          [],
                           [ PT.EInteger(160106123UL, 6L) ]
                         ),
                         PT.EIf(
@@ -276,6 +277,7 @@ module ProgramTypes =
                               173079901UL,
                               PT.FQFnName.Stdlib
                                 { module_ = "Int"; function_ = "add"; version = 0 },
+                              [],
                               [ PT.EInteger(250221144UL, 6L)
                                 PT.EInteger(298149318UL, 2L) ]
                             )
@@ -340,6 +342,7 @@ module ProgramTypes =
                                 { module_ = "Mod"
                                   function_ = "function"
                                   version = 2 },
+                              [],
                               []
                             ),
                             [ (PT.MPConstructor(

@@ -137,6 +137,7 @@ let testRecursionInEditor : Test =
         PT.EFnCall(
           skippedCallerID,
           PT.FQFnName.userFqName "recurse",
+          [],
           [ PT.EInteger(gid (), 2) ]
         )
       )

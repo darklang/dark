@@ -148,6 +148,51 @@ type Infix =
   | InfixFnCall of InfixFnName
   | BinOp of BinaryOperation
 
+/// Darklang's available types
+/// - `int`
+/// - `List<T>`
+/// - user-defined enums
+/// - etc.
+type DType =
+  | TInt
+  | TFloat
+  | TBool
+  | TUnit
+  | TStr
+  | TList of DType
+  | TTuple of DType * DType * List<DType>
+  | TDict of DType
+  | TIncomplete
+  | TError
+  | THttpResponse of DType
+  | TDB of DType
+  | TDateTime
+  | TChar
+  | TPassword
+  | TUuid
+  | TBytes
+  // A named variable, eg `a` in `List<a>`, matches anything
+  | TVariable of string // replaces TAny
+  | TFn of List<DType> * DType // replaces TLambda
+
+  | TDbList of DType // TODO: cleanup and remove
+
+  /// A type defined by a standard library module, a canvas/user, or a package
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// `typeArgs` is the list of type arguments, if any
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+
+  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
+  // and the Option module defines the custom `Option` type
+  | TOption of DType
+
+  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
+  // and the Result module defines the custom `Result` type
+  | TResult of DType * DType
+
+  // TODO: remove in favor of `TCustomType` referring to defined `CustomType.Record`s
+  | TRecord of List<string * DType>
+
 /// Expressions - the main part of the language.
 type Expr =
   | EInteger of id * int64
@@ -169,7 +214,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * List<Expr>
+  | EFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * Expr * List<Expr>
@@ -220,50 +265,7 @@ and StringSegment =
   | StringInterpolation of Expr
 
 
-/// Darklang's available types
-/// - `int`
-/// - `List<T>`
-/// - user-defined enums
-/// - etc.
-type DType =
-  | TInt
-  | TFloat
-  | TBool
-  | TUnit
-  | TStr
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TDict of DType
-  | TIncomplete
-  | TError
-  | THttpResponse of DType
-  | TDB of DType
-  | TDateTime
-  | TChar
-  | TPassword
-  | TUuid
-  | TBytes
-  // A named variable, eg `a` in `List<a>`, matches anything
-  | TVariable of string // replaces TAny
-  | TFn of List<DType> * DType // replaces TLambda
 
-  | TDbList of DType // TODO: cleanup and remove
-
-  /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
-  /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
-
-  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
-  // and the Option module defines the custom `Option` type
-  | TOption of DType
-
-  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
-  // and the Result module defines the custom `Result` type
-  | TResult of DType * DType
-
-  // TODO: remove in favor of `TCustomType` referring to defined `CustomType.Record`s
-  | TRecord of List<string * DType>
 
 
 /// A type defined by a standard library module, a canvas/user, or a package

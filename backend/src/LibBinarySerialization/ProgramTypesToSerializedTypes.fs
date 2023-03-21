@@ -61,6 +61,39 @@ module InfixFnName =
     | PT.StringConcat -> ST.StringConcat
 
 
+module DType =
+  let rec toST (t : PT.DType) : ST.DType =
+    match t with
+    | PT.TInt -> ST.TInt
+    | PT.TFloat -> ST.TFloat
+    | PT.TBool -> ST.TBool
+    | PT.TUnit -> ST.TUnit
+    | PT.TStr -> ST.TStr
+    | PT.TList typ -> ST.TList(toST typ)
+    | PT.TTuple (first, second, theRest) ->
+      ST.TTuple(toST first, toST second, List.map toST theRest)
+    | PT.TDict typ -> ST.TDict(toST typ)
+    | PT.TIncomplete -> ST.TIncomplete
+    | PT.TError -> ST.TError
+    | PT.THttpResponse typ -> ST.THttpResponse(toST typ)
+    | PT.TDB typ -> ST.TDB(toST typ)
+    | PT.TDateTime -> ST.TDateTime
+    | PT.TChar -> ST.TChar
+    | PT.TPassword -> ST.TPassword
+    | PT.TUuid -> ST.TUuid
+    | PT.TOption typ -> ST.TOption(toST typ)
+    | PT.TCustomType (t, typeArgs) ->
+      ST.TCustomType(FQTypeName.toST t, List.map toST typeArgs)
+    | PT.TBytes -> ST.TBytes
+    | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
+    | PT.TVariable (name) -> ST.TVariable(name)
+    | PT.TFn (paramTypes, returnType) ->
+      ST.TFn(List.map toST paramTypes, toST returnType)
+    | PT.TRecord (rows) ->
+      ST.TRecord(List.map (fun (f, t : PT.DType) -> f, toST t) rows)
+    | PT.TDbList typ -> ST.TDbList(toST typ)
+
+
 module BinaryOperation =
   let toST (op : PT.BinaryOperation) : ST.BinaryOperation =
     match op with
@@ -102,8 +135,13 @@ module Expr =
     | PT.EVariable (id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       ST.EFieldAccess(id, toST obj, fieldname)
-    | PT.EFnCall (id, name, args) ->
-      ST.EFnCall(id, FQFnName.toST name, List.map toST args)
+    | PT.EFnCall (id, name, typeArgs, args) ->
+      ST.EFnCall(
+        id,
+        FQFnName.toST name,
+        List.map DType.toST typeArgs,
+        List.map toST args
+      )
     | PT.EInfix (id, PT.InfixFnCall name, arg1, arg2) ->
       ST.EInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST arg1, toST arg2)
     | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
@@ -146,37 +184,6 @@ module Expr =
     | PT.StringText text -> ST.StringText text
     | PT.StringInterpolation expr -> ST.StringInterpolation(toST expr)
 
-module DType =
-  let rec toST (t : PT.DType) : ST.DType =
-    match t with
-    | PT.TInt -> ST.TInt
-    | PT.TFloat -> ST.TFloat
-    | PT.TBool -> ST.TBool
-    | PT.TUnit -> ST.TUnit
-    | PT.TStr -> ST.TStr
-    | PT.TList typ -> ST.TList(toST typ)
-    | PT.TTuple (first, second, theRest) ->
-      ST.TTuple(toST first, toST second, List.map toST theRest)
-    | PT.TDict typ -> ST.TDict(toST typ)
-    | PT.TIncomplete -> ST.TIncomplete
-    | PT.TError -> ST.TError
-    | PT.THttpResponse typ -> ST.THttpResponse(toST typ)
-    | PT.TDB typ -> ST.TDB(toST typ)
-    | PT.TDateTime -> ST.TDateTime
-    | PT.TChar -> ST.TChar
-    | PT.TPassword -> ST.TPassword
-    | PT.TUuid -> ST.TUuid
-    | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TCustomType (t, typeArgs) ->
-      ST.TCustomType(FQTypeName.toST t, List.map toST typeArgs)
-    | PT.TBytes -> ST.TBytes
-    | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
-    | PT.TVariable (name) -> ST.TVariable(name)
-    | PT.TFn (paramTypes, returnType) ->
-      ST.TFn(List.map toST paramTypes, toST returnType)
-    | PT.TRecord (rows) ->
-      ST.TRecord(List.map (fun (f, t : PT.DType) -> f, toST t) rows)
-    | PT.TDbList typ -> ST.TDbList(toST typ)
 
 
 module CustomType =

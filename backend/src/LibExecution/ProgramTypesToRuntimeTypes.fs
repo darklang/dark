@@ -23,6 +23,38 @@ module FQTypeName =
     | PT.FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.toRT u)
 
 
+module DType =
+  let rec toRT (t : PT.DType) : RT.DType =
+    match t with
+    | PT.TInt -> RT.TInt
+    | PT.TFloat -> RT.TFloat
+    | PT.TBool -> RT.TBool
+    | PT.TUnit -> RT.TUnit
+    | PT.TStr -> RT.TStr
+    | PT.TList typ -> RT.TList(toRT typ)
+    | PT.TTuple (firstType, secondType, otherTypes) ->
+      RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)
+    | PT.TDict typ -> RT.TDict(toRT typ)
+    | PT.TIncomplete -> RT.TIncomplete
+    | PT.TError -> RT.TError
+    | PT.THttpResponse typ -> RT.THttpResponse(toRT typ)
+    | PT.TDB typ -> RT.TDB(toRT typ)
+    | PT.TDateTime -> RT.TDateTime
+    | PT.TChar -> RT.TChar
+    | PT.TPassword -> RT.TPassword
+    | PT.TUuid -> RT.TUuid
+    | PT.TOption typ -> RT.TOption(toRT typ)
+    | PT.TCustomType (typeName, typArgs) ->
+      RT.TCustomType(FQTypeName.toRT typeName, List.map toRT typArgs)
+    | PT.TBytes -> RT.TBytes
+    | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)
+    | PT.TVariable (name) -> RT.TVariable(name)
+    | PT.TFn (paramTypes, returnType) ->
+      RT.TFn(List.map toRT paramTypes, toRT returnType)
+    | PT.TRecord (rows) ->
+      RT.TRecord(List.map (fun (f, t : PT.DType) -> f, toRT t) rows)
+    | PT.TDbList typ -> RT.TList(toRT typ)
+
 module FQFnName =
   module PackageFnName =
     let toRT (name : PT.FQFnName.PackageFnName) : RT.FQFnName.PackageFnName =
@@ -58,6 +90,8 @@ module InfixFnName =
     | PT.StringConcat -> ("String", "append", 1)
     | PT.ComparisonEquals -> ("", "equals", 0)
     | PT.ComparisonNotEquals -> ("", "notEquals", 0)
+
+
 
 module LetPattern =
   let rec toRT (p : PT.LetPattern) : RT.LetPattern =
@@ -99,10 +133,11 @@ module Expr =
     | PT.EVariable (id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess (id, obj, fieldname) ->
       RT.EFieldAccess(id, toRT obj, fieldname)
-    | PT.EFnCall (id, fnName, args) ->
+    | PT.EFnCall (id, fnName, typeArgs, args) ->
       RT.EApply(
         id,
         RT.FnName(FQFnName.toRT fnName),
+        //List.map DType.toRT typeArgs,
         List.map toRT args,
         RT.NotInPipe
       )
@@ -110,7 +145,8 @@ module Expr =
       let (module_, fn, version) = InfixFnName.toFnName fnName
       let name =
         PT.FQFnName.Stdlib({ module_ = module_; function_ = fn; version = version })
-      toRT (PT.EFnCall(id, name, [ arg1; arg2 ]))
+      let typeArgs = []
+      toRT (PT.EFnCall(id, name, typeArgs, [ arg1; arg2 ]))
     | PT.EInfix (id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix (id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
@@ -142,7 +178,9 @@ module Expr =
           let rec convert thisExpr =
             match thisExpr with
             // TODO: support currying
-            | PT.EFnCall (id, fnName, PT.EPipeTarget ptID :: exprs) ->
+
+            | PT.EFnCall (id, fnName, typeArgs, PT.EPipeTarget ptID :: exprs) ->
+              // TODO: consider using typeArgs
               RT.EApply(
                 id,
                 RT.FnName(FQFnName.toRT fnName),
@@ -201,38 +239,6 @@ module Expr =
     | PT.StringText text -> RT.StringText text
     | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
 
-
-module DType =
-  let rec toRT (t : PT.DType) : RT.DType =
-    match t with
-    | PT.TInt -> RT.TInt
-    | PT.TFloat -> RT.TFloat
-    | PT.TBool -> RT.TBool
-    | PT.TUnit -> RT.TUnit
-    | PT.TStr -> RT.TStr
-    | PT.TList typ -> RT.TList(toRT typ)
-    | PT.TTuple (firstType, secondType, otherTypes) ->
-      RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)
-    | PT.TDict typ -> RT.TDict(toRT typ)
-    | PT.TIncomplete -> RT.TIncomplete
-    | PT.TError -> RT.TError
-    | PT.THttpResponse typ -> RT.THttpResponse(toRT typ)
-    | PT.TDB typ -> RT.TDB(toRT typ)
-    | PT.TDateTime -> RT.TDateTime
-    | PT.TChar -> RT.TChar
-    | PT.TPassword -> RT.TPassword
-    | PT.TUuid -> RT.TUuid
-    | PT.TOption typ -> RT.TOption(toRT typ)
-    | PT.TCustomType (typeName, typArgs) ->
-      RT.TCustomType(FQTypeName.toRT typeName, List.map toRT typArgs)
-    | PT.TBytes -> RT.TBytes
-    | PT.TResult (okType, errType) -> RT.TResult(toRT okType, toRT errType)
-    | PT.TVariable (name) -> RT.TVariable(name)
-    | PT.TFn (paramTypes, returnType) ->
-      RT.TFn(List.map toRT paramTypes, toRT returnType)
-    | PT.TRecord (rows) ->
-      RT.TRecord(List.map (fun (f, t : PT.DType) -> f, toRT t) rows)
-    | PT.TDbList typ -> RT.TList(toRT typ)
 
 module CustomType =
   module RecordField =

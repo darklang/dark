@@ -31,7 +31,7 @@ let hardToRepresentTests =
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
       let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
-      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, fnArgList)
+      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, [], fnArgList)
 
       let symtable = Map.ofList args
 
