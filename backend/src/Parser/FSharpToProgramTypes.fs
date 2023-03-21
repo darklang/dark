@@ -169,6 +169,21 @@ module Expr =
         "Bad format in one word function name"
         [ "fnName", fnName ]
 
+  let private ops =
+    Map.ofList [ ("op_Addition", PT.ArithmeticPlus)
+                 ("op_Subtraction", PT.ArithmeticMinus)
+                 ("op_Multiply", PT.ArithmeticMultiply)
+                 ("op_Division", PT.ArithmeticDivide)
+                 ("op_Modulus", PT.ArithmeticModulo)
+                 ("op_Concatenate", PT.ArithmeticPower)
+                 ("op_GreaterThan", PT.ComparisonGreaterThan)
+                 ("op_GreaterThanOrEqual", PT.ComparisonGreaterThanOrEqual)
+                 ("op_LessThan", PT.ComparisonLessThan)
+                 ("op_LessThanOrEqual", PT.ComparisonLessThanOrEqual)
+                 ("op_EqualsEquals", PT.ComparisonEquals)
+                 ("op_BangEquals", PT.ComparisonNotEquals)
+                 ("op_PlusPlus", PT.StringConcat) ]
+
   let rec fromSynExpr
     (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (ast : SynExpr)
@@ -191,21 +206,6 @@ module Expr =
         PT.EInfix(id, op, PT.EPipeTarget(gid ()), arg1)
       | other -> other
 
-    let ops =
-      Map.ofList [ ("op_Addition", PT.ArithmeticPlus)
-                   ("op_Subtraction", PT.ArithmeticMinus)
-                   ("op_Multiply", PT.ArithmeticMultiply)
-                   ("op_Division", PT.ArithmeticDivide)
-                   ("op_Modulus", PT.ArithmeticModulo)
-                   ("op_Concatenate", PT.ArithmeticPower)
-                   ("op_GreaterThan", PT.ComparisonGreaterThan)
-                   ("op_GreaterThanOrEqual", PT.ComparisonGreaterThanOrEqual)
-                   ("op_LessThan", PT.ComparisonLessThan)
-                   ("op_LessThanOrEqual", PT.ComparisonLessThanOrEqual)
-                   ("op_EqualsEquals", PT.ComparisonEquals)
-                   ("op_BangEquals", PT.ComparisonNotEquals)
-                   ("op_PlusPlus", PT.StringConcat) ]
-
     let id = gid ()
 
     match ast with
@@ -222,6 +222,8 @@ module Expr =
     | SynExpr.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       PT.EFloat(id, sign, whole, fraction)
+
+    // Strings
     | SynExpr.Const (SynConst.String (s, _, _), _) ->
       PT.EString(id, [ PT.StringText s ])
     | SynExpr.InterpolatedString (parts, _, _) ->
@@ -232,7 +234,8 @@ module Expr =
           | SynInterpolatedStringPart.FillExpr (e, _) -> PT.StringInterpolation(c e))
       PT.EString(id, parts)
 
-    // simple identifiers like `==`
+
+    // Simple identifiers/operators like `==`
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       Map.containsKey ident.idText ops
       ->
@@ -267,6 +270,8 @@ module Expr =
     | SynExpr.Ident ident when ident.idText = "Nothing" ->
       PT.EConstructor(id, None, "Nothing", [])
 
+
+    // Enum constructors
     | SynExpr.Ident name ->
       let matchingEnumCases =
         availableTypes
@@ -294,10 +299,10 @@ module Expr =
           "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
           [ "name", name.idText ]
 
-    // lists and arrays
+    // Lists and arrays
     | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
 
-    // A literal list is sometimes made up of nested Sequentials
+    // a literal list is sometimes made up of nested Sequentials
     | SynExpr.ArrayOrListComputed (_, (SynExpr.Sequential _ as seq), _) ->
       let rec seqAsList expr : List<SynExpr> =
         match expr with
@@ -310,10 +315,13 @@ module Expr =
 
     | SynExpr.ArrayOrListComputed (_, expr, _) -> PT.EList(id, [ c expr ])
 
-    // tuples
+
+    // Tuples
     | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
       PT.ETuple(id, c first, c second, List.map c rest)
 
+
+    // Function calls
     // Long Identifiers like DateTime.now, represented in the form of ["DateTime"; "now"]
     // (LongIdent = Ident list)
     | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
@@ -323,6 +331,7 @@ module Expr =
       let name, version = parseFn fnName.idText
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, [], [])
 
+    // e.g. `Json.serialize<T>`
     | SynExpr.TypeApp (SynExpr.LongIdent (_,
                                           SynLongIdent ([ modName; fnName ], _, _),
                                           _,
@@ -340,7 +349,8 @@ module Expr =
         |> List.map (fun synType -> DType.fromSynType availableTypes synType)
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
 
-    // Preliminary support for calling package manager functions
+    // package manager function calls
+    // (preliminary support)
     | SynExpr.LongIdent (_,
                          SynLongIdent ([ owner; package; modName; fnName ], _, _),
                          _,
@@ -354,6 +364,8 @@ module Expr =
         []
       )
 
+
+    // Field access
     | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
       let obj1 =
         PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
@@ -375,6 +387,8 @@ module Expr =
     | SynExpr.DotGet (expr, _, SynLongIdent ([ field ], _, _), _) ->
       PT.EFieldAccess(id, c expr, nameOrBlank field.idText)
 
+
+    // Lambdas
     | SynExpr.Lambda (_,
                       false,
                       SynSimplePats.SimplePats (outerVars, _),
@@ -402,12 +416,13 @@ module Expr =
         |> (List.map (fun name -> (gid (), name)))
       PT.ELambda(id, vars, c body)
 
+
     // if/then expressions
     | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
       PT.EIf(id, c cond, c thenExpr, c elseExpr)
 
 
-    // handle `let` bindings
+    // `let` bindings
     | SynExpr.LetOrUse (_,
                         _,
                         [ SynBinding (_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],
@@ -457,7 +472,7 @@ module Expr =
     | SynExpr.Do (expr, _) -> c expr // just unwrap
 
 
-    // handle pipes (|>)
+    // Pipes (|>)
     // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
     // op_PipeRight, and the inner app has two arguments. Those arguments might
     // also be pipes
@@ -493,8 +508,9 @@ module Expr =
       PT.EPipe(id, c expr, placeholder, [])
 
 
-    // handle old enum values (EConstructors)
-    // TODO: remove these when the Option and Result types are defined in StdLib
+    // Enum values (EConstructors)
+    // TODO: remove this explicit handling
+    // when the Option and Result types are defined in StdLib
     | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
       ->
