@@ -261,7 +261,7 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
       WHERE module = 'CRON'
         AND modifier IS NOT NULL
         AND modifier <> ''
-        AND toplevel_oplists.name IS NOT NULL
+        AND toplevel_oplists_v0.name IS NOT NULL
         AND deleted IS FALSE"
   |> Sql.executeAsync (fun read ->
     let interval = read.string "modifier"
