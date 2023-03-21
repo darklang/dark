@@ -560,7 +560,7 @@ module FunctionCalls =
   (returnsResultOk ()) |> Test.unwrap = 5
 
 module InvalidFnCalls =
-  functionWhichDoesntExist 6 = Test.incomplete // CLEANUP
+  functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
   stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int"
   stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
 
