@@ -563,7 +563,7 @@ let saveTLIDs
             "INSERT INTO toplevel_oplists_v0
                     (canvas_id, tlid, digest, tipe, name, module, modifier,
                      deleted, oplist, oplist_cache)
-                    VALUES (@canvasID, @accountID, @tlid, @digest, @typ::toplevel_type, @name,
+                    VALUES (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
                             @module, @modifier, @deleted,
                             @oplist, @oplistCache)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
