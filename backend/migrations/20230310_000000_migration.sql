@@ -123,7 +123,7 @@ ON events_v0 (canvas_id, module, name);
 
 CREATE TABLE IF NOT EXISTS
 function_arguments_v0
-( id UUID PRIMARY KEY
+( id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
@@ -186,7 +186,7 @@ CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
-( id UUID PRIMARY KEY
+( id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 , rule_type scheduling_rule_type NOT NULL
 , canvas_id UUID NOT NULL
 , handler_name TEXT NOT NULL
@@ -273,7 +273,7 @@ EXECUTE PROCEDURE trigger_set_timestamp();
 -- Keep track of what traces are available for which handler/function/etc
 CREATE TABLE IF NOT EXISTS
 traces_v0
-( id UUID PRIMARY KEY
+( id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 , canvas_id UUID NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID (used to
 -- store the trace data in Cloud Storage)
