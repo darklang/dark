@@ -83,7 +83,7 @@ cron_records_v0
 ( id SERIAL PRIMARY KEY
 , tlid BIGINT NOT NULL
 , canvas_id UUID NOT NULL
-, ran_at TIMESTAMPTZ NOT NULL
+, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() --remove default
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -141,10 +141,10 @@ function_arguments_for_trace
 ON function_arguments_v0
 (canvas_id, tlid, trace_id);
 
-
+-- TODO: add PK to function_results_v0
 CREATE TABLE IF NOT EXISTS
 function_results_v0
-( id BIGINT PRIMARY KEY
+( id BIGINT NOT NULL
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
 , fnname TEXT NOT NULL
@@ -162,7 +162,8 @@ ON function_results_v0
 
 
  /* associate it back to the function. */
-CREATE TABLE IF NOT EXISTS packages_v0
+CREATE TABLE IF NOT EXISTS
+packages_v0
 ( id UUID PRIMARY KEY
 , tlid BIGINT NOT NULL
   /* owner/namespace part of the string, eg dark */
@@ -186,7 +187,7 @@ CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+( id SERIAL PRIMARY KEY -- TODO: change to UUID ERR: Can't cast database type uuid to Int32
 , rule_type scheduling_rule_type NOT NULL
 , canvas_id UUID NOT NULL
 , handler_name TEXT NOT NULL
@@ -197,12 +198,12 @@ scheduling_rules_v0
 
 CREATE TABLE IF NOT EXISTS
 secrets_v0
-( id UUID PRIMARY KEY
-, canvas_id UUID NOT NULL
+( canvas_id UUID NOT NULL
 , secret_name VARCHAR(255) NOT NULL
 , secret_value TEXT NOT NULL
 , secret_version INT NOT NULL DEFAULT 0
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+, PRIMARY KEY (canvas_id, secret_name, secret_version) -- TODO: simplfy PK
 );
 
 
