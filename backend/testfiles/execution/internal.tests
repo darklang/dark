@@ -134,7 +134,7 @@ module Secrets =
   DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
 
   // insertSecret twice
-  (let test = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
+  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
   // Does not work
   DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE") = Error "Error inserting secret"
 
