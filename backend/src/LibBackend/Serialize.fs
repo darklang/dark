@@ -22,47 +22,6 @@ module PTParser = LibExecution.ProgramTypesParser
 module Telemetry = LibService.Telemetry
 
 
-// let isLatestOpRequest
-//   (clientOpCtrID : Option<string>)
-//   (opCtr : int)
-//   (canvasID : CanvasID)
-//   : Task<bool> =
-//   // opctr is used to prevent earlier ops from overwriting later ones
-//   task {
-//     let clientOpCtrID =
-//       match clientOpCtrID with
-//       | Some ""
-//       | None -> System.Guid.NewGuid()
-//       | Some s -> System.Guid.Parse s
-
-//     do!
-//       (Sql.query
-//         // This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
-//         // that it also handles the initial case where there is no
-//         // browser_id record yet
-//         // CLEANUP: this table doesn't exist anymore
-//         "INSERT INTO op_ctrs(browser_id, ctr, canvas_id)
-//            VALUES(@clientOpCtrID, @opCtr, @canvasID)
-//            ON CONFLICT (browser_id)
-//            DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW()
-//            WHERE op_ctrs.ctr < EXCLUDED.ctr"
-//        |> Sql.parameters [ "clientOpCtrID", Sql.uuid clientOpCtrID
-//                            "opCtr", Sql.int opCtr
-//                            "canvasID", Sql.uuid canvasID ]
-//        |> Sql.executeStatementAsync)
-
-//     return!
-//       // CLEANUP: this table doesn't exist anymore
-//       Sql.query
-//         "SELECT TRUE FROM op_ctrs
-//            WHERE browser_id = @clientOpCtrID
-//              AND ctr = @opCtr"
-//       |> Sql.parameters [ "clientOpCtrID", Sql.uuid clientOpCtrID
-//                           "opCtr", Sql.int opCtr ]
-//       |> Sql.executeExistsAsync
-//   }
-
-
 // --------------------------------------------------------
 // Load serialized data from the DB
 // --------------------------------------------------------
