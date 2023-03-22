@@ -19,8 +19,7 @@ module RT = LibExecution.RuntimeTypes
 type Account = { username : UserName.T }
 
 
-type UserInfo = { username : UserName.T
-                  id : UserID }
+type UserInfo = { username : UserName.T; id : UserID }
 
 // **********************
 // Adding
@@ -82,7 +81,7 @@ let insertUser (username : UserName.T) : Task<Result<unit, string>> =
         do!
           Sql.query
             "INSERT INTO accounts_v0
-              (id, , username,)
+              (id, username)
               VALUES
               (@id, @username)"
           |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())

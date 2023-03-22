@@ -490,8 +490,7 @@ let deleteToplevelForever (meta : Meta) (tlid : tlid) : Task<unit> =
     "DELETE from toplevel_oplists_v0
       WHERE canvas_id = @canvasID
         AND tlid = @tlid"
-  |> Sql.parameters [ "canvasID", Sql.uuid meta.id
-                      "tlid", Sql.id tlid ]
+  |> Sql.parameters [ "canvasID", Sql.uuid meta.id; "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
 
