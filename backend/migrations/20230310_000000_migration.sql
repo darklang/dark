@@ -161,6 +161,30 @@ ON function_results_v0
 (canvas_id, trace_id, tlid, timestamp DESC);
 
 
+
+CREATE TABLE IF NOT EXISTS
+ op_ctrs_v0
+ ( canvas_id UUID NOT NULL
+ , browser_id UUID NOT NULL UNIQUE
+ , ctr INTEGER NOT NULL DEFAULT 0
+ , timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW());
+
+ CREATE INDEX IF NOT EXISTS
+ idx_op_ctrs_canvas_id
+ ON op_ctrs_v0
+ (canvas_id);
+
+ CREATE INDEX IF NOT EXISTS
+ idx_op_ctrs_browser_id_ctr
+ ON op_ctrs_v0
+ (browser_id, ctr DESC);
+
+ CREATE INDEX IF NOT EXISTS
+ idx_op_ctrs_timestamp
+ ON op_ctrs_v0
+ (timestamp ASC);
+
+
  /* associate it back to the function. */
 CREATE TABLE IF NOT EXISTS
 packages_v0
