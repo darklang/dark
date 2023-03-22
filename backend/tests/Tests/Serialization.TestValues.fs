@@ -95,12 +95,14 @@ module RuntimeTypes =
       RT.EApply(
         128384UL,
         RT.FnTargetExpr(RT.EUnit(1235123UL)),
+        [ RT.TBool ],
         [ RT.EUnit(7756UL) ],
         RT.NotInPipe
       )
       RT.EApply(
         128384UL,
         RT.FnName(RT.FQFnName.User "user fn"),
+        [],
         [ RT.EUnit(7756UL) ],
         RT.NotInPipe
       )

@@ -92,7 +92,7 @@ module Expr =
     | ELambda of id * List<id * string> * T
     | EFieldAccess of id * T * string
     | EVariable of id * string
-    | EApply of id * FnTarget * List<T> * IsInPipe
+    | EApply of id * FnTarget * List<DType> * List<T> * IsInPipe
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>

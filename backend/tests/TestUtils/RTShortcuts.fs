@@ -21,37 +21,55 @@ let eFn'
   (module_ : string)
   (function_ : string)
   (version : int)
+  (typeArgs : List<DType>)
   (args : List<Expr>)
   : Expr =
-  EApply(gid (), (eStdFnName module_ function_ version), args, NotInPipe)
+  EApply(gid (), (eStdFnName module_ function_ version), typeArgs, args, NotInPipe)
 
 let eFn
   (module_ : string)
   (function_ : string)
   (version : int)
+  (typeArgs : List<DType>)
   (args : List<Expr>)
   : Expr =
-  eFn' module_ function_ version args
+  eFn' module_ function_ version typeArgs args
 
-let eUserFn (function_ : string) (args : List<Expr>) : Expr =
-  EApply(gid (), (eUserFnName function_), args, NotInPipe)
+let eUserFn
+  (function_ : string)
+  (typeArgs : List<DType>)
+  (args : List<Expr>)
+  : Expr =
+  EApply(gid (), (eUserFnName function_), typeArgs, args, NotInPipe)
 
-let eApply' (target : FnTarget) (args : List<Expr>) (isInPipe : IsInPipe) : Expr =
-  EApply(gid (), target, args, isInPipe)
+let eApply'
+  (target : FnTarget)
+  (typeArgs : List<DType>)
+  (args : List<Expr>)
+  (isInPipe : IsInPipe)
+  : Expr =
+  EApply(gid (), target, typeArgs, args, isInPipe)
 
-let eApply (target : Expr) (args : List<Expr>) : Expr =
-  eApply' (FnTargetExpr target) args NotInPipe
+let eApply (target : Expr) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
+  eApply' (FnTargetExpr target) typeArgs args NotInPipe
 
-let ePipeApply (target : Expr) (args : List<Expr>) : Expr =
-  eApply' (FnTargetExpr target) args (InPipe(gid ()))
+let ePipeApply (target : Expr) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
+  eApply' (FnTargetExpr target) typeArgs args (InPipe(gid ()))
 
 let ePipeFn
   (module_ : string)
   (function_ : string)
   (version : int)
+  (typeArgs : List<DType>)
   (args : List<Expr>)
   : Expr =
-  EApply(gid (), eStdFnName module_ function_ version, args, InPipe(gid ()))
+  EApply(
+    gid (),
+    eStdFnName module_ function_ version,
+    typeArgs,
+    args,
+    InPipe(gid ())
+  )
 
 let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 

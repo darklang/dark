@@ -1,6 +1,5 @@
-type MyType = {
-  x: int
-}
+// ## Serialize/parse basic types
 
-1 = 1
-// Json.parse "{ 'x': 5 }" = { x = 5 }
+// units
+Json.serialize<unit> () = Ok "null"
+Json.parse<unit> "null" = ()

@@ -74,7 +74,7 @@ let testExecFunctionTLIDs : Test =
           tracing =
             { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
-    let! value = Exe.executeFunction state (gid ()) (FQFnName.User name) []
+    let! value = Exe.executeFunction state (gid ()) (FQFnName.User name) [] []
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"
@@ -94,6 +94,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
         "DB"
         "queryOne"
         4
+        []
         [ eVar "MyDB"
           eLambda [ "value" ] (eFieldAccess (EVariable(varID, "value")) "age") ]
 
@@ -143,7 +144,7 @@ let testRecursionInEditor : Test =
       )
 
     let recurse = testUserFn "recurse" [ "i" ] fnExpr |> PT2RT.UserFunction.toRT
-    let ast = EApply(callerID, eUserFnName "recurse", [ eInt 0 ], NotInPipe)
+    let ast = EApply(callerID, eUserFnName "recurse", [], [ eInt 0 ], NotInPipe)
     let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 
     Expect.equal
@@ -210,7 +211,7 @@ let testIfPreview : Test =
         AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
       // fakevals
-      (eFn "Test" "typeError" 0 [ eStr "test" ],
+      (eFn "Test" "typeError" 0 [] [ eStr "test" ],
        (AT.ExecutedResult(DError(SourceNone, "test")),
         AT.NonExecutedResult(DStr "then"),
         AT.NonExecutedResult(DStr "else")))
@@ -467,6 +468,7 @@ let testMatchPreview : Test =
          PT.FQFnName.stdlibFqName "String" "append" 1
          |> PT2RT.FQFnName.toRT
          |> FnName,
+         [],
          [ EString(okVarRhsStrId, [ StringText "ok: " ])
            EVariable(okVarRhsVarId, "x") ],
          NotInPipe

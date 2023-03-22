@@ -139,6 +139,7 @@ let reexecuteFunction
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
   (name : RT.FQFnName.T)
+  (typeArgs : List<RT.DType>)
   (args : List<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
@@ -146,7 +147,7 @@ let reexecuteFunction
     // the rootTLID of the trace.
     let tracing = Tracing.create meta rootTLID traceID
     let! state = createState traceID callerTLID program tracing.executionTracing
-    let! result = Exe.executeFunction state callerID name args
+    let! result = Exe.executeFunction state callerID name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results
   }

@@ -66,7 +66,7 @@ let testArguments : Test =
           infix = false
           body = body }
 
-      let expr = S.eUserFn name []
+      let expr = S.eUserFn name [] []
       let fns = Map.ofList [ name, userFn ]
       let! state = executionStateFor meta Map.empty fns
       let! result = Exe.executeExpr state Map.empty expr

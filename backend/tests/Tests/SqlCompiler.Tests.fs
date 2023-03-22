@@ -76,6 +76,7 @@ let compileTests =
             ""
             "equals"
             0
+            []
             [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
 
         let! sql, args = compile Map.empty "value" [ injection, TStr ] expr

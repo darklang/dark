@@ -340,6 +340,7 @@ module Expr =
       let typeArgs =
         typeArgs
         |> List.map (fun synType -> DType.fromSynType availableTypes synType)
+
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
 
     // package manager function calls

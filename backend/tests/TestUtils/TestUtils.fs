@@ -605,9 +605,11 @@ module Expect =
       eq ("second" :: path) second second'
       eqList path theRest theRest'
 
-    | EApply (_, name, args, inPipe), EApply (_, name', args', inPipe') ->
+    | EApply (_, name, typeArgs, args, inPipe),
+      EApply (_, name', typeArgs', args', inPipe') ->
       let path = (string name :: path)
       check path name name'
+      //eqList path typeArgs typeArgs' // TODO: fix this.
       eqList path args args'
 
       match (inPipe, inPipe') with
@@ -999,23 +1001,27 @@ let interestingDvals =
                  FQFnName.Stdlib
                    { module_ = "List"; function_ = "push"; version = 0 }
                )),
+               [],
                [ EApply(
                    93459985UL,
                    (FnName(
                      FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }
                    )),
+                   [],
                    [ EApply(
                        394567785UL,
                        (FnName(
                          FQFnName.Stdlib
                            { module_ = ""; function_ = "+"; version = 0 }
                        )),
+                       [],
                        [ EApply(
                            44444485UL,
                            (FnName(
                              FQFnName.Stdlib
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
+                           [],
                            [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
                            NotInPipe
                          )

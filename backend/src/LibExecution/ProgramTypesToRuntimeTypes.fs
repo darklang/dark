@@ -137,7 +137,7 @@ module Expr =
       RT.EApply(
         id,
         RT.FnName(FQFnName.toRT fnName),
-        //List.map DType.toRT typeArgs,
+        List.map DType.toRT typeArgs,
         List.map toRT args,
         RT.NotInPipe
       )
@@ -184,6 +184,7 @@ module Expr =
               RT.EApply(
                 id,
                 RT.FnName(FQFnName.toRT fnName),
+                List.map DType.toRT typeArgs,
                 prev :: List.map toRT exprs,
                 RT.InPipe pipeID
               )
@@ -193,9 +194,11 @@ module Expr =
                 PT.FQFnName.Stdlib(
                   { module_ = module_; function_ = fn; version = version }
                 )
+              let typeArgs = []
               RT.EApply(
                 id,
                 RT.FnName(FQFnName.toRT name),
+                typeArgs,
                 [ prev; toRT expr2 ],
                 RT.InPipe pipeID
               )
@@ -205,9 +208,11 @@ module Expr =
               | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
               | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
             | other ->
+              let typeArgs = [] // TODO: review
               RT.EApply(
                 pipeID,
                 RT.FnTargetExpr(toRT other),
+                typeArgs,
                 [ prev ],
                 RT.InPipe pipeID
               )

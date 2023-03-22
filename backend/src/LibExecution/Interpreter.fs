@@ -151,11 +151,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           fields
 
 
-    | EApply (id, fnTarget, exprs, inPipe) ->
+    | EApply (id, fnTarget, typeArgs, exprs, inPipe) ->
       let! args = Ply.List.mapSequentially (eval state st) exprs
+
       let! result =
         match fnTarget with
-        | FnName name -> callFn state id name (Seq.toList args) inPipe
+        | FnName name -> callFn state id name typeArgs (Seq.toList args) inPipe
         | FnTargetExpr e ->
           uply {
             let! target = eval' state st e
@@ -576,11 +577,12 @@ and callFn
   (state : ExecutionState)
   (callerID : id)
   (desc : FQFnName.T)
-  (argvals : Dval list)
+  (typeArgs : List<DType>)
+  (argvals : List<Dval>)
   (isInPipe : IsInPipe)
   : DvalTask =
   uply {
-    let sourceID = SourceID(state.tlid, callerID) in
+    let sourceID = SourceID(state.tlid, callerID)
 
     let fn =
       match desc with
@@ -628,23 +630,42 @@ and callFn
               DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
         | Some fn ->
-          // equalize length
-          let expectedLength = List.length fn.parameters in
-          let actualLength = List.length argvals in
+          // ensure we have the expected # of typeArguments _and_ arguments values
+          let expectedTypeParamLength = List.length fn.typeArgs
+          let expectedArgLength = List.length fn.parameters
 
-          if expectedLength = actualLength then
+          let actualTypeArgLength = List.length typeArgs
+          let actualArgLength = List.length argvals
+
+          let err errMsg = DError(sourceID, errMsg)
+
+          match (expectedTypeParamLength = actualTypeArgLength),
+                (expectedArgLength = actualArgLength)
+            with
+          | true, true ->
             let args =
               fn.parameters
               |> List.map2 (fun dv p -> (p.name, dv)) argvals
               |> Map.ofList
 
-            return! execFn state desc callerID fn args isInPipe
-          else
+            return! execFn state desc callerID fn typeArgs args isInPipe
+          | true, false ->
             return
-              DError(
-                sourceID,
-                $"{FQFnName.toString desc} has {expectedLength} parameters, but here was called"
-                + $" with {actualLength} arguments."
+              err (
+                $"{FQFnName.toString desc} has {expectedArgLength} parameters, but here was called"
+                + $" with {actualArgLength} arguments."
+              )
+          | false, true ->
+            return
+              err (
+                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters, "
+                + $"but here was called with {actualTypeArgLength} type arguments."
+              )
+          | false, false ->
+            return
+              err (
+                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters,"
+                + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
               )
       }
     return result
@@ -656,12 +677,11 @@ and execFn
   (fnDesc : FQFnName.T)
   (id : id)
   (fn : Fn)
+  (typeArgs : List<DType>)
   (args : DvalMap)
   (isInPipe : IsInPipe)
   : DvalTask =
   uply {
-    let typeArgs = [] // TODO
-
     let sourceID = SourceID(state.tlid, id) in
 
     let typeErrorOrValue userTypes result =

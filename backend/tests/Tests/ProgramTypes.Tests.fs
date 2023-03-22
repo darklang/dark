@@ -29,14 +29,17 @@ let testPipesToRuntimeTypes =
         "Int"
         "lessThan"
         0
+        []
         [ S.ePipeFn
             "Int"
             "add"
             0
+            []
             [ S.ePipeFn
                 "Int"
                 "subtract"
                 0
+                []
                 [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
               S.eFieldAccess (S.eVar "value") "age" ]
           S.eInt 3 ]
