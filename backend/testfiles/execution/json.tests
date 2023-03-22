@@ -2,4 +2,4 @@
 
 // units
 Json.serialize<unit> () = Ok "null"
-Json.parse<unit> "null" = ()
+Json.parse<unit> "null" = Ok ()
