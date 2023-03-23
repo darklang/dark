@@ -44,7 +44,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
 
     let eventsV0 =
-      Sql.query "DELETE FROM events_v0 where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM queue_events_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 

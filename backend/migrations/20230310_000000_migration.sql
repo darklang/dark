@@ -55,7 +55,7 @@ domains_v0
 
 
 CREATE TABLE IF NOT EXISTS
-events_v0 -- TODO: rename to queue_events_v0
+queue_events_v0
 ( id UUID PRIMARY KEY
 , canvas_id UUID NOT NULL
 , module TEXT NOT NULL
@@ -74,7 +74,7 @@ events_v0 -- TODO: rename to queue_events_v0
 
 CREATE INDEX IF NOT EXISTS
 idx_events_count
-ON events_v0 (canvas_id, module, name);
+ON queue_events_v0 (canvas_id, module, name);
 
 
 CREATE TABLE IF NOT EXISTS

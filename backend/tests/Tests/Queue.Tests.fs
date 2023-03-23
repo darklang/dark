@@ -190,7 +190,7 @@ let testSuccessLockExpired =
     let earlier = Instant.now () + Duration.FromMinutes -6L
     do!
       Sql.query
-        "UPDATE events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
+        "UPDATE queue_events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
       |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                           "newValue", Sql.instantWithTimeZone earlier ]
       |> Sql.executeStatementAsync
@@ -209,7 +209,7 @@ let testFailLocked =
     // Delay it
     do!
       Sql.query
-        "UPDATE events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
+        "UPDATE queue_events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
       |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                           "newValue", Sql.instantWithTimeZone (Instant.now ()) ]
       |> Sql.executeStatementAsync
