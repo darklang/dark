@@ -41,7 +41,7 @@ let main (args : string array) : int =
         Tests.Cron.tests
         Tests.DvalRepr.tests
         Tests.QueueSchedulingRules.tests
-        Tests.EventQueueV2.tests
+        Tests.Queue.tests
         Tests.Execution.tests
         Tests.Parser.tests
         Tests.HttpClient.tests

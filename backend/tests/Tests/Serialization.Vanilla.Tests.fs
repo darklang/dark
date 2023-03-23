@@ -125,7 +125,7 @@ module PersistedSerializations =
         // ------------------
         // LibBackend
         // ------------------
-        v<LibBackend.EventQueueV2.NotificationData>
+        v<LibBackend.Queue.NotificationData>
           "simple"
           { id = V.uuid; canvasID = V.uuid }
 

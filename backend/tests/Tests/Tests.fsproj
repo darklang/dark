@@ -34,7 +34,7 @@
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
-    <Compile Include="EventQueueV2.Tests.fs" />
+    <Compile Include="Queue.Tests.fs" />
     <Compile Include="Execution.Tests.fs" />
     <Compile Include="Parser.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />

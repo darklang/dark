@@ -14,7 +14,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module EQ2 = LibBackend.EventQueueV2
+module EQ2 = LibBackend.Queue
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules

@@ -1,4 +1,4 @@
-module Tests.EventQueueV2
+module Tests.Queue
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -19,7 +19,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module EQ = LibBackend.EventQueueV2
+module EQ = LibBackend.Queue
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
@@ -471,9 +471,9 @@ let testCount =
 
 let tests =
   testSequencedGroup
-    "eventQueueV2"
+    "Queue"
     (testList
-      "eventQueueV2"
+      "Queue"
       [ testSuccess
         testSuccessThree
         testSuccessThreeAtOnce

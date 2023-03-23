@@ -1,5 +1,5 @@
 /// QueueWorkers (including Crons). See [the docs](/docs/eventsV2.md).
-module LibBackend.EventQueueV2
+module LibBackend.Queue
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

@@ -53,7 +53,7 @@ The queue also has the following accidental features:
 The Queue is made of 3 parts:
 
 - `events_v2` table: the backing store and source of truth for all events
-- `QueueWorker`: workers that execute events (also see EventQueueV2.fs)
+- `QueueWorker`: workers that execute events (also see Queue.fs)
 - `Google PubSub` scheduler: sends notifications to workers to potentially run an Event
 
 New definitions:
@@ -187,7 +187,7 @@ We do a DB query for the number of events for that canvas/handler.
 ### Emit
 
 Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
-`EventQueueV2.enqueue`. This adds a new value to the events table with:
+`Queue.enqueue`. This adds a new value to the events table with:
 
 - `locked_at = NULL`
 - `enqueued_at = CURRENT_TIMESTAMP`

@@ -56,7 +56,7 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     | WaitForDB -> do! _waitForDB ()
     | DontWaitForDB -> ()
 
-    do! EventQueueV2.init ()
+    do! Queue.init ()
     do! TraceCloudStorage.init ()
 
     print $" Inited LibBackend in {serviceName}"

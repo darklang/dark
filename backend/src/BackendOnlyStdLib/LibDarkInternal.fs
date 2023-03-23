@@ -654,7 +654,7 @@ human-readable data."
       returnType = TUnit
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-      fn = modifySchedule EventQueueV2.blockWorker
+      fn = modifySchedule Queue.blockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -666,7 +666,7 @@ human-readable data."
       returnType = TUnit
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-      fn = modifySchedule EventQueueV2.unblockWorker
+      fn = modifySchedule Queue.unblockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

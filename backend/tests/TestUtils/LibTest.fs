@@ -244,9 +244,7 @@ let fns : List<BuiltInFn> =
           uply {
             let canvasID = state.program.canvasID
             let! results =
-              LibBackend.EventQueueV2.Test.loadEvents
-                canvasID
-                ("WORKER", eventName, "_")
+              LibBackend.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
             let results =
               results
               |> List.map (fun x -> DStr(LibExecution.DvalReprDeveloper.toRepr x))

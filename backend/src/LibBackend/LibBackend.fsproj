@@ -37,7 +37,7 @@
     <Compile Include="Secret.fs" />
     <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
-    <Compile Include="EventQueueV2.fs" />
+    <Compile Include="Queue.fs" />
     <Compile Include="Cron.fs" />
     <Compile Include="Tracing.fs" />
     <Compile Include="Traces.fs" />
