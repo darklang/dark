@@ -31,7 +31,7 @@ let store
     Task.FromResult()
   else
     Sql.query
-      "INSERT INTO function_arguments_v0
+      "INSERT INTO trace_old_function_arguments_v0
       (canvas_id, trace_id, tlid, timestamp, arguments_json)
       VALUES (@canvasID, @traceID, @tlid, CURRENT_TIMESTAMP, @args)"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
@@ -63,7 +63,7 @@ let storeMany
       |> ResizeArray.toList
 
     LibService.DBConnection.connect ()
-    |> Sql.executeTransactionAsync [ ("INSERT INTO function_arguments_v0
+    |> Sql.executeTransactionAsync [ ("INSERT INTO trace_old_function_arguments_v0
              (canvas_id, trace_id, tlid, timestamp, arguments_json)
            VALUES
              (@canvasID, @traceID, @tlid, @timestamp, @args)",
@@ -84,7 +84,7 @@ let loadForAnalysis
       Sql.query
         "SELECT arguments_json, timestamp FROM (
                         SELECT DISTINCT ON (trace_id) trace_id, timestamp, arguments_json
-                        FROM function_arguments_v0
+                        FROM trace_old_function_arguments_v0
                         WHERE canvas_id = @canvasID
                           AND tlid = @tlid
                           AND trace_id = @traceID
@@ -114,7 +114,7 @@ let loadTraceIDs (canvasID : CanvasID) (tlid : tlid) : Task<List<AT.TraceID.T>> 
   Sql.query
     "SELECT trace_id FROM (
        SELECT DISTINCT ON (trace_id) trace_id, timestamp
-       FROM function_arguments_v0
+       FROM trace_old_function_arguments_v0
        WHERE canvas_id = @canvasID
          AND tlid = @tlid
        ORDER BY trace_id, timestamp DESC

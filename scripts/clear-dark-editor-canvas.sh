@@ -21,7 +21,7 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM user_data_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM cron_records_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM toplevel_oplists_v0 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM function_arguments_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM trace_old_function_arguments_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases_v0 WHERE id = '$cid';";
   SCRIPT+="DELETE FROM secrets_v0 WHERE canvas_id = '$cid';";
 done

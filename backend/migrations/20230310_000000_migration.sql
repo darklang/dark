@@ -73,12 +73,12 @@ queue_events_v0
 -- 2) fetch the indexes for all items we're unpausing. This is rare so it's fine to
 
 CREATE INDEX IF NOT EXISTS
-idx_events_count
+idx_queue_events_count
 ON queue_events_v0 (canvas_id, module, name);
 
-
+-- TODO: we want to remove this
 CREATE TABLE IF NOT EXISTS
-function_arguments_v0 -- TODO: rename to trace_function_arguments_v0
+trace_old_function_arguments_v0
 ( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
@@ -88,13 +88,13 @@ function_arguments_v0 -- TODO: rename to trace_function_arguments_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-function_arguments_most_recent -- TODO: rename to trace_function_arguments_v0
-ON function_arguments_v0
+trace_old_function_arguments_most_recent
+ON trace_old_function_arguments_v0
 (canvas_id, tlid, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS
-function_arguments_for_trace -- TODO: rename to trace_function_arguments_v0
-ON function_arguments_v0
+trace_old_function_arguments_for_trace
+ON trace_old_function_arguments_v0
 (canvas_id, tlid, trace_id);
 
 
