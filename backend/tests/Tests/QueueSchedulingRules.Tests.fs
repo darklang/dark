@@ -1,4 +1,4 @@
-module Tests.EventQueue
+module Tests.QueueSchedulingRules
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

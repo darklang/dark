@@ -40,8 +40,8 @@ let main (args : string array) : int =
         Tests.Canvas.tests
         Tests.Cron.tests
         Tests.DvalRepr.tests
-        // Tests.EventQueue.tests
-        // Tests.EventQueueV2.tests
+        Tests.QueueSchedulingRules.tests
+        Tests.EventQueueV2.tests
         Tests.Execution.tests
         Tests.Parser.tests
         Tests.HttpClient.tests
