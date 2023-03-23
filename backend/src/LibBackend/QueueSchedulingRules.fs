@@ -174,19 +174,6 @@ let addSchedulingRule
                           "canvasID", Sql.uuid canvasID
                           "workerName", Sql.string workerName ]
       |> Sql.executeStatementAsync
-
-  // do!
-  //   // CLEANUP: this table doesn't exist anymore
-  //   Sql.query
-  //     "UPDATE events
-  //         SET status = 'new'
-  //         WHERE space = 'WORKER'
-  //           AND status = 'scheduled'
-  //           AND canvas_id = @canvasID
-  //           AND name = @workerName"
-  //   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-  //                       "workerName", Sql.string workerName ]
-  //   |> Sql.executeStatementAsync
   }
 
 
