@@ -16,13 +16,10 @@ module RT = LibExecution.RuntimeTypes
 // Types
 // **********************
 
-type Account =
-  { username : UserName.T
-    password : Password.T
-    email : string
-    name : string }
+type Account = { username : UserName.T }
 
-type UserInfo = { id : UserID }
+
+type UserInfo = { username : UserName.T; id : UserID }
 
 // **********************
 // Adding
@@ -40,7 +37,7 @@ let validateEmail (email : string) : Result<unit, string> =
 
 let validateAccount (account : Account) : Result<unit, string> =
   UserName.newUserAllowed (string account.username)
-  |> Result.and_ (validateEmail account.email)
+
 
 // Passwords set here are only valid locally;
 // production uses Auth0 to check access
@@ -50,20 +47,12 @@ let upsertAccount (admin : bool) (account : Account) : Task<Result<unit, string>
     | Ok () ->
       return!
         Sql.query
-          "INSERT INTO accounts
-             (id, username, name, email, admin, password)
-             VALUES
-             (@id, @username, @name, @email, @admin, @password)
-             ON CONFLICT (username)
-             DO UPDATE SET name = EXCLUDED.name,
-                           email = EXCLUDED.email,
-                           password = EXCLUDED.password"
+          "INSERT INTO accounts_v0
+              (id, username)
+              VALUES
+              (@id, @username)"
         |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                            "username", Sql.string (string account.username)
-                            "admin", Sql.bool admin
-                            "name", Sql.string account.name
-                            "email", Sql.string account.email
-                            ("password", account.password |> string |> Sql.string) ]
+                            "username", Sql.string (string account.username) ]
         |> Sql.executeStatementAsync
         |> Task.map Ok
     | Error _ as result -> return result
@@ -74,11 +63,7 @@ let upsertNonAdmin = upsertAccount false
 // Any external calls to this should also call Analytics.identifyUser;
 // we can't do it here because that sets up a module dependency cycle
 // CLEANUP remove the separate user creation functions
-let insertUser
-  (username : UserName.T)
-  (email : string)
-  (name : string)
-  : Task<Result<unit, string>> =
+let insertUser (username : UserName.T) : Task<Result<unit, string>> =
   task {
     let account =
       // As of the move to auth0, we  no longer store passwords in postgres. We do
@@ -86,10 +71,7 @@ let insertUser
       // entirely. Local account creation is done in
       // upsertAccount/upsertAdmin, so using Password.invalid here does
       // not affect that
-      { username = username
-        password = Password.invalid
-        email = email
-        name = name }
+      { username = username }
 
     match validateAccount account with
     | Ok () ->
@@ -98,31 +80,21 @@ let insertUser
         // insert
         do!
           Sql.query
-            "INSERT INTO accounts
-              (id, username, name, email, admin, password)
+            "INSERT INTO accounts_v0
+              (id, username)
               VALUES
-              (@id, @username, @name, @email, false, @password)
-              ON CONFLICT DO NOTHING"
+              (@id, @username)"
           |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                              "username", Sql.string (string username)
-                              "name", Sql.string name
-                              "email", Sql.string email
-                              ("password", Sql.string (string Password.invalid)) ]
+                              "username", Sql.string (string username) ]
           |> Sql.executeStatementAsync
 
         // verify insert worked
         let! accountExists =
           // CLEANUP: if this was added with a different email/name/etc this won't pick it up
           Sql.query
-            "SELECT TRUE from ACCOUNTS
-              WHERE username = @username
-                AND name = @name
-                AND email = @email
-                AND password = @password"
-          |> Sql.parameters [ "username", Sql.string (string username)
-                              "name", Sql.string name
-                              "email", Sql.string email
-                              ("password", Sql.string (string Password.invalid)) ]
+            "SELECT TRUE FROM accounts_v0
+              WHERE username = @username"
+          |> Sql.parameters [ "username", Sql.string (string username) ]
           |> Sql.executeExistsAsync
 
         if accountExists then
@@ -150,8 +122,8 @@ let insertUser
 let userIDForUserName (username : UserName.T) : Task<UserID> =
   Sql.query
     "SELECT id
-       FROM accounts
-       WHERE accounts.username = @username"
+       FROM accounts_v0
+       WHERE accounts_v0.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
   |> Task.map (fun user ->
@@ -163,18 +135,19 @@ let userIDForUserName (username : UserName.T) : Task<UserID> =
 let usernameForUserID (userID : UserID) : Task<Option<UserName.T>> =
   Sql.query
     "SELECT username
-     FROM accounts
-     WHERE accounts.id = @userid"
+     FROM accounts_v0
+     WHERE accounts_v0.id = @userid"
   |> Sql.parameters [ "userid", Sql.uuid userID ]
   |> Sql.executeRowOptionAsync (fun read -> read.string "username" |> UserName.create)
 
 let getUser (username : UserName.T) : Task<Option<UserInfo>> =
   Sql.query
     "SELECT id
-     FROM accounts
-     WHERE accounts.username = @username"
+     FROM accounts_v0
+     WHERE accounts_v0.username = @username"
   |> Sql.parameters [ "username", Sql.string (string username) ]
-  |> Sql.executeRowOptionAsync (fun read -> { id = read.uuid "id" })
+  |> Sql.executeRowOptionAsync (fun read ->
+    { username = username; id = read.uuid "id" })
 
 
 // formerly called auth_domain_for
@@ -191,11 +164,7 @@ let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
 let initTestAccounts () : Task<unit> =
   task {
     do!
-      upsertNonAdmin
-        { username = UserName.create "test"
-          password = Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
-          email = "test@darklang.com"
-          name = "Dark Backend Tests" }
+      upsertNonAdmin { username = UserName.create "test" }
       |> Task.map (Exception.unwrapResultInternal [])
 
     return ()

@@ -80,7 +80,7 @@ let createEvent
   (value : RT.Dval)
   : Task<unit> =
   Sql.query
-    "INSERT INTO events_v2
+    "INSERT INTO events_v0
        (id, canvas_id, module, name, modifier, value,
         enqueued_at, locked_at)
      VALUES
@@ -98,7 +98,7 @@ let createEvent
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
   Sql.query
     "SELECT module, name, modifier, enqueued_at, locked_at, value
-     FROM events_v2
+     FROM events_v0
      WHERE id = @eventID
        AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventId", Sql.uuid id; "canvasID", Sql.uuid canvasID ]
@@ -118,7 +118,7 @@ let loadEventIDs
   : Task<List<EventID>> =
   Sql.query
     "SELECT id
-     FROM events_v2
+     FROM events_v0
      WHERE module = @module
        AND name = @name
        AND modifier = @modifier
@@ -137,7 +137,7 @@ module Test =
     : Task<List<RT.Dval>> =
     Sql.query
       "SELECT value
-        FROM events_v2
+        FROM events_v0
         WHERE module = @module
           AND name = @name
           AND modifier = @modifier
@@ -153,7 +153,7 @@ module Test =
 
 
 let deleteEvent (event : T) : Task<unit> =
-  Sql.query "DELETE FROM events_v2 WHERE id = @eventID AND canvas_id = @canvasID"
+  Sql.query "DELETE FROM events_v0 WHERE id = @eventID AND canvas_id = @canvasID"
   |> Sql.parameters [ "eventID", Sql.uuid event.id
                       "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
@@ -166,7 +166,7 @@ let claimLock (event : T) (_n : Notification) : Task<Result<unit, string>> =
   task {
     let! rowCount =
       Sql.query
-        $"UPDATE events_v2
+        $"UPDATE events_v0
             SET locked_at = CURRENT_TIMESTAMP
           WHERE id = @eventID
             AND canvas_id = @canvasID

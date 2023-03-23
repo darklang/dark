@@ -28,7 +28,7 @@ type FunctionResultValue = RT.Dval * NodaTime.Instant
 let store
   (canvasID : CanvasID)
   (traceID : AT.TraceID.T)
-  ((tlid, fnDesc, id) : tlid * RT.FQFnName.T * id)
+  ((tlid, fnDesc, callerID) : tlid * RT.FQFnName.T * id)
   (arglist : List<RT.Dval>)
   (result : RT.Dval)
   : Task<unit> =
@@ -36,14 +36,14 @@ let store
     Task.FromResult()
   else
     Sql.query
-      "INSERT INTO function_results_v3
-      (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
-      VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
+      "INSERT INTO function_results_v0
+      (canvas_id, trace_id, tlid, fnname, caller_id, hash, hash_version, timestamp, value)
+      VALUES (@canvasID, @traceID, @tlid, @fnName, @callerID, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                         "traceID", Sql.traceID traceID
                         "tlid", Sql.tlid tlid
                         "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
-                        "id", Sql.id id
+                        "caller_id", Sql.id callerID
                         ("hash",
                          arglist
                          |> ReprHash.hash ReprHash.currentHashVersion
@@ -64,20 +64,20 @@ let storeMany
     let transactionData =
       functionResults
       |> Dictionary.toList
-      |> List.map (fun ((tlid, fnDesc, id, hash), (result, timestamp)) ->
+      |> List.map (fun ((tlid, fnDesc, callerID, hash), (result, timestamp)) ->
         [ "canvasID", Sql.uuid canvasID
           "traceID", Sql.traceID traceID
           "tlid", Sql.tlid tlid
           "fnName", fnDesc |> RT.FQFnName.toString |> Sql.string
-          "id", Sql.id id
+          "callerID", Sql.id callerID
           "timestamp", Sql.instantWithTimeZone timestamp
           "hash", Sql.string hash
           "hashVersion", Sql.int ReprHash.currentHashVersion
           "value", result |> ReprRoundtrippable.toJsonV0 |> Sql.string ])
     LibService.DBConnection.connect ()
-    |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v3
-          (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
-          VALUES (@canvasID, @traceID, @tlid, @fnName, @id, @hash, @hashVersion, @timestamp, @value)",
+    |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v0
+          (canvas_id, trace_id, tlid, fnname, caller_id, hash, hash_version, timestamp, value)
+          VALUES (@canvasID, @traceID, @tlid, @fnName, @callerID, @hash, @hashVersion, @timestamp, @value)",
                                      transactionData ]
     |> Task.map ignore<List<int>>
 
@@ -95,24 +95,24 @@ let load
     let! results =
       Sql.query
         "SELECT
-          DISTINCT ON (fnname, id, hash, hash_version)
-          fnname, id, hash, hash_version, value, timestamp
-        FROM function_results_v3
+          DISTINCT ON (fnname, caller_id, hash, hash_version)
+          fnname, caller_id, hash, hash_version, value, timestamp
+        FROM function_results_v0
         WHERE canvas_id = @canvasID
           AND trace_id = @traceID
           AND tlid = @tlid
-        ORDER BY fnname, id, hash, hash_version, timestamp DESC"
+        ORDER BY fnname, caller_id, hash, hash_version, timestamp DESC"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID
                           "traceID", Sql.traceID traceID
                           "tlid", Sql.tlid tlid ]
       |> Sql.executeAsync (fun read ->
         (read.string "fnname",
-         read.id "id",
+         read.id "caller_id",
          read.string "hash",
          read.intOrNone "hash_version" |> Option.unwrap 0,
          read.string "value"))
     return
       results
-      |> List.map (fun (fnname, id, hash, hashVersion, value) ->
-        (fnname, id, hash, hashVersion, ReprRoundtrippable.parseJsonV0 value))
+      |> List.map (fun (fnname, callerID, hash, hashVersion, value) ->
+        (fnname, callerID, hash, hashVersion, ReprRoundtrippable.parseJsonV0 value))
   }

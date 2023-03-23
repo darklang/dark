@@ -44,7 +44,7 @@ let rec queryExactFields
     let! results =
       Sql.query
         "SELECT key, data
-           FROM user_data
+           FROM user_data_v0
           WHERE table_tlid = @tlid
             AND user_version = @userVersion
             AND dark_version = @darkVersion
@@ -154,12 +154,11 @@ and set
       ""
 
   Sql.query
-    $"INSERT INTO user_data
-       (id, account_id, canvas_id, table_tlid, user_version, dark_version, key, data)
-       VALUES (@id, @accountID, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data)
+    $"INSERT INTO user_data_v0
+       (id, canvas_id, table_tlid, user_version, dark_version, key, data)
+       VALUES (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data)
        {upsertQuery}"
   |> Sql.parameters [ "id", Sql.uuid id
-                      "accountID", Sql.uuid state.program.accountID
                       "canvasID", Sql.uuid state.program.canvasID
                       "tlid", Sql.id db.tlid
                       "userVersion", Sql.int db.version
@@ -183,15 +182,13 @@ and getOption
     let! result =
       Sql.query
         "SELECT data
-          FROM user_data
+          FROM user_data_v0
           WHERE table_tlid = @tlid
-            AND account_id = @accountID
             AND canvas_id = @canvasID
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key = @key"
       |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                          "accountID", Sql.uuid state.program.accountID
                           "canvasID", Sql.uuid state.program.canvasID
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion
@@ -210,15 +207,13 @@ and getMany
     let! results =
       Sql.query
         "SELECT data
-        FROM user_data
+        FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND account_id = @accountID
           AND canvas_id = @canvasID
           AND user_version = @userVersion
           AND dark_version = @darkVersion
           AND key = ANY (@keys)"
       |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                          "accountID", Sql.uuid state.program.accountID
                           "canvasID", Sql.uuid state.program.canvasID
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion
@@ -237,15 +232,13 @@ and getManyWithKeys
     let! results =
       Sql.query
         "SELECT key, data
-        FROM user_data
+        FROM user_data_v0
         WHERE table_tlid = @tlid
-        AND account_id = @accountID
         AND canvas_id = @canvasID
         AND user_version = @userVersion
         AND dark_version = @darkVersion
         AND key = ANY (@keys)"
       |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                          "accountID", Sql.uuid state.program.accountID
                           "canvasID", Sql.uuid state.program.canvasID
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion
@@ -263,14 +256,12 @@ let getAll
     let! results =
       Sql.query
         "SELECT key, data
-        FROM user_data
+        FROM user_data_v0
         WHERE table_tlid = @tlid
-        AND account_id = @accountID
         AND canvas_id = @canvasID
         AND user_version = @userVersion
         AND dark_version = @darkVersion"
       |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                          "accountID", Sql.uuid state.program.accountID
                           "canvasID", Sql.uuid state.program.canvasID
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion ]
@@ -299,9 +290,8 @@ let doQuery
     return
       Sql.query
         $"SELECT {queryFor}
-            FROM user_data
+            FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND account_id = @accountID
               AND canvas_id = @canvasID
               AND user_version = @userVersion
               AND dark_version = @darkVersion
@@ -309,7 +299,6 @@ let doQuery
       |> Sql.parameters (
         vars
         @ [ "tlid", Sql.tlid db.tlid
-            "accountID", Sql.uuid state.program.accountID
             "canvasID", Sql.uuid state.program.canvasID
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion ]
@@ -356,14 +345,12 @@ let queryCount
 let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
   Sql.query
     "SELECT key
-     FROM user_data
+     FROM user_data_v0
      WHERE table_tlid = @tlid
-     AND account_id = @accountID
      AND canvas_id = @canvasID
      AND user_version = @userVersion
      AND dark_version = @darkVersion"
   |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
                       "canvasID", Sql.uuid state.program.canvasID
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
@@ -372,14 +359,12 @@ let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
 let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*)
-     FROM user_data
+     FROM user_data_v0
      WHERE table_tlid = @tlid
-       AND account_id = @accountID
        AND canvas_id = @canvasID
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
   |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
                       "canvasID", Sql.uuid state.program.canvasID
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
@@ -388,16 +373,14 @@ let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
 let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit> =
   Sql.query
     "DELETE
-     FROM user_data
+     FROM user_data_v0
      WHERE key = @key
        AND table_tlid = @tlid
-       AND account_id = @accountID
        AND canvas_id = @canvasID
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
   |> Sql.parameters [ "key", Sql.string key
                       "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
                       "canvasID", Sql.uuid state.program.canvasID
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
@@ -406,14 +389,12 @@ let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit
 let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
-    "DELETE FROM user_data
-     WHERE account_id = @accountID
-       AND canvas_id = @canvasID
+    "DELETE FROM user_data_v0
+     WHERE canvas_id = @canvasID
        AND table_tlid = @tlid
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
   |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid state.program.accountID
                       "canvasID", Sql.uuid state.program.canvasID
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
@@ -431,16 +412,14 @@ let statsPluck
     let! result =
       Sql.query
         "SELECT data, key
-        FROM user_data
+        FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND account_id = @accountID
           AND canvas_id = @canvasID
           AND user_version = @userVersion
           AND dark_version = @darkVersion
         ORDER BY created_at DESC
         LIMIT 1"
       |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                          "accountID", Sql.uuid ownerID
                           "canvasID", Sql.uuid canvasID
                           "userVersion", Sql.int db.version
                           "darkVersion", Sql.int currentDarkVersion ]
@@ -452,14 +431,12 @@ let statsPluck
 let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*)
-     FROM user_data
+     FROM user_data_v0
      WHERE table_tlid = @tlid
-       AND account_id = @accountID
        AND canvas_id = @canvasID
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
   |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "accountID", Sql.uuid ownerID
                       "canvasID", Sql.uuid canvasID
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
@@ -476,20 +453,20 @@ let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
   // HTTP/REPL/CRON/WORKER
   // NOTE: the line `AND tl.account_id = ud.account_id` seems redunant, but
   // it's required to hit the index
+
+  // CLEANUP: do we need table_tlid IS NULL since we're using NOT NULL in the schema?
   Sql.query
     "SELECT tl.tlid
-     FROM toplevel_oplists as tl
-     LEFT JOIN user_data as ud
+     FROM toplevel_oplists_v0 as tl
+     LEFT JOIN user_data_v0 as ud
             ON tl.tlid = ud.table_tlid
            AND tl.canvas_id = ud.canvas_id
-           AND tl.account_id = ud.account_id
      WHERE tl.canvas_id = @canvasID
-       AND tl.account_id = @accountID
        AND tl.module IS NULL
        AND tl.deleted = false
        AND ud.table_tlid IS NULL
      GROUP BY tl.tlid"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "accountID", Sql.uuid ownerID ]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 

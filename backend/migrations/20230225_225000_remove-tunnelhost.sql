@@ -1,1 +1,0 @@
-drop table registered_tunnelhosts

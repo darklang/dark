@@ -99,29 +99,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "endUsers" 0
-      parameters = []
-      returnType = TList TStr
-      description =
-        "Return a <type list> of all user email addresses for non-admins and not in @darklang.com or @example.com"
-      fn =
-        internalFn (function
-          | _, [] ->
-            uply {
-              let! result =
-                Sql.query
-                  "SELECT email FROM accounts WHERE admin IS FALSE AND email NOT
-                     LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
-                |> Sql.executeAsync (fun read -> read.string "email")
-              return result |> List.map DStr |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "insertUser" 2
+  [ { name = fn "DarkInternal" "insertUser" 2
       parameters =
         [ Param.make "username" TStr ""
           Param.make "email" TStr ""
@@ -141,7 +119,7 @@ that's already taken, returns an error."
                   UserName.create username)
               match username with
               | Ok username ->
-                let! _user = Account.insertUser username email name
+                let! _user = Account.insertUser username
                 let toCanvasName =
                   $"{username}-{LibService.Config.gettingStartedCanvasName}"
                 let fromCanvasName = LibService.Config.gettingStartedCanvasSource
@@ -191,9 +169,9 @@ that's already taken, returns an error."
               let! dbTLIDs =
                 Sql.query
                   "SELECT tlid
-                     FROM toplevel_oplists
-                     JOIN canvases ON canvases.id = canvas_id
-                    WHERE canvases.name = @name AND tipe = 'db'"
+                     FROM toplevel_oplists_v0
+                     JOIN canvases_v0 ON canvases_v0.id = canvas_id
+                    WHERE canvases_v0.name = @name AND tipe = 'db'"
                 |> Sql.parameters [ "name", Sql.string canvasName ]
                 |> Sql.executeAsync (fun read -> read.tlid "tlid")
               return dbTLIDs |> List.map int64 |> List.map DInt |> DList

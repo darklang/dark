@@ -190,7 +190,7 @@ let addCustomDomain
   (canvasName : CanvasName.T)
   : Task<unit> =
   Sql.query
-    "INSERT into custom_domains
+    "INSERT into custom_domains_v0
      (host, canvas)
      VALUES (@host, @canvas)
      ON CONFLICT (host)

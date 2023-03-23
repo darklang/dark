@@ -42,9 +42,10 @@ type Limit =
 // pattern matching using postgres' LIKE syntax.
 // CLEANUP: nulls are allowed for name, modules, and modifiers. Why?
 let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * HandlerDesc>> =
+  // CLEANUP: for module, name, modifier do we need to check for nulls since we're using NOT NULL in the schema?
   Sql.query
     "SELECT tlid, module, name, modifier
-      FROM toplevel_oplists
+      FROM toplevel_oplists_v0
       WHERE canvas_id = @canvasID
         AND module IS NOT NULL
         AND name IS NOT NULL
@@ -74,7 +75,7 @@ let storeEvent
     Task.FromResult(NodaTime.Instant.now ())
   else
     Sql.query
-      "INSERT INTO stored_events_v2
+      "INSERT INTO stored_events_v0
       (canvas_id, trace_id, module, path, modifier, timestamp, value)
       VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
       RETURNING timestamp"
@@ -104,7 +105,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
     // recent events if we desire in the future
     $"SELECT DISTINCT ON (module, path, modifier)
       module, path, modifier, timestamp, trace_id
-      FROM stored_events_v2
+      FROM stored_events_v0
       WHERE canvas_id = @canvasID
       {timestampSql}"
 
@@ -159,7 +160,7 @@ let loadEvents
     let route = Routing.routeToPostgresPattern route
     let! results =
       Sql.query
-        "SELECT path, value, timestamp, trace_id FROM stored_events_v2
+        "SELECT path, value, timestamp, trace_id FROM stored_events_v0
           WHERE canvas_id = @canvasID
             AND module = @module
             AND path LIKE @route
@@ -189,7 +190,7 @@ let loadEventForTrace
   task {
     let! results =
       Sql.query
-        "SELECT path, value, timestamp FROM stored_events_v2
+        "SELECT path, value, timestamp FROM stored_events_v0
           WHERE canvas_id = @canvasID
             AND trace_id = @traceID
           LIMIT 1"
@@ -223,7 +224,7 @@ let loadEventIDs
   let route = mungePathForPostgres module_ route
 
   Sql.query
-    "SELECT trace_id, path FROM stored_events_v2
+    "SELECT trace_id, path FROM stored_events_v0
      WHERE canvas_id = @canvasID
        AND module = @module
        AND path LIKE @path
@@ -269,7 +270,7 @@ let delete404s
   (modifier : string)
   : Task<unit> =
   Sql.query
-    "DELETE FROM stored_events_v2
+    "DELETE FROM stored_events_v0
      WHERE canvas_id = @canvasID
      AND module = @module
      AND path = @path
@@ -285,7 +286,7 @@ let delete404s
 
 let clearAllEvents (canvasID : CanvasID) : Task<unit> =
   Sql.query
-    "DELETE FROM stored_events_v2
+    "DELETE FROM stored_events_v0
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeStatementAsync
