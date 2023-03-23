@@ -36,10 +36,10 @@ EXECUTE PROCEDURE trigger_set_timestamp();
 
 CREATE TABLE IF NOT EXISTS
 cron_records_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
+( id UUID PRIMARY KEY
 , tlid BIGINT NOT NULL
 , canvas_id UUID NOT NULL
-, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- TODO: remove default
+, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- default as it's cheap
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -51,7 +51,7 @@ ON cron_records_v0
 CREATE TABLE IF NOT EXISTS
 custom_domains_v0 -- TODO: add primary key
 ( host TEXT PRIMARY KEY
-, canvas TEXT);
+, canvas TEXT); -- TODO: should be canvas_id
 
 
 CREATE TABLE IF NOT EXISTS

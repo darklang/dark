@@ -86,9 +86,10 @@ let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
 let recordExecution (cron : CronScheduleData) : Task<unit> =
   Sql.query
     "INSERT INTO cron_records_v0
-    (tlid, canvas_id)
+    (id, tlid, canvas_id)
     VALUES (@tlid, @canvasID)"
-  |> Sql.parameters [ "tlid", Sql.tlid cron.tlid
+  |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
+                      "tlid", Sql.tlid cron.tlid
                       "canvasID", Sql.uuid cron.canvasID ]
   |> Sql.executeStatementAsync
 
