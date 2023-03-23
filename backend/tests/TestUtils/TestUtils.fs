@@ -178,6 +178,7 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 
 let testUserFn
   (name : string)
+  (typeArgs : List<PT.DType>)
   (parameters : string list)
   (body : PT.Expr)
   : PT.UserFunction.T =
@@ -186,7 +187,7 @@ let testUserFn
     description = ""
     infix = false
     name = name
-    typeArgs = [] // TODO: review
+    typeArgs = typeArgs
     parameters =
       List.map
         (fun (p : string) ->
@@ -557,6 +558,42 @@ module Expect =
     | MPTuple _, _ -> check path actual expected
 
 
+
+  let dTypeEqualityBaseFn
+    (path : Path)
+    (actual : DType)
+    (expected : DType)
+    (errorFn : Path -> string -> string -> unit)
+    : unit =
+    // as long as DTypes don't get IDs, depending on structural equality is OK
+    match actual, expected with
+    | TInt, _
+    | TFloat, _
+    | TBool, _
+    | TUnit, _
+    | TStr, _
+    | TList (_), _
+    | TTuple (_, _, _), _
+    | TDict (_), _
+    | TIncomplete, _
+    | TError, _
+    | THttpResponse (_), _
+    | TDB (_), _
+    | TDateTime, _
+    | TChar, _
+    | TPassword, _
+    | TUuid, _
+    | TBytes, _
+    | TVariable (_), _
+    | TFn (_, _), _
+    | TCustomType (_, _), _
+    | TOption (_), _
+    | TResult (_, _), _
+    | TRecord (_), _ ->
+      if actual <> expected then errorFn path (string actual) (string expected)
+
+
+
   let rec exprEqualityBaseFn
     (checkIDs : bool)
     (path : Path)
@@ -609,7 +646,13 @@ module Expect =
       EApply (_, name', typeArgs', args', inPipe') ->
       let path = (string name :: path)
       check path name name'
-      //eqList path typeArgs typeArgs' // TODO: fix this.
+
+      check path (List.length typeArgs) (List.length typeArgs')
+      List.iteri2
+        (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
+        typeArgs
+        typeArgs'
+
       eqList path args args'
 
       match (inPipe, inPipe') with

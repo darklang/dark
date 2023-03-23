@@ -155,6 +155,7 @@ let parseTestFile
     (decls : List<SynModuleDecl>)
     : Module =
     let package = getPackage attrs
+
     List.fold
       { types = parent.types
         fns = parent.fns
@@ -172,17 +173,14 @@ let parseTestFile
         | SynModuleDecl.Let (_, bindings, _) ->
           match package with
           | Some package ->
-            { m with
-                packageFns =
-                  m.packageFns
-                  @ List.map (FS2PT.PackageFn.fromSynBinding package) bindings }
+            let newPackageFns =
+              List.map (FS2PT.PackageFn.fromSynBinding package) bindings
+            { m with packageFns = m.packageFns @ newPackageFns }
+
           | None ->
-            { m with
-                fns =
-                  m.fns
-                  @ List.map
-                      (FS2PT.UserFunction.fromSynBinding availableTypes)
-                      bindings }
+            let newUserFns =
+              List.map (FS2PT.UserFunction.fromSynBinding availableTypes) bindings
+            { m with fns = m.fns @ newUserFns }
 
         | SynModuleDecl.Types (defns, _) ->
           let (dbs, types) =

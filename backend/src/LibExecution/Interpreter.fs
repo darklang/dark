@@ -600,8 +600,8 @@ and callFn
         // Functions which aren't implemented in the client may have results
         // available, otherwise they just return incomplete.
         | None ->
-          let fnRecord = (state.tlid, desc, callerID) in
-          let fnResult = state.tracing.loadFnResult fnRecord argvals in
+          let fnRecord = (state.tlid, desc, callerID)
+          let fnResult = state.tracing.loadFnResult fnRecord argvals
           // In the case of DB::query (and friends), we want to backfill
           // the lambda's livevalues, as the lambda was never actually
           // executed. We hack this is here as we have no idea what this
@@ -639,32 +639,19 @@ and callFn
 
           let err errMsg = DError(sourceID, errMsg)
 
-          match (expectedTypeParamLength = actualTypeArgLength),
-                (expectedArgLength = actualArgLength)
-            with
-          | true, true ->
+          if (expectedTypeParamLength = actualTypeArgLength)
+             && (expectedArgLength = actualArgLength) then
+
             let args =
               fn.parameters
               |> List.map2 (fun dv p -> (p.name, dv)) argvals
               |> Map.ofList
 
             return! execFn state desc callerID fn typeArgs args isInPipe
-          | true, false ->
+          else
             return
               err (
-                $"{FQFnName.toString desc} has {expectedArgLength} parameters, but here was called"
-                + $" with {actualArgLength} arguments."
-              )
-          | false, true ->
-            return
-              err (
-                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters, "
-                + $"but here was called with {actualTypeArgLength} type arguments."
-              )
-          | false, false ->
-            return
-              err (
-                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters,"
+                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
                 + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
               )
       }

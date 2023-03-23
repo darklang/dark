@@ -79,6 +79,33 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DError _, _
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
+and equalsDType (actual : DType) (expected : DType) : bool =
+  // as long as DTypes don't get IDs, depending on structural equality is OK
+  match actual, expected with
+  | TInt, _
+  | TFloat, _
+  | TBool, _
+  | TUnit, _
+  | TStr, _
+  | TList (_), _
+  | TTuple (_, _, _), _
+  | TDict (_), _
+  | TIncomplete, _
+  | TError, _
+  | THttpResponse (_), _
+  | TDB (_), _
+  | TDateTime, _
+  | TChar, _
+  | TPassword, _
+  | TUuid, _
+  | TBytes, _
+  | TVariable (_), _
+  | TFn (_, _), _
+  | TCustomType (_, _), _
+  | TOption (_), _
+  | TResult (_, _), _
+  | TRecord (_), _ -> actual = expected
+
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   impl1.parameters.Length = impl2.parameters.Length
   && List.forall2
@@ -120,7 +147,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EApply (_, name1, typeArgs1, args1, isInPipe1),
     EApply (_, name2, typeArgs2, args2, isInPipe2) ->
     name1 = name2
-    //&& List.forall2 equalsDType typeArgs1 typeArgs2 // TODO: add equalsDType
+    && List.forall2 equalsDType typeArgs1 typeArgs2
     && List.forall2 equalsExpr args1 args2
     && equalsIsInPipe isInPipe1 isInPipe2
   | EList (_, elems1), EList (_, elems2) ->

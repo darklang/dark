@@ -184,7 +184,7 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
-  | EApply (_, FnName (FQFnName.Stdlib std), _typeArgs, args, _) when
+  | EApply (_, FnName (FQFnName.Stdlib std), [], args, _) when
     std.module_ = mName && std.function_ = fName && std.version = v
     ->
     Some args
@@ -206,9 +206,7 @@ let rec lambdaToSql
     lambdaToSql fns symtable paramName dbFields typ e
 
   match expr with
-  | EApply (_, FnName name, _typeArgs, args, _) ->
-    // TODO: should the typeArgs be used for anything here?
-
+  | EApply (_, FnName name, [], args, _) ->
     match Map.get name fns with
     | Some fn ->
       // check the abstract type here. We will check the concrete type later
@@ -483,9 +481,7 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EApply (_, _, _typeArgs, args, _) ->
-          // TODO: consider if typeArgs is relevant here at all
-
+        | EApply (_, _, typeArgs, args, _) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
             | EInteger _
@@ -499,7 +495,7 @@ let partiallyEvaluate
             | EList (_, exprs) -> List.all fullySpecified exprs
             | _ -> false
 
-          if List.all fullySpecified args then
+          if List.all fullySpecified args && typeArgs = [] then
             // TODO: should limit this further to pure functions.
             return! exec expr
           else

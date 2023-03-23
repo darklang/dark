@@ -521,6 +521,9 @@ module Equality =
 let stringFn (key:string) =
   key ++ " appended string"
 
+let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
+  arg
+
 let twoStringFn (str1: string) (str2: string) =
   str1 ++ " appended " ++ str2
 
@@ -558,11 +561,18 @@ module FunctionCalls =
   returnsOptionNothing () = Nothing
   returnsResultOk () = Ok 5
   (returnsResultOk ()) |> Test.unwrap = 5
+  fnWithTypeArgAndOneParam<int> 1 = 1
 
 module InvalidFnCalls =
   functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
   stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int"
-  stringFn "str1" "str2" = Test.typeError "stringFn has 1 parameters, but here was called with 2 arguments."
+  stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+
+  fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+  fnWithTypeArgAndOneParam<int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+  fnWithTypeArgAndOneParam<int, string> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+  fnWithTypeArgAndOneParam<int, string> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+  //TODO: fnWithTypeArgAndOneParam<int> "str2" = Test.typeError "type arg doesn't match arg."
 
   (let _ = Test.setExpectedExceptionCount 1 in
    throwsException ()) = Test.typeError "Unknown error"
@@ -582,6 +592,9 @@ let myUserFunction_v2 (str:string) =
 module Packages =
   let stringFn (key:string) =
     key ++ " appended string"
+
+  let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
+    JSON.parse<'a> arg
 
   let twoStringFn (str1: string) (str2: string) =
     str1 ++ " appended " ++ str2
@@ -623,8 +636,13 @@ module Packages =
 
   module Invalid =
     Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int"
-    Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 1 parameters, but here was called with 2 arguments."
+    Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     Test.Test.Test.derrorFn "test" = Test.typeError "test"
 
     (let _ = Test.setExpectedExceptionCount 1 in
      Test.Test.Test.throwsException ()) = Test.typeError "Unknown error"
+
+    fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    fnWithTypeArgAndOneParam<int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    fnWithTypeArgAndOneParam<int, string> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    fnWithTypeArgAndOneParam<int, string> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."

@@ -17,56 +17,55 @@ let private placeholder =
 let private (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
 
-// TODO: support custom types that aren't the 0th version of the type
-let private matchingCustomTypes
-  // TODO: we don't used the defs here - just the names
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-  (nameOfType : string)
-  : List<PT.FQTypeName.T> =
-  availableTypes
-  |> List.choose (fun (typeName, _def) ->
-    match typeName with
-    | PT.FQTypeName.User u -> if u.typ = nameOfType then Some typeName else None
-    | PT.FQTypeName.Stdlib t -> if t.typ = nameOfType then Some typeName else None)
-
 
 module DType =
-  let rec fromSynType
+  let rec fromNameAndTypeArgs
+    availableTypes
+    (name : string)
+    (typeArgs : List<SynType>)
+    : PT.DType =
+    let fromSynType = fromSynType availableTypes
+    match name, typeArgs with
+    // no type args
+    | "bool", [] -> PT.TBool
+    | "int", [] -> PT.TInt
+    | "string", [] -> PT.TStr
+    | "char", [] -> PT.TChar
+    | "float", [] -> PT.TFloat
+    | "DateTime", [] -> PT.TDateTime
+    | "UUID", [] -> PT.TUuid
+    | "unit", [] -> PT.TUnit
+    | "Password", [] -> PT.TPassword
+
+    // with type args
+    | "List", [ arg ] -> PT.TList(fromSynType arg)
+    | "Option", [ arg ] -> PT.TOption(fromSynType arg)
+
+    | _ ->
+      // Some user- or stdlib- type
+      // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
+
+      // TODO: support custom types that aren't the 0th version of the type
+      let matchingCustomTypes =
+        availableTypes
+        |> List.choose (fun (typeName, _def) ->
+          match typeName with
+          | PT.FQTypeName.User u -> if u.typ = name then Some typeName else None
+          | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
+
+      match matchingCustomTypes with
+      | [] -> PT.TVariable(name)
+      | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
+      | _ ->
+        Exception.raiseInternal
+          $"Unsupported type fromNameAndTypeArgs"
+          [ "name", name; "typeArgs", typeArgs ]
+
+  and fromSynType
     (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (typ : SynType)
     : PT.DType =
-
-
     let c = fromSynType availableTypes
-
-    let rec fromNameAndTypeArgs
-      availableTypes
-      (name : string)
-      (typeArgs : List<SynType>)
-      : PT.DType =
-      match name, typeArgs with
-      // no type args
-      | "bool", [] -> PT.TBool
-      | "int", [] -> PT.TInt
-      | "string", [] -> PT.TStr
-      | "char", [] -> PT.TChar
-      | "float", [] -> PT.TFloat
-      | "DateTime", [] -> PT.TDateTime
-      | "UUID", [] -> PT.TUuid
-      | "unit", [] -> PT.TUnit
-      | "Password", [] -> PT.TPassword
-
-      // with type args
-      | "List", [ arg ] -> PT.TList(c arg)
-      | "Option", [ arg ] -> PT.TOption(c arg)
-
-      // Some user- or stdlib- type
-      | _ ->
-        match matchingCustomTypes availableTypes name with
-        | [ matchedType ] -> PT.TCustomType(matchedType, List.map c typeArgs)
-        | _ ->
-          Exception.raiseInternal $"Unsupported type" [ "name", name; "type", typ ]
-
 
     match typ with
     | SynType.Paren (t, _) -> c t
@@ -98,6 +97,17 @@ module DType =
       fromNameAndTypeArgs availableTypes ident.idText typeArgs
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
+
+  let fromSynPalTypalDecls
+    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+    (decl : SynTyparDecl)
+    : PT.DType =
+    let SynTyparDecl (_, decl) = decl
+
+    match decl with
+    | SynTyparDecl (_, SynTypar (name, TyparStaticReq.None, _)) ->
+      fromNameAndTypeArgs availableTypes name.idText []
+    | _ -> Exception.raiseInternal "Unsupported type" [ "decl", decl ]
 
 
 module LetPattern =
@@ -325,6 +335,13 @@ module Expr =
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, [], [])
 
     // e.g. `Json.serialize<T>`
+    | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
+      let typeArgs =
+        typeArgs
+        |> List.map (fun synType -> DType.fromSynType availableTypes synType)
+
+      PT.EFnCall(gid (), PT.FQFnName.userFqName name.idText, typeArgs, [])
+
     | SynExpr.TypeApp (SynExpr.LongIdent (_,
                                           SynLongIdent ([ modName; fnName ], _, _),
                                           _,
@@ -591,25 +608,50 @@ module UserFunction =
   let private parseSignature
     availableTypes
     (pat : SynPat)
-    : string * List<PT.UserFunction.Parameter> =
+    : string * List<PT.DType> * List<PT.UserFunction.Parameter> =
     match pat with
-    | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, _, argPats, _, _) ->
+    | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, typeArgPats, argPats, _, _) ->
+      let typeParams =
+        match typeArgPats with
+        | None -> []
+        | Some (SynValTyparDecls (pats, _canInfer)) ->
+          match pats with
+          | None -> []
+          | Some typeParams ->
+            match typeParams with
+            | SynTyparDecls.PostfixList (decls, constraints, _range) ->
+              match constraints with
+              | [] -> List.map (DType.fromSynPalTypalDecls availableTypes) decls
+              | _ ->
+                Exception.raiseInternal
+                  "Unsupported constraints in function type arg declaration"
+                  [ "pat", pat; "constraints", constraints ]
+
+            | SynTyparDecls.PrefixList _
+            | SynTyparDecls.SinglePrefix _ ->
+              Exception.raiseInternal
+                "Unsupported type params of function declaration"
+                [ "pat", pat; "typeParams", typeParams ]
+
       let parameters =
         match argPats with
         | SynArgPats.Pats pats -> List.map (parseArgPat availableTypes) pats
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
-      (name.idText, parameters)
+
+      (name.idText, typeParams, parameters)
+
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
   let fromSynBinding availableTypes (binding : SynBinding) : PT.UserFunction.T =
     match binding with
     // CLEANUP use returnInfo
-    | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, _, _, _) ->
-      let (name, parameters) = parseSignature availableTypes pat
+    | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, a, b, c) ->
+      let (name, typeParams, parameters) = parseSignature availableTypes pat
+
       { tlid = gid ()
         name = name
-        typeArgs = [] // TODO: review
+        typeArgs = typeParams
         parameters = parameters
         returnType = PT.TVariable "a"
         description = ""
@@ -749,7 +791,7 @@ module PackageFn =
           module_ = p3
           function_ = userFn.name
           version = 0 }
-      typeArgs = [] // TODO: review
+      typeArgs = userFn.typeArgs
       parameters =
         userFn.parameters
         |> List.map (fun (p : PT.UserFunction.Parameter) ->
