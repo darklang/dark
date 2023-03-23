@@ -9,13 +9,12 @@ let fn = FQFnName.stdlibFnName
 
 let incorrectArgs = Errors.incorrectArgs
 
-let varA = TVariable "a"
 
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Json" "serialize" 0
-      typeArgs = [ TVariable "a" ]
-      parameters = [ Param.make "arg" varA "" ]
+      typeParams = [ "a" ]
+      parameters = [ Param.make "arg" (TVariable "a") "" ]
       returnType = TResult(TStr, TStr)
       description = "TODO"
       fn =
@@ -30,9 +29,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "Json" "parse" 0
-      typeArgs = [ TVariable "a" ]
+      typeParams = [ "a" ]
       parameters = [ Param.make "arg" TStr "" ]
-      returnType = TResult(varA, TStr)
+      returnType = TResult(TVariable "a", TStr)
       description = "TODO"
       fn =
         (function

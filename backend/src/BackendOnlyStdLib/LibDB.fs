@@ -41,7 +41,7 @@ let handleUnexpectedExceptionDuringQuery
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DB" "set" 1
-      typeArgs = []
+      typeParams = []
       parameters = [ ocamlCompatibleValParam; keyParam; tableParam ]
       returnType = ocamlTObj
       description =
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "get" 2
-      typeArgs = []
+      typeParams = []
       parameters = [ keyParam; tableParam ]
       returnType = TOption varA
       description = "Finds a value in <param table> by <param key>"
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "getMany" 3
-      typeArgs = []
+      typeParams = []
       parameters = [ keysParam; tableParam ]
       returnType = TOption varA
       description =
@@ -112,7 +112,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "getExisting" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ keysParam; tableParam ]
       returnType = TList varA
       description =
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "getManyWithKeys" 1
-      typeArgs = []
+      typeParams = []
       parameters = [ keysParam; tableParam ]
       returnType = TDict varA
       description =
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "delete" 1
-      typeArgs = []
+      typeParams = []
       parameters = [ keyParam; tableParam ]
       returnType = TUnit
       description = "Delete <param key> from <param table>"
@@ -187,7 +187,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "deleteAll" 1
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam ]
       returnType = TUnit
       description = "Delete everything from <param table>"
@@ -206,7 +206,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryExactFields" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TList varA
       description =
@@ -226,7 +226,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryExactFieldsWithKey" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = ocamlTObj
       description =
@@ -247,7 +247,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryOneWithExactFields" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
       description =
@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryOneWithExactFieldsWithKey" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ ocamlCompatibleSpecParam; tableParam ]
       returnType = TOption varA
       description =
@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "getAll" 3
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam ]
       returnType = TList varA
       description = "Fetch all the values in <param table>"
@@ -312,7 +312,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "getAllWithKeys" 2
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam ]
       returnType = TDict(varA)
       description =
@@ -332,7 +332,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "count" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam ]
       returnType = TInt
       description = "Return the number of items stored in <param table>"
@@ -351,7 +351,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "generateKey" 0
-      typeArgs = []
+      typeParams = []
       parameters = []
       returnType = TStr
       description = "Returns a random key suitable for use as a DB key"
@@ -365,7 +365,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "keys" 1
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam ]
       returnType = TList varA
       description =
@@ -385,7 +385,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "query" 4
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TList varA
       description =
@@ -408,7 +408,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryWithKey" 3
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TDict(varA)
       description =
@@ -431,7 +431,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryOne" 4
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TOption varA
       description =
@@ -457,7 +457,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryOneWithKey" 3
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TOption varA
       description =
@@ -483,7 +483,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "DB" "queryCount" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TInt
       description =

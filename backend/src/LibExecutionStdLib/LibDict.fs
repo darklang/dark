@@ -21,7 +21,7 @@ let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Dict" "singleton" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "key" TStr ""; Param.make "value" varA "" ]
       returnType = TDict varA
       description =
@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "size" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TInt
       description = "Returns the number of entries in <param dict>"
@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "keys" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList TStr)
       description =
@@ -71,7 +71,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "values" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList varA)
       description =
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "toList" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList(TTuple(varA, varB, [])))
       description =
@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromListOverwritingDuplicates" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TDict varA
       description =
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "fromList" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TOption(TDict varB)
       description =
@@ -180,7 +180,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "get" 2
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TOption varA
       description =
@@ -196,7 +196,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "member" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TBool
       description =
@@ -212,7 +212,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "map" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "filter" 1
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
@@ -294,7 +294,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "filterMap" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
@@ -352,7 +352,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "empty" 0
-      typeArgs = []
+      typeParams = []
       parameters = []
       returnType = TDict varA
       description = "Returns an empty dictionary"
@@ -366,7 +366,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "isEmpty" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TBool
       description = "Returns {{true}} if the <param dict> contains no entries"
@@ -380,7 +380,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "merge" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
       returnType = TDict varA
@@ -396,7 +396,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "set" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
           Param.make "key" TStr ""
@@ -414,7 +414,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Dict" "remove" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
       returnType = TDict varA
       description =

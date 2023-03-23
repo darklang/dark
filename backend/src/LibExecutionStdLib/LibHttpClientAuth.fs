@@ -14,7 +14,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "basicAuth" 1
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
       returnType = TDict TStr
       description =

@@ -193,6 +193,7 @@ type DType =
   // TODO: remove in favor of `TCustomType` referring to defined `CustomType.Record`s
   | TRecord of List<string * DType>
 
+
 /// Expressions - the main part of the language.
 type Expr =
   | EInteger of id * int64
@@ -266,8 +267,6 @@ and StringSegment =
 
 
 
-
-
 /// A type defined by a standard library module, a canvas/user, or a package
 module CustomType =
   type RecordField = { id : id; name : string; typ : DType }
@@ -326,7 +325,7 @@ module UserFunction =
   type T =
     { tlid : tlid
       name : string
-      typeArgs : List<DType>
+      typeParams : List<string>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -386,7 +385,7 @@ module Package =
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
-      typeArgs : List<DType>
+      typeParams : List<string>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -398,6 +397,6 @@ module Package =
 /// A built-in standard library type
 type BuiltInType =
   { name : FQTypeName.StdlibTypeName
-    typeArgs : List<string>
+    typeParams : List<string>
     definition : CustomType.T
     description : string }

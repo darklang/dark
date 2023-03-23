@@ -13,7 +13,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Password" "hash" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "password" TStr "" ]
       returnType = TPassword
       description =
@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "Password" "check" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "password" TPassword ""; Param.make "rawPassword" TStr "" ]
       returnType = TBool

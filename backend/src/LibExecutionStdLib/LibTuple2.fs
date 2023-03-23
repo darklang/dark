@@ -17,7 +17,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple2" "create" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "first" (TVariable "a") ""
           Param.make "second" (TVariable "b") "" ]
@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "first" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "a"
@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "second" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "b"
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "swap" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TTuple(TVariable "b", TVariable "a", [])
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "mapFirst" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "mapSecond" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "mapBoth" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fnFirst"

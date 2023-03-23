@@ -64,7 +64,8 @@ let testExecFunctionTLIDs : Test =
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
     let fn =
-      testUserFn name [] [] (PT.EInteger(gid (), 5)) |> PT2RT.UserFunction.toRT
+      testUserFn name [] [] (PT.TVariable "a") (PT.EInteger(gid (), 5))
+      |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor meta Map.empty fns
 
@@ -144,7 +145,9 @@ let testRecursionInEditor : Test =
         )
       )
 
-    let recurse = testUserFn "recurse" [] [ "i" ] fnExpr |> PT2RT.UserFunction.toRT
+    let recurse =
+      testUserFn "recurse" [] [ "i" ] (PT.TVariable "a") fnExpr
+      |> PT2RT.UserFunction.toRT
     let ast = EApply(callerID, eUserFnName "recurse", [], [ eInt 0 ], NotInPipe)
     let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
 

@@ -178,8 +178,8 @@ let testHttpLoadIgnoresDeletedFns =
     let! meta = initializeTestCanvas "http-load-ignores-deleted-fns"
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
-    let f = testUserFn "testfn" [] [] (parse "5 + 3")
-    let fNew = testUserFn "testfnNew" [] [] (parse "6 + 4")
+    let f = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "5 + 3")
+    let fNew = testUserFn "testfnNew" [] [] (PT.TVariable "a") (parse "6 + 4")
 
     do!
       Canvas.saveTLIDs
@@ -295,8 +295,8 @@ let testSetHandlerAfterDelete =
 let testSetFunctionAfterDelete =
   testTask "function set after delete" {
     let! meta = initializeTestCanvas "db-set-function-after-delete"
-    let f1 = testUserFn "testfn" [] [] (parse "5 + 3")
-    let f2 = testUserFn "testfn" [] [] (parse "6 + 4")
+    let f1 = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "5 + 3")
+    let f2 = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "6 + 4")
     let op1 = PT.SetFunction f1
     let op2 = PT.DeleteFunction f1.tlid
     let op3 = PT.SetFunction f2

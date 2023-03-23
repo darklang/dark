@@ -339,7 +339,7 @@ module UserFunction =
       [<MessagePack.Key 1>]
       name : string
       [<MessagePack.Key 2>]
-      typeArgs : List<DType>
+      typeParams : List<string>
       [<MessagePack.Key 3>]
       parameters : List<Parameter>
       [<MessagePack.Key 4>]

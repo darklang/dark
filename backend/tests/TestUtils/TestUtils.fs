@@ -178,8 +178,9 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 
 let testUserFn
   (name : string)
-  (typeArgs : List<PT.DType>)
+  (typeParams : List<string>)
   (parameters : string list)
+  (returnType : PT.DType)
   (body : PT.Expr)
   : PT.UserFunction.T =
   { tlid = gid ()
@@ -187,13 +188,13 @@ let testUserFn
     description = ""
     infix = false
     name = name
-    typeArgs = typeArgs
+    typeParams = typeParams
     parameters =
       List.map
         (fun (p : string) ->
           { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
-    returnType = PT.TVariable "a" }
+    returnType = returnType }
 
 let testUserRecordType
   (name : PT.FQTypeName.UserTypeName)

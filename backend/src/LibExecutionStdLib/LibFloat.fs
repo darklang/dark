@@ -12,7 +12,7 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Float" "ceiling" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description = "Round up to an integer value"
@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "roundUp" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description = "Round up to an integer value"
@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "floor" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "roundDown" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
@@ -79,7 +79,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "round" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description = "Round to the nearest integer value"
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "truncate" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "absoluteValue" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
       description =
@@ -123,7 +123,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "negate" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
       description = "Returns the negation of <param a>, {{-a}}"
@@ -137,7 +137,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "sqrt" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
       description = "Get the square root of a float"
@@ -151,7 +151,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "power" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
       returnType = TFloat
       description = "Returns <param base> raised to the power of <param exponent>"
@@ -165,7 +165,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "divide" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Divide <type float> <param a> by <type float> <param b>"
@@ -179,7 +179,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "add" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Add <type float> <param a> to <type float> <param b>"
@@ -193,7 +193,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "multiply" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Multiply <type float> <param a> by <type float> <param b>"
@@ -207,7 +207,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "subtract" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Subtract <type float> <param b> from <type float> <param a>"
@@ -221,7 +221,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "greaterThan" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is greater than b"
@@ -235,7 +235,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "greaterThanOrEqualTo" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is greater than b"
@@ -249,7 +249,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "lessThan" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is less than b"
@@ -263,7 +263,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "lessThanOrEqualTo" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is less than b"
@@ -277,7 +277,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "sum" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" (TList TFloat) "" ]
       returnType = TFloat
       description = "Returns the sum of all the floats in the list"
@@ -304,7 +304,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "min" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description =
@@ -319,7 +319,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "max" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description =
@@ -334,7 +334,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "clamp" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ Param.make "value" TFloat ""
           Param.make "limitA" TFloat ""
@@ -369,7 +369,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "roundTowardsZero" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
@@ -383,7 +383,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     { name = fn "Float" "parse" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TFloat, TStr)
       description =
@@ -407,7 +407,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "toString" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TStr
       description = "Return {\"true\"} or {\"false\"}"

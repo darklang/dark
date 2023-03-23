@@ -17,7 +17,7 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Math" "pi" 0
-      typeArgs = []
+      typeParams = []
       parameters = []
       returnType = TFloat
       description =
@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "tau" 0
-      typeArgs = []
+      typeParams = []
       parameters = []
       returnType = TFloat
       description =
@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "degrees" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInDegrees" TFloat "" ]
       returnType = TFloat
       description =
@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "turns" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInTurns" TFloat "" ]
       returnType = TFloat
       description =
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "radians" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "cos" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -123,7 +123,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "sin" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -141,7 +141,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "tan" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "acos" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
       description =
@@ -187,7 +187,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "asin" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
       description =
@@ -214,7 +214,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "atan" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TFloat
       description =
@@ -233,7 +233,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "atan2" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "y" TFloat ""; Param.make "x" TFloat "" ]
       returnType = TFloat
       description =
@@ -254,7 +254,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "cosh" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description = "Returns the hyperbolic cosine of <param angleInRadians>"
@@ -268,7 +268,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "sinh" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description = "Returns the hyperbolic sine of <param angleInRadians>"
@@ -282,7 +282,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "tanh" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description = "Returns the hyperbolic tangent of <param angleInRadians>"

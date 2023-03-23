@@ -37,7 +37,9 @@ let testBasicTypecheckWorks : Test =
       |> Exception.unwrapOptionInternal "missing library function" [ "fn", fn ]
       |> RT.builtInFnToFn
 
-    TypeChecker.checkFunctionCall Map.empty fn args
+    let typeArgs = [] // CLEANUP consider adding this as a param
+
+    TypeChecker.checkFunctionCall Map.empty fn typeArgs args
 
   testMany
     "basic type checking"
@@ -59,7 +61,7 @@ let testArguments : Test =
       let userFn : RT.UserFunction.T =
         { tlid = id 7
           name = name
-          typeArgs = []
+          typeParams = []
           parameters = []
           returnType = returnType
           description = ""

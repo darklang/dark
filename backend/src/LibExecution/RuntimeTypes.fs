@@ -186,6 +186,7 @@ type DType =
     | TFn _ -> true
     | _ -> false
 
+
 /// Expressions here are runtime variants of the AST in ProgramTypes, having had
 /// superfluous information removed.
 type Expr =
@@ -715,7 +716,7 @@ module UserFunction =
   type T =
     { tlid : tlid
       name : string
-      typeArgs : List<DType>
+      typeParams : List<string>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -750,7 +751,7 @@ module Package =
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
-      typeArgs : List<DType>
+      typeParams : List<string>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -846,14 +847,14 @@ type SqlSpec =
 /// A built-in standard library type
 type BuiltInType =
   { name : FQTypeName.StdlibTypeName
-    typeArgs : List<string>
+    typeParams : List<string>
     definition : CustomType.T
     description : string }
 
 /// A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
-    typeArgs : List<DType>
+    typeParams : List<string>
     parameters : List<Param>
     returnType : DType
     description : string
@@ -864,7 +865,7 @@ type BuiltInFn =
 
 and Fn =
   { name : FQFnName.T
-    typeArgs : List<DType>
+    typeParams : List<string>
     parameters : List<Param>
     returnType : DType
     previewable : Previewable
@@ -1016,7 +1017,7 @@ let consoleNotifier : Notifier =
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
-    typeArgs = fn.typeArgs
+    typeParams = fn.typeParams
     parameters = fn.parameters
     returnType = fn.returnType
     previewable = fn.previewable
@@ -1028,7 +1029,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
     { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
 
   { name = FQFnName.User fn.name
-    typeArgs = fn.typeArgs
+    typeParams = fn.typeParams
     parameters = fn.parameters |> List.map toParam
     returnType = fn.returnType
     previewable = Impure
@@ -1040,7 +1041,7 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
 
   { name = FQFnName.Package fn.name
-    typeArgs = fn.typeArgs
+    typeParams = fn.typeParams
     parameters = fn.parameters |> List.map toParam
     returnType = fn.returnType
     previewable = Impure

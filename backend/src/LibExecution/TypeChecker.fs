@@ -17,16 +17,25 @@ let combineErrorsUnit (l : List<Result<'ok, 'err>>) : Result<unit, List<'err>> =
     l
 
 module Error =
-  type UnificationError = { expectedType : DType; actualValue : Dval }
+  type TypeUnificationError = { expectedType : DType; actualValue : Dval }
+
+  type IncorrectNumberOfTypeArgsError = { expected : int; actual : int }
 
   type MismatchedFields =
     { expectedFields : Set<string>
       actualFields : Set<string> }
 
   type T =
+    /// Failed to find a referenced type
     | TypeLookupFailure of FQTypeName.T
-    | TypeUnificationFailure of UnificationError
+
+    | IncorrectNumberOfTypeArgs of IncorrectNumberOfTypeArgsError
+
+    /// An argument didn't match the expected type
+    | TypeUnificationFailure of TypeUnificationError
+
     | MismatchedRecordFields of MismatchedFields
+
 
     override this.ToString() : string =
       match this with
@@ -35,12 +44,13 @@ module Error =
           match typeName with
           | FQTypeName.User t -> $"({t.typ}, v{t.version})"
           | FQTypeName.Stdlib t -> $"({t.typ})"
-
         $"Type {lookupString} could not be found on the canvas"
+
       | TypeUnificationFailure uf ->
         let expected = DvalReprDeveloper.typeName uf.expectedType
         let actual = DvalReprDeveloper.dvalTypeName uf.actualValue
         $"Expected to see a value of type {expected} but found a {actual}"
+
       | MismatchedRecordFields mrf ->
         let expected = mrf.expectedFields
         let actual = mrf.actualFields
@@ -64,6 +74,9 @@ module Error =
          | true, false -> extraMsg
          | true, true ->
            "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
+
+      | IncorrectNumberOfTypeArgs ita ->
+        $"Expected {ita.expected} type arguments but found {ita.actual}"
 
 
   let listToString ts = ts |> List.map string |> String.concat ", "
@@ -105,7 +118,6 @@ let rec unify
   | TRecord _, DObj _ -> Ok()
 
   | TCustomType (typeName, typeArgs), value ->
-    // TODO: typeArgs isn't used here, but it should be - right?
     match Map.tryFind typeName availableTypes with
     | None -> Error [ TypeLookupFailure typeName ]
     | Some ut ->
@@ -176,30 +188,64 @@ and unifyUserRecordWithDvalMap
               { expectedFields = definitionNames; actualFields = objNames } ]
 
 
+// TODO: there are missing type checks around type arguments that we should backfill.
+//
+// given a function
+// ```fsharp
+// let f<'a>(x: 'a, y: int): List<'a> =
+//   ...
+// ```
+// - we should check that `x` is compatible with `'a`
+// - we should check that the return type is compatible with `List<'a>`
+//
+// also, given the function
+// ```fsharp
+// let f<'a, 'a, 'b>(x: 'a, y: int): List<'a> =
+//   ...
+// ```
+// - we should raise an error on the same type param name being used more than once
+// - we should raise an error/warning that 'b isn't used anywhere
+//
+// These will involve updates in both `checkFunctionCall` and `checkFunctionReturnType`.
+
 let checkFunctionCall
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (fn : Fn)
+  (typeArgs : List<DType>)
   (args : DvalMap)
   : Result<unit, List<Error.T>> =
-  let args = Map.toList args in
 
-  let withParams : List<Param * Dval> =
-    List.map
-      (fun (argname, argval) ->
-        let parameter =
-          fn.parameters
-          |> List.find (fun (p : Param) -> p.name = argname)
-          |> Exception.unwrapOptionInternal
-               "Invalid parameter name"
-               [ "fn", fn.name; "argname", argname ]
+  let typeArgErrors =
+    let constraints = fn.typeParams
 
-        (parameter, argval))
-      args
+    if List.length constraints <> List.length typeArgs then
+      Error [ IncorrectNumberOfTypeArgs
+                { expected = List.length constraints; actual = List.length typeArgs } ]
+    else
+      Ok()
 
-  withParams
-  |> List.map (fun (param, value) -> unify availableTypes param.typ value)
-  |> combineErrorsUnit
-  |> Result.mapError List.concat
+  let argErrors =
+    let args = Map.toList args
+
+    let withParams : List<Param * Dval> =
+      List.map
+        (fun (argname, argval) ->
+          let parameter =
+            fn.parameters
+            |> List.find (fun (p : Param) -> p.name = argname)
+            |> Exception.unwrapOptionInternal
+                 "Invalid parameter name"
+                 [ "fn", fn.name; "argname", argname ]
+
+          (parameter, argval))
+        args
+
+    withParams
+    |> List.map (fun (param, value) -> unify availableTypes param.typ value)
+    |> combineErrorsUnit
+    |> Result.mapError List.concat
+
+  [ typeArgErrors; argErrors ] |> combineErrorsUnit |> Result.mapError List.concat
 
 
 let checkFunctionReturnType
@@ -207,4 +253,5 @@ let checkFunctionReturnType
   (fn : Fn)
   (result : Dval)
   : Result<unit, Error.T list> =
+
   unify availableTypes fn.returnType result

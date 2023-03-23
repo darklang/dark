@@ -55,6 +55,7 @@ module DType =
       RT.TRecord(List.map (fun (f, t : PT.DType) -> f, toRT t) rows)
     | PT.TDbList typ -> RT.TList(toRT typ)
 
+
 module FQFnName =
   module PackageFnName =
     let toRT (name : PT.FQFnName.PackageFnName) : RT.FQFnName.PackageFnName =
@@ -321,7 +322,7 @@ module UserFunction =
   let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid
       name = f.name
-      typeArgs = List.map DType.toRT f.typeArgs
+      typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
       returnType = DType.toRT f.returnType
       description = f.description
@@ -347,7 +348,7 @@ module Package =
   let toRT (f : PT.Package.Fn) : RT.Package.Fn =
     { name = FQFnName.PackageFnName.toRT f.name
       body = Expr.toRT f.body
-      typeArgs = List.map DType.toRT f.typeArgs
+      typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
       returnType = DType.toRT f.returnType
       description = f.description
@@ -358,6 +359,6 @@ module Package =
 module BuiltInType =
   let toRT (t : PT.BuiltInType) : RT.BuiltInType =
     { name = FQTypeName.StdlibTypeName.toRT t.name
-      typeArgs = t.typeArgs
+      typeParams = t.typeParams
       definition = CustomType.toRT t.definition
       description = t.description }

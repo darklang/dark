@@ -13,7 +13,7 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bytes" "empty" 0
-      typeArgs = []
+      typeParams = []
       parameters = []
       returnType = TBytes
       description = "Returns an empty list of bytes"
@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "base64Decode" 1
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TBytes, TStr)
       description =
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "base64Encode" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =
@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "hexEncode" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =
@@ -120,7 +120,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "length" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TInt
       description = "Returns the number of bytes in <param bytes>"

@@ -387,7 +387,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
                  "Cannot parse returnType"
                  [ "type", returnType ]
           { name = name
-            typeArgs = [] // CLEANUP
+            typeParams = [] // CLEANUP
             parameters = parameters
             returnType = returnType
             body = expr

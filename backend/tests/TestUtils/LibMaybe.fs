@@ -53,7 +53,7 @@ let (|DTotally|_|) (dval : Dval) =
 // TODO: having to assign IDs below is really annoying.
 let types : List<PT.BuiltInType> =
   [ { name = tp "Maybe"
-      typeArgs = [ "a" ]
+      typeParams = [ "a" ]
       definition =
         PT.CustomType.Enum(
           // Nah
@@ -69,7 +69,7 @@ let types : List<PT.BuiltInType> =
 // TODO: ensure type-checking works appropriately for these fns
 let fns : List<BuiltInFn> =
   [ { name = fn "Maybe" "map" 0
-      typeArgs = []
+      typeParams = []
       parameters = [ maybeParamOf "maybe" varA; fnAToB ]
       returnType = maybeOf varB
       description =
@@ -100,7 +100,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Maybe" "map2" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ maybeParamOf "maybe1" varA
           maybeParamOf "maybe2" varB
@@ -142,7 +142,7 @@ let fns : List<BuiltInFn> =
     // deconstructing Enum constructors earlier like this may help
     // stdlib fns to be more concise
     { name = fn "Maybe" "map2alt" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ maybeParamOf "maybe1" varA
           maybeParamOf "maybe2" varB
@@ -183,7 +183,7 @@ let fns : List<BuiltInFn> =
     // deconstructing Enum constructors earlier like this may help
     // stdlib fns to be more concise
     { name = fn "Maybe" "map2alt2" 0
-      typeArgs = []
+      typeParams = []
       parameters =
         [ maybeParamOf "maybe1" varA
           maybeParamOf "maybe2" varB

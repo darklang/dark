@@ -60,7 +60,7 @@ module DType =
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
-          $"Unsupported type fromNameAndTypeArgs"
+          $"Matched against multiple custom types - not sure what to do"
           [ "name", name; "typeArgs", typeArgs ]
 
   and fromSynType
@@ -99,17 +99,6 @@ module DType =
       fromNameAndTypeArgs availableTypes ident.idText typeArgs
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
-
-  let fromSynPalTypalDecls
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-    (decl : SynTyparDecl)
-    : PT.DType =
-    let SynTyparDecl (_, decl) = decl
-
-    match decl with
-    | SynTyparDecl (_, SynTypar (name, TyparStaticReq.None, _)) ->
-      fromNameAndTypeArgs availableTypes name.idText []
-    | _ -> Exception.raiseInternal "Unsupported type" [ "decl", decl ]
 
 
 module LetPattern =
@@ -610,7 +599,7 @@ module UserFunction =
   let private parseSignature
     availableTypes
     (pat : SynPat)
-    : string * List<PT.DType> * List<PT.UserFunction.Parameter> =
+    : string * List<string> * List<PT.UserFunction.Parameter> =
     match pat with
     | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, typeArgPats, argPats, _, _) ->
       let typeParams =
@@ -623,7 +612,18 @@ module UserFunction =
             match typeParams with
             | SynTyparDecls.PostfixList (decls, constraints, _range) ->
               match constraints with
-              | [] -> List.map (DType.fromSynPalTypalDecls availableTypes) decls
+              | [] ->
+                decls
+                |> List.map (fun decl ->
+                  let SynTyparDecl (_, decl) = decl
+
+                  match decl with
+                  | SynTyparDecl (_, SynTypar (name, TyparStaticReq.None, _)) ->
+                    name.idText
+                  | _ ->
+                    Exception.raiseInternal
+                      "Unsupported type parameter"
+                      [ "decl", decl ])
               | _ ->
                 Exception.raiseInternal
                   "Unsupported constraints in function type arg declaration"
@@ -653,7 +653,7 @@ module UserFunction =
 
       { tlid = gid ()
         name = name
-        typeArgs = typeParams
+        typeParams = typeParams
         parameters = parameters
         returnType = PT.TVariable "a"
         description = ""
@@ -793,7 +793,7 @@ module PackageFn =
           module_ = p3
           function_ = userFn.name
           version = 0 }
-      typeArgs = userFn.typeArgs
+      typeParams = userFn.typeParams
       parameters =
         userFn.parameters
         |> List.map (fun (p : PT.UserFunction.Parameter) ->

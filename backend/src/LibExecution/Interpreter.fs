@@ -631,7 +631,7 @@ and callFn
 
         | Some fn ->
           // ensure we have the expected # of typeArguments _and_ arguments values
-          let expectedTypeParamLength = List.length fn.typeArgs
+          let expectedTypeParamLength = List.length fn.typeParams
           let expectedArgLength = List.length fn.parameters
 
           let actualTypeArgLength = List.length typeArgs
@@ -769,7 +769,7 @@ and execFn
             return result
         | PackageFunction (_tlid, body) ->
           // This is similar to InProcess but also has elements of UserCreated.
-          match TypeChecker.checkFunctionCall Map.empty fn args with
+          match TypeChecker.checkFunctionCall Map.empty fn typeArgs args with
           | Ok () ->
             let! result =
               match (state.tracing.realOrPreview,
@@ -810,7 +810,8 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
         | UserFunction (tlid, body) ->
-          match TypeChecker.checkFunctionCall state.program.allTypes fn args with
+          match TypeChecker.checkFunctionCall state.program.allTypes fn typeArgs args
+            with
           | Ok () ->
             state.tracing.traceTLID tlid
             // Don't execute user functions if it's preview mode and we have a result
