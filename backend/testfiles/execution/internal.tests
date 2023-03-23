@@ -4,7 +4,7 @@
 module Misc =
 
   // correct number of tables
-  Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 20
+  Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 19
 
   // allFunctions has many functions
   (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
@@ -17,98 +17,6 @@ module Misc =
   | "circleci" -> true
   // otherwise it's the first 7 chars of the git hash
   | hash -> (String.length hash) == 7) = true
-
-// ---------------
-// Grants
-// ---------------
-// [tests.grants]
-
-// [test.empty grants]
-// (let _ = Test.deleteUser_v0 "empty_grants"
-//  let _ = DarkInternal.insertUser_v2 "emptygrants" "a@eg.com" "test user"
-//  DarkInternal.orgsFor "empty_grants") = {}
-
-// [test.grants and orgs]
-// (let _ = DarkInternal.insertUser_v2 "gaoorg" "gao-test-org@darklang.com" "gao test org"
-//  let _ = DarkInternal.insertUser_v2 "gaouser" "gao-test-user@darklang.com" "gao test user"
-//  let _ = DarkInternal.grant_v0 "gaouser" "gaoorg" "rw" in
-//  DarkInternal.orgsFor "gaouser") = { ``gaoorg`` = "rw" }
-
-// [test.grants and grants]
-// (let _ = DarkInternal.insertUser_v2 "gagorg" "gag-test-org@darklang.com" "gag test org"
-//  let _ = DarkInternal.insertUser_v2 "gaguser" "gag-test-user@darklang.com" "gag test user"
-//  let _ = DarkInternal.grant "gaguser" "gagorg" "rw" in
-//  let result = DarkInternal.grantsFor "gagorg"
-//  let _ = DarkInternal.grant "gaguser" "gagorg" "" in
-//  result) = { gaguser = "rw" }
-
-
-// // ---------------
-// // users
-// // ---------------
-// [tests.users]
-// DarkInternal.getUser_v1 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-// DarkInternal.getUserByEmail_v0 "test@darklang.com" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-// DarkInternal.usernameToUserInfo_v0 "test" = Just { admin = false; email = "test@darklang.com"; name = "Dark Backend Tests"; username = "test"}
-// DarkInternal.insertUser_v2 "user name" "valid@email.com" "Username with space" = Error "Invalid username 'user name', can only contain lowercase roman letters and digits"
-// DarkInternal.insertUser_v2 "user_name" "valid@email.com" "Username with underscore" = Error "Underscores not allowed in usernames"
-
-// // These could be tested in a much better way, really we're just testing the signatures here
-// (List.length (DarkInternal.getCanvasList Test.getUserID) > 0) = true
-// (DarkInternal.getOrgCanvasList Test.getUserID) = []
-// DarkInternal.getOrgList Test.getUserID = []
-
-// // These tests are racy as they use global state
-// // DarkInternal.endUsers = []
-// // DarkInternal.getUsers = ["test_unhashed"; "test"; "test_admin"; "sample"; "dark"; "paul"; "libexe_admin"]
-// // DarkInternal.getAllCanvases = []
-
-// // ---------------
-// // get permission
-// // ---------------
-// [fn.username prefix:str]
-// (String.random_v2 5) |> Test.unwrap |> (fun v -> prefix ++ v) |> String.toLowercase_v1
-
-// [test.getPermission with none]
-// (let user1 = username "gpnuser1"
-//  let user2 = username "gpnuser2"
-//  let user1Email = user1 ++ "-test@darklang.com"
-//  let user2Email = user2 ++ "-test@darklang.com"
-//  let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpn test user1") |> Test.unwrap
-//  let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpn test user2") |> Test.unwrap
-//  let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
-//  let canvasID = Test.createCanvas user2
-//  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
-//  let _ = (DarkInternal.grant_v0 user1 user2 "") |> Test.unwrap in
-//  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "" , Ok "")
-
-// [test.getPermission with r]
-// (let user1 = username "gpruser1"
-//  let user2 = username "gpruser2"
-//  let user1Email = user1 ++ "-test@darklang.com"
-//  let user2Email = user2 ++ "-test@darklang.com"
-//  let _ = (DarkInternal.insertUser_v2 user1 user1Email "gpr test user1") |> Test.unwrap
-//  let _ = (DarkInternal.insertUser_v2 user2 user2Email "gpr test user2") |> Test.unwrap
-//  let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
-//  let canvasID = Test.createCanvas user2
-//  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
-//  let _ = (DarkInternal.grant_v0 user1 user2 "r") |> Test.unwrap in
-//  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "r" , Ok "")
-
-// [test.getPermission with rw]
-// (let user1 = username "gprwuser1"
-//  let user2 = username "gprwuser2"
-//  let user1Email = user1 ++ "-test@darklang.com"
-//  let user2Email = user2 ++ "-test@darklang.com"
-//  let _ = (DarkInternal.insertUser_v2 user1 user1Email "gprw test user1") |> Test.unwrap
-//  let _ = (DarkInternal.insertUser_v2 user2 user2Email "gprw test user2") |> Test.unwrap
-//  let userID = (DarkInternal.getUserID_v0 user1) |> Test.unwrap
-//  let canvasID = Test.createCanvas user2
-//  let startingPermission = DarkInternal.getPermission_v0 userID canvasID
-//  let _ = (DarkInternal.grant_v0 user1 user2 "rw") |> Test.unwrap in
-//  (DarkInternal.getPermission_v0 userID canvasID, startingPermission) ) = (Ok "rw" , Ok "")
-
-
 
 
 // ---------------
