@@ -102,7 +102,7 @@ ON events_v0 (canvas_id, module, name);
 
 CREATE TABLE IF NOT EXISTS
 function_arguments_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
@@ -120,12 +120,12 @@ function_arguments_for_trace
 ON function_arguments_v0
 (canvas_id, tlid, trace_id);
 
--- TODO: add PK to function_results_v0
 CREATE TABLE IF NOT EXISTS
 function_results_v0
-( id BIGINT NOT NULL
+( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
+, caller_id BIGINT NOT NULL
 , fnname TEXT NOT NULL
 , hash TEXT NOT NULL
 , timestamp TIMESTAMPTZ NOT NULL
