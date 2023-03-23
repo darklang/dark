@@ -194,7 +194,7 @@ Done in `LibEvent` via `emit`, or automatically via `CronChecker`. Calls
 
 Note that `CronChecker` does not use `events_v2` table information for Cron
 scheduling (eg determining if it has been an hour since the last Cron event). That is
-tracked in the `cron_records` table, `CronChecker` just emits events on the
+tracked in the `cron_records_v0` table, `CronChecker` just emits events on the
 appropriate schedule, leaving it to the queues to handle after that.
 
 `emit` also adds a notification to the PubSub topic. This will be delivered to a
