@@ -104,6 +104,9 @@ let pgPassword = password "DARK_CONFIG_DB_PASSWORD"
 
 let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
 
+// This is just until the base migration file stabalizes
+let clearDBOnStartup = bool "DARK_CONFIG_DB_CLEAR_ON_STARTUP"
+
 
 // --------------------
 // 'getting started' canvas
