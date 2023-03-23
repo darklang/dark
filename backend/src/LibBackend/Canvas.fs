@@ -17,6 +17,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Telemetry = LibService.Telemetry
+module LD = LibService.LaunchDarkly
 
 
 type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
@@ -335,20 +336,6 @@ let empty (meta : Meta) : T =
 let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
 
-let knownBrokenCanvases : Set<CanvasName.T> =
-  [ "danbowles"
-    "danwetherald"
-    "ellen-dbproblem18"
-    "ellen-dbtests"
-    "ellen-preview"
-    "ellen-stltrialrun"
-    "ellen-trinity"
-    "jaeren_sl"
-    "jaeren_sl-crud"
-    "sydney" ]
-  |> List.map CanvasName.createExn
-  |> Set
-
 let loadFrom
   (loadAmount : Serialize.LoadAmount)
   (meta : Meta)
@@ -381,7 +368,7 @@ let loadFrom
         |> addOps uncachedOplists []
         |> verify
     with
-    | e when not (Set.contains meta.name knownBrokenCanvases) ->
+    | e when not (LD.knownBroken meta.id) ->
       let tags =
         [ "canvasName", meta.name :> obj; "tlids", tlids; "loadAmount", loadAmount ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
