@@ -39,7 +39,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
 
     let customDomains =
-      Sql.query "DELETE FROM custom_domains_v0 where canvas = @name"
+      Sql.query "DELETE FROM domains_v0 where canvas = @name"
       |> Sql.parameters [ "name", Sql.string (string name) ]
       |> Sql.executeStatementAsync
 

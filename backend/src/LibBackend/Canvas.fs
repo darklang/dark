@@ -70,9 +70,9 @@ let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
 let getMetaForCustomDomain (customDomain : string) : Task<Option<Meta>> =
   Sql.query
     "SELECT c.id, c.account_id, c.name
-           FROM canvases_v0 c, custom_domains_v0 d
-          WHERE d.canvas = c.name
-            AND d.host = @customDomain"
+       FROM canvases_v0 c, domains_v0 d
+      WHERE c.id = d.canvas_id
+        AND d.domain = @customDomain"
   |> Sql.parameters [ "customDomain", Sql.string customDomain ]
   |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"

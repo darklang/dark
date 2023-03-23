@@ -185,19 +185,18 @@ let filterMatchingHandlers
 
 
 
-let addCustomDomain
-  (customDomain : string)
-  (canvasName : CanvasName.T)
-  : Task<unit> =
+// Set the domain to point to the canvas in question. Note there is no checking to
+// see if it owns the canvas, that should be done in the ApiServer via looking at DNS
+// entries and such
+let addCustomDomain (customDomain : string) (canvasID : CanvasID) : Task<unit> =
   Sql.query
-    "INSERT into custom_domains_v0
-     (host, canvas)
-     VALUES (@host, @canvas)
-     ON CONFLICT (host)
+    "INSERT into domains_v0 (domain, canvas_id)
+     VALUES (@domain, @canvasID)
+     ON CONFLICT (domain)
      DO UPDATE
-     SET canvas = @canvas"
-  |> Sql.parameters [ "host", Sql.string customDomain
-                      "canvas", Sql.string (string canvasName) ]
+     SET canvas_id = @canvasID"
+  |> Sql.parameters [ "domain", Sql.string customDomain
+                      "canvasID", Sql.uuid canvasID ]
   |> Sql.executeStatementAsync
 
 type CanvasSource =

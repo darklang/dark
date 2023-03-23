@@ -49,9 +49,9 @@ ON cron_records_v0
 
 
 CREATE TABLE IF NOT EXISTS
-custom_domains_v0 -- TODO: add primary key
-( host TEXT PRIMARY KEY
-, canvas TEXT); -- TODO: should be canvas_id
+domains_v0
+( domain TEXT PRIMARY KEY
+, canvas_id UUID NOT NULL);
 
 
 CREATE TABLE IF NOT EXISTS
