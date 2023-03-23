@@ -45,12 +45,7 @@ let main (args : string []) =
       match! LibBackend.Account.getUser username with
       | None ->
         print "creating dark user"
-        let! r =
-          LibBackend.Account.upsertNonAdmin
-            { username = username
-              password = LibBackend.Password.fromPlaintext "fVm2CUePzGKCwoEQQdNJktUQ"
-              email = "test@darklang.com"
-              name = "Dark CanvasHack user " }
+        let! r = LibBackend.Account.upsertNonAdmin { username = username }
         Result.unwrap () r
       | Some _ -> print "Using existing dark user"
 
