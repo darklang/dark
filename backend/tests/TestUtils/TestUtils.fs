@@ -30,6 +30,8 @@ let testOwner : Lazy<Task<Account.UserInfo>> =
 let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
   task {
     let! canvasID = Canvas.canvasIDForCanvasName owner name
+    let canvasID =
+      Exception.unwrapOptionInternal "Could not get canvasID" [] canvasID
 
     let cronRecords =
       Sql.query "DELETE FROM cron_records_v0 where canvas_id = @id::uuid"
@@ -119,9 +121,7 @@ let initializeCanvasForOwner
   : Task<Canvas.Meta> =
   task {
     let canvasName = CanvasName.createExn (nameToTestName name)
-    do! clearCanvasData owner.id canvasName
-    let! id = Canvas.canvasIDForCanvasName owner.id canvasName
-    return { id = id; name = canvasName; owner = owner.id }
+    return! Canvas.create owner.id canvasName
   }
 
 let initializeTestCanvas (name : string) : Task<Canvas.Meta> =

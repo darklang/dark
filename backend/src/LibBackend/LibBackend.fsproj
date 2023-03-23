@@ -41,7 +41,6 @@
     <Compile Include="Cron.fs" />
     <Compile Include="Tracing.fs" />
     <Compile Include="Traces.fs" />
-    <Compile Include="CanvasClone.fs" />
     <Compile Include="Stats.fs" />
     <Compile Include="Migrations.fs" />
     <Compile Include="Init.fs" />

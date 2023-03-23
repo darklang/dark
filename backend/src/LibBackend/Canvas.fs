@@ -21,39 +21,40 @@ module Telemetry = LibService.Telemetry
 
 type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
 
+let create (owner : UserID) (canvasName : CanvasName.T) : Task<Meta> =
+  task {
+    let id = System.Guid.NewGuid()
+    do!
+      Sql.query
+        "INSERT INTO canvases_v0
+         (id, account_id, name)
+         VALUES (@id, @owner, @canvasName)"
+      |> Sql.parameters [ "id", Sql.uuid id
+                          "owner", Sql.uuid owner
+                          "canvasName", Sql.string (string canvasName) ]
+      |> Sql.executeStatementAsync
+    return { id = id; owner = owner; name = canvasName }
+  }
+
 let canvasIDForCanvasName
   (owner : UserID)
   (canvasName : CanvasName.T)
-  : Task<CanvasID> =
-  // https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324
-  // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
-  Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
-  |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
-                      "owner", Sql.uuid owner
+  : Task<Option<CanvasID>> =
+  Sql.query
+    "SELECT id FROM canvases_v0
+      WHERE account_id = @owner
+        AND name = @canvasName"
+  |> Sql.parameters [ "owner", Sql.uuid owner
                       "canvasName", Sql.string (string canvasName) ]
-  |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
+  |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
 
-/// Fetch high-level metadata for a canvas
-let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
-  task {
-    let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-    let! ownerID = Account.userIDForUserName ownerName
-    let! canvasID = canvasIDForCanvasName ownerID canvasName
-    return { id = canvasID; owner = ownerID; name = canvasName }
-  }
-
-/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
-/// We want to use this in nearly all cases, with the only exception being when a
-/// user enters a URL to open an editor for a canvas.
 let getMeta (canvasName : CanvasName.T) : Task<Option<Meta>> =
   Sql.query "SELECT id, account_id from canvases_v0 where name = @canvasName"
   |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"; owner = read.uuid "account_id"; name = canvasName })
 
-/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
-/// We want to use this in nearly all cases, with the only exception being when a
-/// user enters a URL to open an editor for a canvas. Throws if the canvas does not exist.
+/// Get the metadata for a canvas. Throws if the canvas does not exist.
 let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let! option = getMeta canvasName

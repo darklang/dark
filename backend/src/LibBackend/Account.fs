@@ -150,7 +150,7 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
     { username = username; id = read.uuid "id" })
 
 
-// formerly called auth_domain_for
+
 let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
   match String.split "-" (string canvasName) with
   | owner :: _ -> OwnerName.create owner

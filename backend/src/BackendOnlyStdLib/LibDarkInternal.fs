@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "username" TStr ""
           Param.make "email" TStr ""
           Param.make "name" TStr "" ]
-      returnType = TResult(TStr, TStr)
+      returnType = TResult(TUnit, TStr)
       description =
         "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
@@ -120,20 +120,7 @@ that's already taken, returns an error."
               match username with
               | Ok username ->
                 let! _user = Account.insertUser username
-                let toCanvasName =
-                  $"{username}-{LibService.Config.gettingStartedCanvasName}"
-                let fromCanvasName = LibService.Config.gettingStartedCanvasSource
-                do!
-                  CanvasClone.cloneCanvas
-                    (CanvasName.createExn fromCanvasName)
-                    (CanvasName.createExn toCanvasName)
-                    // Don't preserve history here, it isn't useful and
-                    // we don't currently have visibility into canvas
-                    // history, so we'd rather not share unknown sample-
-                    // history with users in case it contains
-                    // sensitive information like access keys.
-                    false
-                return DResult(Ok(DStr ""))
+                return DResult(Ok(DUnit))
               | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())

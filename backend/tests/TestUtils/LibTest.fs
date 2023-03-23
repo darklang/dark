@@ -411,23 +411,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "createCanvas" 0
-      parameters = [ Param.make "canvasName" TStr "" ]
-      returnType = TUuid
-      description = "Create the named canvas and return the ID"
-      fn =
-        (function
-        | _, [ DStr canvasName ] ->
-          uply {
-            let! meta =
-              LibBackend.Canvas.getMetaAndCreate (CanvasName.createExn canvasName)
-            return DUuid meta.id
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
     { name = fn "Test" "unwrap" 0
       parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
       returnType = TVariable "a"
