@@ -6,6 +6,7 @@ RETURNS TRIGGER AS $t$
   END;
 $t$ LANGUAGE plpgsql;
 
+-- TODO: remove this
 CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
   $func$
   BEGIN
@@ -33,7 +34,7 @@ $func$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS
 accounts_v0
 ( id UUID PRIMARY KEY
-, username VARCHAR(255) UNIQUE NOT NULL
+, username VARCHAR(255) UNIQUE NOT NULL -- TODO: remove
 );
 
 CREATE TRIGGER set_account_timestamp
@@ -62,7 +63,7 @@ cron_records_v0
 ( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , tlid BIGINT NOT NULL
 , canvas_id UUID NOT NULL
-, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() --remove default
+, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- TODO: remove default
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -72,13 +73,13 @@ ON cron_records_v0
 
 
 CREATE TABLE IF NOT EXISTS
-custom_domains_v0
+custom_domains_v0 -- TODO: add primary key
 ( host TEXT PRIMARY KEY
 , canvas TEXT);
 
 
 CREATE TABLE IF NOT EXISTS
-events_v0
+events_v0 -- TODO: rename to queue_events_v0
 ( id UUID PRIMARY KEY
 , canvas_id UUID NOT NULL
 , module TEXT NOT NULL
@@ -101,7 +102,7 @@ ON events_v0 (canvas_id, module, name);
 
 
 CREATE TABLE IF NOT EXISTS
-function_arguments_v0
+function_arguments_v0 -- TODO: rename to trace_function_arguments_v0
 ( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
@@ -111,17 +112,18 @@ function_arguments_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-function_arguments_most_recent
+function_arguments_most_recent -- TODO: rename to trace_function_arguments_v0
 ON function_arguments_v0
 (canvas_id, tlid, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS
-function_arguments_for_trace
+function_arguments_for_trace -- TODO: rename to trace_function_arguments_v0
 ON function_arguments_v0
 (canvas_id, tlid, trace_id);
 
+
 CREATE TABLE IF NOT EXISTS
-function_results_v0
+function_results_v0 -- TODO: rename to trace_function_results_v0
 ( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
@@ -135,7 +137,7 @@ function_results_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-idx_function_results_v0_most_recent
+idx_function_results_v0_most_recent -- TODO: rename to trace_function_results_v0
 ON function_results_v0
 (canvas_id, trace_id, tlid, timestamp DESC);
 
@@ -143,7 +145,7 @@ ON function_results_v0
 
 CREATE TABLE IF NOT EXISTS
  op_ctrs_v0
- ( canvas_id UUID NOT NULL
+ ( canvas_id UUID NOT NULL -- TODO: add ID PK
  , browser_id UUID NOT NULL UNIQUE
  , ctr INTEGER NOT NULL DEFAULT 0
  , timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW());
@@ -190,7 +192,7 @@ CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
-( id SERIAL PRIMARY KEY -- TODO: change to UUID ERR: Can't cast database type uuid to Int32
+( id SERIAL PRIMARY KEY -- TODO: change to UUID
 , rule_type scheduling_rule_type NOT NULL
 , canvas_id UUID NOT NULL
 , handler_name TEXT NOT NULL
@@ -211,7 +213,7 @@ secrets_v0
 
 
 CREATE TABLE IF NOT EXISTS
-stored_events_v0
+stored_events_v0 -- TODO rename to trace_events_v0
 ( canvas_id UUID NOT NULL
 , module TEXT NOT NULL
 , path TEXT NOT NULL
@@ -222,17 +224,17 @@ stored_events_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-idx_stored_events_v0_most_recent
+idx_stored_events_v0_most_recent -- TODO rename to trace_events_v0
 ON stored_events_v0
 (canvas_id, module, path, modifier, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS
-stored_events_v0_traceid
+stored_events_v0_traceid -- TODO rename to trace_events_v0
 ON stored_events_v0
 (canvas_id, trace_id);
 
 CREATE INDEX IF NOT EXISTS
-idx_stored_events_v0_most_recent_with_text
+idx_stored_events_v0_most_recent_with_text -- TODO rename to trace_events_v0
 ON stored_events_v0
 (canvas_id, module, path text_pattern_ops, modifier, "timestamp" DESC);
 
@@ -299,8 +301,6 @@ user_data_v0
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , key TEXT NOT NULL
 );
-
-UPDATE user_data_v0 SET key = id::text;
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_fetch
