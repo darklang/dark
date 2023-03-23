@@ -59,7 +59,7 @@ EXECUTE PROCEDURE trigger_set_timestamp();
 
 CREATE TABLE IF NOT EXISTS
 cron_records_v0
-( id SERIAL PRIMARY KEY
+( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , tlid BIGINT NOT NULL
 , canvas_id UUID NOT NULL
 , ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() --remove default
