@@ -180,7 +180,6 @@ module Expr =
             // TODO: support currying
 
             | PT.EFnCall (id, fnName, typeArgs, PT.EPipeTarget ptID :: exprs) ->
-              // TODO: consider using typeArgs
               RT.EApply(
                 id,
                 RT.FnName(FQFnName.toRT fnName),

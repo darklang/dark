@@ -157,7 +157,7 @@ let makeTest versionName filename =
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
-        |> Parser.parse
+        |> Parser.parseAsFSharpSourceFile
         |> Parser.convertToTest userTypes
 
       // Run the handler (call the HTTP client)
