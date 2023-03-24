@@ -75,7 +75,7 @@ let storeEvent
     Task.FromResult(NodaTime.Instant.now ())
   else
     Sql.query
-      "INSERT INTO stored_events_v0
+      "INSERT INTO trace_old_events_v0
       (canvas_id, trace_id, module, path, modifier, timestamp, value)
       VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
       RETURNING timestamp"
@@ -105,7 +105,7 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
     // recent events if we desire in the future
     $"SELECT DISTINCT ON (module, path, modifier)
       module, path, modifier, timestamp, trace_id
-      FROM stored_events_v0
+      FROM trace_old_events_v0
       WHERE canvas_id = @canvasID
       {timestampSql}"
 
@@ -160,7 +160,7 @@ let loadEvents
     let route = Routing.routeToPostgresPattern route
     let! results =
       Sql.query
-        "SELECT path, value, timestamp, trace_id FROM stored_events_v0
+        "SELECT path, value, timestamp, trace_id FROM trace_old_events_v0
           WHERE canvas_id = @canvasID
             AND module = @module
             AND path LIKE @route
@@ -190,7 +190,7 @@ let loadEventForTrace
   task {
     let! results =
       Sql.query
-        "SELECT path, value, timestamp FROM stored_events_v0
+        "SELECT path, value, timestamp FROM trace_old_events_v0
           WHERE canvas_id = @canvasID
             AND trace_id = @traceID
           LIMIT 1"
@@ -224,7 +224,7 @@ let loadEventIDs
   let route = mungePathForPostgres module_ route
 
   Sql.query
-    "SELECT trace_id, path FROM stored_events_v0
+    "SELECT trace_id, path FROM trace_old_events_v0
      WHERE canvas_id = @canvasID
        AND module = @module
        AND path LIKE @path
@@ -270,7 +270,7 @@ let delete404s
   (modifier : string)
   : Task<unit> =
   Sql.query
-    "DELETE FROM stored_events_v0
+    "DELETE FROM trace_old_events_v0
      WHERE canvas_id = @canvasID
      AND module = @module
      AND path = @path
@@ -286,7 +286,7 @@ let delete404s
 
 let clearAllEvents (canvasID : CanvasID) : Task<unit> =
   Sql.query
-    "DELETE FROM stored_events_v0
+    "DELETE FROM trace_old_events_v0
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeStatementAsync

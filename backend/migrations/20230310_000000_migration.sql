@@ -99,7 +99,7 @@ ON trace_old_function_arguments_v0
 
 
 CREATE TABLE IF NOT EXISTS
-trace_old_function_results_v0 -- TODO: rename to trace_function_results_v0
+trace_old_function_results_v0
 ( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
@@ -113,9 +113,37 @@ trace_old_function_results_v0 -- TODO: rename to trace_function_results_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-idx_trace_old_function_results_v0_most_recent -- TODO: rename to trace_function_results_v0
+idx_trace_old_function_results_v0_most_recent
 ON trace_old_function_results_v0
 (canvas_id, trace_id, tlid, timestamp DESC);
+
+
+CREATE TABLE IF NOT EXISTS
+trace_old_events_v0
+( trace_id UUID PRIMARY KEY -- TODO: is this right?
+, canvas_id UUID NOT NULL
+, module TEXT NOT NULL
+, path TEXT NOT NULL
+, modifier TEXT NOT NULL
+, timestamp TIMESTAMPTZ NOT NULL
+, value TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS
+idx_trace_old_events_v0_most_recent
+ON trace_old_events_v0
+(canvas_id, module, path, modifier, timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS
+idx_trace_old_events_v0_traceid
+ON trace_old_events_v0
+(canvas_id, trace_id);
+
+CREATE INDEX IF NOT EXISTS
+idx_trace_old_events_v0_most_recent_with_text
+ON trace_old_events_v0
+(canvas_id, module, path text_pattern_ops, modifier, "timestamp" DESC);
+
 
 
 
@@ -140,6 +168,7 @@ CREATE INDEX IF NOT EXISTS
 idx_op_ctrs_timestamp
 ON op_ctrs_v0
 (timestamp ASC);
+
 
 
  /* associate it back to the function. */
@@ -187,32 +216,6 @@ secrets_v0
 , PRIMARY KEY (canvas_id, secret_name, secret_version) -- TODO: simplfy PK
 );
 
-
-CREATE TABLE IF NOT EXISTS
-stored_events_v0 -- TODO rename to trace_events_v0
-( canvas_id UUID NOT NULL
-, module TEXT NOT NULL
-, path TEXT NOT NULL
-, modifier TEXT NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
-, value TEXT NOT NULL
-, trace_id UUID NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS
-idx_stored_events_v0_most_recent -- TODO rename to trace_events_v0
-ON stored_events_v0
-(canvas_id, module, path, modifier, timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS
-stored_events_v0_traceid -- TODO rename to trace_events_v0
-ON stored_events_v0
-(canvas_id, trace_id);
-
-CREATE INDEX IF NOT EXISTS
-idx_stored_events_v0_most_recent_with_text -- TODO rename to trace_events_v0
-ON stored_events_v0
-(canvas_id, module, path text_pattern_ops, modifier, "timestamp" DESC);
 
 
 
