@@ -44,29 +44,24 @@ module Types =
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, args) ->
     uply {
-      match! state.program.accountID |> Account.usernameForUserID with
-      | None ->
-        Exception.raiseInternal $"User not found" [ "id", state.program.accountID ]
-        return DUnit
-      | Some username ->
-        let canAccess = true
-        if canAccess then
-          let fnName =
-            state.executingFnName
-            |> Option.map FQFnName.toString
-            |> Option.defaultValue "unknown"
-          use _span =
-            Telemetry.child
-              "internal_fn"
-              [ "canvas", state.program.canvasName
-                "user", username
-                "fnName", fnName ]
-          return! f (state, args)
-        else
-          return
-            Exception.raiseInternal
-              "User executed an internal function but isn't an admin"
-              [ "username", username ]
+      let canAccess = true
+      if canAccess then
+        let fnName =
+          state.executingFnName
+          |> Option.map FQFnName.toString
+          |> Option.defaultValue "unknown"
+        use _span =
+          Telemetry.child
+            "internal_fn"
+            [ "canvas", state.program.canvasName
+              "user", state.program.accountID
+              "fnName", fnName ]
+        return! f (state, args)
+      else
+        return
+          Exception.raiseInternal
+            "User executed an internal function but isn't an admin"
+            [ "id", state.program.accountID ]
     })
 
 // only accessible to the `dark-editor canvas`
@@ -100,17 +95,14 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DarkInternal" "insertUser" 2
-      parameters =
-        [ Param.make "username" TStr ""
-          Param.make "email" TStr ""
-          Param.make "name" TStr "" ]
+      parameters = [ Param.make "username" TStr "" ]
       returnType = TResult(TUnit, TStr)
       description =
         "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name ] ->
+          | _, [ DStr username ] ->
             uply {
               let username =
                 Exception.catchError (fun () ->

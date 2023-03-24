@@ -307,11 +307,6 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
 
-let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
-  Sql.query "SELECT created_at from canvases_v0 WHERE id = @canvasID"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
-
 let urlFor (canvasName : CanvasName.T) : string =
   $"https://{canvasName}.{Config.publicDomain}"
 
