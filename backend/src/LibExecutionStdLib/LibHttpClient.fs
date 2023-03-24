@@ -22,6 +22,7 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
+      typeParams = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -29,7 +30,7 @@ let fns : List<BuiltInFn> =
          requests or responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(
             DObj(
               Map.ofList [ "Content-Type", DStr "application/x-www-form-urlencoded" ]
@@ -42,6 +43,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "jsonContentType" 0
+      typeParams = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -49,7 +51,7 @@ let fns : List<BuiltInFn> =
          responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(
             DObj(
               Map.ofList [ "Content-Type", DStr "application/json; charset=utf-8" ]
@@ -62,6 +64,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "plainTextContentType" 0
+      typeParams = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -69,7 +72,7 @@ let fns : List<BuiltInFn> =
          requests or responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(DObj(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -78,6 +81,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "htmlContentType" 0
+      typeParams = []
       parameters = []
       returnType = TDict TStr
       description =
@@ -85,7 +89,7 @@ let fns : List<BuiltInFn> =
          or responses"
       fn =
         (function
-        | _, [] ->
+        | _, _, [] ->
           Ply(DObj(Map.ofList [ "Content-Type", DStr "text/html; charset=utf-8" ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -94,13 +98,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "HttpClient" "bearerToken" 1
+      typeParams = []
       parameters = [ Param.make "token" TStr "" ]
       returnType = TDict TStr
       description =
         "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
       fn =
         (function
-        | _, [ DStr token ] ->
+        | _, _, [ DStr token ] ->
           let authString = "Bearer " + token
           Ply(DObj(Map.ofList [ "Authorization", DStr authString ]))
         | _ -> incorrectArgs ())

@@ -14,13 +14,14 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "basicAuth" 1
+      typeParams = []
       parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
       returnType = TDict TStr
       description =
         "Returns a header <type Dict> with {{'Authorization'}} created using HTTP basic auth"
       fn =
         (function
-        | _, [ DStr u; DStr p ] ->
+        | _, _, [ DStr u; DStr p ] ->
           /// Base64-encodes username/password combination for basic authentication
           let encodeBasicAuth (u : string) (p : string) : string =
             let input : byte [] =

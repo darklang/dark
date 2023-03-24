@@ -41,6 +41,32 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
+type DType =
+  | TInt
+  | TFloat
+  | TBool
+  | TUnit
+  | TStr
+  | TList of DType
+  | TTuple of DType * DType * List<DType>
+  | TDict of DType
+  | TIncomplete
+  | TError
+  | THttpResponse of DType
+  | TDB of DType
+  | TDateTime
+  | TChar
+  | TPassword
+  | TUuid
+  | TOption of DType
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+  | TBytes
+  | TResult of DType * DType
+  | TVariable of string
+  | TFn of List<DType> * DType
+  | TRecord of List<string * DType>
+  | TDbList of DType
+
 type InfixFnName =
   | ArithmeticPlus
   | ArithmeticMinus
@@ -90,7 +116,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * List<Expr>
+  | EFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
@@ -107,32 +133,6 @@ type Expr =
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
-
-type DType =
-  | TInt
-  | TFloat
-  | TBool
-  | TUnit
-  | TStr
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TDict of DType
-  | TIncomplete
-  | TError
-  | THttpResponse of DType
-  | TDB of DType
-  | TDateTime
-  | TChar
-  | TPassword
-  | TUuid
-  | TOption of DType
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
-  | TBytes
-  | TResult of DType * DType
-  | TVariable of string
-  | TFn of List<DType> * DType
-  | TRecord of List<string * DType>
-  | TDbList of DType
 
 
 module CustomType =
@@ -190,6 +190,7 @@ module UserFunction =
     { tlid : tlid
       name : string
       returnType : DType
+      typeParams : List<string>
       parameters : List<Parameter>
       description : string
       infix : bool
@@ -234,6 +235,7 @@ module Package =
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
+      typeParams : List<string>
       parameters : List<Parameter>
       returnType : DType
       description : string

@@ -106,6 +106,33 @@ module FQFnName =
     | Package of PackageFnName
 
 [<MessagePack.MessagePackObject>]
+type DType =
+  | TInt
+  | TFloat
+  | TBool
+  | TUnit
+  | TStr
+  | TList of DType
+  | TDict of DType
+  | TIncomplete
+  | TError
+  | THttpResponse of DType
+  | TDB of DType
+  | TDateTime
+  | TChar
+  | TPassword
+  | TUuid
+  | TOption of DType
+  | TCustomType of typeName : FQTypeName.T * typeArgs : List<DType>
+  | TBytes
+  | TResult of DType * DType
+  | TVariable of string
+  | TFn of List<DType> * DType
+  | TRecord of List<string * DType>
+  | TDbList of DType // TODO: cleanup and remove
+  | TTuple of DType * DType * List<DType>
+
+[<MessagePack.MessagePackObject>]
 type InfixFnName =
   | ArithmeticPlus
   | ArithmeticMinus
@@ -159,7 +186,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * List<Expr>
+  | EFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
   | EList of id * List<Expr>
   | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
@@ -177,33 +204,6 @@ type Expr =
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
-
-[<MessagePack.MessagePackObject>]
-type DType =
-  | TInt
-  | TFloat
-  | TBool
-  | TUnit
-  | TStr
-  | TList of DType
-  | TDict of DType
-  | TIncomplete
-  | TError
-  | THttpResponse of DType
-  | TDB of DType
-  | TDateTime
-  | TChar
-  | TPassword
-  | TUuid
-  | TOption of DType
-  | TCustomType of typeName : FQTypeName.T * typeArgs : List<DType>
-  | TBytes
-  | TResult of DType * DType
-  | TVariable of string
-  | TFn of List<DType> * DType
-  | TRecord of List<string * DType>
-  | TDbList of DType // TODO: cleanup and remove
-  | TTuple of DType * DType * List<DType>
 
 
 module CustomType =
@@ -339,14 +339,16 @@ module UserFunction =
       [<MessagePack.Key 1>]
       name : string
       [<MessagePack.Key 2>]
-      parameters : List<Parameter>
+      typeParams : List<string>
       [<MessagePack.Key 3>]
-      returnType : DType
+      parameters : List<Parameter>
       [<MessagePack.Key 4>]
-      description : string
+      returnType : DType
       [<MessagePack.Key 5>]
-      infix : bool
+      description : string
       [<MessagePack.Key 6>]
+      infix : bool
+      [<MessagePack.Key 7>]
       body : Expr }
 
 module Toplevel =

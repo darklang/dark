@@ -117,8 +117,10 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFieldAccess (_, target1, fieldName1), EFieldAccess (_, target2, fieldName2) ->
     equalsExpr target1 target2 && fieldName1 = fieldName2
   | EVariable (_, name1), EVariable (_, name2) -> name1 = name2
-  | EApply (_, name1, args1, isInPipe1), EApply (_, name2, args2, isInPipe2) ->
+  | EApply (_, name1, typeArgs1, args1, isInPipe1),
+    EApply (_, name2, typeArgs2, args2, isInPipe2) ->
     name1 = name2
+    && List.forall2 (=) typeArgs1 typeArgs2
     && List.forall2 equalsExpr args1 args2
     && equalsIsInPipe isInPipe1 isInPipe2
   | EList (_, elems1), EList (_, elems2) ->
@@ -242,12 +244,13 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
 
 let fns : List<BuiltInFn> =
   [ { name = fn "" "equals" 0
+      typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, [ a; b ] -> equals a b |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -255,12 +258,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "" "notEquals" 0
+      typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, [ a; b ] -> equals a b |> not |> DBool |> Ply
+        | _, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
@@ -268,12 +272,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "AWS" "urlencode" 0
+      typeParams = []
       parameters = [ Param.make "str" TStr "" ]
       returnType = TStr
       description = "Url encode a string per AWS' requirements"
       fn =
         (function
-        | _, [ DStr s ] ->
+        | _, _, [ DStr s ] ->
           // Based on the original OCaml implementation which was slightly modified from
           // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
           // Buffer.add_string instead of add_bytes); see also
@@ -326,12 +331,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Twitter" "urlencode" 0
+      typeParams = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TStr
       description = "Url encode a string per Twitter's requirements"
       fn =
         (function
-        | _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
+        | _, _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

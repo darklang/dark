@@ -20,6 +20,7 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "response" 0
+      typeParams = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -27,7 +28,7 @@ let fns : List<BuiltInFn> =
          respond with HTTP status <param code> and <param response> body."
       fn =
         (function
-        | _, [ dv; DInt code ] -> Ply(DHttpResponse(code, [], dv))
+        | _, _, [ dv; DInt code ] -> Ply(DHttpResponse(code, [], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -35,6 +36,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithHeaders" 0
+      typeParams = []
       parameters =
         [ Param.make "response" varA ""
           Param.make "headers" (TDict TStr) ""
@@ -46,7 +48,7 @@ let fns : List<BuiltInFn> =
          headers>."
       fn =
         (function
-        | _, [ dv; DObj o; DInt code ] ->
+        | _, _, [ dv; DObj o; DInt code ] ->
           let pairs =
             Map.toList o
             |> List.map (fun (k, v) ->
@@ -63,6 +65,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "success" 0
+      typeParams = []
       parameters = [ Param.make "response" varA "" ]
       returnType = THttpResponse varA
       description =
@@ -70,7 +73,7 @@ let fns : List<BuiltInFn> =
          respond with HTTP status 200 and <param response> body."
       fn =
         (function
-        | _, [ dv ] -> Ply(DHttpResponse(200L, [], dv))
+        | _, _, [ dv ] -> Ply(DHttpResponse(200L, [], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -78,6 +81,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithHtml" 0
+      typeParams = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -86,7 +90,7 @@ let fns : List<BuiltInFn> =
          {{content-type}} set to {{\"text/html\"}}"
       fn =
         (function
-        | _, [ dv; DInt code ] ->
+        | _, _, [ dv; DInt code ] ->
           Ply(DHttpResponse(code, [ ("Content-Type", "text/html") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -95,6 +99,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithText" 0
+      typeParams = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -103,7 +108,7 @@ let fns : List<BuiltInFn> =
          {{content-type}} set to {{\"text/plain\"}}"
       fn =
         (function
-        | _, [ dv; DInt code ] ->
+        | _, _, [ dv; DInt code ] ->
           Ply(DHttpResponse(code, [ ("Content-Type", "text/plain") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -112,6 +117,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "responseWithJson" 0
+      typeParams = []
       parameters = [ Param.make "response" varA ""; Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -120,7 +126,7 @@ let fns : List<BuiltInFn> =
          {{content-type}} set to {{\"application/json\"}}"
       fn =
         (function
-        | _, [ dv; DInt code ] ->
+        | _, _, [ dv; DInt code ] ->
           Ply(DHttpResponse(code, [ ("Content-Type", "application/json") ], dv))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -129,6 +135,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "redirectTo" 0
+      typeParams = []
       parameters = [ Param.make "url" TStr "" ]
       returnType = THttpResponse varA
       description =
@@ -136,7 +143,7 @@ let fns : List<BuiltInFn> =
          respond with a {{302}} redirect to <param url>"
       fn =
         (function
-        | _, [ DStr url ] ->
+        | _, _, [ DStr url ] ->
           Ply(DHttpResponse(302L, [ ("Location", url) ], DBytes([||])))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -145,6 +152,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "badRequest" 0
+      typeParams = []
       parameters = [ Param.make "error" TStr "" ]
       returnType = THttpResponse varA
       description =
@@ -152,7 +160,7 @@ let fns : List<BuiltInFn> =
          respond with a {{400}} status and string <param error> message"
       fn =
         (function
-        | _, [ DStr _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
+        | _, _, [ DStr _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -160,6 +168,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "notFound" 0
+      typeParams = []
       parameters = []
       returnType = THttpResponse varA
       description =
@@ -167,7 +176,7 @@ let fns : List<BuiltInFn> =
          respond with {{404}} status code (not found)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(404L, [], DUnit))
+        | _, _, [] -> Ply(DHttpResponse(404L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -175,6 +184,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "unauthorized" 0
+      typeParams = []
       parameters = []
       returnType = THttpResponse varA
       description =
@@ -182,7 +192,7 @@ let fns : List<BuiltInFn> =
          respond with {{401}} status code (unauthorized)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(401L, [], DUnit))
+        | _, _, [] -> Ply(DHttpResponse(401L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -190,6 +200,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "forbidden" 0
+      typeParams = []
       parameters = []
       returnType = THttpResponse varA
       description =
@@ -197,7 +208,7 @@ let fns : List<BuiltInFn> =
          respond with {{403}} status code (forbidden)"
       fn =
         (function
-        | _, [] -> Ply(DHttpResponse(403L, [], DUnit))
+        | _, _, [] -> Ply(DHttpResponse(403L, [], DUnit))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -205,6 +216,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Http" "setCookie" 2
+      typeParams = []
       parameters =
         [ Param.make "name" TStr ""
           Param.make "value" TStr ""
@@ -218,7 +230,7 @@ let fns : List<BuiltInFn> =
          and/or {{SameSite}})."
       fn =
         (function
-        | _, [ DStr name; DStr value; DObj o ] ->
+        | _, _, [ DStr name; DStr value; DObj o ] ->
 
           let fold_cookie_params acc key value =
             match (String.toLowercase key, value) with

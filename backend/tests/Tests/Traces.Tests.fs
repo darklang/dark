@@ -212,6 +212,7 @@ let testFunctionTracesAreStored =
     let (userFn : RT.UserFunction.T) =
       { tlid = 12312345234UL
         name = "test_fn"
+        typeParams = []
         parameters = []
         returnType = RT.TInt
         description = ""
@@ -230,6 +231,7 @@ let testFunctionTracesAreStored =
     let callerTLID = 98765UL
     let callerID = 1234UL
     let fnName = RT.FQFnName.User "test_fn"
+    let typeArgs = []
     let args = []
     let traceID = AT.TraceID.create ()
 
@@ -243,6 +245,7 @@ let testFunctionTracesAreStored =
         traceID
         callerTLID
         fnName
+        typeArgs
         args
 
     // check for traces - they're saved in the background so wait for them

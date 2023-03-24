@@ -20,13 +20,14 @@ let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "X509" "pemCertificatePublicKey" 0
+      typeParams = []
       parameters = [ Param.make "pemCert" TStr "" ]
       returnType = TResult(TStr, TStr)
       description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
       fn =
         (function
-        | _, [ DStr certString ] ->
+        | _, _, [ DStr certString ] ->
           try
             let cert = new X509Certificates.X509Certificate2(UTF8.toBytes certString)
             // Workaround to support ECC certs

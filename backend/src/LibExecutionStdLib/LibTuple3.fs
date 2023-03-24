@@ -17,6 +17,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple3" "create" 0
+      typeParams = []
       parameters =
         [ Param.make "first" (TVariable "a") ""
           Param.make "second" (TVariable "b") ""
@@ -25,7 +26,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a triple with the given values"
       fn =
         (function
-        | _, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
+        | _, _, [ first; second; third ] -> Ply(DTuple(first, second, [ third ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -33,6 +34,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "first" 0
+      typeParams = []
       parameters =
         [ Param.make
             "tuple"
@@ -42,7 +44,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the first value of a triple"
       fn =
         (function
-        | _, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
+        | _, _, [ DTuple (first, _second, [ _third ]) ] -> Ply(first)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -50,6 +52,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "second" 0
+      typeParams = []
       parameters =
         [ Param.make
             "tuple"
@@ -59,7 +62,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second value of a triple"
       fn =
         (function
-        | _, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
+        | _, _, [ DTuple (_first, second, [ _third ]) ] -> Ply(second)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -67,6 +70,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "third" 0
+      typeParams = []
       parameters =
         [ Param.make
             "tuple"
@@ -76,7 +80,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the third value of a triple"
       fn =
         (function
-        | _, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
+        | _, _, [ DTuple (_first, _second, [ third ]) ] -> Ply(third)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -84,6 +88,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapFirst" 0
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -98,7 +103,7 @@ let fns : List<BuiltInFn> =
       description = "Transform the first value in a triple"
       fn =
         (function
-        | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
+        | state, _, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newFirst = Interpreter.applyFnVal state fn [ first ]
             return DTuple(newFirst, second, [ third ])
@@ -110,6 +115,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapSecond" 0
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -124,7 +130,7 @@ let fns : List<BuiltInFn> =
       description = "Transform the second value in a triple"
       fn =
         (function
-        | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
+        | state, _, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newSecond = Interpreter.applyFnVal state fn [ second ]
             return DTuple(first, newSecond, [ third ])
@@ -136,6 +142,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapThird" 0
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -150,7 +157,7 @@ let fns : List<BuiltInFn> =
       description = "Transform the third value in a triple"
       fn =
         (function
-        | state, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
+        | state, _, [ DFnVal fn; DTuple (first, second, [ third ]) ] ->
           uply {
             let! newThird = Interpreter.applyFnVal state fn [ third ]
             return DTuple(first, second, [ newThird ])
@@ -162,6 +169,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple3" "mapAllThree" 0
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fnFirst"
@@ -190,6 +198,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state,
+          _,
           [ DFnVal fnFirst
             DFnVal fnSecond
             DFnVal fnThird

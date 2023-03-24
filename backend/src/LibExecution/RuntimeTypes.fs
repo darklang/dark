@@ -138,6 +138,55 @@ module DarkDateTime =
   let toIsoString (d : T) : string = (toInstant d).toIsoString ()
 
 
+/// Dark runtime type
+type DType =
+  // simple types
+  | TUnit
+  | TBool
+  | TInt
+  | TFloat
+  | TChar
+  | TStr
+  | TUuid
+  | TBytes
+  | TDateTime
+  | TPassword
+
+  // nested types
+  | TList of DType
+  | TTuple of DType * DType * List<DType>
+  | TFn of List<DType> * DType // replaces TLambda
+  | TDB of DType
+
+  // fake types
+  | TIncomplete
+  | TError
+
+  /// Used to refer to a named type argument defined in a generic type
+  /// e.g. `a` in `List<a>`
+  | TVariable of string
+
+  /// A type defined by a standard library module, a canvas/user, or a package
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// `typeArgs` is the list of type arguments, if any
+  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+
+  // TODO: remove all of thse in favor of TCustomType
+  // Enums
+  | TOption of DType
+  | TResult of DType * DType
+
+  // Records
+  | TDict of DType
+  | TRecord of List<string * DType> // TODO: remove in favor of TCustomType
+  | THttpResponse of DType
+
+  member this.isFn() : bool =
+    match this with
+    | TFn _ -> true
+    | _ -> false
+
+
 /// Expressions here are runtime variants of the AST in ProgramTypes, having had
 /// superfluous information removed.
 type Expr =
@@ -176,7 +225,7 @@ type Expr =
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
-  | EApply of id * FnTarget * List<Expr> * IsInPipe
+  | EApply of id * FnTarget * typeArgs : List<DType> * args : List<Expr> * IsInPipe
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -312,53 +361,7 @@ and DvalTask = Ply<Dval>
 
 and Symtable = Map<string, Dval>
 
-/// Dark runtime type
-and DType =
-  // simple types
-  | TUnit
-  | TBool
-  | TInt
-  | TFloat
-  | TChar
-  | TStr
-  | TUuid
-  | TBytes
-  | TDateTime
-  | TPassword
 
-  // nested types
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TFn of List<DType> * DType // replaces TLambda
-  | TDB of DType
-
-  // fake types
-  | TIncomplete
-  | TError
-
-  /// Used to refer to a named type argument defined in a generic type
-  /// e.g. `a` in `List<a>`
-  | TVariable of string
-
-  /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
-  /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
-
-  // TODO: remove all of thse in favor of TCustomType
-  // Enums
-  | TOption of DType
-  | TResult of DType * DType
-
-  // Records
-  | TDict of DType
-  | TRecord of List<string * DType> // TODO: remove in favor of TCustomType
-  | THttpResponse of DType
-
-  member this.isFn() : bool =
-    match this with
-    | TFn _ -> true
-    | _ -> false
 
 /// Record the source of an incomplete or error. Would be useful to add more
 /// information later, such as the iteration count that led to this, or
@@ -414,7 +417,7 @@ module Expr =
     | ELambda (id, _, _)
     | ELet (id, _, _, _)
     | EIf (id, _, _, _)
-    | EApply (id, _, _, _)
+    | EApply (id, _, _, _, _)
     | EList (id, _)
     | ETuple (id, _, _, _)
     | ERecord (id, _, _)
@@ -713,6 +716,7 @@ module UserFunction =
   type T =
     { tlid : tlid
       name : string
+      typeParams : List<string>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -747,6 +751,7 @@ module Package =
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
+      typeParams : List<string>
       parameters : List<Parameter>
       returnType : DType
       description : string
@@ -842,13 +847,14 @@ type SqlSpec =
 /// A built-in standard library type
 type BuiltInType =
   { name : FQTypeName.StdlibTypeName
-    typeArgs : List<string>
+    typeParams : List<string>
     definition : CustomType.T
     description : string }
 
 /// A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
+    typeParams : List<string>
     parameters : List<Param>
     returnType : DType
     description : string
@@ -859,6 +865,7 @@ type BuiltInFn =
 
 and Fn =
   { name : FQFnName.T
+    typeParams : List<string>
     parameters : List<Param>
     returnType : DType
     previewable : Previewable
@@ -872,7 +879,15 @@ and Fn =
     /// </remarks>
     fn : FnImpl }
 
-and BuiltInFnSig = (ExecutionState * List<Dval>) -> DvalTask
+and BuiltInFnSig =
+  (ExecutionState *
+
+  // type args
+  List<DType> *
+
+  // fn args
+  List<Dval>)
+    -> DvalTask
 
 and FnImpl =
   | StdLib of BuiltInFnSig
@@ -1002,6 +1017,7 @@ let consoleNotifier : Notifier =
 
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
+    typeParams = fn.typeParams
     parameters = fn.parameters
     returnType = fn.returnType
     previewable = fn.previewable
@@ -1013,6 +1029,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
     { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
 
   { name = FQFnName.User fn.name
+    typeParams = fn.typeParams
     parameters = fn.parameters |> List.map toParam
     returnType = fn.returnType
     previewable = Impure
@@ -1024,8 +1041,8 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
 
   { name = FQFnName.Package fn.name
+    typeParams = fn.typeParams
     parameters = fn.parameters |> List.map toParam
-
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable

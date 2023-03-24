@@ -12,12 +12,13 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Float" "ceiling" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description = "Round up to an integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -25,12 +26,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "roundUp" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description = "Round up to an integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> Math.Ceiling |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -38,6 +40,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "floor" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
@@ -48,7 +51,7 @@ let fns : List<BuiltInFn> =
         but {{Float::truncate -1.9 == -1.0}}"
       fn =
         (function
-        | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -56,6 +59,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "roundDown" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
@@ -67,7 +71,7 @@ let fns : List<BuiltInFn> =
 
       fn =
         (function
-        | _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -75,12 +79,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "round" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, [ DFloat a ] -> a |> Math.Round |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> Math.Round |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -88,13 +93,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "truncate" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -102,13 +108,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "absoluteValue" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
       description =
         "Returns the absolute value of <param a> (turning negative inputs into positive outputs)"
       fn =
         (function
-        | _, [ DFloat a ] -> DFloat(Math.Abs a) |> Ply
+        | _, _, [ DFloat a ] -> DFloat(Math.Abs a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -116,12 +123,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "negate" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, [ DFloat a ] -> DFloat(a * -1.0) |> Ply
+        | _, _, [ DFloat a ] -> DFloat(a * -1.0) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -129,12 +137,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "sqrt" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
       description = "Get the square root of a float"
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(Math.Sqrt a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(Math.Sqrt a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -142,12 +151,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "power" 0
+      typeParams = []
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
       returnType = TFloat
       description = "Returns <param base> raised to the power of <param exponent>"
       fn =
         (function
-        | _, [ DFloat base_; DFloat exp ] -> Ply(DFloat(base_ ** exp))
+        | _, _, [ DFloat base_; DFloat exp ] -> Ply(DFloat(base_ ** exp))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -155,12 +165,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "divide" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Divide <type float> <param a> by <type float> <param b>"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a / b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -168,12 +179,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "add" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Add <type float> <param a> to <type float> <param b>"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -181,12 +193,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "multiply" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Multiply <type float> <param a> by <type float> <param b>"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a * b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -194,12 +207,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "subtract" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description = "Subtract <type float> <param b> from <type float> <param a>"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -207,12 +221,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "greaterThan" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is greater than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a > b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -220,12 +235,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "greaterThanOrEqualTo" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is greater than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a >= b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -233,12 +249,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "lessThan" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is less than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a < b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -246,12 +263,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "lessThanOrEqualTo" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
       description = "Returns true if a is less than b"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DBool(a <= b))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -259,12 +277,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "sum" 0
+      typeParams = []
       parameters = [ Param.make "a" (TList TFloat) "" ]
       returnType = TFloat
       description = "Returns the sum of all the floats in the list"
       fn =
         (function
-        | _, [ DList l as ldv ] ->
+        | _, _, [ DList l as ldv ] ->
           let floats =
             List.map
               (fun f ->
@@ -285,13 +304,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "min" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description =
         "Returns the lesser of <type float> <param a> and <type float> <param b>"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Min(a, b)))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Min(a, b)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -299,13 +319,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "max" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description =
         "Returns the greater of <type float> <param a> and <type float> <param b>"
       fn =
         (function
-        | _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Max(a, b)))
+        | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Max(a, b)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -313,6 +334,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "clamp" 0
+      typeParams = []
       parameters =
         [ Param.make "value" TFloat ""
           Param.make "limitA" TFloat ""
@@ -330,7 +352,7 @@ let fns : List<BuiltInFn> =
          <param limitA> and <param limitB> can be provided in any order."
       fn =
         (function
-        | _, [ DFloat v; DFloat a; DFloat b ] ->
+        | _, _, [ DFloat v; DFloat a; DFloat b ] ->
           if System.Double.IsNaN a || System.Double.IsNaN b then
             "clamp requires arguments to be valid numbers"
             |> DStr
@@ -347,26 +369,28 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "roundTowardsZero" 0
+      typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
         "Discard the fractional portion of <type float> <param a>, rounding towards zero."
       fn =
         (function
-        | _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
+        | _, _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
     { name = fn "Float" "parse" 0
+      typeParams = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TFloat, TStr)
       description =
         "Returns the <type float> value wrapped in a {{Result}} of the <type string>"
       fn =
         (function
-        | _, [ DStr s ] ->
+        | _, _, [ DStr s ] ->
           (try
             float (s) |> DFloat |> Ok |> DResult |> Ply
            with
@@ -383,12 +407,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Float" "toString" 0
+      typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TStr
       description = "Return {\"true\"} or {\"false\"}"
       fn =
         (function
-        | _, [ DFloat f ] ->
+        | _, _, [ DFloat f ] ->
           // TODO add tests from DvalRepr.Tests
           let result =
             if System.Double.IsPositiveInfinity f then

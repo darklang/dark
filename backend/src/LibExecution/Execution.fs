@@ -69,10 +69,11 @@ let executeFunction
   (state : RT.ExecutionState)
   (callerID : id)
   (name : RT.FQFnName.T)
+  (typeArgs : List<RT.DType>)
   (args : List<RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let! result = Interpreter.callFn state callerID name args RT.NotInPipe
+    let! result = Interpreter.callFn state callerID name typeArgs args RT.NotInPipe
     // Does nothing in non-tests
     state.test.postTestExecutionHook state.test result
     return result

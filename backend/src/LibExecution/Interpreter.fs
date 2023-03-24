@@ -151,11 +151,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           fields
 
 
-    | EApply (id, fnTarget, exprs, inPipe) ->
+    | EApply (id, fnTarget, typeArgs, exprs, inPipe) ->
       let! args = Ply.List.mapSequentially (eval state st) exprs
+
       let! result =
         match fnTarget with
-        | FnName name -> callFn state id name (Seq.toList args) inPipe
+        | FnName name -> callFn state id name typeArgs (Seq.toList args) inPipe
         | FnTargetExpr e ->
           uply {
             let! target = eval' state st e
@@ -576,11 +577,12 @@ and callFn
   (state : ExecutionState)
   (callerID : id)
   (desc : FQFnName.T)
-  (argvals : Dval list)
+  (typeArgs : List<DType>)
+  (argvals : List<Dval>)
   (isInPipe : IsInPipe)
   : DvalTask =
   uply {
-    let sourceID = SourceID(state.tlid, callerID) in
+    let sourceID = SourceID(state.tlid, callerID)
 
     let fn =
       match desc with
@@ -598,8 +600,8 @@ and callFn
         // Functions which aren't implemented in the client may have results
         // available, otherwise they just return incomplete.
         | None ->
-          let fnRecord = (state.tlid, desc, callerID) in
-          let fnResult = state.tracing.loadFnResult fnRecord argvals in
+          let fnRecord = (state.tlid, desc, callerID)
+          let fnResult = state.tracing.loadFnResult fnRecord argvals
           // In the case of DB::query (and friends), we want to backfill
           // the lambda's livevalues, as the lambda was never actually
           // executed. We hack this is here as we have no idea what this
@@ -628,23 +630,29 @@ and callFn
               DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
         | Some fn ->
-          // equalize length
-          let expectedLength = List.length fn.parameters in
-          let actualLength = List.length argvals in
+          // ensure we have the expected # of typeArguments _and_ arguments values
+          let expectedTypeParamLength = List.length fn.typeParams
+          let expectedArgLength = List.length fn.parameters
 
-          if expectedLength = actualLength then
+          let actualTypeArgLength = List.length typeArgs
+          let actualArgLength = List.length argvals
+
+          let err errMsg = DError(sourceID, errMsg)
+
+          if (expectedTypeParamLength = actualTypeArgLength)
+             && (expectedArgLength = actualArgLength) then
+
             let args =
               fn.parameters
               |> List.map2 (fun dv p -> (p.name, dv)) argvals
               |> Map.ofList
 
-            return! execFn state desc callerID fn args isInPipe
+            return! execFn state desc callerID fn typeArgs args isInPipe
           else
             return
-              DError(
-                sourceID,
-                $"{FQFnName.toString desc} has {expectedLength} parameters, but here was called"
-                + $" with {actualLength} arguments."
+              err (
+                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
+                + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
               )
       }
     return result
@@ -656,6 +664,7 @@ and execFn
   (fnDesc : FQFnName.T)
   (id : id)
   (fn : Fn)
+  (typeArgs : List<DType>)
   (args : DvalMap)
   (isInPipe : IsInPipe)
   : DvalTask =
@@ -730,7 +739,7 @@ and execFn
             let! result =
               uply {
                 try
-                  return! f (state, arglist)
+                  return! f (state, typeArgs, arglist)
                 with
                 | e ->
                   let context : Metadata =
@@ -760,7 +769,7 @@ and execFn
             return result
         | PackageFunction (_tlid, body) ->
           // This is similar to InProcess but also has elements of UserCreated.
-          match TypeChecker.checkFunctionCall Map.empty fn args with
+          match TypeChecker.checkFunctionCall Map.empty fn typeArgs args with
           | Ok () ->
             let! result =
               match (state.tracing.realOrPreview,
@@ -801,7 +810,8 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
         | UserFunction (tlid, body) ->
-          match TypeChecker.checkFunctionCall state.program.allTypes fn args with
+          match TypeChecker.checkFunctionCall state.program.allTypes fn typeArgs args
+            with
           | Ok () ->
             state.tracing.traceTLID tlid
             // Don't execute user functions if it's preview mode and we have a result

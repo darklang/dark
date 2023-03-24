@@ -95,12 +95,14 @@ module RuntimeTypes =
       RT.EApply(
         128384UL,
         RT.FnTargetExpr(RT.EUnit(1235123UL)),
+        [ RT.TBool ],
         [ RT.EUnit(7756UL) ],
         RT.NotInPipe
       )
       RT.EApply(
         128384UL,
         RT.FnName(RT.FQFnName.User "user fn"),
+        [],
         [ RT.EUnit(7756UL) ],
         RT.NotInPipe
       )
@@ -234,6 +236,7 @@ module ProgramTypes =
                           898531080UL,
                           PT.FQFnName.Stdlib
                             { module_ = "Bool"; function_ = "isError"; version = 0 },
+                          [],
                           [ PT.EInteger(160106123UL, 6L) ]
                         ),
                         PT.EIf(
@@ -276,6 +279,7 @@ module ProgramTypes =
                               173079901UL,
                               PT.FQFnName.Stdlib
                                 { module_ = "Int"; function_ = "add"; version = 0 },
+                              [],
                               [ PT.EInteger(250221144UL, 6L)
                                 PT.EInteger(298149318UL, 2L) ]
                             )
@@ -340,6 +344,7 @@ module ProgramTypes =
                                 { module_ = "Mod"
                                   function_ = "function"
                                   version = 2 },
+                              [],
                               []
                             ),
                             [ (PT.MPConstructor(
@@ -538,6 +543,7 @@ module ProgramTypes =
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
       name = "myFunc"
+      typeParams = [ "a" ]
       parameters =
         [ { id = 23824935UL; name = "myparam1"; typ = dtype; description = "param1" } ]
       returnType = dtype
@@ -580,6 +586,7 @@ module ProgramTypes =
           function_ = "mod"
           version = 0 }
       body = expr
+      typeParams = [ "a" ]
       parameters = [ { name = "param"; typ = dtype; description = "desc" } ]
       returnType = dtype
       description = "test"

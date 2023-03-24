@@ -25,6 +25,7 @@ let varC = TVariable "c"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Result" "map" 1
+      typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
@@ -36,7 +37,7 @@ let fns : List<BuiltInFn> =
          unchanged."
       fn =
         (function
-        | state, [ DResult r; DFnVal d ] ->
+        | state, _, [ DResult r; DFnVal d ] ->
           uply {
             match r with
             | Ok dv ->
@@ -52,6 +53,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "mapError" 1
+      typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
@@ -63,7 +65,7 @@ let fns : List<BuiltInFn> =
          unchanged."
       fn =
         (function
-        | state, [ DResult r; DFnVal b ] ->
+        | state, _, [ DResult r; DFnVal b ] ->
           uply {
             match r with
             | Ok _ -> return DResult r
@@ -79,6 +81,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "withDefault" 0
+      typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.make "default" varB "" ]
@@ -88,7 +91,7 @@ let fns : List<BuiltInFn> =
          default> otherwise."
       fn =
         (function
-        | _, [ DResult o; default' ] ->
+        | _, _, [ DResult o; default' ] ->
           match o with
           | Ok dv -> Ply dv
           | Error _ -> Ply default'
@@ -99,6 +102,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "fromOption" 2
+      typeParams = []
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" varErr "" ]
       returnType = TResult(varOk, varErr)
@@ -106,7 +110,7 @@ let fns : List<BuiltInFn> =
         "Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise."
       fn =
         (function
-        | _, [ DOption o; error ] ->
+        | _, _, [ DOption o; error ] ->
           match o with
           | Some dv -> Ply(Dval.resultOk dv)
           | None -> Ply(DResult(Error(error)))
@@ -117,12 +121,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "toOption" 1
+      typeParams = []
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
       description = "Turn a <type result> into an <type option>"
       fn =
         (function
-        | _, [ DResult o ] ->
+        | _, _, [ DResult o ] ->
           match o with
           | Ok dv -> Ply(Dval.optionJust dv)
           | Error _ -> Ply(DOption None)
@@ -133,6 +138,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "map2" 0
+      typeParams = []
       parameters =
         [ Param.make "result1" (TResult(varA, varErr)) ""
           Param.make "result2" (TResult(varB, varErr)) ""
@@ -146,7 +152,7 @@ let fns : List<BuiltInFn> =
          an error."
       fn =
         (function
-        | state, [ DResult r1; DResult r2; DFnVal b ] ->
+        | state, _, [ DResult r1; DResult r2; DFnVal b ] ->
           uply {
             match (r1, r2) with
             | Error e1, _ -> return DResult(Error e1)
@@ -163,6 +169,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Result" "andThen" 1
+      typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
           Param.makeWithArgs "fn" (TFn([ varOk ], varB)) "" [ "val" ] ]
@@ -174,7 +181,7 @@ let fns : List<BuiltInFn> =
          returns <param result> unchanged."
       fn =
         (function
-        | state, [ DResult o; DFnVal b ] ->
+        | state, _, [ DResult o; DFnVal b ] ->
           uply {
             match o with
             | Ok dv ->

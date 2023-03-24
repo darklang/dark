@@ -17,6 +17,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple2" "create" 0
+      typeParams = []
       parameters =
         [ Param.make "first" (TVariable "a") ""
           Param.make "second" (TVariable "b") "" ]
@@ -24,7 +25,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a pair with the given values"
       fn =
         (function
-        | _, [ first; second ] -> Ply(DTuple(first, second, []))
+        | _, _, [ first; second ] -> Ply(DTuple(first, second, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -32,13 +33,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "first" 0
+      typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "a"
       description = "Returns the first value of a pair"
       fn =
         (function
-        | _, [ DTuple (first, _second, []) ] -> Ply(first)
+        | _, _, [ DTuple (first, _second, []) ] -> Ply(first)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -46,13 +48,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "second" 0
+      typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TVariable "b"
       description = "Returns the second value of a pair"
       fn =
         (function
-        | _, [ DTuple (_first, second, []) ] -> Ply(second)
+        | _, _, [ DTuple (_first, second, []) ] -> Ply(second)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -60,13 +63,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "swap" 0
+      typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
       returnType = TTuple(TVariable "b", TVariable "a", [])
       description = "Returns a pair with the elements swapped"
       fn =
         (function
-        | _, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
+        | _, _, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -74,6 +78,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "mapFirst" 0
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -85,7 +90,7 @@ let fns : List<BuiltInFn> =
       description = "Transform the first value in a pair"
       fn =
         (function
-        | state, [ DFnVal fn; DTuple (first, second, []) ] ->
+        | state, _, [ DFnVal fn; DTuple (first, second, []) ] ->
           uply {
             let! newFirst = Interpreter.applyFnVal state fn [ first ]
             return DTuple(newFirst, second, [])
@@ -97,6 +102,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "mapSecond" 0
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fn"
@@ -108,7 +114,7 @@ let fns : List<BuiltInFn> =
       description = "Transform the second value in a pair"
       fn =
         (function
-        | state, [ DFnVal fn; DTuple (first, second, []) ] ->
+        | state, _, [ DFnVal fn; DTuple (first, second, []) ] ->
           uply {
             let! newSecond = Interpreter.applyFnVal state fn [ second ]
             return DTuple(first, newSecond, [])
@@ -120,6 +126,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Tuple2" "mapBoth" 0
+      typeParams = []
       parameters =
         [ Param.makeWithArgs
             "fnFirst"
@@ -138,7 +145,7 @@ let fns : List<BuiltInFn> =
       description = "Transform both values in a pair"
       fn =
         (function
-        | state, [ DFnVal fnFst; DFnVal fnSnd; DTuple (first, second, []) ] ->
+        | state, _, [ DFnVal fnFst; DFnVal fnSnd; DTuple (first, second, []) ] ->
           uply {
             let! newFirst = Interpreter.applyFnVal state fnFst [ first ]
 

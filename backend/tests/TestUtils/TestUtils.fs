@@ -178,7 +178,9 @@ let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 
 let testUserFn
   (name : string)
+  (typeParams : List<string>)
   (parameters : string list)
+  (returnType : PT.DType)
   (body : PT.Expr)
   : PT.UserFunction.T =
   { tlid = gid ()
@@ -186,12 +188,13 @@ let testUserFn
     description = ""
     infix = false
     name = name
-    returnType = PT.TVariable "a"
+    typeParams = typeParams
     parameters =
       List.map
         (fun (p : string) ->
           { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
-        parameters }
+        parameters
+    returnType = returnType }
 
 let testUserRecordType
   (name : PT.FQTypeName.UserTypeName)
@@ -556,6 +559,42 @@ module Expect =
     | MPTuple _, _ -> check path actual expected
 
 
+
+  let dTypeEqualityBaseFn
+    (path : Path)
+    (actual : DType)
+    (expected : DType)
+    (errorFn : Path -> string -> string -> unit)
+    : unit =
+    // as long as DTypes don't get IDs, depending on structural equality is OK
+    match actual, expected with
+    | TInt, _
+    | TFloat, _
+    | TBool, _
+    | TUnit, _
+    | TStr, _
+    | TList (_), _
+    | TTuple (_, _, _), _
+    | TDict (_), _
+    | TIncomplete, _
+    | TError, _
+    | THttpResponse (_), _
+    | TDB (_), _
+    | TDateTime, _
+    | TChar, _
+    | TPassword, _
+    | TUuid, _
+    | TBytes, _
+    | TVariable (_), _
+    | TFn (_, _), _
+    | TCustomType (_, _), _
+    | TOption (_), _
+    | TResult (_, _), _
+    | TRecord (_), _ ->
+      if actual <> expected then errorFn path (string actual) (string expected)
+
+
+
   let rec exprEqualityBaseFn
     (checkIDs : bool)
     (path : Path)
@@ -604,9 +643,17 @@ module Expect =
       eq ("second" :: path) second second'
       eqList path theRest theRest'
 
-    | EApply (_, name, args, inPipe), EApply (_, name', args', inPipe') ->
+    | EApply (_, name, typeArgs, args, inPipe),
+      EApply (_, name', typeArgs', args', inPipe') ->
       let path = (string name :: path)
       check path name name'
+
+      check path (List.length typeArgs) (List.length typeArgs')
+      List.iteri2
+        (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
+        typeArgs
+        typeArgs'
+
       eqList path args args'
 
       match (inPipe, inPipe') with
@@ -998,23 +1045,27 @@ let interestingDvals =
                  FQFnName.Stdlib
                    { module_ = "List"; function_ = "push"; version = 0 }
                )),
+               [],
                [ EApply(
                    93459985UL,
                    (FnName(
                      FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }
                    )),
+                   [],
                    [ EApply(
                        394567785UL,
                        (FnName(
                          FQFnName.Stdlib
                            { module_ = ""; function_ = "+"; version = 0 }
                        )),
+                       [],
                        [ EApply(
                            44444485UL,
                            (FnName(
                              FQFnName.Stdlib
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
+                           [],
                            [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
                            NotInPipe
                          )

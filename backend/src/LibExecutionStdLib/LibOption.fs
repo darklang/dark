@@ -25,6 +25,7 @@ let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Option" "map" 1
+      typeParams = []
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
       description =
@@ -34,7 +35,7 @@ let fns : List<BuiltInFn> =
          {{Nothing}}."
       fn =
         (function
-        | state, [ DOption o; DFnVal b ] ->
+        | state, _, [ DOption o; DFnVal b ] ->
           uply {
             match o with
             | Some dv ->
@@ -50,6 +51,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Option" "map2" 0
+      typeParams = []
       parameters =
         [ Param.make "option1" (TOption varA) ""
           Param.make "option2" (TOption varB) ""
@@ -63,7 +65,7 @@ let fns : List<BuiltInFn> =
          {{Nothing}}, returns {{Nothing}} without applying <param fn>."
       fn =
         (function
-        | state, [ DOption o1; DOption o2; DFnVal b ] ->
+        | state, _, [ DOption o1; DOption o2; DFnVal b ] ->
           uply {
             match (o1, o2) with
             | None, _ -> return DOption None
@@ -80,6 +82,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Option" "andThen" 0
+      typeParams = []
       parameters =
         [ optionA
           Param.makeWithArgs "fn" (TFn([ TOption varA ], TOption varB)) "" [ "val" ] ]
@@ -91,7 +94,7 @@ let fns : List<BuiltInFn> =
          {{Nothing}}."
       fn =
         (function
-        | state, [ DOption o; DFnVal b ] ->
+        | state, _, [ DOption o; DFnVal b ] ->
           uply {
             match o with
             | Some dv ->
@@ -113,6 +116,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Option" "withDefault" 0
+      typeParams = []
       parameters = [ optionA; Param.make "default" varA "" ]
       returnType = varA
       description =
@@ -120,7 +124,7 @@ let fns : List<BuiltInFn> =
          <param default> otherwise."
       fn =
         (function
-        | _, [ DOption o; default' ] ->
+        | _, _, [ DOption o; default' ] ->
           (match o with
            | Some dv -> Ply dv
            | None -> Ply default')

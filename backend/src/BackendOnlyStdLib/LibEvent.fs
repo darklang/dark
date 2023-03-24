@@ -17,12 +17,13 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "" "emit" 1
+      typeParams = []
       parameters = [ Param.make "event" varA ""; Param.make "name" TStr "" ]
       returnType = varA
       description = "Emit a <param event> to the <param name> worker"
       fn =
         (function
-        | state, [ data; DStr name ] ->
+        | state, _, [ data; DStr name ] ->
           uply {
             let canvasID = state.program.canvasID
 

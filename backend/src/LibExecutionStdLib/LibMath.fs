@@ -17,6 +17,7 @@ let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Math" "pi" 0
+      typeParams = []
       parameters = []
       returnType = TFloat
       description =
@@ -24,7 +25,7 @@ let fns : List<BuiltInFn> =
          circle's circumference to its diameter."
       fn =
         (function
-        | _, [] -> Ply(DFloat System.Math.PI)
+        | _, _, [] -> Ply(DFloat System.Math.PI)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -32,6 +33,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "tau" 0
+      typeParams = []
       parameters = []
       returnType = TFloat
       description =
@@ -39,7 +41,7 @@ let fns : List<BuiltInFn> =
          radians in one turn. Equivalent to {{Float::multiply Math::pi 2}}."
       fn =
         (function
-        | _, [] -> Ply(DFloat System.Math.Tau)
+        | _, _, [] -> Ply(DFloat System.Math.Tau)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -47,6 +49,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "degrees" 0
+      typeParams = []
       parameters = [ Param.make "angleInDegrees" TFloat "" ]
       returnType = TFloat
       description =
@@ -56,7 +59,7 @@ let fns : List<BuiltInFn> =
          There are 360 degrees in a circle."
       fn =
         (function
-        | _, [ DFloat degrees ] -> Ply(DFloat(degrees * System.Math.PI / 180.0))
+        | _, _, [ DFloat degrees ] -> Ply(DFloat(degrees * System.Math.PI / 180.0))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -64,6 +67,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "turns" 0
+      typeParams = []
       parameters = [ Param.make "angleInTurns" TFloat "" ]
       returnType = TFloat
       description =
@@ -73,7 +77,7 @@ let fns : List<BuiltInFn> =
          There is 1 turn in a circle."
       fn =
         (function
-        | _, [ DFloat turns ] -> Ply(DFloat(System.Math.Tau * turns))
+        | _, _, [ DFloat turns ] -> Ply(DFloat(System.Math.Tau * turns))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -81,6 +85,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "radians" 0
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -91,7 +96,7 @@ let fns : List<BuiltInFn> =
          circle."
       fn =
         (function
-        | _, [ DFloat rads ] -> Ply(DFloat rads)
+        | _, _, [ DFloat rads ] -> Ply(DFloat rads)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -99,6 +104,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "cos" 0
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -109,7 +115,7 @@ let fns : List<BuiltInFn> =
          hypotenuse."
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cos a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Cos a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -117,6 +123,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "sin" 0
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -126,7 +133,7 @@ let fns : List<BuiltInFn> =
          the ratio of the lengths of the side opposite the angle and the hypotenuse"
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sin a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sin a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -134,6 +141,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "tan" 0
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
@@ -144,7 +152,7 @@ let fns : List<BuiltInFn> =
          adjacent to the angle."
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Tan a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Tan a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -152,6 +160,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "acos" 0
+      typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
       description =
@@ -164,7 +173,7 @@ let fns : List<BuiltInFn> =
          This function is the inverse of <fn Math::cos>."
       fn =
         (function
-        | _, [ DFloat r ] ->
+        | _, _, [ DFloat r ] ->
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
@@ -178,6 +187,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "asin" 0
+      typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TOption varA
       description =
@@ -190,7 +200,7 @@ let fns : List<BuiltInFn> =
          This function is the inverse of <fn Math::sin>."
       fn =
         (function
-        | _, [ DFloat r ] ->
+        | _, _, [ DFloat r ] ->
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
@@ -204,6 +214,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "atan" 0
+      typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TFloat
       description =
@@ -214,7 +225,7 @@ let fns : List<BuiltInFn> =
          output range, if you know the numerator and denominator of <param ratio>."
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Atan a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Atan a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -222,6 +233,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "atan2" 0
+      typeParams = []
       parameters = [ Param.make "y" TFloat ""; Param.make "x" TFloat "" ]
       returnType = TFloat
       description =
@@ -234,7 +246,7 @@ let fns : List<BuiltInFn> =
          individual values <param x> and <param y>."
       fn =
         (function
-        | _, [ DFloat y; DFloat x ] -> Ply(DFloat(System.Math.Atan2(y, x)))
+        | _, _, [ DFloat y; DFloat x ] -> Ply(DFloat(System.Math.Atan2(y, x)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -242,12 +254,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "cosh" 0
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description = "Returns the hyperbolic cosine of <param angleInRadians>"
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Cosh a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Cosh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -255,12 +268,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "sinh" 0
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description = "Returns the hyperbolic sine of <param angleInRadians>"
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -268,12 +282,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Math" "tanh" 0
+      typeParams = []
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description = "Returns the hyperbolic tangent of <param angleInRadians>"
       fn =
         (function
-        | _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
+        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

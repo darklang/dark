@@ -35,6 +35,66 @@ module FQTypeName =
     | PT.FQTypeName.Stdlib t -> CTPT.FQTypeName.Stdlib(StdlibTypeName.toCT t)
     | PT.FQTypeName.User u -> CTPT.FQTypeName.User(UserTypeName.toCT u)
 
+module DType =
+  let rec fromCT (dtype : CTPT.DType) : PT.DType =
+    match dtype with
+    | CTPT.DType.TInt -> PT.TInt
+    | CTPT.DType.TFloat -> PT.TFloat
+    | CTPT.DType.TBool -> PT.TBool
+    | CTPT.DType.TUnit -> PT.TUnit
+    | CTPT.DType.TStr -> PT.TStr
+    | CTPT.DType.TList (t) -> PT.TList(fromCT t)
+    | CTPT.DType.TTuple (first, second, theRest) ->
+      PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
+    | CTPT.DType.TDict (t) -> PT.TDict(fromCT t)
+    | CTPT.DType.TIncomplete -> PT.TIncomplete
+    | CTPT.DType.TError -> PT.TError
+    | CTPT.DType.THttpResponse (t) -> PT.THttpResponse(fromCT t)
+    | CTPT.DType.TDB (t) -> PT.TDB(fromCT t)
+    | CTPT.DType.TDateTime -> PT.TDateTime
+    | CTPT.DType.TChar -> PT.TChar
+    | CTPT.DType.TPassword -> PT.TPassword
+    | CTPT.DType.TUuid -> PT.TUuid
+    | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
+    | CTPT.DType.TCustomType (t, typeArgs) ->
+      PT.TCustomType(FQTypeName.fromCT t, List.map fromCT typeArgs)
+    | CTPT.DType.TBytes -> PT.TBytes
+    | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
+    | CTPT.DType.TVariable (name) -> PT.TVariable(name)
+    | CTPT.DType.TFn (args, body) -> PT.TFn(List.map fromCT args, fromCT body)
+    | CTPT.DType.TRecord (pairs) ->
+      PT.TRecord(pairs |> List.map (fun (name, v) -> (name, fromCT v)))
+    | CTPT.DType.TDbList (t) -> PT.TDbList(fromCT t)
+
+  let rec toCT (dtype : PT.DType) : CTPT.DType =
+    match dtype with
+    | PT.TInt -> CTPT.DType.TInt
+    | PT.TFloat -> CTPT.DType.TFloat
+    | PT.TBool -> CTPT.DType.TBool
+    | PT.TUnit -> CTPT.DType.TUnit
+    | PT.TStr -> CTPT.DType.TStr
+    | PT.TList (t) -> CTPT.DType.TList(toCT t)
+    | PT.TTuple (first, second, theRest) ->
+      CTPT.DType.TTuple(toCT first, toCT second, List.map toCT theRest)
+    | PT.TDict (t) -> CTPT.DType.TDict(toCT t)
+    | PT.TIncomplete -> CTPT.DType.TIncomplete
+    | PT.TError -> CTPT.DType.TError
+    | PT.THttpResponse (t) -> CTPT.DType.THttpResponse(toCT t)
+    | PT.TDB (t) -> CTPT.DType.TDB(toCT t)
+    | PT.TDateTime -> CTPT.DType.TDateTime
+    | PT.TChar -> CTPT.DType.TChar
+    | PT.TPassword -> CTPT.DType.TPassword
+    | PT.TUuid -> CTPT.DType.TUuid
+    | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
+    | PT.TCustomType (t, typeArgs) ->
+      CTPT.DType.TCustomType(FQTypeName.toCT t, List.map toCT typeArgs)
+    | PT.TBytes -> CTPT.DType.TBytes
+    | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
+    | PT.TVariable (name) -> CTPT.DType.TVariable(name)
+    | PT.TFn (args, body) -> CTPT.DType.TFn(List.map toCT args, toCT body)
+    | PT.TRecord (pairs) ->
+      CTPT.DType.TRecord(pairs |> List.map (fun (name, v) -> (name, toCT v)))
+    | PT.TDbList (t) -> CTPT.DType.TDbList(toCT t)
 
 
 module FQFnName =
@@ -192,8 +252,13 @@ module Expr =
     | CTPT.Expr.EFieldAccess (id, expr, fieldName) ->
       PT.EFieldAccess(id, fromCT expr, fieldName)
     | CTPT.Expr.EVariable (id, name) -> PT.EVariable(id, name)
-    | CTPT.Expr.EFnCall (id, fnName, args) ->
-      PT.EFnCall(id, FQFnName.fromCT fnName, List.map fromCT args)
+    | CTPT.Expr.EFnCall (id, fnName, typeArgs, args) ->
+      PT.EFnCall(
+        id,
+        FQFnName.fromCT fnName,
+        List.map DType.fromCT typeArgs,
+        List.map fromCT args
+      )
     | CTPT.Expr.EList (id, exprs) -> PT.EList(id, List.map fromCT exprs)
     | CTPT.Expr.ETuple (id, first, second, theRest) ->
       PT.ETuple(id, fromCT first, fromCT second, List.map fromCT theRest)
@@ -252,8 +317,13 @@ module Expr =
     | PT.EFieldAccess (id, expr, fieldName) ->
       CTPT.Expr.EFieldAccess(id, toCT expr, fieldName)
     | PT.EVariable (id, name) -> CTPT.Expr.EVariable(id, name)
-    | PT.EFnCall (id, fnName, args) ->
-      CTPT.Expr.EFnCall(id, FQFnName.toCT fnName, List.map toCT args)
+    | PT.EFnCall (id, fnName, typeArgs, args) ->
+      CTPT.Expr.EFnCall(
+        id,
+        FQFnName.toCT fnName,
+        List.map DType.toCT typeArgs,
+        List.map toCT args
+      )
     | PT.EList (id, exprs) -> CTPT.Expr.EList(id, List.map toCT exprs)
     | PT.ETuple (id, first, second, theRest) ->
       CTPT.Expr.ETuple(id, toCT first, toCT second, List.map toCT theRest)
@@ -288,66 +358,6 @@ module Expr =
     | PT.StringText text -> CTPT.StringText text
     | PT.StringInterpolation expr -> CTPT.StringInterpolation(toCT expr)
 
-module DType =
-  let rec fromCT (dtype : CTPT.DType) : PT.DType =
-    match dtype with
-    | CTPT.DType.TInt -> PT.TInt
-    | CTPT.DType.TFloat -> PT.TFloat
-    | CTPT.DType.TBool -> PT.TBool
-    | CTPT.DType.TUnit -> PT.TUnit
-    | CTPT.DType.TStr -> PT.TStr
-    | CTPT.DType.TList (t) -> PT.TList(fromCT t)
-    | CTPT.DType.TTuple (first, second, theRest) ->
-      PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
-    | CTPT.DType.TDict (t) -> PT.TDict(fromCT t)
-    | CTPT.DType.TIncomplete -> PT.TIncomplete
-    | CTPT.DType.TError -> PT.TError
-    | CTPT.DType.THttpResponse (t) -> PT.THttpResponse(fromCT t)
-    | CTPT.DType.TDB (t) -> PT.TDB(fromCT t)
-    | CTPT.DType.TDateTime -> PT.TDateTime
-    | CTPT.DType.TChar -> PT.TChar
-    | CTPT.DType.TPassword -> PT.TPassword
-    | CTPT.DType.TUuid -> PT.TUuid
-    | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
-    | CTPT.DType.TCustomType (t, typeArgs) ->
-      PT.TCustomType(FQTypeName.fromCT t, List.map fromCT typeArgs)
-    | CTPT.DType.TBytes -> PT.TBytes
-    | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
-    | CTPT.DType.TVariable (name) -> PT.TVariable(name)
-    | CTPT.DType.TFn (args, body) -> PT.TFn(List.map fromCT args, fromCT body)
-    | CTPT.DType.TRecord (pairs) ->
-      PT.TRecord(pairs |> List.map (fun (name, v) -> (name, fromCT v)))
-    | CTPT.DType.TDbList (t) -> PT.TDbList(fromCT t)
-
-  let rec toCT (dtype : PT.DType) : CTPT.DType =
-    match dtype with
-    | PT.TInt -> CTPT.DType.TInt
-    | PT.TFloat -> CTPT.DType.TFloat
-    | PT.TBool -> CTPT.DType.TBool
-    | PT.TUnit -> CTPT.DType.TUnit
-    | PT.TStr -> CTPT.DType.TStr
-    | PT.TList (t) -> CTPT.DType.TList(toCT t)
-    | PT.TTuple (first, second, theRest) ->
-      CTPT.DType.TTuple(toCT first, toCT second, List.map toCT theRest)
-    | PT.TDict (t) -> CTPT.DType.TDict(toCT t)
-    | PT.TIncomplete -> CTPT.DType.TIncomplete
-    | PT.TError -> CTPT.DType.TError
-    | PT.THttpResponse (t) -> CTPT.DType.THttpResponse(toCT t)
-    | PT.TDB (t) -> CTPT.DType.TDB(toCT t)
-    | PT.TDateTime -> CTPT.DType.TDateTime
-    | PT.TChar -> CTPT.DType.TChar
-    | PT.TPassword -> CTPT.DType.TPassword
-    | PT.TUuid -> CTPT.DType.TUuid
-    | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
-    | PT.TCustomType (t, typeArgs) ->
-      CTPT.DType.TCustomType(FQTypeName.toCT t, List.map toCT typeArgs)
-    | PT.TBytes -> CTPT.DType.TBytes
-    | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
-    | PT.TVariable (name) -> CTPT.DType.TVariable(name)
-    | PT.TFn (args, body) -> CTPT.DType.TFn(List.map toCT args, toCT body)
-    | PT.TRecord (pairs) ->
-      CTPT.DType.TRecord(pairs |> List.map (fun (name, v) -> (name, toCT v)))
-    | PT.TDbList (t) -> CTPT.DType.TDbList(toCT t)
 
 
 module CustomType =
@@ -514,6 +524,7 @@ module UserFunction =
   let fromCT (uf : CTPT.UserFunction.T) : PT.UserFunction.T =
     { tlid = uf.tlid
       name = uf.name
+      typeParams = uf.typeParams
       parameters = List.map Parameter.fromCT uf.parameters
       returnType = DType.fromCT uf.returnType
       description = uf.description
@@ -523,6 +534,7 @@ module UserFunction =
   let toCT (uf : PT.UserFunction.T) : CTPT.UserFunction.T =
     { tlid = uf.tlid
       name = uf.name
+      typeParams = uf.typeParams
       parameters = List.map Parameter.toCT uf.parameters
       returnType = DType.toCT uf.returnType
       description = uf.description
@@ -623,6 +635,7 @@ module Package =
     let fromCT (fn : CTPT.Package.Fn) : PT.Package.Fn =
       { name = FQFnName.PackageFnName.fromCT fn.name
         body = Expr.fromCT fn.body
+        typeParams = fn.typeParams
         parameters = List.map Parameter.fromCT fn.parameters
         returnType = DType.fromCT fn.returnType
         description = fn.description
@@ -633,6 +646,7 @@ module Package =
     let toCT (fn : PT.Package.Fn) : CTPT.Package.Fn =
       { name = FQFnName.PackageFnName.toCT fn.name
         body = Expr.toCT fn.body
+        typeParams = fn.typeParams
         parameters = List.map Parameter.toCT fn.parameters
         returnType = DType.toCT fn.returnType
         description = fn.description

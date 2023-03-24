@@ -18,6 +18,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Int" "mod" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description =
@@ -29,7 +30,7 @@ let fns : List<BuiltInFn> =
          a different behavior for negative numbers."
       fn =
         (function
-        | _, [ DInt v; DInt m as mdv ] ->
+        | _, _, [ DInt v; DInt m as mdv ] ->
           if m <= 0L then
             err (Errors.argumentWasnt "positive" "b" mdv)
           else
@@ -81,6 +82,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "remainder" 0
+      typeParams = []
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
       returnType = TResult(TInt, TStr)
       description =
@@ -95,7 +97,7 @@ let fns : List<BuiltInFn> =
          Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
         (function
-        | _, [ DInt v; DInt d ] ->
+        | _, _, [ DInt v; DInt d ] ->
           (try
             v % d |> DInt |> Ok |> DResult |> Ply
            with
@@ -114,12 +116,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "add" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Adds two integers together"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DInt(a + b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DInt(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -127,12 +130,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "subtract" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Subtracts two integers"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DInt(a - b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DInt(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -140,12 +144,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "multiply" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Multiplies two integers"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DInt(a * b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DInt(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -153,6 +158,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "power" 0
+      typeParams = []
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
       returnType = TResult(TInt, TStr)
       description =
@@ -161,7 +167,7 @@ let fns : List<BuiltInFn> =
         Return value wrapped in a {{Result}} "
       fn =
         (function
-        | _, [ DInt number; DInt exp as expdv ] ->
+        | _, _, [ DInt number; DInt exp as expdv ] ->
           let errPipe e = e |> DStr |> Error |> DResult |> Ply
           let okPipe r = r |> DInt |> Ok |> DResult |> Ply
           (try
@@ -188,12 +194,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "divide" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Divides two integers"
       fn =
         (function
-        | _, [ DInt a; DInt b ] ->
+        | _, _, [ DInt a; DInt b ] ->
           if b = 0L then err "Division by zero" else Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
@@ -202,13 +209,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "absoluteValue" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
       description =
         "Returns the absolute value of <param a> (turning negative inputs into positive outputs)"
       fn =
         (function
-        | _, [ DInt a ] -> Ply(DInt(abs a))
+        | _, _, [ DInt a ] -> Ply(DInt(abs a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -216,12 +224,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "negate" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, [ DInt a ] -> Ply(DInt(-a))
+        | _, _, [ DInt a ] -> Ply(DInt(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -229,12 +238,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "greaterThan" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DBool(a > b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -242,13 +252,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "greaterThanOrEqualTo" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
       description =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DBool(a >= b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -256,12 +267,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "lessThan" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DBool(a < b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -269,13 +281,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "lessThanOrEqualTo" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
       description =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DBool(a <= b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -283,13 +296,14 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "random" 1
+      typeParams = []
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
       description =
         "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, [ DInt a; DInt b ] ->
+        | _, _, [ DInt a; DInt b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
           // .NET's "nextInt64" is exclusive,
@@ -304,12 +318,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "sqrt" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
       description = "Get the square root of an <type Int>"
       fn =
         (function
-        | _, [ DInt a ] -> Ply(DFloat(sqrt (float a)))
+        | _, _, [ DInt a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -317,12 +332,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "toFloat" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
       description = "Converts an <type Int> to a <type Float>"
       fn =
         (function
-        | _, [ DInt a ] -> Ply(DFloat(float a))
+        | _, _, [ DInt a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -330,12 +346,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "sum" 0
+      typeParams = []
       parameters = [ Param.make "a" (TList TInt) "" ]
       returnType = TInt
       description = "Returns the sum of all the ints in the list"
       fn =
         (function
-        | _, [ DList l as ldv ] ->
+        | _, _, [ DList l as ldv ] ->
           let ints =
             List.map
               (fun i ->
@@ -354,12 +371,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "max" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Returns the higher of <param a> and <param b>"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DInt(max a b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DInt(max a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -367,12 +385,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "min" 0
+      typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description = "Returns the lower of <param a> and <param b>"
       fn =
         (function
-        | _, [ DInt a; DInt b ] -> Ply(DInt(min a b))
+        | _, _, [ DInt a; DInt b ] -> Ply(DInt(min a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -380,6 +399,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "clamp" 0
+      typeParams = []
       parameters =
         [ Param.make "value" TInt ""
           Param.make "limitA" TInt ""
@@ -395,7 +415,7 @@ let fns : List<BuiltInFn> =
          <param limitA> and <param limitB> can be provided in any order."
       fn =
         (function
-        | _, [ DInt v; DInt a; DInt b ] ->
+        | _, _, [ DInt v; DInt a; DInt b ] ->
           let min, max = if a < b then (a, b) else (b, a)
 
           if v < min then Ply(DInt min)
@@ -408,12 +428,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "parse" 0
+      typeParams = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TInt, TStr)
       description = "Returns the <type int> value of a <type string>"
       fn =
         (function
-        | _, [ DStr s ] ->
+        | _, _, [ DStr s ] ->
           (try
             s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
            with
@@ -430,12 +451,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Int" "toString" 0
+      typeParams = []
       parameters = [ Param.make "int" TInt "" ]
       returnType = TStr
       description = "Stringify <param int>"
       fn =
         (function
-        | _, [ DInt int ] -> Ply(DStr(string int))
+        | _, _, [ DInt int ] -> Ply(DStr(string int))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

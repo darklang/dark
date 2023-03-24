@@ -206,8 +206,14 @@ module Expr =
       RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | Expr.EApply (id, target, exprs, pipe) ->
-      RT.EApply(id, fnTargetFromCT target, List.map r exprs, pipefromCT pipe)
+    | Expr.EApply (id, target, typeArgs, exprs, pipe) ->
+      RT.EApply(
+        id,
+        fnTargetFromCT target,
+        List.map DType.fromCT typeArgs,
+        List.map r exprs,
+        pipefromCT pipe
+      )
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | Expr.ETuple (id, first, second, theRest) ->
       RT.ETuple(id, r first, r second, List.map r theRest)
@@ -266,8 +272,14 @@ module Expr =
       Expr.ELet(id, LetPattern.toCT pat, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EApply (id, target, exprs, pipe) ->
-      Expr.EApply(id, fnTargetToCT target, List.map r exprs, pipeToCT pipe)
+    | RT.EApply (id, target, typeArgs, exprs, pipe) ->
+      Expr.EApply(
+        id,
+        fnTargetToCT target,
+        List.map DType.toCT typeArgs,
+        List.map r exprs,
+        pipeToCT pipe
+      )
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
     | RT.ETuple (id, first, second, theRest) ->
       Expr.ETuple(id, r first, r second, List.map r theRest)

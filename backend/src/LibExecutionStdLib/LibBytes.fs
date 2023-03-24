@@ -13,12 +13,13 @@ let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bytes" "empty" 0
+      typeParams = []
       parameters = []
       returnType = TBytes
       description = "Returns an empty list of bytes"
       fn =
         (function
-        | _, [] -> DBytes [||] |> Ply
+        | _, _, [] -> DBytes [||] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -26,6 +27,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "base64Decode" 1
+      typeParams = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TBytes, TStr)
       description =
@@ -35,7 +37,7 @@ let fns : List<BuiltInFn> =
          [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | _, [ DStr s ] ->
+        | _, _, [ DStr s ] ->
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -68,6 +70,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "base64Encode" 0
+      typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =
@@ -76,7 +79,7 @@ let fns : List<BuiltInFn> =
          section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | _, [ DBytes bytes ] ->
+        | _, _, [ DBytes bytes ] ->
           // Differs from Base64.encodeToUrlSafe as this version has padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DStr
@@ -88,6 +91,7 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "hexEncode" 0
+      typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TStr
       description =
@@ -95,7 +99,7 @@ let fns : List<BuiltInFn> =
          with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
       fn =
         (function
-        | _, [ DBytes bytes ] ->
+        | _, _, [ DBytes bytes ] ->
           let hexUppercaseLookup = "0123456789ABCDEF"
           let len = bytes.Length
           let buf = new StringBuilder(len * 2)
@@ -116,12 +120,13 @@ let fns : List<BuiltInFn> =
 
 
     { name = fn "Bytes" "length" 0
+      typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TInt
       description = "Returns the number of bytes in <param bytes>"
       fn =
         (function
-        | _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Ply
+        | _, _, [ DBytes bytes ] -> bytes |> Array.length |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
