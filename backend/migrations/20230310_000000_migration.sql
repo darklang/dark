@@ -71,10 +71,10 @@ queue_events_v0
 -- search term is in the index or it will need to hit disk. This is true even though
 -- the module rarely changes
 -- 2) fetch the indexes for all items we're unpausing. This is rare so it's fine to
-
 CREATE INDEX IF NOT EXISTS
 idx_queue_events_count
 ON queue_events_v0 (canvas_id, module, name);
+
 
 -- TODO: we want to remove this
 CREATE TABLE IF NOT EXISTS
