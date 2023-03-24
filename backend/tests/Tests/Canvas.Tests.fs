@@ -17,7 +17,6 @@ module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
-module CanvasClone = LibBackend.CanvasClone
 module Account = LibBackend.Account
 
 let parse = Parser.parsePTExpr

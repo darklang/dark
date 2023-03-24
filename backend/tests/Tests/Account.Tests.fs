@@ -36,29 +36,28 @@ let testUsernameValidationWorks =
       "paul", Ok "paul" ]
 
 let testCannotCreateReservedUser =
-  let reservedAccount () : Account.Account = { username = UserName.create "admin" }
-  let okAccount (suffix : string) : Account.Account =
-    { username = UserName.create $"notreserved_{suffix}" }
+  let reservedAccount () = UserName.create "admin"
+  let okAccount (suffix : string) = UserName.create $"notreserved_{suffix}"
   testList
     "reservedUser"
     [ testTask "upsert reserved" {
         let a = reservedAccount ()
-        let! upserted = Account.upsertAccount false a
+        let! upserted = Account.insertUser a
         Expect.equal upserted (Error "Username is not allowed") "reserved"
       }
       testTask "upsert not reserved" {
         let a = okAccount "a"
-        let! upserted = Account.upsertAccount false a
+        let! upserted = Account.insertUser a
         Expect.equal upserted (Ok()) "not reserved"
       }
       testTask "insert reserved" {
         let a = reservedAccount ()
-        let! inserted = Account.insertUser a.username
+        let! inserted = Account.insertUser a
         Expect.equal inserted (Error "Username is not allowed") "reserved"
       }
       testTask "insert not reserved" {
         let a = okAccount "b"
-        let! inserted = Account.insertUser a.username
+        let! inserted = Account.insertUser a
         Expect.equal inserted (Ok()) "not reserved"
       } ]
 

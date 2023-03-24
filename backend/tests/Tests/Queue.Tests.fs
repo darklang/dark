@@ -1,4 +1,4 @@
-module Tests.EventQueueV2
+module Tests.Queue
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -19,7 +19,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module EQ = LibBackend.EventQueueV2
+module EQ = LibBackend.Queue
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
@@ -190,7 +190,7 @@ let testSuccessLockExpired =
     let earlier = Instant.now () + Duration.FromMinutes -6L
     do!
       Sql.query
-        "UPDATE events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
+        "UPDATE queue_events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
       |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                           "newValue", Sql.instantWithTimeZone earlier ]
       |> Sql.executeStatementAsync
@@ -209,7 +209,7 @@ let testFailLocked =
     // Delay it
     do!
       Sql.query
-        "UPDATE events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
+        "UPDATE queue_events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
       |> Sql.parameters [ "canvasID", Sql.uuid meta.id
                           "newValue", Sql.instantWithTimeZone (Instant.now ()) ]
       |> Sql.executeStatementAsync
@@ -471,9 +471,9 @@ let testCount =
 
 let tests =
   testSequencedGroup
-    "eventQueueV2"
+    "Queue"
     (testList
-      "eventQueueV2"
+      "Queue"
       [ testSuccess
         testSuccessThree
         testSuccessThreeAtOnce

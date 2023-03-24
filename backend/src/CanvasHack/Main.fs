@@ -45,7 +45,7 @@ let main (args : string []) =
       match! LibBackend.Account.getUser username with
       | None ->
         print "creating dark user"
-        let! r = LibBackend.Account.upsertNonAdmin { username = username }
+        let! r = LibBackend.Account.insertUser username
         Result.unwrap () r
       | Some _ -> print "Using existing dark user"
 
@@ -71,10 +71,10 @@ let main (args : string []) =
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
         let canvasName =
-          match CanvasName.create "dark-editor" with
-          | Ok (c) -> c
-          | Error (_) -> Exception.raiseInternal "yolo" []
-        let! c = LibBackend.Canvas.getMetaAndCreate canvasName
+          CanvasName.create "dark-editor" |> Exception.unwrapResultInternal []
+        let! owner = UserName.create "dark" |> LibBackend.Account.getUser
+        let owner = owner |> Exception.unwrapOptionInternal "Dark used not found" []
+        let! c = LibBackend.Canvas.create owner.id canvasName
 
         // For each of the handlers defined in `config.yml`,
         // produce a set of Ops to add.

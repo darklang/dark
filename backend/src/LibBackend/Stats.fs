@@ -42,7 +42,7 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
 let workerV2Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
   Sql.query
     "SELECT COUNT(1) AS num
-     FROM events_v0 E
+     FROM queue_events_v0 E
      INNER JOIN toplevel_oplists_v0 TL
         ON TL.canvas_id = E.canvas_id
        AND TL.module = E.module

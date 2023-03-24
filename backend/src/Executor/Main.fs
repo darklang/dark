@@ -33,7 +33,7 @@ let initSerializers () =
 // Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
 //   "RoundtrippableSerializationFormatV0.Dval"
 // Json.Vanilla.allow<LibBackend.Analytics.HeapIOMetadata> "heap.io metadata"
-// Json.Vanilla.allow<LibBackend.EventQueueV2.NotificationData> "eventqueue storage"
+// Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
 // Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
 // Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
 //   "TraceCloudStorageFormat"

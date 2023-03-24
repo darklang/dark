@@ -168,33 +168,33 @@ module Internal =
     (name : string)
     (default_ : bool)
     (testDefault : bool)
-    : CanvasName.T -> bool =
+    : CanvasID -> bool =
     boolSetTestDefault name testDefault
-    fun canvasName -> boolVar name $"canvas-{canvasName}" default_
+    fun canvasID -> boolVar name $"canvas-{canvasID}" default_
 
   let canvasInt
     (name : string)
     (default_ : int)
     (testDefault : int)
-    : CanvasName.T -> int =
+    : CanvasID -> int =
     intSetTestDefault name testDefault
-    fun canvasName -> intVar name $"canvas-{canvasName}" default_
+    fun canvasID -> intVar name $"canvas-{canvasID}" default_
 
   let canvasFloat
     (name : string)
     (default_ : float)
     (testDefault : float)
-    : CanvasName.T -> float =
+    : CanvasID -> float =
     floatSetTestDefault name testDefault
-    fun canvasName -> floatVar name $"canvas-{canvasName}" default_
+    fun canvasID -> floatVar name $"canvas-{canvasID}" default_
 
   let canvasString
     (name : string)
     (default_ : string)
     (testDefault : string)
-    : CanvasName.T -> string =
+    : CanvasID -> string =
     stringSetTestDefault name testDefault
-    fun canvasName -> stringVar name $"canvas-{canvasName}" default_
+    fun canvasID -> stringVar name $"canvas-{canvasID}" default_
 
 
 
@@ -213,7 +213,7 @@ let traceSamplingRule =
 // --------------
 // Canvas Flags - these are per-canvas settings
 // --------------
-
+let knownBroken = Internal.canvasBool "canvas-known-broken" false false
 
 // --------------
 // System flags - this allows us to change the run-time values of system

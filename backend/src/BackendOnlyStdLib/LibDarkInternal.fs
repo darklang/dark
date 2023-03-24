@@ -44,29 +44,24 @@ module Types =
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, args) ->
     uply {
-      match! state.program.accountID |> Account.usernameForUserID with
-      | None ->
-        Exception.raiseInternal $"User not found" [ "id", state.program.accountID ]
-        return DUnit
-      | Some username ->
-        let canAccess = true
-        if canAccess then
-          let fnName =
-            state.executingFnName
-            |> Option.map FQFnName.toString
-            |> Option.defaultValue "unknown"
-          use _span =
-            Telemetry.child
-              "internal_fn"
-              [ "canvas", state.program.canvasName
-                "user", username
-                "fnName", fnName ]
-          return! f (state, args)
-        else
-          return
-            Exception.raiseInternal
-              "User executed an internal function but isn't an admin"
-              [ "username", username ]
+      let canAccess = true
+      if canAccess then
+        let fnName =
+          state.executingFnName
+          |> Option.map FQFnName.toString
+          |> Option.defaultValue "unknown"
+        use _span =
+          Telemetry.child
+            "internal_fn"
+            [ "canvas", state.program.canvasName
+              "user", state.program.accountID
+              "fnName", fnName ]
+        return! f (state, args)
+      else
+        return
+          Exception.raiseInternal
+            "User executed an internal function but isn't an admin"
+            [ "id", state.program.accountID ]
     })
 
 // only accessible to the `dark-editor canvas`
@@ -100,17 +95,14 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DarkInternal" "insertUser" 2
-      parameters =
-        [ Param.make "username" TStr ""
-          Param.make "email" TStr ""
-          Param.make "name" TStr "" ]
-      returnType = TResult(TStr, TStr)
+      parameters = [ Param.make "username" TStr "" ]
+      returnType = TResult(TUnit, TStr)
       description =
         "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
-          | _, [ DStr username; DStr email; DStr name ] ->
+          | _, [ DStr username ] ->
             uply {
               let username =
                 Exception.catchError (fun () ->
@@ -120,20 +112,7 @@ that's already taken, returns an error."
               match username with
               | Ok username ->
                 let! _user = Account.insertUser username
-                let toCanvasName =
-                  $"{username}-{LibService.Config.gettingStartedCanvasName}"
-                let fromCanvasName = LibService.Config.gettingStartedCanvasSource
-                do!
-                  CanvasClone.cloneCanvas
-                    (CanvasName.createExn fromCanvasName)
-                    (CanvasName.createExn toCanvasName)
-                    // Don't preserve history here, it isn't useful and
-                    // we don't currently have visibility into canvas
-                    // history, so we'd rather not share unknown sample-
-                    // history with users in case it contains
-                    // sensitive information like access keys.
-                    false
-                return DResult(Ok(DStr ""))
+                return DResult(Ok(DUnit))
               | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())
@@ -654,7 +633,7 @@ human-readable data."
       returnType = TUnit
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-      fn = modifySchedule EventQueueV2.blockWorker
+      fn = modifySchedule Queue.blockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -666,7 +645,7 @@ human-readable data."
       returnType = TUnit
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-      fn = modifySchedule EventQueueV2.unblockWorker
+      fn = modifySchedule Queue.unblockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

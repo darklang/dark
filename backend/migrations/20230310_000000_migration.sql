@@ -6,30 +6,6 @@ RETURNS TRIGGER AS $t$
   END;
 $t$ LANGUAGE plpgsql;
 
--- TODO: remove this
-CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
-  $func$
-  BEGIN
-  LOOP
-    SELECT id
-    FROM   canvases_v0
-    WHERE  name = _name
-    INTO   _id;
-
-    EXIT WHEN FOUND;
-
-    INSERT INTO canvases_v0 AS c
-    (id, account_id, name)
-    VALUES (_new_id, _account_id, _name)
-    ON     CONFLICT (name) DO NOTHING
-    RETURNING c.id
-    INTO   _id;
-
-    EXIT WHEN FOUND;
-  END LOOP;
-  END;
-$func$ LANGUAGE plpgsql;
-
 
 CREATE TABLE IF NOT EXISTS
 accounts_v0
@@ -60,10 +36,10 @@ EXECUTE PROCEDURE trigger_set_timestamp();
 
 CREATE TABLE IF NOT EXISTS
 cron_records_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
+( id UUID PRIMARY KEY
 , tlid BIGINT NOT NULL
 , canvas_id UUID NOT NULL
-, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- TODO: remove default
+, ran_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- default as it's cheap
 );
 
 CREATE INDEX IF NOT EXISTS
@@ -73,13 +49,13 @@ ON cron_records_v0
 
 
 CREATE TABLE IF NOT EXISTS
-custom_domains_v0 -- TODO: add primary key
-( host TEXT PRIMARY KEY
-, canvas TEXT);
+domains_v0
+( domain TEXT PRIMARY KEY
+, canvas_id UUID NOT NULL);
 
 
 CREATE TABLE IF NOT EXISTS
-events_v0 -- TODO: rename to queue_events_v0
+queue_events_v0
 ( id UUID PRIMARY KEY
 , canvas_id UUID NOT NULL
 , module TEXT NOT NULL
@@ -95,14 +71,14 @@ events_v0 -- TODO: rename to queue_events_v0
 -- search term is in the index or it will need to hit disk. This is true even though
 -- the module rarely changes
 -- 2) fetch the indexes for all items we're unpausing. This is rare so it's fine to
-
 CREATE INDEX IF NOT EXISTS
-idx_events_count
-ON events_v0 (canvas_id, module, name);
+idx_queue_events_count
+ON queue_events_v0 (canvas_id, module, name);
 
 
+-- TODO: we want to remove this
 CREATE TABLE IF NOT EXISTS
-function_arguments_v0 -- TODO: rename to trace_function_arguments_v0
+trace_old_function_arguments_v0
 ( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
@@ -112,18 +88,18 @@ function_arguments_v0 -- TODO: rename to trace_function_arguments_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-function_arguments_most_recent -- TODO: rename to trace_function_arguments_v0
-ON function_arguments_v0
+trace_old_function_arguments_most_recent
+ON trace_old_function_arguments_v0
 (canvas_id, tlid, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS
-function_arguments_for_trace -- TODO: rename to trace_function_arguments_v0
-ON function_arguments_v0
+trace_old_function_arguments_for_trace
+ON trace_old_function_arguments_v0
 (canvas_id, tlid, trace_id);
 
 
 CREATE TABLE IF NOT EXISTS
-function_results_v0 -- TODO: rename to trace_function_results_v0
+trace_old_function_results_v0
 ( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
 , canvas_id UUID NOT NULL
 , tlid BIGINT NOT NULL
@@ -137,33 +113,37 @@ function_results_v0 -- TODO: rename to trace_function_results_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-idx_function_results_v0_most_recent -- TODO: rename to trace_function_results_v0
-ON function_results_v0
+idx_trace_old_function_results_v0_most_recent
+ON trace_old_function_results_v0
 (canvas_id, trace_id, tlid, timestamp DESC);
 
 
-
 CREATE TABLE IF NOT EXISTS
- op_ctrs_v0
- ( canvas_id UUID NOT NULL -- TODO: add ID PK
- , browser_id UUID NOT NULL UNIQUE
- , ctr INTEGER NOT NULL DEFAULT 0
- , timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW());
+trace_old_events_v0
+( trace_id UUID PRIMARY KEY -- TODO: is this right?
+, canvas_id UUID NOT NULL
+, module TEXT NOT NULL
+, path TEXT NOT NULL
+, modifier TEXT NOT NULL
+, timestamp TIMESTAMPTZ NOT NULL
+, value TEXT NOT NULL
+);
 
- CREATE INDEX IF NOT EXISTS
- idx_op_ctrs_canvas_id
- ON op_ctrs_v0
- (canvas_id);
+CREATE INDEX IF NOT EXISTS
+idx_trace_old_events_v0_most_recent
+ON trace_old_events_v0
+(canvas_id, module, path, modifier, timestamp DESC);
 
- CREATE INDEX IF NOT EXISTS
- idx_op_ctrs_browser_id_ctr
- ON op_ctrs_v0
- (browser_id, ctr DESC);
+CREATE INDEX IF NOT EXISTS
+idx_trace_old_events_v0_traceid
+ON trace_old_events_v0
+(canvas_id, trace_id);
 
- CREATE INDEX IF NOT EXISTS
- idx_op_ctrs_timestamp
- ON op_ctrs_v0
- (timestamp ASC);
+CREATE INDEX IF NOT EXISTS
+idx_trace_old_events_v0_most_recent_with_text
+ON trace_old_events_v0
+(canvas_id, module, path text_pattern_ops, modifier, "timestamp" DESC);
+
 
 
  /* associate it back to the function. */
@@ -211,32 +191,6 @@ secrets_v0
 , PRIMARY KEY (canvas_id, secret_name, secret_version) -- TODO: simplfy PK
 );
 
-
-CREATE TABLE IF NOT EXISTS
-stored_events_v0 -- TODO rename to trace_events_v0
-( canvas_id UUID NOT NULL
-, module TEXT NOT NULL
-, path TEXT NOT NULL
-, modifier TEXT NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
-, value TEXT NOT NULL
-, trace_id UUID NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS
-idx_stored_events_v0_most_recent -- TODO rename to trace_events_v0
-ON stored_events_v0
-(canvas_id, module, path, modifier, timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS
-stored_events_v0_traceid -- TODO rename to trace_events_v0
-ON stored_events_v0
-(canvas_id, trace_id);
-
-CREATE INDEX IF NOT EXISTS
-idx_stored_events_v0_most_recent_with_text -- TODO rename to trace_events_v0
-ON stored_events_v0
-(canvas_id, module, path text_pattern_ops, modifier, "timestamp" DESC);
 
 
 

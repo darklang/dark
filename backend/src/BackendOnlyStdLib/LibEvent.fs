@@ -6,7 +6,7 @@ module BackendOnlyStdLib.LibEvent
 open LibExecution.RuntimeTypes
 open Prelude
 
-module EventQueueV2 = LibBackend.EventQueueV2
+module Queue = LibBackend.Queue
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
             do!
               // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
               // but we don't need a 3rd one for workers
-              EventQueueV2.enqueue canvasID "WORKER" name "_" data
+              Queue.enqueue canvasID "WORKER" name "_" data
 
             return data
           }

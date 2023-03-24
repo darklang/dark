@@ -30,6 +30,8 @@ let testOwner : Lazy<Task<Account.UserInfo>> =
 let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
   task {
     let! canvasID = Canvas.canvasIDForCanvasName owner name
+    let canvasID =
+      Exception.unwrapOptionInternal "Could not get canvasID" [] canvasID
 
     let cronRecords =
       Sql.query "DELETE FROM cron_records_v0 where canvas_id = @id::uuid"
@@ -37,22 +39,24 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
 
     let customDomains =
-      Sql.query "DELETE FROM custom_domains_v0 where canvas = @name"
+      Sql.query "DELETE FROM domains_v0 where canvas = @name"
       |> Sql.parameters [ "name", Sql.string (string name) ]
       |> Sql.executeStatementAsync
 
     let eventsV0 =
-      Sql.query "DELETE FROM events_v0 where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM queue_events_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let functionArguments =
-      Sql.query "DELETE FROM function_arguments_v0 where canvas_id = @id::uuid"
+      Sql.query
+        "DELETE FROM trace_old_function_arguments_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let functionResultsV0 =
-      Sql.query "DELETE FROM function_results_v0 where canvas_id = @id::uuid"
+      Sql.query
+        "DELETE FROM trace_old_function_results_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
@@ -72,7 +76,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
 
     let storedEventsV0 =
-      Sql.query "DELETE FROM stored_events_v0 where canvas_id = @id::uuid"
+      Sql.query "DELETE FROM trace_old_events_v0 where canvas_id = @id::uuid"
       |> Sql.parameters [ "id", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
@@ -119,9 +123,7 @@ let initializeCanvasForOwner
   : Task<Canvas.Meta> =
   task {
     let canvasName = CanvasName.createExn (nameToTestName name)
-    do! clearCanvasData owner.id canvasName
-    let! id = Canvas.canvasIDForCanvasName owner.id canvasName
-    return { id = id; name = canvasName; owner = owner.id }
+    return! Canvas.create owner.id canvasName
   }
 
 let initializeTestCanvas (name : string) : Task<Canvas.Meta> =

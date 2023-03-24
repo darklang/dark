@@ -36,7 +36,7 @@ let store
     Task.FromResult()
   else
     Sql.query
-      "INSERT INTO function_results_v0
+      "INSERT INTO trace_old_function_results_v0
       (canvas_id, trace_id, tlid, fnname, caller_id, hash, hash_version, timestamp, value)
       VALUES (@canvasID, @traceID, @tlid, @fnName, @callerID, @hash, @hashVersion, CURRENT_TIMESTAMP, @value)"
     |> Sql.parameters [ "canvasID", Sql.uuid canvasID
@@ -75,7 +75,7 @@ let storeMany
           "hashVersion", Sql.int ReprHash.currentHashVersion
           "value", result |> ReprRoundtrippable.toJsonV0 |> Sql.string ])
     LibService.DBConnection.connect ()
-    |> Sql.executeTransactionAsync [ "INSERT INTO function_results_v0
+    |> Sql.executeTransactionAsync [ "INSERT INTO trace_old_function_results_v0
           (canvas_id, trace_id, tlid, fnname, caller_id, hash, hash_version, timestamp, value)
           VALUES (@canvasID, @traceID, @tlid, @fnName, @callerID, @hash, @hashVersion, @timestamp, @value)",
                                      transactionData ]
@@ -97,7 +97,7 @@ let load
         "SELECT
           DISTINCT ON (fnname, caller_id, hash, hash_version)
           fnname, caller_id, hash, hash_version, value, timestamp
-        FROM function_results_v0
+        FROM trace_old_function_results_v0
         WHERE canvas_id = @canvasID
           AND trace_id = @traceID
           AND tlid = @tlid

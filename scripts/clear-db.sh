@@ -18,13 +18,13 @@ CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 SCRIPT=""
 for cid in $CANVASES; do
   SCRIPT+="DELETE FROM scheduling_rules_v0 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM function_results_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM trace_old_function_results_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM traces_v0 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM stored_events_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM trace_old_events_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM user_data_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM cron_records_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM toplevel_oplists_v0 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM function_arguments_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM trace_old_function_arguments_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases_v0 WHERE id = '$cid';";
   SCRIPT+="DELETE FROM secrets_v0 WHERE canvas_id = '$cid';";
 done

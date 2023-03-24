@@ -17,43 +17,45 @@ module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Telemetry = LibService.Telemetry
+module LD = LibService.LaunchDarkly
 
 
 type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
 
+let create (owner : UserID) (canvasName : CanvasName.T) : Task<Meta> =
+  task {
+    let id = System.Guid.NewGuid()
+    do!
+      Sql.query
+        "INSERT INTO canvases_v0
+         (id, account_id, name)
+         VALUES (@id, @owner, @canvasName)"
+      |> Sql.parameters [ "id", Sql.uuid id
+                          "owner", Sql.uuid owner
+                          "canvasName", Sql.string (string canvasName) ]
+      |> Sql.executeStatementAsync
+    return { id = id; owner = owner; name = canvasName }
+  }
+
 let canvasIDForCanvasName
   (owner : UserID)
   (canvasName : CanvasName.T)
-  : Task<CanvasID> =
-  // https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324
-  // TODO: we create the canvas if it doesn't exist here, seems like a poor choice
-  Sql.query "SELECT canvas_id(@newUUID, @owner, @canvasName)"
-  |> Sql.parameters [ "newUUID", Sql.uuid (System.Guid.NewGuid())
-                      "owner", Sql.uuid owner
+  : Task<Option<CanvasID>> =
+  Sql.query
+    "SELECT id FROM canvases_v0
+      WHERE account_id = @owner
+        AND name = @canvasName"
+  |> Sql.parameters [ "owner", Sql.uuid owner
                       "canvasName", Sql.string (string canvasName) ]
-  |> Sql.executeRowAsync (fun read -> read.uuid "canvas_id")
+  |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
 
-/// Fetch high-level metadata for a canvas
-let getMetaAndCreate (canvasName : CanvasName.T) : Task<Meta> =
-  task {
-    let ownerName = (Account.ownerNameFromCanvasName canvasName).toUserName ()
-    let! ownerID = Account.userIDForUserName ownerName
-    let! canvasID = canvasIDForCanvasName ownerID canvasName
-    return { id = canvasID; owner = ownerID; name = canvasName }
-  }
-
-/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
-/// We want to use this in nearly all cases, with the only exception being when a
-/// user enters a URL to open an editor for a canvas.
 let getMeta (canvasName : CanvasName.T) : Task<Option<Meta>> =
   Sql.query "SELECT id, account_id from canvases_v0 where name = @canvasName"
   |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
   |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"; owner = read.uuid "account_id"; name = canvasName })
 
-/// Get the metadata for a canvas _without_ creating the canvas if it doesn't exist.
-/// We want to use this in nearly all cases, with the only exception being when a
-/// user enters a URL to open an editor for a canvas. Throws if the canvas does not exist.
+/// Get the metadata for a canvas. Throws if the canvas does not exist.
 let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
   task {
     let! option = getMeta canvasName
@@ -68,9 +70,9 @@ let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
 let getMetaForCustomDomain (customDomain : string) : Task<Option<Meta>> =
   Sql.query
     "SELECT c.id, c.account_id, c.name
-           FROM canvases_v0 c, custom_domains_v0 d
-          WHERE d.canvas = c.name
-            AND d.host = @customDomain"
+       FROM canvases_v0 c, domains_v0 d
+      WHERE c.id = d.canvas_id
+        AND d.domain = @customDomain"
   |> Sql.parameters [ "customDomain", Sql.string customDomain ]
   |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"
@@ -305,11 +307,6 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
 
-let canvasCreationDate (canvasID : CanvasID) : Task<NodaTime.Instant> =
-  Sql.query "SELECT created_at from canvases_v0 WHERE id = @canvasID"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeRowAsync (fun read -> read.instantWithoutTimeZone "created_at")
-
 let urlFor (canvasName : CanvasName.T) : string =
   $"https://{canvasName}.{Config.publicDomain}"
 
@@ -333,20 +330,6 @@ let empty (meta : Meta) : T =
 // DOES NOT LOAD OPS FROM DB
 let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
   empty meta |> addOps oldOps newOps |> verify
-
-let knownBrokenCanvases : Set<CanvasName.T> =
-  [ "danbowles"
-    "danwetherald"
-    "ellen-dbproblem18"
-    "ellen-dbtests"
-    "ellen-preview"
-    "ellen-stltrialrun"
-    "ellen-trinity"
-    "jaeren_sl"
-    "jaeren_sl-crud"
-    "sydney" ]
-  |> List.map CanvasName.createExn
-  |> Set
 
 let loadFrom
   (loadAmount : Serialize.LoadAmount)
@@ -380,7 +363,7 @@ let loadFrom
         |> addOps uncachedOplists []
         |> verify
     with
-    | e when not (Set.contains meta.name knownBrokenCanvases) ->
+    | e when not (LD.knownBroken meta.id) ->
       let tags =
         [ "canvasName", meta.name :> obj; "tlids", tlids; "loadAmount", loadAmount ]
       return Exception.reraiseAsPageable "canvas load failed" tags e

@@ -244,9 +244,7 @@ let fns : List<BuiltInFn> =
           uply {
             let canvasID = state.program.canvasID
             let! results =
-              LibBackend.EventQueueV2.Test.loadEvents
-                canvasID
-                ("WORKER", eventName, "_")
+              LibBackend.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
             let results =
               results
               |> List.map (fun x -> DStr(LibExecution.DvalReprDeveloper.toRepr x))
@@ -412,23 +410,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-
-    { name = fn "Test" "createCanvas" 0
-      parameters = [ Param.make "canvasName" TStr "" ]
-      returnType = TUuid
-      description = "Create the named canvas and return the ID"
-      fn =
-        (function
-        | _, [ DStr canvasName ] ->
-          uply {
-            let! meta =
-              LibBackend.Canvas.getMetaAndCreate (CanvasName.createExn canvasName)
-            return DUuid meta.id
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
 
     { name = fn "Test" "unwrap" 0
       parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]

@@ -223,7 +223,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
 
     // Custom domains
     match test.customDomain with
-    | Some cd -> do! Routing.addCustomDomain cd meta.name
+    | Some cd -> do! Routing.addCustomDomain cd meta.id
     | None -> ()
 
     // Secrets
