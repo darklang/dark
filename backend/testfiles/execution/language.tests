@@ -182,7 +182,7 @@ module FeatureFlag =
   flag "test" () "old" "new" = "old"
   flag "test" 5 "old" "new" = "old"
   flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
-  flag "test" (List.head_v2 []) "old" "new" = "old"
+  flag "test" (List.head []) "old" "new" = "old"
   flag "test" {x = true} "old" "new" = "old"
   flag "test" {x = true} "old" "new" = "old"
   flag "test" [true] "old" "new" = "old"
@@ -224,7 +224,7 @@ module Pipes =
   // ((Test.typeError_v0 "one") |> (Test.typeError_v0 "two")) = Test.typeError_v0 "one"
 
   ([5]
-  |> List.head_v2
+  |> List.head
   |> Test.unwrap
   |> Int.add_v0 1
   |> (+) 3
@@ -414,8 +414,8 @@ module Match =
 
 module Constructors =
   Nothing = Nothing
-  ((List.head_v2 []) == Nothing) = true
-  (List.head_v2 []) = Nothing
+  ((List.head []) == Nothing) = true
+  (List.head []) = Nothing
   Ok (Test.typeError_v0 "err") = Test.typeError_v0 "err"
   Just (Test.typeError_v0 "err") = Test.typeError_v0 "err"
 
@@ -425,12 +425,12 @@ module Error =
   Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a String (\"not an option\"), but `option2` expected a Option<'b>."
 
 module ErrorPropagation =
-  List.head_v2 (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+  List.head (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   (if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "test"
-  (List.head_v2 (Test.typeError_v0 "test")).field = Test.typeError_v0 "test"
-  [ 5; 6; List.head_v2 (Test.typeError_v0 "test") ] = Test.typeError_v0 "test"
+  (List.head (Test.typeError_v0 "test")).field = Test.typeError_v0 "test"
+  [ 5; 6; List.head (Test.typeError_v0 "test") ] = Test.typeError_v0 "test"
   [ 5; 6; Test.typeError_v0 "test"] = Test.typeError_v0 "test"
-  { i = Test.typeError_v0 "1"; m = 5; j = List.head_v2 (Test.typeError_v0 "2"); n = 6 } = Test.typeError_v0 "1"
+  { i = Test.typeError_v0 "1"; m = 5; j = List.head (Test.typeError_v0 "2"); n = 6 } = Test.typeError_v0 "1"
   5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
   5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   ("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
