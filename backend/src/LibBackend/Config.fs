@@ -30,11 +30,6 @@ let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
 let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 
 // -------------------------
-// Web configuration
-// -------------------------
-let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
-
-// -------------------------
 // Kubernetes
 // -------------------------
 
@@ -116,8 +111,9 @@ let serializationGenerateTestData =
 /// development and testing so that we'll catch types we haven't tested.
 let serializationGenerateCheckTypes = bool "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"
 
-let serializationHealthCheckHosts =
-  string "DARK_CONFIG_SERIALIZATION_HEALTH_CHECK_HOSTS"
+/// Canvases that are allowed access to the
+let allowedDarkInternalCanvasID = uuid "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_ID"
+
 
 // -------------------------
 // Pusher

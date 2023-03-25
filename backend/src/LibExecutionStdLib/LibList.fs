@@ -245,7 +245,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "head" 2
+    { name = fn "List" "head" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA

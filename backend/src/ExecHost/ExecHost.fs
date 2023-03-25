@@ -73,7 +73,7 @@ let help () : unit =
     "  ExecHost migrations run"
     "  ExecHost trigger-rollbar"
     "  ExecHost trigger-pageable-rollbar"
-    "  ExecHost convert-st-to-rt"
+    "  ExecHost convert-st-to-rt [canvasID]"
     "  ExecHost help" ]
   |> List.join "\n"
   |> print
@@ -84,7 +84,7 @@ type Options =
   | TriggerRollbar
   | TriggerPagingRollbar
   | InvalidUsage
-  | ConvertST2RT of string
+  | ConvertST2RT of System.Guid
   | ConvertST2RTAll
   | Help
 
@@ -95,7 +95,7 @@ let parse (args : string []) : Options =
   | [| "trigger-rollbar" |] -> TriggerRollbar
   | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
   | [| "convert-st-to-rt"; "all" |] -> ConvertST2RTAll
-  | [| "convert-st-to-rt"; canvasName |] -> ConvertST2RT canvasName
+  | [| "convert-st-to-rt"; canvasID |] -> ConvertST2RT(System.Guid.Parse canvasID)
   | [| "help" |] -> Help
   | _ -> InvalidUsage
 
@@ -110,10 +110,9 @@ let usesDB (options : Options) =
   | ConvertST2RTAll
   | Help -> false
 
-let convertToRT (canvasName : string) : Task<unit> =
+let convertToRT (canvasID : CanvasID) : Task<unit> =
   task {
-    let canvasName = CanvasName.createExn canvasName
-    let! canvasInfo = LibBackend.Canvas.getMetaExn canvasName
+    let! canvasInfo = LibBackend.Canvas.getMetaFromID canvasID
     let! canvas = LibBackend.Canvas.loadAll canvasInfo
     let _program = LibBackend.Canvas.toProgram canvas
     let _handlers =
@@ -153,13 +152,13 @@ let run (options : Options) : Task<int> =
 
     | TriggerPagingRollbar -> return triggerPagingRollbar ()
 
-    | ConvertST2RT canvasName ->
-      do! convertToRT canvasName
+    | ConvertST2RT canvasID ->
+      do! convertToRT canvasID
       return 0
 
     | ConvertST2RTAll ->
-      let! allCanvases = LibBackend.Serialize.currentHosts ()
-      do! Task.iterWithConcurrency 25 convertToRT allCanvases
+      let! allIDs = LibBackend.Canvas.allCanvasIDs ()
+      do! Task.iterWithConcurrency 25 convertToRT allIDs
       return 0
 
 

@@ -221,8 +221,8 @@ let testFunctionTracesAreStored =
 
     let program =
       { canvasID = meta.id
-        canvasName = meta.name
         accountID = meta.owner
+        internalFnsAllowed = false
         dbs = Map.empty
         userFns = Map.singleton userFn.name userFn
         userTypes = Map.empty
@@ -281,8 +281,8 @@ let testErrorTracesAreStored =
 
     let program =
       { canvasID = meta.id
-        canvasName = meta.name
         accountID = meta.owner
+        internalFnsAllowed = false
         dbs = Map [ "MyDB", db ]
         userFns = Map.empty
         userTypes = Map.empty

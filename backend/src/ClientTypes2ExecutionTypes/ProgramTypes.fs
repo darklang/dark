@@ -618,9 +618,11 @@ module Op =
 
 
 module Secret =
-  let fromCT (s : CTPT.Secret) : PT.Secret.T = { name = s.name; value = s.value }
+  let fromCT (s : CTPT.Secret) : PT.Secret.T =
+    { name = s.name; value = s.value; version = s.version }
 
-  let toCT (s : PT.Secret.T) : CTPT.Secret = { name = s.name; value = s.value }
+  let toCT (s : PT.Secret.T) : CTPT.Secret =
+    { name = s.name; value = s.value; version = s.version }
 
 
 module Package =

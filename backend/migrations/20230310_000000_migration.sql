@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS
 canvases_v0
 ( id UUID PRIMARY KEY
 , account_id UUID REFERENCES accounts_v0(id) NOT NULL
-, name VARCHAR(64) UNIQUE NOT NULL
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -184,11 +183,11 @@ scheduling_rules_v0
 CREATE TABLE IF NOT EXISTS
 secrets_v0
 ( canvas_id UUID NOT NULL
-, secret_name VARCHAR(255) NOT NULL
-, secret_value TEXT NOT NULL
-, secret_version INT NOT NULL DEFAULT 0
+, name VARCHAR(255) NOT NULL
+, value TEXT NOT NULL
+, version INT NOT NULL
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, PRIMARY KEY (canvas_id, secret_name, secret_version) -- TODO: simplfy PK
+, PRIMARY KEY (canvas_id, name, version) -- TODO: simplfy PK
 );
 
 

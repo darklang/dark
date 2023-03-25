@@ -45,8 +45,8 @@ let main (args : string []) =
       match! LibBackend.Account.getUser username with
       | None ->
         print "creating dark user"
-        let! r = LibBackend.Account.insertUser username
-        Result.unwrap () r
+        let! userID = LibBackend.Account.createUser username
+        userID |> Exception.raiseInternal "" [] |> ignore<UserID>
       | Some _ -> print "Using existing dark user"
 
 
@@ -70,8 +70,7 @@ let main (args : string []) =
           | Some (Legivel.Serialization.Success s) -> s.Data
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
-        let canvasName =
-          CanvasName.create "dark-editor" |> Exception.unwrapResultInternal []
+        let canvasName = "dark-editor"
         let! owner = UserName.create "dark" |> LibBackend.Account.getUser
         let owner = owner |> Exception.unwrapOptionInternal "Dark used not found" []
         let! c = LibBackend.Canvas.create owner.id canvasName

@@ -24,20 +24,21 @@ type UserInfo = { username : UserName.T; id : UserID }
 // Adding
 // **********************
 
-let insertUser (username : UserName.T) : Task<Result<unit, string>> =
+let createUser (username : UserName.T) : Task<Result<UserID, string>> =
   task {
     match UserName.newUserAllowed (string username) with
     | Ok () ->
       try
+        let userID = System.Guid.NewGuid()
         do!
           Sql.query
             "INSERT INTO accounts_v0
              (id, username)
              VALUES (@id, @username)"
-          |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
+          |> Sql.parameters [ "id", Sql.uuid userID
                               "username", Sql.string (string username) ]
           |> Sql.executeStatementAsync
-        return Ok()
+        return Ok userID
       with
       | _ -> return Error "Username taken"
     | Error e -> return Error e
@@ -68,12 +69,6 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
 
 
 
-let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
-  match String.split "-" (string canvasName) with
-  | owner :: _ -> OwnerName.create owner
-  | _ -> OwnerName.create (string canvasName)
-
-
 // **********************
 // Local/test developement
 // **********************
@@ -81,8 +76,9 @@ let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
 let initTestAccounts () : Task<unit> =
   task {
     do!
-      insertUser (UserName.create "test")
+      createUser (UserName.create "test")
       |> Task.map (Exception.unwrapResultInternal [])
+      |> Task.map ignore<UserID>
 
     return ()
   }

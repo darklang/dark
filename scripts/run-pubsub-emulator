@@ -3,15 +3,20 @@
 
 set -euo pipefail
 
-echo "Running PubSub emulator"
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
+LOG="$LOGS/pub-sub-emulator.log"
+
+grey="\033[1;30m"
+reset="\033[0m"
+
+echo -e "Running PubSub emulator ${grey}($LOG)${reset}"
 
 # This is slow to start up, so if it's already loaded, don't restart
 if [[ $(pgrep --full 'cloud-pubsub-emulator-0.6.0.jar') == "" ]] ; then
   gcloud beta emulators pubsub start \
     --host-port=0.0.0.0:8085 \
-    > "$LOGS/pub-sub-emulator.log" 2>&1 &
+    > "$LOG" 2>&1 &
 fi
 
 # Pubsub takes ~1s to startup

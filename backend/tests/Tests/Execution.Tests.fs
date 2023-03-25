@@ -31,7 +31,7 @@ let executionStateForPreview
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
     let! meta = createTestCanvas name
-    let! state = executionStateFor meta dbs fns
+    let! state = executionStateFor meta false dbs fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
@@ -67,7 +67,7 @@ let testExecFunctionTLIDs : Test =
       testUserFn name [] [] (PT.TVariable "a") (PT.EInteger(gid (), 5))
       |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
-    let! state = executionStateFor meta Map.empty fns
+    let! state = executionStateFor meta false Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
 

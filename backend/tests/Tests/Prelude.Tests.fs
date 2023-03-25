@@ -8,54 +8,6 @@ open Prelude
 open Tablecloth
 open TestUtils.TestUtils
 
-let canvasName =
-  testMany
-    "canvasName.validate"
-    (fun c ->
-      match CanvasName.validate c with
-      | Ok _ -> "ok"
-      | Error CanvasName.LengthError -> "lengthError"
-      | Error CanvasName.EmptyError -> "emptyError"
-      | Error (CanvasName.UsernameError _) -> "usernameError"
-      | Error (CanvasName.CanvasNameError _) -> "canvasNameError")
-    ([ ("a", "usernameError")
-       ("-user", "usernameError")
-       ("", "emptyError")
-       ("user-withfarfarfarfarfartoolongacanvasnameoversixtyfourcharacters0123456789",
-        "lengthError")
-       ("USER", "usernameError")
-       ("USER-canvas", "usernameError")
-       ("User-canvas", "usernameError")
-       ("u__r-canvas", "ok")
-       ("user", "ok")
-       ("user-", "ok")
-       ("user-%2525F0%25259F%2525AA%252590", "canvasNameError")
-       ("user-(^@^)", "canvasNameError")
-       ("user--canvas", "ok")
-       ("user-9", "ok")
-       ("user-9abc", "ok")
-       ("user-CAnva9na", "canvasNameError")
-       ("user-CanvasName", "canvasNameError")
-       ("user-a_a", "ok")
-       ("user-canvas name", "canvasNameError")
-       ("user-canvas", "ok")
-       ("user-canvas%20new%20messages", "canvasNameError")
-       ("user-canvas%23db=1019933638", "canvasNameError")
-       ("user-canvas%255D", "canvasNameError")
-       ("user-canvas&name=0", "canvasNameError")
-       ("user-canvas--name", "ok")
-       ("user-canvas-nAME", "canvasNameError")
-       ("user-canvas-name", "ok")
-       ("user-canvas-name-matc%20h", "canvasNameError")
-       ("user-canvas.name", "canvasNameError")
-       ("user-canvas.name-name2", "canvasNameError")
-       ("user-canvas;name", "canvasNameError")
-       ("user-canvas=123456789", "canvasNameError")
-       ("user-canvasName", "canvasNameError")
-       ("user-canvas_name", "ok")
-       ("vertvery-canvas_name", "ok")
-       ("user_", "ok") ])
-
 let userName =
   testMany
     "userName.create"
@@ -70,7 +22,6 @@ let userName =
       ("u__r", true)
       ("abc_", true)
       ("_abc", false)
-      ("a01234567890123456789a", false)
       ("a01234567890123456789", true)
       ("User", false)
       ("user-name", false)
@@ -166,7 +117,7 @@ let assertions =
   testList
     "Assertions"
     [ test "assertFn" { assertFn "msg" System.Double.IsFinite 6.0 }
-      test "assertFn2" { assertFn2 "msg" Tablecloth.String.includes "x" "xxx" }
+      test "assertFn2" { assertFn2 "msg" String.includes "x" "xxx" }
       test "assertEq" { assertEq "msg" "x" "x" }
       test "assertIn" { assertIn "msg" [ "x" ] "x" }
       test "assert_" { assert_ "_" [] true } ]
@@ -175,11 +126,4 @@ let assertions =
 let tests =
   testList
     "prelude"
-    [ canvasName
-      userName
-      asyncTests
-      mapTests
-      listTests
-      floatTests
-      dateTests
-      assertions ]
+    [ userName; asyncTests; mapTests; listTests; floatTests; dateTests; assertions ]

@@ -49,14 +49,14 @@ module TraceSamplingRule =
 
   /// Fetch the traceSamplingRule from the feature flag, and parse it. If parsing
   /// fails, returns SampleNone.
-  let ruleForHandler (canvasName : CanvasName.T) (tlid : tlid) : T =
-    let ruleString = LD.traceSamplingRule canvasName tlid
+  let ruleForHandler (canvasID : CanvasID) (tlid : tlid) : T =
+    let ruleString = LD.traceSamplingRule canvasID tlid
     Telemetry.addTag "trace_sampling_rule" ruleString
     match parseRule ruleString with
     | Error msg ->
       Rollbar.sendError
         $"Invalid traceSamplingRule: {msg}"
-        [ "ruleString", ruleString; "canvasName", canvasName; "tlid", tlid ]
+        [ "ruleString", ruleString; "canvasID", canvasID; "tlid", tlid ]
       SampleNone
     | Ok rule -> rule
 
@@ -83,12 +83,8 @@ module TracingConfig =
         (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
       if random % (int64 freq) = 0L then DoTrace else DontTrace
 
-  let forHandler
-    (canvasName : CanvasName.T)
-    (tlid : tlid)
-    (traceID : AT.TraceID.T)
-    : T =
-    let samplingRule = TraceSamplingRule.ruleForHandler canvasName tlid
+  let forHandler (canvasID : CanvasID) (tlid : tlid) (traceID : AT.TraceID.T) : T =
+    let samplingRule = TraceSamplingRule.ruleForHandler canvasID tlid
     fromRule samplingRule traceID
 
   let shouldTrace (config : T) =
@@ -263,7 +259,7 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
 
 
 let create (c : Canvas.Meta) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  let config = TracingConfig.forHandler c.name rootTLID traceID
+  let config = TracingConfig.forHandler c.id rootTLID traceID
   match config with
   | TracingConfig.DoTrace -> createStandardTracer c.id traceID
   | TracingConfig.TraceWithTelemetry -> createTelemetryTracer c.id traceID

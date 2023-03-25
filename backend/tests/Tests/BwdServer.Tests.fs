@@ -1,4 +1,4 @@
-/// Tests the builtwithdark.com server (`BwdServer`), which is the server that
+/// Tests the darklang.io server (`BwdServer`), which is the server that
 /// runs Dark users' HTTP handlers.
 ///
 /// Test files are stored in the `testfiles/httphandler` directory, which
@@ -36,14 +36,13 @@ type TestHandler =
     Method : string
     Code : string }
 
-type TestSecret = string * string
+type TestSecret = string * string * int
 
 type Test =
   { handlers : List<TestHandler>
     secrets : List<TestSecret>
     /// Allow testing of a specific canvas name
-    canvasName : Option<string>
-    customDomain : Option<string>
+    domain : Option<string>
     request : byte array
     expectedResponse : byte array }
 
@@ -82,8 +81,7 @@ module ParseTest =
     let emptyTest =
       { handlers = []
         secrets = []
-        customDomain = None
-        canvasName = None
+        domain = None
         request = [||]
         expectedResponse = [||] }
 
@@ -99,17 +97,15 @@ module ParseTest =
             |> String.split ","
             |> List.map (fun secret ->
               match secret |> String.split ":" with
-              | [ key; value ] -> key, value
+              | [ key; value; version ] -> key, value, int version
               | _ ->
                 Exception.raiseInternal
                   $"Could not parse secret"
                   [ "secret", secret ])
 
           (Limbo, { result with secrets = secrets @ result.secrets })
-        | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
-          (Limbo, { result with customDomain = Some customDomain })
-        | Regex "\[canvas-name (\S+)]" [ canvasName ] ->
-          (Limbo, { result with canvasName = Some canvasName })
+        | Regex "\[domain (\S+)]" [ domain ] ->
+          (Limbo, { result with domain = Some domain })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
 
@@ -222,14 +218,15 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     do! Canvas.saveTLIDs meta oplists
 
     // Custom domains
-    match test.customDomain with
-    | Some cd -> do! Routing.addCustomDomain cd meta.id
+    match test.domain with
+    | Some domain -> do! Canvas.addDomain meta.id domain
     | None -> ()
 
     // Secrets
     do!
       test.secrets
-      |> List.map (fun (name, value) -> LibBackend.Secret.insert meta.id name value)
+      |> List.map (fun (name, value, version) ->
+        LibBackend.Secret.insert meta.id name value version)
       |> Task.WhenAll
       |> Task.map (fun _ -> ())
 
@@ -336,20 +333,20 @@ module Execution =
   /// testing the response matches expectations
   let runTestRequest
     (handlerVersion : HandlerVersion)
-    (canvasName : string)
+    (domain : string)
     (testRequest : byte array)
     (testExpectedResponse : byte array)
     : Task<unit> =
     task {
       let port = TestConfig.bwdServerBackendPort
 
-      let host = $"{canvasName}.builtwithdark.localhost:{port}"
+      let host = $"{domain}:{port}"
 
       let request =
         testRequest
         |> insertSpaces
         |> replaceByteStrings "HOST" host
-        |> replaceByteStrings "CANVAS" canvasName
+        |> replaceByteStrings "DOMAIN" domain
         |> Http.setHeadersToCRLF
 
 
@@ -403,7 +400,7 @@ module Execution =
         |> List.toArray
         |> insertSpaces
         |> replaceByteStrings "HOST" host
-        |> replaceByteStrings "CANVAS" canvasName
+        |> replaceByteStrings "DOMAIN" domain
         |> Http.setHeadersToCRLF
 
       // Parse and normalize the response
@@ -453,7 +450,7 @@ let tests =
         do!
           Execution.runTestRequest
             handlerType
-            (string meta.name)
+            meta.domain
             test.request
             test.expectedResponse
     }

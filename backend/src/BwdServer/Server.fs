@@ -1,9 +1,11 @@
-/// The webserver for builtwithdark.com, often referred to as "BWD."
+/// This is the webserver for darklang.io, often referred to as "BWD" (named after
+/// our old domain - builtwithdark.com)
 ///
-/// All Dark programs are hosted with BWD - our grand-users hit this server, and BWD handles the requests.
-/// So, BWD is what handles the "handlers" of a Dark program.
+/// All Dark programs are hosted with BWD - our grand-users hit this server, and BWD
+/// handles the requests.  So, BWD is what handles the "handlers" of a Dark program.
 ///
-/// It uses ASP.NET directly, instead of a web framework, so we can tune the exact behaviour of headers and such.
+/// It uses ASP.NET directly, instead of a web framework, so we can tune the exact
+/// behaviour of headers and such.
 module BwdServer.Server
 
 open FSharp.Control.Tasks
@@ -285,33 +287,21 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
-// CLEANUP we'd like to get rid of corsSetting and move it out of the DB and
-// entirely into code in some middleware
-let canvasMetadataFromHost (host : string) : Task<Option<Canvas.Meta>> =
-  task {
-    match Routing.canvasSourceFromHost host with
-    | Routing.Bwd canvasName ->
-      match CanvasName.create canvasName with
-      | Ok canvasName -> return! Canvas.getMeta canvasName
-      | Error _ -> return None
-    | Routing.CustomDomain customDomain ->
-      return! Canvas.getMetaForCustomDomain customDomain
-  }
 
 /// ---------------
 /// Handle builtwithdark request
 /// ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    let host = Exception.catch (fun () -> ctx.Request.Host.Host)
+    let domain = Exception.catch (fun () -> ctx.Request.Host.Host)
     let! canvasMeta =
-      match host with
+      match domain with
       | None -> Task.FromResult None
-      | Some host -> canvasMetadataFromHost host
+      | Some domain -> Canvas.getMetaForDomain domain
 
     match canvasMeta with
     | Some meta ->
-      ctx.Items[ "canvasName" ] <- meta.name // store for exception tracking
+      ctx.Items[ "canvasDomain" ] <- meta.domain // store for exception tracking
       ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
 
       let traceID = LibExecution.AnalysisTypes.TraceID.create ()
@@ -319,7 +309,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
       let desc = ("HTTP", requestPath, requestMethod)
 
-      Telemetry.addTags [ "canvas.name", meta.name
+      Telemetry.addTags [ "canvas.domain", meta.domain
                           "canvas.id", meta.id
                           "canvas.owner_id", meta.owner
                           "trace_id", traceID ]
@@ -442,19 +432,9 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     })
 
   let rollbarCtxToMetadata (ctx : HttpContext) : Rollbar.Person * Metadata =
-    let canvasName =
+    let domain =
       try
-        Some(ctx.Items["canvasName"] :?> CanvasName.T)
-      with
-      | _ -> None
-
-    let username =
-      try
-        canvasName
-        |> Option.map (fun canvasName ->
-          canvasName
-          |> Account.ownerNameFromCanvasName
-          |> fun on -> on.toUserName ())
+        Some(ctx.Items["canvasDomain"])
       with
       | _ -> None
 
@@ -465,14 +445,9 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       | _ -> None
 
     let metadata =
-      canvasName
-      |> Option.map (fun cn -> [ "canvas", string cn :> obj ])
-      |> Option.defaultValue []
+      domain |> Option.map (fun d -> [ "canvasDomain", d ]) |> Option.defaultValue []
 
-    let person : Rollbar.Person =
-      id |> Option.map (fun id -> { id = id; username = username })
-
-    (person, metadata)
+    (id, metadata)
 
   Rollbar.AspNet.addRollbarToApp app rollbarCtxToMetadata None
   |> fun app -> app.UseRouting()

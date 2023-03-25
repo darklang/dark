@@ -28,36 +28,62 @@ up of code optionally followed by a comment (if present, the comment is used as
 the test name).
 
 We also support more complex tests, involving multiple lines, test groups,
-datastores and functions. To do so, add a test indicator (see below) - all
-code after a test indicator is put into that construct.
+datastores and functions. These use regular F# syntax, occasionally with some minor tweaks.
 
-## Test indicators:
+## Groups
 
-`[tests.name]` denotes that the following lines (until the next test indicator)
-are single line tests, that are all part of the test group named "name". Single
-line tests should evaluate to true, and may have a comment (`// ...`) at the
-end, which will be the test name.
+Use F# modules to make test groups:
 
-`[test.name]` indicates that the following lines, up until the next test
-indicator, are all a single test named "name", and should be parsed as one.
+```fsharp
+module MyTestGroup =
+  // test1
+  // test2
+```
 
-`[db.name json_desc_of_schema]` creates a User DB, which can be used by tests
-which say "with DB DBNAME". (Only give DBs to tests which need them, as these
-tests need to be isolated and that's much slower)
+Nested modules/groups are supported.
 
-`[test.name] with DB MyDB` is like `[test.name]`, where the DB previously
-defined as MyDB is available to the test. Cannot currently be used with
-`with Worker MyWorker` syntax.
+Any type, function, or DB declared in a group will be made available to all tests in
+that group, or in a nested group.
 
-`[test.name] with Worker MyWorker` is like `[test.name]`, where the Worker
-MyWorker is available to the test, without prior setup required. Cannot be used
-with `with DB MyDb` syntax.
+## Functions
 
-`[fn.name arg1:int arg2:str]` creates a function which is available to all
-subsequent tests. The following lines are part of the function body (until we
-hit another test indicator)
+Functions are declared in the normal way:
 
-`[packagefn.name arg1:int arg2:str]` creates a function which is available to
-all subsequent tests. The following lines are part of the function body (until
-we hit another test indicator). Package functions call be called as
-`Test.Test.Test.myFn`.
+```fsharp
+let myFn (x : int) (y : string) : bool =
+  ...
+```
+
+## Types
+
+You can add types to a canvas by declaring a type:
+
+```fsharp
+type MyType = {
+  anInt : string
+}
+```
+
+## DBs
+
+You can create a DB by making a type with a DB annotation:
+
+```fsharp
+[<DB>]
+type MyType = {
+  anInt : string
+}
+```
+
+## Packages
+
+You can turn modules into packages using a `Package` annotation:
+
+```fsharp
+[<Package("test", "test", "Test")>]
+module Packages =
+  let myFn (key:string) =
+    key ++ " appended string"
+```
+
+The example creates a package function called `test/test/Test.myFn_v0`

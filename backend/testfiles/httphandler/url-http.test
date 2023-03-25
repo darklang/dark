@@ -18,4 +18,4 @@ Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: LENGTH
 
-http://CANVAS.builtwithdark.localhost:10011/a
+http://HOST/a

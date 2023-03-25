@@ -26,87 +26,7 @@ let testOwner : Lazy<Task<Account.UserInfo>> =
      |> Account.getUser
      |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
 
-/// Delete test data (in DB) for one canvas
-let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
-  task {
-    let! canvasID = Canvas.canvasIDForCanvasName owner name
-    let canvasID =
-      Exception.unwrapOptionInternal "Could not get canvasID" [] canvasID
-
-    let cronRecords =
-      Sql.query "DELETE FROM cron_records_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let customDomains =
-      Sql.query "DELETE FROM domains_v0 where canvas = @name"
-      |> Sql.parameters [ "name", Sql.string (string name) ]
-      |> Sql.executeStatementAsync
-
-    let eventsV0 =
-      Sql.query "DELETE FROM queue_events_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let functionArguments =
-      Sql.query
-        "DELETE FROM trace_old_function_arguments_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let functionResultsV0 =
-      Sql.query
-        "DELETE FROM trace_old_function_results_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let tracesV0 =
-      Sql.query "DELETE FROM traces_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let schedulingRules =
-      Sql.query "DELETE FROM scheduling_rules_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let secrets =
-      Sql.query "DELETE FROM secrets_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let storedEventsV0 =
-      Sql.query "DELETE FROM trace_old_events_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let toplevelOplists =
-      Sql.query "DELETE FROM toplevel_oplists_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let userData =
-      Sql.query "DELETE FROM user_data_v0 where canvas_id = @id::uuid"
-      |> Sql.parameters [ "id", Sql.uuid canvasID ]
-      |> Sql.executeStatementAsync
-
-    let! (_ : List<unit>) =
-      Task.flatten [ cronRecords
-                     customDomains
-                     eventsV0
-                     functionArguments
-                     functionResultsV0
-                     schedulingRules
-                     secrets
-                     storedEventsV0
-                     tracesV0
-                     toplevelOplists
-                     userData ]
-
-    return ()
-  }
-
-let nameToTestName (name : string) : string =
+let nameToTestDomain (name : string) : string =
   let name =
     name
     |> String.toLowercase
@@ -115,15 +35,17 @@ let nameToTestName (name : string) : string =
     |> FsRegEx.replace "[-_]+" "-"
     |> String.take 50
   let suffix = randomString 5 |> String.toLowercase
-  $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
+  $"{name}-{suffix}"
+  |> FsRegEx.replace "[-_]+" "-"
+  |> fun s -> $"{s}.dlio.localhost"
 
 let initializeCanvasForOwner
   (owner : Account.UserInfo)
   (name : string)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.createExn (nameToTestName name)
-    return! Canvas.create owner.id canvasName
+    let domain = nameToTestDomain name
+    return! Canvas.create owner.id domain
   }
 
 let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
@@ -132,16 +54,15 @@ let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
     return! initializeCanvasForOwner owner name
   }
 
-
 // Same as initializeTestCanvas, for tests that don't need to hit the DB
 let createCanvasForOwner
   (owner : Account.UserInfo)
   (name : string)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.createExn (nameToTestName name)
+    let domain = nameToTestDomain name
     let id = System.Guid.NewGuid()
-    return { id = id; name = canvasName; owner = owner.id }
+    return { id = id; domain = domain; owner = owner.id }
   }
 
 let createTestCanvas (name : string) : Task<Canvas.Meta> =
@@ -239,14 +160,16 @@ let libraries : Lazy<RT.Libraries> =
 
 let executionStateFor
   (meta : Canvas.Meta)
+  (internalFnsAllowed : bool)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
+    let domains = Canvas.domainsForCanvasID meta.id
     let program : RT.ProgramContext =
       { canvasID = meta.id
-        canvasName = meta.name
         accountID = meta.owner
+        internalFnsAllowed = internalFnsAllowed
         userFns = userFunctions
         dbs = dbs
         userTypes = Map.empty
@@ -273,7 +196,7 @@ let executionStateFor
                     $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
               Exception.raiseInternal
-                $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
+                $"UNEXPECTED EXCEPTION COUNT in test {domains}"
                 [ "expectedExceptionCount", tc.expectedExceptionCount
                   "actualExceptionCount", tc.exceptionReports.Length ] }
 

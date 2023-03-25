@@ -184,43 +184,6 @@ let filterMatchingHandlers
   |> filterMatchingHandlersBySpecificity
 
 
-
-// Set the domain to point to the canvas in question. Note there is no checking to
-// see if it owns the canvas, that should be done in the ApiServer via looking at DNS
-// entries and such
-let addCustomDomain (customDomain : string) (canvasID : CanvasID) : Task<unit> =
-  Sql.query
-    "INSERT into domains_v0 (domain, canvas_id)
-     VALUES (@domain, @canvasID)
-     ON CONFLICT (domain)
-     DO UPDATE
-     SET canvas_id = @canvasID"
-  |> Sql.parameters [ "domain", Sql.string customDomain
-                      "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeStatementAsync
-
-type CanvasSource =
-  | Bwd of string
-  | CustomDomain of string
-
-
-let canvasSourceFromHost (host : string) : CanvasSource =
-  match host.Split [| '.' |] with
-  // Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's just
-  // another load balancer. This is a minor concern, but a nice feeling for users
-  // when they're setting up the domain. We only do something special when the host
-  // is an actual custom domain (that is, the domain pointing to)
-
-  | [| a; "darkcustomdomain"; "com" |]
-  | [| a; "builtwithdark"; "localhost" |]
-  | [| a; "builtwithdark"; "com" |] ->
-    // If the name is invalid, we'll 404 later
-    Bwd a
-  | [| "builtwithdark"; "localhost" |]
-  | [| "builtwithdark"; "com" |] -> Bwd "builtwithdark"
-  | _ -> CustomDomain host
-
-
 let sanitizeUrlPath (path : string) : string =
   path
   |> FsRegEx.replace "//+" "/"

@@ -135,37 +135,23 @@ file - a file with the corresponding name should exist in `../data`.
 
 You can allow a test to have the incorrect content-length.
 
-## CORS
-
-You can add CORS settings:
-
-```
-[cors https://somewebsite.com]
-```
-
 ## Secrets
 
 You can add Secrets:
 
 ```
-[secrets NAME1:value1,NAME2:value2]
+[secrets NAME1:value1:version1,NAME2:value2:version2]
 ```
 
-## Custom domain
+## Domain
 
-You can add a custom domains:
-
-```
-[custom-domain my.special.domainname.com]
-```
-
-## Canvas name
-
-You can set the canvas name for the test:
+You can set the domain:
 
 ```
-[canvas-name test-something]
+[domain my.special.domainname.com]
 ```
+
+The token "DOMAIN" will be replaced by the domain.
 
 ## LENGTH
 
@@ -174,9 +160,4 @@ response body.
 
 ## HOST
 
-The token "HOST" will be replaced with host the request is being sent to.
-
-## CANVAS
-
-The token "CANVAS" will be replaced with the canvas name the request is being sent
-to. This is useful as the tests use different servers for OCaml and F#.
+The token "HOST" will be replaced with domain/host the request is being sent to.

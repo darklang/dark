@@ -47,8 +47,6 @@ let testCronSanity =
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = meta.id
-        ownerID = meta.owner
-        canvasName = meta.name
         tlid = h.tlid
         cronName = "test"
         interval = PT.Handler.EveryDay }
@@ -71,8 +69,6 @@ let testCronJustRan =
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = meta.id
-        ownerID = meta.owner
-        canvasName = meta.name
         tlid = h.tlid
         cronName = "test"
         interval = PT.Handler.EveryDay }

@@ -41,28 +41,32 @@ let loadOplists
   (canvasID : CanvasID)
   (tlids : List<tlid>)
   : Task<List<tlid * PT.Oplist>> =
-  let query =
-    // Deleted can be null is which case it is DeletedForever
-    match loadAmount with
-    | LiveToplevels ->
-      "SELECT tlid, oplist FROM toplevel_oplists_v0
-          WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)
-            AND deleted IS FALSE"
-    | IncludeDeletedToplevels ->
-      // IS NOT NULL just skipped DeletedForever
-      "SELECT tlid, oplist FROM toplevel_oplists_v0
-          WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)
-            AND deleted IS NOT NULL"
+  if tlids = [] then
+    // optimization for the common case where we found everything before
+    Task.FromResult []
+  else
+    let query =
+      // Deleted can be null is which case it is DeletedForever
+      match loadAmount with
+      | LiveToplevels ->
+        "SELECT tlid, oplist FROM toplevel_oplists_v0
+            WHERE canvas_id = @canvasID
+              AND tlid = ANY(@tlids)
+              AND deleted IS FALSE"
+      | IncludeDeletedToplevels ->
+        // IS NOT NULL just skipped DeletedForever
+        "SELECT tlid, oplist FROM toplevel_oplists_v0
+            WHERE canvas_id = @canvasID
+              AND tlid = ANY(@tlids)
+              AND deleted IS NOT NULL"
 
-  Sql.query query
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist"))
-  |> Task.bind (fun list ->
-    list
-    |> Task.mapWithConcurrency 2 (fun (tlid, oplist) ->
-      task { return (tlid, BinarySerialization.deserializeOplist tlid oplist) }))
+    Sql.query query
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+    |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist"))
+    |> Task.bind (fun list ->
+      list
+      |> Task.mapWithConcurrency 2 (fun (tlid, oplist) ->
+        task { return (tlid, BinarySerialization.deserializeOplist tlid oplist) }))
 
 
 // This is a special `load_*` function that specifically loads toplevels via the
@@ -197,8 +201,6 @@ let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
 
 type CronScheduleData =
   { canvasID : CanvasID
-    ownerID : UserID
-    canvasName : CanvasName.T
     tlid : id
     cronName : string
     interval : PT.Handler.CronInterval }
@@ -208,13 +210,13 @@ type CronScheduleData =
 /// - not deleted (When a CRON handler is deleted, we set (module, modifier,
 ///   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
 ///   ignores deleted CRONs.)
+/// TODO: this is untested, but also essential for running the crons
 let fetchActiveCrons () : Task<List<CronScheduleData>> =
   Sql.query
     "SELECT canvas_id,
                   tlid,
                   modifier,
-                  toplevel_oplists_v0.name as handler_name,
-                  canvases_v0.name as canvas_name
+                  toplevel_oplists_v0.name as handler_name
        FROM toplevel_oplists_v0
        JOIN canvases_v0 ON toplevel_oplists_v0.canvas_id = canvases_v0.id
       WHERE module = 'CRON'
@@ -225,10 +227,7 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
   |> Sql.executeAsync (fun read ->
     let interval = read.string "modifier"
     let canvasID = read.uuid "canvas_id"
-    let ownerID = read.uuid "account_id"
     { canvasID = canvasID
-      ownerID = ownerID
-      canvasName = read.string "canvas_name" |> CanvasName.createExn
       tlid = read.id "tlid"
       cronName = read.string "handler_name"
       interval =
@@ -236,20 +235,4 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
         |> PTParser.Handler.CronInterval.parse
         |> Exception.unwrapOptionInternal
              "Could not parse cron modifier"
-             [ "interval", interval; "canvasID", canvasID; "accountID", ownerID ] })
-
-
-// -------------------------
-// hosts
-// -------------------------
-let currentHosts () : Task<string list> =
-  task {
-    let! hosts =
-      Sql.query "SELECT DISTINCT name FROM canvases_v0"
-      |> Sql.executeAsync (fun read -> read.string "name")
-    return
-      hosts |> List.filter (fun h -> not (String.startsWith "test-" h)) |> List.sort
-  }
-
-let getAllCanvases () : Task<List<CanvasName.T>> =
-  currentHosts () |> Task.map (List.map CanvasName.createExn)
+             [ "interval", interval; "canvasID", canvasID ] })

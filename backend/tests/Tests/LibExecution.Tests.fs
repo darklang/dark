@@ -90,7 +90,7 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
 
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
-  (initializeCanvas : bool)
+  (internalFnsAllowed : bool)
   (canvasName : string)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
@@ -104,7 +104,7 @@ let t
     try
       let! owner = owner
       let! meta =
-        let initializeCanvas = initializeCanvas || dbs <> [] || workers <> []
+        let initializeCanvas = internalFnsAllowed || dbs <> [] || workers <> []
         // Little optimization to skip the DB sometimes
         if initializeCanvas then
           initializeCanvasForOwner owner canvasName
@@ -126,7 +126,8 @@ let t
           ((RT.FQFnName.Package fn.name), fn))
         |> Map
 
-      let! (state : RT.ExecutionState) = executionStateFor meta rtDBs rtFunctions
+      let! (state : RT.ExecutionState) =
+        executionStateFor meta internalFnsAllowed rtDBs rtFunctions
       let state =
         { state with libraries = { state.libraries with packageFns = rtPackageFns } }
 

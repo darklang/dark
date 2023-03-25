@@ -447,7 +447,7 @@ let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<in
 // changed without a migration.
 //
 // [ownerID] is needed here because we'll use it in the DB JOIN
-let unlocked (ownerID : UserID) (canvasID : CanvasID) : Task<List<tlid>> =
+let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be
   // HTTP/REPL/CRON/WORKER
