@@ -30,6 +30,7 @@ List of accounts used by Dark as part of running Dark
 - [Google Cloud](http://cloud.google.com)
   - GKE
   - Cloud SQL
+  - Cloud Run
   - Load Balancers
   - CDN for static assets (both ours and users')
   - DNS
@@ -40,11 +41,10 @@ List of accounts used by Dark as part of running Dark
 - [pusher.com](https://dashboard.pusher.com/apps) supports "real-time" pushes of information to the Editor
 - [Algolia](https://www.algolia.com) search engine used to support [Darklang docs](https://docs.darklang.com)
 - [Cloudflare](https://cloudflare.com) slight usage for some DNS
-- [PositiveSSL](https://www.positivessl.com) manages certificates for darksa.com
 - [Let's Encrypt](https://letsencrypt.org) certificate management and custom domains
   see [custom-domains](./custom-domains.md)
 - [Brex](https://www.brex.com) how we pay for everything
-- [name.com](http://name.com) TODO what do we use this for?
+- [name.com](http://name.com) Some domains are kept here
 - [Ghost.org](https://ghost.org) powers [the blog](https://blog.darklang.com)
 - [ToDesktop](https://todesktop.com) manages the desktop client of Dark
 - [ngrok](https://ngrok.com) useful for exposing localhost ports externally
@@ -54,8 +54,6 @@ List of accounts used by Dark as part of running Dark
 - [Honeycomb](https://honeycomb.io) for monitoring, production analysis, etc.
   see [honeycomb.md](./honeycomb.md)
 - [Rollbar](https://rollbar.com) for recording, exploring, and resolving bugs
-- [PagerDuty](https://pagerduty.com) for alerting when things are broken
-  - triggers from rollbar, pingdom and honeycomb
 - [Better Uptime](https://betteruptime.com) for alerting when things are broken (newer)
 - [SSLMate](https://sslmate.com) They email us if any of our SSL certs are misconfigured or expiring.
 - [Dr. Link Check](https://drlinkcheck.com) They send an email each week about broken links in the docs
