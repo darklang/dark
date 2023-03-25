@@ -69,9 +69,6 @@ let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
 let pauseBetweenCronsInMs = int "DARK_CONFIG_PAUSE_BETWEEN_CRONS"
 
 
-// Should we redirect insecure requests
-let useHttps = bool "DARK_CONFIG_USE_HTTPS"
-
 // -------------------------
 // Rollbar
 // -------------------------

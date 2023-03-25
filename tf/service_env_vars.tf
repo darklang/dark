@@ -24,7 +24,6 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRIGGER_QUEUE_WORKERS" = "y"
     "DARK_CONFIG_TRIGGER_CRONS"         = "y"
     "DARK_CONFIG_PAUSE_BETWEEN_CRONS"   = "0"
-    "DARK_CONFIG_USE_HTTPS"             = "y"
 
     # Serialization
     "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA" = "n"
