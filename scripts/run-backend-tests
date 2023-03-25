@@ -49,8 +49,11 @@ LOGS="${DARK_CONFIG_RUNDIR}/logs"
 # $RANDOM as RANDOM is only 5 digits
 RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 
+grey="\033[1;30m"
+reset="\033[0m"
+
 # Run the migrations before the other servers start
-echo "Running migrations"
+echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
 cd backend && \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_DB_HOST=localhost \

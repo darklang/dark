@@ -3,9 +3,13 @@
 
 set -euo pipefail
 
-echo "Running Cloud Storage emulator"
-
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
+LOG="$LOGS/cloud-storage-emulator.log"
+
+grey="\033[1;30m"
+reset="\033[0m"
+
+echo -e "Running Cloud Storage emulator ${grey}($LOG)${reset}"
 
 killall fake-gcs-server || true
 fake-gcs-server \
@@ -15,6 +19,6 @@ fake-gcs-server \
   -port 4444 \
   -scheme http \
   -external-url http://localhost:4444 \
-    > "$LOGS/cloud-storage-emulator.log" 2>&1 &
+    > "$LOG" 2>&1 &
 
 echo "Finished loading Cloud Storage emulator"
