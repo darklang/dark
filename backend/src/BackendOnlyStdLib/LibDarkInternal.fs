@@ -37,7 +37,7 @@ module Types =
     let program =
       TRecord([ "dbs", TList(dbMeta); "httpHandlers", TList(httpHandlerMeta) ])
 
-// only accessible to the `dark-editor canvas`
+// only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, typeArgs, args) ->
     uply {
