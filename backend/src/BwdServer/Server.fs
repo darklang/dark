@@ -247,24 +247,6 @@ let isHttps (ctx : HttpContext) =
   // and forwards the details using headers
   getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
 
-let shouldRedirect (ctx : HttpContext) : bool =
-  LibBackend.Config.useHttps && not (isHttps ctx)
-
-let httpsRedirect (ctx : HttpContext) : HttpContext =
-  // adapted from https://github.com/aspnet/BasicMiddleware/blob/master/src/Microsoft.AspNetCore.HttpsPolicy/HttpsRedirectionMiddleware.cs
-  let req = ctx.Request
-  let host = HostString req.Host.Host
-
-  let redirectUrl =
-    UriHelper.BuildAbsolute("https", host, req.PathBase, req.Path, req.QueryString)
-
-  // CLEANUP use better status code, maybe 307
-  ctx.Response.StatusCode <- 302
-  setResponseHeader ctx "Location" redirectUrl
-  Telemetry.addTag "http.completion_reason" "httpsRedirect"
-  ctx
-
-
 // ---------------
 // Urls
 // ---------------
@@ -412,11 +394,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
       setResponseHeader ctx "Server" "darklang"
 
       try
-        // Do this here so we don't redirect the health check
-        if shouldRedirect ctx then
-          return httpsRedirect ctx
-        else
-          return! runDarkHandler ctx
+        return! runDarkHandler ctx
       with
       // These errors are the only ones we want to handle here. We don't want to give
       // GrandUsers any info not intended for them. We want the rest to be caught by
