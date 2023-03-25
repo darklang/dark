@@ -228,10 +228,10 @@ let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
     let metadata = personMetadata person @ metadata
 
     // print to console
-    printException $"rollbar ({NodaTime.Instant()})" metadata e
+    printException $"rollbar ({NodaTime.Instant.now ()})" metadata e
 
     // send to telemetry
-    use span =
+    use _span =
       if isNull (Telemetry.Span.current ()) then
         Telemetry.createRoot "sendException"
       else
