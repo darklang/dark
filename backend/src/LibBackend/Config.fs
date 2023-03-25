@@ -30,11 +30,6 @@ let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
 let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 
 // -------------------------
-// Web configuration
-// -------------------------
-let bwdServerContentHost = string "DARK_CONFIG_BWDSERVER_HOST"
-
-// -------------------------
 // Kubernetes
 // -------------------------
 

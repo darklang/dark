@@ -28,8 +28,6 @@ variable "service_env_vars" {
     "DARK_CONFIG_CREATE_ACCOUNTS"       = "n"
     "DARK_CONFIG_USE_HTTPS"             = "y"
 
-    "DARK_CONFIG_BWDSERVER_HOST" = "darklang.io"
-
     # Serialization
     "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA" = "n"
     "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"        = "n"
