@@ -65,6 +65,14 @@ let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeAsync (fun read -> read.string "domain")
 
+let addDomain (canvasID : CanvasID) (domain : string) : Task<unit> =
+  Sql.query
+    "INSERT INTO domains_v0
+     (canvas_id, domain)
+     VALUES (@canvasID, @domain)"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "domain", Sql.string domain ]
+  |> Sql.executeStatementAsync
+
 let allCanvasIDs () : Task<List<CanvasID>> =
   Sql.query "SELECT id FROM canvases_v0"
   |> Sql.executeAsync (fun read -> read.uuid "id")

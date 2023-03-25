@@ -42,8 +42,7 @@ type Test =
   { handlers : List<TestHandler>
     secrets : List<TestSecret>
     /// Allow testing of a specific canvas name
-    canvasName : Option<string>
-    customDomain : Option<string>
+    domain : Option<string>
     request : byte array
     expectedResponse : byte array }
 
@@ -82,8 +81,7 @@ module ParseTest =
     let emptyTest =
       { handlers = []
         secrets = []
-        customDomain = None
-        canvasName = None
+        domain = None
         request = [||]
         expectedResponse = [||] }
 
@@ -106,8 +104,8 @@ module ParseTest =
                   [ "secret", secret ])
 
           (Limbo, { result with secrets = secrets @ result.secrets })
-        | Regex "\[domain (\S+)]" [ customDomain ] ->
-          (Limbo, { result with customDomain = Some customDomain })
+        | Regex "\[domain (\S+)]" [ domain ] ->
+          (Limbo, { result with domain = Some domain })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
 
@@ -220,8 +218,8 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     do! Canvas.saveTLIDs meta oplists
 
     // Custom domains
-    match test.customDomain with
-    | Some cd -> do! Routing.addCustomDomain cd meta.id
+    match test.domain with
+    | Some domain -> do! Canvas.addDomain meta.id domain
     | None -> ()
 
     // Secrets
