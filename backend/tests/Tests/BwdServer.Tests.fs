@@ -1,4 +1,4 @@
-/// Tests the builtwithdark.com server (`BwdServer`), which is the server that
+/// Tests the darklang.io server (`BwdServer`), which is the server that
 /// runs Dark users' HTTP handlers.
 ///
 /// Test files are stored in the `testfiles/httphandler` directory, which
