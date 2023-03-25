@@ -41,28 +41,32 @@ let loadOplists
   (canvasID : CanvasID)
   (tlids : List<tlid>)
   : Task<List<tlid * PT.Oplist>> =
-  let query =
-    // Deleted can be null is which case it is DeletedForever
-    match loadAmount with
-    | LiveToplevels ->
-      "SELECT tlid, oplist FROM toplevel_oplists_v0
-          WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)
-            AND deleted IS FALSE"
-    | IncludeDeletedToplevels ->
-      // IS NOT NULL just skipped DeletedForever
-      "SELECT tlid, oplist FROM toplevel_oplists_v0
-          WHERE canvas_id = @canvasID
-            AND tlid = ANY(@tlids)
-            AND deleted IS NOT NULL"
+  if tlids = [] then
+    // optimization for the common case where we found everything before
+    Task.FromResult []
+  else
+    let query =
+      // Deleted can be null is which case it is DeletedForever
+      match loadAmount with
+      | LiveToplevels ->
+        "SELECT tlid, oplist FROM toplevel_oplists_v0
+            WHERE canvas_id = @canvasID
+              AND tlid = ANY(@tlids)
+              AND deleted IS FALSE"
+      | IncludeDeletedToplevels ->
+        // IS NOT NULL just skipped DeletedForever
+        "SELECT tlid, oplist FROM toplevel_oplists_v0
+            WHERE canvas_id = @canvasID
+              AND tlid = ANY(@tlids)
+              AND deleted IS NOT NULL"
 
-  Sql.query query
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-  |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist"))
-  |> Task.bind (fun list ->
-    list
-    |> Task.mapWithConcurrency 2 (fun (tlid, oplist) ->
-      task { return (tlid, BinarySerialization.deserializeOplist tlid oplist) }))
+    Sql.query query
+    |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+    |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist"))
+    |> Task.bind (fun list ->
+      list
+      |> Task.mapWithConcurrency 2 (fun (tlid, oplist) ->
+        task { return (tlid, BinarySerialization.deserializeOplist tlid oplist) }))
 
 
 // This is a special `load_*` function that specifically loads toplevels via the
