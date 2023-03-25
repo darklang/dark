@@ -87,8 +87,7 @@ that's already taken, returns an error."
               | Ok username ->
                 let! userID = Account.createUser username
                 match userID with
-                | Ok userID ->
-                  return DResult(Ok(DUuid userID))
+                | Ok userID -> return DResult(Ok(DUuid userID))
                 | Error msg -> return DResult(Error(DStr msg))
               | Error msg -> return DResult(Error(DStr msg))
             }
@@ -472,7 +471,10 @@ human-readable data."
             uply {
               let! secrets = Secret.getCanvasSecrets canvasID
               return
-                secrets |> List.map (fun s -> DTuple (DStr s.name, DStr s.value, [DInt s.version])) |> DList
+                secrets
+                |> List.map (fun s ->
+                  DTuple(DStr s.name, DStr s.value, [ DInt s.version ]))
+                |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -483,7 +485,9 @@ human-readable data."
     { name = fn "DarkInternal" "deleteSecret" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "name" TStr ""; Param.make "version" TInt "" ]
+        [ Param.make "canvasID" TUuid ""
+          Param.make "name" TStr ""
+          Param.make "version" TInt "" ]
       returnType = TUnit
       description = "Delete a secret"
       fn =
@@ -505,8 +509,7 @@ human-readable data."
         [ Param.make "canvasID" TUuid ""
           Param.make "name" TStr ""
           Param.make "value" TStr ""
-          Param.make "version" TStr ""
-           ]
+          Param.make "version" TStr "" ]
       returnType = TResult(TUnit, TStr)
       description = "Add a secret"
       fn =
