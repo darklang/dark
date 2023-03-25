@@ -1,4 +1,4 @@
-/// Provides central place to fetch known configuration values
+/// Provides central place to fetch known configuration values used in LibBackend
 module LibBackend.Config
 
 open LibService.ConfigDsl
@@ -58,7 +58,6 @@ let dir (root : Root) : string =
 // -------------------------
 // Running the server
 // -------------------------
-let allowTestRoutes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
 // If we have production data in a non-production environment, we don't want to trigger their workers
 let triggerQueueWorkers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
@@ -69,7 +68,6 @@ let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
 // Stop my fans from spinning
 let pauseBetweenCronsInMs = int "DARK_CONFIG_PAUSE_BETWEEN_CRONS"
 
-let createAccounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 
 // Should we redirect insecure requests
 let useHttps = bool "DARK_CONFIG_USE_HTTPS"
@@ -106,10 +104,6 @@ let rollbarJs =
 let serializationGenerateTestData =
   bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"
 
-/// When serializing values, check that they types we've explicitly allowed and
-/// tested. We want this off in production cases (just in case), but on in
-/// development and testing so that we'll catch types we haven't tested.
-let serializationGenerateCheckTypes = bool "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"
 
 /// Canvases that are allowed access to the
 let allowedDarkInternalCanvasID = uuid "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_ID"
@@ -153,13 +147,3 @@ let traceStorageCreateBucket = bool "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET"
 
 let traceStorageCredentials =
   credentialsOption "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"
-
-
-// -------------------------
-// Infra
-// -------------------------
-let publicDomain = string "DARK_CONFIG_PUBLIC_DOMAIN"
-
-let browserReloadEnabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
-
-let useLoginDarklangComForLogin = bool "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN"

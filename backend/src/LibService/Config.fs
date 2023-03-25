@@ -1,4 +1,4 @@
-/// TODO - why is this separate from the Config.fs in LibBackend?
+/// Provides central place to fetch known configuration values for LibService
 module LibService.Config
 
 open ConfigDsl
@@ -106,11 +106,3 @@ let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
 
 // This is just until the base migration file stabalizes
 let clearDBOnStartup = bool "DARK_CONFIG_DB_CLEAR_ON_STARTUP"
-
-
-// --------------------
-// 'getting started' canvas
-// --------------------
-let gettingStartedCanvasName = string "DARK_CONFIG_GETTING_STARTED_CANVAS_NAME"
-
-let gettingStartedCanvasSource = string "DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE"

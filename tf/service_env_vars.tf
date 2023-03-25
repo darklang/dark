@@ -21,16 +21,13 @@ variable "service_env_vars" {
     ## QueueWorker
     "DARK_CONFIG_QUEUEWORKER_KUBERNETES_PORT" = "13002"
 
-    "DARK_CONFIG_ALLOW_TEST_ROUTES"     = "n"
     "DARK_CONFIG_TRIGGER_QUEUE_WORKERS" = "y"
     "DARK_CONFIG_TRIGGER_CRONS"         = "y"
     "DARK_CONFIG_PAUSE_BETWEEN_CRONS"   = "0"
-    "DARK_CONFIG_CREATE_ACCOUNTS"       = "n"
     "DARK_CONFIG_USE_HTTPS"             = "y"
 
     # Serialization
     "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA" = "n"
-    "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"        = "n"
 
     # Logging
     "DARK_CONFIG_ENV_DISPLAY_NAME" = "production"
@@ -77,9 +74,6 @@ variable "service_env_vars" {
     # Httpclient
     "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL" = "socks5://tunnel2-service.darklang:1080"
 
-    # Publicly accessible domain
-    "DARK_CONFIG_PUBLIC_DOMAIN" = "localhost"
-
     # Pusher
     # DARK_CONFIG_PUSHER_APP_ID: k8s
     # DARK_CONFIG_PUSHER_KEY: k8s
@@ -88,15 +82,6 @@ variable "service_env_vars" {
 
     # Heap analytics
     "DARK_CONFIG_HEAPIO_ID" = "477722926"
-
-    # Other
-    "DARK_CONFIG_BROWSER_RELOAD_ENABLED"           = "n"
-    "DARK_CONFIG_HASH_STATIC_FILENAMES"            = "y"
-    "DARK_CONFIG_USE_LOGIN_DARKLANG_COM_FOR_LOGIN" = "y"
-
-    # Getting started canvas
-    "DARK_CONFIG_GETTING_STARTED_CANVAS_NAME"   = "crud"
-    "DARK_CONFIG_GETTING_STARTED_CANVAS_SOURCE" = "sample-crud"
   }
 }
 
