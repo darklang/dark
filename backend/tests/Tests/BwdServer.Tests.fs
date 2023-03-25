@@ -36,7 +36,7 @@ type TestHandler =
     Method : string
     Code : string }
 
-type TestSecret = string * string
+type TestSecret = string * string * int
 
 type Test =
   { handlers : List<TestHandler>
@@ -99,7 +99,7 @@ module ParseTest =
             |> String.split ","
             |> List.map (fun secret ->
               match secret |> String.split ":" with
-              | [ key; value ] -> key, value
+              | [ key; value; version ] -> key, value, int version
               | _ ->
                 Exception.raiseInternal
                   $"Could not parse secret"
@@ -227,7 +227,8 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
     // Secrets
     do!
       test.secrets
-      |> List.map (fun (name, value) -> LibBackend.Secret.insert meta.id name value)
+      |> List.map (fun (name, value, version) ->
+        LibBackend.Secret.insert meta.id name value version)
       |> Task.WhenAll
       |> Task.map (fun _ -> ())
 
@@ -347,6 +348,7 @@ module Execution =
         testRequest
         |> insertSpaces
         |> replaceByteStrings "HOST" host
+        |> replaceByteStrings "DOMAIN" domain
         |> Http.setHeadersToCRLF
 
 
@@ -400,6 +402,7 @@ module Execution =
         |> List.toArray
         |> insertSpaces
         |> replaceByteStrings "HOST" host
+        |> replaceByteStrings "DOMAIN" domain
         |> Http.setHeadersToCRLF
 
       // Parse and normalize the response

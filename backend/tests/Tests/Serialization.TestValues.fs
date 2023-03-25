@@ -624,4 +624,4 @@ module ProgramTypes =
       PT.SetType(userRecordType)
       PT.DeleteType tlid ]
 
-  let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2" }
+  let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }

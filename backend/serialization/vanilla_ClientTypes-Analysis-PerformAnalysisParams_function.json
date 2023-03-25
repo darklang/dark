@@ -10615,7 +10615,8 @@
     "secrets": [
       {
         "name": "z",
-        "value": "y"
+        "value": "y",
+        "version": 2
       }
     ]
   }

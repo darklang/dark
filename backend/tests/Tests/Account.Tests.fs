@@ -42,23 +42,23 @@ let testCannotCreateReservedUser =
     "reservedUser"
     [ testTask "upsert reserved" {
         let a = reservedAccount ()
-        let! upserted = Account.insertUser a
+        let! upserted = Account.createUser a
         Expect.equal upserted (Error "Username is not allowed") "reserved"
       }
       testTask "upsert not reserved" {
         let a = okAccount "a"
-        let! upserted = Account.insertUser a
-        Expect.equal upserted (Ok()) "not reserved"
+        let! upserted = Account.createUser a
+        Expect.isOk upserted "not reserved"
       }
       testTask "insert reserved" {
         let a = reservedAccount ()
-        let! inserted = Account.insertUser a
+        let! inserted = Account.createUser a
         Expect.equal inserted (Error "Username is not allowed") "reserved"
       }
       testTask "insert not reserved" {
         let a = okAccount "b"
-        let! inserted = Account.insertUser a
-        Expect.equal inserted (Ok()) "not reserved"
+        let! inserted = Account.createUser a
+        Expect.isOk inserted "not reserved"
       } ]
 
 

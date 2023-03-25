@@ -922,6 +922,7 @@ and StoreFnArguments = tlid -> DvalMap -> unit
 and ProgramContext =
   { canvasID : CanvasID
     accountID : UserID
+    internalFnsAllowed : bool // whether this canvas is allowed call internal functions
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>

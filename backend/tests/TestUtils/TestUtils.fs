@@ -26,17 +26,6 @@ let testOwner : Lazy<Task<Account.UserInfo>> =
      |> Account.getUser
      |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
 
-let internalTestCanvas : Lazy<Task<Canvas.Meta>> =
-  lazy
-    (task {
-      let! owner = testOwner.Force()
-      return!
-        Canvas.createWithExactID
-          LibBackend.Config.allowedDarkInternalCanvasID
-          owner.id
-          "test-internal.dlio.localhost"
-    })
-
 
 /// Delete test data (in DB) for one canvas
 let clearCanvasData (canvasID : CanvasID) : Task<unit> =
@@ -124,7 +113,7 @@ let nameToTestDomain (name : string) : string =
     |> FsRegEx.replace "[-_]+" "-"
     |> String.take 50
   let suffix = randomString 5 |> String.toLowercase
-  $"test-{name}-{suffix}"
+  $"{name}-{suffix}"
   |> FsRegEx.replace "[-_]+" "-"
   |> fun s -> $"{s}.dlio.localhost"
 
@@ -249,6 +238,7 @@ let libraries : Lazy<RT.Libraries> =
 
 let executionStateFor
   (meta : Canvas.Meta)
+  (internalFnsAllowed : bool)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
@@ -257,6 +247,7 @@ let executionStateFor
     let program : RT.ProgramContext =
       { canvasID = meta.id
         accountID = meta.owner
+        internalFnsAllowed = internalFnsAllowed
         userFns = userFunctions
         dbs = dbs
         userTypes = Map.empty

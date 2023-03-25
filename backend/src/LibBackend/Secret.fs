@@ -18,28 +18,39 @@ module PT = LibExecution.ProgramTypes
 
 let getCanvasSecrets (canvasID : CanvasID) : Task<List<PT.Secret.T>> =
   Sql.query
-    "SELECT secret_name, secret_value
+    "SELECT name, value, version
      FROM secrets_v0
      WHERE canvas_id = @canvasID
      ORDER BY created_at DESC"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read ->
-    { name = read.string "secret_name"; value = read.string "secret_value" })
+    { name = read.string "name"
+      value = read.string "value"
+      version = read.int "version" })
 
-let insert (canvasID : CanvasID) (name : string) (value : string) : Task<unit> =
+let insert
+  (canvasID : CanvasID)
+  (name : string)
+  (value : string)
+  (version : int)
+  : Task<unit> =
   Sql.query
     "INSERT INTO secrets_v0
-    (canvas_id, secret_name, secret_value)
-    VALUES (@canvasID, @secretName, @secretValue)"
+    (canvas_id, name, value, version)
+    VALUES (@canvasID, @name, @value, @version)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "secretName", Sql.string name
-                      "secretValue", Sql.string value ]
+                      "name", Sql.string name
+                      "value", Sql.string value
+                      "version", Sql.int version ]
   |> Sql.executeStatementAsync
 
-let delete (canvasID : CanvasID) (name : string) : Task<unit> =
+let delete (canvasID : CanvasID) (name : string) (version : int) : Task<unit> =
   Sql.query
     "DELETE FROM secrets_v0
       WHERE canvas_id = @canvasID
-        AND secret_name = @secretName"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "secretName", Sql.string name ]
+        AND name = @Name
+        AND version = @version"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "name", Sql.string name
+                      "version", Sql.int version ]
   |> Sql.executeStatementAsync

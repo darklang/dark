@@ -51,12 +51,12 @@ let create (owner : UserID) (domain : string) : Task<Meta> =
     return! createWithExactID id owner domain
   }
 
-let canvasIDForDomain (domain : string) : Task<CanvasID> =
+let canvasIDForDomain (domain : string) : Task<Option<CanvasID>> =
   Sql.query
     "SELECT canvas_id FROM domains_v0
       WHERE domain = @domain"
   |> Sql.parameters [ "domain", Sql.string domain ]
-  |> Sql.executeRowAsync (fun read -> read.uuid "id")
+  |> Sql.executeRowOptionAsync (fun read -> read.uuid "canvas_id")
 
 let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
   Sql.query
@@ -81,6 +81,12 @@ let getMetaForDomain (domain : string) : Task<Option<Meta>> =
   |> Sql.executeRowOptionAsync (fun read ->
     { id = read.uuid "id"; owner = read.uuid "account_id"; domain = domain })
 
+let getOwner (id : CanvasID) : Task<UserID> =
+  Sql.query
+    "SELECT account_id FROM canvases_v0
+      WHERE id = @id"
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeRowAsync (fun read -> read.uuid "account_id")
 
 let getMetaFromID (id : CanvasID) : Task<Meta> =
   Sql.query
@@ -467,13 +473,13 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith userType
   |> Option.orElseWith deletedUserType
 
-let deleteToplevelForever (meta : Meta) (tlid : tlid) : Task<unit> =
+let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
   // CLEANUP: set deleted column in toplevel_oplists to be not nullable
   Sql.query
     "DELETE from toplevel_oplists_v0
       WHERE canvas_id = @canvasID
         AND tlid = @tlid"
-  |> Sql.parameters [ "canvasID", Sql.uuid meta.id; "tlid", Sql.id tlid ]
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
 
@@ -647,6 +653,7 @@ let toProgram (c : T) : RT.ProgramContext =
 
   { accountID = c.meta.owner
     canvasID = c.meta.id
+    internalFnsAllowed = c.meta.id = Config.allowedDarkInternalCanvasID
     userFns = userFns
     userTypes = userTypes
     dbs = dbs

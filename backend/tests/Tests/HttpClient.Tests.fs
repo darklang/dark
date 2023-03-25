@@ -146,7 +146,7 @@ let makeTest versionName filename =
 
       // Set up the canvas
       let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"
-      let! state = executionStateFor meta Map.empty Map.empty
+      let! state = executionStateFor meta false Map.empty Map.empty
 
       let userTypes = []
 

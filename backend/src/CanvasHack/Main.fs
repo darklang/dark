@@ -45,8 +45,8 @@ let main (args : string []) =
       match! LibBackend.Account.getUser username with
       | None ->
         print "creating dark user"
-        let! r = LibBackend.Account.insertUser username
-        Result.unwrap () r
+        let! userID = LibBackend.Account.createUser username
+        userID |> Exception.raiseInternal "" [] |> ignore<UserID>
       | Some _ -> print "Using existing dark user"
 
 

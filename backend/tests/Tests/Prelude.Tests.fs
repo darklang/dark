@@ -22,7 +22,6 @@ let userName =
       ("u__r", true)
       ("abc_", true)
       ("_abc", false)
-      ("a01234567890123456789a", false)
       ("a01234567890123456789", true)
       ("User", false)
       ("user-name", false)

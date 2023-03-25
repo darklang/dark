@@ -1619,17 +1619,14 @@ module UserName =
       "alpha" ]
     |> Set
 
-  let allowedPattern : string = @"[a-z][_a-z0-9]{2,20}"
+  let allowedPattern : string = @"[a-z][_a-z0-9]{2,}"
 
   let validate (name : string) : Result<string, string> =
     // Better to keep simple rules, even though some username are weird like u__r
     // or user_
-    // 3-21 characters
     // starts with [a-z]
     // underscores allowed
-    if String.length name > 21 then
-      Error "Username was too long, must be <= 20."
-    else if System.Text.RegularExpressions.Regex.IsMatch(name, $"^{allowedPattern}$") then
+    if System.Text.RegularExpressions.Regex.IsMatch(name, $"^{allowedPattern}$") then
       Ok name
     else
       Error

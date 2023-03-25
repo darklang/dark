@@ -227,7 +227,7 @@ type Oplist = List<Op>
 
 type TLIDOplists = List<tlid * Oplist>
 
-type Secret = { name : string; value : string }
+type Secret = { name : string; value : string; version : int }
 
 module Package =
   type Parameter = { name : string; typ : DType; description : string }

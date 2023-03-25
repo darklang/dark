@@ -41,7 +41,7 @@ module Types =
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, typeArgs, args) ->
     uply {
-      if state.program.canvasID = Config.allowedDarkInternalCanvasID then
+      if state.program.internalFnsAllowed then
         return! f (state, typeArgs, args)
       else
         return
@@ -67,12 +67,12 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "insertUser" 2
+  [ { name = fn "DarkInternal" "createUser" 0
       typeParams = []
       parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TUnit, TStr)
+      returnType = TResult(TUuid, TStr)
       description =
-        "Add a user. Returns a result containing an empty string. Usernames are unique; if you try to add a username
+        "Add a user. Returns a Result container the userID. Usernames are unique; if you try to add a username
 that's already taken, returns an error."
       fn =
         internalFn (function
@@ -85,8 +85,11 @@ that's already taken, returns an error."
                   UserName.create username)
               match username with
               | Ok username ->
-                let! _user = Account.insertUser username
-                return DResult(Ok(DUnit))
+                let! userID = Account.createUser username
+                match userID with
+                | Ok userID ->
+                  return DResult(Ok(DUuid userID))
+                | Error msg -> return DResult(Error(DStr msg))
               | Error msg -> return DResult(Error(DStr msg))
             }
           | _ -> incorrectArgs ())
@@ -107,6 +110,24 @@ that's already taken, returns an error."
             let! hosts = Canvas.allCanvasIDs ()
             return hosts |> List.map DUuid |> DList
           })
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "getOwner" 0
+      typeParams = []
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TStr
+      description = "Get the owner of a canvas"
+      fn =
+        internalFn (function
+          | _, _, [ DUuid canvasID ] ->
+            uply {
+              let! owner = Canvas.getOwner canvasID
+              return DUuid owner
+            }
+          | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -148,6 +169,26 @@ that's already taken, returns an error."
             uply {
               let! name = Canvas.domainsForCanvasID canvasID
               return name |> List.map DStr |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "canvasIDForDomain" 0
+      typeParams = []
+      parameters = [ Param.make "domain" TStr "" ]
+      returnType = TResult(TUuid, TStr)
+      description = "Returns the canvasID for a domain if it exists"
+      fn =
+        internalFn (function
+          | _, _, [ DStr domain ] ->
+            uply {
+              let! name = Canvas.canvasIDForDomain domain
+              match name with
+              | Some name -> return DResult(Ok(DUuid name))
+              | None -> return DResult(Error(DStr "Canvas not found"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -431,7 +472,7 @@ human-readable data."
             uply {
               let! secrets = Secret.getCanvasSecrets canvasID
               return
-                secrets |> List.map (fun s -> (s.name, DStr s.value)) |> Map |> DObj
+                secrets |> List.map (fun s -> DTuple (DStr s.name, DStr s.value, [DInt s.version])) |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -442,14 +483,14 @@ human-readable data."
     { name = fn "DarkInternal" "deleteSecret" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "secretName" TStr "" ]
+        [ Param.make "canvasID" TUuid ""; Param.make "name" TStr ""; Param.make "version" TInt "" ]
       returnType = TUnit
       description = "Delete a secret"
       fn =
         internalFn (function
-          | _, _, [ DUuid canvasID; DStr secretName ] ->
+          | _, _, [ DUuid canvasID; DStr name; DInt version ] ->
             uply {
-              do! Secret.delete canvasID secretName
+              do! Secret.delete canvasID name (int version)
               return DUnit
             }
           | _ -> incorrectArgs ())
@@ -462,16 +503,18 @@ human-readable data."
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
-          Param.make "secretName" TStr ""
-          Param.make "secretValue" TStr "" ]
+          Param.make "name" TStr ""
+          Param.make "value" TStr ""
+          Param.make "version" TStr ""
+           ]
       returnType = TResult(TUnit, TStr)
       description = "Add a secret"
       fn =
         internalFn (function
-          | _, _, [ DUuid canvasID; DStr secretName; DStr secretValue ] ->
+          | _, _, [ DUuid canvasID; DStr name; DStr value; DInt version ] ->
             uply {
               try
-                do! Secret.insert canvasID secretName secretValue
+                do! Secret.insert canvasID name value (int version)
                 return DResult(Ok DUnit)
               with
               | _ -> return DResult(Error(DStr "Error inserting secret"))
@@ -503,7 +546,7 @@ human-readable data."
                  || Map.containsKey tlid c.deletedDBs
                  || Map.containsKey tlid c.deletedUserTypes
                  || Map.containsKey tlid c.deletedUserFunctions then
-                do! Canvas.deleteToplevelForever meta tlid
+                do! Canvas.deleteToplevelForever canvasID tlid
                 return DBool true
               else
                 return DBool false
@@ -526,8 +569,7 @@ human-readable data."
         internalFn (function
           | _, _, [ DUuid canvasID ] ->
             uply {
-              let! meta = Canvas.getMetaFromID canvasID
-              let! unlocked = UserDB.unlocked meta.owner meta.id
+              let! unlocked = UserDB.unlocked canvasID
               return unlocked |> List.map int64 |> List.map DInt |> DList
             }
           | _ -> incorrectArgs ())
@@ -645,6 +687,24 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
+    { name = fn "DarkInternal" "createCanvas" 0
+      typeParams = []
+      parameters = [ Param.make "owner" TUuid ""; Param.make "name" TStr "" ]
+      returnType = TUuid
+      description = "Creates a new canvas"
+      fn =
+        internalFn (function
+          | state, _, [ DUuid owner; DStr name ] ->
+            uply {
+              let! meta = Canvas.create owner name
+              return DUuid meta.id
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "DarkInternal" "darkEditorCanvas" 0
       typeParams = []
       parameters = []
@@ -654,10 +714,7 @@ human-readable data."
         internalFn (function
           | state, _, [] ->
             uply {
-              return
-                [ "id", DUuid state.program.canvasID ]
-                |> Map
-                |> DObj // TODO: DRecord
+              return [ "id", DUuid state.program.canvasID ] |> Map |> DObj // TODO: DRecord
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -22,37 +22,41 @@ module Misc =
 // ---------------
 // canvasID
 // ---------------
-module CanvasIDOfCanvasName =
-  DarkInternal.canvasIDOfCanvasName_v0 Test.getCanvasName = Ok (Test.getCanvasID)
-  DarkInternal.canvasIDOfCanvasName_v0 "invalid name" = Error "Invalid username 'invalid name' - must be 2-20 lowercase characters, and must start with a letter."
-  DarkInternal.canvasIDOfCanvasName_v0 "not-a-real-canvas" = Error "Canvas not found"
+module Domains =
+  module Roundtrip =
+    ((DarkInternal.domainsForCanvasID Test.getCanvasID)
+    |> List.head
+    |> Test.unwrap
+    |> DarkInternal.canvasIDForDomain) = Ok Test.getCanvasID
 
-module CanvasNameOfCanvasID =
-  DarkInternal.canvasNameOfCanvasID_v0 (Test.getCanvasID) = Ok (Test.getCanvasName)
-  DarkInternal.canvasNameOfCanvasID_v0 ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = Error "Canvas not found"
+  module Errors =
+    DarkInternal.domainsForCanvasID ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = []
+    DarkInternal.canvasIDForDomain "not-a-real-domain" = Error "Canvas not found"
+
+
 
 
 module Secrets =
 
   // getSecrets empty
-  DarkInternal.getSecrets Test.getCanvasID = {}
+  DarkInternal.getSecrets Test.getCanvasID = []
 
   // insertSecret
-  (let _ = (DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE")
-  DarkInternal.getSecrets Test.getCanvasID) = { SECRET = "VALUE" }
+  (let _ = (DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 0)
+  DarkInternal.getSecrets Test.getCanvasID) = [("SECRET", "VALUE", 0)]
 
   // insertSecret twice
-  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
+  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 1
   // Does not work
-  DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE") = Error "Error inserting secret"
+  DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE" 1) = Error "Error inserting secret"
 
   // deleteSecret
-  DarkInternal.deleteSecret (Test.getCanvasID) "SECRET" = ()
+  DarkInternal.deleteSecret Test.getCanvasID "SECRET" 2 = ()
 
   // deleteSecret
-  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE"
-   let _ = DarkInternal.deleteSecret Test.getCanvasID "SECRET"
-   DarkInternal.getSecrets Test.getCanvasID) = Dict.empty
+  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 3
+   let _ = DarkInternal.deleteSecret Test.getCanvasID "SECRET" 3
+   DarkInternal.getSecrets Test.getCanvasID) = []
 
 
 // ---------------
@@ -66,10 +70,10 @@ module F404s =
 module Toplevels =
   module WithDB =
     [<DB>] type X = { x : string }
-    (DarkInternal.dbs Test.getCanvasName) |> List.length = 1
+    (DarkInternal.dbs Test.getCanvasID) |> List.length = 1
 
   module NoDB =
-    DarkInternal.dbs Test.getCanvasName = []
+    DarkInternal.dbs Test.getCanvasID = []
 
     DarkInternal.deleteToplevelForever Test.getCanvasID 1 = false
 

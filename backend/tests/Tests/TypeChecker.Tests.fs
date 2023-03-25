@@ -70,7 +70,7 @@ let testArguments : Test =
 
       let expr = S.eUserFn name [] []
       let fns = Map.ofList [ name, userFn ]
-      let! state = executionStateFor meta Map.empty fns
+      let! state = executionStateFor meta false Map.empty fns
       let! result = Exe.executeExpr state Map.empty expr
       return normalizeDvalResult result
     }

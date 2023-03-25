@@ -423,7 +423,7 @@ module PersistedSerializations =
                 List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
               packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
-              secrets = [ { name = "z"; value = "y" } ] })
+              secrets = [ { name = "z"; value = "y"; version = 1 } ] })
         v<ClientTypes.Analysis.PerformAnalysisParams>
           "function"
           (ClientTypes.Analysis.AnalyzeFunction
@@ -449,7 +449,7 @@ module PersistedSerializations =
                 List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
               packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
-              secrets = [ { name = "z"; value = "y" } ] })
+              secrets = [ { name = "z"; value = "y"; version = 2 } ] })
 
 
         // ------------------

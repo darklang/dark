@@ -140,7 +140,7 @@ You can allow a test to have the incorrect content-length.
 You can add Secrets:
 
 ```
-[secrets NAME1:value1,NAME2:value2]
+[secrets NAME1:value1:version1,NAME2:value2:version2]
 ```
 
 ## Domain
@@ -150,6 +150,8 @@ You can set the domain:
 ```
 [domain my.special.domainname.com]
 ```
+
+The token "DOMAIN" will be replaced by the domain.
 
 ## LENGTH
 
