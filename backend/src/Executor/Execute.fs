@@ -31,7 +31,6 @@ let execute (expr : RT.Expr) (symtable : Map<string, RT.Dval>) : Task<RT.Dval> =
     let program : RT.ProgramContext =
       { accountID = System.Guid.NewGuid()
         canvasID = System.Guid.NewGuid()
-        canvasName = CanvasName.createExn "todo"
         userFns = Map.empty
         userTypes = Map.empty
         dbs = Map.empty

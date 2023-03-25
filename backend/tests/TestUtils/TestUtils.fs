@@ -26,12 +26,21 @@ let testOwner : Lazy<Task<Account.UserInfo>> =
      |> Account.getUser
      |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
 
+let internalTestCanvas : Lazy<Task<Canvas.Meta>> =
+  lazy
+    (task {
+      let! owner = testOwner.Force()
+      return!
+        Canvas.createWithExactID
+          LibBackend.Config.allowedDarkInternalCanvasID
+          owner.id
+          "test-internal.dlio.localhost"
+    })
+
+
 /// Delete test data (in DB) for one canvas
-let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
+let clearCanvasData (canvasID : CanvasID) : Task<unit> =
   task {
-    let! canvasID = Canvas.canvasIDForCanvasName owner name
-    let canvasID =
-      Exception.unwrapOptionInternal "Could not get canvasID" [] canvasID
 
     let cronRecords =
       Sql.query "DELETE FROM cron_records_v0 where canvas_id = @id::uuid"
@@ -39,8 +48,8 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
       |> Sql.executeStatementAsync
 
     let customDomains =
-      Sql.query "DELETE FROM domains_v0 where canvas = @name"
-      |> Sql.parameters [ "name", Sql.string (string name) ]
+      Sql.query "DELETE FROM domains_v0 where canvas_id = @id"
+      |> Sql.parameters [ "name", Sql.uuid canvasID ]
       |> Sql.executeStatementAsync
 
     let eventsV0 =
@@ -106,7 +115,7 @@ let clearCanvasData (owner : UserID) (name : CanvasName.T) : Task<unit> =
     return ()
   }
 
-let nameToTestName (name : string) : string =
+let nameToTestDomain (name : string) : string =
   let name =
     name
     |> String.toLowercase
@@ -115,15 +124,17 @@ let nameToTestName (name : string) : string =
     |> FsRegEx.replace "[-_]+" "-"
     |> String.take 50
   let suffix = randomString 5 |> String.toLowercase
-  $"test-{name}-{suffix}" |> FsRegEx.replace "[-_]+" "-"
+  $"test-{name}-{suffix}"
+  |> FsRegEx.replace "[-_]+" "-"
+  |> fun s -> $"{s}.dlio.localhost"
 
 let initializeCanvasForOwner
   (owner : Account.UserInfo)
   (name : string)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.createExn (nameToTestName name)
-    return! Canvas.create owner.id canvasName
+    let domain = nameToTestDomain name
+    return! Canvas.create owner.id domain
   }
 
 let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
@@ -132,16 +143,15 @@ let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
     return! initializeCanvasForOwner owner name
   }
 
-
 // Same as initializeTestCanvas, for tests that don't need to hit the DB
 let createCanvasForOwner
   (owner : Account.UserInfo)
   (name : string)
   : Task<Canvas.Meta> =
   task {
-    let canvasName = CanvasName.createExn (nameToTestName name)
+    let domain = nameToTestDomain name
     let id = System.Guid.NewGuid()
-    return { id = id; name = canvasName; owner = owner.id }
+    return { id = id; domain = domain; owner = owner.id }
   }
 
 let createTestCanvas (name : string) : Task<Canvas.Meta> =
@@ -243,9 +253,9 @@ let executionStateFor
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
+    let domains = Canvas.domainsForCanvasID meta.id
     let program : RT.ProgramContext =
       { canvasID = meta.id
-        canvasName = meta.name
         accountID = meta.owner
         userFns = userFunctions
         dbs = dbs
@@ -273,7 +283,7 @@ let executionStateFor
                     $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
                 tc.exceptionReports
               Exception.raiseInternal
-                $"UNEXPECTED EXCEPTION COUNT in test {meta.name}"
+                $"UNEXPECTED EXCEPTION COUNT in test {domains}"
                 [ "expectedExceptionCount", tc.expectedExceptionCount
                   "actualExceptionCount", tc.exceptionReports.Length ] }
 

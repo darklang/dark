@@ -27,16 +27,6 @@ let sanitizeUrlPath =
       ("/abcabc//xyz///", "/abcabc/xyz")
       ("", "/") ]
 
-let ownerNameFromHost =
-  testMany
-    "ownerNameFromHost"
-    (fun cn ->
-      cn
-      |> CanvasName.createExn
-      |> LibBackend.Account.ownerNameFromCanvasName
-      |> fun (on : OwnerName.T) -> on.ToString())
-    [ ("test-something", "test"); ("test", "test"); ("test-many-hyphens", "test") ]
-
 let routeVariables =
   testMany
     "routeVariables"
@@ -133,25 +123,13 @@ let filterMatchingHandlers =
        let emptyHttp = testHttpRouteHandler "" "" five
        ("/a", [ filled; emptyHttp ], [ filled ])) ]
 
-let canvasNameFromHost =
-  testMany
-    "canvasNameFromHost"
-    canvasSourceFromHost
-    [ ("test-something.builtwithdark.com", Bwd "test-something")
-      ("some-canvas.builtwithdark.localhost", Bwd "some-canvas")
-      ("builtwithdark.localhost", Bwd "builtwithdark")
-      ("some-canvas.darkcustomdomain.com", Bwd "some-canvas")
-      ("www.microsoft.com", CustomDomain "www.microsoft.com") ]
-
 let tests =
   testList
     "routing"
     [ sanitizeUrlPath
-      ownerNameFromHost
       routeVariables
       routeInputVars
       requestPathMatchesRoute
       filterMatchingPatternsBySpecificity
       filterInvalidHandlers
-      filterMatchingHandlers
-      canvasNameFromHost ]
+      filterMatchingHandlers ]

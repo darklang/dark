@@ -21,7 +21,6 @@
     <Compile Include="LibMaybe.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />
-    <Compile Include="FSI.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

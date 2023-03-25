@@ -139,8 +139,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
           check.interval
         |> Option.map (fun delayRatio -> ("delay_ratio", delayRatio :> obj))
       let attrs =
-        [ ("canvas_name", cron.canvasName :> obj)
-          ("tlid", cron.tlid)
+        [ ("tlid", cron.tlid :> obj)
           ("handler_name", cron.cronName)
           // method here to use the spec-handler name for
           // consistency with http/worker logs

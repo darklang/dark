@@ -93,22 +93,15 @@ let honeycombLinkOfTraceID () : string =
 // Include person data
 // -------------------------------
 
-type PersonData = { id : UserID; username : Option<UserName.T> }
-
 /// Optional person data
-type Person = Option<PersonData>
+type Person = Option<UserID>
 
 /// Take a Person and an Exception and create a RollbarPackage that can be reported
 let createPackage (exn : exn) (person : Person) : Rollbar.IRollbarPackage =
   let package : Rollbar.IRollbarPackage =
     new Rollbar.ExceptionPackage(exn, exn.Message)
   match person with
-  | Some person ->
-    Rollbar.PersonPackageDecorator(
-      package,
-      person.id |> string,
-      person.username |> Option.map string |> Option.defaultValue null
-    )
+  | Some id -> Rollbar.PersonPackageDecorator(package, id |> string, null)
   | None -> package
 
 
@@ -221,7 +214,7 @@ let exceptionWhileProcessingException
 let personMetadata (person : Person) : Metadata =
   match person with
   | None -> []
-  | Some person -> [ "user.id", person.id; "user.username", person.username ]
+  | Some id -> [ "user.id", id ]
 
 
 /// Sends exception to Rollbar and also to Telemetry (honeycomb) and also prints it.

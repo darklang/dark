@@ -106,10 +106,8 @@ module ParseTest =
                   [ "secret", secret ])
 
           (Limbo, { result with secrets = secrets @ result.secrets })
-        | Regex "\[custom-domain (\S+)]" [ customDomain ] ->
+        | Regex "\[domain (\S+)]" [ customDomain ] ->
           (Limbo, { result with customDomain = Some customDomain })
-        | Regex "\[canvas-name (\S+)]" [ canvasName ] ->
-          (Limbo, { result with canvasName = Some canvasName })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
 
@@ -336,20 +334,19 @@ module Execution =
   /// testing the response matches expectations
   let runTestRequest
     (handlerVersion : HandlerVersion)
-    (canvasName : string)
+    (domain : string)
     (testRequest : byte array)
     (testExpectedResponse : byte array)
     : Task<unit> =
     task {
       let port = TestConfig.bwdServerBackendPort
 
-      let host = $"{canvasName}.builtwithdark.localhost:{port}"
+      let host = $"{domain}:{port}"
 
       let request =
         testRequest
         |> insertSpaces
         |> replaceByteStrings "HOST" host
-        |> replaceByteStrings "CANVAS" canvasName
         |> Http.setHeadersToCRLF
 
 
@@ -403,7 +400,6 @@ module Execution =
         |> List.toArray
         |> insertSpaces
         |> replaceByteStrings "HOST" host
-        |> replaceByteStrings "CANVAS" canvasName
         |> Http.setHeadersToCRLF
 
       // Parse and normalize the response
@@ -453,7 +449,7 @@ let tests =
         do!
           Execution.runTestRequest
             handlerType
-            (string meta.name)
+            meta.domain
             test.request
             test.expectedResponse
     }

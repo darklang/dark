@@ -2,7 +2,7 @@
 Http.response (String.toBytes_v0 request.url) 200
 
 
-[custom-domain customdomain.myspecialdomain.com]
+[domain customdomain.myspecialdomain.com]
 
 [request]
 GET /a HTTP/1.1

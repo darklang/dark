@@ -68,12 +68,6 @@ let getUser (username : UserName.T) : Task<Option<UserInfo>> =
 
 
 
-let ownerNameFromCanvasName (canvasName : CanvasName.T) : OwnerName.T =
-  match String.split "-" (string canvasName) with
-  | owner :: _ -> OwnerName.create owner
-  | _ -> OwnerName.create (string canvasName)
-
-
 // **********************
 // Local/test developement
 // **********************

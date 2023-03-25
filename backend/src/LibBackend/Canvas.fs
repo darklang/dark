@@ -20,73 +20,77 @@ module Telemetry = LibService.Telemetry
 module LD = LibService.LaunchDarkly
 
 
-type Meta = { name : CanvasName.T; id : CanvasID; owner : UserID }
+type Meta = { domain : string; id : CanvasID; owner : UserID }
 
-let create (owner : UserID) (canvasName : CanvasName.T) : Task<Meta> =
+
+
+let createWithExactID
+  (id : CanvasID)
+  (owner : UserID)
+  (domain : string)
+  : Task<Meta> =
   task {
-    let id = System.Guid.NewGuid()
     do!
       Sql.query
         "INSERT INTO canvases_v0
-         (id, account_id, name)
-         VALUES (@id, @owner, @canvasName)"
+         (id, account_id)
+         VALUES (@id, @owner);
+         INSERT INTO domains_v0
+         (canvas_id, domain)
+         VALUES (@id, @domain)"
       |> Sql.parameters [ "id", Sql.uuid id
                           "owner", Sql.uuid owner
-                          "canvasName", Sql.string (string canvasName) ]
+                          "domain", Sql.string domain ]
       |> Sql.executeStatementAsync
-    return { id = id; owner = owner; name = canvasName }
+    return { id = id; owner = owner; domain = domain }
   }
 
-let canvasIDForCanvasName
-  (owner : UserID)
-  (canvasName : CanvasName.T)
-  : Task<Option<CanvasID>> =
-  Sql.query
-    "SELECT id FROM canvases_v0
-      WHERE account_id = @owner
-        AND name = @canvasName"
-  |> Sql.parameters [ "owner", Sql.uuid owner
-                      "canvasName", Sql.string (string canvasName) ]
-  |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
-
-let getMeta (canvasName : CanvasName.T) : Task<Option<Meta>> =
-  Sql.query "SELECT id, account_id from canvases_v0 where name = @canvasName"
-  |> Sql.parameters [ "canvasName", Sql.string (string canvasName) ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    { id = read.uuid "id"; owner = read.uuid "account_id"; name = canvasName })
-
-/// Get the metadata for a canvas. Throws if the canvas does not exist.
-let getMetaExn (canvasName : CanvasName.T) : Task<Meta> =
+let create (owner : UserID) (domain : string) : Task<Meta> =
   task {
-    let! option = getMeta canvasName
-    return
-      Exception.unwrapOptionInternal
-        "getMetaExn expected to find a canvas"
-        [ "canvasName", canvasName ]
-        option
+    let id = System.Guid.NewGuid()
+    return! createWithExactID id owner domain
   }
 
-
-let getMetaForCustomDomain (customDomain : string) : Task<Option<Meta>> =
+let canvasIDForDomain (domain : string) : Task<CanvasID> =
   Sql.query
-    "SELECT c.id, c.account_id, c.name
+    "SELECT canvas_id FROM domains_v0
+      WHERE domain = @domain"
+  |> Sql.parameters [ "domain", Sql.string domain ]
+  |> Sql.executeRowAsync (fun read -> read.uuid "id")
+
+let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
+  Sql.query
+    "SELECT domain FROM domains_v0
+      WHERE canvas_id = @id"
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeAsync (fun read -> read.string "domain")
+
+let allCanvasIDs () : Task<List<CanvasID>> =
+  Sql.query "SELECT id FROM canvases_v0"
+  |> Sql.executeAsync (fun read -> read.uuid "id")
+
+
+let getMetaForDomain (domain : string) : Task<Option<Meta>> =
+  // CLEANUP maybe we don't need account_id here
+  Sql.query
+    "SELECT c.id, c.account_id
        FROM canvases_v0 c, domains_v0 d
       WHERE c.id = d.canvas_id
-        AND d.domain = @customDomain"
-  |> Sql.parameters [ "customDomain", Sql.string customDomain ]
+        AND d.domain = @domain"
+  |> Sql.parameters [ "domain", Sql.string domain ]
   |> Sql.executeRowOptionAsync (fun read ->
-    { id = read.uuid "id"
-      owner = read.uuid "account_id"
-      name = CanvasName.createExn (read.string "name") })
+    { id = read.uuid "id"; owner = read.uuid "account_id"; domain = domain })
 
 
 let getMetaFromID (id : CanvasID) : Task<Meta> =
-  Sql.query "SELECT name, account_id FROM canvases_v0 WHERE id = @canvasID"
+  Sql.query
+    "SELECT c.id, c.account_id, d.domain
+       FROM canvases_v0 c, domains_v0 d
+      WHERE c.id = d.canvas_id
+        AND c.id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid id ]
   |> Sql.executeRowAsync (fun read ->
-    { id = id
-      owner = read.uuid "account_id"
-      name = read.string "name" |> CanvasName.createExn })
+    { id = id; owner = read.uuid "account_id"; domain = read.string "domain" })
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
@@ -275,7 +279,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   with
   | e ->
     // Log here so we have context, but then re-raise
-    let tags = [ ("canvas_name", c.meta.name :> obj); ("op", string op) ]
+    let tags = [ ("canvas_name", c.meta.domain :> obj); ("op", string op) ]
     Telemetry.addException tags (InternalException("apply_op", e))
     e.Reraise()
 
@@ -305,10 +309,6 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
   let newops = List.map (fun op -> (true, op)) newops
   let reducedOps = Undo.preprocess (oldops @ newops)
   List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
-
-
-let urlFor (canvasName : CanvasName.T) : string =
-  $"https://{canvasName}.{Config.publicDomain}"
 
 
 // -------------------------
@@ -365,7 +365,7 @@ let loadFrom
     with
     | e when not (LD.knownBroken meta.id) ->
       let tags =
-        [ "canvasName", meta.name :> obj; "tlids", tlids; "loadAmount", loadAmount ]
+        [ "domain", meta.domain :> obj; "tlids", tlids; "loadAmount", loadAmount ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
   }
 
@@ -570,28 +570,31 @@ let saveTLIDs
           |> Sql.executeStatementAsync
       })
   with
-  | e ->
-    Exception.reraiseAsPageable "canvas save failed" [ "canvasName", meta.name ] e
+  | e -> Exception.reraiseAsPageable "canvas save failed" [ "domain", meta.domain ] e
 
 
 type HealthCheckResult =
   Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult
 
-/// Check a set of known hosts to ensure that the serializer works before starting up
-let loadHostsHealthCheck
+/// Check a set of known domains to ensure that the serializer works before starting up
+let loadDomainsHealthCheck
   (_ : System.Threading.CancellationToken)
   : Task<HealthCheckResult> =
   task {
     let healthy = HealthCheckResult.Healthy()
     try
       let! results =
-        Config.serializationHealthCheckHosts
+        LibService.LaunchDarkly.healthCheckDomains ()
         |> String.split ","
-        |> List.map CanvasName.createExn
         |> Task.mapInParallel (fun hostname ->
           task {
             try
-              let! meta = getMetaExn hostname
+              let! meta = getMetaForDomain hostname
+              let meta =
+                Exception.unwrapOptionInternal
+                  "canvas host healthcheck probe"
+                  [ "domain", hostname ]
+                  meta
               let _canvas =
                 Serialize.loadOplists Serialize.IncludeDeletedToplevels meta.id
               return healthy
@@ -615,7 +618,7 @@ let loadHostsHealthCheck
 
 let healthCheck : LibService.Kubernetes.HealthCheck =
   { name = "canvas"
-    checkFn = loadHostsHealthCheck
+    checkFn = loadDomainsHealthCheck
     probeTypes = [ LibService.Kubernetes.Startup ] }
 
 
@@ -643,7 +646,6 @@ let toProgram (c : T) : RT.ProgramContext =
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
   { accountID = c.meta.owner
-    canvasName = c.meta.name
     canvasID = c.meta.id
     userFns = userFns
     userTypes = userTypes

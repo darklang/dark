@@ -24,6 +24,8 @@ let absoluteDir (name : string) : string =
 
 let int (name : string) : int = getEnvExn name |> int
 
+let uuid (name : string) : System.Guid = getEnvExn name |> System.Guid.Parse
+
 let bool (name : string) : bool =
   match getEnvExn name with
   | "y" -> true

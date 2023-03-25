@@ -120,16 +120,16 @@ module Internal =
   // per-handler values
   // -------------
 
-  let flagNameForHandler (canvasName : CanvasName.T) (tlid : tlid) =
+  let flagNameForHandler (canvasID : CanvasID) (tlid : tlid) =
     // Use tlid instead of a desc because a tlid is canonical. A desc would be better
     // because it's user readable but it's not too hard to find a tlid id
-    $"handler-{canvasName}-{tlid}"
+    $"handler-{canvasID}-{tlid}"
 
   let handlerBool
     (name : string)
     (default_ : bool)
     (testDefault : bool)
-    : CanvasName.T -> tlid -> bool =
+    : CanvasID -> tlid -> bool =
     boolSetTestDefault name testDefault
     fun canvasName tlid -> boolVar name (flagNameForHandler canvasName tlid) default_
 
@@ -137,7 +137,7 @@ module Internal =
     (name : string)
     (default_ : int)
     (testDefault : int)
-    : CanvasName.T -> tlid -> int =
+    : CanvasID -> tlid -> int =
     intSetTestDefault name testDefault
     fun canvasName tlid -> intVar name (flagNameForHandler canvasName tlid) default_
 
@@ -145,7 +145,7 @@ module Internal =
     (name : string)
     (default_ : float)
     (testDefault : float)
-    : CanvasName.T -> tlid -> float =
+    : CanvasID -> tlid -> float =
     floatSetTestDefault name testDefault
     fun canvasName tlid ->
       floatVar name (flagNameForHandler canvasName tlid) default_
@@ -154,7 +154,7 @@ module Internal =
     (name : string)
     (default_ : string)
     (testDefault : string)
-    : CanvasName.T -> tlid -> string =
+    : CanvasID -> tlid -> string =
     stringSetTestDefault name testDefault
     fun canvasName tlid ->
       stringVar name (flagNameForHandler canvasName tlid) default_
@@ -215,10 +215,12 @@ let traceSamplingRule =
 // --------------
 let knownBroken = Internal.canvasBool "canvas-known-broken" false false
 
+
 // --------------
 // System flags - this allows us to change the run-time values of system
 // configuration. This is the preferred way of setting arbitrary numbers
 // --------------
+let healthCheckDomains = Internal.stringConfig "canvas-health-checks" "" ""
 
 let queueAllowedExecutionTimeInSeconds =
   Internal.intConfig "queue-allowed-execution-time-in-seconds" 300 300

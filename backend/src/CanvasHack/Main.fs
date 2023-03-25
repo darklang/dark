@@ -70,8 +70,7 @@ let main (args : string []) =
           | Some (Legivel.Serialization.Success s) -> s.Data
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
-        let canvasName =
-          CanvasName.create "dark-editor" |> Exception.unwrapResultInternal []
+        let canvasName = "dark-editor"
         let! owner = UserName.create "dark" |> LibBackend.Account.getUser
         let owner = owner |> Exception.unwrapOptionInternal "Dark used not found" []
         let! c = LibBackend.Canvas.create owner.id canvasName

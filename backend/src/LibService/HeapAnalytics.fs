@@ -93,7 +93,6 @@ let emitEvent (msgType : Type) (body : JsonContent) : unit =
 let makeTrackEventBody
   (event : string)
   (owner : UserID)
-  (canvasName : CanvasName.T)
   (canvasID : CanvasID)
   (properties : Map<string, string>)
   : TrackPayload =
@@ -101,8 +100,6 @@ let makeTrackEventBody
   let properties =
     properties
     |> Map.add "timestamp" (string timestamp)
-    |> Map.add "organization" (string owner)
-    |> Map.add "canvas" (string canvasName)
     |> Map.add "organization" (string owner)
     |> Map.add "canvas_id" (string canvasID)
 
@@ -120,16 +117,14 @@ let makeTrackEventBody
 /// Track an event to Heap
 let track
   (canvasID : CanvasID)
-  (canvasName : CanvasName.T)
   (owner : System.Guid)
   (event : string)
   (metadata : Map<string, string>)
   : unit =
-  let body =
-    makeTrackEventBody event owner canvasName canvasID metadata
-    |> JsonContent.Create
-
-  emitEvent Track body
+  metadata
+  |> makeTrackEventBody event owner canvasID
+  |> JsonContent.Create
+  |> emitEvent Track
 
 
 /// Collects data to be sent in an "identify user" Heap event

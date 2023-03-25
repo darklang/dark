@@ -394,20 +394,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "getCanvasName" 0
-      typeParams = []
-      parameters = []
-      returnType = TStr
-      description = "Get the name of the canvas that's running"
-      fn =
-        (function
-        | state, _, [] -> state.program.canvasName |> string |> DStr |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "Test" "getCanvasID" 0
       typeParams = []
       parameters = []

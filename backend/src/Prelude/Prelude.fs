@@ -1672,62 +1672,6 @@ module OwnerName =
   let create (str : string) : T =
     str |> validate |> Exception.unwrapResultInternal [] |> OwnerName
 
-module CanvasName =
-  type T =
-    private
-    | CanvasName of string
-
-    override this.ToString() = let (CanvasName name) = this in name
-
-  type CanvasNameError =
-    | LengthError
-    | EmptyError
-    | UsernameError of string
-    | CanvasNameError of string
-
-    override this.ToString() =
-      match this with
-      | LengthError -> "Invalid canvas name - must be <= 64 characters"
-      | EmptyError -> "Invalid canvas name - no canvas name"
-      | UsernameError name ->
-        $"Invalid username '{name}' - must be 2-20 lowercase characters, and must start with a letter."
-      | CanvasNameError name ->
-        $"Invalid canvas name '{name}' - must contain only letters, digits, and '-'"
-
-
-  let validate (name : string) : Result<string, CanvasNameError> =
-    // starts with username
-    // no capitals
-    // hyphen between username and canvasname
-    // more hyphens allowed
-    let canvasPortionRegex = "[-_a-z0-9]+"
-    let userPortionRegex = UserName.allowedPattern
-    // This is complicated because users have canvas names like "username-", though
-    // none have any content there.
-    let regex = $"^{userPortionRegex}(-({canvasPortionRegex})?)?$"
-
-    if String.length name > 64 then // check the length of the entire subdomain
-      Error LengthError
-    else if Regex.IsMatch(name, regex) then
-      Ok name
-    else
-      match Tablecloth.String.split "-" name with
-      | [] -> Error EmptyError
-      | [ _usernameOnly ] -> Error(UsernameError name)
-      | username :: _canvasSegments ->
-        if Regex.IsMatch(username, $"^{userPortionRegex}$") then
-          Error(CanvasNameError name)
-        else
-          Error(UsernameError username)
-
-
-  // Create throws an InternalException. Validate before calling create to do user-visible errors
-  let createExn (name : string) : T =
-    name |> validate |> Exception.unwrapResultInternal [] |> CanvasName
-
-  let create (name : string) : Result<T, string> =
-    name |> validate |> Result.map CanvasName |> Result.mapError string
-
 
 module HttpHeaders =
   type AspHeaders = System.Net.Http.Headers.HttpHeaders

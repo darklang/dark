@@ -28,12 +28,11 @@ variable "service_env_vars" {
     "DARK_CONFIG_CREATE_ACCOUNTS"       = "n"
     "DARK_CONFIG_USE_HTTPS"             = "y"
 
-    "DARK_CONFIG_BWDSERVER_HOST" = "builtwithdark.com"
+    "DARK_CONFIG_BWDSERVER_HOST" = "darklang.io"
 
     # Serialization
     "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA" = "n"
     "DARK_CONFIG_SERIALIZATION_CHECK_TYPES"        = "n"
-    "DARK_CONFIG_SERIALIZATION_HEALTH_CHECK_HOSTS" = "dark-editor"
 
     # Logging
     "DARK_CONFIG_ENV_DISPLAY_NAME" = "production"
@@ -128,5 +127,8 @@ variable "service_secrets" {
     # PubSub - service account JSON file
     "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"  = "queue-pubsub-credentials"
     "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS" = "traces-cloud-storage-credentials"
+
+    # Config
+    "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_ID" = "allowed-dark-internal-canvas-id"
   }
 }

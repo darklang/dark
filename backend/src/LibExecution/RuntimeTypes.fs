@@ -921,7 +921,6 @@ and StoreFnArguments = tlid -> DvalMap -> unit
 /// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
-    canvasName : CanvasName.T
     accountID : UserID
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>

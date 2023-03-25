@@ -90,7 +90,7 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
 
 let t
   (owner : Task<LibBackend.Account.UserInfo>)
-  (initializeCanvas : bool)
+  (useInternalCanvas : bool)
   (canvasName : string)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
@@ -104,9 +104,11 @@ let t
     try
       let! owner = owner
       let! meta =
-        let initializeCanvas = initializeCanvas || dbs <> [] || workers <> []
+        let initializeCanvas = dbs <> [] || workers <> []
+        if useInternalCanvas then
+          internalTestCanvas.Force()
         // Little optimization to skip the DB sometimes
-        if initializeCanvas then
+        else if initializeCanvas then
           initializeCanvasForOwner owner canvasName
         else
           createCanvasForOwner owner canvasName
