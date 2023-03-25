@@ -284,8 +284,6 @@ let testTraceRoundtrip =
 
 //     let program =
 //       { canvasID = meta.id
-//         canvasName = meta.name
-//         accountID = meta.owner
 //         dbs = Map.empty
 //         userFns = Map.singleton userFn.name userFn
 //         userTypes = Map.empty
@@ -342,8 +340,6 @@ let testTraceRoundtrip =
 
 //     let program =
 //       { canvasID = meta.id
-//         canvasName = meta.name
-//         accountID = meta.owner
 //         dbs = Map [ "MyDB", db ]
 //         userFns = Map.empty
 //         userTypes = Map.empty

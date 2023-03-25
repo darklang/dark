@@ -66,8 +66,7 @@ let createState
         "trace_id", traceID
         "executing_fn_name", state.executingFnName
         "callstack", state.callstack
-        "canvasID", program.canvasID
-        "accountID", program.accountID ]
+        "canvasID", program.canvasID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
@@ -75,8 +74,7 @@ let createState
 
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       let metadata = extraMetadata state @ metadata
-      let person : LibService.Rollbar.Person = Some program.accountID
-      LibService.Rollbar.sendException person metadata exn
+      LibService.Rollbar.sendException None metadata exn
 
     return Exe.createState libraries tracing sendException notify tlid program
   }

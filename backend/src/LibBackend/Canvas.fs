@@ -659,8 +659,7 @@ let toProgram (c : T) : RT.ProgramContext =
 
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
-  { accountID = c.meta.owner
-    canvasID = c.meta.id
+  { canvasID = c.meta.id
     internalFnsAllowed = c.meta.id = Config.allowedDarkInternalCanvasID
     userFns = userFns
     userTypes = userTypes

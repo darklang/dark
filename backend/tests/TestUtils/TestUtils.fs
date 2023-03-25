@@ -168,7 +168,6 @@ let executionStateFor
     let domains = Canvas.domainsForCanvasID meta.id
     let program : RT.ProgramContext =
       { canvasID = meta.id
-        accountID = meta.owner
         internalFnsAllowed = internalFnsAllowed
         userFns = userFunctions
         dbs = dbs
