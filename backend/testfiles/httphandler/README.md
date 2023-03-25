@@ -135,14 +135,6 @@ file - a file with the corresponding name should exist in `../data`.
 
 You can allow a test to have the incorrect content-length.
 
-## CORS
-
-You can add CORS settings:
-
-```
-[cors https://somewebsite.com]
-```
-
 ## Secrets
 
 You can add Secrets:
