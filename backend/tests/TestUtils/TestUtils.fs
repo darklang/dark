@@ -20,8 +20,7 @@ module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
-let testOwner : Lazy<Task<UserID>> =
-  lazy (Account.createUser ())
+let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
 let nameToTestDomain (name : string) : string =
   let name =
