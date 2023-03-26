@@ -21,6 +21,7 @@ let initSerializers () =
   Json.Vanilla.allow<ClientTypes.Program.Handler.T> "canvasClone"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
 
+
 [<EntryPoint>]
 let main (args : string array) : int =
   try
@@ -28,14 +29,12 @@ let main (args : string array) : int =
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
-    (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
     LibAnalysis.initSerializers ()
     initSerializers ()
 
     let tests =
-      [ Tests.Account.tests
-        Tests.AnalysisTypes.tests
+      [ Tests.AnalysisTypes.tests
         Tests.BwdServer.tests
         Tests.Canvas.tests
         Tests.Cron.tests

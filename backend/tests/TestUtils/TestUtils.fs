@@ -20,11 +20,8 @@ module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
-let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy
-    (UserName.create "test"
-     |> Account.getUser
-     |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
+let testOwner : Lazy<Task<UserID>> =
+  lazy (Account.createUser ())
 
 let nameToTestDomain (name : string) : string =
   let name =
@@ -40,12 +37,12 @@ let nameToTestDomain (name : string) : string =
   |> fun s -> $"{s}.dlio.localhost"
 
 let initializeCanvasForOwner
-  (owner : Account.UserInfo)
+  (ownerID : UserID)
   (name : string)
   : Task<CanvasID * string> =
   task {
     let domain = nameToTestDomain name
-    let! canvasID = Canvas.create owner.id domain
+    let! canvasID = Canvas.create ownerID domain
     return (canvasID, domain)
   }
 
