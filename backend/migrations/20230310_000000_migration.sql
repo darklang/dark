@@ -10,14 +10,8 @@ $t$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS
 accounts_v0
 ( id UUID PRIMARY KEY
-, username VARCHAR(255) UNIQUE NOT NULL -- TODO: remove
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE TRIGGER set_account_timestamp
-BEFORE UPDATE ON accounts_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
 
 CREATE TABLE IF NOT EXISTS
 canvases_v0

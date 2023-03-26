@@ -40,16 +40,6 @@ let main (args : string []) =
     initSerializers ()
 
     task {
-      // See if "dark" user exists and create them if not
-      let username = UserName.create "dark"
-      match! LibBackend.Account.getUser username with
-      | None ->
-        print "creating dark user"
-        let! userID = LibBackend.Account.createUser username
-        userID |> Exception.raiseInternal "" [] |> ignore<UserID>
-      | Some _ -> print "Using existing dark user"
-
-
       match args with
       | [||] ->
         print
@@ -71,9 +61,9 @@ let main (args : string []) =
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
         let canvasName = "dark-editor"
-        let! owner = UserName.create "dark" |> LibBackend.Account.getUser
-        let owner = owner |> Exception.unwrapOptionInternal "Dark used not found" []
-        let! c = LibBackend.Canvas.create owner.id canvasName
+        let! ownerID = LibBackend.Account.createUser ()
+        // CLEANUP: use the CanvasID from Config.allowedDarkInternalCanvasIDs
+        let! c = LibBackend.Canvas.create ownerID canvasName
 
         // For each of the handlers defined in `config.yml`,
         // produce a set of Ops to add.

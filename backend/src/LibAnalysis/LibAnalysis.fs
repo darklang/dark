@@ -44,8 +44,7 @@ module Eval =
   let runAnalysis (request : AT.AnalysisRequest) : Task<AT.AnalysisResults> =
     task {
       let program : RT.ProgramContext =
-        { accountID = System.Guid.NewGuid()
-          canvasID = System.Guid.NewGuid()
+        { canvasID = System.Guid.NewGuid()
           internalFnsAllowed = false
           userFns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
           userTypes = request.userTypes |> List.map (fun t -> t.name, t) |> Map

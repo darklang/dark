@@ -69,33 +69,20 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 let fns : List<BuiltInFn> =
   [ { name = fn "DarkInternal" "createUser" 0
       typeParams = []
-      parameters = [ Param.make "username" TStr "" ]
-      returnType = TResult(TUuid, TStr)
-      description =
-        "Add a user. Returns a Result container the userID. Usernames are unique; if you try to add a username
-that's already taken, returns an error."
+      parameters = []
+      returnType = TUuid
+      description = "Creates a user, and returns their userID."
       fn =
         internalFn (function
-          | _, _, [ DStr username ] ->
+          | _, _, [] ->
             uply {
-              let username =
-                Exception.catchError (fun () ->
-                  if username.Contains "_" then
-                    Exception.raiseCode "Underscores not allowed in usernames"
-                  UserName.create username)
-              match username with
-              | Ok username ->
-                let! userID = Account.createUser username
-                match userID with
-                | Ok userID -> return DResult(Ok(DUuid userID))
-                | Error msg -> return DResult(Error(DStr msg))
-              | Error msg -> return DResult(Error(DStr msg))
+              let! canvasID = Account.createUser ()
+              return DUuid canvasID
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
-
 
 
     { name = fn "DarkInternal" "getAllCanvasIDs" 0
@@ -104,11 +91,13 @@ that's already taken, returns an error."
       returnType = TList TUuid
       description = "Get a list of all canvas IDs"
       fn =
-        internalFn (fun _ ->
-          uply {
-            let! hosts = Canvas.allCanvasIDs ()
-            return hosts |> List.map DUuid |> DList
-          })
+        internalFn (function
+          | _, _, [] ->
+            uply {
+              let! hosts = Canvas.allCanvasIDs ()
+              return hosts |> List.map DUuid |> DList
+            }
+          | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
@@ -541,10 +530,9 @@ human-readable data."
         internalFn (function
           | _, _, [ DUuid canvasID; DInt tlid ] ->
             uply {
-              let! meta = Canvas.getMetaFromID canvasID
               let tlid = uint64 tlid
               let! c =
-                Canvas.loadFrom Serialize.IncludeDeletedToplevels meta [ tlid ]
+                Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasID [ tlid ]
               if Map.containsKey tlid c.deletedHandlers
                  || Map.containsKey tlid c.deletedDBs
                  || Map.containsKey tlid c.deletedUserTypes
@@ -697,10 +685,10 @@ human-readable data."
       description = "Creates a new canvas"
       fn =
         internalFn (function
-          | state, _, [ DUuid owner; DStr name ] ->
+          | _, _, [ DUuid owner; DStr name ] ->
             uply {
-              let! meta = Canvas.create owner name
-              return DUuid meta.id
+              let! canvasID = Canvas.create owner name
+              return DUuid canvasID
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -736,8 +724,7 @@ human-readable data."
         internalFn (function
           | _, _, [ DUuid canvasID ] ->
             uply {
-              let! meta = Canvas.getMetaFromID canvasID
-              let! canvas = Canvas.loadAll meta
+              let! canvas = Canvas.loadAll canvasID
 
               let dbs =
                 Map.values canvas.dbs

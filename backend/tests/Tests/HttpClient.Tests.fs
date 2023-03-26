@@ -142,11 +142,9 @@ let makeTest versionName filename =
     if shouldSkipTest then
       skiptest $"underscore test - {testName}"
     else
-      let! admin = testOwner.Force()
-
       // Set up the canvas
-      let! meta = createCanvasForOwner admin $"httpclient-{versionName}-{testName}"
-      let! state = executionStateFor meta false Map.empty Map.empty
+      let canvasID = System.Guid.NewGuid()
+      let! state = executionStateFor canvasID false Map.empty Map.empty
 
       let userTypes = []
 

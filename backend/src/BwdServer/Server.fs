@@ -276,25 +276,22 @@ exception NotFoundException of msg : string with
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
     let domain = Exception.catch (fun () -> ctx.Request.Host.Host)
-    let! canvasMeta =
+    let! canvasID =
       match domain with
       | None -> Task.FromResult None
-      | Some domain -> Canvas.getMetaForDomain domain
+      | Some domain ->
+        ctx.Items[ "canvasDomain" ] <- domain // store for exception tracking
+        Telemetry.addTags [ "canvas.domain", domain ]
+        Canvas.canvasIDForDomain domain
 
-    match canvasMeta with
-    | Some meta ->
-      ctx.Items[ "canvasDomain" ] <- meta.domain // store for exception tracking
-      ctx.Items[ "canvasOwnerID" ] <- meta.owner // store for exception tracking
-
+    match canvasID with
+    | Some canvasID ->
       let traceID = LibExecution.AnalysisTypes.TraceID.create ()
       let requestMethod = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
       let desc = ("HTTP", requestPath, requestMethod)
 
-      Telemetry.addTags [ "canvas.domain", meta.domain
-                          "canvas.id", meta.id
-                          "canvas.owner_id", meta.owner
-                          "trace_id", traceID ]
+      Telemetry.addTags [ "canvas.id", canvasID; "trace_id", traceID ]
 
       // redirect HEADs to GET. We pass the actual HEAD method to the engine,
       // and leave it to middleware to say what it wants to do with that
@@ -302,7 +299,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       // Canvas to process request against, with enough loaded to handle this
       // request
-      let! canvas = Canvas.loadHttpHandlers meta requestPath searchMethod
+      let! canvas = Canvas.loadHttpHandlers canvasID requestPath searchMethod
 
       let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
 
@@ -332,7 +329,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! (result, _) =
             RealExe.executeHandler
               ClientTypes2BackendTypes.Pusher.eventSerializer
-              canvas.meta
+              canvasID
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
               traceID
@@ -349,7 +346,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         | None -> // vars didnt parse
           FireAndForget.fireAndForgetTask "store-event" (fun () ->
             let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
-            TI.storeEvent meta.id traceID desc request)
+            TI.storeEvent canvasID traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
 
@@ -361,13 +358,13 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         let! reqBody = getBody ctx
         let reqHeaders = getHeadersWithoutMergingKeys ctx
         let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
-        let! timestamp = TI.storeEvent meta.id traceID desc event
+        let! timestamp = TI.storeEvent canvasID traceID desc event
 
         // CLEANUP: move pusher into storeEvent
         // Send to pusher - do not resolve task, send this into the ether
         Pusher.push
           ClientTypes2BackendTypes.Pusher.eventSerializer
-          meta.id
+          canvasID
           (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
           None
 

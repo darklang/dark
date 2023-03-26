@@ -66,8 +66,7 @@ let createState
         "trace_id", traceID
         "executing_fn_name", state.executingFnName
         "callstack", state.callstack
-        "canvasID", program.canvasID
-        "accountID", program.accountID ]
+        "canvasID", program.canvasID ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
@@ -75,8 +74,7 @@ let createState
 
     let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       let metadata = extraMetadata state @ metadata
-      let person : LibService.Rollbar.Person = Some program.accountID
-      LibService.Rollbar.sendException person metadata exn
+      LibService.Rollbar.sendException None metadata exn
 
     return Exe.createState libraries tracing sendException notify tlid program
   }
@@ -94,7 +92,7 @@ type ExecutionReason =
 /// ReExecution, which will update existing traces and not send pushes.
 let executeHandler
   (pusherSerializer : Pusher.PusherEventSerializer)
-  (meta : Canvas.Meta)
+  (canvasID : CanvasID)
   (h : RT.Handler.T)
   (program : RT.ProgramContext)
   (traceID : AT.TraceID.T)
@@ -102,7 +100,7 @@ let executeHandler
   (reason : ExecutionReason)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
-    let tracing = Tracing.create meta h.tlid traceID
+    let tracing = Tracing.create canvasID h.tlid traceID
 
     match reason with
     | InitialExecution (desc, varname, inputVar) ->
@@ -119,14 +117,14 @@ let executeHandler
     | InitialExecution _ ->
       if tracing.enabled then
         let tlids = HashSet.toList tracing.results.tlids
-        Pusher.push pusherSerializer meta.id (Pusher.NewTrace(traceID, tlids)) None
+        Pusher.push pusherSerializer canvasID (Pusher.NewTrace(traceID, tlids)) None
 
     return (result, tracing.results)
   }
 
 /// We call this reexecuteFunction because it always runs in an existing trace.
 let reexecuteFunction
-  (meta : Canvas.Meta)
+  (canvasID : CanvasID)
   (program : RT.ProgramContext)
   (callerTLID : tlid)
   (callerID : id)
@@ -139,7 +137,7 @@ let reexecuteFunction
   task {
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
     // the rootTLID of the trace.
-    let tracing = Tracing.create meta rootTLID traceID
+    let tracing = Tracing.create canvasID rootTLID traceID
     let! state = createState traceID callerTLID program tracing.executionTracing
     let! result = Exe.executeFunction state callerID name typeArgs args
     tracing.storeTraceResults ()

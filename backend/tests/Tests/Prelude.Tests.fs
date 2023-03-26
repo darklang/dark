@@ -8,26 +8,6 @@ open Prelude
 open Tablecloth
 open TestUtils.TestUtils
 
-let userName =
-  testMany
-    "userName.create"
-    (fun c ->
-      try
-        UserName.create c |> ignore<UserName.T>
-        true
-      with
-      | e -> false)
-    [ ("0startsnumber", false)
-      ("xx", false)
-      ("u__r", true)
-      ("abc_", true)
-      ("_abc", false)
-      ("a01234567890123456789", true)
-      ("User", false)
-      ("user-name", false)
-      ("user_name", true)
-      ("test-hashed", false) ]
-
 
 let asyncTests =
 
@@ -126,4 +106,4 @@ let assertions =
 let tests =
   testList
     "prelude"
-    [ userName; asyncTests; mapTests; listTests; floatTests; dateTests; assertions ]
+    [ asyncTests; mapTests; listTests; floatTests; dateTests; assertions ]

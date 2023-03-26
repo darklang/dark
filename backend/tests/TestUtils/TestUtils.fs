@@ -20,11 +20,7 @@ module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
-let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy
-    (UserName.create "test"
-     |> Account.getUser
-     |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
+let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
 let nameToTestDomain (name : string) : string =
   let name =
@@ -40,36 +36,27 @@ let nameToTestDomain (name : string) : string =
   |> fun s -> $"{s}.dlio.localhost"
 
 let initializeCanvasForOwner
-  (owner : Account.UserInfo)
+  (ownerID : UserID)
   (name : string)
-  : Task<Canvas.Meta> =
+  : Task<CanvasID * string> =
   task {
     let domain = nameToTestDomain name
-    return! Canvas.create owner.id domain
+    let! canvasID = Canvas.create ownerID domain
+    return (canvasID, domain)
   }
 
-let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
+let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
   task {
     let! owner = testOwner.Force()
     return! initializeCanvasForOwner owner name
   }
 
-// Same as initializeTestCanvas, for tests that don't need to hit the DB
-let createCanvasForOwner
-  (owner : Account.UserInfo)
-  (name : string)
-  : Task<Canvas.Meta> =
+let initializeTestCanvas (name : string) : Task<CanvasID> =
   task {
-    let domain = nameToTestDomain name
-    let id = System.Guid.NewGuid()
-    return { id = id; domain = domain; owner = owner.id }
+    let! (canvasID, domain) = initializeTestCanvas' name
+    return canvasID
   }
 
-let createTestCanvas (name : string) : Task<Canvas.Meta> =
-  task {
-    let! owner = testOwner.Force()
-    return! createCanvasForOwner owner name
-  }
 
 let testHttpRouteHandler
   (route : string)
@@ -159,16 +146,15 @@ let libraries : Lazy<RT.Libraries> =
      { stdlibTypes = testTypes; stdlibFns = testFns; packageFns = Map.empty })
 
 let executionStateFor
-  (meta : Canvas.Meta)
+  (canvasID : CanvasID)
   (internalFnsAllowed : bool)
   (dbs : Map<string, RT.DB.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let domains = Canvas.domainsForCanvasID meta.id
+    let domains = Canvas.domainsForCanvasID canvasID
     let program : RT.ProgramContext =
-      { canvasID = meta.id
-        accountID = meta.owner
+      { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
         userFns = userFunctions
         dbs = dbs
@@ -231,7 +217,7 @@ let executionStateFor
   }
 
 /// Saves and reloads the canvas for the Toplevels
-let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
+let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
   task {
     let descs =
       tls
@@ -245,8 +231,8 @@ let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.
 
         (tlid, [ op ], tl, Canvas.NotDeleted))
 
-    do! Canvas.saveTLIDs meta descs
-    return! Canvas.loadAll meta
+    do! Canvas.saveTLIDs canvasID descs
+    return! Canvas.loadAll canvasID
   }
 
 

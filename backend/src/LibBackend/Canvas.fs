@@ -20,15 +20,11 @@ module Telemetry = LibService.Telemetry
 module LD = LibService.LaunchDarkly
 
 
-type Meta = { domain : string; id : CanvasID; owner : UserID }
-
-
-
 let createWithExactID
   (id : CanvasID)
   (owner : UserID)
   (domain : string)
-  : Task<Meta> =
+  : Task<unit> =
   task {
     do!
       Sql.query
@@ -42,13 +38,13 @@ let createWithExactID
                           "owner", Sql.uuid owner
                           "domain", Sql.string domain ]
       |> Sql.executeStatementAsync
-    return { id = id; owner = owner; domain = domain }
   }
 
-let create (owner : UserID) (domain : string) : Task<Meta> =
+let create (owner : UserID) (domain : string) : Task<CanvasID> =
   task {
     let id = System.Guid.NewGuid()
-    return! createWithExactID id owner domain
+    do! createWithExactID id owner domain
+    return id
   }
 
 let canvasIDForDomain (domain : string) : Task<Option<CanvasID>> =
@@ -78,33 +74,12 @@ let allCanvasIDs () : Task<List<CanvasID>> =
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
 
-let getMetaForDomain (domain : string) : Task<Option<Meta>> =
-  // CLEANUP maybe we don't need account_id here
-  Sql.query
-    "SELECT c.id, c.account_id
-       FROM canvases_v0 c, domains_v0 d
-      WHERE c.id = d.canvas_id
-        AND d.domain = @domain"
-  |> Sql.parameters [ "domain", Sql.string domain ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    { id = read.uuid "id"; owner = read.uuid "account_id"; domain = domain })
-
 let getOwner (id : CanvasID) : Task<UserID> =
   Sql.query
     "SELECT account_id FROM canvases_v0
       WHERE id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeRowAsync (fun read -> read.uuid "account_id")
-
-let getMetaFromID (id : CanvasID) : Task<Meta> =
-  Sql.query
-    "SELECT c.id, c.account_id, d.domain
-       FROM canvases_v0 c, domains_v0 d
-      WHERE c.id = d.canvas_id
-        AND c.id = @canvasID"
-  |> Sql.parameters [ "canvasID", Sql.uuid id ]
-  |> Sql.executeRowAsync (fun read ->
-    { id = id; owner = read.uuid "account_id"; domain = read.string "domain" })
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
@@ -118,7 +93,7 @@ let getMetaFromID (id : CanvasID) : Task<Meta> =
 /// saving).)
 /// </remarks>
 type T =
-  { meta : Meta
+  { id : CanvasID
     handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
@@ -293,7 +268,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   with
   | e ->
     // Log here so we have context, but then re-raise
-    let tags = [ ("canvas_name", c.meta.domain :> obj); ("op", string op) ]
+    let tags = [ ("op", string op :> obj) ]
     Telemetry.addException tags (InternalException("apply_op", e))
     e.Reraise()
 
@@ -329,8 +304,8 @@ let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
 //  Loading/saving
 //  -------------------------
 
-let empty (meta : Meta) : T =
-  { meta = meta
+let empty (id : CanvasID) =
+  { id = id
     handlers = Map.empty
     dbs = Map.empty
     userFunctions = Map.empty
@@ -342,12 +317,12 @@ let empty (meta : Meta) : T =
     secrets = Map.empty }
 
 // DOES NOT LOAD OPS FROM DB
-let fromOplist (meta : Meta) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
-  empty meta |> addOps oldOps newOps |> verify
+let fromOplist (id : CanvasID) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
+  empty id |> addOps oldOps newOps |> verify
 
 let loadFrom
   (loadAmount : Serialize.LoadAmount)
-  (meta : Meta)
+  (id : CanvasID)
   (tlids : List<tlid>)
   : Task<T> =
   task {
@@ -355,7 +330,7 @@ let loadFrom
       Telemetry.addTags [ "tlids", tlids; "loadAmount", loadAmount ]
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs meta.id tlids
+      let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs id tlids
 
       let fastLoadedTLIDs = List.map PT.Toplevel.toTLID fastLoadedTLs
 
@@ -364,11 +339,11 @@ let loadFrom
 
       // canvas initialized via the normal loading path with the non-fast loaded tlids
       // loaded traditionally via the oplist
-      let! uncachedOplists = Serialize.loadOplists loadAmount meta.id notLoadedTLIDs
+      let! uncachedOplists = Serialize.loadOplists loadAmount id notLoadedTLIDs
       let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
-      let c = empty meta
+      let c = empty id
 
-      let! secrets = Secret.getCanvasSecrets meta.id
+      let! secrets = Secret.getCanvasSecrets id
       let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
 
       return
@@ -377,63 +352,62 @@ let loadFrom
         |> addOps uncachedOplists []
         |> verify
     with
-    | e when not (LD.knownBroken meta.id) ->
-      let tags =
-        [ "domain", meta.domain :> obj; "tlids", tlids; "loadAmount", loadAmount ]
+    | e when not (LD.knownBroken id) ->
+      let tags = [ "tlids", tlids :> obj; "loadAmount", loadAmount ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
   }
 
-let loadAll (meta : Meta) : Task<T> =
+let loadAll (id : CanvasID) : Task<T> =
   task {
-    let! tlids = Serialize.fetchAllTLIDs meta.id
-    return! loadFrom Serialize.IncludeDeletedToplevels meta tlids
+    let! tlids = Serialize.fetchAllTLIDs id
+    return! loadFrom Serialize.IncludeDeletedToplevels id tlids
   }
 
-let loadHttpHandlers (meta : Meta) (path : string) (method : string) : Task<T> =
+let loadHttpHandlers (id : CanvasID) (path : string) (method : string) : Task<T> =
   task {
-    let! tlids = Serialize.fetchReleventTLIDsForHTTP meta.id path method
-    return! loadFrom Serialize.LiveToplevels meta tlids
+    let! tlids = Serialize.fetchReleventTLIDsForHTTP id path method
+    return! loadFrom Serialize.LiveToplevels id tlids
   }
 
-let loadTLIDs (meta : Meta) (tlids : tlid list) : Task<T> =
-  loadFrom Serialize.LiveToplevels meta tlids
+let loadTLIDs (id : CanvasID) (tlids : tlid list) : Task<T> =
+  loadFrom Serialize.LiveToplevels id tlids
 
 
-let loadTLIDsWithContext (meta : Meta) (tlids : List<tlid>) : Task<T> =
+let loadTLIDsWithContext (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
-    let! context = Serialize.fetchRelevantTLIDsForExecution meta.id
+    let! context = Serialize.fetchRelevantTLIDsForExecution id
     let tlids = tlids @ context
-    return! loadFrom Serialize.LiveToplevels meta tlids
+    return! loadFrom Serialize.LiveToplevels id tlids
   }
 
 let loadForEventV2
-  (meta : Meta)
+  (id : CanvasID)
   (module' : string)
   (name : string)
   (modifier : string)
   : Task<T> =
   task {
-    let! tlids = Serialize.fetchRelevantTLIDsForEvent meta.id module' name modifier
-    return! loadFrom Serialize.LiveToplevels meta tlids
+    let! tlids = Serialize.fetchRelevantTLIDsForEvent id module' name modifier
+    return! loadFrom Serialize.LiveToplevels id tlids
   }
 
-let loadAllDBs (meta : Meta) : Task<T> =
+let loadAllDBs (id : CanvasID) : Task<T> =
   task {
-    let! tlids = Serialize.fetchTLIDsForAllDBs meta.id
-    return! loadFrom Serialize.LiveToplevels meta tlids
+    let! tlids = Serialize.fetchTLIDsForAllDBs id
+    return! loadFrom Serialize.LiveToplevels id tlids
   }
 
 /// Returns a best guess at all workers (excludes what it knows not to be a worker)
-let loadAllWorkers (meta : Meta) : Task<T> =
+let loadAllWorkers (id : CanvasID) : Task<T> =
   task {
-    let! tlids = Serialize.fetchTLIDsForAllWorkers meta.id
-    return! loadFrom Serialize.LiveToplevels meta tlids
+    let! tlids = Serialize.fetchTLIDsForAllWorkers id
+    return! loadFrom Serialize.LiveToplevels id tlids
   }
 
-let loadTLIDsWithDBs (meta : Meta) (tlids : List<tlid>) : Task<T> =
+let loadTLIDsWithDBs (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
-    let! dbTLIDs = Serialize.fetchTLIDsForAllDBs meta.id
-    return! loadFrom Serialize.LiveToplevels meta (tlids @ dbTLIDs)
+    let! dbTLIDs = Serialize.fetchTLIDsForAllDBs id
+    return! loadFrom Serialize.LiveToplevels id (tlids @ dbTLIDs)
   }
 
 type Deleted =
@@ -494,7 +468,7 @@ let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
 /// Save just the TLIDs listed (a canvas may load more tlids to support
 /// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
-  (meta : Meta)
+  (id : CanvasID)
   (oplists : List<tlid * PT.Oplist * PT.Toplevel.T * Deleted>)
   : Task<unit> =
   try
@@ -571,7 +545,7 @@ let saveTLIDs
                         deleted = @deleted,
                         oplist = @oplist,
                         oplist_cache = @oplistCache"
-          |> Sql.parameters [ "canvasID", Sql.uuid meta.id
+          |> Sql.parameters [ "canvasID", Sql.uuid id
                               "tlid", Sql.id tlid
                               "digest", Sql.string "fsharp"
                               "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
@@ -584,7 +558,7 @@ let saveTLIDs
           |> Sql.executeStatementAsync
       })
   with
-  | e -> Exception.reraiseAsPageable "canvas save failed" [ "domain", meta.domain ] e
+  | e -> Exception.reraiseAsPageable "canvas save failed" [ "canvasID", id ] e
 
 
 type HealthCheckResult =
@@ -603,14 +577,14 @@ let loadDomainsHealthCheck
         |> Task.mapInParallel (fun hostname ->
           task {
             try
-              let! meta = getMetaForDomain hostname
-              let meta =
+              let! id = canvasIDForDomain hostname
+              let id =
                 Exception.unwrapOptionInternal
                   "canvas host healthcheck probe"
                   [ "domain", hostname ]
-                  meta
+                  id
               let _canvas =
-                Serialize.loadOplists Serialize.IncludeDeletedToplevels meta.id
+                Serialize.loadOplists Serialize.IncludeDeletedToplevels id
               return healthy
             with
             | _ ->
@@ -659,9 +633,8 @@ let toProgram (c : T) : RT.ProgramContext =
 
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
-  { accountID = c.meta.owner
-    canvasID = c.meta.id
-    internalFnsAllowed = c.meta.id = Config.allowedDarkInternalCanvasID
+  { canvasID = c.id
+    internalFnsAllowed = c.id = Config.allowedDarkInternalCanvasID
     userFns = userFns
     userTypes = userTypes
     dbs = dbs

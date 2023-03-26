@@ -112,8 +112,7 @@ let usesDB (options : Options) =
 
 let convertToRT (canvasID : CanvasID) : Task<unit> =
   task {
-    let! canvasInfo = LibBackend.Canvas.getMetaFromID canvasID
-    let! canvas = LibBackend.Canvas.loadAll canvasInfo
+    let! canvas = LibBackend.Canvas.loadAll canvasID
     let _program = LibBackend.Canvas.toProgram canvas
     let _handlers =
       canvas.handlers

@@ -405,7 +405,6 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 // -------------------------
 let statsPluck
   (canvasID : CanvasID)
-  (ownerID : UserID)
   (db : RT.DB.T)
   : Task<Option<RT.Dval * string>> =
   task {
@@ -428,7 +427,7 @@ let statsPluck
     return result |> Option.map (fun (data, key) -> (toObj db data, key))
   }
 
-let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<int> =
+let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*)
      FROM user_data_v0
@@ -442,11 +441,9 @@ let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<in
                       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
 
-// Given a [canvasID] and an [accountID], return tlids for all unlocked databases -
+// Given a [canvasID], return tlids for all unlocked databases -
 // a database is unlocked if it has no records, and thus its schema can be
 // changed without a migration.
-//
-// [ownerID] is needed here because we'll use it in the DB JOIN
 let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be

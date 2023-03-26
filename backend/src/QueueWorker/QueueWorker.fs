@@ -151,10 +151,9 @@ let processNotification
               let! canvas =
                 Exception.taskCatch (fun () ->
                   task {
-                    let! meta = Canvas.getMetaFromID notification.data.canvasID
                     return!
                       Canvas.loadForEventV2
-                        meta
+                        notification.data.canvasID
                         event.module'
                         event.name
                         event.modifier
@@ -166,7 +165,7 @@ let processNotification
               | Some c ->
                 let traceID = AT.TraceID.create ()
                 let desc = (event.module', event.name, event.modifier)
-                Telemetry.addTags [ "canvasID", c.meta.id; "trace_id", traceID ]
+                Telemetry.addTags [ "canvasID", c.id; "trace_id", traceID ]
 
 
                 // CLEANUP switch events and scheduling rules to use TLIDs instead of eventDescs
@@ -183,10 +182,10 @@ let processNotification
                   // they're probably emiting to a handler they haven't created yet.
                   // In this case, all they need to build is the trace. So just drop
                   // this event immediately.
-                  let! timestamp = TI.storeEvent c.meta.id traceID desc event.value
+                  let! timestamp = TI.storeEvent c.id traceID desc event.value
                   Pusher.push
                     ClientTypes2BackendTypes.Pusher.eventSerializer
-                    c.meta.id
+                    c.id
                     (Pusher.New404(
                       event.module',
                       event.name,
@@ -209,7 +208,7 @@ let processNotification
                     let! (result, traceResults) =
                       RealExecution.executeHandler
                         ClientTypes2BackendTypes.Pusher.eventSerializer
-                        c.meta
+                        c.id
                         (PT2RT.Handler.toRT h)
                         program
                         traceID

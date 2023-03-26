@@ -52,7 +52,7 @@ let testTraceIDsOfTlidsMatch =
 //     // make irrelevant request
 //     let t1 = AT.TraceID.create()
 //     let desc = ("HTTP", "/", "GET")
-//     let! (_d : NodaTime.Instant) = TI.storeEvent meta.id t1 desc (DStr "1")
+//     let! (_d : NodaTime.Instant) = TI.storeEvent canvasID t1 desc (DStr "1")
 
 //     // load+check irrelevant trace
 //     let! loaded = Traces.traceIDsForHttpHandler c handler
@@ -75,10 +75,10 @@ let testTraceIDsOfTlidsMatch =
 //     let t1 = AT.TraceID.create()
 //     let httpRequestPath = "/some/vars/and/such"
 //     let desc = ("HTTP", httpRequestPath, "GET")
-//     let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
+//     let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DStr "1")
 
 //     // check we get back the data we put into it
-//     let! events = TI.loadEvents c.meta.id ("HTTP", httpRoute, "GET")
+//     let! events = TI.loadEvents c.id ("HTTP", httpRoute, "GET")
 
 //     let (loadedPaths, loadedDvals) =
 //       events
@@ -89,7 +89,7 @@ let testTraceIDsOfTlidsMatch =
 //     Expect.equal loadedDvals [ (DStr "1") ] "data is the same"
 
 //     // check that the event is not in the 404s
-//     let! f404s = TI.getRecent404s c.meta.id
+//     let! f404s = TI.getRecent404s c.id
 //     Expect.equal [] f404s "no 404s"
 //   }
 
@@ -111,22 +111,18 @@ let testTraceIDsOfTlidsMatch =
 //     // store an event
 //     let t1 = AT.TraceID.create()
 //     let desc = ("HTTP", requestPath, "GET")
-//     let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
+//     let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DStr "1")
 
 //     // check we get back the path for a route with a variable in it
-//     let! events = TI.loadEvents c.meta.id ("HTTP", route, "GET")
+//     let! events = TI.loadEvents c.id ("HTTP", route, "GET")
 
 //     Expect.equal [] events ""
 //   }
 
 let testTraceRoundtrip =
   testTask "test stored events can be roundtripped" {
-    let! (meta1 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped1"
-    let! (meta2 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped2"
-    let c1 = meta1.id
-    let c2 = meta2.id
+    let! (c1 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped1"
+    let! (c2 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped2"
 
     let t1 = AT.TraceID.create ()
     do! Task.Delay(2) // make sure of ordering with t1 and t2
@@ -270,7 +266,7 @@ let testTraceRoundtrip =
 // let testFunctionTracesAreStored =
 //   testTask "function traces are stored" {
 //     // set up canvas, user fn
-//     let! (meta : Canvas.Meta) =
+//     let! (canvasID : CanvasID) =
 //       initializeTestCanvas "test-function-traces-are-stored"
 
 //     let (userFn : RT.UserFunction.T) =
@@ -283,9 +279,7 @@ let testTraceRoundtrip =
 //         body = Parser.parseRTExpr "DB.generateKey" }
 
 //     let program =
-//       { canvasID = meta.id
-//         canvasName = meta.name
-//         accountID = meta.owner
+//       { canvasID = canvasID
 //         dbs = Map.empty
 //         userFns = Map.singleton userFn.name userFn
 //         userTypes = Map.empty
@@ -311,7 +305,7 @@ let testTraceRoundtrip =
 //     // check for traces - they're saved in the background so wait for them
 //     let rec getValue (count : int) =
 //       task {
-//         let! result = TFR.load meta.id traceID callerTLID
+//         let! result = TFR.load canvasID traceID callerTLID
 //         if result = [] && count < 10 then
 //           do! Task.Delay 1000
 //           return! getValue (count + 1)
@@ -325,7 +319,7 @@ let testTraceRoundtrip =
 //       1
 //       "one function was called by the 'caller'"
 
-//     let! dbGenerateResult = TFR.load meta.id traceID userFn.tlid
+//     let! dbGenerateResult = TFR.load canvasID traceID userFn.tlid
 //     Expect.equal
 //       (List.length dbGenerateResult)
 //       1
@@ -335,15 +329,13 @@ let testTraceRoundtrip =
 // let testErrorTracesAreStored =
 //   testTask "error traces are stored" {
 //     // set up canvas, user fn
-//     let! (meta : Canvas.Meta) =
+//     let! (canvasID : CanvasID) =
 //       initializeTestCanvas "test-error-traces-are-stored"
 
 //     let (db : DB.T) = { tlid = gid (); name = "MyDB"; cols = []; version = 0 }
 
 //     let program =
-//       { canvasID = meta.id
-//         canvasName = meta.name
-//         accountID = meta.owner
+//       { canvasID = canvasID
 //         dbs = Map [ "MyDB", db ]
 //         userFns = Map.empty
 //         userTypes = Map.empty
@@ -352,7 +344,7 @@ let testTraceRoundtrip =
 //     // call the user fn, which should result in a trace being stored
 //     let traceID = AT.TraceID.create()
 
-//     let tracer = Tracing.createStandardTracer meta.id traceID
+//     let tracer = Tracing.createStandardTracer canvasID traceID
 //     let! state =
 //       RealExecution.createState traceID (gid ()) program tracer.executionTracing
 
@@ -363,10 +355,10 @@ let testTraceRoundtrip =
 
 //     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-//     do! Tracing.Test.saveTraceResult meta.id traceID tracer.results
+//     do! Tracing.Test.saveTraceResult canvasID traceID tracer.results
 
 //     // check for traces
-//     let! testFnResult = TFR.load meta.id traceID state.tlid
+//     let! testFnResult = TFR.load canvasID traceID state.tlid
 //     Expect.equal
 //       (List.length testFnResult)
 //       1
