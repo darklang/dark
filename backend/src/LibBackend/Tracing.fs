@@ -258,14 +258,14 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (c : Canvas.Meta) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  let config = TracingConfig.forHandler c.id rootTLID traceID
+let create (canvasID : CanvasID) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
+  let config = TracingConfig.forHandler canvasID rootTLID traceID
   match config with
-  | TracingConfig.DoTrace -> createStandardTracer c.id traceID
-  | TracingConfig.TraceWithTelemetry -> createTelemetryTracer c.id traceID
-  | TracingConfig.DontTrace -> createNonTracer c.id traceID
+  | TracingConfig.DoTrace -> createStandardTracer canvasID traceID
+  | TracingConfig.TraceWithTelemetry -> createTelemetryTracer canvasID traceID
+  | TracingConfig.DontTrace -> createNonTracer canvasID traceID
   | TracingConfig.TraceToCloudStorage ->
-    createCloudStorageTracer c.id rootTLID traceID
+    createCloudStorageTracer canvasID rootTLID traceID
 
 module Test =
   let saveTraceResult

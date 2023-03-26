@@ -41,15 +41,15 @@ let testTraceIDsOfTlidsMatch =
 let testFilterSlash =
   testTask "test that a request which doesnt match doesnt end up in the traces" {
     // set up handler with route param
-    let! meta = initializeTestCanvas "test-filter_slash"
+    let! canvasID = initializeTestCanvas "test-filter_slash"
     let route = "/:rest"
     let handler = testHttpRouteHandler route "GET" (PT.EUnit 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs canvasID [ PT.Toplevel.TLHandler handler ]
 
     // make irrelevant request
     let t1 = AT.TraceID.create ()
     let desc = ("HTTP", "/", "GET")
-    let! (_d : NodaTime.Instant) = TI.storeEvent meta.id t1 desc (DStr "1")
+    let! (_d : NodaTime.Instant) = TI.storeEvent canvasID t1 desc (DStr "1")
 
     // load+check irrelevant trace
     let! loaded = Traces.traceIDsForHttpHandler c handler
@@ -61,21 +61,21 @@ let testFilterSlash =
 
 let testRouteVariablesWorkWithStoredEvents =
   testTask "route variables work with stored events" {
-    let! meta = initializeTestCanvas "route_variables_works"
+    let! canvasID = initializeTestCanvas "route_variables_works"
 
     // set up handler
     let httpRoute = "/some/:vars/:and/such"
     let handler = testHttpRouteHandler httpRoute "GET" (PT.EUnit 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs canvasID [ PT.Toplevel.TLHandler handler ]
 
     // store an event that matches the handler
     let t1 = AT.TraceID.create ()
     let httpRequestPath = "/some/vars/and/such"
     let desc = ("HTTP_BASIC", httpRequestPath, "GET")
-    let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
+    let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DStr "1")
 
     // check we get back the data we put into it
-    let! events = TI.loadEvents c.meta.id ("HTTP_BASIC", httpRoute, "GET")
+    let! events = TI.loadEvents c.id ("HTTP_BASIC", httpRoute, "GET")
 
     let (loadedPaths, loadedDvals) =
       events
@@ -86,14 +86,14 @@ let testRouteVariablesWorkWithStoredEvents =
     Expect.equal loadedDvals [ (DStr "1") ] "data is the same"
 
     // check that the event is not in the 404s
-    let! f404s = TI.getRecent404s c.meta.id
+    let! f404s = TI.getRecent404s c.id
     Expect.equal [] f404s "no 404s"
   }
 
 
 let testRouteVariablesWorkWithTraceInputsAndWildcards =
   testTask "route variables work with trace inputs and wildcards" {
-    let! meta = initializeTestCanvas "route_variables_works_with_withcards"
+    let! canvasID = initializeTestCanvas "route_variables_works_with_withcards"
 
     // '_' is the "wildcard" here, and the '-' matches the wildcard.
     // '-' could equally well be '!' or 'Z' or '🇨🇭' or "-matcheswildcard-"
@@ -102,27 +102,23 @@ let testRouteVariablesWorkWithTraceInputsAndWildcards =
 
     // set up handler
     let handler = testHttpRouteHandler route "GET" (PT.EUnit 0UL)
-    let! (c : Canvas.T) = canvasForTLs meta [ PT.Toplevel.TLHandler handler ]
+    let! (c : Canvas.T) = canvasForTLs canvasID [ PT.Toplevel.TLHandler handler ]
 
     // store an event
     let t1 = AT.TraceID.create ()
     let desc = ("HTTP", requestPath, "GET")
-    let! (_ : NodaTime.Instant) = TI.storeEvent c.meta.id t1 desc (DStr "1")
+    let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DStr "1")
 
     // check we get back the path for a route with a variable in it
-    let! events = TI.loadEvents c.meta.id ("HTTP", route, "GET")
+    let! events = TI.loadEvents c.id ("HTTP", route, "GET")
 
     Expect.equal [] events ""
   }
 
 let testStoredEventRoundtrip =
   testTask "test stored events can be roundtripped" {
-    let! (meta1 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped1"
-    let! (meta2 : Canvas.Meta) =
-      initializeTestCanvas "stored_events_can_be_roundtripped2"
-    let id1 = meta1.id
-    let id2 = meta2.id
+    let! (id1 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped1"
+    let! (id2 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped2"
 
     let t1 = AT.TraceID.create ()
     let t2 = AT.TraceID.create ()
@@ -206,7 +202,7 @@ let testTraceDataJsonFormatRedactsPasswords =
 let testFunctionTracesAreStored =
   testTask "function traces are stored" {
     // set up canvas, user fn
-    let! (meta : Canvas.Meta) =
+    let! (canvasID : CanvasID) =
       initializeTestCanvas "test-function-traces-are-stored"
 
     let (userFn : RT.UserFunction.T) =
@@ -220,7 +216,7 @@ let testFunctionTracesAreStored =
         body = Parser.parseRTExpr "DB.generateKey" }
 
     let program =
-      { canvasID = meta.id
+      { canvasID = canvasID
         internalFnsAllowed = false
         dbs = Map.empty
         userFns = Map.singleton userFn.name userFn
@@ -237,7 +233,7 @@ let testFunctionTracesAreStored =
     // call the user fn, which should result in a trace being stored
     let! (_, _) =
       RealExecution.reexecuteFunction
-        meta
+        canvasID
         program
         callerTLID
         callerID
@@ -250,7 +246,7 @@ let testFunctionTracesAreStored =
     // check for traces - they're saved in the background so wait for them
     let rec getValue (count : int) =
       task {
-        let! result = TFR.load meta.id traceID callerTLID
+        let! result = TFR.load canvasID traceID callerTLID
         if result = [] && count < 10 then
           do! Task.Delay 1000
           return! getValue (count + 1)
@@ -264,7 +260,7 @@ let testFunctionTracesAreStored =
       1
       "one function was called by the 'caller'"
 
-    let! dbGenerateResult = TFR.load meta.id traceID userFn.tlid
+    let! dbGenerateResult = TFR.load canvasID traceID userFn.tlid
     Expect.equal
       (List.length dbGenerateResult)
       1
@@ -274,12 +270,12 @@ let testFunctionTracesAreStored =
 let testErrorTracesAreStored =
   testTask "error traces are stored" {
     // set up canvas, user fn
-    let! (meta : Canvas.Meta) = initializeTestCanvas "test-error-traces-are-stored"
+    let! (canvasID : CanvasID) = initializeTestCanvas "test-error-traces-are-stored"
 
     let (db : DB.T) = { tlid = gid (); name = "MyDB"; cols = []; version = 0 }
 
     let program =
-      { canvasID = meta.id
+      { canvasID = canvasID
         internalFnsAllowed = false
         dbs = Map [ "MyDB", db ]
         userFns = Map.empty
@@ -289,7 +285,7 @@ let testErrorTracesAreStored =
     // call the user fn, which should result in a trace being stored
     let traceID = AT.TraceID.create ()
 
-    let tracer = Tracing.createStandardTracer meta.id traceID
+    let tracer = Tracing.createStandardTracer canvasID traceID
     let! state =
       RealExecution.createState traceID (gid ()) program tracer.executionTracing
 
@@ -300,10 +296,10 @@ let testErrorTracesAreStored =
 
     let! (_ : Dval) = LibExecution.Execution.executeExpr state Map.empty ast
 
-    do! Tracing.Test.saveTraceResult meta.id traceID tracer.results
+    do! Tracing.Test.saveTraceResult canvasID traceID tracer.results
 
     // check for traces
-    let! testFnResult = TFR.load meta.id traceID state.tlid
+    let! testFnResult = TFR.load canvasID traceID state.tlid
     Expect.equal
       (List.length testFnResult)
       1

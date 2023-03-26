@@ -405,7 +405,6 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 // -------------------------
 let statsPluck
   (canvasID : CanvasID)
-  (ownerID : UserID)
   (db : RT.DB.T)
   : Task<Option<RT.Dval * string>> =
   task {
@@ -428,7 +427,7 @@ let statsPluck
     return result |> Option.map (fun (data, key) -> (toObj db data, key))
   }
 
-let statsCount (canvasID : CanvasID) (ownerID : UserID) (db : RT.DB.T) : Task<int> =
+let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*)
      FROM user_data_v0

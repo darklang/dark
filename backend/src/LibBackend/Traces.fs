@@ -138,7 +138,7 @@ let traceIDsForHttpHandler
   task {
     match PTParser.Handler.Spec.toEventDesc h.spec with
     | Some desc ->
-      let! events = TraceInputs.loadEventIDs c.meta.id desc
+      let! events = TraceInputs.loadEventIDs c.id desc
 
       return
         events

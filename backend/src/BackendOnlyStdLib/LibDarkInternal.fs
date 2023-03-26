@@ -541,10 +541,9 @@ human-readable data."
         internalFn (function
           | _, _, [ DUuid canvasID; DInt tlid ] ->
             uply {
-              let! meta = Canvas.getMetaFromID canvasID
               let tlid = uint64 tlid
               let! c =
-                Canvas.loadFrom Serialize.IncludeDeletedToplevels meta [ tlid ]
+                Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasID [ tlid ]
               if Map.containsKey tlid c.deletedHandlers
                  || Map.containsKey tlid c.deletedDBs
                  || Map.containsKey tlid c.deletedUserTypes
@@ -697,10 +696,10 @@ human-readable data."
       description = "Creates a new canvas"
       fn =
         internalFn (function
-          | state, _, [ DUuid owner; DStr name ] ->
+          | _, _, [ DUuid owner; DStr name ] ->
             uply {
-              let! meta = Canvas.create owner name
-              return DUuid meta.id
+              let! canvasID = Canvas.create owner name
+              return DUuid canvasID
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -736,8 +735,7 @@ human-readable data."
         internalFn (function
           | _, _, [ DUuid canvasID ] ->
             uply {
-              let! meta = Canvas.getMetaFromID canvasID
-              let! canvas = Canvas.loadAll meta
+              let! canvas = Canvas.loadAll canvasID
 
               let dbs =
                 Map.values canvas.dbs

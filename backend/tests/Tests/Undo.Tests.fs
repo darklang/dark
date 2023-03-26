@@ -86,7 +86,7 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     let nameID = gid ()
     let dbID2 = gid ()
     let nameID2 = gid ()
-    let! meta = createTestCanvas "undo-verification"
+    let canvasID = System.Guid.NewGuid()
 
     let ops1 =
       [ PT.CreateDBWithBlankOr(dbID, nameID, "Books")
@@ -94,10 +94,10 @@ let testCanvasVerificationUndoRenameDupedName : Test =
         PT.DeleteTL dbID
         PT.CreateDBWithBlankOr(dbID2, nameID2, "Books") ]
 
-    Canvas.fromOplist meta [] ops1 |> ignore<Canvas.T>
+    Canvas.fromOplist canvasID [] ops1 |> ignore<Canvas.T>
 
     try
-      Canvas.fromOplist meta ops1 [ PT.UndoTL dbID ] |> ignore<Canvas.T>
+      Canvas.fromOplist canvasID ops1 [ PT.UndoTL dbID ] |> ignore<Canvas.T>
       Expect.isFalse true "should fail to verify"
     with
     | _ ->

@@ -30,8 +30,8 @@ let executionStateForPreview
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
-    let! meta = createTestCanvas name
-    let! state = executionStateFor meta false dbs fns
+    let canvasID = System.Guid.NewGuid()
+    let! state = executionStateFor canvasID false dbs fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =

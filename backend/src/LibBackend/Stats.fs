@@ -22,9 +22,6 @@ type DBStat = { count : int; example : Option<RT.Dval * string> }
 type DBStats = Map<tlid, DBStat>
 
 let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
-  let canvasID = c.meta.id
-  let ownerID = c.meta.owner
-
   tlids
   |> List.filterMap (fun tlid ->
     Map.get tlid c.dbs |> Option.map (fun db -> (tlid, db)))
@@ -32,8 +29,8 @@ let dbStats (c : Canvas.T) (tlids : tlid list) : Task<DBStats> =
     task {
       let db = PT2RT.DB.toRT db
       // CLEANUP this is a lot of DB requests (2 per user DB)
-      let! count = UserDB.statsCount canvasID ownerID db
-      let! example = UserDB.statsPluck canvasID ownerID db
+      let! count = UserDB.statsCount c.id db
+      let! example = UserDB.statsPluck c.id db
       return (tlid, { count = count; example = example })
     })
   |> Task.flatten

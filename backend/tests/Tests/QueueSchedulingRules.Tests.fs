@@ -28,7 +28,7 @@ let p (code : string) = Parser.parsePTExpr code
 
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
-    let! meta = initializeTestCanvas "worker-schedules"
+    let! canvasID = initializeTestCanvas "worker-schedules"
 
     let apple = testWorker "apple" (p "1")
     let banana = testWorker "banana" (p "1")
@@ -38,12 +38,12 @@ let testGetWorkerSchedulesForCanvas =
       ([ apple; banana; cherry ]
        |> List.map (fun h ->
          (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
-       |> Canvas.saveTLIDs meta)
+       |> Canvas.saveTLIDs canvasID)
 
-    do! EQ2.pauseWorker meta.id "apple"
-    do! EQ2.pauseWorker meta.id "banana"
-    do! EQ2.blockWorker meta.id "banana"
-    let! result = SR.getWorkerSchedules meta.id
+    do! EQ2.pauseWorker canvasID "apple"
+    do! EQ2.pauseWorker canvasID "banana"
+    do! EQ2.blockWorker canvasID "banana"
+    let! result = SR.getWorkerSchedules canvasID
 
     let check (name : string) (value : SR.WorkerStates.State) =
       let actual =
