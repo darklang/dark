@@ -60,10 +60,11 @@ let main (args : string []) =
           | Some (Legivel.Serialization.Success s) -> s.Data
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
-        let canvasName = "dark-editor"
+        // Create the canvas - expect this to be empty
+        let domain = "dark-editor.dlio.localhost"
+        let canvasID = LibBackend.Config.allowedDarkInternalCanvasID
         let! ownerID = LibBackend.Account.createUser ()
-        // CLEANUP: use the CanvasID from Config.allowedDarkInternalCanvasIDs
-        let! c = LibBackend.Canvas.create ownerID canvasName
+        do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
         // For each of the handlers defined in `config.yml`,
         // produce a set of Ops to add.
@@ -94,7 +95,7 @@ let main (args : string []) =
 
         let ops = List.collect identity createHttpHandlerOps
 
-        let canvasWithTopLevels = C.fromOplist c [] ops
+        let canvasWithTopLevels = C.fromOplist canvasID [] ops
 
         let oplists =
           ops
@@ -104,7 +105,7 @@ let main (args : string []) =
             | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
             | None -> None)
 
-        do! C.saveTLIDs c oplists
+        do! C.saveTLIDs canvasID oplists
 
       | [| CommandNames.export |] ->
         // Find the canvas
