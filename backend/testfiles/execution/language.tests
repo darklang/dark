@@ -237,6 +237,26 @@ module Pipes =
   |> x
   |> (+) 3)) = 10
 
+  // check typing
+  (51
+  |> 57
+  |> 34.2
+  |> (+) 23) = Test.typeError_v0 "Expected a function value, got something else: 34.2"
+
+  ((4,3)
+  |> Tuple2.first
+  |> (+) 3) = 7
+
+  ((1,3)
+  |> Tuple2.first
+  |> (2,2)
+  |> (+) 3) = Test.typeError_v0 "Expected a function value, got something else: (\n  2, 2\n)"
+
+  ((1,3)
+  |> Tuple2.first
+  |> (2,2)
+  |> "wrong"
+  |> (+) 3) = Test.typeError_v0 @"Expected a function value, got something else: ""wrong"""
 
 module Match =
   (match 6 with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = "pass"

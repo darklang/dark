@@ -21,7 +21,9 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
-  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
+  | EPipe (id, expr1, expr2, exprs) ->
+    let p = Pipe.toExpr >> f >> Pipe.toPipeExpr
+    EPipe(id, f expr1, p expr2, List.map p exprs)
   | EFnCall (id, name, typeArgs, exprs) ->
     EFnCall(id, name, typeArgs, List.map f exprs)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)

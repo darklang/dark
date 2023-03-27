@@ -20,6 +20,9 @@ let placeholder = PT.EString(12345678UL, [ PT.StringText "PLACEHOLDER VALUE" ])
 let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
 
+let (|PipePlaceholder|_|) (input : PT.PipeExpr) =
+  if input = PT.Pipe.toPipeExpr placeholder then Some() else None
+
 module DType =
   let rec fromNameAndTypeArgs
     availableTypes
@@ -199,6 +202,8 @@ module Expr =
       | PT.EInfix (id, op, arg1, Placeholder) ->
         PT.EInfix(id, op, PT.EPipeTarget(gid ()), arg1)
       | other -> other
+
+    let cPlusPipeTarget' = cPlusPipeTarget >> PT.Pipe.toPipeExpr
 
     let id = gid ()
 
@@ -489,16 +494,16 @@ module Expr =
                    SynExpr.App (_, _, nestedPipes, arg, _),
                    _) when pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
-      | PT.EPipe (id, arg1, Placeholder, []) ->
+      | PT.EPipe (id, arg1, PipePlaceholder, []) ->
         // when we just built the lowest, the second one goes here
-        PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
+        PT.EPipe(id, arg1, cPlusPipeTarget' arg, [])
       | PT.EPipe (id, arg1, arg2, rest) ->
-        PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+        PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget' arg ])
       // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       | other ->
         // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
         // the very bottom on the pipe chain, this is the first and second expressions
-        PT.EPipe(id, other, cPlusPipeTarget arg, [])
+        PT.EPipe(id, other, cPlusPipeTarget' arg, [])
 
     | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _)
     | SynExpr.App (_,
@@ -507,7 +512,10 @@ module Expr =
                    expr,
                    _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
-      PT.EPipe(id, c expr, placeholder, [])
+      PT.EPipe(id,
+      c expr,
+      placeholder |> PT.Pipe.toPipeExpr,
+      [])
 
 
     // Enum values (EConstructors)
@@ -544,11 +552,11 @@ module Expr =
       | PT.EFeatureFlag (id, label, condexpr, oldexpr, Placeholder) ->
         PT.EFeatureFlag(id, label, condexpr, oldexpr, c arg)
       // A pipe with one entry
-      | PT.EPipe (id, arg1, Placeholder, []) ->
-        PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
+      | PT.EPipe (id, arg1, PipePlaceholder, []) ->
+        PT.EPipe(id, arg1, cPlusPipeTarget' arg, [])
       // A pipe with more than one entry
       | PT.EPipe (id, arg1, arg2, rest) ->
-        PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+        PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget' arg ])
       | PT.EVariable (id, name) ->
         if Set.contains name PT.FQFnName.oneWordFunctions then
           let (name, version) = parseFn name

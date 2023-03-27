@@ -162,7 +162,8 @@ module Expr =
         List.map (Tuple2.mapSecond toPT) fields
       )
     | ST.EPipe (pipeID, expr1, expr2, rest) ->
-      PT.EPipe(pipeID, toPT expr1, toPT expr2, List.map toPT rest)
+      let toPT' = ST.Pipe.toExpr >> toPT >> PT.Pipe.toPipeExpr
+      PT.EPipe(pipeID, toPT expr1, toPT' expr2, List.map toPT' rest)
     | ST.EConstructor (id, typeName, caseName, exprs) ->
       PT.EConstructor(
         id,

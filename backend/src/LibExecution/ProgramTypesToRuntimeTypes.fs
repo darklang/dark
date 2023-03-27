@@ -171,8 +171,9 @@ module Expr =
       // into fn3 (fn2 (fn1 v a)) b c
       // This conversion should correspond to ast.ml:inject_param_and_execute
       // from the OCaml interpreter
-      let inner = toRT expr1
-
+      let inner = expr1 |> toRT
+      let expr2' =  PT.Pipe.toExpr expr2
+      let rest' = List.map PT.Pipe.toExpr rest
       List.fold
         inner
         (fun prev next ->
@@ -218,7 +219,7 @@ module Expr =
               )
           convert next)
 
-        (expr2 :: rest)
+        (expr2' :: rest')
 
     | PT.EMatch (id, mexpr, pairs) ->
       RT.EMatch(

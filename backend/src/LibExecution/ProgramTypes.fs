@@ -218,8 +218,7 @@ type Expr =
   | EFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | EPipe of id * Expr * Expr * List<Expr>
-
+  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
 
   // Constructors include `Just`, `Nothing`, `Error`, `Ok`, as well
@@ -260,6 +259,19 @@ type Expr =
     cond : Expr *
     caseA : Expr *
     caseB : Expr
+
+and PipeExpr =
+  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeInfix of id * Infix * Expr * Expr
+  | EPipeFnCall of id *
+    FQFnName.T *
+    typeArgs : List<DType> *
+    args : List<Expr>
+  | EPipeConstructor of id *
+    typeName : Option<FQTypeName.T> *
+    caseName : string *
+    fields : List<Expr>
+  | EPipeForbiddenExpr of Expr
 
 and StringSegment =
   | StringText of string
@@ -346,6 +358,25 @@ module Toplevel =
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
 
+module Pipe =
+  /// Convert Regular Expr to PipeExpr
+  let toPipeExpr (expr: Expr): PipeExpr  =
+    match expr with
+    | ELambda(id, lid, expr) -> EPipeLambda (id, lid, expr)
+    | EInfix (id, infix, expr1, expr2) -> EPipeInfix (id, infix, expr1, expr2)
+    | EFnCall (id, fQFnName, ltypeArgs, args) -> EPipeFnCall (id, fQFnName, ltypeArgs, args)
+    | EConstructor (id,typeName,caseName,fields) -> EPipeConstructor (id,typeName,caseName,fields)
+    | exp -> EPipeForbiddenExpr exp
+
+
+  /// Convert PipeExpr to Regular Expr
+  let toExpr (expr: PipeExpr): Expr =
+    match expr with
+    | EPipeLambda(id, lid, expr) -> ELambda (id, lid, expr)
+    | EPipeInfix (id, infix, expr1, expr2) -> EInfix (id, infix, expr1, expr2)
+    | EPipeFnCall (id, fQFnName, ltypeArgs, args) -> EFnCall (id, fQFnName, ltypeArgs, args)
+    | EPipeConstructor (id,typeName,caseName,fields) -> EConstructor (id,typeName,caseName,fields)
+    | EPipeForbiddenExpr exp -> exp
 
 /// An Operation on a Canvas
 ///

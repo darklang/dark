@@ -302,7 +302,7 @@ module ProgramTypes =
                              PT.EPipe(
                                786862131UL,
                                PT.EInteger(555880460UL, 5L),
-                               PT.EInfix(
+                               PT.EPipeInfix(
                                  1021880969UL,
                                  PT.InfixFnCall(PT.ArithmeticPlus),
                                  PT.EPipeTarget 936577032UL,
