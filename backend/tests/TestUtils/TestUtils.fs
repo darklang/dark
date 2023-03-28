@@ -119,8 +119,6 @@ let testUserRecordType
 
 
 
-let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
-
 let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
 
@@ -226,7 +224,7 @@ let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas
 
         let op =
           match tl with
-          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, h)
+          | PT.Toplevel.TLHandler h -> PT.SetHandler h
           | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
 
         (tlid, [ op ], tl, Canvas.NotDeleted))

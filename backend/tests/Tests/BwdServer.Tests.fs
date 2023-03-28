@@ -210,10 +210,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
 
         let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 
-        (h.tlid,
-         [ PT.SetHandler(h.tlid, h) ],
-         PT.Toplevel.TLHandler h,
-         Canvas.NotDeleted))
+        (h.tlid, [ PT.SetHandler h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
 
     do! Canvas.saveTLIDs canvasID oplists
 

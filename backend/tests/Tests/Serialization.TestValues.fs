@@ -604,7 +604,7 @@ module ProgramTypes =
   let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(Handler.http.tlid, Handler.http)
+    [ PT.SetHandler(Handler.http)
       PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")

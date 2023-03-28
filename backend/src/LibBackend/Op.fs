@@ -85,7 +85,7 @@ let hasEffect (op : PT.Op) : bool =
 
 let tlidOf (op : PT.Op) : tlid =
   match op with
-  | PT.SetHandler (tlid, _) -> tlid
+  | PT.SetHandler h -> h.tlid
   | PT.CreateDB (tlid, _) -> tlid
   | PT.AddDBCol (tlid, _, _) -> tlid
   | PT.SetDBColName (tlid, _, _) -> tlid
@@ -117,7 +117,7 @@ let astOf (op : PT.Op) : PT.Expr option =
   match op with
   | PT.SetFunction f -> Some f.body
   | PT.SetExpr (_, _, ast) -> Some ast
-  | PT.SetHandler (_, h) -> Some h.ast
+  | PT.SetHandler (h) -> Some h.ast
   | PT.CreateDB (_, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)
@@ -140,8 +140,7 @@ let withAST (newAST : PT.Expr) (op : PT.Op) =
   match op with
   | PT.SetFunction userfn -> PT.SetFunction { userfn with body = newAST }
   | PT.SetExpr (tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
-  | PT.SetHandler (tlid, handler) ->
-    PT.SetHandler(tlid, { handler with ast = newAST })
+  | PT.SetHandler (handler) -> PT.SetHandler({ handler with ast = newAST })
   | PT.CreateDB (_, _)
   | PT.AddDBCol (_, _, _)
   | PT.SetDBColName (_, _, _)

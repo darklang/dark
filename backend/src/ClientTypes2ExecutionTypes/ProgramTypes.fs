@@ -564,8 +564,7 @@ module Op =
 
   let fromCT (op : CTPT.Op) : PT.Op =
     match op with
-    | CTPT.Op.SetHandler (tlid, handler) ->
-      PT.Op.SetHandler(tlid, Handler.fromCT handler)
+    | CTPT.Op.SetHandler (handler) -> PT.Op.SetHandler(Handler.fromCT handler)
     | CTPT.Op.CreateDB (tlid, name) -> PT.Op.CreateDB(tlid, name)
     | CTPT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       PT.Op.AddDBCol(dbid, colNameID, colTypeID)
@@ -591,8 +590,7 @@ module Op =
 
   let toCT (op : PT.Op) : CTPT.Op =
     match op with
-    | PT.Op.SetHandler (tlid, handler) ->
-      CTPT.Op.SetHandler(tlid, Handler.toCT handler)
+    | PT.Op.SetHandler (handler) -> CTPT.Op.SetHandler(Handler.toCT handler)
     | PT.Op.CreateDB (tlid, name) -> CTPT.Op.CreateDB(tlid, name)
     | PT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       CTPT.Op.AddDBCol(dbid, colNameID, colTypeID)
