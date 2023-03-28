@@ -217,27 +217,35 @@ Json.serialize<UUID> "" = Error "Can't currently serialize this type/value combi
 
 
 // ## Nested types (lists, tuples, records, etc.)
+// TODO: demonstrate _more_ nesting
 
 // Lists
 Json.serialize<List<int>> [] = Ok "[]"
 Json.parse<List<int>> "[]" = Ok []
 Json.serialize<List<int>> [1, 2, 3] = Ok "[1,2,3]"
 Json.parse<List<int>> "[1,2,3]" = Ok [1, 2, 3]
+Json.serialize<List<List<List<int>>>> [[[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 0]]] = Ok "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]"
+Json.parse<List<List<List<int>>>> "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]" = Ok [[[1,2,3],[4,5,6]],[[7,8],[9,0]]]
 
 // not proper lists
 Json.serialize<List<int>> [1, 2, "three"] = Error "Can't currently serialize this type/value combination"
 Json.parse<List<int>> "[1, 2, \"three\"]" = Error "Can't currently parse this type/value combination"
 Json.parse<List<int>> "[1, 2, ]" = Error "not JSON"
+//Json.serialize<List<List<List<int>>>> [[[1, 2, 3], [4, 5.5, 6]], [[7, 8], [9, 0]]] = Error "Can't currently parse this type/value combination"
+//Json.parse<List<List<List<int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Error "Can't currently parse this type/value combination"
 
 
 // Tuples
 Json.serialize<Tuple<int, string, int>> (1, "two", 3) = Ok "[1,\"two\",3]"
 Json.parse<Tuple<int, string, int>> "[1,\"two\",3]" = Ok (1, "two", 3)
 // TODO: more...
+// TODO: more nesting...
 
 // not proper tuples
 Json.parse<Tuple<string, string, int>> """[1, "two", 3]""" = Error "Can't currently parse this type/value combination"
 // TODO: more...
+// TODO: issues at a few levels deep
+
 
 // Options
 Json.serialize<Option<int>> Nothing = Ok "{\"Nothing\":null}"
@@ -247,16 +255,30 @@ Json.parse<Option<int>> "{\"Just\":1}" = Ok (Just 1)
 // TODO: more...
 
 
-// TODO: Dicts
-// TODO: Results
+// Results
+Json.serialize<Result<int, string>> (Ok 1) = Ok "{\"Ok\":1}"
+Json.serialize<Result<int, string>> (Error "err message") = Ok "{\"Error\":\"err message\"}"
+Json.parse<Result<int, string>> "{\"Ok\":1}" = Ok (Ok 1)
+Json.parse<Result<int, string>> "{\"Error\":\"err message\"}" = Ok (Error "err message")
+// TODO: more...
+// TODO: more nesting...
 
-// Unsupported stuff
-// TDB
-// TFn
-// TError
-// TIncomplete
-// THttpResponse
 
+// re: Dicts
+// we don't really have a reasonable way to fill in the <> here:
+// Json.parse<???>
+// so let's ignore them for now, and focus on Records defined as "Custom types"
+
+
+// Unsupported stuff:
+// - TDB
+// - TFn
+// - TError
+// - TIncomplete
+// - THttpResponse
+// None of these are supported as <> type args in the parser,
+// so do we really have to do anything here?
+// It feels like a "no" to me - ignoring for now.
 
 
 // ## Custom types

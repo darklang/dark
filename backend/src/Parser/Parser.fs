@@ -43,6 +43,8 @@ module DType =
     // with type args
     | "List", [ arg ] -> PT.TList(fromSynType arg)
     | "Option", [ arg ] -> PT.TOption(fromSynType arg)
+    | "Result", [ okArg; errorArg ] ->
+      PT.TResult(fromSynType okArg, fromSynType errorArg)
     | "Tuple", first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
 
@@ -59,7 +61,10 @@ module DType =
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
       match matchingCustomTypes with
-      | [] -> PT.TVariable(name) // TODO: maybe only do this if the name starts with `'`?
+      | [] ->
+        // TODO: maybe only do this if the name starts with `'`?
+        // Otherwise, it can lead to confusing results when trying to test code
+        PT.TVariable(name)
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
