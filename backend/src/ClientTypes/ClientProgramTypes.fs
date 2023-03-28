@@ -203,7 +203,7 @@ type Toplevel =
   | TLType of UserType.T
 
 type Op =
-  | SetHandler of tlid * Handler.T
+  | SetHandler of Handler.T
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string

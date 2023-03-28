@@ -21,8 +21,6 @@ module Account = LibBackend.Account
 
 let parse = Parser.parsePTExpr
 
-let hop (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
-
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
     let! canvasID = initializeTestCanvas "db_oplist_roundtrip"
@@ -45,7 +43,7 @@ let testHttpOplistRoundtrip =
     let! canvasID = initializeTestCanvas "http_oplist_roundtrip"
 
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
-    let oplist = [ hop handler ]
+    let oplist = [ PT.SetHandler handler ]
     do!
       Canvas.saveTLIDs
         canvasID
@@ -71,7 +69,7 @@ let testHttpOplistLoadsUserTypes =
       Canvas.saveTLIDs
         canvasID
         [ (handler.tlid,
-           [ hop handler ],
+           [ PT.SetHandler handler ],
            PT.Toplevel.TLHandler handler,
            Canvas.NotDeleted)
           (typ.tlid, [ PT.SetType typ ], PT.Toplevel.TLType typ, Canvas.NotDeleted) ]
@@ -92,7 +90,7 @@ let testUndoTooFarDoesntBreak =
       Canvas.saveTLIDs
         canvasID
         [ (handler.tlid,
-           [ hop handler
+           [ PT.SetHandler handler
              PT.UndoTL handler.tlid
              PT.UndoTL handler.tlid
              PT.UndoTL handler.tlid ],
@@ -141,7 +139,7 @@ let testHttpLoadIgnoresDeletedHandler =
       Canvas.saveTLIDs
         canvasID
         [ (handler.tlid,
-           [ hop handler; PT.DeleteTL handler.tlid ],
+           [ PT.SetHandler handler; PT.DeleteTL handler.tlid ],
            PT.Toplevel.TLHandler handler,
            Canvas.Deleted) ]
 
@@ -185,7 +183,7 @@ let testHttpLoadIgnoresDeletedFns =
       Canvas.saveTLIDs
         canvasID
         [ (handler.tlid,
-           [ hop handler ],
+           [ PT.SetHandler handler ],
            PT.Toplevel.TLHandler handler,
            Canvas.NotDeleted)
           (f.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted) ]
@@ -262,9 +260,9 @@ let testSetHandlerAfterDelete =
     let e2 = (parse "5 + 2")
     let h1 = testHttpRouteHandler "/path" "GET" e1
     let h2 = testHttpRouteHandler "/path" "GET" e2
-    let op1 = hop h1
+    let op1 = PT.SetHandler h1
     let op2 = PT.DeleteTL h1.tlid
-    let op3 = hop h2
+    let op3 = PT.SetHandler h2
 
     // Just the deleted handler
     do!

@@ -27,3 +27,6 @@ echo "Running canvashack"
 "${EXE}" "${@}"
 
 echo "Finished running canvas hack"
+
+echo -e "\nTo watch what happens on the dark-editor canvas, run:"
+echo "  tail -F rundir/logs/bwdserver.log"

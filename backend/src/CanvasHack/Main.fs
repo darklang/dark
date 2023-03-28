@@ -66,34 +66,34 @@ let main (args : string []) =
         let! ownerID = LibBackend.Account.createUser ()
         do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
-        // For each of the handlers defined in `config.yml`,
-        // produce a set of Ops to add.
-        // TODO: I'm not sure why I can't seem to omit the
-        // `TLSavepoint` or decrease the opCtr and still have this work.
-        let createHttpHandlerOps =
+        // Parse each file, extract the functions and types. The expressions will be
+        // used for handlers according to the config file
+
+        let ops =
           config.HttpHandlers
           |> Map.toList
           |> List.map (fun (name, details) ->
-            let handlerId = gid ()
-            let ast =
-              System.IO.File.ReadAllText $"{baseDir}/{name}.dark"
-              |> Parser.parsePTExpr
+            let modul = Parser.parseModule [] $"{baseDir}/{name}.dark"
 
-            let handler : PT.Handler.T =
-              { tlid = handlerId
-                ast = ast
-                spec =
-                  PT.Handler.Spec.HTTP(
-                    details.Path,
-                    details.Method,
-                    { moduleID = 129952UL
-                      nameID = 33052UL
-                      modifierID = 10038562UL }
-                  ) }
+            let types = modul.types |> List.map PT.Op.SetType
+            let fns = modul.fns |> List.map PT.Op.SetFunction
+            let handler =
+              match modul.exprs with
+              | [ expr ] ->
+                PT.Op.SetHandler(
+                  { tlid = gid ()
+                    ast = expr
+                    spec =
+                      PT.Handler.Spec.HTTP(
+                        details.Path,
+                        details.Method,
+                        { moduleID = gid (); nameID = gid (); modifierID = gid () }
+                      ) }
+                )
+              | _ -> Exception.raiseCode "expected exactly one expr in file"
 
-            [ PT.Op.TLSavepoint(140418122UL); PT.Op.SetHandler(handlerId, handler) ])
-
-        let ops = List.collect identity createHttpHandlerOps
+            [ PT.Op.TLSavepoint(140418122UL) ] @ types @ fns @ [ handler ])
+          |> List.flatten
 
         let canvasWithTopLevels = C.fromOplist canvasID [] ops
 

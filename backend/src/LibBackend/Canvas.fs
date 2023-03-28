@@ -225,7 +225,7 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
 let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   try
     match op with
-    | PT.SetHandler (_, h) -> setHandler h c
+    | PT.SetHandler h -> setHandler h c
     | PT.CreateDB (tlid, name) ->
       if isNew && name = "" then Exception.raiseEditor "DB must have a name"
       let db = UserDB.create tlid name

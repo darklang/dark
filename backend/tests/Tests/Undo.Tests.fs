@@ -15,7 +15,6 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-let setHandler (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
 
 let handler code = testHttpRouteHandler "" "GET" (Parser.parsePTExpr code)
 
@@ -29,9 +28,9 @@ let testUndoCount : Test =
   test "test undo functions" {
     let tlid = 7UL
     let n1 = PT.TLSavepoint tlid
-    let n2 = setHandler (handler "blank - blank")
-    let n3 = setHandler (handler "blank - 3")
-    let n4 = setHandler (handler "3 - 4")
+    let n2 = PT.SetHandler(handler "blank - blank")
+    let n3 = PT.SetHandler(handler "blank - 3")
+    let n4 = PT.SetHandler(handler "3 - 4")
     let u = PT.UndoTL tlid
     let ops = [ n1; n1; n1; n1; n2; n3; n4; u; u; u ]
     Expect.equal (LibBackend.Undo.undoCount ops tlid) 3 "undocount"
@@ -42,7 +41,7 @@ let testUndo : Test =
   testTask "test undo" {
     let! meta = initializeTestCanvas "undo"
     let tlid = 7UL
-    let ha code = setHandler ({ handler code with tlid = tlid })
+    let ha code = PT.SetHandler({ handler code with tlid = tlid })
     let sp = PT.TLSavepoint tlid
     let u = PT.UndoTL tlid
     let r = PT.RedoTL tlid

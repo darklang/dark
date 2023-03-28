@@ -365,7 +365,7 @@ module Toplevel =
 /// and is preferred throughout code and documentation.
 [<MessagePack.MessagePackObject>]
 type Op =
-  | SetHandler of tlid * Handler.T
+  | SetHandler of Handler.T
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string

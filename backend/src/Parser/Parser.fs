@@ -834,23 +834,28 @@ let convertToTest availableTypes (ast : SynExpr) : Test =
       expected = convert expected }
   | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
-type Module =
+type Module<'expr> =
   { types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
     packageFns : List<PT.Package.Fn>
-    modules : List<string * Module>
-    tests : List<Test> }
+    modules : List<string * Module<'expr>>
+    exprs : List<'expr> }
 
 let emptyModule =
-  { types = []; dbs = []; fns = []; modules = []; tests = []; packageFns = [] }
+  { types = []; dbs = []; fns = []; modules = []; exprs = []; packageFns = [] }
+
+type TestModule = Module<Test>
+
+type TypeDefs =
+  list<LibExecution.ProgramTypes.FQTypeName.T * LibExecution.ProgramTypes.UserType.Definition>
 
 
-
-let parseTestFile
+let parseFile
+  (parseExprFn : TypeDefs -> SynExpr -> 'expr)
   (stdlibTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
   (filename : string)
-  : Module =
+  : Module<'expr> =
   let longIdentToList (li : LongIdent) : List<string> =
     li |> List.map (fun id -> id.idText)
 
@@ -910,10 +915,10 @@ let parseTestFile
     |> List.tryHead
 
   let rec parseModule
-    (parent : Module)
+    (parent : Module<'expr>)
     (attrs : SynAttributes)
     (decls : List<SynModuleDecl>)
-    : Module =
+    : Module<'expr> =
     let package = getPackage attrs
 
     List.fold
@@ -922,7 +927,7 @@ let parseTestFile
         packageFns = parent.packageFns
         dbs = parent.dbs
         modules = []
-        tests = [] }
+        exprs = [] }
       (fun m decl ->
         let availableTypes =
           (m.types @ parent.types)
@@ -948,11 +953,8 @@ let parseTestFile
               types = m.types @ List.concat types
               dbs = m.dbs @ List.concat dbs }
 
-        | SynModuleDecl.Expr (SynExpr.Do (expr, _), _) ->
-          { m with tests = m.tests @ [ convertToTest availableTypes expr ] }
-
         | SynModuleDecl.Expr (expr, _) ->
-          { m with tests = m.tests @ [ convertToTest availableTypes expr ] }
+          { m with exprs = m.exprs @ [ parseExprFn availableTypes expr ] }
 
         | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
                                                         _,
@@ -995,6 +997,14 @@ let parseTestFile
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
       [ "parseTree", results.ParseTree; "input", input; "filename", filename ]
+
+let parseTestFile : List<PT.FQTypeName.T * PT.CustomType.T> -> string -> Module<Test> =
+  parseFile convertToTest
+
+let parseModule : List<PT.FQTypeName.T * PT.CustomType.T>
+  -> string
+  -> Module<PT.Expr> =
+  parseFile Expr.fromSynExpr
 
 
 let parseAsFSharpSourceFile (input : string) : SynExpr =

@@ -36,7 +36,6 @@ let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
       workersWithIDs
       |> List.map (fun (worker, tlid) ->
         PT.SetHandler(
-          tlid,
           { tlid = tlid
             ast = PT.Expr.EUnit(gid ())
             spec =
@@ -181,13 +180,13 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests (moduleName : string) (module' : Parser.Module) =
+    let rec moduleToTests (moduleName : string) (module' : Parser.TestModule) =
 
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) module'.modules
 
       let tests =
-        module'.tests
+        module'.exprs
         |> List.map (fun test ->
           t
             initializeCanvas
