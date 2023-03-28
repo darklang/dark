@@ -1,5 +1,338 @@
-// ## Serialize/parse basic types
+// Basic types
 
-// units
+// Units
 Json.serialize<unit> () = Ok "null"
 Json.parse<unit> "null" = Ok ()
+
+Json.serialize<unit> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<unit> 0 = Error "Can't currently serialize this type/value combination"
+Json.serialize<int> () = Error "Can't currently serialize this type/value combination"
+
+Json.parse<int> "()" = Error "not JSON"
+Json.parse<unit> "0" = Error "Can't currently parse this type/value combination"
+Json.parse<unit> "\"\"" = Error "Can't currently parse this type/value combination"
+Json.parse<unit> "\"null\"" = Error "Can't currently parse this type/value combination"
+
+
+// Bools
+Json.serialize<bool> true = Ok "true"
+Json.serialize<bool> false = Ok "false"
+Json.parse<bool> "true" = Ok true
+Json.parse<bool> "false" = Ok false
+Json.parse<bool> " true " = Ok true
+Json.parse<bool> " false " = Ok false
+Json.parse<List<bool>> "[true, true, false, true  ] " = Ok [true, true, false, true]
+
+Json.serialize<bool> None = Test.typeError "There is no variable named: None"
+Json.serialize<bool> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<bool> 0 = Error "Can't currently serialize this type/value combination"
+Json.serialize<bool> 1 = Error "Can't currently serialize this type/value combination"
+Json.serialize<bool> "False" = Error "Can't currently serialize this type/value combination"
+Json.serialize<bool> "tRUE" = Error "Can't currently serialize this type/value combination"
+
+Json.parse<bool> 1 = Test.typeError "Json::parse was called with a Int (1), but `json` expected a String."
+Json.parse<bool> "tru" = Error "not JSON"
+Json.parse<bool> "null" = Error "Can't currently parse this type/value combination"
+Json.parse<bool> "" = Error "not JSON"
+Json.parse<bool> "\"true\"" = Error "Can't currently parse this type/value combination"
+Json.parse<bool> "0" = Error "Can't currently parse this type/value combination"
+Json.parse<bool> "1" = Error "Can't currently parse this type/value combination"
+Json.parse<bool> "False" = Error "not JSON"
+Json.parse<bool> "tRUE" = Error "not JSON"
+
+
+// Ints
+// basic
+Json.serialize<int> 0 = Ok "0"
+Json.serialize<int> 12345 = Ok "12345"
+Json.serialize<int> -12345 = Ok "-12345"
+Json.parse<int> "0" = Ok 0
+Json.parse<int> "12345" = Ok 12345
+Json.parse<int> "-12345" = Ok -12345
+Json.parse<int> " 42 " = Ok 42
+Json.parse<int> " -42 " = Ok -42
+
+// test the limits of int32 (-2147483648 to 2147483647)
+Json.serialize<int> -2147483648 = Ok "-2147483648"
+Json.serialize<int> 2147483647 = Ok "2147483647"
+Json.parse<int> "-2147483648" = Ok -2147483648
+Json.parse<int> "2147483647" = Ok 2147483647
+//Json.serialize<int> -2147483649 = Ok "\"-2147483649\""
+//Json.serialize<int> 2147483648 = Ok "\"2147483648\""
+//Json.parse<int> "\"-2147483649\"" = Ok -2147483649
+//Json.parse<int> "\"2147483648\"" = Ok 2147483648
+
+// test the limits of int64 (-9223372036854775808 to 9223372036854775807)
+//Json.serialize<int> 9223372036854775807 = Ok "9223372036854775807"
+//Json.parse<int> "9223372036854775807" = Ok 9223372036854775807
+//Json.serialize<int> 9223372036854775808 = Ok "9223372036854775808"
+//Json.parse<int> "9223372036854775808" = Ok 9223372036854775808
+//Json.serialize<int> -9223372036854775808 = Ok "-9223372036854775808"
+//Json.parse<int> "-9223372036854775808" = Ok -9223372036854775808
+
+// TODO: review float.tests for more values to test against
+
+// not ints
+Json.serialize<int> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<int> 42.5 = Error "Can't currently serialize this type/value combination"
+Json.serialize<int> "42" = Error "Can't currently serialize this type/value combination"
+Json.parse<int> " " = Error "not JSON"
+Json.parse<int> "4a" = Error "not JSON"
+Json.parse<int> "- 42" = Error "not JSON"
+Json.parse<int> "null" = Error "Can't currently parse this type/value combination"
+Json.parse<int> "true" = Error "Can't currently parse this type/value combination"
+Json.parse<int> "false" = Error "Can't currently parse this type/value combination"
+Json.parse<int> "\"42\"" = Error "Can't currently parse this type/value combination"
+Json.parse<int> "[42]" = Error "Can't currently parse this type/value combination"
+Json.parse<int> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
+//Json.parse<int> "42.5" = Error "Can't currently parse this type/value combination"
+//Json.parse<int> "1e3" = Error "Can't currently parse this type/value combination"
+//Json.parse<int> "-1e3" = Error "Can't currently parse this type/value combination"
+Json.parse<int> "\"42\n\"" = Error "not JSON"
+//Json.parse<int> "4\u0032" = Error "not JSON"
+
+
+// Floats
+Json.serialize<float> 0.0 = Ok "0.0"
+Json.serialize<float> 1.0 = Ok "1.0"
+Json.serialize<float> 0.1 = Ok "0.1"
+Json.serialize<float> (2.0/3.0) = Ok "0.666666666667"
+Json.serialize<float> 12345.67890 = Ok "12345.6789"
+Json.serialize<float> -12345.67890 = Ok "-12345.6789"
+Json.parse<float> "0.0" = Ok 0.0
+Json.parse<float> "e" = Error "not JSON"
+Json.parse<float> "pi" = Error "not JSON"
+Json.parse<float> "12345.67890" = Ok 12345.67890
+Json.parse<float> "-12345.67890" = Ok -12345.67890
+Json.parse<float> " 42.0 " = Ok 42.0
+Json.parse<float> " -42.0 " = Ok -42.0
+Json.parse<float> "1e3" = Ok 1000.0 // OK?
+Json.parse<float> "-1e3" = Ok -1000.0 // OK?
+
+// TODO: test the upper/lower bounds
+// TODO: test highly-precise numbers
+// TODO: review float.tests for more values to test against
+
+// not floats
+Json.parse<float> " -42 . 0 " = Error "not JSON"
+Json.serialize<float> 0 = Error "Can't currently serialize this type/value combination"
+//Json.parse<float> "0" = Error "Can't currently serialize this type/value combination"
+Json.serialize<float> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<float> 42 = Error "Can't currently serialize this type/value combination"
+Json.parse<float> " " = Error "not JSON"
+Json.parse<float> "4a" = Error "not JSON"
+Json.parse<float> "- 42.0" = Error "not JSON"
+Json.parse<float> "null" = Error "Can't currently parse this type/value combination"
+Json.parse<float> "true" = Error "Can't currently parse this type/value combination"
+Json.parse<float> "false" = Error "Can't currently parse this type/value combination"
+//Json.parse<float> "\"42\"" = Error "Can't currently parse this type/value combination"
+Json.parse<float> "[42]" = Error "Can't currently parse this type/value combination"
+Json.parse<float> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
+Json.parse<float> "\"42\n\"" = Error "not JSON"
+//Json.parse<float> "4\u0032" = Error "not JSON"
+
+
+// Chars
+//let charFromString (s: string) =
+//  (String.toList_v1 s) |> List.head_v2 |> Test.unwrap
+
+Json.serialize<char> 'a' = Ok "\"a\""
+Json.parse<char> "\"a\"" = Ok 'a'
+//Json.serialize<char> ("😂" |> charFromString ) = Ok "😂"
+//Json.parse<char> "\"😂\"" = Ok '😂'
+//Json.serialize<char> '👩‍👩‍👧‍👦' = Ok "\"👩‍👩‍👧‍👦\""
+//Json.parse<char> "\"👩‍👩‍👧‍👦\"" = Ok '👩‍👩‍👧‍👦'
+//Json.serialize<char> 'Ł' = Ok "\"Ł\""
+//Json.parse<char> "\"Ł\"" = Ok 'Ł'
+
+// not chars
+//Json.serialize<char> "test" = Error "Can't currently serialize this type/value combination"
+//Json.parse<char> "\"test\"" = Error "Can't currently parse this type/value combination"
+
+
+// Strings
+Json.serialize<string> "abc" = Ok "\"abc\""
+Json.parse<string> "\"abc\"" = Ok "abc"
+Json.serialize<string> "" = Ok "\"\""
+Json.parse<string> "\"\"" = Ok ""
+Json.serialize<string> "żółw" = Ok "\"żółw\""
+Json.parse<string> "\"żółw\"" = Ok "żółw"
+//Json.serialize<string> "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+Json.parse<string> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷\"" = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+//Json.serialize<string> "👩‍👩‍👧‍👦" = Ok "\"👩‍👩‍👧‍👦\""
+//Json.parse<string> "\"👩‍👩‍👧‍👦\"" = Ok "👩‍👩‍👧‍👦"
+// TODO: long strings
+
+
+// Datetimes
+let d (datestr: string) = (DateTime.parse_v2 datestr) |> Test.unwrap
+
+// now-ish
+Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = Ok "\"2023-07-28T22:42:36Z\""
+Json.parse<DateTime> "\"2023-07-28T22:42:36Z\"" = Ok (d "2023-07-28T22:42:36Z")
+
+// epoch
+Json.serialize<DateTime> (d "1969-07-28T22:42:36Z") = Ok "\"1969-07-28T22:42:36Z\""
+Json.parse<DateTime> "\"1969-07-28T22:42:36Z\"" = Ok (d "1969-07-28T22:42:36Z")
+
+// before epoch
+Json.serialize<DateTime> (d "1402-07-28T22:42:36Z") = Ok "\"1402-07-28T22:42:36Z\""
+Json.parse<DateTime> "\"1402-07-28T22:42:36Z\"" = Ok (d "1402-07-28T22:42:36Z")
+
+// far in future
+Json.serialize<DateTime> (d "3023-07-28T22:42:36Z") = Ok "\"3023-07-28T22:42:36Z\""
+Json.parse<DateTime> "\"3023-07-28T22:42:36Z\"" = Ok (d "3023-07-28T22:42:36Z")
+
+// not dates (either malformatted, or missing stuff, or totally not dates)
+Json.parse<DateTime> "\"3023-07-28T22:42:36\"" = Error "String '3023-07-28T22:42:36' was not recognized as a valid DateTime."
+Json.parse<DateTime> "\"2023-07-28\"" = Error "String '2023-07-28' was not recognized as a valid DateTime."
+Json.parse<DateTime> "1" = Error "Can't currently parse this type/value combination"
+
+
+// UUIDs
+let uuid (s: string) = (Uuid.parse_v0 s) |> Test.unwrap
+
+// empty
+Json.serialize<UUID> (uuid "00000000-0000-0000-0000-000000000000") = Ok "\"00000000-0000-0000-0000-000000000000\""
+Json.parse<UUID> ("\"00000000-0000-0000-0000-000000000000\"") = Ok (uuid "00000000-0000-0000-0000-000000000000")
+
+// normal
+Json.serialize<UUID> (uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = Ok "\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\""
+Json.parse<UUID> ("\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"") = Ok (uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+Json.serialize<UUID> (uuid "11111111-2222-3333-4444-555555555555") = Ok "\"11111111-2222-3333-4444-555555555555\""
+Json.parse<UUID> ("\"11111111-2222-3333-4444-555555555555\"") = Ok (uuid "11111111-2222-3333-4444-555555555555")
+
+// not UUIDs
+Json.parse<UUID> "\"00000000-0000-0000-0000-00000000000\"" = Error "Guid should contain 32 digits with 4 dashes (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." // has a missing digit at the end
+Json.serialize<UUID> "" = Error "Can't currently serialize this type/value combination"
+
+
+// Bytes
+//Json.serialize<bytes> Bytes.empty = Ok "\"\""
+//Json.parse<bytes> "\"\"" = Ok Bytes.empty
+
+// Passwords
+
+//
+
+
+// ## Nested types (lists, tuples, records, etc.)
+
+// Lists
+Json.serialize<List<int>> [] = Ok "[]"
+Json.parse<List<int>> "[]" = Ok []
+Json.serialize<List<int>> [1, 2, 3] = Ok "[1,2,3]"
+Json.parse<List<int>> "[1,2,3]" = Ok [1, 2, 3]
+
+// not proper lists
+Json.serialize<List<int>> [1, 2, "three"] = Error "Can't currently serialize this type/value combination"
+Json.parse<List<int>> "[1, 2, \"three\"]" = Error "Can't currently parse this type/value combination"
+Json.parse<List<int>> "[1, 2, ]" = Error "not JSON"
+
+
+// Tuples
+Json.serialize<Tuple<int, string, int>> (1, "two", 3) = Ok "[1,\"two\",3]"
+Json.parse<Tuple<int, string, int>> "[1,\"two\",3]" = Ok (1, "two", 3)
+// TODO: more...
+
+// not proper tuples
+Json.parse<Tuple<string, string, int>> """[1, "two", 3]""" = Error "Can't currently parse this type/value combination"
+// TODO: more...
+
+// Options
+Json.serialize<Option<int>> Nothing = Ok "{\"Nothing\":null}"
+Json.parse<Option<int>> "{\"Nothing\":null}" = Ok Nothing
+Json.serialize<Option<int>> (Just 1) = Ok "{\"Just\":1}"
+Json.parse<Option<int>> "{\"Just\":1}" = Ok (Just 1)
+// TODO: more...
+
+
+// TODO: Dicts
+// TODO: Results
+
+// Unsupported stuff
+// TDB
+// TFn
+// TError
+// TIncomplete
+// THttpResponse
+
+
+
+// ## Custom types
+
+// ### User-defined
+// #### Records
+//type MyType = { x: int }
+//Json.serialize<MyType> { x = 5 } = "{ 'x': 5 }"
+//Json.parse<MyType> "{ 'x': 5 }" = { x = 5 }
+
+// #### Enums
+
+// ### Package
+
+// #### Records
+// TODO
+
+// #### Enums
+// TODO
+
+
+
+
+
+
+// from old tests - worth reviewing to see if we have missing cases
+
+//Json.parse<List<int>> "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
+//Json.parse<List<int>> "[97, 2, 30, 4,]" = null
+
+//Json.parse<TODO> "{Id : 1.0}" = null
+//Json.parse<TODO> "{Id : 1.}" = null
+
+//Json.parse<TODO> "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = null
+//Json.parse<TODO> "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})" = null
+//Json.parse<TODO> "" = null
+//Json.parse<TODO> "\"\"" = ""
+//Json.parse<TODO> "1,0/0,0" = null
+//Json.parse<TODO> "1" = 1
+
+//Json.parse<TODO> "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
+//Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "\"\"" = ""
+
+//Json.parse<TODO> "" = Test.typeError "JSON string was empty"
+
+//Json.parse<TODO> "[97.8, -2, false, true, -0.0]" = [97.8, -2, false, true, -0.0]
+//Json.parse<TODO> "{ \"v\": 4611686018427387903 }" = { v = 4611686018427387903L }
+//Json.parse<TODO> "{ \"v\": 4611686018427387904 }" = { v = 4611686018427387904L }
+
+
+
+//Json.parse<TODO> "''" = Test.typeError_v0 "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
+//Json.parse<TODO> "" = Test.typeError_v0 "JSON string was empty"
+//Json.parse<TODO> "[97, 2, 30, 4,]" = Test.typeError "The JSON array contains a trailing comma at the end, at on line 0, position 14"
+//Json.parse<TODO> "{Id : 1.0}" = Test.typeError_v0 "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "{\"Id\" : 1.}" = Test.typeError_v0 "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10.")"
+//Json.parse<TODO> "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}" =  Test.typeError_v0 "'i' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+
+//Json.parse<TODO> "[97.8, -2, false, true, -0.0]" = Ok [97.8, -2, false, true, -0.0]
+
+//Json.parse<TODO> "{ \"v\": 4611686018427387903 }" = Ok { v = 4611686018427387903L }
+//Json.parse<TODO> "{ \"v\": 4611686018427387904 }" = Ok { v = 4611686018427387904L }
+//Json.parse<TODO> "\"\"" = Ok ""
+
+//Json.parse<TODO> "" = Error "JSON string was empty"
+//Json.parse<TODO> "{3: false}" = Error "'3' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+
+//Json.parse<TODO> "[97, 2, 30, 4,]" = Error "The JSON array contains a trailing comma at the end, at on line 0, position 14"
+//Json.parse<TODO> "{Id : 1.0}" = Error "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "{\"Id\" : Infinity }" = Error "'I' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8."
+//Json.parse<TODO> "{\"Id\" : -Infinity }" = Error "'I' is invalid within a number, immediately after a sign character ('+' or '-'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 9."
+//Json.parse<TODO> "{\"Id\" : NaN }" = Error "'N' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8."
+//Json.parse<TODO> "{\"Id\" : 1.}" = Error "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
+//Json.parse<TODO> "[ {\"date\" : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = Error "'l' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 26."
+//Json.parse<TODO> "{\"id\" : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = Error "'e' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 13."
+//Json.parse<TODO> "{\"id\" : 555, \"edition\" : 'First' }" = Error "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 25."
+//Json.parse<TODO> "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})" = Error "'(' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."

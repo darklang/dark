@@ -30,6 +30,7 @@ module DType =
     match name, typeArgs with
     // no type args
     | "bool", [] -> PT.TBool
+    | "bytes", [] -> PT.TBytes
     | "int", [] -> PT.TInt
     | "string", [] -> PT.TStr
     | "char", [] -> PT.TChar
@@ -42,6 +43,8 @@ module DType =
     // with type args
     | "List", [ arg ] -> PT.TList(fromSynType arg)
     | "Option", [ arg ] -> PT.TOption(fromSynType arg)
+    | "Tuple", first :: second :: theRest ->
+      PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
 
     | _ ->
       // Some user- or stdlib- type
@@ -56,7 +59,7 @@ module DType =
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
       match matchingCustomTypes with
-      | [] -> PT.TVariable(name)
+      | [] -> PT.TVariable(name) // TODO: maybe only do this if the name starts with `'`?
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal

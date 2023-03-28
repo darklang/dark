@@ -339,7 +339,10 @@ and [<NoComparison>] Dval =
 
   // TODO: remove DHttpResponse eventually - this should really just be a DRecord
   // of a type that is defined in the standard library (http module)
-  | DHttpResponse of int64 * List<string * string> * Dval
+  | DHttpResponse of
+    statusCode : int64 *
+    headers : List<string * string> *
+    responseBody : Dval
 
   | DRecord (* FQTypeName.T * *)  of DvalMap
   | DDict of DvalMap
