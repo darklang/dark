@@ -73,15 +73,13 @@ let main (args : string []) =
           config.HttpHandlers
           |> Map.toList
           |> List.map (fun (name, details) ->
-            let modul =
-              System.IO.File.ReadAllText $"{baseDir}/{name}.dark"
-              |> Parser.parseModule []
+            let modul = Parser.parseModule [] $"{baseDir}/{name}.dark"
 
             let types = modul.types |> List.map PT.Op.SetType
             let fns = modul.fns |> List.map PT.Op.SetFunction
-            let handlers =
-              modul.exprs
-              |> List.map (fun expr ->
+            let handler =
+              match modul.exprs with
+              | [ expr ] ->
                 PT.Op.SetHandler(
                   { tlid = gid ()
                     ast = expr
@@ -91,9 +89,10 @@ let main (args : string []) =
                         details.Method,
                         { moduleID = gid (); nameID = gid (); modifierID = gid () }
                       ) }
-                ))
+                )
+              | _ -> Exception.raiseCode "expected exactly one expr in file"
 
-            [ PT.Op.TLSavepoint(140418122UL) ] @ types @ fns @ handlers)
+            [ PT.Op.TLSavepoint(140418122UL) ] @ types @ fns @ [ handler ])
           |> List.flatten
 
         let canvasWithTopLevels = C.fromOplist canvasID [] ops
