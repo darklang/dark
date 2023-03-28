@@ -47,7 +47,6 @@ module DType =
       PT.TResult(fromSynType okArg, fromSynType errorArg)
     | "Tuple", first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-
     | _ ->
       // Some user- or stdlib- type
       // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
@@ -61,10 +60,6 @@ module DType =
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
       match matchingCustomTypes with
-      | [] ->
-        // TODO: maybe only do this if the name starts with `'`?
-        // Otherwise, it can lead to confusing results when trying to test code
-        PT.TVariable(name)
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
