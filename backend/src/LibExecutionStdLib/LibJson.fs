@@ -184,13 +184,13 @@ let rec serialize (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
       "TODO: pass in availableTypes. then, handle both Records and Enums"
       []
 
-  | TVariable _, _ ->
-    Exception.raiseInternal
-      "TODO: what _should_ happen here? is it possible for a TVariable to actually be here?"
-      []
-
 
   // Not supported
+  | TVariable _, _ ->
+    Exception.raiseInternal
+      "Variable types (i.e. 'a in List<'a>) cannot not be used as arguments"
+      []
+
   | TFn _, DFnVal _ -> Exception.raiseInternal "Cannot serialize functions" []
 
   | TDB _, DDB _ -> Exception.raiseInternal "Cannot serialize DB references" []
@@ -334,8 +334,7 @@ let parse (typ : DType) (str : string) : Result<Dval, string> =
       |> raise
 
     | TVariable _, _ ->
-      // TODO: what _should_ happen here? is it possible for a TVariable to actually be here?
-      JsonParseError.TypeNotYetSupported typ
+      JsonParseError.TypeUnsupported typ
       |> JsonParseError.JsonParseException
       |> raise
 
