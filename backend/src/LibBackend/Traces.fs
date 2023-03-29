@@ -20,7 +20,7 @@ let sampleHttpRequestInputVars : AT.InputVars =
   let sampleRequest : RT.Dval =
     [ ("body", incomplete); ("headers", incomplete); ("url", incomplete) ]
     |> Map
-    |> RT.Dval.DObj
+    |> RT.Dval.DDict
 
   [ ("request", sampleRequest) ]
 

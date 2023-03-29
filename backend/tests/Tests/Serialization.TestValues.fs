@@ -157,7 +157,7 @@ module RuntimeTypes =
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
     |> Map
-    |> RT.DObj
+    |> RT.DDict
 
 module ProgramTypes =
   let fqFnNames : List<PT.FQFnName.T> =

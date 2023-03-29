@@ -89,14 +89,14 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
   | TUnit, DUnit -> w.WriteNumberValue(0)
   | TStr, DStr s -> w.WriteStringValue s
   | TList ltype, DList l -> w.writeArray (fun () -> List.iter (writeDval ltype) l)
-  | TDict objType, DObj o ->
+  | TDict objType, DDict o ->
     w.writeObject (fun () ->
       Map.iter
         (fun k v ->
           w.WritePropertyName k
           writeDval objType v)
         o)
-  | TRecord fields, DObj dvalMap ->
+  | TRecord fields, DDict dvalMap ->
     let schema = Map.ofList fields
     w.writeObject (fun () ->
       dvalMap
@@ -190,7 +190,7 @@ let parseJsonV0 (typ : DType) (str : string) : Dval =
           match Map.tryFind k typFields with
           | Some t -> convert t v
           | None -> Exception.raiseInternal "Missing field" [ "field", k ])
-        |> DObj
+        |> DDict
       else
         Exception.raiseInternal "Invalid fields" []
     | _ ->
@@ -215,7 +215,7 @@ module Test =
     | DFloat _
     | DUuid _ -> true
     | DList dvals -> List.all isQueryableDval dvals
-    | DObj map -> map |> Map.values |> List.all isQueryableDval
+    | DDict map -> map |> Map.values |> List.all isQueryableDval
     | DConstructor (_typeName, _caseName, fields) ->
       // TODO I'm not sure what's appropriate here.
       fields |> List.all isQueryableDval

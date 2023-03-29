@@ -102,7 +102,7 @@ let rec unify
   | TStr, DStr _ -> Ok()
   | TList _, DList _ -> Ok()
   | TDateTime, DDateTime _ -> Ok()
-  | TDict _, DObj _ -> Ok()
+  | TDict _, DDict _ -> Ok()
   | TFn _, DFnVal _ -> Ok()
   | TPassword, DPassword _ -> Ok()
   | TUuid, DUuid _ -> Ok()
@@ -115,7 +115,7 @@ let rec unify
   // and type-check the generic type args.
   | TOption _, DOption _ -> Ok()
   | TResult _, DResult _ -> Ok()
-  | TRecord _, DObj _ -> Ok()
+  | TRecord _, DDict _ -> Ok()
 
   | TCustomType (typeName, typeArgs), value ->
     match Map.tryFind typeName availableTypes with
@@ -126,7 +126,7 @@ let rec unify
                   { expectedType = expected; actualValue = value } ]
 
       match ut, value with
-      | CustomType.Record (firstField, additionalFields), DObj dmap ->
+      | CustomType.Record (firstField, additionalFields), DDict dmap ->
         unifyUserRecordWithDvalMap
           availableTypes
           (firstField :: additionalFields)

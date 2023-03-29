@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
         "Returns a dictionary with a single entry {{<param key>: <param value>}}"
       fn =
         (function
-        | _, _, [ DStr k; v ] -> Ply(DObj(Map.ofList [ (k, v) ]))
+        | _, _, [ DStr k; v ] -> Ply(DDict(Map.ofList [ (k, v) ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the number of entries in <param dict>"
       fn =
         (function
-        | _, _, [ DObj o ] -> Ply(DInt(int64 (Map.count o)))
+        | _, _, [ DDict o ] -> Ply(DInt(int64 (Map.count o)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
         "Returns <param dict>'s keys in a <type List>, in an arbitrary order"
       fn =
         (function
-        | _, _, [ DObj o ] ->
+        | _, _, [ DDict o ] ->
           o
           |> Map.keys
           |> Seq.map (fun k -> DStr k)
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
         "Returns <param dict>'s values in a <type List>, in an arbitrary order"
       fn =
         (function
-        | _, _, [ DObj o ] ->
+        | _, _, [ DDict o ] ->
           o |> Map.values |> Seq.toList |> (fun l -> DList l |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
         "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict::fromList>"
       fn =
         (function
-        | _, _, [ DObj o ] ->
+        | _, _, [ DDict o ] ->
           Map.toList o
           |> List.map (fun (k, v) -> DTuple(DStr k, v, []))
           |> DList
@@ -132,7 +132,7 @@ let fns : List<BuiltInFn> =
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
           let result = List.fold Map.empty f l
-          Ply(DObj result)
+          Ply(DDict result)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -171,7 +171,7 @@ let fns : List<BuiltInFn> =
           let result = List.fold (Some Map.empty) f l
 
           match result with
-          | Some map -> Ply(DOption(Some(DObj(map))))
+          | Some map -> Ply(DOption(Some(DDict(map))))
           | None -> Ply(DOption None)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -188,7 +188,7 @@ let fns : List<BuiltInFn> =
          wrapped in an <type option>: {{Just value}}. Otherwise, returns {{Nothing}}."
       fn =
         (function
-        | _, _, [ DObj o; DStr s ] -> Map.tryFind s o |> Dval.option |> Ply
+        | _, _, [ DDict o; DStr s ] -> Map.tryFind s o |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -204,7 +204,7 @@ let fns : List<BuiltInFn> =
          {{false}} otherwise"
       fn =
         (function
-        | _, _, [ DObj o; DStr s ] -> Ply(DBool(Map.containsKey s o))
+        | _, _, [ DDict o; DStr s ] -> Ply(DBool(Map.containsKey s o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
          Consider <fn Dict::filterMap> if you also want to drop some of the entries."
       fn =
         (function
-        | state, _, [ DObj o; DFnVal b ] ->
+        | state, _, [ DDict o; DFnVal b ] ->
           uply {
             let mapped = Map.mapWithIndex (fun i v -> (i, v)) o
 
@@ -235,7 +235,7 @@ let fns : List<BuiltInFn> =
                   Interpreter.applyFnVal state b [ DStr key; dv ])
                 mapped
 
-            return DObj result
+            return DDict result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -255,7 +255,7 @@ let fns : List<BuiltInFn> =
          returned {{true}}."
       fn =
         (function
-        | state, _, [ DObj o; DFnVal b ] ->
+        | state, _, [ DDict o; DFnVal b ] ->
           uply {
             let filter_propagating_errors
               (acc : Result<DvalMap, Dval>)
@@ -284,7 +284,7 @@ let fns : List<BuiltInFn> =
               Ply.Map.foldSequentially filter_propagating_errors (Ok Map.empty) o
 
             match filtered_result with
-            | Ok o -> return DObj o
+            | Ok o -> return DDict o
             | Error dv -> return dv
           }
         | _ -> incorrectArgs ())
@@ -310,7 +310,7 @@ let fns : List<BuiltInFn> =
           This function combines <fn Dict::filter> and <fn Dict::map>."
       fn =
         (function
-        | state, _, [ DObj o; DFnVal b ] ->
+        | state, _, [ DDict o; DFnVal b ] ->
           uply {
             let abortReason = ref None
 
@@ -342,7 +342,7 @@ let fns : List<BuiltInFn> =
             let! result = Ply.Map.filterMapSequentially f o
 
             match abortReason.Value with
-            | None -> return DObj result
+            | None -> return DDict result
             | Some v -> return v
           }
         | _ -> incorrectArgs ())
@@ -358,7 +358,7 @@ let fns : List<BuiltInFn> =
       description = "Returns an empty dictionary"
       fn =
         (function
-        | _, _, [] -> Ply(DObj Map.empty)
+        | _, _, [] -> Ply(DDict Map.empty)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -372,7 +372,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if the <param dict> contains no entries"
       fn =
         (function
-        | _, _, [ DObj dict ] -> Ply(DBool(Map.isEmpty dict))
+        | _, _, [ DDict dict ] -> Ply(DBool(Map.isEmpty dict))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -388,7 +388,7 @@ let fns : List<BuiltInFn> =
         "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both <param left> and <param right>, it will have the value from <param right>."
       fn =
         (function
-        | _, _, [ DObj l; DObj r ] -> Ply(DObj(Map.mergeFavoringRight l r))
+        | _, _, [ DDict l; DDict r ] -> Ply(DDict(Map.mergeFavoringRight l r))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -406,7 +406,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of <param dict> with the <param key> set to <param val>"
       fn =
         (function
-        | _, _, [ DObj o; DStr k; v ] -> Ply(DObj(Map.add k v o))
+        | _, _, [ DDict o; DStr k; v ] -> Ply(DDict(Map.add k v o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -421,7 +421,7 @@ let fns : List<BuiltInFn> =
         "If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged."
       fn =
         (function
-        | _, _, [ DObj o; DStr k ] -> Ply(DObj(Map.remove k o))
+        | _, _, [ DDict o; DStr k ] -> Ply(DDict(Map.remove k o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

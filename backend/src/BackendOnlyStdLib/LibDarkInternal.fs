@@ -195,7 +195,7 @@ let fns : List<BuiltInFn> =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         internalFn (function
-          | _, _, [ DStr level; DStr name; DObj log as result ] ->
+          | _, _, [ DStr level; DStr name; DDict log as result ] ->
             let args =
               log
               |> Map.toList
@@ -339,9 +339,9 @@ human-readable data."
                      ("disk_human", DStr ts.diskHuman)
                      ("rows_human", DStr ts.rowsHuman) ]
                    |> Map
-                   |> DObj))
+                   |> DDict))
                 |> Map
-                |> DObj
+                |> DDict
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -437,7 +437,7 @@ human-readable data."
                     "traceID",
                     DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
                   |> Map
-                  |> DObj)
+                  |> DDict)
                 |> DList
             }
           | _ -> incorrectArgs ())
@@ -705,7 +705,7 @@ human-readable data."
         internalFn (function
           | state, _, [] ->
             uply {
-              return [ "id", DUuid state.program.canvasID ] |> Map |> DObj // TODO: DRecord
+              return [ "id", DUuid state.program.canvasID ] |> Map |> DDict // TODO: DRecord
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -732,7 +732,7 @@ human-readable data."
                 |> List.map (fun db ->
                   [ "tlid", DStr(db.tlid.ToString()); "name", DStr db.name ]
                   |> Map
-                  |> DObj)
+                  |> DDict)
                 |> DList
 
               let httpHandlers =
@@ -748,12 +748,12 @@ human-readable data."
                       "method", DStr method
                       "route", DStr route ]
                     |> Map
-                    |> DObj
+                    |> DDict
                     |> Some)
                 |> DList
 
               return
-                DResult(Ok(DObj(Map [ "dbs", dbs; "httpHandlers", httpHandlers ])))
+                DResult(Ok(DDict(Map [ "dbs", dbs; "httpHandlers", httpHandlers ])))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

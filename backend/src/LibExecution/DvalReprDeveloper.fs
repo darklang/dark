@@ -113,7 +113,7 @@ let toRepr (dv : Dval) : string =
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
       $"({inl}{elems}{nl})"
-    | DObj o ->
+    | DDict o ->
       if Map.isEmpty o then
         "{}"
       else

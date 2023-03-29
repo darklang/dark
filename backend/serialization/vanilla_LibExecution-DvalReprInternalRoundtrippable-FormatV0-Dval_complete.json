@@ -1,5 +1,5 @@
 [
-  "DObj",
+  "DDict",
   {
     "-infinity \u002B 0": [
       "DFloat",
@@ -2887,7 +2887,7 @@
       "DUnit"
     ],
     "obj": [
-      "DObj",
+      "DDict",
       {
         "foo": [
           "DInt",
@@ -2896,7 +2896,7 @@
       }
     ],
     "obj with error": [
-      "DObj",
+      "DDict",
       {
         "v": [
           "DError",
@@ -2908,7 +2908,7 @@
       }
     ],
     "obj2": [
-      "DObj",
+      "DDict",
       {
         "type": [
           "DStr",
@@ -2920,7 +2920,7 @@
       }
     ],
     "obj3": [
-      "DObj",
+      "DDict",
       {
         "type": [
           "DStr",
@@ -2933,7 +2933,7 @@
       }
     ],
     "obj4": [
-      "DObj",
+      "DDict",
       {
         "foo\\\\bar": [
           "DInt",
@@ -2942,7 +2942,7 @@
       }
     ],
     "obj5": [
-      "DObj",
+      "DDict",
       {
         "$type": [
           "DInt",

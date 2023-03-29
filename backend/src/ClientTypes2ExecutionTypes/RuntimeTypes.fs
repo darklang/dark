@@ -357,7 +357,7 @@ module Dval =
     | Dval.DList list -> RT.DList(List.map r list)
     | Dval.DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
-    | Dval.DObj o -> RT.DObj(Map.map r o)
+    | Dval.DDict o -> RT.DDict(Map.map r o)
     | Dval.DOption None -> RT.DOption None
     | Dval.DOption (Some dv) -> RT.DOption(Some(r dv))
     | Dval.DResult (Ok dv) -> RT.DResult(Ok(r dv))
@@ -399,7 +399,7 @@ module Dval =
     | RT.DList l -> Dval.DList(List.map r l)
     | RT.DTuple (first, second, theRest) ->
       Dval.DTuple(r first, r second, List.map r theRest)
-    | RT.DObj o -> Dval.DObj(Map.map r o)
+    | RT.DDict o -> Dval.DDict(Map.map r o)
     | RT.DOption None -> Dval.DOption None
     | RT.DOption (Some dv) -> Dval.DOption(Some(r dv))
     | RT.DResult (Ok dv) -> Dval.DResult(Ok(r dv))
