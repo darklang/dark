@@ -358,12 +358,43 @@ let parse
       |> Map.ofSeq
       |> DDict
 
-    | TCustomType _, _ ->
-      // TODO: handle this either an enum or a record
-      // (in the future, maybe an alias)
-      JsonParseError.TypeNotYetSupported typ
-      |> JsonParseError.JsonParseException
-      |> raise
+    | TCustomType (typeName, typeArgs), JsonValueKind.Object ->
+      // TODO: something with typeArgs
+
+      let matchingType = availableTypes[typeName]
+      // TODO: handle type missing
+      match matchingType with
+      | CustomType.Enum (firstCase, additionalCases) ->
+        let enumerated =
+          j.EnumerateObject()
+          |> Seq.map (fun jp -> (jp.Name, jp.Value))
+          |> Seq.toList
+        match enumerated with
+        | [ (caseName, j) ] ->
+          let matchingCase =
+            (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
+          // TODO: handle 0 or 2+ matching cases
+          let j = j.EnumerateArray() |> Seq.toList
+          // TODO: handle when lists aren't of same len
+          let mapped =
+            List.zip matchingCase.fields j
+            |> List.map (fun (typ, j) -> convert typ.typ j)
+          DConstructor(Some typeName, caseName, mapped)
+
+        | _ -> Exception.raiseInternal "TODO" []
+
+
+      | CustomType.Record _ -> Exception.raiseInternal "TODO" []
+
+
+
+    // | TCustomType (tTypeName, _typeArgs), DConstructor (dTypeName, caseName, fields) ->
+    //   // TODO: ensure that the type names are the same
+    //   // TODO: _something_ with the type args
+    //   //   (or maybe we just need to revisit once TypeDefinition is present)
+
+    //   // TODO: try find exactly one matching type
+
 
     | TVariable _, _ ->
       JsonParseError.TypeUnsupported typ

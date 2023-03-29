@@ -288,6 +288,7 @@ Json.parse<Result<int, string>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 type PrettyLikely = Yeah | Nah of reason: string * int
 
 Json.serialize<PrettyLikely> Yeah = Ok "{\"Yeah\":[]}"
+Json.parse<PrettyLikely> "{\"Yeah\":[]}" = Ok Yeah
 //Json.serialize<PrettyLikely> (Nah("printer broke", 7)) = Ok "{ "Nah": ["printer broke", 7] }"
 // TODO: parse tests for both of the above
 
