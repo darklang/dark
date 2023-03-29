@@ -102,8 +102,13 @@ type Utf8JsonWriter with
     this.WriteEndArray()
 
 
-let rec serialize (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
-  let r = serialize w
+let rec serialize
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (w : Utf8JsonWriter)
+  (typ : DType)
+  (dv : Dval)
+  : unit =
+  let r = serialize availableTypes w
 
   match typ, dv with
   // basic types
@@ -145,14 +150,14 @@ let rec serialize (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
   // Nested types
   | TList ltype, DList l -> w.writeArray (fun () -> List.iter (r ltype) l)
 
-  | TDict objType, DObj o ->
+  | TDict objType, DDict o ->
     w.writeObject (fun () ->
       Map.iter
         (fun k v ->
           w.WritePropertyName k
           r objType v)
         o)
-  | TRecord fields, DObj dvalMap ->
+  | TRecord fields, DDict dvalMap ->
     let schema = Map.ofList fields
     w.writeObject (fun () ->
       dvalMap
@@ -179,10 +184,32 @@ let rec serialize (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
       w.WritePropertyName "Error"
       r errType dv)
 
-  | TCustomType _, _ ->
-    Exception.raiseInternal
-      "TODO: pass in availableTypes. then, handle both Records and Enums"
-      []
+  // | TCustomType _, DRecord _ ->
+  // TODO: handle this once DRecord exists (with a TypeReference/FQTypeName)
+
+  | TCustomType (tTypeName, _typeArgs), DConstructor (dTypeName, caseName, fields) ->
+    // TODO: ensure that the type names are the same
+    // TODO: _something_ with the type args
+    //   (or maybe we just need to revisit once TypeDefinition is present)
+
+    // TODO: try find exactly one matching type
+    let matchingType = availableTypes[tTypeName]
+    match matchingType with
+    | CustomType.Enum (firstCase, additionalCases) ->
+      let matchingCase =
+        (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
+      // TODO: handle 0 or 2+ cases
+
+      let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
+      // TODO: ensure that the field count is the same
+
+      w.writeObject (fun () ->
+        w.WritePropertyName caseName
+        w.writeArray (fun () ->
+          List.zip fieldDefs fields
+          |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+
+    | CustomType.Record _ -> Exception.raiseInternal "TODO" []
 
 
   // Not supported
@@ -231,7 +258,11 @@ let rec serialize (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
       [ "value", dv; "type", typ ]
 
 
-let parse (typ : DType) (str : string) : Result<Dval, string> =
+let parse
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (typ : DType)
+  (str : string)
+  : Result<Dval, string> =
   let rec convert (typ : DType) (j : JsonElement) : Dval =
     match typ, j.ValueKind with
     // basic types
@@ -299,7 +330,7 @@ let parse (typ : DType) (str : string) : Result<Dval, string> =
           match Map.tryFind k typFields with
           | Some t -> convert t v
           | None -> Exception.raiseInternal "Missing field" [ "field", k ])
-        |> DObj
+        |> DDict
       else
         Exception.raiseInternal "Invalid fields" []
 
@@ -325,10 +356,11 @@ let parse (typ : DType) (str : string) : Result<Dval, string> =
       j.EnumerateObject()
       |> Seq.map (fun jp -> (jp.Name, convert tDict jp.Value))
       |> Map.ofSeq
-      |> DObj
+      |> DDict
 
     | TCustomType _, _ ->
-      // TODO: need to pass in availableTypes, then handle both Enums and Records
+      // TODO: handle this either an enum or a record
+      // (in the future, maybe an alias)
       JsonParseError.TypeNotYetSupported typ
       |> JsonParseError.JsonParseException
       |> raise
@@ -399,10 +431,6 @@ let parse (typ : DType) (str : string) : Result<Dval, string> =
 
 
 
-
-
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "Json" "serialize" 0
       typeParams = [ "a" ]
@@ -411,9 +439,12 @@ let fns : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | _, [ typeArg ], [ arg ] ->
+        | state, [ typeArg ], [ arg ] ->
+          let availableTypes = ExecutionState.availableTypes state
+
           try
-            let response = writeJson (fun w -> serialize w typeArg arg)
+            let response =
+              writeJson (fun w -> serialize availableTypes w typeArg arg)
             Ply(DResult(Ok(DStr response)))
           with
           | ex -> Ply(DResult(Error(DStr ex.Message)))
@@ -430,8 +461,10 @@ let fns : List<BuiltInFn> =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
         (function
-        | _, [ typeArg ], [ DStr arg ] ->
-          match parse typeArg arg with
+        | state, [ typeArg ], [ DStr arg ] ->
+          let availableTypes = ExecutionState.availableTypes state
+
+          match parse availableTypes typeArg arg with
           | Ok v -> Ply(DResult(Ok v))
           | Error e -> Ply(DResult(Error(DStr e)))
         | _ -> incorrectArgs ())

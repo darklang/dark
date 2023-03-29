@@ -147,6 +147,7 @@ let executionStateFor
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
   (dbs : Map<string, RT.DB.T>)
+  (userTypes : Map<RT.FQTypeName.UserTypeName, RT.UserType.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
@@ -156,7 +157,7 @@ let executionStateFor
         internalFnsAllowed = internalFnsAllowed
         userFns = userFunctions
         dbs = dbs
-        userTypes = Map.empty
+        userTypes = userTypes
         secrets = [] }
 
     let testContext : RT.TestContext =

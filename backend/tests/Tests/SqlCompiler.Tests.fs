@@ -22,7 +22,7 @@ let compile
   : Task<string * Map<string, SqlValue>> =
   task {
     let canvasID = System.Guid.NewGuid()
-    let! state = executionStateFor canvasID false Map.empty Map.empty
+    let! state = executionStateFor canvasID false Map.empty Map.empty Map.empty
 
     try
       let! sql, args =
@@ -136,7 +136,7 @@ let partialEvaluation =
     (fun (expr, vars) ->
       task {
         let canvasID = System.Guid.NewGuid()
-        let! state = executionStateFor canvasID false Map.empty Map.empty
+        let! state = executionStateFor canvasID false Map.empty Map.empty Map.empty
         let expr = Parser.parseRTExpr expr
         let result = C.partiallyEvaluate state "x" (Map vars) expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result

@@ -144,7 +144,7 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let! state = executionStateFor canvasID false Map.empty Map.empty
+      let! state = executionStateFor canvasID false Map.empty Map.empty Map.empty
 
       let userTypes = []
 
