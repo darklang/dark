@@ -5,3 +5,6 @@ http-handlers:
   index:
     method: GET
     path: /
+  invalid-response:
+    method: GET
+    path: /intentionally-invalid-response
