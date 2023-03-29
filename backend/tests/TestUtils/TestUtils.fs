@@ -315,6 +315,12 @@ let rec debugDval (v : Dval) : string =
     $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
+  | DRecord obj ->
+    obj
+    |> Map.toList
+    |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
+    |> String.concat ",\n  "
+    |> fun contents -> $"DRecord {{\n  {contents}}}"
   | DDict obj ->
     obj
     |> Map.toList
@@ -375,6 +381,7 @@ module Expect =
     | DList vs -> List.all check vs
     | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
+    | DRecord vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DConstructor (_typeName, _caseName, fields) ->
@@ -701,6 +708,24 @@ module Expect =
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
+    | DRecord ls, DRecord rs ->
+      // check keys from ls are in both, check matching values
+      Map.forEachWithIndex
+        (fun key v1 ->
+          match Map.tryFind key rs with
+          | Some v2 -> de (key :: path) v1 v2
+          | None -> check (key :: path) ls rs)
+        ls
+      // check keys from rs are in both
+      Map.forEachWithIndex
+        (fun key _ ->
+          match Map.tryFind key rs with
+          | Some _ -> () // already checked
+          | None -> check (key :: path) ls rs)
+        rs
+      check (".Length" :: path) (Map.count ls) (Map.count rs)
+
+
     | DConstructor (typeName, caseName, fields),
       DConstructor (typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
@@ -727,6 +752,7 @@ module Expect =
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DDict _, _
+    | DRecord _, _
     | DConstructor _, _
     | DList _, _
     | DTuple _, _
@@ -789,6 +815,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DRecord map -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DConstructor (_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
@@ -924,13 +951,20 @@ let interestingDvals =
     ("list", DList [ Dval.int 4 ])
     ("list with derror",
      DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
-    ("obj", DDict(Map.ofList [ "foo", Dval.int 5 ]))
-    ("obj2", DDict(Map.ofList [ ("type", DStr "weird"); ("value", DUnit) ]))
-    ("obj3", DDict(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+    ("record", DRecord(Map.ofList [ "foo", Dval.int 5 ]))
+    ("record2", DRecord(Map.ofList [ ("type", DStr "weird"); ("value", DUnit) ]))
+    ("record3", DRecord(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
     // More Json.NET tests
-    ("obj4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
-    ("obj5", DDict(Map.ofList [ "$type", Dval.int 5 ]))
-    ("obj with error",
+    ("record4", DRecord(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
+    ("record5", DRecord(Map.ofList [ "$type", Dval.int 5 ]))
+    ("record with error",
+     DRecord(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
+    ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]))
+    ("dict3", DDict(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+    // More Json.NET tests
+    ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
+    ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]))
+    ("dict with error",
      DDict(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
     ("incomplete", DIncomplete SourceNone)
     ("incomplete2", DIncomplete(SourceID(14219007199254740993UL, 8UL)))

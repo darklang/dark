@@ -1380,6 +1380,58 @@
                 "DDB",
                 "Visitors"
               ],
+              "dict": [
+                "DDict",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict with error": [
+                "DDict",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "dict3": [
+                "DDict",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "dict4": [
+                "DDict",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict5": [
+                "DDict",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
               "e \u002B 0": [
                 "DFloat",
                 2.718281828459045
@@ -4207,70 +4259,6 @@
               "null": [
                 "DUnit"
               ],
-              "obj": [
-                "DDict",
-                {
-                  "foo": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj with error": [
-                "DDict",
-                {
-                  "v": [
-                    "DError",
-                    [
-                      "SourceNone"
-                    ],
-                    "some error string"
-                  ]
-                }
-              ],
-              "obj2": [
-                "DDict",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DUnit"
-                  ]
-                }
-              ],
-              "obj3": [
-                "DDict",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DStr",
-                    "x"
-                  ]
-                }
-              ],
-              "obj4": [
-                "DDict",
-                {
-                  "foo\\\\bar": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj5": [
-                "DDict",
-                {
-                  "$type": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
               "option": [
                 "DOption",
                 null
@@ -4296,6 +4284,70 @@
               "pi \u002B 1": [
                 "DFloat",
                 4.141592653589793
+              ],
+              "record": [
+                "DRecord",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record with error": [
+                "DRecord",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "record2": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DUnit"
+                  ]
+                }
+              ],
+              "record3": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "record4": [
+                "DRecord",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record5": [
+                "DRecord",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
               ],
               "result": [
                 "DResult",
@@ -4648,6 +4700,58 @@
                 "DDB",
                 "Visitors"
               ],
+              "dict": [
+                "DDict",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict with error": [
+                "DDict",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "dict3": [
+                "DDict",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "dict4": [
+                "DDict",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict5": [
+                "DDict",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
               "e \u002B 0": [
                 "DFloat",
                 2.718281828459045
@@ -7475,70 +7579,6 @@
               "null": [
                 "DUnit"
               ],
-              "obj": [
-                "DDict",
-                {
-                  "foo": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj with error": [
-                "DDict",
-                {
-                  "v": [
-                    "DError",
-                    [
-                      "SourceNone"
-                    ],
-                    "some error string"
-                  ]
-                }
-              ],
-              "obj2": [
-                "DDict",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DUnit"
-                  ]
-                }
-              ],
-              "obj3": [
-                "DDict",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DStr",
-                    "x"
-                  ]
-                }
-              ],
-              "obj4": [
-                "DDict",
-                {
-                  "foo\\\\bar": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj5": [
-                "DDict",
-                {
-                  "$type": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
               "option": [
                 "DOption",
                 null
@@ -7564,6 +7604,70 @@
               "pi \u002B 1": [
                 "DFloat",
                 4.141592653589793
+              ],
+              "record": [
+                "DRecord",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record with error": [
+                "DRecord",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "record2": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DUnit"
+                  ]
+                }
+              ],
+              "record3": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "record4": [
+                "DRecord",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record5": [
+                "DRecord",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
               ],
               "result": [
                 "DResult",

@@ -113,6 +113,17 @@ let toRepr (dv : Dval) : string =
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
       $"({inl}{elems}{nl})"
+    | DRecord o ->
+      if Map.isEmpty o then
+        "{}"
+      else
+        let strs =
+          o
+          |> Map.toList
+          |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
+
+        let elems = String.concat $",{inl}" strs
+        "{" + $"{inl}{elems}{nl}" + "}"
     | DDict o ->
       if Map.isEmpty o then
         "{}"

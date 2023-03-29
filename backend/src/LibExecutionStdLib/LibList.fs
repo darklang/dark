@@ -44,6 +44,7 @@ module DvalComparator =
     | DBytes b1, DBytes b2 -> compare b1 b2
     | DHttpResponse _, DHttpResponse _ -> 0 // this is being deleted soon
     | DDict o1, DDict o2 -> compareMaps (Map.toList o1) (Map.toList o2)
+    | DRecord o1, DRecord o2 -> compareMaps (Map.toList o1) (Map.toList o2)
     | DOption o1, DOption o2 ->
       match o1, o2 with
       | None, None -> 0
@@ -82,6 +83,7 @@ module DvalComparator =
     | DBytes _, _
     | DHttpResponse _, _
     | DDict _, _
+    | DRecord _, _
     | DOption _, _
     | DResult _, _
     | DConstructor _, _ ->
