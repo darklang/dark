@@ -2,23 +2,23 @@ type Request = {
   prompt : String
 }
 (
-  let prompt = request.body |> Bytes.toString |> Json.parse<Request> |> (fun r -> r.prompt)
-  let apiKey = Secret.get("OPENAI_API_KEY")
-  let response = HttpClient.request(
-    "POST",
-    "https://api.openai.com/v1/completions",
-    [("Content-Type", "application/json"); ("Authorization", "Bearer " ++ apiKey)],
-    Json.toString({
-      prompt = prompt
-      temperature = 0.7
-      max_tokens = 60
-      n = 1
-      stop = "\n"
-    }) |> String.toBytes
-  )
-  {
-    statusCode = response.statusCode
-    headers = response.headers
-    body = response.body
-  }
+  let request = request.body |> String.fromBytes |> Json.parse<Request>
+  match request with
+  | Ok r ->
+    let apiKey = OPENAI_API_KEY
+    let response = HttpClient.request(
+      "POST",
+      "https://api.openai.com/v1/completions",
+      [("Content-Type", "application/json"); ("Authorization", "Bearer " ++ apiKey)],
+      Json.toString({
+        prompt = r.prompt
+        temperature = 0.7
+        max_tokens = 60
+        n = 1
+        stop = "\n"
+      }) |> String.toBytes
+    )
+    Http.responseWithHeaders response.body response.headers response.statusCode
+  | Error e ->
+    Http.response (String.toBytes e) 400
 )
