@@ -32,7 +32,7 @@ and CanvasHackHttpHandler =
     [<Legivel.Attributes.YamlField("path")>]
     Path : string }
 
-let baseDir = $"dark-editor"
+let baseDir = $"canvases/dark-editor"
 
 [<EntryPoint>]
 let main (args : string []) =

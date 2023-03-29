@@ -48,5 +48,10 @@ module Response =
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
-          UTF8.toBytes
-            "Application error: the executed code did not result in a redirect or bytes response." }
+          let message =
+            $"Application error: expected an http response, got:
+{LibExecution.DvalReprDeveloper.dvalTypeName result}: {LibExecution.DvalReprDeveloper.toRepr result}
+
+Consider using `Http.response`, `Http.responseWithHeaders`, or a similar function."
+
+          UTF8.toBytes message }
