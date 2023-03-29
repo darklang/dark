@@ -94,8 +94,10 @@
             const data = await response.json();
             document.getElementById("output").value = data.choices[0].text;
           } else {
+            window.response = response;
+            let text = await response.text();
             document.getElementById("output").value =
-              "Error calling the GPT-4 API";
+              "Error calling the GPT-4 API: " + response.status + " " + response.statusText + " " + text;
           }
         });
     </script>
