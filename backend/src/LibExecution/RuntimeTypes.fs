@@ -341,8 +341,7 @@ and [<NoComparison>] Dval =
   // of a type that is defined in the standard library (http module)
   | DHttpResponse of int64 * List<string * string> * Dval
 
-  // TODO: replace with something like
-  // `| DRecord of FQTypeName.T * DvalMap`
+  | DRecord (* FQTypeName.T * *)  of DvalMap
   | DDict of DvalMap
 
   // TODO: merge DOption and DResult into DConstructor once the Option and Result types
@@ -490,6 +489,13 @@ module Dval =
     | DTuple (first, second, theRest) ->
       TTuple(toType first, toType second, List.map toType theRest)
     | DDict map ->
+      map
+      |> Map.toList
+      |> List.tryHead
+      |> Option.map (fun (k, v) -> toType v)
+      |> Option.defaultValue (TVariable "a")
+      |> TDict
+    | DRecord map ->
       map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
     | DError _ -> TError
@@ -555,7 +561,7 @@ module Dval =
       pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
     | DList l, TList t -> List.all (typeMatches t) l
     | DDict m, TDict t -> Map.all (typeMatches t) m
-    | DDict m, TRecord pairs ->
+    | DRecord m, TRecord pairs ->
       let actual = Map.toList m |> List.sortBy Tuple2.first
       let expected = pairs |> List.sortBy Tuple2.first
 
@@ -574,7 +580,7 @@ module Dval =
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
-    | DDict _, TCustomType _ ->
+    | DRecord _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
@@ -616,12 +622,11 @@ module Dval =
     | DList _, _
     | DTuple _, _
     | DDict _, _
-    | DDict _, _
+    | DRecord _, _
     | DFnVal _, _
     | DOption _, _
     | DResult _, _
     | DHttpResponse _, _
-    | DDict _, _
     | DConstructor _, _ -> false
 
 

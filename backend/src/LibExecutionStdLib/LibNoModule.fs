@@ -32,6 +32,12 @@ let rec equals (a : Dval) (b : Dval) : bool =
          (fun k v ->
            Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
          a
+  | DRecord a, DRecord b ->
+    Map.count a = Map.count b
+    && Map.forall
+         (fun k v ->
+           Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+         a
   | DFnVal a, DFnVal b ->
     match a, b with
     | Lambda a, Lambda b -> equalsLambdaImpl a b
@@ -66,6 +72,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DList _, _
   | DTuple _, _
   | DDict _, _
+  | DRecord _, _
   | DFnVal _, _
   | DDateTime _, _
   | DPassword _, _

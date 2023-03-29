@@ -144,6 +144,7 @@ module Dval =
     | DTuple of T * T * List<T>
     | DFnVal of FnValImpl // See docs/dblock-serialization.md
     | DDict of Map<string, T>
+    | DRecord of Map<string, T> // CLEANUP add type name
     | DError of DvalSource * string
     | DIncomplete of DvalSource
     | DHttpResponse of int64 * List<string * string> * T

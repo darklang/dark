@@ -358,6 +358,7 @@ module Dval =
     | Dval.DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
     | Dval.DDict o -> RT.DDict(Map.map r o)
+    | Dval.DRecord o -> RT.DRecord(Map.map r o)
     | Dval.DOption None -> RT.DOption None
     | Dval.DOption (Some dv) -> RT.DOption(Some(r dv))
     | Dval.DResult (Ok dv) -> RT.DResult(Ok(r dv))
@@ -400,6 +401,7 @@ module Dval =
     | RT.DTuple (first, second, theRest) ->
       Dval.DTuple(r first, r second, List.map r theRest)
     | RT.DDict o -> Dval.DDict(Map.map r o)
+    | RT.DRecord o -> Dval.DRecord(Map.map r o)
     | RT.DOption None -> Dval.DOption None
     | RT.DOption (Some dv) -> Dval.DOption(Some(r dv))
     | RT.DResult (Ok dv) -> Dval.DResult(Ok(r dv))
