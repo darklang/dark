@@ -143,11 +143,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
               | _, "", _ -> return DError(sourceID id, "Record key is empty")
-              | DObj m, k, v -> return (DObj(Map.add k v m))
-              // If we haven't got a DObj we're propagating an error so let it go
+              | DDict m, k, v -> return (DDict(Map.add k v m))
+              // If we haven't got a DDict we're propagating an error so let it go
               | r, _, v -> return r
             })
-          (DObj(Map.empty))
+          (DDict(Map.empty))
           fields
 
 
@@ -183,7 +183,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return DError(sourceID id, "Field name is empty")
       else
         match obj with
-        | DObj o ->
+        | DDict o ->
           match Map.tryFind field o with
           | Some v -> return v
           | None -> return DError(sourceID id, $"No field named {field} in record")
@@ -617,7 +617,7 @@ and callFn
                   |> (fun (db : DB.T) -> db.cols)
                   |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
                   |> Map.ofList
-                  |> DObj
+                  |> DDict
 
               let! (_ : Dval) = executeLambda state b [ sample ]
               ()

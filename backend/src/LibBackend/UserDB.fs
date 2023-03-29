@@ -72,10 +72,10 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   let fieldTypes = schemaToTypes db
   let pObj =
     match DvalReprInternalQueryable.parseJsonV0 (RT.TRecord fieldTypes) obj with
-    | RT.DObj o -> o
-    | _ -> Exception.raiseInternal "failed format, expected DObj" [ "actual", obj ]
+    | RT.DDict o -> o
+    | _ -> Exception.raiseInternal "failed format, expected DDict" [ "actual", obj ]
   let typeChecked = typeCheck db pObj
-  RT.DObj typeChecked
+  RT.DDict typeChecked
 
 
 // TODO: Unify with TypeChecker.fs
@@ -104,8 +104,8 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TList _, RT.DList _ -> value
         | RT.TPassword, RT.DPassword _ -> value
         | RT.TUuid, RT.DUuid _ -> value
-        | RT.TDict _, RT.DObj _ -> value
-        | RT.TRecord _, RT.DObj _ -> value
+        | RT.TDict _, RT.DDict _ -> value
+        | RT.TRecord _, RT.DDict _ -> value
         | _, RT.DUnit -> value // allow nulls for now
         | expectedType, valueOfActualType ->
           Exception.raiseCode (

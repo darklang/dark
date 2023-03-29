@@ -343,7 +343,7 @@ and [<NoComparison>] Dval =
 
   // TODO: replace with something like
   // `| DRecord of FQTypeName.T * DvalMap`
-  | DObj of DvalMap
+  | DDict of DvalMap
 
   // TODO: merge DOption and DResult into DConstructor once the Option and Result types
   // are defined in the Option and Result modules of the standard library
@@ -471,7 +471,7 @@ module Dval =
 
   let toPairs (dv : Dval) : Result<List<string * Dval>, string> =
     match dv with
-    | DObj obj -> Ok(Map.toList obj)
+    | DDict obj -> Ok(Map.toList obj)
     | _ -> Error "expecting str"
 
   /// Gets the Dark runtime type from a runtime value
@@ -489,7 +489,7 @@ module Dval =
     | DList [] -> TList any
     | DTuple (first, second, theRest) ->
       TTuple(toType first, toType second, List.map toType theRest)
-    | DObj map ->
+    | DDict map ->
       map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
     | DError _ -> TError
@@ -554,8 +554,8 @@ module Dval =
 
       pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
     | DList l, TList t -> List.all (typeMatches t) l
-    | DObj m, TDict t -> Map.all (typeMatches t) m
-    | DObj m, TRecord pairs ->
+    | DDict m, TDict t -> Map.all (typeMatches t) m
+    | DDict m, TRecord pairs ->
       let actual = Map.toList m |> List.sortBy Tuple2.first
       let expected = pairs |> List.sortBy Tuple2.first
 
@@ -574,7 +574,7 @@ module Dval =
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
-    | DObj _, TCustomType _ ->
+    | DDict _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
@@ -615,13 +615,13 @@ module Dval =
     | DBytes _, _
     | DList _, _
     | DTuple _, _
-    | DObj _, _
-    | DObj _, _
+    | DDict _, _
+    | DDict _, _
     | DFnVal _, _
     | DOption _, _
     | DResult _, _
     | DHttpResponse _, _
-    | DObj _, _
+    | DDict _, _
     | DConstructor _, _ -> false
 
 
@@ -641,7 +641,7 @@ module Dval =
   let obj (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DObj Map.empty)
+      (DDict Map.empty)
       (fun m (k, v) ->
         match m, k, v with
         // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
@@ -650,13 +650,13 @@ module Dval =
         | _, "", _ -> m
         | _, _, DIncomplete _ -> m
         // Errors should propagate (but only if we're not already propagating an error)
-        | DObj _, _, v when isFake v -> v
+        | DDict _, _, v when isFake v -> v
         // Error if the key appears twice
-        | DObj m, k, _v when Map.containsKey k m ->
+        | DDict m, k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
-        | DObj m, k, v -> DObj(Map.add k v m)
-        // If we haven't got a DObj we're propagating an error so let it go
+        | DDict m, k, v -> DDict(Map.add k v m)
+        // If we haven't got a DDict we're propagating an error so let it go
         | m, _, _ -> m)
       fields
 

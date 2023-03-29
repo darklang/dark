@@ -143,7 +143,7 @@ module Dval =
     | DList of List<T>
     | DTuple of T * T * List<T>
     | DFnVal of FnValImpl // See docs/dblock-serialization.md
-    | DObj of Map<string, T>
+    | DDict of Map<string, T>
     | DError of DvalSource * string
     | DIncomplete of DvalSource
     | DHttpResponse of int64 * List<string * string> * T

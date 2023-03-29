@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
          headers>."
       fn =
         (function
-        | _, _, [ dv; DObj o; DInt code ] ->
+        | _, _, [ dv; DDict o; DInt code ] ->
           let pairs =
             Map.toList o
             |> List.map (fun (k, v) ->
@@ -230,7 +230,7 @@ let fns : List<BuiltInFn> =
          and/or {{SameSite}})."
       fn =
         (function
-        | _, _, [ DStr name; DStr value; DObj o ] ->
+        | _, _, [ DStr name; DStr value; DDict o ] ->
 
           let fold_cookie_params acc key value =
             match (String.toLowercase key, value) with
@@ -306,7 +306,7 @@ let fns : List<BuiltInFn> =
           |> String.concat "; "
           |> DStr
           |> fun x -> Map.add "Set-Cookie" x Map.empty
-          |> DObj
+          |> DDict
           |> Ply
 
         | _ -> incorrectArgs ())

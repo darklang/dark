@@ -32,7 +32,7 @@ let fns : List<BuiltInFn> =
 
             $"Basic {Base64.defaultEncodeToString input}"
 
-          Ply(DObj(Map [ "Authorization", (DStr(encodeBasicAuth u p)) ]))
+          Ply(DDict(Map [ "Authorization", (DStr(encodeBasicAuth u p)) ]))
         | _ -> incorrectArgs ())
       previewable = Pure
       sqlSpec = NotQueryable

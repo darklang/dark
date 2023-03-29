@@ -35,14 +35,14 @@ let queryableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dvm
   |> DvalReprInternalQueryable.toJsonStringV0 fieldTypes
   |> DvalReprInternalQueryable.parseJsonV0 typ
-  |> Expect.dvalEquality (RT.DObj dvm)
+  |> Expect.dvalEquality (RT.DDict dvm)
 
 let testDvalRoundtrippableRoundtrips =
 
   testMany
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
-    [ RT.DObj(Map.ofList [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]),
+    [ RT.DDict(Map.ofList [ ("", RT.DFloat 1.797693135e+308); ("a", RT.DFloat nan) ]),
       true ]
 
 
@@ -56,7 +56,7 @@ let testToDeveloperRepr =
           RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
-          RT.DObj(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
+          RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
           RT.DList [ RT.DUnit ], "[\n  unit\n]" ] ]
 
 // We used a System.Text.Json converter supplied by a NuGet package for a bit,
@@ -208,7 +208,7 @@ module Password =
     test "serialization in object" {
       let roundtrips name serialize deserialize =
         let bytes = UTF8.toBytes "encryptedbytes"
-        let password = RT.DObj(Map.ofList [ "x", RT.DPassword(Password bytes) ])
+        let password = RT.DDict(Map.ofList [ "x", RT.DPassword(Password bytes) ])
         let fieldTypes = [ "x", RT.TPassword ]
         let typ = RT.TRecord fieldTypes
 
@@ -216,7 +216,7 @@ module Password =
           dval
           |> (fun dval ->
             match dval with
-            | RT.DObj dvalMap -> dvalMap
+            | RT.DDict dvalMap -> dvalMap
             | _ -> Exception.raiseInternal "dobj only here" [])
           |> serialize fieldTypes
 

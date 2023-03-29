@@ -45,7 +45,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | _, DHttpResponse _
   | _, DFnVal _
   | _, DDB _
-  | _, DObj _ // CLEANUP allow
+  | _, DDict _ // CLEANUP allow
   | _, DPassword _ // CLEANUP allow
   | _, DOption _ // CLEANUP allow
   | _, DResult _ // CLEANUP allow
