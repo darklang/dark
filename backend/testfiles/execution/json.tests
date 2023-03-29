@@ -284,16 +284,20 @@ Json.parse<Result<int, string>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 // ## Custom types
 
 // ### User-defined
-// #### Records
-type PrettyLikely = Yeah | Nah of reason: string * int
+// #### Enums
+type PrettyLikely = Yeah | Enh of reason: string * int
 
 Json.serialize<PrettyLikely> Yeah = Ok "{\"Yeah\":[]}"
 Json.parse<PrettyLikely> "{\"Yeah\":[]}" = Ok Yeah
-//Json.serialize<PrettyLikely> (Nah("printer broke", 7)) = Ok "{ "Nah": ["printer broke", 7] }"
-// TODO: parse tests for both of the above
+Json.serialize<PrettyLikely> (Enh("printer broke", 7)) = Ok "{\"Enh\":[\"printer broke\",7]}"
+Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (Enh("printer broke", 7))
+// TODO: more
+// TODO: more nesting...
 
 
-// #### Enums
+// #### Records
+// TODO
+
 
 // ### Package
 

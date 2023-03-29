@@ -294,7 +294,7 @@ module Expr =
       | _ ->
         Exception.raiseInternal
           "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
-          [ "name", name.idText ]
+          [ "name", name.idText; "matchingEnumCases", matchingEnumCases ]
 
     // Lists and arrays
     | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
