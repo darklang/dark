@@ -1,11 +1,11 @@
 module LibExecutionStdLib.LibJson
 
+open System.Text.Json
+
 open LibExecution.RuntimeTypes
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-
-
 module Errors = LibExecution.Errors
 
 let fn = FQFnName.stdlibFnName
@@ -13,54 +13,6 @@ let tp = PT.FQTypeName.stdlibTypeName
 
 let incorrectArgs = Errors.incorrectArgs
 
-
-// let's imagine we have a type like this:
-// type User = { name: string; age: int }
-// type Data = { users: User[] }
-// and we have a json string like this, with 2 users, one of which doesn't fully match the user type:
-// { "users": [ { "name": "Alice", "age": 20 }, { "name": "Bob" } ] }
-// then we want to parse it into a Data value, and we want to know that the second user didn't match the type
-
-// so given `let parse<'a>: Result<'a, JsonParseError> = ...`
-// we should expect `parse<Data> json` to return a Result with an error like this:
-// Error <| CantMatchWithType { typ = "User"; json = "{ \"name\": \"Bob\" }"; location = "users[1]" }
-
-// also, if we try to call `parse<bool> "1"` we should get a Result with an error like this:
-// Error <| CantMatchWithType { typ = "bool"; json = "1"; location = "Root" }
-
-// TODO: eventually, expose this
-module JsonParseError =
-  type ErrorPath =
-    | Root
-    | Index of int
-    | Field of string
-
-  type T =
-    | NotJson
-    | TypeUnsupported of DType
-    | TypeNotYetSupported of DType
-    | CantMatchWithType of typ : DType * json : string * errorPath : List<ErrorPath>
-
-  exception JsonParseException of T
-
-  let toString (err : T) : string =
-    match err with
-    | NotJson -> "Not JSON"
-    | TypeUnsupported typ -> $"Type not supported (intentionally): {typ}"
-    | TypeNotYetSupported typ -> $"Type not yet supported: {typ}"
-    | CantMatchWithType (typ, json, errorPath) ->
-      let errorPath =
-        errorPath
-        |> List.map (function
-          | Root -> "root"
-          | Index i -> $"[{i}]"
-          | Field f -> $".{f}")
-        |> String.concat ""
-
-      $"Can't match JSON with type {typ} at {errorPath}: {json}"
-
-
-open System.Text.Json
 
 // parsing
 let parseJson (s : string) : JsonElement =
@@ -118,7 +70,6 @@ let rec serialize
 
   | TInt, DInt i ->
     // CLEANUP if the number is outside the range, store as a string?
-    // TODO for now, maybe just throw an error?
     w.WriteNumberValue i
 
   | TFloat, DFloat f ->
@@ -257,6 +208,68 @@ let rec serialize
       "Can't currently serialize this type/value combination"
       [ "value", dv; "type", typ ]
 
+/// Let's imagine we have these types:
+///
+///   ```fsharp
+///   type User = { name: string; age: int }
+///   type Data = { users: User[] }
+///   ```
+///
+/// and we have a json string like this, with 2 users,
+///   one of which doesn't fully match the user type:
+///
+///   ```fsharp
+///   { "users": [ { "name": "Alice", "age": 20 }, { "name": "Bob" } ] }
+///   ```
+///
+/// When we run `parse<Data> json`, we'd like a structured error,
+///   indicating that the second user didn't match the type. something like:
+///
+/// ```fsharp
+/// CantMatchWithType
+///   { typ = "User"
+///     json = "{ \"name\": \"Bob\" }"
+///     location = [ Root; Field "users"; Index 1] }
+/// |> Error
+/// ```
+///
+/// simpler case: if we try to call `parse<bool> "1"` we should get:
+/// ```fsharp
+/// Error <| CantMatchWithType { typ = "bool"; json = "1"; location = [Root] }
+/// ```
+///
+/// TODO: eventually, expose this in the JSON module?
+module JsonParseError =
+  type ErrorPath =
+    | Root
+    | Index of int
+    | Field of string
+
+  type T =
+    | NotJson
+    | TypeUnsupported of DType
+    | TypeNotYetSupported of DType
+    | CantMatchWithType of typ : DType * json : string * errorPath : List<ErrorPath>
+    | Uncaught of System.Exception
+
+  exception JsonParseException of T
+
+  let toString (err : T) : string =
+    match err with
+    | Uncaught ex -> "Uncaught error: " + ex.Message
+    | NotJson -> "Not JSON"
+    | TypeUnsupported typ -> $"Type not supported (intentionally): {typ}"
+    | TypeNotYetSupported typ -> $"Type not yet supported: {typ}"
+    | CantMatchWithType (typ, json, errorPath) ->
+      let errorPath =
+        errorPath
+        |> List.map (function
+          | Root -> "root"
+          | Index i -> $"[{i}]"
+          | Field f -> $".{f}")
+        |> String.concat ""
+
+      $"Can't match JSON with type {typ} at {errorPath}: {json}"
 
 let parse
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
@@ -383,27 +396,16 @@ let parse
 
         | _ -> Exception.raiseInternal "TODO" []
 
-
       | CustomType.Record _ -> Exception.raiseInternal "TODO" []
 
 
-
-    // | TCustomType (tTypeName, _typeArgs), DConstructor (dTypeName, caseName, fields) ->
-    //   // TODO: ensure that the type names are the same
-    //   // TODO: _something_ with the type args
-    //   //   (or maybe we just need to revisit once TypeDefinition is present)
-
-    //   // TODO: try find exactly one matching type
-
-
+    // Explicitly not supported
     | TVariable _, _ ->
+      // this should disappear when we use a TypeReference here rather than a DType
       JsonParseError.TypeUnsupported typ
       |> JsonParseError.JsonParseException
       |> raise
 
-
-
-    // Explicitly not supported
     | TFn _, _ -> Exception.raiseInternal "Cannot parse functions" []
 
     | TDB _, _ -> Exception.raiseInternal "Cannot serialize DB references" []
