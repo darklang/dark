@@ -97,9 +97,7 @@ module TraceID =
     timestamp |> (~~~) |> int64 |> NodaTime.Instant.FromUnixTimeMilliseconds
 
 
-type TraceData =
-  { input : InputVars
-    functionResults : List<FunctionResult> }
+type TraceData = { input : InputVars; functionResults : List<FunctionResult> }
 
 type Trace = TraceID.T * TraceData
 
