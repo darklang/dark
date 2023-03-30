@@ -25,7 +25,6 @@ module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
 
 module TI = LibBackend.TraceInputs
-module TFR = LibBackend.TraceFunctionResults
 module TCS = LibBackend.TraceCloudStorage
 
 

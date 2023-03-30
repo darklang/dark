@@ -98,6 +98,11 @@ let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
 
 let currentStorageVersion = 0
 
+type FunctionArgumentStore = tlid * RT.DvalMap * NodaTime.Instant
+type FunctionResultKey = tlid * RT.FQFnName.T * id * string
+type FunctionResultValue = RT.Dval * NodaTime.Instant
+
+
 type CloudStorageFormat =
   { storageFormatVersion : int
     input : InputVars
@@ -231,8 +236,8 @@ let storeToCloudStorage
   (traceID : AT.TraceID.T)
   (touchedTLIDs : List<tlid>)
   (inputVars : List<string * RT.Dval>)
-  (functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore>)
-  (functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>)
+  (functionArguments : ResizeArray<FunctionArgumentStore>)
+  (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   task {
     let functionResults =

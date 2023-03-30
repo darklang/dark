@@ -28,8 +28,6 @@
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="TraceInputs.fs" />
-    <Compile Include="TraceFunctionResults.fs" />
-    <Compile Include="TraceFunctionArguments.fs" />
     <Compile Include="TraceCloudStorage.fs" />
     <Compile Include="Op.fs" />
     <Compile Include="QueueSchedulingRules.fs" />
