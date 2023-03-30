@@ -28,13 +28,11 @@ module TraceSamplingRule =
     | SampleAll
     | SampleOneIn of int
     | SampleAllWithTelemetry
-    | SampleAllToCloudStorage
 
   let parseRule (ruleString : string) : Result<T, string> =
     match ruleString with
     | "sample-none" -> Ok SampleNone
     | "sample-all" -> Ok SampleAll
-    | "sample-all-to-cloud-storage" -> Ok SampleAllToCloudStorage
     | "sample-all-with-telemetry" -> Ok SampleAllWithTelemetry
     | _ ->
       try
@@ -69,14 +67,12 @@ module TracingConfig =
     | DoTrace
     | DontTrace
     | TraceWithTelemetry
-    | TraceToCloudStorage
 
   let fromRule (rule : TraceSamplingRule.T) (traceID : AT.TraceID.T) : T =
     match rule with
     | TraceSamplingRule.SampleAll -> DoTrace
     | TraceSamplingRule.SampleNone -> DontTrace
     | TraceSamplingRule.SampleAllWithTelemetry -> TraceWithTelemetry
-    | TraceSamplingRule.SampleAllToCloudStorage -> TraceToCloudStorage
     | TraceSamplingRule.SampleOneIn freq ->
       // Use the traceID as an existing source of entropy.
       let random =
@@ -90,7 +86,6 @@ module TracingConfig =
   let shouldTrace (config : T) =
     match config with
     | DoTrace
-    | TraceToCloudStorage
     | TraceWithTelemetry -> true
     | DontTrace -> false
 
@@ -261,11 +256,9 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
 let create (canvasID : CanvasID) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
   let config = TracingConfig.forHandler canvasID rootTLID traceID
   match config with
-  | TracingConfig.DoTrace -> createStandardTracer canvasID traceID
+  | TracingConfig.DoTrace -> createCloudStorageTracer canvasID rootTLID traceID
   | TracingConfig.TraceWithTelemetry -> createTelemetryTracer canvasID traceID
   | TracingConfig.DontTrace -> createNonTracer canvasID traceID
-  | TracingConfig.TraceToCloudStorage ->
-    createCloudStorageTracer canvasID rootTLID traceID
 
 module Test =
   let saveTraceResult

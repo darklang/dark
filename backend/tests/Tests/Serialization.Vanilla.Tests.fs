@@ -407,7 +407,6 @@ module PersistedSerializations =
               traceID = V.uuid
               traceData =
                 { input = [ "var", CV.dval ]
-                  timestamp = V.instant
                   functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
               dbs =
                 [ { tlid = V.tlid
@@ -433,7 +432,6 @@ module PersistedSerializations =
               traceID = V.uuid
               traceData =
                 { input = [ "var", CV.dval ]
-                  timestamp = V.instant
                   functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
               dbs =
                 [ { tlid = V.tlid
@@ -459,8 +457,7 @@ module PersistedSerializations =
         v<LibExecution.AnalysisTypes.TraceData>
           "testTraceData"
           { input = [ "var", V.RuntimeTypes.dval ]
-            timestamp = V.instant
-            function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
+            functionResults = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
 
 
   let generateTestFiles () =

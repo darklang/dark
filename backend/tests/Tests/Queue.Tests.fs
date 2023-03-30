@@ -26,6 +26,7 @@ module SR = LibBackend.QueueSchedulingRules
 
 module TI = LibBackend.TraceInputs
 module TFR = LibBackend.TraceFunctionResults
+module TCS = LibBackend.TraceCloudStorage
 
 
 let p (code : string) = Parser.parsePTExpr code
@@ -65,25 +66,24 @@ let checkSuccess
       Expect.isNone event "should have been deleted"
     | Error _ -> Expect.isOk result "should have processed"
 
-    // should have at least one trace
-    let! traceIDs = TI.loadEventIDs canvasID ("WORKER", "test", "_")
-    let traceID =
-      traceIDs
-      |> List.head
-      |> Exception.unwrapOptionInternal "missing eventID" []
-      |> Tuple2.first
 
     // Saving happens in the background so wait for it
-    let mutable functionResults = []
+    let mutable traceIDs = []
     for _ in 1..10 do
-      if functionResults = [] then
-        let! result = TFR.load canvasID traceID tlid
-        functionResults <- result
-        if functionResults = [] then do! Task.Delay 300
+      if traceIDs = [] then
+        // should have at least one trace
+        let! result = TCS.Test.listAllTraceIDs canvasID
+        traceIDs <- result
+        if traceIDs = [] then do! Task.Delay 300
 
-    Expect.equal (List.length functionResults) 1 "should have stored fn result"
+    Expect.equal (List.length traceIDs) 1 "should have a trace result"
+    let! trace =
+      traceIDs
+      |> List.head
+      |> Exception.unwrapOptionInternal "expectedID" []
+      |> TCS.getTraceData canvasID tlid
     let shapeIsAsExpected =
-      match functionResults with
+      match (Tuple2.second trace).functionResults with
       | [ (_, _, _, _, RT.DDateTime _) ] -> true
       | _ -> false
     Expect.isTrue shapeIsAsExpected "should have a date here"
@@ -91,7 +91,7 @@ let checkSuccess
 
 let checkExecutedTraces (canvasID : CanvasID) (count : int) =
   task {
-    let! traceIDs = TI.loadEventIDs canvasID ("WORKER", "test", "_")
+    let! traceIDs = TCS.Test.listAllTraceIDs canvasID
     Expect.hasLength traceIDs count "wrong execution count"
   }
 

@@ -19,9 +19,6 @@ module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
 
-module TI = LibBackend.TraceInputs
-module TFR = LibBackend.TraceFunctionResults
-
 
 let p (code : string) = Parser.parsePTExpr code
 

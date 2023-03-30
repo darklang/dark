@@ -22,8 +22,8 @@ module LibBackend.TraceCloudStorage
 // High level design:
 // - a single trace is collected by an execution. The trace contains:
 //   - input of the root handler called
-//   - function_results with the same data as currently available
-//   - function_arguments with the same data as currently available
+//   - functionResults with the same data as currently available
+//   - functionArguments with the same data as currently available
 // - we store this in Google Cloud Storage
 //   - format `{canvasID}/{tlid}/{traceID}`
 //   - main trace is called 0
@@ -215,8 +215,7 @@ let getTraceData
 
     let traceData : AT.TraceData =
       { input = cloudStorageData.input |> List.map (Tuple2.mapSecond parseDval)
-        timestamp = AT.TraceID.toTimestamp traceID
-        function_results =
+        functionResults =
           cloudStorageData.functionResults
           |> Seq.map (fun (_tlid, id, fnName, hashVersion, argHash, dval) ->
             (fnName, id, argHash, hashVersion, parseDval dval) : AT.FunctionResult)
