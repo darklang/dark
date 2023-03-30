@@ -69,48 +69,6 @@ idx_queue_events_count
 ON queue_events_v0 (canvas_id, module, name);
 
 
--- TODO: we want to remove this
-CREATE TABLE IF NOT EXISTS
-trace_old_function_arguments_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
-, canvas_id UUID NOT NULL
-, tlid BIGINT NOT NULL
-, trace_id UUID NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
-, arguments_json TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS
-trace_old_function_arguments_most_recent
-ON trace_old_function_arguments_v0
-(canvas_id, tlid, timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS
-trace_old_function_arguments_for_trace
-ON trace_old_function_arguments_v0
-(canvas_id, tlid, trace_id);
-
-
-CREATE TABLE IF NOT EXISTS
-trace_old_function_results_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
-, canvas_id UUID NOT NULL
-, tlid BIGINT NOT NULL
-, caller_id BIGINT NOT NULL
-, fnname TEXT NOT NULL
-, hash TEXT NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
-, value TEXT NOT NULL
-, trace_id UUID NOT NULL
-, hash_version INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS
-idx_trace_old_function_results_v0_most_recent
-ON trace_old_function_results_v0
-(canvas_id, trace_id, tlid, timestamp DESC);
-
-
 CREATE TABLE IF NOT EXISTS
 trace_old_events_v0
 ( trace_id UUID PRIMARY KEY -- TODO: is this right?

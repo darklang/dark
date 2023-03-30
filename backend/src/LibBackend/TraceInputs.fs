@@ -117,43 +117,6 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
      read.instant "timestamp",
      read.traceID "trace_id"))
 
-// let list_event_descs
-//     ~(limit : [`All | `After of RTT.time | `Before of RTT.time])
-//     ~(canvas_id : Uuidm.t)
-//     () : event_desc list =
-//   let timestamp_constraint =
-//     match limit with
-//     | `All ->
-//         ""
-//     | `After ts ->
-//         "AND timestamp > " ^ Db.escape (Time ts)
-//     | `Before ts ->
-//         "AND timestamp < " ^ Db.escape (Time ts)
-//   in
-//   let sql =
-//     (* Note we just grab the first one in the group because the ergonomics
-//      * of SELECT DISTINCT ON is much easier than the complex GROUP BY
-//      * with row_partition/row_num counting to express "give me the
-//      * first N in the group" which is probably more what we want
-//      * from a product POV.
-//      *
-//      * Also we _could_ order by timestamp desc here to get the more
-//      * recent events if we desire in the future *)
-//     "SELECT DISTINCT ON (module, path, modifier)
-//      module, path, modifier
-//      FROM stored_events_v2
-//      WHERE canvas_id = $1"
-//     ^ timestamp_constraint
-//   in
-//   Db.fetch sql ~name:"list_events" ~params:[Db.Uuid canvas_id]
-//   |> List.map ~f:(function
-//          | [module_; path; modifier] ->
-//              (module_, path, modifier)
-//          | out ->
-//              Exception.internal "Bad DB format for stored_events")
-
-
-
 let mungePathForPostgres (module_ : string) (path : string) =
   // Only munge the route for HTTP events, as they have wildcards, whereas
   // background events are completely concrete.
