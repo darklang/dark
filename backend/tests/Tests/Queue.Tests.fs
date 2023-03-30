@@ -53,6 +53,19 @@ let enqueue (canvasID : CanvasID) : Task<unit> =
   let input = RT.DUnit // crons take inputs, so this could be anything
   EQ.enqueue canvasID "WORKER" "test" "_" input
 
+
+let checkExecutedTraces (canvasID : CanvasID) (count : int) : Task<unit> =
+  task {
+    // Saving happens in the background so wait for it
+    let mutable traceIDs = []
+    for _ in 1..10 do
+      if List.length traceIDs <> count then
+        let! result = TCS.Test.listAllTraceIDs canvasID
+        traceIDs <- result
+        if List.length result <> count then do! Task.Delay 500
+    Expect.hasLength traceIDs count "wrong execution count"
+  }
+
 let checkSuccess
   (canvasID : CanvasID)
   (tlid : tlid)
@@ -66,22 +79,14 @@ let checkSuccess
       Expect.isNone event "should have been deleted"
     | Error _ -> Expect.isOk result "should have processed"
 
+    let! traceIDs = TCS.Test.listAllTraceIDs canvasID
 
-    // Saving happens in the background so wait for it
-    let mutable traceIDs = []
-    for _ in 1..10 do
-      if traceIDs = [] then
-        // should have at least one trace
-        let! result = TCS.Test.listAllTraceIDs canvasID
-        traceIDs <- result
-        if traceIDs = [] then do! Task.Delay 300
-
-    Expect.equal (List.length traceIDs) 1 "should have a trace result"
     let! trace =
       traceIDs
       |> List.head
       |> Exception.unwrapOptionInternal "expectedID" []
       |> TCS.getTraceData canvasID tlid
+
     let shapeIsAsExpected =
       match (Tuple2.second trace).functionResults with
       | [ (_, _, _, _, RT.DDateTime _) ] -> true
@@ -89,11 +94,7 @@ let checkSuccess
     Expect.isTrue shapeIsAsExpected "should have a date here"
   }
 
-let checkExecutedTraces (canvasID : CanvasID) (count : int) =
-  task {
-    let! traceIDs = TCS.Test.listAllTraceIDs canvasID
-    Expect.hasLength traceIDs count "wrong execution count"
-  }
+
 
 let checkSavedEvents (canvasID : CanvasID) (count : int) =
   task {
