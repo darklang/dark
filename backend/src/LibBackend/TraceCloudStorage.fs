@@ -23,7 +23,6 @@ module LibBackend.TraceCloudStorage
 // - a single trace is collected by an execution. The trace contains:
 //   - input of the root handler called
 //   - functionResults with the same data as currently available
-//   - functionArguments with the same data as currently available
 // - we store this in Google Cloud Storage
 //   - format `{canvasID}/{tlid}/{traceID}`
 //   - main trace is called 0
@@ -98,7 +97,6 @@ let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
 
 let currentStorageVersion = 0
 
-type FunctionArgumentStore = tlid * RT.DvalMap * NodaTime.Instant
 type FunctionResultKey = tlid * RT.FQFnName.T * id * string
 type FunctionResultValue = RT.Dval * NodaTime.Instant
 
@@ -106,7 +104,6 @@ type FunctionResultValue = RT.Dval * NodaTime.Instant
 type CloudStorageFormat =
   { storageFormatVersion : int
     input : InputVars
-    functionArguments : seq<(tlid * InputVars)>
     functionResults : seq<tlid * id * FnName * int * FunctionArgHash * RoundTrippableDval> }
 
 let bucketName = Config.traceStorageBucketName
@@ -236,7 +233,6 @@ let storeToCloudStorage
   (traceID : AT.TraceID.T)
   (touchedTLIDs : List<tlid>)
   (inputVars : List<string * RT.Dval>)
-  (functionArguments : ResizeArray<FunctionArgumentStore>)
   (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   task {
@@ -252,21 +248,11 @@ let storeToCloudStorage
         hash,
         dvalToRoundtrippable dval)
 
-    let functionArguments =
-      functionArguments
-      |> ResizeArray.toList
-      |> List.map (fun (tlid, inputVars, _) ->
-        (tlid,
-         inputVars
-         |> Map.toList
-         |> List.map (fun (name, dval) -> (name, dvalToRoundtrippable dval))))
-
     let inputVars =
       inputVars |> List.map (fun (name, dval) -> (name, dvalToRoundtrippable dval))
     let data =
       { input = inputVars
         functionResults = functionResults
-        functionArguments = functionArguments
         storageFormatVersion = currentStorageVersion }
 
     // Serialize and Compress in one step

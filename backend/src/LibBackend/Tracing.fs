@@ -94,13 +94,10 @@ module TracingConfig =
 module TraceResults =
   type T =
     { tlids : HashSet.T<tlid>
-      functionResults : Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue>
-      functionArguments : ResizeArray<TraceCloudStorage.FunctionArgumentStore> }
+      functionResults : Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue> }
 
   let empty () : T =
-    { tlids = HashSet.empty ()
-      functionResults = Dictionary.empty ()
-      functionArguments = ResizeArray.empty () }
+    { tlids = HashSet.empty (); functionResults = Dictionary.empty () }
 
 
 
@@ -143,11 +140,6 @@ let createCloudStorageTracer
                 (tlid, name, id, hash)
                 (result, NodaTime.Instant.now ())
                 results.functionResults)
-          storeFnArguments =
-            (fun tlid args ->
-              ResizeArray.append
-                (tlid, args, NodaTime.Instant.now ())
-                results.functionArguments)
           traceTLID = traceTLIDFn }
     storeTraceResults =
       fun () ->
@@ -160,7 +152,6 @@ let createCloudStorageTracer
               traceID
               (HashSet.toList touchedTLIDs)
               [ storedInput ]
-              results.functionArguments
               results.functionResults)
     storeTraceInput = fun _ name input -> storedInput <- (name, input) }
 
@@ -193,12 +184,6 @@ let createTelemetryTracer
                     "resultType",
                     LibExecution.DvalReprDeveloper.dvalTypeName result :> obj ]
                 standardTracing.storeFnResult (tlid, name, id) args result)
-            storeFnArguments =
-              (fun tlid args ->
-                Telemetry.addEvent
-                  $"function arguments for {tlid}"
-                  [ "tlid", tlid; "id", id; "argCount", Map.count args ]
-                standardTracing.storeFnArguments tlid args)
             traceTLID =
               fun tlid ->
                 Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]

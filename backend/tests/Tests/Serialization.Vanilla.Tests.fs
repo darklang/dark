@@ -148,11 +148,6 @@ module PersistedSerializations =
               [ "request",
                 V.RuntimeTypes.dval
                 |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT ]
-            functionArguments =
-              [ V.tlid,
-                [ "testParam",
-                  V.RuntimeTypes.dval
-                  |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT ] ]
             functionResults =
               [ (V.tlid,
                  7UL,

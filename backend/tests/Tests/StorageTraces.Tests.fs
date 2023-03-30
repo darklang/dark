@@ -123,7 +123,6 @@ let testTraceRoundtrip =
     let tlid3 = 8UL
     let tlid4 = 9UL
     let functionResults = Dictionary.empty ()
-    let functionArguments = ResizeArray.empty ()
     do!
       TCS.storeToCloudStorage
         c1
@@ -131,7 +130,6 @@ let testTraceRoundtrip =
         t1
         [ tlid1 ]
         [ "request", DStr "1" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -140,7 +138,6 @@ let testTraceRoundtrip =
         t2
         [ tlid1 ]
         [ "request", DStr "2" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -149,7 +146,6 @@ let testTraceRoundtrip =
         t3
         [ tlid3 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -158,7 +154,6 @@ let testTraceRoundtrip =
         t4
         [ tlid2 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -167,7 +162,6 @@ let testTraceRoundtrip =
         t5
         [ tlid2 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -176,7 +170,6 @@ let testTraceRoundtrip =
         t6
         [ tlid4 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
 
     let! actual = TCS.Test.listAllTraceIDs c1 |> Task.map List.sort
