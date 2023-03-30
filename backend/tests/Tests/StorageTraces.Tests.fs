@@ -17,7 +17,6 @@ open LibExecution.RuntimeTypes
 
 module Shortcuts = TestUtils.RTShortcuts
 
-module Traces = LibBackend.Traces
 module Canvas = LibBackend.Canvas
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
@@ -26,19 +25,6 @@ module RealExecution = LibRealExecution.RealExecution
 module Tracing = LibBackend.Tracing
 module TSR = Tracing.TraceSamplingRule
 module TCS = LibBackend.TraceCloudStorage
-
-let testTraceIDsOfTlidsMatch =
-  test "traceIDs from tlids are as expected" {
-    Expect.equal
-      "e170d0d5-14de-530e-8dd0-a445aee7ca81"
-      (Traces.traceIDofTLID 325970458UL |> string)
-      "traceisasexpected"
-
-    Expect.equal
-      "1d10dd39-9638-53c8-86ca-643c267efe44"
-      (Traces.traceIDofTLID 1539654774UL |> string)
-      "traceisasexpected"
-  }
 
 
 // let testFilterSlash =
@@ -137,7 +123,6 @@ let testTraceRoundtrip =
     let tlid3 = 8UL
     let tlid4 = 9UL
     let functionResults = Dictionary.empty ()
-    let functionArguments = ResizeArray.empty ()
     do!
       TCS.storeToCloudStorage
         c1
@@ -145,7 +130,6 @@ let testTraceRoundtrip =
         t1
         [ tlid1 ]
         [ "request", DStr "1" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -154,7 +138,6 @@ let testTraceRoundtrip =
         t2
         [ tlid1 ]
         [ "request", DStr "2" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -163,7 +146,6 @@ let testTraceRoundtrip =
         t3
         [ tlid3 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -172,7 +154,6 @@ let testTraceRoundtrip =
         t4
         [ tlid2 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -181,7 +162,6 @@ let testTraceRoundtrip =
         t5
         [ tlid2 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -190,7 +170,6 @@ let testTraceRoundtrip =
         t6
         [ tlid4 ]
         [ "request", DStr "3" ]
-        functionArguments
         functionResults
 
     let! actual = TCS.Test.listAllTraceIDs c1 |> Task.map List.sort
@@ -382,7 +361,7 @@ let testTraceRoundtrip =
 let tests =
   testList
     "tracing-storage"
-    [ testTraceIDsOfTlidsMatch
+    [
       // testFilterSlash
       // testRouteVariablesWorkWithStoredEvents
       // testRouteVariablesWorkWithTraceInputsAndWildcards

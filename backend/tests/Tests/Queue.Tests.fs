@@ -25,7 +25,7 @@ module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
 
 module TI = LibBackend.TraceInputs
-module TFR = LibBackend.TraceFunctionResults
+module TCS = LibBackend.TraceCloudStorage
 
 
 let p (code : string) = Parser.parsePTExpr code
@@ -52,6 +52,19 @@ let enqueue (canvasID : CanvasID) : Task<unit> =
   let input = RT.DUnit // crons take inputs, so this could be anything
   EQ.enqueue canvasID "WORKER" "test" "_" input
 
+
+let checkExecutedTraces (canvasID : CanvasID) (count : int) : Task<unit> =
+  task {
+    // Saving happens in the background so wait for it
+    let mutable traceIDs = []
+    for _ in 1..10 do
+      if List.length traceIDs <> count then
+        let! result = TCS.Test.listAllTraceIDs canvasID
+        traceIDs <- result
+        if List.length result <> count then do! Task.Delay 500
+    Expect.hasLength traceIDs count "wrong execution count"
+  }
+
 let checkSuccess
   (canvasID : CanvasID)
   (tlid : tlid)
@@ -65,35 +78,22 @@ let checkSuccess
       Expect.isNone event "should have been deleted"
     | Error _ -> Expect.isOk result "should have processed"
 
-    // should have at least one trace
-    let! traceIDs = TI.loadEventIDs canvasID ("WORKER", "test", "_")
-    let traceID =
+    let! traceIDs = TCS.Test.listAllTraceIDs canvasID
+
+    let! trace =
       traceIDs
       |> List.head
-      |> Exception.unwrapOptionInternal "missing eventID" []
-      |> Tuple2.first
+      |> Exception.unwrapOptionInternal "expectedID" []
+      |> TCS.getTraceData canvasID tlid
 
-    // Saving happens in the background so wait for it
-    let mutable functionResults = []
-    for _ in 1..10 do
-      if functionResults = [] then
-        let! result = TFR.load canvasID traceID tlid
-        functionResults <- result
-        if functionResults = [] then do! Task.Delay 300
-
-    Expect.equal (List.length functionResults) 1 "should have stored fn result"
     let shapeIsAsExpected =
-      match functionResults with
+      match (Tuple2.second trace).functionResults with
       | [ (_, _, _, _, RT.DDateTime _) ] -> true
       | _ -> false
     Expect.isTrue shapeIsAsExpected "should have a date here"
   }
 
-let checkExecutedTraces (canvasID : CanvasID) (count : int) =
-  task {
-    let! traceIDs = TI.loadEventIDs canvasID ("WORKER", "test", "_")
-    Expect.hasLength traceIDs count "wrong execution count"
-  }
+
 
 let checkSavedEvents (canvasID : CanvasID) (count : int) =
   task {

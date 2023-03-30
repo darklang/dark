@@ -66,7 +66,7 @@ module Eval =
       let libraries : RT.Libraries =
         { stdlibTypes = stdlibTypes; stdlibFns = stdlibFns; packageFns = packageFns }
       let results, traceDvalFn = Exe.traceDvals ()
-      let functionResults = request.traceData.function_results
+      let functionResults = request.traceData.functionResults
 
       let tracing =
         { LibExecution.Execution.noTracing RT.Preview with

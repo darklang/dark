@@ -53,7 +53,6 @@ let main (args : string array) : int =
         Tests.VanillaSerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
-        Tests.Traces.tests
         Tests.StorageTraces.tests
         Tests.TypeChecker.tests
         Tests.Undo.tests ]

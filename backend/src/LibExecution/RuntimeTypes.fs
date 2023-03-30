@@ -919,10 +919,6 @@ and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instan
 
 and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
-and LoadFnArguments = tlid -> List<DvalMap * NodaTime.Instant>
-
-and StoreFnArguments = tlid -> DvalMap -> unit
-
 /// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
@@ -951,8 +947,6 @@ and Tracing =
     traceTLID : TraceTLID
     loadFnResult : LoadFnResult
     storeFnResult : StoreFnResult
-    loadFnArguments : LoadFnArguments
-    storeFnArguments : StoreFnArguments
     realOrPreview : RealOrPreview }
 
 /// Used for testing

@@ -820,10 +820,6 @@ and execFn
               with
             | Preview, Some (result, _ts) -> return result
             | _ ->
-              // It's okay to execute user functions in both Preview and Real contexts,
-              // But in Preview we might not have all the data we need
-              state.tracing.storeFnArguments tlid args
-
               let state = { state with tlid = tlid }
               let! result = eval state argsWithGlobals body
               state.tracing.storeFnResult fnRecord arglist result
