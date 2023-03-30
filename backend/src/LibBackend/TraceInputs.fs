@@ -152,57 +152,6 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
 //          | out ->
 //              Exception.internal "Bad DB format for stored_events")
 
-let loadEvents
-  (canvasID : CanvasID)
-  ((module_, route, modifier) : HandlerDesc)
-  : Task<List<string * AT.TraceID.T * NodaTime.Instant * RT.Dval>> =
-  task {
-    let route = Routing.routeToPostgresPattern route
-    let! results =
-      Sql.query
-        "SELECT path, value, timestamp, trace_id FROM trace_old_events_v0
-          WHERE canvas_id = @canvasID
-            AND module = @module
-            AND path LIKE @route
-            AND modifier = @modifier
-        ORDER BY timestamp DESC
-        LIMIT 10"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "module", Sql.string module_
-                          "route", Sql.string route
-                          "modifier", Sql.string modifier ]
-      |> Sql.executeAsync (fun read ->
-        (read.string "path",
-         read.traceID "trace_id",
-         read.instant "timestamp",
-         read.string "value"))
-    return
-      results
-      |> List.map (fun (path, trace_id, timestamp, value_json) ->
-        (path, trace_id, timestamp, Repr.parseJsonV0 value_json))
-  }
-
-
-let loadEventForTrace
-  (canvasID : CanvasID)
-  (traceID : AT.TraceID.T)
-  : Task<Option<string * NodaTime.Instant * RT.Dval>> =
-  task {
-    let! results =
-      Sql.query
-        "SELECT path, value, timestamp FROM trace_old_events_v0
-          WHERE canvas_id = @canvasID
-            AND trace_id = @traceID
-          LIMIT 1"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "traceID", Sql.traceID traceID ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.string "path", read.instant "timestamp", read.string "value"))
-    return
-      results
-      |> Option.map (fun (path, timestamp, value) ->
-        (path, timestamp, Repr.parseJsonV0 value))
-  }
 
 
 let mungePathForPostgres (module_ : string) (path : string) =
@@ -279,14 +228,4 @@ let delete404s
                       "module", Sql.string space
                       "path", Sql.string path
                       "modifier", Sql.string modifier ]
-  |> Sql.executeStatementAsync
-
-
-
-
-let clearAllEvents (canvasID : CanvasID) : Task<unit> =
-  Sql.query
-    "DELETE FROM trace_old_events_v0
-     WHERE canvas_id = @canvasID"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeStatementAsync
