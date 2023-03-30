@@ -60,8 +60,6 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * HandlerDesc>> 
 // Event data
 // -------------------------
 
-let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d60d"
-
 // We store a set of events for each canvas. The events may or may not
 // belong to a toplevel. We provide a list in advance so that they can
 // be partitioned effectively. Returns the DB-assigned event timestamp.
@@ -71,21 +69,18 @@ let storeEvent
   ((module_, path, modifier) : HandlerDesc)
   (event : RT.Dval)
   : Task<NodaTime.Instant> =
-  if canvasID = throttled then
-    Task.FromResult(NodaTime.Instant.now ())
-  else
-    Sql.query
-      "INSERT INTO trace_old_events_v0
-      (canvas_id, trace_id, module, path, modifier, timestamp, value)
-      VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
-      RETURNING timestamp"
-    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                        "traceID", Sql.traceID traceID
-                        "module", Sql.string module_
-                        "path", Sql.string path
-                        "modifier", Sql.string modifier
-                        ("value", event |> Repr.toJsonV0 |> Sql.string) ]
-    |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
+  Sql.query
+    "INSERT INTO trace_old_events_v0
+    (canvas_id, trace_id, module, path, modifier, timestamp, value)
+    VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
+    RETURNING timestamp"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "traceID", Sql.traceID traceID
+                      "module", Sql.string module_
+                      "path", Sql.string path
+                      "modifier", Sql.string modifier
+                      ("value", event |> Repr.toJsonV0 |> Sql.string) ]
+  |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   let timestampSql, timestamp =
