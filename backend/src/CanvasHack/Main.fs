@@ -63,6 +63,7 @@ let main (args : string []) =
 
         // Create the canvas - expect this to be empty
         let domain = "dark-editor.dlio.localhost"
+        let host = $"http://{domain}:11011"
         let canvasID = LibBackend.Config.allowedDarkInternalCanvasID
         let! ownerID = LibBackend.Account.createUser ()
         do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
@@ -81,6 +82,7 @@ let main (args : string []) =
             let handler =
               match modul.exprs with
               | [ expr ] ->
+                print $"Adding {details.Method} {details.Path} HTTP handler"
                 PT.Op.SetHandler(
                   { tlid = gid ()
                     ast = expr
@@ -107,6 +109,8 @@ let main (args : string []) =
             | None -> None)
 
         do! C.saveTLIDs canvasID oplists
+        print $"Success saving to {host}"
+
 
       | [| CommandNames.export |] ->
         // Find the canvas
