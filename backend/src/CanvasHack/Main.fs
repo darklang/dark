@@ -41,7 +41,8 @@ let main (args : string []) =
 
     task {
       match args with
-      | [||] ->
+      | [||]
+      | [| "--help" |] ->
         print
           $"`canvas-hack {CommandNames.import}` to load dark-editor from disk or
             `canvas-hack {CommandNames.export}' to save dark-editor to disk"
@@ -131,10 +132,12 @@ let main (args : string []) =
           $"CanvasHack isn't sure what to do with these arguments.
           Currently expecting just '{CommandNames.import}' or '{CommandNames.export}'"
 
+      NonBlockingConsole.wait ()
       return 0
     }
     |> fun x -> x.Result
+
   with
   | e ->
-    printException "" [] e
+    printException "Exception running CanvasHack" [ "args", args ] e
     1
