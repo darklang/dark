@@ -557,8 +557,7 @@ module Expect =
       eq ("second" :: path) second second'
       eqList path theRest theRest'
 
-    | EApply (_, name, typeArgs, args, inPipe),
-      EApply (_, name', typeArgs', args', inPipe') ->
+    | EApply (_, name, typeArgs, args), EApply (_, name', typeArgs', args') ->
       let path = (string name :: path)
       check path name name'
 
@@ -569,10 +568,6 @@ module Expect =
         typeArgs'
 
       eqList path args args'
-
-      match (inPipe, inPipe') with
-      | InPipe id, InPipe id' -> if checkIDs then check path id id'
-      | _ -> check path inPipe inPipe'
 
     | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
@@ -1007,16 +1002,12 @@ let interestingDvals =
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
                            [],
-                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
-                           NotInPipe
+                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ]
                          )
-                         EInteger(648327618UL, 7) ],
-                       InPipe(312312798UL)
+                         EInteger(648327618UL, 7) ]
                      )
-                     EInteger(325843618UL, 8) ],
-                   NotInPipe
-                 ) ],
-               NotInPipe
+                     EInteger(325843618UL, 8) ]
+                 ) ]
              )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }

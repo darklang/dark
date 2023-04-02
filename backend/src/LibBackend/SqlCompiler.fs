@@ -184,7 +184,7 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
-  | EApply (_, FnName (FQFnName.Stdlib std), [], args, _) when
+  | EApply (_, FnName (FQFnName.Stdlib std), [], args) when
     std.module_ = mName && std.function_ = fName && std.version = v
     ->
     Some args
@@ -206,7 +206,7 @@ let rec lambdaToSql
     lambdaToSql fns symtable paramName dbFields typ e
 
   match expr with
-  | EApply (_, FnName name, [], args, _) ->
+  | EApply (_, FnName name, [], args) ->
     match Map.get name fns with
     | Some fn ->
       // check the abstract type here. We will check the concrete type later
@@ -481,7 +481,7 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EApply (_, _, typeArgs, args, _) ->
+        | EApply (_, _, typeArgs, args) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
             | EInteger _
@@ -540,9 +540,9 @@ let partiallyEvaluate
               let! rhs = r rhs
               let! next = r next
               return ELet(id, pat, rhs, next)
-            | EApply (id, fnName, typeArgs, exprs, inPipe) ->
+            | EApply (id, fnName, typeArgs, exprs) ->
               let! exprs = Ply.List.mapSequentially r exprs
-              return EApply(id, fnName, typeArgs, exprs, inPipe)
+              return EApply(id, fnName, typeArgs, exprs)
             | EIf (id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr

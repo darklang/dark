@@ -66,8 +66,6 @@ module RuntimeTypes =
       )
       RT.MPFloat(12385781243UL, 79375.847583) ]
 
-  let isInPipes : List<RT.IsInPipe> = [ RT.NotInPipe; RT.InPipe(18274UL) ]
-
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
@@ -96,15 +94,13 @@ module RuntimeTypes =
         128384UL,
         RT.FnTargetExpr(RT.EUnit(1235123UL)),
         [ RT.TBool ],
-        [ RT.EUnit(7756UL) ],
-        RT.NotInPipe
+        [ RT.EUnit(7756UL) ]
       )
       RT.EApply(
         128384UL,
         RT.FnName(RT.FQFnName.User "user fn"),
         [],
-        [ RT.EUnit(7756UL) ],
-        RT.NotInPipe
+        [ RT.EUnit(7756UL) ]
       )
       RT.EList(737481UL, [ RT.EUnit(74618UL) ])
       RT.ETuple(

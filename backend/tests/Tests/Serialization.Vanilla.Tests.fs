@@ -600,12 +600,6 @@ module RoundtripTests =
           CT2Runtime.MatchPattern.fromCT
           None
         testRoundtripList
-          "RT.IsInPipe"
-          V.RuntimeTypes.isInPipes
-          CT2Runtime.Expr.pipeToCT
-          CT2Runtime.Expr.pipefromCT
-          None
-        testRoundtripList
           "RT.Expr"
           V.RuntimeTypes.exprs
           CT2Runtime.Expr.toCT
