@@ -69,7 +69,7 @@ let executeFunction
   (args : List<RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let! result = Interpreter.callFn state callerID name typeArgs args RT.NotInPipe
+    let! result = Interpreter.callFn state callerID name typeArgs args
     // Does nothing in non-tests
     state.test.postTestExecutionHook state.test result
     return result

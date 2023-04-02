@@ -124,12 +124,10 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFieldAccess (_, target1, fieldName1), EFieldAccess (_, target2, fieldName2) ->
     equalsExpr target1 target2 && fieldName1 = fieldName2
   | EVariable (_, name1), EVariable (_, name2) -> name1 = name2
-  | EApply (_, name1, typeArgs1, args1, isInPipe1),
-    EApply (_, name2, typeArgs2, args2, isInPipe2) ->
+  | EApply (_, name1, typeArgs1, args1), EApply (_, name2, typeArgs2, args2) ->
     name1 = name2
     && List.forall2 (=) typeArgs1 typeArgs2
     && List.forall2 equalsExpr args1 args2
-    && equalsIsInPipe isInPipe1 isInPipe2
   | EList (_, elems1), EList (_, elems2) ->
     elems1.Length = elems2.Length && List.forall2 equalsExpr elems1 elems2
   | ETuple (_, elem1_1, elem2_1, elems1), ETuple (_, elem1_2, elem2_2, elems2) ->
@@ -210,14 +208,6 @@ and equalsStringSegment
   // exhaustiveness check
   | StringText _, _
   | StringInterpolation _, _ -> false
-
-and equalsIsInPipe (pipe1 : IsInPipe) (pipe2 : IsInPipe) : bool =
-  match pipe1, pipe2 with
-  | InPipe _, InPipe _ -> true
-  | NotInPipe, NotInPipe -> true
-  // exhaustiveness check
-  | InPipe _, _
-  | NotInPipe, _ -> false
 
 and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : bool =
   match pattern1, pattern2 with

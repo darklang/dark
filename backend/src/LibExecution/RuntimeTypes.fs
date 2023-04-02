@@ -225,7 +225,7 @@ type Expr =
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
-  | EApply of id * FnTarget * typeArgs : List<DType> * args : List<Expr> * IsInPipe
+  | EApply of id * FnTarget * typeArgs : List<DType> * args : List<Expr>
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -245,14 +245,6 @@ and LetPattern = LPVariable of id * name : string
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
-
-// EApply has slightly different semantics when it is in a pipe. When piping
-// into Incomplete values, we ignore the Incomplete and return the piped-in
-// argument (which is the first parameter). This is to allow editing live code
-// by creating a new pipe entry and then filling it in.
-and IsInPipe =
-  | InPipe of id // the ID of the original pipe
-  | NotInPipe
 
 and FnTarget =
   | FnName of FQFnName.T
@@ -416,7 +408,7 @@ module Expr =
     | ELambda (id, _, _)
     | ELet (id, _, _, _)
     | EIf (id, _, _, _)
-    | EApply (id, _, _, _, _)
+    | EApply (id, _, _, _)
     | EList (id, _)
     | ETuple (id, _, _, _)
     | ERecord (id, _, _)

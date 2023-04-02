@@ -220,7 +220,7 @@ module Pipes =
   ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
   // ([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
   // ([] |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
-  ((Test.typeError_v0 "err") |> []) = Test.typeError_v0 "err"
+  ((Test.typeError_v0 "err") |> []) = Test.typeError_v0 "Expected a function value, got something else: []"
   // ((Test.typeError_v0 "one") |> (Test.typeError_v0 "two")) = Test.typeError_v0 "one"
 
   ([5]

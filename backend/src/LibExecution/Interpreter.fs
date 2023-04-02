@@ -151,29 +151,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           fields
 
 
-    | EApply (id, fnTarget, typeArgs, exprs, inPipe) ->
+    | EApply (id, fnTarget, typeArgs, exprs) ->
       let! args = Ply.List.mapSequentially (eval state st) exprs
 
-      let! result =
-        match fnTarget with
-        | FnName name -> callFn state id name typeArgs (Seq.toList args) inPipe
-        | FnTargetExpr e ->
-          uply {
-            let! target = eval' state st e
-            return! applyFn state target id args inPipe
-          }
-
-      do
-        // Pipes have been removed at this point, but the editor still needs to
-        // show a value for the pipe
-        // CLEANUP: instead of saving this, fetch it in the right place (the
-        // last pipe entry) in the editor
-        match inPipe with
-        | InPipe pipeID ->
-          state.tracing.traceDval state.onExecutionPath pipeID result
-        | NotInPipe -> ()
-      return result
-
+      match fnTarget with
+      | FnName name -> return! callFn state id name typeArgs (Seq.toList args)
+      | FnTargetExpr e ->
+        let! target = eval' state st e
+        return! applyFn state target id args
 
 
     | EFieldAccess (id, e, field) ->
@@ -511,18 +496,12 @@ and applyFn
   (fn : Dval)
   (id : id)
   (args : List<Dval>)
-  (isInPipe : IsInPipe)
   : DvalTask =
   uply {
     // Unwrap
-    match fn, isInPipe with
-    | DFnVal fnVal, _ -> return! applyFnVal state fnVal args
-    // Incompletes are allowed in pipes
-    | DIncomplete _, InPipe _ -> return Option.defaultValue fn (List.tryHead args)
-    | _other, InPipe _ ->
-      // CLEANUP: this matches the old pipe behaviour, no need to preserve that
-      return Option.defaultValue fn (List.tryHead args)
-    | other, _ ->
+    match fn with
+    | DFnVal fnVal -> return! applyFnVal state fnVal args
+    | other ->
       return
         Dval.errSStr
           (SourceID(state.tlid, id))
@@ -579,7 +558,6 @@ and callFn
   (desc : FQFnName.T)
   (typeArgs : List<DType>)
   (argvals : List<Dval>)
-  (isInPipe : IsInPipe)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, callerID)
@@ -647,7 +625,7 @@ and callFn
               |> List.map2 (fun dv p -> (p.name, dv)) argvals
               |> Map.ofList
 
-            return! execFn state desc callerID fn typeArgs args isInPipe
+            return! execFn state desc callerID fn typeArgs args
           else
             return
               err (
@@ -666,7 +644,6 @@ and execFn
   (fn : Fn)
   (typeArgs : List<DType>)
   (args : DvalMap)
-  (isInPipe : IsInPipe)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, id) in
@@ -720,14 +697,9 @@ and execFn
             | _ -> false)
           arglist
 
-      match badArg, isInPipe with
-      | Some (DIncomplete _src), InPipe _ ->
-        // That is, unless it's an incomplete in a pipe. In a pipe, we treat
-        // the entire expression as a blank, and skip it, returning the input
-        // (first) value to be piped into the next statement instead.
-        return List.head arglist
-      | Some (DIncomplete src), _ -> return DIncomplete src
-      | Some (DError _ as err), _ -> return err
+      match badArg with
+      | Some (DIncomplete src) -> return DIncomplete src
+      | Some (DError _ as err) -> return err
       | _ ->
         match fn.fn with
         | StdLib f ->
@@ -743,7 +715,7 @@ and execFn
                 with
                 | e ->
                   let context : Metadata =
-                    [ "fn", fnDesc; "args", arglist; "id", id; "isInPipe", isInPipe ]
+                    [ "fn", fnDesc; "args", arglist; "id", id ]
                   return
                     match e with
                     | Errors.IncorrectArgs ->
