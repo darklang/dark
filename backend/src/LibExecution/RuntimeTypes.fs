@@ -331,7 +331,10 @@ and [<NoComparison>] Dval =
 
   // TODO: remove DHttpResponse eventually - this should really just be a DRecord
   // of a type that is defined in the standard library (http module)
-  | DHttpResponse of int64 * List<string * string> * Dval
+  | DHttpResponse of
+    statusCode : int64 *
+    headers : List<string * string> *
+    responseBody : Dval
 
   | DRecord (* FQTypeName.T * *)  of DvalMap
   | DDict of DvalMap
@@ -920,19 +923,6 @@ and ProgramContext =
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
 
-  // TODO remove this, probably?
-  // this is theoretically prepared for stdlibTypes and packageTypes to exist
-  // I'm not sure how else to handle this, but this likely isn't ideal
-  // TODO: at the _very_ least, review all usages - consider if we should treat each case special in any way
-  member this.allTypes : Map<FQTypeName.T, CustomType.T> =
-    this.userTypes
-    // TODO: I'd normally use F#'s native "Map.map"
-    // but we've overwritten that such that this turns out ugly
-    // Is there a better way to do this, even with the overwriting?
-    |> Map.toList
-    |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
-    |> Map
-
 /// Set of callbacks used to trace the interpreter
 and Tracing =
   { traceDval : TraceDval
@@ -996,6 +986,22 @@ and ExecutionState =
     /// Whether the currently executing code is really being executed
     /// (as opposed to being previewed for traces)
     onExecutionPath : bool }
+
+module ExecutionState =
+  let availableTypes (state : ExecutionState) : Map<FQTypeName.T, CustomType.T> =
+    let stdlibTypes =
+      state.libraries.stdlibTypes
+      |> Map.toList
+      |> List.map (fun (name, stdlibType) -> name, stdlibType.definition)
+
+    let userTypes =
+      state.program.userTypes
+      |> Map.toList
+      |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
+
+    // TODO: package types
+
+    List.concat [ userTypes; stdlibTypes ] |> Map
 
 let consoleReporter : ExceptionReporter =
   fun _state (metadata : Metadata) (exn : exn) ->

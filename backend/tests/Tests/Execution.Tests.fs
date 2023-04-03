@@ -27,11 +27,12 @@ let parse = Parser.parseRTExpr
 let executionStateForPreview
   (name : string)
   (dbs : Map<string, DB.T>)
+  (types : Map<FQTypeName.UserTypeName, UserType.T>)
   (fns : Map<string, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
     let canvasID = System.Guid.NewGuid()
-    let! state = executionStateFor canvasID false dbs fns
+    let! state = executionStateFor canvasID false dbs types fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
@@ -44,13 +45,15 @@ let executionStateForPreview
 let execSaveDvals
   (canvasName : string)
   (dbs : List<DB.T>)
+  (userTypes : List<UserType.T>)
   (userFns : List<UserFunction.T>)
   (ast : Expr)
   : Task<AT.AnalysisResults> =
   task {
+    let types = userTypes |> List.map (fun typ -> typ.name, typ) |> Map.ofList
     let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
     let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
-    let! (results, state) = executionStateForPreview canvasName dbs fns
+    let! (results, state) = executionStateForPreview canvasName dbs types fns
 
     let inputVars = Map.empty
     let! _result = Exe.executeExpr state inputVars ast
@@ -67,7 +70,7 @@ let testExecFunctionTLIDs : Test =
       testUserFn name [] [] (PT.TVariable "a") (PT.EInteger(gid (), 5))
       |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
-    let! state = executionStateFor meta false Map.empty fns
+    let! state = executionStateFor meta false Map.empty Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
@@ -101,7 +104,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
           eLambda [ "value" ] (eFieldAccess (EVariable(varID, "value")) "age") ]
 
     let! (results, state) =
-      executionStateForPreview "test" (Map [ "MyDB", db ]) Map.empty
+      executionStateForPreview "test" (Map [ "MyDB", db ]) Map.empty Map.empty
 
     let state =
       { state with libraries = { state.libraries with stdlibFns = Map.empty } }
@@ -149,7 +152,7 @@ let testRecursionInEditor : Test =
       testUserFn "recurse" [] [ "i" ] (PT.TVariable "a") fnExpr
       |> PT2RT.UserFunction.toRT
     let ast = EApply(callerID, eUserFnName "recurse", [], [ eInt 0 ])
-    let! results = execSaveDvals "recursion in editor" [] [ recurse ] ast
+    let! results = execSaveDvals "recursion in editor" [] [] [ recurse ] ast
 
     Expect.equal
       (Dictionary.get callerID results)
@@ -177,7 +180,7 @@ let testIfPreview : Test =
           EString(thenID, [ StringText "then" ]),
           EString(elseID, [ StringText "else" ])
         )
-      let! results = execSaveDvals "if-preview" [] [] ast
+      let! results = execSaveDvals "if-preview" [] [] [] ast
 
       return
         (Dictionary.get ifID results
@@ -238,7 +241,7 @@ let testOrPreview : Test =
   let f (arg1, arg2) =
     task {
       let ast = EOr(orID, arg1, arg2)
-      let! results = execSaveDvals "or-preview" [] [] ast
+      let! results = execSaveDvals "or-preview" [] [] [] ast
 
       return
         (Dictionary.get (Expr.toID (arg1)) results
@@ -292,7 +295,7 @@ let testAndPreview : Test =
   let f (arg1, arg2) =
     task {
       let ast = EAnd(andID, arg1, arg2)
-      let! results = execSaveDvals "and-preview" [] [] ast
+      let! results = execSaveDvals "and-preview" [] [] [] ast
 
       return
         (Dictionary.get (Expr.toID arg1) results
@@ -356,7 +359,7 @@ let testFeatureFlagPreview : Test =
           EString(oldID, [ StringText "old" ]),
           EString(newID, [ StringText "new" ])
         )
-      let! results = execSaveDvals "ff-preview" [] [] ast
+      let! results = execSaveDvals "ff-preview" [] [] [] ast
 
       return
         (Dictionary.get ffID results
@@ -401,7 +404,7 @@ let testLambdaPreview : Test =
   let f body =
     task {
       let ast = ELambda(lID, [ (p1ID, ""); (p2ID, "var") ], body)
-      let! results = execSaveDvals "lambda-preview" [] [] ast
+      let! results = execSaveDvals "lambda-preview" [] [] [] ast
       return results |> Dictionary.toList |> Map
     }
   testManyTask
@@ -510,7 +513,7 @@ let testMatchPreview : Test =
     testTask msg {
       let ast = EMatch(matchId, arg, patternsToMatchAgainst)
 
-      let! results = execSaveDvals "match-preview" [] [] ast
+      let! results = execSaveDvals "match-preview" [] [] [] ast
 
       // check expected values are there
       List.iter

@@ -30,6 +30,7 @@ module DType =
     match name, typeArgs with
     // no type args
     | "bool", [] -> PT.TBool
+    | "bytes", [] -> PT.TBytes
     | "int", [] -> PT.TInt
     | "string", [] -> PT.TStr
     | "char", [] -> PT.TChar
@@ -42,7 +43,10 @@ module DType =
     // with type args
     | "List", [ arg ] -> PT.TList(fromSynType arg)
     | "Option", [ arg ] -> PT.TOption(fromSynType arg)
-
+    | "Result", [ okArg; errorArg ] ->
+      PT.TResult(fromSynType okArg, fromSynType errorArg)
+    | "Tuple", first :: second :: theRest ->
+      PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | _ ->
       // Some user- or stdlib- type
       // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
@@ -56,7 +60,6 @@ module DType =
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
       match matchingCustomTypes with
-      | [] -> PT.TVariable(name)
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
@@ -301,7 +304,7 @@ module Expr =
       | _ ->
         Exception.raiseInternal
           "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
-          [ "name", name.idText ]
+          [ "name", name.idText; "matchingEnumCases", matchingEnumCases ]
 
 
     // List literals

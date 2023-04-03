@@ -95,6 +95,7 @@ let t
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
   (packageFns : List<PT.Package.Fn>)
+  (types : List<PT.UserType.T>)
   (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
   : Test =
@@ -107,6 +108,12 @@ let t
           initializeTestCanvas canvasName
         else
           System.Guid.NewGuid() |> Task.FromResult
+
+      let rtTypes =
+        types
+        |> List.map (fun typ ->
+          PT2RT.FQTypeName.UserTypeName.toRT typ.name, PT2RT.UserType.toRT typ)
+        |> Map.ofList
 
       let rtDBs =
         (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
@@ -124,7 +131,7 @@ let t
         |> Map
 
       let! (state : RT.ExecutionState) =
-        executionStateFor canvasID internalFnsAllowed rtDBs rtFunctions
+        executionStateFor canvasID internalFnsAllowed rtDBs rtTypes rtFunctions
       let state =
         { state with libraries = { state.libraries with packageFns = rtPackageFns } }
 
@@ -196,6 +203,7 @@ let fileTests () : Test =
             test.lineNumber
             module'.dbs
             module'.packageFns
+            module'.types
             module'.fns
             [])
 

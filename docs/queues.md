@@ -103,7 +103,7 @@ The `events_v2` table has event data
 
 - `canvas_id`, `module`, `name`, `modifier` together specify the exact handler on
   which canvas to execute when this event is processed.
-- `value` is the emitted value (`DObj`) that was emitted to the handler
+- `value` is the emitted value (`DDict`) that was emitted to the handler
 
 It also holds scheduling metadata for an event:
 

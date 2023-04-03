@@ -772,7 +772,7 @@ and execFn
             // For now, always store these results
             state.tracing.storeFnResult fnRecord arglist result
 
-            return result |> typeErrorOrValue state.program.allTypes
+            return result |> typeErrorOrValue (ExecutionState.availableTypes state)
 
           | Error errs ->
             return
@@ -782,7 +782,12 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
         | UserFunction (tlid, body) ->
-          match TypeChecker.checkFunctionCall state.program.allTypes fn typeArgs args
+          match
+            TypeChecker.checkFunctionCall
+              (ExecutionState.availableTypes state)
+              fn
+              typeArgs
+              args
             with
           | Ok () ->
             state.tracing.traceTLID tlid
@@ -796,7 +801,7 @@ and execFn
               let! result = eval state argsWithGlobals body
               state.tracing.storeFnResult fnRecord arglist result
 
-              return result |> typeErrorOrValue state.program.allTypes
+              return result |> typeErrorOrValue (ExecutionState.availableTypes state)
           | Error errs ->
             return
               DError(
