@@ -29,8 +29,6 @@ module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module SchedulingRules = QueueSchedulingRules
 
-module TI = TraceInputs
-
 module LD = LibService.LaunchDarkly
 
 /// -----------------

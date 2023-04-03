@@ -206,7 +206,8 @@ module Expr =
     let id = gid ()
 
     match ast with
-    // constant values
+
+    // Literals (ints, chars, bools, etc)
     | SynExpr.Null _ ->
       Exception.raiseInternal "null not supported, use `()`" [ "ast", ast ]
     | SynExpr.Const (SynConst.Unit _, _) -> PT.EUnit id
@@ -219,6 +220,7 @@ module Expr =
     | SynExpr.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       PT.EFloat(id, sign, whole, fraction)
+
 
     // Strings
     | SynExpr.Const (SynConst.String (s, _, _), _) ->
@@ -243,6 +245,8 @@ module Expr =
              [ "name", ident.idText ]
       PT.EInfix(id, PT.InfixFnCall op, placeholder, placeholder)
 
+
+    // Binary Ops: && / ||
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
       ->
@@ -254,16 +258,22 @@ module Expr =
 
       PT.EInfix(id, PT.BinOp op, placeholder, placeholder)
 
+
+    // Negation
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       ident.idText = "op_UnaryNegation"
       ->
       let name = PT.FQFnName.stdlibFqName "Int" "negate" 0
       PT.EFnCall(id, name, [], [])
 
+
+    // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
       let name, version = parseFn ident.idText
       PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [], [])
 
+
+    // `Nothing`
     | SynExpr.Ident ident when ident.idText = "Nothing" ->
       PT.EConstructor(id, None, "Nothing", [])
 
@@ -296,7 +306,8 @@ module Expr =
           "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
           [ "name", name.idText; "matchingEnumCases", matchingEnumCases ]
 
-    // Lists and arrays
+
+    // List literals
     | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
 
     // a literal list is sometimes made up of nested Sequentials
@@ -354,7 +365,8 @@ module Expr =
 
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
 
-    // package manager function calls
+
+    // Package manager function calls
     // (preliminary support)
     | SynExpr.LongIdent (_,
                          SynLongIdent ([ owner; package; modName; fnName ], _, _),
@@ -370,13 +382,14 @@ module Expr =
       )
 
 
-    // Field access
+    // Field access: a.b.c.d
     | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
       let obj1 =
         PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
       let obj2 = PT.EFieldAccess(id, obj1, nameOrBlank f2.idText)
       PT.EFieldAccess(id, obj2, nameOrBlank f3.idText)
 
+    // a.b.c
     | SynExpr.LongIdent (_, SynLongIdent ([ var; field1; field2 ], _, _), _, _) ->
       let obj1 =
         PT.EFieldAccess(
@@ -386,9 +399,11 @@ module Expr =
         )
       PT.EFieldAccess(id, obj1, nameOrBlank field2.idText)
 
+    // a.b
     | SynExpr.LongIdent (_, SynLongIdent ([ var; field ], _, _), _, _) ->
       PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank field.idText)
 
+    // a.b
     | SynExpr.DotGet (expr, _, SynLongIdent ([ field ], _, _), _) ->
       PT.EFieldAccess(id, c expr, nameOrBlank field.idText)
 
@@ -422,9 +437,13 @@ module Expr =
       PT.ELambda(id, vars, c body)
 
 
-    // if/then expressions
+    // if/else expressions
     | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
       PT.EIf(id, c cond, c thenExpr, c elseExpr)
+
+    // if (no else) expression
+    | SynExpr.IfThenElse (cond, thenExpr, None, _, _, _, _) ->
+      PT.EIf(id, c cond, c thenExpr, PT.EUnit(gid ()))
 
 
     // `let` bindings
@@ -441,10 +460,8 @@ module Expr =
     // `match` exprs:
     //
     // ```fsharp
-    // // 'cond'
     // match Some 1 with // 'cond'
-    // // 'cases'
-    // | None -> ...
+    // | None -> ... // cases
     // | Some 1 -> ...
     // | ...
     | SynExpr.Match (_, cond, cases, _, _) ->
@@ -472,9 +489,17 @@ module Expr =
 
       PT.ERecord(id, typeName, fields)
 
+    // Parens (eg `(5)`)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
 
+
+    // Do (eg do ())
     | SynExpr.Do (expr, _) -> c expr // just unwrap
+
+
+    // Sequential code: (a; b) -> let _ = a in b
+    | SynExpr.Sequential (_, _, a, b, _) ->
+      PT.ELet(id, PT.LPVariable(gid (), "_"), c a, c b)
 
 
     // Pipes (|>)
@@ -532,6 +557,7 @@ module Expr =
                    _) when name.idText = "flag" ->
       PT.EFeatureFlag(gid (), label, placeholder, placeholder, placeholder)
 
+
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
@@ -559,6 +585,7 @@ module Expr =
         else
           PT.EFnCall(id, PT.FQFnName.User name, [], [ c arg ])
 
+
       // Enums
       | PT.EConstructor (id, typeName, caseName, _fields) ->
         let fields =
@@ -575,6 +602,8 @@ module Expr =
             "converted specific fncall exp", e
             "argument", arg ]
 
+
+    // Error handling
     | SynExpr.FromParseError _ as expr ->
       Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
     | expr ->

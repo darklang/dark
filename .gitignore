@@ -11,14 +11,14 @@ config/local
 # Build system
 rundir/
 
-# F#
+# F# / dotnet
 backend/packages/
 backend/paket-files/
+backend/.paket/load/
 backend/Build/
 backend/src/**/obj
 backend/tests/**/obj
-backend/.paket/load/
-.fake
+backend/experiments/**/obj
 
 # Terraform
 **/.terraform/*

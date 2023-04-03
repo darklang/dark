@@ -24,7 +24,7 @@ let eFn'
   (typeArgs : List<DType>)
   (args : List<Expr>)
   : Expr =
-  EApply(gid (), (eStdFnName module_ function_ version), typeArgs, args, NotInPipe)
+  EApply(gid (), (eStdFnName module_ function_ version), typeArgs, args)
 
 let eFn
   (module_ : string)
@@ -40,36 +40,14 @@ let eUserFn
   (typeArgs : List<DType>)
   (args : List<Expr>)
   : Expr =
-  EApply(gid (), (eUserFnName function_), typeArgs, args, NotInPipe)
+  EApply(gid (), (eUserFnName function_), typeArgs, args)
 
-let eApply'
-  (target : FnTarget)
-  (typeArgs : List<DType>)
-  (args : List<Expr>)
-  (isInPipe : IsInPipe)
-  : Expr =
-  EApply(gid (), target, typeArgs, args, isInPipe)
+let eApply' (target : FnTarget) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
+  EApply(gid (), target, typeArgs, args)
 
 let eApply (target : Expr) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
-  eApply' (FnTargetExpr target) typeArgs args NotInPipe
+  eApply' (FnTargetExpr target) typeArgs args
 
-let ePipeApply (target : Expr) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
-  eApply' (FnTargetExpr target) typeArgs args (InPipe(gid ()))
-
-let ePipeFn
-  (module_ : string)
-  (function_ : string)
-  (version : int)
-  (typeArgs : List<DType>)
-  (args : List<Expr>)
-  : Expr =
-  EApply(
-    gid (),
-    eStdFnName module_ function_ version,
-    typeArgs,
-    args,
-    InPipe(gid ())
-  )
 
 let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 

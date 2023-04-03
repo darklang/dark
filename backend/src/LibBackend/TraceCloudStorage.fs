@@ -22,8 +22,7 @@ module LibBackend.TraceCloudStorage
 // High level design:
 // - a single trace is collected by an execution. The trace contains:
 //   - input of the root handler called
-//   - function_results with the same data as currently available
-//   - function_arguments with the same data as currently available
+//   - functionResults with the same data as currently available
 // - we store this in Google Cloud Storage
 //   - format `{canvasID}/{tlid}/{traceID}`
 //   - main trace is called 0
@@ -98,10 +97,13 @@ let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
 
 let currentStorageVersion = 0
 
+type FunctionResultKey = tlid * RT.FQFnName.T * id * string
+type FunctionResultValue = RT.Dval * NodaTime.Instant
+
+
 type CloudStorageFormat =
   { storageFormatVersion : int
     input : InputVars
-    functionArguments : seq<(tlid * InputVars)>
     functionResults : seq<tlid * id * FnName * int * FunctionArgHash * RoundTrippableDval> }
 
 let bucketName = Config.traceStorageBucketName
@@ -215,8 +217,7 @@ let getTraceData
 
     let traceData : AT.TraceData =
       { input = cloudStorageData.input |> List.map (Tuple2.mapSecond parseDval)
-        timestamp = AT.TraceID.toTimestamp traceID
-        function_results =
+        functionResults =
           cloudStorageData.functionResults
           |> Seq.map (fun (_tlid, id, fnName, hashVersion, argHash, dval) ->
             (fnName, id, argHash, hashVersion, parseDval dval) : AT.FunctionResult)
@@ -232,8 +233,7 @@ let storeToCloudStorage
   (traceID : AT.TraceID.T)
   (touchedTLIDs : List<tlid>)
   (inputVars : List<string * RT.Dval>)
-  (functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore>)
-  (functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>)
+  (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   task {
     let functionResults =
@@ -248,21 +248,11 @@ let storeToCloudStorage
         hash,
         dvalToRoundtrippable dval)
 
-    let functionArguments =
-      functionArguments
-      |> ResizeArray.toList
-      |> List.map (fun (tlid, inputVars, _) ->
-        (tlid,
-         inputVars
-         |> Map.toList
-         |> List.map (fun (name, dval) -> (name, dvalToRoundtrippable dval))))
-
     let inputVars =
       inputVars |> List.map (fun (name, dval) -> (name, dvalToRoundtrippable dval))
     let data =
       { input = inputVars
         functionResults = functionResults
-        functionArguments = functionArguments
         storageFormatVersion = currentStorageVersion }
 
     // Serialize and Compress in one step

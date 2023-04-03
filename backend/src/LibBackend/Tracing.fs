@@ -28,13 +28,11 @@ module TraceSamplingRule =
     | SampleAll
     | SampleOneIn of int
     | SampleAllWithTelemetry
-    | SampleAllToCloudStorage
 
   let parseRule (ruleString : string) : Result<T, string> =
     match ruleString with
     | "sample-none" -> Ok SampleNone
     | "sample-all" -> Ok SampleAll
-    | "sample-all-to-cloud-storage" -> Ok SampleAllToCloudStorage
     | "sample-all-with-telemetry" -> Ok SampleAllWithTelemetry
     | _ ->
       try
@@ -69,14 +67,12 @@ module TracingConfig =
     | DoTrace
     | DontTrace
     | TraceWithTelemetry
-    | TraceToCloudStorage
 
   let fromRule (rule : TraceSamplingRule.T) (traceID : AT.TraceID.T) : T =
     match rule with
     | TraceSamplingRule.SampleAll -> DoTrace
     | TraceSamplingRule.SampleNone -> DontTrace
     | TraceSamplingRule.SampleAllWithTelemetry -> TraceWithTelemetry
-    | TraceSamplingRule.SampleAllToCloudStorage -> TraceToCloudStorage
     | TraceSamplingRule.SampleOneIn freq ->
       // Use the traceID as an existing source of entropy.
       let random =
@@ -90,7 +86,6 @@ module TracingConfig =
   let shouldTrace (config : T) =
     match config with
     | DoTrace
-    | TraceToCloudStorage
     | TraceWithTelemetry -> true
     | DontTrace -> false
 
@@ -99,13 +94,10 @@ module TracingConfig =
 module TraceResults =
   type T =
     { tlids : HashSet.T<tlid>
-      functionResults : Dictionary.T<TraceFunctionResults.FunctionResultKey, TraceFunctionResults.FunctionResultValue>
-      functionArguments : ResizeArray<TraceFunctionArguments.FunctionArgumentStore> }
+      functionResults : Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue> }
 
   let empty () : T =
-    { tlids = HashSet.empty ()
-      functionResults = Dictionary.empty ()
-      functionArguments = ResizeArray.empty () }
+    { tlids = HashSet.empty (); functionResults = Dictionary.empty () }
 
 
 
@@ -125,49 +117,6 @@ type T =
     enabled : bool }
 
 
-let createStandardTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
-  // Any real execution needs to track the touched TLIDs in order to send traces to pusher
-  let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
-  let results = { TraceResults.empty () with tlids = touchedTLIDs }
-  { enabled = true
-    results = results
-    executionTracing =
-      { Exe.noTracing RT.Real with
-          storeFnResult =
-            (fun (tlid, name, id) args result ->
-              let hash =
-                args
-                |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
-              Dictionary.add
-                (tlid, name, id, hash)
-                (result, NodaTime.Instant.now ())
-                results.functionResults)
-          storeFnArguments =
-            (fun tlid args ->
-              ResizeArray.append
-                (tlid, args, NodaTime.Instant.now ())
-                results.functionArguments)
-          traceTLID = traceTLIDFn }
-    storeTraceResults =
-      (fun () ->
-        LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
-          task {
-            do!
-              TraceFunctionArguments.storeMany
-                canvasID
-                traceID
-                results.functionArguments
-            do!
-              TraceFunctionResults.storeMany canvasID traceID results.functionResults
-          }))
-    storeTraceInput =
-      (fun desc _ input ->
-        LibService.FireAndForget.fireAndForgetTask "traceResultHook" (fun () ->
-          task {
-            let! (_timestamp : NodaTime.Instant) =
-              TraceInputs.storeEvent canvasID traceID desc input
-            return ()
-          })) }
 
 let createCloudStorageTracer
   (canvasID : CanvasID)
@@ -191,11 +140,6 @@ let createCloudStorageTracer
                 (tlid, name, id, hash)
                 (result, NodaTime.Instant.now ())
                 results.functionResults)
-          storeFnArguments =
-            (fun tlid args ->
-              ResizeArray.append
-                (tlid, args, NodaTime.Instant.now ())
-                results.functionArguments)
           traceTLID = traceTLIDFn }
     storeTraceResults =
       fun () ->
@@ -208,13 +152,16 @@ let createCloudStorageTracer
               traceID
               (HashSet.toList touchedTLIDs)
               [ storedInput ]
-              results.functionArguments
               results.functionResults)
     storeTraceInput = fun _ name input -> storedInput <- (name, input) }
 
 
-let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
-  let result = createStandardTracer canvasID traceID
+let createTelemetryTracer
+  (canvasID : CanvasID)
+  (rootTLID : tlid)
+  (traceID : AT.TraceID.T)
+  : T =
+  let result = createCloudStorageTracer canvasID rootTLID traceID
   let standardTracing = result.executionTracing
   { result with
       executionTracing =
@@ -237,12 +184,6 @@ let createTelemetryTracer (canvasID : CanvasID) (traceID : AT.TraceID.T) : T =
                     "resultType",
                     LibExecution.DvalReprDeveloper.dvalTypeName result :> obj ]
                 standardTracing.storeFnResult (tlid, name, id) args result)
-            storeFnArguments =
-              (fun tlid args ->
-                Telemetry.addEvent
-                  $"function arguments for {tlid}"
-                  [ "tlid", tlid; "id", id; "argCount", Map.count args ]
-                standardTracing.storeFnArguments tlid args)
             traceTLID =
               fun tlid ->
                 Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
@@ -261,20 +202,7 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
 let create (canvasID : CanvasID) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
   let config = TracingConfig.forHandler canvasID rootTLID traceID
   match config with
-  | TracingConfig.DoTrace -> createStandardTracer canvasID traceID
-  | TracingConfig.TraceWithTelemetry -> createTelemetryTracer canvasID traceID
+  | TracingConfig.DoTrace -> createCloudStorageTracer canvasID rootTLID traceID
+  | TracingConfig.TraceWithTelemetry ->
+    createTelemetryTracer canvasID rootTLID traceID
   | TracingConfig.DontTrace -> createNonTracer canvasID traceID
-  | TracingConfig.TraceToCloudStorage ->
-    createCloudStorageTracer canvasID rootTLID traceID
-
-module Test =
-  let saveTraceResult
-    (canvasID : CanvasID)
-    (traceID : AT.TraceID.T)
-    (results : TraceResults.T)
-    : Task<unit> =
-    task {
-      do! TraceFunctionArguments.storeMany canvasID traceID results.functionArguments
-      do! TraceFunctionResults.storeMany canvasID traceID results.functionResults
-      return ()
-    }

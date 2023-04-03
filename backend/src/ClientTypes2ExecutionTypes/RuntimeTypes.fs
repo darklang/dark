@@ -177,15 +177,6 @@ module MatchPattern =
       MPTuple(id, r first, r second, List.map r theRest)
 
 module Expr =
-  let pipefromCT (pipe : Expr.IsInPipe) : RT.IsInPipe =
-    match pipe with
-    | Expr.InPipe (id) -> RT.InPipe(id)
-    | Expr.NotInPipe -> RT.NotInPipe
-
-  let pipeToCT (pipe : RT.IsInPipe) : Expr.IsInPipe =
-    match pipe with
-    | RT.InPipe (id) -> Expr.InPipe(id)
-    | RT.NotInPipe -> Expr.NotInPipe
 
   let rec fromCT (e : Expr.T) : RT.Expr =
     let r = fromCT
@@ -206,13 +197,12 @@ module Expr =
       RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | Expr.EApply (id, target, typeArgs, exprs, pipe) ->
+    | Expr.EApply (id, target, typeArgs, exprs) ->
       RT.EApply(
         id,
         fnTargetFromCT target,
         List.map DType.fromCT typeArgs,
-        List.map r exprs,
-        pipefromCT pipe
+        List.map r exprs
       )
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | Expr.ETuple (id, first, second, theRest) ->
@@ -272,13 +262,12 @@ module Expr =
       Expr.ELet(id, LetPattern.toCT pat, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EApply (id, target, typeArgs, exprs, pipe) ->
+    | RT.EApply (id, target, typeArgs, exprs) ->
       Expr.EApply(
         id,
         fnTargetToCT target,
         List.map DType.toCT typeArgs,
-        List.map r exprs,
-        pipeToCT pipe
+        List.map r exprs
       )
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
     | RT.ETuple (id, first, second, theRest) ->

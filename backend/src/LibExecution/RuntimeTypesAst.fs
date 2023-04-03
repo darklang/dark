@@ -23,8 +23,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
-  | EApply (id, fn, typeArgs, exprs, inPipe) ->
-    EApply(id, fn, typeArgs, List.map r exprs, inPipe)
+  | EApply (id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
   | ELambda (id, names, expr) -> ELambda(id, names, r expr)
   | EList (id, exprs) -> EList(id, List.map r exprs)
   | ETuple (id, first, second, theRest) ->
@@ -53,8 +52,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EUnit _
     | EFloat _ -> expr
     | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
-    | EApply (id, fn, typeArgs, exprs, inPipe) ->
-      EApply(id, fn, typeArgs, List.map r exprs, inPipe)
+    | EApply (id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
     | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
     | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
     | ELambda (id, names, expr) -> ELambda(id, names, r expr)

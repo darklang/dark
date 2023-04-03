@@ -151,7 +151,7 @@ let testRecursionInEditor : Test =
     let recurse =
       testUserFn "recurse" [] [ "i" ] (PT.TVariable "a") fnExpr
       |> PT2RT.UserFunction.toRT
-    let ast = EApply(callerID, eUserFnName "recurse", [], [ eInt 0 ], NotInPipe)
+    let ast = EApply(callerID, eUserFnName "recurse", [], [ eInt 0 ])
     let! results = execSaveDvals "recursion in editor" [] [] [ recurse ] ast
 
     Expect.equal
@@ -477,8 +477,7 @@ let testMatchPreview : Test =
          |> FnName,
          [],
          [ EString(okVarRhsStrId, [ StringText "ok: " ])
-           EVariable(okVarRhsVarId, "x") ],
-         NotInPipe
+           EVariable(okVarRhsVarId, "x") ]
        ))
 
       // | None -> "constructor nothing"

@@ -60,8 +60,6 @@ let getHandlersForCanvas (canvasID : CanvasID) : Task<List<tlid * HandlerDesc>> 
 // Event data
 // -------------------------
 
-let throttled : CanvasID = System.Guid.Parse "730b77ce-f505-49a8-80c5-8cabb481d60d"
-
 // We store a set of events for each canvas. The events may or may not
 // belong to a toplevel. We provide a list in advance so that they can
 // be partitioned effectively. Returns the DB-assigned event timestamp.
@@ -71,21 +69,18 @@ let storeEvent
   ((module_, path, modifier) : HandlerDesc)
   (event : RT.Dval)
   : Task<NodaTime.Instant> =
-  if canvasID = throttled then
-    Task.FromResult(NodaTime.Instant.now ())
-  else
-    Sql.query
-      "INSERT INTO trace_old_events_v0
-      (canvas_id, trace_id, module, path, modifier, timestamp, value)
-      VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
-      RETURNING timestamp"
-    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                        "traceID", Sql.traceID traceID
-                        "module", Sql.string module_
-                        "path", Sql.string path
-                        "modifier", Sql.string modifier
-                        ("value", event |> Repr.toJsonV0 |> Sql.string) ]
-    |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
+  Sql.query
+    "INSERT INTO trace_old_events_v0
+    (canvas_id, trace_id, module, path, modifier, timestamp, value)
+    VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
+    RETURNING timestamp"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
+                      "traceID", Sql.traceID traceID
+                      "module", Sql.string module_
+                      "path", Sql.string path
+                      "modifier", Sql.string modifier
+                      ("value", event |> Repr.toJsonV0 |> Sql.string) ]
+  |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
   let timestampSql, timestamp =
@@ -116,94 +111,6 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
     ((read.string "module", read.string "path", read.string "modifier"),
      read.instant "timestamp",
      read.traceID "trace_id"))
-
-// let list_event_descs
-//     ~(limit : [`All | `After of RTT.time | `Before of RTT.time])
-//     ~(canvas_id : Uuidm.t)
-//     () : event_desc list =
-//   let timestamp_constraint =
-//     match limit with
-//     | `All ->
-//         ""
-//     | `After ts ->
-//         "AND timestamp > " ^ Db.escape (Time ts)
-//     | `Before ts ->
-//         "AND timestamp < " ^ Db.escape (Time ts)
-//   in
-//   let sql =
-//     (* Note we just grab the first one in the group because the ergonomics
-//      * of SELECT DISTINCT ON is much easier than the complex GROUP BY
-//      * with row_partition/row_num counting to express "give me the
-//      * first N in the group" which is probably more what we want
-//      * from a product POV.
-//      *
-//      * Also we _could_ order by timestamp desc here to get the more
-//      * recent events if we desire in the future *)
-//     "SELECT DISTINCT ON (module, path, modifier)
-//      module, path, modifier
-//      FROM stored_events_v2
-//      WHERE canvas_id = $1"
-//     ^ timestamp_constraint
-//   in
-//   Db.fetch sql ~name:"list_events" ~params:[Db.Uuid canvas_id]
-//   |> List.map ~f:(function
-//          | [module_; path; modifier] ->
-//              (module_, path, modifier)
-//          | out ->
-//              Exception.internal "Bad DB format for stored_events")
-
-let loadEvents
-  (canvasID : CanvasID)
-  ((module_, route, modifier) : HandlerDesc)
-  : Task<List<string * AT.TraceID.T * NodaTime.Instant * RT.Dval>> =
-  task {
-    let route = Routing.routeToPostgresPattern route
-    let! results =
-      Sql.query
-        "SELECT path, value, timestamp, trace_id FROM trace_old_events_v0
-          WHERE canvas_id = @canvasID
-            AND module = @module
-            AND path LIKE @route
-            AND modifier = @modifier
-        ORDER BY timestamp DESC
-        LIMIT 10"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "module", Sql.string module_
-                          "route", Sql.string route
-                          "modifier", Sql.string modifier ]
-      |> Sql.executeAsync (fun read ->
-        (read.string "path",
-         read.traceID "trace_id",
-         read.instant "timestamp",
-         read.string "value"))
-    return
-      results
-      |> List.map (fun (path, trace_id, timestamp, value_json) ->
-        (path, trace_id, timestamp, Repr.parseJsonV0 value_json))
-  }
-
-
-let loadEventForTrace
-  (canvasID : CanvasID)
-  (traceID : AT.TraceID.T)
-  : Task<Option<string * NodaTime.Instant * RT.Dval>> =
-  task {
-    let! results =
-      Sql.query
-        "SELECT path, value, timestamp FROM trace_old_events_v0
-          WHERE canvas_id = @canvasID
-            AND trace_id = @traceID
-          LIMIT 1"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "traceID", Sql.traceID traceID ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.string "path", read.instant "timestamp", read.string "value"))
-    return
-      results
-      |> Option.map (fun (path, timestamp, value) ->
-        (path, timestamp, Repr.parseJsonV0 value))
-  }
-
 
 let mungePathForPostgres (module_ : string) (path : string) =
   // Only munge the route for HTTP events, as they have wildcards, whereas
@@ -279,14 +186,4 @@ let delete404s
                       "module", Sql.string space
                       "path", Sql.string path
                       "modifier", Sql.string modifier ]
-  |> Sql.executeStatementAsync
-
-
-
-
-let clearAllEvents (canvasID : CanvasID) : Task<unit> =
-  Sql.query
-    "DELETE FROM trace_old_events_v0
-     WHERE canvas_id = @canvasID"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeStatementAsync
