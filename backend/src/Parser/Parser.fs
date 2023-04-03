@@ -434,9 +434,13 @@ module Expr =
       PT.ELambda(id, vars, c body)
 
 
-    // if/then expressions
+    // if/else expressions
     | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
       PT.EIf(id, c cond, c thenExpr, c elseExpr)
+
+    // if (no else) expression
+    | SynExpr.IfThenElse (cond, thenExpr, None, _, _, _, _) ->
+      PT.EIf(id, c cond, c thenExpr, PT.EUnit(gid ()))
 
 
     // `let` bindings
@@ -488,6 +492,11 @@ module Expr =
 
     // Do (eg do ())
     | SynExpr.Do (expr, _) -> c expr // just unwrap
+
+
+    // Sequential code: (a; b) -> let _ = a in b
+    | SynExpr.Sequential (_, _, a, b, _) ->
+      PT.ELet(id, PT.LPVariable(gid (), "_"), c a, c b)
 
 
     // Pipes (|>)
