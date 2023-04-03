@@ -16,11 +16,11 @@
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../Parser/Parser.fsproj" />
-    <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
-    <ProjectReference Include="../ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
-    <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../src/Parser/Parser.fsproj" />
+    <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../../src/ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
+    <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

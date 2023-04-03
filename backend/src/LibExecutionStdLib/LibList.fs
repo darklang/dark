@@ -819,7 +819,7 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! r = LibExecution.Interpreter.applyFnVal state b [ dv ]
+                let! r = Interpreter.applyFnVal state b [ dv ]
 
                 match r with
                 | DBool b -> return b
@@ -1437,4 +1437,35 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    { name = fn "List" "iter" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], TUnit)) "" [ "element" ] ]
+      returnType = TUnit
+      description =
+        "Applies the given function <param fn> to each element of the <param list>."
+      fn =
+        (function
+        | state, _, [ DList l; DFnVal b ] ->
+          uply {
+            do!
+              l
+              |> Ply.List.iterSequentially (fun e ->
+                uply {
+                  match! Interpreter.applyFnVal state b [ e ] with
+                  | DUnit -> return ()
+                  | v ->
+                    Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
+                })
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    ]
