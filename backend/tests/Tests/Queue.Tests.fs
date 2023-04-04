@@ -27,6 +27,7 @@ module SR = LibBackend.QueueSchedulingRules
 module TI = LibBackend.TraceInputs
 module TCS = LibBackend.TraceCloudStorage
 
+module Parser = Parser.Parser
 
 let p (code : string) = Parser.parsePTExpr code
 

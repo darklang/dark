@@ -20,6 +20,8 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
+module Parser = Parser.Parser
+
 type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 
 let parse = Parser.parseRTExpr

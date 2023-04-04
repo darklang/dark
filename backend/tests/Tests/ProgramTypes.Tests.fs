@@ -13,6 +13,8 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 module S = TestUtils.RTShortcuts
 
+module Parser = Parser.Parser
+
 let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"

@@ -25,6 +25,8 @@ module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
 
+module Parser = Parser.Parser
+
 open Tests
 open TestUtils.TestUtils
 

@@ -12,6 +12,8 @@ module PT = LibExecution.ProgramTypes
 module Op = LibBackend.Op
 module C = LibBackend.Canvas
 
+module Parser = Parser.Parser
+
 let initSerializers () = ()
 
 module CommandNames =

@@ -11,6 +11,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PT = LibExecution.ProgramTypes
 
+module Parser = Parser.Parser
 
 open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Primitives

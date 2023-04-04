@@ -26,6 +26,8 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Canvas = LibBackend.Canvas
 
+module Parser = Parser.Parser
+
 open TestUtils.TestUtils
 
 let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
