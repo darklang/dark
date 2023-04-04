@@ -16,7 +16,6 @@ module RT = LibExecution.RuntimeTypes
 module WorkerStates = LibBackend.QueueSchedulingRules.WorkerStates
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
-module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 module CT2Ops = ClientTypes2BackendTypes.Ops
