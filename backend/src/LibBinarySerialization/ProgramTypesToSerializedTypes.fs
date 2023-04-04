@@ -119,6 +119,8 @@ module MatchPattern =
     | PT.MPUnit id -> ST.MPUnit id
     | PT.MPTuple (id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
+    | PT.MPList (id, pats) ->
+      ST.MPList(id, List.map toST pats)
 
 
 

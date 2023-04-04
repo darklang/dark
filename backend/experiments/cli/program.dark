@@ -9,7 +9,7 @@ type ParsedArgs = {
 
 let parseArguments (args: List<String>): ParsedArgs =
   match args with
-  | ["-h"] | ["--help"] -> { command = Help }
+  | ["--help"] -> { command = Help }
   | ["--prompt"; prompt; scriptPath] -> { command = Infer (prompt, scriptPath) }
   | [scriptPath] -> { command = RunScript scriptPath }
   | _ -> failwith "Invalid arguments"

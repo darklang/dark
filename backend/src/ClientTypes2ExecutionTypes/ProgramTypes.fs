@@ -194,6 +194,7 @@ module MatchPattern =
     | CTPT.MPUnit (id) -> PT.MPUnit(id)
     | CTPT.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
+    | CTPT.MPList (id, pats) -> PT.MPList(id, List.map fromCT pats)
 
   let rec toCT (pat : PT.MatchPattern) : CTPT.MatchPattern =
     match pat with
@@ -208,6 +209,7 @@ module MatchPattern =
     | PT.MPUnit (id) -> CTPT.MPUnit(id)
     | PT.MPTuple (id, first, second, theRest) ->
       CTPT.MPTuple(id, toCT first, toCT second, List.map toCT theRest)
+    | PT.MPList (id, pats) -> CTPT.MPList(id, List.map toCT pats)
 
 
 module BinaryOperation =

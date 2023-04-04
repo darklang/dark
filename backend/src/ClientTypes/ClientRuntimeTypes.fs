@@ -77,6 +77,7 @@ type MatchPattern =
   | MPFloat of id * double
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 
 module Expr =

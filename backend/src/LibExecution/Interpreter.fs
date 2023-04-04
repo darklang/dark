@@ -356,6 +356,26 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
+        | MPList (id, pats) ->
+          match dv with
+          | DList vals ->
+            if List.length vals = List.length pats then
+              let (passResults, newVarResults, traceResults) =
+                List.zip vals pats
+                |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                |> List.unzip3
+
+              let allPass = passResults |> List.forall identity
+              let allVars = newVarResults |> List.collect identity
+              let allSubTraces = traceResults |> List.collect identity
+
+              if allPass then
+                true, allVars, (id, dv) :: allSubTraces
+              else
+                false, allVars, traceIncompleteWithArgs id pats @ allSubTraces
+            else
+              false, [], traceIncompleteWithArgs id pats
+          | _ -> false, [], traceIncompleteWithArgs id pats
 
       // This is to avoid checking `state.tracing.realOrPreview = Real` below.
       // If RealOrPreview gets additional branches, reconsider what to do here.

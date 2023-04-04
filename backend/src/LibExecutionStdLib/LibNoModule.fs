@@ -227,6 +227,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     && equalsMatchPattern elem2_1 elem2_2
     && elems1.Length = elems2.Length
     && List.forall2 equalsMatchPattern elems1 elems2
+  | MPList (_, elems1), MPList (_, elems2) ->
+    elems1.Length = elems2.Length && List.forall2 equalsMatchPattern elems1 elems2
   // exhaustiveness check
   | MPVariable _, _
   | MPConstructor _, _
@@ -236,7 +238,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   | MPString _, _
   | MPFloat _, _
   | MPUnit _, _
-  | MPTuple _, _ -> false
+  | MPTuple _, _
+  | MPList _, _ -> false
 
 
 let fns : List<BuiltInFn> =
