@@ -355,6 +355,11 @@ module ProgramTypes =
                                PT.EInteger(232748650UL, 7L))
                               (PT.MPCharacter(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
+                              (PT.MPList(
+                                387662539UL,
+                                [ PT.MPBool(435227293UL, true) ]
+                               ),
+                               PT.EList(657848009UL, [ PT.EBool(435227293UL, true) ]))
                               (PT.MPString(491115870UL, "string"),
                                PT.EString(
                                  820329949UL,
