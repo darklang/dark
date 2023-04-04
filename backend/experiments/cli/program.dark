@@ -1,0 +1,36 @@
+type CommandType =
+  | RunScript of String
+  | Help
+  | Infer of String
+
+type ParsedArgs = {
+  command: CommandType
+}
+
+let parseArguments (args: List<String>): ParsedArgs =
+  match args with
+  | ["-h"] | ["--help"] -> { command = Help }
+  | ["--prompt"; prompt; scriptPath] -> { command = Infer (prompt, scriptPath) }
+  | [scriptPath] -> { command = RunScript scriptPath }
+  | _ -> failwith "Invalid arguments"
+
+let executeCommand (command: CommandType) : unit =
+  match command with
+  | RunScript scriptPath ->
+    let script = System.IO.File.ReadAllText scriptPath
+    // Execute the script here
+    ()
+
+  | Help ->
+    let helpText = "Usage: darklang [options] [SCRIPT]
+Options:
+-h, --help Show this help message and exit
+--prompt PROMPT Infer a script from the given prompt using OpenAI"
+    print helpText
+
+  | Infer (prompt, scriptPath) ->
+  // let script = System.IO.File.ReadAllText scriptPath
+  // Call OpenAI API with the prompt and script to generate a new script
+  // let generatedScript = callOpenAI(prompt, script)
+  // Execute the generated script here
+  ()
