@@ -9,7 +9,6 @@ open Prelude
 
 module Telemetry = LibService.Telemetry
 
-module CTApi = ClientTypes.Api
 module CTPusher = ClientTypes.Pusher
 
 let initSerializers () =

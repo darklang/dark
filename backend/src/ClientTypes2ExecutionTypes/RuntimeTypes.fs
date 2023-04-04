@@ -160,6 +160,7 @@ module MatchPattern =
     | MPUnit id -> RT.MPUnit id
     | MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
+    | MPList (id, pats) -> RT.MPList(id, List.map r pats)
 
   let rec toCT (p : RT.MatchPattern) : MatchPattern =
     let r = toCT
@@ -175,6 +176,7 @@ module MatchPattern =
     | RT.MPUnit id -> MPUnit id
     | RT.MPTuple (id, first, second, theRest) ->
       MPTuple(id, r first, r second, List.map r theRest)
+    | RT.MPList (id, pats) -> MPList(id, List.map r pats)
 
 module Expr =
 

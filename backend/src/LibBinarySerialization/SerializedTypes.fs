@@ -162,6 +162,7 @@ type MatchPattern =
   | MPFloat of id * Sign * string * string
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 [<MessagePack.MessagePackObject>]
 type BinaryOperation =

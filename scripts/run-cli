@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+
+EXE="backend/Build/out/Cli/Debug/net7.0/Cli"
+
+# if it hasn't been compiled yet, wait for it
+
+for ((i=1;i<=1000;i++));
+do
+  if [[ ! -f "${EXE}" ]]; then
+    echo "Waiting for compiled binary"
+    sleep 0.01
+  fi
+done
+
+"${EXE}" "${@}"

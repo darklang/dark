@@ -260,6 +260,7 @@ and MatchPattern =
   | MPFloat of id * double
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 type DvalMap = Map<string, Dval>
 
@@ -439,7 +440,8 @@ module MatchPattern =
     | MPFloat (id, _)
     | MPVariable (id, _)
     | MPTuple (id, _, _, _)
-    | MPConstructor (id, _, _) -> id
+    | MPConstructor (id, _, _)
+    | MPList (id, _) -> id
 
 /// Functions for working with Dark runtime values
 module Dval =

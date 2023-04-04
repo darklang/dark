@@ -245,6 +245,9 @@ module Match =
   (match 2.0 with | 1.0 -> "fail" | 2.0 -> "pass" | var -> "fail") = "pass"
   (match () with | () -> "pass" | var -> "fail") = "pass"
   (match 999999999999999I with | 0 -> "fail" | 999999999999999I -> "pass") = "pass"
+  (match [] with | [i] -> "fail" | [] -> "pass" | [i;j] -> "fail") = "pass"
+  (match [1] with | [] -> "fail" | [i] -> "pass" | [i;j] -> "fail") = "pass"
+  (match [1;2] with | [] -> "fail" | [i;j] -> "pass" | [i] -> "fail") = "pass"
 
   // Errors
   (match "nothing matches" with | "not this" -> "fail") = Test.typeError "No match"
@@ -265,6 +268,8 @@ module Match =
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | 5 -> "int"
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "int"
 
   // float
@@ -276,6 +281,8 @@ module Match =
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | 5.6 -> "float"
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "float"
 
   // float 2
@@ -287,6 +294,8 @@ module Match =
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | 1.1 -> "float"
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "float"
 
   // bool
@@ -298,6 +307,8 @@ module Match =
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | false -> "bool"
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "bool"
 
   // string
@@ -309,6 +320,8 @@ module Match =
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | "myStr" -> "string"
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "string"
 
   // string 2string 2string 2string 2
@@ -320,6 +333,8 @@ module Match =
   | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "otherStrvar"
 
   // ()
@@ -331,6 +346,8 @@ module Match =
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
   | () -> "()"
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "()"
 
   // constructor with arg
@@ -342,6 +359,8 @@ module Match =
   | () -> "()"
   | Nothing -> "constructor nothing"
   | Ok x -> "ok: " ++ x
+  | (1, 2) -> "1 and 2"
+  | [i] -> "list:" ++ i
   | name -> name ++ "var") = "ok: x"
 
   // simple tuple
@@ -353,6 +372,7 @@ module Match =
   | "myStr" -> "string"
   | () -> "()"
   | Nothing -> "constructor nothing"
+  | [i] -> "list:" ++ i
   | (1, 1) -> "1 and 1"
   | (1, 2) -> "1 and 2"
   | (2, 2) -> "2 and 2"
@@ -367,6 +387,7 @@ module Match =
   | "myStr" -> "string"
   | () -> "()"
   | Nothing -> "constructor nothing"
+  | [i] -> "list:" ++ i
   | (1, 1) -> "1 and 1"
   | (1, 2, (Ok "one", "four"), 5) -> "non-matching pattern chosen"
   | (1, 2, (Ok 1, "four"), 5) -> "correct pattern matched"
@@ -374,11 +395,31 @@ module Match =
   | (2, 2) -> "2 and 2"
   | name -> name ++ "var") = "correct pattern matched"
 
-  // duplicate variables
+  // nested list
+  (let lst = [[1; 2]; [3; 4]; [5]] in
+   match lst with
+   | 5 -> "int"
+   | 5.6 -> "float"
+   | false -> "bool"
+   | "myStr" -> "string"
+   | () -> "()"
+   | Nothing -> "constructor nothing"
+   | [i] -> "list:" ++ i
+   | [[1; 2]; [3; 4]; [5]] -> "correct pattern matched"
+   | [[1; 2]; [3; 4]; [5; 6]] -> "wrong matching pattern chosen"
+   | name -> name ++ "var") = "correct pattern matched"
+
+
+  // duplicate tuple variables
   (let tpl = (1, 2, (3, 4), 5) in
   match tpl with
   | (a, b, (a, b), a) -> (a, b)
   | name -> name ++ "var") = (5, 4)
+
+  // duplicate list variables
+  (match [1; 2; 5] with
+   | [a; a; a] -> a
+   | name -> name ++ "var") = 5
 
   // empty constructor
   (match Nothing with
@@ -389,6 +430,8 @@ module Match =
   | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
+  | [i] -> "list:" ++ i
+  | (1, 2) -> "1 and 2"
   | name -> name ++ "var") = "constructor nothing"
 
   // wildcard match
@@ -400,6 +443,8 @@ module Match =
   | () -> "()"
   | Ok x -> "ok: " ++ x
   | Nothing -> "constructor nothing"
+  | [i] -> "list:" ++ i
+  | (1, 2) -> "1 and 2"
   | name -> name ++ "var") = "not matched: var"
 
   (match "not matched: " with
@@ -409,6 +454,8 @@ module Match =
   | "myStr" -> "string"
   | () -> "()"
   | Ok x -> "ok: " ++ x
+  | [i] -> "list:" ++ i
+  | (1, 2) -> "1 and 2"
   | Nothing -> "constructor nothing") = Test.typeError "No match"
 
 

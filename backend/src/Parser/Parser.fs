@@ -150,6 +150,7 @@ module MatchPattern =
       PT.MPConstructor(id, constructorName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
+    | SynPat.ArrayOrList (_, pats, _) -> PT.MPList(id, List.map r pats)
     | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
 
 
@@ -489,8 +490,13 @@ module Expr =
 
       PT.ERecord(id, typeName, fields)
 
+
     // Parens (eg `(5)`)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
+
+
+    // "Typed" (we don't use this)
+    | SynExpr.Typed (expr, _, _) -> c expr // just unwrap
 
 
     // Do (eg do ())
