@@ -21,7 +21,7 @@ module SR = LibBackend.QueueSchedulingRules
 
 module Parser = Parser.Parser
 
-let p (code : string) = Parser.parsePTExpr code
+let p (code : string) = Parser.ProgramTypes.parseExpr code
 
 
 let testGetWorkerSchedulesForCanvas =

@@ -18,7 +18,7 @@ module Serialize = LibBackend.Serialize
 
 module Parser = Parser.Parser
 
-let p (code : string) = Parser.parsePTExpr code // TODO: update
+let p (code : string) = Parser.ProgramTypes.parseExpr code // TODO: update
 
 
 let testCronFetchActiveCrons =

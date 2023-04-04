@@ -14,7 +14,9 @@
   <ItemGroup>
     <Compile Include="Utils.fs" />
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="RuntimeTypes.fs" />
     <Compile Include="TestModule.fs" />
+    <Compile Include="Canvas.fs" />
     <Compile Include="Parser.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

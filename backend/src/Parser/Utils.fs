@@ -10,6 +10,9 @@ open FSharp.Compiler.Syntax
 open Prelude
 open Tablecloth
 
+let longIdentToList (li : LongIdent) : List<string> =
+  li |> List.map (fun id -> id.idText)
+
 let parseAsFSharpSourceFile (input : string) : ParsedImplFileInput =
   let file = "test.fs"
   let checker = FSharpChecker.Create()
@@ -30,9 +33,26 @@ let parseAsFSharpSourceFile (input : string) : ParsedImplFileInput =
       [ "parseTree", results.ParseTree; "input", input ]
 
 
-
-(*
-
-
-
-*)
+let singleExprFromImplFile parsedAsFSharp =
+  match parsedAsFSharp with
+  | ParsedImplFileInput (_,
+                         _,
+                         _,
+                         _,
+                         _,
+                         [ SynModuleOrNamespace (_,
+                                                 _,
+                                                 _,
+                                                 [ SynModuleDecl.Expr (expr, _) ],
+                                                 _,
+                                                 _,
+                                                 _,
+                                                 _,
+                                                 _) ],
+                         _,
+                         _,
+                         _) -> expr
+  | _ ->
+    Exception.raiseInternal
+      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
+      [ "parseTree", parsedAsFSharp ]

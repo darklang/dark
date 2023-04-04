@@ -160,7 +160,7 @@ let makeTest versionName filename =
 
         // TODO: tidy below
         |> Parser.Utils.parseAsFSharpSourceFile
-        |> Parser.exprFromImplFile
+        |> Parser.Utils.singleExprFromImplFile
         |> Parser.convertToTest userTypes
 
       // Run the handler (call the HTTP client)

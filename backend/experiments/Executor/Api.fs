@@ -48,7 +48,7 @@ module ExecuteText =
   let post (ctx : HttpContext) : Task<LibExecution.RuntimeTypes.Dval> =
     task {
       let! ps = ctx.ReadVanillaJsonAsync<Request>()
-      let expr = Parser.parseRTExpr ps.code
+      let expr = Parser.RuntimeTypes.parseExpr ps.code
       return! Execute.execute expr Map.empty
     }
 

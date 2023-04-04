@@ -77,12 +77,14 @@ let main (args : string []) =
           config.HttpHandlers
           |> Map.toList
           |> List.map (fun (name, details) ->
-            let modul = Parser.parseModule [] $"{baseDir}/{name}.dark"
+            let modul = Parser.Canvas.parseFromFile [] $"{baseDir}/{name}.dark"
 
             let types = modul.types |> List.map PT.Op.SetType
+
             let fns = modul.fns |> List.map PT.Op.SetFunction
+
             let handler =
-              match modul.exprs with
+              match modul.httpHandlers with
               | [ expr ] ->
                 print $"Adding {details.Method} {details.Path} HTTP handler"
                 PT.Op.SetHandler(

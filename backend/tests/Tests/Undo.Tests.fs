@@ -17,7 +17,7 @@ module Exe = LibExecution.Execution
 
 module Parser = Parser.Parser
 
-let handler code = testHttpRouteHandler "" "GET" (Parser.parsePTExpr code)
+let handler code = testHttpRouteHandler "" "GET" (Parser.ProgramTypes.parseExpr code)
 
 let testUndoCount : Test =
   // Creates several save points, (at least as many undos as we will do),
