@@ -196,6 +196,41 @@ module Internal =
     stringSetTestDefault name testDefault
     fun canvasID -> stringVar name $"canvas-{canvasID}" default_
 
+  // -------------
+  // per-service values
+  // -------------
+  let serviceBool
+    (name : string)
+    (default_ : bool)
+    (testDefault : bool)
+    : string -> bool =
+    boolSetTestDefault name testDefault
+    fun serviceName -> boolVar name $"service-{serviceName}" default_
+
+  let serviceInt
+    (name : string)
+    (default_ : int)
+    (testDefault : int)
+    : string -> int =
+    intSetTestDefault name testDefault
+    fun serviceName -> intVar name $"service-{serviceName}" default_
+
+  let serviceFloat
+    (name : string)
+    (default_ : float)
+    (testDefault : float)
+    : string -> float =
+    floatSetTestDefault name testDefault
+    fun serviceName -> floatVar name $"service-{serviceName}" default_
+
+  let serviceString
+    (name : string)
+    (default_ : string)
+    (testDefault : string)
+    : string -> string =
+    stringSetTestDefault name testDefault
+    fun serviceName -> stringVar name $"service-{serviceName}" default_
+
 
 
 let flush () : unit = Internal.client.Force().Dispose()
@@ -215,6 +250,12 @@ let traceSamplingRule =
 // --------------
 let knownBroken = Internal.canvasBool "canvas-known-broken" false false
 
+
+// --------------
+// Service Flags - may be different for each service
+// --------------
+// Whether to record traces
+let traceSamplePercentage = Internal.serviceInt "trace-sample-percentage" 100 100
 
 // --------------
 // System flags - this allows us to change the run-time values of system
