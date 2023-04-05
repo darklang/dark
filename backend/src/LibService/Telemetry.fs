@@ -315,15 +315,6 @@ type Sampler(serviceName : string) =
   let keep = SamplingResult(SamplingDecision.RecordAndSample)
   let drop = SamplingResult(SamplingDecision.Drop)
 
-  // from https://github.com/open-telemetry/opentelemetry-dotnet/blob/b2fb873fcd9ceca2552b152a60bf192e2ea12b99/src/OpenTelemetry/Trace/TraceIdRatioBasedSampler.cs#LL76
-  let getLowerLong (bytes : ReadOnlySpan<byte>) : int64 =
-    let mutable result : int64 = 0L
-    for i = 0 to 7 do
-      result <- (result <<< 8)
-      result <- result ||| int64 (bytes.[i] &&& 0xffuy)
-    System.Math.Abs result
-
-
   override this.ShouldSample(ps : SamplingParameters inref) : SamplingResult =
     // Sampling means that we lose lot of precision and might miss something. By
     // adding a feature flag, we can dynamically turn up precision when we need it
@@ -333,21 +324,15 @@ type Sampler(serviceName : string) =
 
     // Note we tweak sampling by service, so we can have 100% of one service and 10%
     // of another
-    let percentage = LaunchDarkly.traceSamplePercentage serviceName
-    if percentage >= 100 then
+    let percentage = LaunchDarkly.telemetrySamplePercentage serviceName
+    if false && percentage >= 100.0 then
       keep
     else
+      let scaled = int ((percentage / 100.0) * float Int32.MaxValue)
       // Deterministic sampler, will produce the same result for every span in a trace
-      // from https://github.com/open-telemetry/opentelemetry-dotnet/blob/b2fb873fcd9ceca2552b152a60bf192e2ea12b99/src/OpenTelemetry/Trace/TraceIdRatioBasedSampler.cs#LL76
-      let ptr =
-        NativeInterop.NativePtr.stackalloc<byte> 16
-        |> NativeInterop.NativePtr.toVoidPtr
-      let traceIdBytes = Span<byte>(ptr, 16)
-      ps.TraceId.CopyTo traceIdBytes
-      if getLowerLong (Span.op_Implicit traceIdBytes) < percentage then
-        keep
-      else
-        drop
+      // Originally based on https://github.com/open-telemetry/opentelemetry-dotnet/blob/b2fb873fcd9ceca2552b152a60bf192e2ea12b99/src/OpenTelemetry/Trace/TraceIdRatioBasedSampler.cs#LL76
+      let traceIDAsInt = ps.TraceId.GetHashCode() |> System.Math.Abs
+      if traceIDAsInt < scaled then keep else drop
 
 
 type TraceDBQueries =
@@ -368,6 +353,7 @@ let addTelemetry
   (builder : TracerProviderBuilder)
   : TracerProviderBuilder =
   builder
+  |> fun b -> b.SetSampler(Sampler(serviceName))
   |> fun b ->
        List.fold
          b
@@ -390,7 +376,6 @@ let addTelemetry
        | TraceDBQueries -> b.AddNpgsql()
        | DontTraceDBQueries -> b
   |> fun b -> b.AddSource("Dark")
-  |> fun b -> b.SetSampler(Sampler(serviceName))
 
 
 module Console =
@@ -400,7 +385,6 @@ module Console =
     let tp =
       Sdk.CreateTracerProviderBuilder()
       |> addTelemetry serviceName traceDBQueries
-      |> fun tp -> tp.SetSampler(Sampler(serviceName))
       |> fun tp -> tp.Build()
     tracerProvider <- tp
 

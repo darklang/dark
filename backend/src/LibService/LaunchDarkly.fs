@@ -255,7 +255,8 @@ let knownBroken = Internal.canvasBool "canvas-known-broken" false false
 // Service Flags - may be different for each service
 // --------------
 // Whether to record traces
-let traceSamplePercentage = Internal.serviceInt "trace-sample-percentage" 100 100
+let telemetrySamplePercentage =
+  Internal.serviceFloat "telemetry-sample-percentage" 100.0 100.0
 
 // --------------
 // System flags - this allows us to change the run-time values of system
