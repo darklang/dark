@@ -512,10 +512,7 @@ module Expr =
                    expr,
                    _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
-      PT.EPipe(id,
-      c expr,
-      placeholder |> PT.Pipe.toPipeExpr,
-      [])
+      PT.EPipe(id, c expr, placeholder |> PT.Pipe.toPipeExpr, [])
 
 
     // Enum values (EConstructors)

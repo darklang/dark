@@ -287,6 +287,8 @@ module Expr =
         caseName,
         List.map fromCT fields
       )
+    | CTPT.Expr.EForbiddenExpr (id, msg, expr) ->
+      PT.EForbiddenExpr(id, msg, fromCT expr)
 
   and stringSegmentFromCTPT (segment : CTPT.StringSegment) : PT.StringSegment =
     match segment with
@@ -353,7 +355,7 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
-
+    | PT.EForbiddenExpr (id, msg, exp) -> CTPT.Expr.EForbiddenExpr(id, msg, toCT exp)
 
   and stringSegmentToCT (segment : PT.StringSegment) : CTPT.StringSegment =
     match segment with

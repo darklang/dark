@@ -171,55 +171,56 @@ module Expr =
       // into fn3 (fn2 (fn1 v a)) b c
       // This conversion should correspond to ast.ml:inject_param_and_execute
       // from the OCaml interpreter
-      let inner = expr1 |> toRT
-      let expr2' =  PT.Pipe.toExpr expr2
-      let rest' = List.map PT.Pipe.toExpr rest
-      List.fold
-        inner
-        (fun prev next ->
-          let rec convert thisExpr =
-            match thisExpr with
-            // TODO: support currying
 
-            | PT.EFnCall (id, fnName, typeArgs, PT.EPipeTarget ptID :: exprs) ->
-              RT.EApply(
-                id,
-                RT.FnName(FQFnName.toRT fnName),
-                List.map DType.toRT typeArgs,
-                prev :: List.map toRT exprs,
-                RT.InPipe pipeID
-              )
-            | PT.EInfix (id, PT.InfixFnCall fnName, PT.EPipeTarget ptID, expr2) ->
-              let (module_, fn, version) = InfixFnName.toFnName fnName
-              let name =
-                PT.FQFnName.Stdlib(
-                  { module_ = module_; function_ = fn; version = version }
-                )
-              let typeArgs = []
-              RT.EApply(
-                id,
-                RT.FnName(FQFnName.toRT name),
-                typeArgs,
-                [ prev; toRT expr2 ],
-                RT.InPipe pipeID
-              )
-            // Binops work pretty naturally here
-            | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget _, expr2) ->
-              match op with
-              | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
-              | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
-            | other ->
-              let typeArgs = [] // TODO: review
-              RT.EApply(
-                pipeID,
-                RT.FnTargetExpr(toRT other),
-                typeArgs,
-                [ prev ],
-                RT.InPipe pipeID
-              )
-          convert next)
+      let folder (prev : RT.Expr) (next : PT.Expr) : RT.Expr =
+        match prev, next with
+        | RT.EForbiddenExpr (id, msg, expr), _ -> RT.EForbiddenExpr(id, msg, expr)
+        | _, PT.EForbiddenExpr (id, msg, expr) ->
+          RT.EForbiddenExpr(id, msg, toRT expr)
+        | _, PT.EFnCall (id, fnName, typeArgs, PT.EPipeTarget ptID :: exprs) ->
+          RT.EApply(
+            id,
+            RT.FnName(FQFnName.toRT fnName),
+            List.map DType.toRT typeArgs,
+            prev :: List.map toRT exprs,
+            RT.InPipe pipeID
+          )
+        | _, PT.EInfix (id, PT.InfixFnCall fnName, PT.EPipeTarget ptID, expr2) ->
+          let (module_, fn, version) = InfixFnName.toFnName fnName
+          let name =
+            PT.FQFnName.Stdlib(
+              { module_ = module_; function_ = fn; version = version }
+            )
+          let typeArgs = []
+          RT.EApply(
+            id,
+            RT.FnName(FQFnName.toRT name),
+            typeArgs,
+            [ prev; toRT expr2 ],
+            RT.InPipe pipeID
+          )
+        // Binops work pretty naturally here
+        | _, PT.EInfix (id, PT.BinOp op, PT.EPipeTarget _, expr2) ->
+          match op with
+          | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
+          | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
+        | _, other ->
+          let typeArgs = [] // TODO: review
+          RT.EApply(
+            pipeID,
+            RT.FnTargetExpr(toRT other),
+            typeArgs,
+            [ prev ],
+            RT.InPipe pipeID
+          )
 
-        (expr2' :: rest')
+      match expr1, expr1 |> PT.Pipe.toPipeExpr with
+      // check first PT.Expr before transform to RT.Expr for pass "Test.typeError_v0" case
+      | PT.EFnCall _, PT.EPipeForbiddenExpr (id, msg, expr) ->
+        RT.EForbiddenExpr(id, msg, toRT expr)
+      | _ ->
+        let initial = expr1 |> toRT
+        expr2 :: rest |> List.map PT.Pipe.toExpr |> List.fold initial folder
 
     | PT.EMatch (id, mexpr, pairs) ->
       RT.EMatch(
@@ -238,7 +239,7 @@ module Expr =
         caseName,
         List.map toRT fields
       )
-
+    | PT.EForbiddenExpr (id, msg, expr) -> RT.EForbiddenExpr(id, msg, toRT expr)
 
   and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
     match segment with

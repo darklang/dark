@@ -5,6 +5,7 @@
 /// See ProgramTypes.fs for documentation of these types
 module ClientTypes.Program
 
+open FSharp.Reflection
 open Prelude
 open Tablecloth
 
@@ -129,19 +130,19 @@ type Expr =
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | EFeatureFlag of id * string * Expr * Expr * Expr
+  | EForbiddenExpr of id * message : string * Expr
 
 and PipeExpr =
+  | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr * Expr
-  | EPipeFnCall of id *
-    FQFnName.T *
-    typeArgs : List<DType> *
-    args : List<Expr>
-  | EPipeConstructor of id *
+  | EPipeFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
+  | EPipeConstructor of
+    id *
     typeName : Option<FQTypeName.T> *
     caseName : string *
     fields : List<Expr>
-  | EPipeForbiddenExpr of Expr
+  | EPipeForbiddenExpr of id * message : string * Expr
 
 and StringSegment =
   | StringText of string
@@ -149,23 +150,41 @@ and StringSegment =
 
 module Pipe =
   /// Convert Regular Expr to PipeExpr
-  let toPipeExpr (expr: Expr): PipeExpr  =
+  let toPipeExpr (expr : Expr) : PipeExpr =
+
+    let getId (e : Expr) =
+      let _, fields = FSharpValue.GetUnionFields(e, typeof<Expr>)
+      let idObj = fields.[0]
+      match idObj with
+      | :? id as id -> id
+      | _ -> 0UL
     match expr with
-    | ELambda(id, lid, expr) -> EPipeLambda (id, lid, expr)
-    | EInfix (id, infix, expr1, expr2) -> EPipeInfix (id, infix, expr1, expr2)
-    | EFnCall (id, fQFnName, ltypeArgs, args) -> EPipeFnCall (id, fQFnName, ltypeArgs, args)
-    | EConstructor (id,typeName,caseName,fields) -> EPipeConstructor (id,typeName,caseName,fields)
-    | exp -> EPipeForbiddenExpr exp
+    | EVariable (id, var) -> EPipeVariable(id, var)
+    | ELambda (id, lid, expr) -> EPipeLambda(id, lid, expr)
+    | EInfix (id, infix, expr1, expr2) -> EPipeInfix(id, infix, expr1, expr2)
+    | EFnCall (id, fQFnName, ltypeArgs, args) ->
+      EPipeFnCall(id, fQFnName, ltypeArgs, args)
+    | EConstructor (id, typeName, caseName, fields) ->
+      EPipeConstructor(id, typeName, caseName, fields)
+    | EForbiddenExpr (id, message, exp) -> EPipeForbiddenExpr(id, message, exp)
+    | _ as forbiddenExp ->
+      let message = "Expected a function value, got something else: "
+      let id = getId forbiddenExp
+      EPipeForbiddenExpr(id, message, forbiddenExp)
 
 
   /// Convert PipeExpr to Regular Expr
-  let toExpr (expr: PipeExpr): Expr =
+  let toExpr (expr : PipeExpr) : Expr =
     match expr with
-    | EPipeLambda(id, lid, expr) -> ELambda (id, lid, expr)
-    | EPipeInfix (id, infix, expr1, expr2) -> EInfix (id, infix, expr1, expr2)
-    | EPipeFnCall (id, fQFnName, ltypeArgs, args) -> EFnCall (id, fQFnName, ltypeArgs, args)
-    | EPipeConstructor (id,typeName,caseName,fields) -> EConstructor (id,typeName,caseName,fields)
-    | EPipeForbiddenExpr exp -> exp
+    | EPipeVariable (id, var) -> EVariable(id, var)
+    | EPipeLambda (id, lid, expr) -> ELambda(id, lid, expr)
+    | EPipeInfix (id, infix, expr1, expr2) -> EInfix(id, infix, expr1, expr2)
+    | EPipeFnCall (id, fQFnName, ltypeArgs, args) ->
+      EFnCall(id, fQFnName, ltypeArgs, args)
+    | EPipeConstructor (id, typeName, caseName, fields) ->
+      EConstructor(id, typeName, caseName, fields)
+    | EPipeForbiddenExpr (id, message, exp) -> EForbiddenExpr(id, message, exp)
+
 
 module CustomType =
   type RecordField = { id : id; name : string; typ : DType }

@@ -630,6 +630,7 @@ module Expect =
       eq ("right" :: path) r r'
 
     // exhaustiveness check
+    | EForbiddenExpr _, _
     | EUnit _, _
     | EInteger _, _
     | EString _, _

@@ -105,6 +105,7 @@ module Expr =
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
+    | EForbiddenExpr of id * string * T
 
   and StringSegment =
     | StringText of string

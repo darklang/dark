@@ -38,6 +38,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     EFeatureFlag(id, name, f cond, f casea, f caseb)
   | EConstructor (id, typeName, caseName, fields) ->
     EConstructor(id, typeName, caseName, List.map f fields)
+  | EForbiddenExpr (id, msg, e) -> EForbiddenExpr(id, msg, e)
 
 
 

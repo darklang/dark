@@ -494,6 +494,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         match List.tryFind Dval.isFake fields with
         | Some fakeDval -> return fakeDval
         | None -> return DConstructor(Some typeName, caseName, fields)
+    | EForbiddenExpr (id, msg, expr) ->
+      let! result = eval state st expr
+      let msg' =
+        match msg with
+        | "" -> $"{DvalReprDeveloper.toRepr result}".Replace("\"", "")
+        | _ -> $"{msg}{DvalReprDeveloper.toRepr result}"
+      return DError(sourceID id, msg')
   }
 
 /// Interprets an expression and reduces to a Dark value

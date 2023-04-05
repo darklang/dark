@@ -39,6 +39,8 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EOr (id, left, right) -> EOr(id, r left, r right)
   | EConstructor (id, typeName, caseName, fields) ->
     EConstructor(id, typeName, caseName, List.map r fields)
+  | EForbiddenExpr (id, msg, e) -> EForbiddenExpr(id, msg, r e)
+
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
@@ -71,6 +73,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EOr (id, left, right) -> EOr(id, r left, r right)
     | EConstructor (id, typeName, caseName, fields) ->
       EConstructor(id, typeName, caseName, List.map r fields)
+    | EForbiddenExpr (id, msg, e) -> EForbiddenExpr(id, msg, r e)
 
 
   f result

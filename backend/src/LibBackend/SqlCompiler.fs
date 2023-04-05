@@ -517,6 +517,7 @@ let partiallyEvaluate
         | EConstructor _
         | EMatch _
         | EFeatureFlag _
+        | EForbiddenExpr _
         | EAnd _
         | EOr _ -> return expr
       }
@@ -536,6 +537,9 @@ let partiallyEvaluate
             | EBool _
             | EUnit _
             | EFloat _ -> return expr
+            | EForbiddenExpr (id, msg, expr) ->
+              let! expr = r expr
+              return EForbiddenExpr(id, msg, expr)
             | ELet (id, pat, rhs, next) ->
               let! rhs = r rhs
               let! next = r next

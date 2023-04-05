@@ -221,7 +221,7 @@ module Pipes =
   // ([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
   // ([] |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
   ((Test.typeError_v0 "err") |> []) = Test.typeError_v0 "err"
-  // ((Test.typeError_v0 "one") |> (Test.typeError_v0 "two")) = Test.typeError_v0 "one"
+  ((Test.typeError_v0 "one") |> (Test.typeError_v0 "two") |> [] ) = Test.typeError_v0 "one"
 
   ([5]
   |> List.head
@@ -238,10 +238,18 @@ module Pipes =
   |> (+) 3)) = 10
 
   // check typing
+
+  // TODO: resolve this test 
+  // (let x = 1 in
+  // (5
+  // |> x
+  // |> x
+  // |> (+) 3)) = Test.typeError_v0 "Expected a function value, got something else: 1"
+
   (51
   |> 57
   |> 34.2
-  |> (+) 23) = Test.typeError_v0 "Expected a function value, got something else: 34.2"
+  |> (+) 23) = Test.typeError_v0 "Expected a function value, got something else: 57"
 
   ((4,3)
   |> Tuple2.first
@@ -256,6 +264,12 @@ module Pipes =
   |> Tuple2.first
   |> (2,2)
   |> "wrong"
+  |> (+) 3) = Test.typeError_v0 "Expected a function value, got something else: (\n  2, 2\n)"
+
+  ((1,3)
+  |> Tuple2.first
+  |> "wrong"
+  |> (2,2)
   |> (+) 3) = Test.typeError_v0 @"Expected a function value, got something else: ""wrong"""
 
 module Match =

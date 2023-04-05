@@ -179,6 +179,7 @@ module Expr =
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       ST.EFeatureFlag(id, name, toST cond, toST caseA, toST caseB)
+    | PT.EForbiddenExpr (id, msg, expr) -> ST.EForbiddenExpr(id, msg, toST expr)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with

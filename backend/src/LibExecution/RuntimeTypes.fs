@@ -240,6 +240,9 @@ type Expr =
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
+  // Using to mark forbidden Expr for certain cases like using literal in the middle of PipeExpr
+  | EForbiddenExpr of id * message : string * Expr
+
 and LetPattern = LPVariable of id * name : string
 
 and StringSegment =
@@ -423,6 +426,7 @@ module Expr =
     | ERecord (id, _, _)
     | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)
+    | EForbiddenExpr (id, _, _)
     | EMatch (id, _, _)
     | EAnd (id, _, _)
     | EOr (id, _, _) -> id
