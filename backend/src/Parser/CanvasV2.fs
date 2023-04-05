@@ -15,10 +15,9 @@ type CanvasModule =
     dbs : List<PT.DB.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<PT.Handler.Spec * PT.Expr>
-    initCommands : List<PT.Expr> }
+    exprs : List<PT.Expr> }
 
-let emptyModule =
-  { types = []; fns = []; dbs = []; handlers = []; initCommands = [] }
+let emptyModule = { types = []; fns = []; dbs = []; handlers = []; exprs = [] }
 
 
 /// Extracts the parts we care about from an F# attribute
@@ -150,12 +149,8 @@ let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
         { m with types = m.types @ newTypes }
 
       | SynModuleDecl.Expr (expr, _) ->
-        // { m with
-        //     initCommands =
-        //       m.initCommands @ [ ProgramTypes.Expr.fromSynExpr availableTypes expr ] }
-        Exception.raiseInternal
-          $"Not currently supporting loose Exprs"
-          [ "decl", decl ]
+        { m with
+            exprs = m.exprs @ [ ProgramTypes.Expr.fromSynExpr availableTypes expr ] }
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
