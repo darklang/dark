@@ -1,4 +1,4 @@
-module Parser.Canvas
+module Parser.CanvasV1
 
 open FSharp.Compiler.Syntax
 
@@ -45,7 +45,7 @@ let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
     decls
 
 
-let parseFromFile
+let parseHandlerFromFile
   (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
   (filename : string)
   : CanvasModule =

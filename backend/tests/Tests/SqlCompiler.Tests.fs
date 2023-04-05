@@ -14,8 +14,6 @@ module C = LibBackend.SqlCompiler
 module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
-module Parser = Parser.Parser
-
 let compile
   (symtable : DvalMap)
   (paramName : string)

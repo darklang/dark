@@ -32,8 +32,6 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-module Parser = Parser.Parser
-
 open TestUtils.TestUtils
 
 type TestCase =
@@ -161,7 +159,7 @@ let makeTest versionName filename =
         // TODO: tidy below
         |> Parser.Utils.parseAsFSharpSourceFile
         |> Parser.Utils.singleExprFromImplFile
-        |> Parser.convertToTest userTypes
+        |> Parser.TestModule.parseTest userTypes
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the

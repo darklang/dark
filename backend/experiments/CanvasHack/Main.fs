@@ -12,8 +12,6 @@ module PT = LibExecution.ProgramTypes
 module Op = LibBackend.Op
 module C = LibBackend.Canvas
 
-module Parser = Parser.Parser
-
 let initSerializers () = ()
 
 let baseDir = $"canvases"
@@ -41,6 +39,11 @@ module CanvasHackConfig =
 
       [<Legivel.Attributes.YamlField("path")>]
       Path : string }
+
+  // One .dark file to define the full canvas
+  type V2 =
+    { [<Legivel.Attributes.YamlField("main")>]
+      Main : string }
 
 let parseYamlExn<'a> (filename : string) : 'a =
   let contents = System.IO.File.ReadAllText filename
@@ -75,7 +78,7 @@ let seedCanvasV1 canvasName =
       config.HttpHandlers
       |> Map.toList
       |> List.map (fun (name, details) ->
-        let modul = Parser.Canvas.parseFromFile [] $"{canvasDir}/{name}.dark"
+        let modul = Parser.CanvasV1.parseHandlerFromFile [] $"{canvasDir}/{name}.dark"
 
         let types = modul.types |> List.map PT.Op.SetType
 
@@ -114,6 +117,56 @@ let seedCanvasV1 canvasName =
     print $"Success saving to {host}"
   }
 
+let seedCanvasV2 canvasName =
+  task {
+    let canvasDir = $"{baseDir}/{canvasName}"
+    let config = parseYamlExn<CanvasHackConfig.V2> $"{canvasDir}/config.yml"
+
+    // Create the canvas - expect this to be empty
+    let domain = $"{canvasName}.dlio.localhost"
+    let host = $"http://{domain}:11011"
+    let canvasID =
+      if canvasName = "dark-editor" then
+        LibBackend.Config.allowedDarkInternalCanvasID
+      else
+        Guid.NewGuid()
+
+    let! ownerID = LibBackend.Account.createUser ()
+    do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
+
+    let ops =
+      let modul = Parser.CanvasV2.parseFromFile [] $"{canvasDir}/{config.Main}.dark"
+      let types = modul.types |> List.map PT.Op.SetType
+      let fns = modul.fns |> List.map PT.Op.SetFunction
+
+      let handlers =
+        modul.handlers
+        |> List.map(fun (spec, ast) ->
+          PT.Op.SetHandler(
+            { tlid = gid ()
+              ast = ast
+              spec = spec }
+          )
+        )
+
+      let createSavepoint = PT.Op.TLSavepoint(gid())
+
+      [ createSavepoint ] @ types @ fns @ handlers
+
+    let canvasWithTopLevels = C.fromOplist canvasID [] ops
+
+    let oplists =
+      ops
+      |> Op.oplist2TLIDOplists
+      |> List.filterMap (fun (tlid, oplists) ->
+        match Map.get tlid (C.toplevels canvasWithTopLevels) with
+        | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
+        | None -> None)
+
+    do! C.saveTLIDs canvasID oplists
+    print $"Success saved canvas - endpoints available at {host}"
+  }
+
 [<EntryPoint>]
 let main (args : string []) =
   try
@@ -134,6 +187,7 @@ let main (args : string []) =
 
         match config.Version with
         | "1" -> do! seedCanvasV1 canvasName
+        | "2" -> do! seedCanvasV2 canvasName
         | _ -> Exception.raiseCode "unknown canvas import config version"
 
       | [| CommandNames.export |] ->

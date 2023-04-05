@@ -6,8 +6,6 @@ open FSharp.Control.Tasks
 open Prelude
 open Tablecloth
 
-module Parser = Parser.Parser
-
 let executeFiles (files : string list) : unit =
   let expr =
     files

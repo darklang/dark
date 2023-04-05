@@ -11,8 +11,6 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-module Parser = Parser.Parser
-
 let parserTests =
   let t name testStr expectedExpr =
     testTask name {

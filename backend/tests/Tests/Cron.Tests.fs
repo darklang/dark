@@ -16,9 +16,7 @@ module Cron = LibBackend.Cron
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 
-module Parser = Parser.Parser
-
-let p (code : string) = Parser.ProgramTypes.parseExpr code // TODO: update
+let p (code : string) = Parser.ProgramTypes.parseExpr code
 
 
 let testCronFetchActiveCrons =

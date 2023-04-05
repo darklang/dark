@@ -15,8 +15,6 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-module Parser = Parser.Parser
-
 let handler code = testHttpRouteHandler "" "GET" (Parser.ProgramTypes.parseExpr code)
 
 let testUndoCount : Test =
