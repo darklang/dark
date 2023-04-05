@@ -27,17 +27,15 @@ module DType =
     let fromSynType = fromSynType availableTypes
     match name, typeArgs with
     // no type args
-    | "bool", [] -> PT.TBool
-    | "bytes", [] -> PT.TBytes
-    | "int", [] -> PT.TInt
-    | ("string"
-      | "String"),
-      [] -> PT.TStr
-    | "char", [] -> PT.TChar
-    | "float", [] -> PT.TFloat
+    | "Bool", [] -> PT.TBool
+    | "Bytes", [] -> PT.TBytes
+    | "Int", [] -> PT.TInt
+    | "String", [] -> PT.TStr
+    | "Char", [] -> PT.TChar
+    | "Float", [] -> PT.TFloat
     | "DateTime", [] -> PT.TDateTime
-    | "UUID", [] -> PT.TUuid
-    | "unit", [] -> PT.TUnit
+    | "Uuid", [] -> PT.TUuid
+    | "Unit", [] -> PT.TUnit
     | "Password", [] -> PT.TPassword
 
     // with type args
@@ -60,11 +58,12 @@ module DType =
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
       match matchingCustomTypes with
+      | [] -> Exception.raiseInternal $"No custom type found with name {name}" []
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
           $"Matched against multiple custom types - not sure what to do"
-          [ "name", name; "typeArgs", typeArgs ]
+          [ "name", name; "typeArgs", typeArgs; "types", matchingCustomTypes ]
 
   and fromSynType (availableTypes : AvailableTypes) (typ : SynType) : PT.DType =
     let c = fromSynType availableTypes
