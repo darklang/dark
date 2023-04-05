@@ -1,8 +1,5 @@
 module Parser.Utils
 
-
-// refer to https://fsharp.github.io/fsharp-compiler-docs
-
 open FSharp.Compiler
 open FSharp.Compiler.CodeAnalysis
 open FSharp.Compiler.Syntax
@@ -10,6 +7,9 @@ open FSharp.Compiler.Syntax
 open Prelude
 open Tablecloth
 
+/// Takes a long identifier and returns a list of its components, stringified
+///
+/// for example, F# code with System.IO.File would return ["System"; "IO"; "File"]
 let longIdentToList (li : LongIdent) : List<string> =
   li |> List.map (fun id -> id.idText)
 
@@ -29,7 +29,7 @@ let parseAsFSharpSourceFile (input : string) : ParsedImplFileInput =
   | ParsedInput.ImplFile fsharpImplFile -> fsharpImplFile
   | _ ->
     Exception.raiseInternal
-      $"TODO: UPDATE THIS - wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
+      $"Coudln't parse input as F# source file"
       [ "parseTree", results.ParseTree; "input", input ]
 
 

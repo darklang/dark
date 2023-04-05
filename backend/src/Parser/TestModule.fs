@@ -7,7 +7,7 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module PTP = ProgramTypes
-
+open Utils
 
 type Test = { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
 
@@ -77,6 +77,8 @@ module PackageFn =
       body = userFn.body }
 
 
+/// Extracts a test from a SynExpr.
+/// The test must be in the format `expected = actual`, otherwise an exception is raised
 let parseTest availableTypes (ast : SynExpr) : Test =
   let convert (x : SynExpr) : PT.Expr = PTP.Expr.fromSynExpr availableTypes x
 
@@ -93,7 +95,6 @@ let parseTest availableTypes (ast : SynExpr) : Test =
                               _),
                  expected,
                  range) when ident.idText = "op_Equality" ->
-    // Exception.raiseInternal $"whole thing: {actual}"
     { name = "test"
       lineNumber = range.Start.Line
       actual = convert actual
@@ -105,10 +106,6 @@ let parseFile
   (stdlibTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
   (parsedAsFSharp : ParsedImplFileInput)
   : T =
-  let longIdentToList (li : LongIdent) : List<string> =
-    li |> List.map (fun id -> id.idText)
-
-
   let parseTypeDecl
     (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (typeDef : SynTypeDefn)
@@ -231,6 +228,16 @@ let parseTestFile
   (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
   (filename : string)
   : T =
-  let code = System.IO.File.ReadAllText filename
-  let parsedAsFSharp = Utils.parseAsFSharpSourceFile code
-  parseFile availableTypes parsedAsFSharp
+  filename
+  |> System.IO.File.ReadAllText
+  |> parseAsFSharpSourceFile
+  |> parseFile availableTypes
+
+let parseSingleTestFromFile
+  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (testSource : string)
+  : Test =
+  testSource
+  |> parseAsFSharpSourceFile
+  |> singleExprFromImplFile
+  |> parseTest availableTypes

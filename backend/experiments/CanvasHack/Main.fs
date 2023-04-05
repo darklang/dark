@@ -30,7 +30,10 @@ module CanvasHackConfig =
 
   // One file per HTTP handler
   type V1 =
-    { [<Legivel.Attributes.YamlField("http-handlers")>]
+    { [<Legivel.Attributes.YamlField("id")>]
+      CanvasId : string
+
+      [<Legivel.Attributes.YamlField("http-handlers")>]
       HttpHandlers : Map<string, V1HttpHandler> }
 
   and V1HttpHandler =
@@ -42,7 +45,10 @@ module CanvasHackConfig =
 
   // One .dark file to define the full canvas
   type V2 =
-    { [<Legivel.Attributes.YamlField("main")>]
+    { [<Legivel.Attributes.YamlField("id")>]
+      CanvasId : string
+
+      [<Legivel.Attributes.YamlField("main")>]
       Main : string }
 
 let parseYamlExn<'a> (filename : string) : 'a =
@@ -62,12 +68,8 @@ let seedCanvasV1 canvasName =
 
     // Create the canvas - expect this to be empty
     let domain = $"{canvasName}.dlio.localhost"
-    let host = $"http://{domain}:11011"
-    let canvasID =
-      if canvasName = "dark-editor" then
-        LibBackend.Config.allowedDarkInternalCanvasID
-      else
-        Guid.NewGuid()
+    let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
+    let canvasID = Guid.Parse config.CanvasId
     let! ownerID = LibBackend.Account.createUser ()
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
@@ -78,7 +80,8 @@ let seedCanvasV1 canvasName =
       config.HttpHandlers
       |> Map.toList
       |> List.map (fun (name, details) ->
-        let modul = Parser.CanvasV1.parseHandlerFromFile [] $"{canvasDir}/{name}.dark"
+        let modul =
+          Parser.CanvasV1.parseHandlerFromFile [] $"{canvasDir}/{name}.dark"
 
         let types = modul.types |> List.map PT.Op.SetType
 
@@ -100,7 +103,7 @@ let seedCanvasV1 canvasName =
             )
           | _ -> Exception.raiseCode "expected exactly one expr in file"
 
-        [ PT.Op.TLSavepoint(140418122UL) ] @ types @ fns @ [ handler ])
+        [ PT.Op.TLSavepoint(gid ()) ] @ types @ fns @ [ handler ])
       |> List.flatten
 
     let canvasWithTopLevels = C.fromOplist canvasID [] ops
@@ -114,7 +117,7 @@ let seedCanvasV1 canvasName =
         | None -> None)
 
     do! C.saveTLIDs canvasID oplists
-    print $"Success saving to {host}"
+    print $"Success saved canvas - endpoints available at {host}"
   }
 
 let seedCanvasV2 canvasName =
@@ -124,32 +127,24 @@ let seedCanvasV2 canvasName =
 
     // Create the canvas - expect this to be empty
     let domain = $"{canvasName}.dlio.localhost"
-    let host = $"http://{domain}:11011"
-    let canvasID =
-      if canvasName = "dark-editor" then
-        LibBackend.Config.allowedDarkInternalCanvasID
-      else
-        Guid.NewGuid()
+    let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
+    let canvasID = Guid.Parse config.CanvasId
 
     let! ownerID = LibBackend.Account.createUser ()
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
     let ops =
       let modul = Parser.CanvasV2.parseFromFile [] $"{canvasDir}/{config.Main}.dark"
+
       let types = modul.types |> List.map PT.Op.SetType
       let fns = modul.fns |> List.map PT.Op.SetFunction
 
       let handlers =
         modul.handlers
-        |> List.map(fun (spec, ast) ->
-          PT.Op.SetHandler(
-            { tlid = gid ()
-              ast = ast
-              spec = spec }
-          )
-        )
+        |> List.map (fun (spec, ast) ->
+          PT.Op.SetHandler({ tlid = gid (); ast = ast; spec = spec }))
 
-      let createSavepoint = PT.Op.TLSavepoint(gid())
+      let createSavepoint = PT.Op.TLSavepoint(gid ())
 
       [ createSavepoint ] @ types @ fns @ handlers
 

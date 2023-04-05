@@ -11,9 +11,7 @@ function run_sql { psql -d "$DB" -c "$@" >> "$DBLOG" ; }
 
 function fetch_sql { psql -d "$DB" -t -c "$@"; }
 
-# TODO: get canvasId from name
-CANVASES=$(fetch_sql "SELECT id FROM canvases_v0;") # TODO re-add some sort of clause here WHERE name = '{$1}';")
-echo "${CANVASES}"
+CANVASES=$(fetch_sql "SELECT canvas_id FROM domains_v0 where domain ='$1.dlio.localhost';")
 SCRIPT=""
 for cid in $CANVASES; do
   SCRIPT+="DELETE FROM scheduling_rules_v0 WHERE canvas_id = '$cid';";

@@ -1589,5 +1589,7 @@ module HttpHeaders =
 
 let id (x : int) : id = uint64 x
 
+let randomId (x : int) : id = uint64 x
+
 // since we hide F#'s default 'id' fn just above
 let identity a = a

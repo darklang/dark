@@ -28,7 +28,9 @@ module DType =
     | "bool", [] -> PT.TBool
     | "bytes", [] -> PT.TBytes
     | "int", [] -> PT.TInt
-    | ("string" | "String"), [] -> PT.TStr
+    | ("string"
+      | "String"),
+      [] -> PT.TStr
     | "char", [] -> PT.TChar
     | "float", [] -> PT.TFloat
     | "DateTime", [] -> PT.TDateTime
@@ -607,10 +609,7 @@ module Expr =
 
 
 module UserFunction =
-  let rec private parseArgPat
-    availableTypes
-    (pat : SynPat)
-    : PT.UserFunction.Parameter =
+  let rec parseArgPat availableTypes (pat : SynPat) : PT.UserFunction.Parameter =
     let r = parseArgPat availableTypes
 
     match pat with
@@ -636,7 +635,7 @@ module UserFunction =
       let typeParams =
         match typeArgPats with
         | None -> []
-        | Some (SynValTyparDecls (pats, _canInfer)) ->
+        | Some (SynValTyparDecls (pats, _)) ->
           match pats with
           | None -> []
           | Some typeParams ->
@@ -679,8 +678,7 @@ module UserFunction =
 
   let fromSynBinding availableTypes (binding : SynBinding) : PT.UserFunction.T =
     match binding with
-    | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
-      debuG "returnInfo" returnInfo
+    | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature availableTypes pat
 
       { tlid = gid ()

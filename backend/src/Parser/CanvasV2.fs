@@ -7,24 +7,130 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
-module PTP = ProgramTypes
 open Utils
 
 type CanvasModule =
   { types : List<PT.UserType.T>
     fns : List<PT.UserFunction.T>
-    dbs: List<PT.DB.T>
-    // TODO: maybe break this down into httpHandlers, cronHandlers, workerHandlers, replHandlers
-    handlers: List<PT.Handler.Spec * PT.Expr>
+    dbs : List<PT.DB.T>
+    // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
+    handlers : List<PT.Handler.Spec * PT.Expr>
     initCommands : List<PT.Expr> }
 
 let emptyModule =
-  { types = []
-    fns = []
-    dbs = []
-    handlers = []
-    initCommands = [] }
+  { types = []; fns = []; dbs = []; handlers = []; initCommands = [] }
 
+
+/// Extracts the parts we care about from an F# attribute
+///
+/// Given `[<HttpHandler("method", "path")>]`, returns `("HttpHandler", ["method"; "path"])`
+/// wch is easier to work with than the AST presented normally
+let (|SimpleAttribute|_|) (attr : SynAttribute) =
+  let attrName =
+    match longIdentToList attr.TypeName.LongIdent with
+    | [ attrName ] -> attrName
+    | _ -> Exception.raiseInternal $"Unsupported attribute name" []
+
+  let rec parseAttrArgs (attr : SynExpr) : List<string> =
+    match attr with
+    | SynExpr.Paren (expr, _, _, _) -> parseAttrArgs expr
+
+    | SynExpr.Tuple (_, args, _, _) ->
+      args
+      |> List.map (fun arg ->
+        match arg with
+        | SynExpr.Const (SynConst.String (s, _, _), _) -> s
+        | _ ->
+          Exception.raiseInternal $"Couldn't parse attribute argument" [ "arg", arg ])
+
+    | _ ->
+      Exception.raiseInternal $"Couldn't parse attribute argument" [ "attr", attr ]
+
+  Some(attrName, parseAttrArgs attr.ArgExpr)
+
+/// Update a CanvasModule by parsing a single F# let binding
+/// Depending on the attribute present, this may add a user function, a handler, or a DB
+let parseLetBinding
+  availableTypes
+  (m : CanvasModule)
+  (letBinding : SynBinding)
+  : CanvasModule =
+  match letBinding with
+  | SynBinding (_, _, _, _, attrs, _, _, pat, _returnInfo, expr, _, _, _) ->
+    let expr = ProgramTypes.Expr.fromSynExpr availableTypes expr
+
+    let attrs = attrs |> List.collect (fun l -> l.Attributes)
+
+    let randomIds () : PT.Handler.ids =
+      { moduleID = gid (); nameID = gid (); modifierID = gid () }
+
+    match attrs with
+    | [] ->
+      let newFn = ProgramTypes.UserFunction.fromSynBinding availableTypes letBinding
+      { m with fns = newFn :: m.fns }
+
+    | [ attr ] ->
+      match attr with
+      | SimpleAttribute ("DB", [ name ]) ->
+        // let newDB = PT.DB(name, randomIds ())
+        // { m with dbs = newDB :: m.dbs }
+        Exception.raiseInternal
+          $"Not currently supporting DBs - probably makes sense to wait until they are based on a type rather than 'columns'"
+          [ "attr", attr ]
+
+      | SimpleAttribute ("HttpHandler", [ method; route ]) ->
+        let newHttpHanlder = PT.Handler.Spec.HTTP(route, method, randomIds ())
+        { m with handlers = (newHttpHanlder, expr) :: m.handlers }
+
+      | SimpleAttribute ("REPL", [ name ]) ->
+        //let newHandler = PT.Handler.Spec.REPL(name, randomIds ())
+        //{ m with handlers = (newHandler, expr) :: m.handlers }
+        Exception.raiseInternal
+          $"Not currently supporting REPLs, as we can't test them well yet"
+          [ "attr", attr ]
+
+      | SimpleAttribute ("Worker", [ name ]) ->
+        //let newWorker = PT.Handler.Spec.Worker(name, randomIds ())
+        //{ m with handlers = (newWorker, expr) :: m.handlers }
+        Exception.raiseInternal
+          $"Not currently supporting Workers, as we can't test them well yet"
+          [ "attr", attr ]
+
+      | SimpleAttribute ("Cron", [ name; interval ]) ->
+        //let newCron = PT.Handler.Spec.Cron(name, interval, randomIds ())
+        //{ m with handlers = (newCron, expr) :: m.handlers }
+        Exception.raiseInternal
+          $"Not currently supporting Crons, as we can't test them well yet"
+          [ "attr", attr ]
+
+      | _ ->
+        Exception.raiseInternal
+          $"Not sure how to handle this attribute"
+          [ "attr", attr ]
+
+    | _ ->
+      Exception.raiseInternal
+        $"Can only currently support 1 attribute [<...>] on a let binding"
+        [ "attrs", attrs ]
+
+
+/// An F# module has a list of declarations, which can be:
+/// - a group of let bindings
+/// - a group of type definitions
+/// - a single expression
+/// - a nested module (not currently supported)
+/// - etc
+///
+/// (The declarations are presented as _groups_ presumably to support recursive definitions)
+///
+/// This builds up a CanvasModule by parsing each declaration:
+/// - type definitions are parsed as user types
+/// - let bindings with no attributes are parsed as user functions
+/// - let bindings with attributes are parsed
+///   as handlers (i.e. with `[<HttpHandler("method", "path")>]`)
+///   or as DBs (i.e. with `[<DB("name")>]`)
+/// - ? expressions are parsed as init commands (not currently supported)
+/// - anything else fails
 let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
   List.fold
     emptyModule
@@ -36,21 +142,20 @@ let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
 
       match decl with
       | SynModuleDecl.Let (_, bindings, _) ->
-        let newFns =
-          bindings
-          |> List.map (fun binding ->
-            PTP.UserFunction.fromSynBinding availableTypes binding
-          )
-        { m with fns = m.fns @ newFns }
+        List.fold m (fun m b -> parseLetBinding availableTypes m b) bindings
 
       | SynModuleDecl.Types (defns, _) ->
-        let newTypes = List.map (PTP.UserType.fromSynTypeDefn availableTypes) defns
+        let newTypes =
+          List.map (ProgramTypes.UserType.fromSynTypeDefn availableTypes) defns
         { m with types = m.types @ newTypes }
 
       | SynModuleDecl.Expr (expr, _) ->
-        { m with
-            initCommands =
-              m.initCommands @ [ PTP.Expr.fromSynExpr availableTypes expr ] }
+        // { m with
+        //     initCommands =
+        //       m.initCommands @ [ ProgramTypes.Expr.fromSynExpr availableTypes expr ] }
+        Exception.raiseInternal
+          $"Not currently supporting loose Exprs"
+          [ "decl", decl ]
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
