@@ -21,7 +21,7 @@ done
 
 if [ "$1" == "load-from-disk" ]; then
   echo "Clearing canvas before loading from disk"
-  ./scripts/clear-dark-editor-canvas.sh
+  ./scripts/clear-canvas.sh $2
 fi
 
 echo "Running canvashack"

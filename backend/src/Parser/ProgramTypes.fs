@@ -28,7 +28,7 @@ module DType =
     | "bool", [] -> PT.TBool
     | "bytes", [] -> PT.TBytes
     | "int", [] -> PT.TInt
-    | "string", [] -> PT.TStr
+    | ("string" | "String"), [] -> PT.TStr
     | "char", [] -> PT.TChar
     | "float", [] -> PT.TFloat
     | "DateTime", [] -> PT.TDateTime
@@ -738,9 +738,7 @@ module CustomType =
       : PT.CustomType.RecordField =
       match field with
       | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-        { id = gid ()
-          name = id.idText
-          typ = DType.fromSynType availableTypes typ }
+        { id = gid (); name = id.idText; typ = DType.fromSynType availableTypes typ }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
     let fromFields availableTypes typeDef (fields : List<SynField>) =

@@ -1,3 +1,5 @@
+version: 1
+
 http-handlers:
   gpt4:
     method: POST
