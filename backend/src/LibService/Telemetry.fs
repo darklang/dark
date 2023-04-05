@@ -304,49 +304,36 @@ let configureAspNetCore
   options.RecordException <- true
 
 #nowarn "1182"
+#nowarn "9"
 
 /// A sampler is used to reduce the number of events, to not overwhelm the results.
 /// In our case, we want to control costs too - we only have 1.5B honeycomb events
 /// per month, and it's easy to use them very quickly in a loop
-type DarkSampler() =
+type Sampler(serviceName : string) =
   inherit OpenTelemetry.Trace.Sampler()
 
   let keep = SamplingResult(SamplingDecision.RecordAndSample)
-  let _drop = SamplingResult(SamplingDecision.Drop)
+  let drop = SamplingResult(SamplingDecision.Drop)
 
+  override this.ShouldSample(ps : SamplingParameters inref) : SamplingResult =
+    // Sampling means that we lose lot of precision and might miss something. By
+    // adding a feature flag, we can dynamically turn up precision when we need it
+    // (eg if we can't find something or there's an outage). Ideally, we'd keep error
+    // traces all the time, but that's not something that's possible with
+    // OpenTelemetry right now.
 
-  let getInt (name : string) (map : Map<string, obj>) : Option<int> =
-    try
-      match Map.get name map with
-      | Some result ->
-        if typeof<int> = result.GetType() then Some(result :?> int) else None
-      | None -> None
-    with
-    | _ -> None
+    // Note we tweak sampling by service, so we can have 100% of one service and 10%
+    // of another
+    let percentage = LaunchDarkly.telemetrySamplePercentage serviceName
+    if false && percentage >= 100.0 then
+      keep
+    else
+      let scaled = int ((percentage / 100.0) * float Int32.MaxValue)
+      // Deterministic sampler, will produce the same result for every span in a trace
+      // Originally based on https://github.com/open-telemetry/opentelemetry-dotnet/blob/b2fb873fcd9ceca2552b152a60bf192e2ea12b99/src/OpenTelemetry/Trace/TraceIdRatioBasedSampler.cs#LL76
+      let traceIDAsInt = ps.TraceId.GetHashCode() |> System.Math.Abs
+      if traceIDAsInt < scaled then keep else drop
 
-  let getFloat (name : string) (map : Map<string, obj>) : Option<float> =
-    try
-      match Map.get name map with
-      | Some result ->
-        if typeof<float> = result.GetType() then Some(result :?> float) else None
-      | None -> None
-    with
-    | _ -> None
-
-  let getString (name : string) (map : Map<string, obj>) : Option<string> =
-    try
-      match Map.get name map with
-      | Some result ->
-        if typeof<string> = result.GetType() then Some(result :?> string) else None
-      | None -> None
-    with
-    | _ -> None
-
-  override this.ShouldSample(_p : SamplingParameters inref) : SamplingResult =
-    // This turned out to be useless for the initial need (trimming short DB queries)
-    keep
-
-let sampler = DarkSampler()
 
 type TraceDBQueries =
   | TraceDBQueries
@@ -366,6 +353,7 @@ let addTelemetry
   (builder : TracerProviderBuilder)
   : TracerProviderBuilder =
   builder
+  |> fun b -> b.SetSampler(Sampler(serviceName))
   |> fun b ->
        List.fold
          b
@@ -388,7 +376,6 @@ let addTelemetry
        | TraceDBQueries -> b.AddNpgsql()
        | DontTraceDBQueries -> b
   |> fun b -> b.AddSource("Dark")
-  |> fun b -> b.SetSampler(sampler)
 
 
 module Console =
