@@ -143,37 +143,22 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
               | _, "", _ -> return DError(sourceID id, "Record key is empty")
-              | DObj m, k, v -> return (DObj(Map.add k v m))
-              // If we haven't got a DObj we're propagating an error so let it go
+              | DDict m, k, v -> return (DDict(Map.add k v m))
+              // If we haven't got a DDict we're propagating an error so let it go
               | r, _, v -> return r
             })
-          (DObj(Map.empty))
+          (DDict(Map.empty))
           fields
 
 
-    | EApply (id, fnTarget, typeArgs, exprs, inPipe) ->
+    | EApply (id, fnTarget, typeArgs, exprs) ->
       let! args = Ply.List.mapSequentially (eval state st) exprs
 
-      let! result =
-        match fnTarget with
-        | FnName name -> callFn state id name typeArgs (Seq.toList args) inPipe
-        | FnTargetExpr e ->
-          uply {
-            let! target = eval' state st e
-            return! applyFn state target id args inPipe
-          }
-
-      do
-        // Pipes have been removed at this point, but the editor still needs to
-        // show a value for the pipe
-        // CLEANUP: instead of saving this, fetch it in the right place (the
-        // last pipe entry) in the editor
-        match inPipe with
-        | InPipe pipeID ->
-          state.tracing.traceDval state.onExecutionPath pipeID result
-        | NotInPipe -> ()
-      return result
-
+      match fnTarget with
+      | FnName name -> return! callFn state id name typeArgs (Seq.toList args)
+      | FnTargetExpr e ->
+        let! target = eval' state st e
+        return! applyFn state target id args
 
 
     | EFieldAccess (id, e, field) ->
@@ -183,7 +168,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return DError(sourceID id, "Field name is empty")
       else
         match obj with
-        | DObj o ->
+        | DDict o ->
           match Map.tryFind field o with
           | Some v -> return v
           | None -> return DError(sourceID id, $"No field named {field} in record")
@@ -371,6 +356,26 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
+        | MPList (id, pats) ->
+          match dv with
+          | DList vals ->
+            if List.length vals = List.length pats then
+              let (passResults, newVarResults, traceResults) =
+                List.zip vals pats
+                |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                |> List.unzip3
+
+              let allPass = passResults |> List.forall identity
+              let allVars = newVarResults |> List.collect identity
+              let allSubTraces = traceResults |> List.collect identity
+
+              if allPass then
+                true, allVars, (id, dv) :: allSubTraces
+              else
+                false, allVars, traceIncompleteWithArgs id pats @ allSubTraces
+            else
+              false, [], traceIncompleteWithArgs id pats
+          | _ -> false, [], traceIncompleteWithArgs id pats
 
       // This is to avoid checking `state.tracing.realOrPreview = Real` below.
       // If RealOrPreview gets additional branches, reconsider what to do here.
@@ -518,18 +523,12 @@ and applyFn
   (fn : Dval)
   (id : id)
   (args : List<Dval>)
-  (isInPipe : IsInPipe)
   : DvalTask =
   uply {
     // Unwrap
-    match fn, isInPipe with
-    | DFnVal fnVal, _ -> return! applyFnVal state fnVal args
-    // Incompletes are allowed in pipes
-    | DIncomplete _, InPipe _ -> return Option.defaultValue fn (List.tryHead args)
-    | _other, InPipe _ ->
-      // CLEANUP: this matches the old pipe behaviour, no need to preserve that
-      return Option.defaultValue fn (List.tryHead args)
-    | other, _ ->
+    match fn with
+    | DFnVal fnVal -> return! applyFnVal state fnVal args
+    | other ->
       return
         Dval.errSStr
           (SourceID(state.tlid, id))
@@ -586,7 +585,6 @@ and callFn
   (desc : FQFnName.T)
   (typeArgs : List<DType>)
   (argvals : List<Dval>)
-  (isInPipe : IsInPipe)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, callerID)
@@ -624,7 +622,7 @@ and callFn
                   |> (fun (db : DB.T) -> db.cols)
                   |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
                   |> Map.ofList
-                  |> DObj
+                  |> DDict
 
               let! (_ : Dval) = executeLambda state b [ sample ]
               ()
@@ -654,7 +652,7 @@ and callFn
               |> List.map2 (fun dv p -> (p.name, dv)) argvals
               |> Map.ofList
 
-            return! execFn state desc callerID fn typeArgs args isInPipe
+            return! execFn state desc callerID fn typeArgs args
           else
             return
               err (
@@ -673,7 +671,6 @@ and execFn
   (fn : Fn)
   (typeArgs : List<DType>)
   (args : DvalMap)
-  (isInPipe : IsInPipe)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, id) in
@@ -727,14 +724,9 @@ and execFn
             | _ -> false)
           arglist
 
-      match badArg, isInPipe with
-      | Some (DIncomplete _src), InPipe _ ->
-        // That is, unless it's an incomplete in a pipe. In a pipe, we treat
-        // the entire expression as a blank, and skip it, returning the input
-        // (first) value to be piped into the next statement instead.
-        return List.head arglist
-      | Some (DIncomplete src), _ -> return DIncomplete src
-      | Some (DError _ as err), _ -> return err
+      match badArg with
+      | Some (DIncomplete src) -> return DIncomplete src
+      | Some (DError _ as err) -> return err
       | _ ->
         match fn.fn with
         | StdLib f ->
@@ -750,7 +742,7 @@ and execFn
                 with
                 | e ->
                   let context : Metadata =
-                    [ "fn", fnDesc; "args", arglist; "id", id; "isInPipe", isInPipe ]
+                    [ "fn", fnDesc; "args", arglist; "id", id ]
                   return
                     match e with
                     | Errors.IncorrectArgs ->
@@ -807,7 +799,7 @@ and execFn
             // For now, always store these results
             state.tracing.storeFnResult fnRecord arglist result
 
-            return result |> typeErrorOrValue state.program.allTypes
+            return result |> typeErrorOrValue (ExecutionState.availableTypes state)
 
           | Error errs ->
             return
@@ -817,7 +809,12 @@ and execFn
                  + TypeChecker.Error.listToString errs)
               )
         | UserFunction (tlid, body) ->
-          match TypeChecker.checkFunctionCall state.program.allTypes fn typeArgs args
+          match
+            TypeChecker.checkFunctionCall
+              (ExecutionState.availableTypes state)
+              fn
+              typeArgs
+              args
             with
           | Ok () ->
             state.tracing.traceTLID tlid
@@ -827,15 +824,11 @@ and execFn
               with
             | Preview, Some (result, _ts) -> return result
             | _ ->
-              // It's okay to execute user functions in both Preview and Real contexts,
-              // But in Preview we might not have all the data we need
-              state.tracing.storeFnArguments tlid args
-
               let state = { state with tlid = tlid }
               let! result = eval state argsWithGlobals body
               state.tracing.storeFnResult fnRecord arglist result
 
-              return result |> typeErrorOrValue state.program.allTypes
+              return result |> typeErrorOrValue (ExecutionState.availableTypes state)
           | Error errs ->
             return
               DError(

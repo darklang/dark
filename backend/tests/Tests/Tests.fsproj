@@ -26,8 +26,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestConfig.fs" />
-    <Compile Include="Account.Tests.fs" />
-    <Compile Include="Traces.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />
     <Compile Include="StorageTraces.Tests.fs" />
     <Compile Include="BwdServer.Tests.fs" />

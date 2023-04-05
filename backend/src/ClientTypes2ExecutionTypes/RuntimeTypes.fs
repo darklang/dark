@@ -160,6 +160,7 @@ module MatchPattern =
     | MPUnit id -> RT.MPUnit id
     | MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
+    | MPList (id, pats) -> RT.MPList(id, List.map r pats)
 
   let rec toCT (p : RT.MatchPattern) : MatchPattern =
     let r = toCT
@@ -175,17 +176,9 @@ module MatchPattern =
     | RT.MPUnit id -> MPUnit id
     | RT.MPTuple (id, first, second, theRest) ->
       MPTuple(id, r first, r second, List.map r theRest)
+    | RT.MPList (id, pats) -> MPList(id, List.map r pats)
 
 module Expr =
-  let pipefromCT (pipe : Expr.IsInPipe) : RT.IsInPipe =
-    match pipe with
-    | Expr.InPipe (id) -> RT.InPipe(id)
-    | Expr.NotInPipe -> RT.NotInPipe
-
-  let pipeToCT (pipe : RT.IsInPipe) : Expr.IsInPipe =
-    match pipe with
-    | RT.InPipe (id) -> Expr.InPipe(id)
-    | RT.NotInPipe -> Expr.NotInPipe
 
   let rec fromCT (e : Expr.T) : RT.Expr =
     let r = fromCT
@@ -206,13 +199,12 @@ module Expr =
       RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
     | Expr.EIf (id, cond, thenExpr, elseExpr) ->
       RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | Expr.EApply (id, target, typeArgs, exprs, pipe) ->
+    | Expr.EApply (id, target, typeArgs, exprs) ->
       RT.EApply(
         id,
         fnTargetFromCT target,
         List.map DType.fromCT typeArgs,
-        List.map r exprs,
-        pipefromCT pipe
+        List.map r exprs
       )
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
     | Expr.ETuple (id, first, second, theRest) ->
@@ -273,13 +265,12 @@ module Expr =
       Expr.ELet(id, LetPattern.toCT pat, r rhs, r body)
     | RT.EIf (id, cond, thenExpr, elseExpr) ->
       Expr.EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EApply (id, target, typeArgs, exprs, pipe) ->
+    | RT.EApply (id, target, typeArgs, exprs) ->
       Expr.EApply(
         id,
         fnTargetToCT target,
         List.map DType.toCT typeArgs,
-        List.map r exprs,
-        pipeToCT pipe
+        List.map r exprs
       )
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
     | RT.ETuple (id, first, second, theRest) ->
@@ -359,7 +350,8 @@ module Dval =
     | Dval.DList list -> RT.DList(List.map r list)
     | Dval.DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
-    | Dval.DObj o -> RT.DObj(Map.map r o)
+    | Dval.DDict o -> RT.DDict(Map.map r o)
+    | Dval.DRecord o -> RT.DRecord(Map.map r o)
     | Dval.DOption None -> RT.DOption None
     | Dval.DOption (Some dv) -> RT.DOption(Some(r dv))
     | Dval.DResult (Ok dv) -> RT.DResult(Ok(r dv))
@@ -401,7 +393,8 @@ module Dval =
     | RT.DList l -> Dval.DList(List.map r l)
     | RT.DTuple (first, second, theRest) ->
       Dval.DTuple(r first, r second, List.map r theRest)
-    | RT.DObj o -> Dval.DObj(Map.map r o)
+    | RT.DDict o -> Dval.DDict(Map.map r o)
+    | RT.DRecord o -> Dval.DRecord(Map.map r o)
     | RT.DOption None -> Dval.DOption None
     | RT.DOption (Some dv) -> Dval.DOption(Some(r dv))
     | RT.DResult (Ok dv) -> Dval.DResult(Ok(r dv))

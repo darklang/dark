@@ -29,8 +29,7 @@ let execute (expr : RT.Expr) (symtable : Map<string, RT.Dval>) : Task<RT.Dval> =
 
   task {
     let program : RT.ProgramContext =
-      { accountID = System.Guid.NewGuid()
-        canvasID = System.Guid.NewGuid()
+      { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
         userFns = Map.empty
         userTypes = Map.empty

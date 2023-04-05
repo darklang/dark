@@ -79,6 +79,8 @@ tools we use.
   [the VSCode instructions](docs/vscode-setup.md) for instructions.
 - Otherwise, simply run `scripts/builder --compile --watch --test`
 
+Note: Running `scripts/builder --compile --watch --test` manually is recommended the first time, since it will show you the output of the build process.
+
 These steps apply for all builds, VSCode or using `scripts/builder`:
 
 - Wait until the terminal says "Initial compile succeeded" - this means the
@@ -87,6 +89,13 @@ These steps apply for all builds, VSCode or using `scripts/builder`:
 - If you see "initial compile failed", it may be a memory issue. Sometimes
   trying again will work. If not, ensure you have Docker configured to provide
   4GB or more of memory, then try again.
+
+### Trying out the AI prompt
+
+For more info check [the CanvasHack readme.](backend/src/CanvasHack/README.md). But the main steps are:
+
+- Run `./scripts/run-canvas-hack load-from-disk`
+- Open http://dark-editor.dlio.localhost:11001/
 
 ### Using Dark scripts
 

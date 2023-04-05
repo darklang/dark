@@ -6,24 +6,23 @@ set -euo pipefail
 
 EXE="backend/Build/out/CanvasHack/Debug/net7.0/CanvasHack"
 
-echo "Waiting for postgres"
 ./scripts/devcontainer/_wait-for-background-services postgresql
 
 # if it hasn't been compiled yet, wait for it
-echo "Waiting for compiled binary"
+
 for ((i=1;i<=1000;i++));
 do
   if [[ ! -f "${EXE}" ]]; then
+    echo "Waiting for compiled binary"
     sleep 0.01
   fi
 done
-echo "Done waiting for compiled binary"
+
 
 if [ "$1" == "load-from-disk" ]; then
+  echo "Clearing canvas before loading from disk"
   ./scripts/clear-dark-editor-canvas.sh
 fi
 
 echo "Running canvashack"
 "${EXE}" "${@}"
-
-echo "Finished running canvas hack"

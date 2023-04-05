@@ -89,14 +89,14 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
   | TUnit, DUnit -> w.WriteNumberValue(0)
   | TStr, DStr s -> w.WriteStringValue s
   | TList ltype, DList l -> w.writeArray (fun () -> List.iter (writeDval ltype) l)
-  | TDict objType, DObj o ->
+  | TDict objType, DDict o ->
     w.writeObject (fun () ->
       Map.iter
         (fun k v ->
           w.WritePropertyName k
           writeDval objType v)
         o)
-  | TRecord fields, DObj dvalMap ->
+  | TRecord fields, DDict dvalMap ->
     let schema = Map.ofList fields
     w.writeObject (fun () ->
       dvalMap
@@ -104,6 +104,16 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
       |> List.iter (fun (k, dval) ->
         w.WritePropertyName k
         writeDval (Map.find k schema) dval))
+
+  | TRecord fields, DRecord dvalMap ->
+    let schema = Map.ofList fields
+    w.writeObject (fun () ->
+      dvalMap
+      |> Map.toList
+      |> List.iter (fun (k, dval) ->
+        w.WritePropertyName k
+        writeDval (Map.find k schema) dval))
+
   | TChar, DChar c -> w.WriteStringValue c
   | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
   | TPassword, DPassword (Password hashed) ->
@@ -179,6 +189,10 @@ let parseJsonV0 (typ : DType) (str : string) : Dval =
       j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
     // | TTuple (t1, t2, rest), JsonValueKind.Array ->
     //   j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
+    | TDict typ, JsonValueKind.Object ->
+      let objFields =
+        j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
+      objFields |> Map.mapWithIndex (fun k v -> convert typ v) |> DDict
     | TRecord typFields, JsonValueKind.Object ->
       // Use maps to cooalesce duplicate keys and ensure the obj matches the type
       let typFields = Map typFields
@@ -190,7 +204,7 @@ let parseJsonV0 (typ : DType) (str : string) : Dval =
           match Map.tryFind k typFields with
           | Some t -> convert t v
           | None -> Exception.raiseInternal "Missing field" [ "field", k ])
-        |> DObj
+        |> DDict // CLEANUPRECORD
       else
         Exception.raiseInternal "Invalid fields" []
     | _ ->
@@ -215,12 +229,13 @@ module Test =
     | DFloat _
     | DUuid _ -> true
     | DList dvals -> List.all isQueryableDval dvals
-    | DObj map -> map |> Map.values |> List.all isQueryableDval
+    | DDict map -> map |> Map.values |> List.all isQueryableDval
     | DConstructor (_typeName, _caseName, fields) ->
       // TODO I'm not sure what's appropriate here.
       fields |> List.all isQueryableDval
 
     // TODO support
+    | DRecord _ // CLEANUPRECORD
     | DTuple _
     | DBytes _
     | DHttpResponse _

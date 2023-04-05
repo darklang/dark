@@ -126,6 +126,7 @@ type MatchPattern =
   | MPFloat of id * Sign * string * string
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 type BinaryOperation =
   | BinOpAnd
@@ -424,7 +425,7 @@ module Pipe =
 /// "Op" is an abbreviation for Operation,
 /// and is preferred throughout code and documentation.
 type Op =
-  | SetHandler of tlid * Handler.T
+  | SetHandler of Handler.T
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string

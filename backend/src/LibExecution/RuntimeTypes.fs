@@ -225,7 +225,7 @@ type Expr =
   | EVariable of id * string
 
   /// This is a function call, the first expression is the value of the function.
-  | EApply of id * FnTarget * typeArgs : List<DType> * args : List<Expr> * IsInPipe
+  | EApply of id * FnTarget * typeArgs : List<DType> * args : List<Expr>
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -249,14 +249,6 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
-// EApply has slightly different semantics when it is in a pipe. When piping
-// into Incomplete values, we ignore the Incomplete and return the piped-in
-// argument (which is the first parameter). This is to allow editing live code
-// by creating a new pipe entry and then filling it in.
-and IsInPipe =
-  | InPipe of id // the ID of the original pipe
-  | NotInPipe
-
 and FnTarget =
   | FnName of FQFnName.T
   | FnTargetExpr of Expr
@@ -271,6 +263,7 @@ and MatchPattern =
   | MPFloat of id * double
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 type DvalMap = Map<string, Dval>
 
@@ -342,11 +335,13 @@ and [<NoComparison>] Dval =
 
   // TODO: remove DHttpResponse eventually - this should really just be a DRecord
   // of a type that is defined in the standard library (http module)
-  | DHttpResponse of int64 * List<string * string> * Dval
+  | DHttpResponse of
+    statusCode : int64 *
+    headers : List<string * string> *
+    responseBody : Dval
 
-  // TODO: replace with something like
-  // `| DRecord of FQTypeName.T * DvalMap`
-  | DObj of DvalMap
+  | DRecord (* FQTypeName.T * *)  of DvalMap
+  | DDict of DvalMap
 
   // TODO: merge DOption and DResult into DConstructor once the Option and Result types
   // are defined in the Option and Result modules of the standard library
@@ -420,7 +415,7 @@ module Expr =
     | ELambda (id, _, _)
     | ELet (id, _, _, _)
     | EIf (id, _, _, _)
-    | EApply (id, _, _, _, _)
+    | EApply (id, _, _, _)
     | EList (id, _)
     | ETuple (id, _, _, _)
     | ERecord (id, _, _)
@@ -449,7 +444,8 @@ module MatchPattern =
     | MPFloat (id, _)
     | MPVariable (id, _)
     | MPTuple (id, _, _, _)
-    | MPConstructor (id, _, _) -> id
+    | MPConstructor (id, _, _)
+    | MPList (id, _) -> id
 
 /// Functions for working with Dark runtime values
 module Dval =
@@ -475,7 +471,7 @@ module Dval =
 
   let toPairs (dv : Dval) : Result<List<string * Dval>, string> =
     match dv with
-    | DObj obj -> Ok(Map.toList obj)
+    | DDict obj -> Ok(Map.toList obj)
     | _ -> Error "expecting str"
 
   /// Gets the Dark runtime type from a runtime value
@@ -493,7 +489,14 @@ module Dval =
     | DList [] -> TList any
     | DTuple (first, second, theRest) ->
       TTuple(toType first, toType second, List.map toType theRest)
-    | DObj map ->
+    | DDict map ->
+      map
+      |> Map.toList
+      |> List.tryHead
+      |> Option.map (fun (k, v) -> toType v)
+      |> Option.defaultValue (TVariable "a")
+      |> TDict
+    | DRecord map ->
       map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
     | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
     | DError _ -> TError
@@ -558,8 +561,8 @@ module Dval =
 
       pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
     | DList l, TList t -> List.all (typeMatches t) l
-    | DObj m, TDict t -> Map.all (typeMatches t) m
-    | DObj m, TRecord pairs ->
+    | DDict m, TDict t -> Map.all (typeMatches t) m
+    | DRecord m, TRecord pairs ->
       let actual = Map.toList m |> List.sortBy Tuple2.first
       let expected = pairs |> List.sortBy Tuple2.first
 
@@ -578,7 +581,7 @@ module Dval =
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
-    | DObj _, TCustomType _ ->
+    | DRecord _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
@@ -619,13 +622,12 @@ module Dval =
     | DBytes _, _
     | DList _, _
     | DTuple _, _
-    | DObj _, _
-    | DObj _, _
+    | DDict _, _
+    | DRecord _, _
     | DFnVal _, _
     | DOption _, _
     | DResult _, _
     | DHttpResponse _, _
-    | DObj _, _
     | DConstructor _, _ -> false
 
 
@@ -645,7 +647,7 @@ module Dval =
   let obj (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DObj Map.empty)
+      (DDict Map.empty)
       (fun m (k, v) ->
         match m, k, v with
         // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
@@ -654,13 +656,13 @@ module Dval =
         | _, "", _ -> m
         | _, _, DIncomplete _ -> m
         // Errors should propagate (but only if we're not already propagating an error)
-        | DObj _, _, v when isFake v -> v
+        | DDict _, _, v when isFake v -> v
         // Error if the key appears twice
-        | DObj m, k, _v when Map.containsKey k m ->
+        | DDict m, k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
-        | DObj m, k, v -> DObj(Map.add k v m)
-        // If we haven't got a DObj we're propagating an error so let it go
+        | DDict m, k, v -> DDict(Map.add k v m)
+        // If we haven't got a DDict we're propagating an error so let it go
         | m, _, _ -> m)
       fields
 
@@ -918,32 +920,14 @@ and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instan
 
 and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
-and LoadFnArguments = tlid -> List<DvalMap * NodaTime.Instant>
-
-and StoreFnArguments = tlid -> DvalMap -> unit
-
 /// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
-    accountID : UserID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
     dbs : Map<string, DB.T>
     userFns : Map<string, UserFunction.T>
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
-
-  // TODO remove this, probably?
-  // this is theoretically prepared for stdlibTypes and packageTypes to exist
-  // I'm not sure how else to handle this, but this likely isn't ideal
-  // TODO: at the _very_ least, review all usages - consider if we should treat each case special in any way
-  member this.allTypes : Map<FQTypeName.T, CustomType.T> =
-    this.userTypes
-    // TODO: I'd normally use F#'s native "Map.map"
-    // but we've overwritten that such that this turns out ugly
-    // Is there a better way to do this, even with the overwriting?
-    |> Map.toList
-    |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
-    |> Map
 
 /// Set of callbacks used to trace the interpreter
 and Tracing =
@@ -951,8 +935,6 @@ and Tracing =
     traceTLID : TraceTLID
     loadFnResult : LoadFnResult
     storeFnResult : StoreFnResult
-    loadFnArguments : LoadFnArguments
-    storeFnArguments : StoreFnArguments
     realOrPreview : RealOrPreview }
 
 /// Used for testing
@@ -1010,6 +992,22 @@ and ExecutionState =
     /// Whether the currently executing code is really being executed
     /// (as opposed to being previewed for traces)
     onExecutionPath : bool }
+
+module ExecutionState =
+  let availableTypes (state : ExecutionState) : Map<FQTypeName.T, CustomType.T> =
+    let stdlibTypes =
+      state.libraries.stdlibTypes
+      |> Map.toList
+      |> List.map (fun (name, stdlibType) -> name, stdlibType.definition)
+
+    let userTypes =
+      state.program.userTypes
+      |> Map.toList
+      |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
+
+    // TODO: package types
+
+    List.concat [ userTypes; stdlibTypes ] |> Map
 
 let consoleReporter : ExceptionReporter =
   fun _state (metadata : Metadata) (exn : exn) ->

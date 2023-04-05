@@ -20,10 +20,7 @@
     <Compile Include="ClientTraceTypes.fs" />
     <Compile Include="ClientOpsTypes.fs" />
     <Compile Include="ClientSecretTypes.fs" />
-    <Compile Include="ClientAuthorizationTypes.fs" />
     <Compile Include="ClientPusherTypes.fs" />
-    <Compile Include="ClientApiTypes.fs" />
-    <Compile Include="ClientUITypes.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

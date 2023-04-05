@@ -125,6 +125,7 @@ module MatchPattern =
     | ST.MPUnit id -> PT.MPUnit id
     | ST.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
+    | ST.MPList (id, pats) -> PT.MPList(id, List.map toPT pats)
 
 
 
@@ -295,8 +296,7 @@ module Toplevel =
 module Op =
   let toPT (op : ST.Op) : Option<PT.Op> =
     match op with
-    | ST.SetHandler (tlid, handler) ->
-      Some(PT.SetHandler(tlid, Handler.toPT handler))
+    | ST.SetHandler (handler) -> Some(PT.SetHandler(Handler.toPT handler))
     | ST.CreateDB (tlid, name) -> Some(PT.CreateDB(tlid, name))
     | ST.AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
     | ST.SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))

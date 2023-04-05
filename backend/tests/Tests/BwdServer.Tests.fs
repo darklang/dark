@@ -184,9 +184,9 @@ module ParseTest =
 
 
 /// Initializes and sets up a test canvas (handlers, secrets, etc.)
-let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
+let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> =
   task {
-    let! (meta : Canvas.Meta) = initializeTestCanvas $"bwdserver-{testName}"
+    let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
 
     // Handlers
     let oplists =
@@ -210,27 +210,24 @@ let setupTestCanvas (testName : string) (test : Test) : Task<Canvas.Meta> =
 
         let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 
-        (h.tlid,
-         [ PT.SetHandler(h.tlid, h) ],
-         PT.Toplevel.TLHandler h,
-         Canvas.NotDeleted))
+        (h.tlid, [ PT.SetHandler h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
 
-    do! Canvas.saveTLIDs meta oplists
+    do! Canvas.saveTLIDs canvasID oplists
 
     // Custom domains
     match test.domain with
-    | Some domain -> do! Canvas.addDomain meta.id domain
+    | Some domain -> do! Canvas.addDomain canvasID domain
     | None -> ()
 
     // Secrets
     do!
       test.secrets
       |> List.map (fun (name, value, version) ->
-        LibBackend.Secret.insert meta.id name value version)
+        LibBackend.Secret.insert canvasID name value version)
       |> Task.WhenAll
       |> Task.map (fun _ -> ())
 
-    return meta
+    return canvasID, domain
   }
 
 
@@ -441,7 +438,7 @@ let tests =
         withoutPrefix |> String.dropRight (".test".Length)
 
       // set up a test canvas
-      let! (meta : Canvas.Meta) = setupTestCanvas testName test
+      let! (canvasID, domain) = setupTestCanvas testName test
 
       // execute the test
       if shouldSkip then
@@ -450,7 +447,7 @@ let tests =
         do!
           Execution.runTestRequest
             handlerType
-            meta.domain
+            domain
             test.request
             test.expectedResponse
     }

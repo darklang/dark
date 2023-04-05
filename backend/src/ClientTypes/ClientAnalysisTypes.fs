@@ -26,10 +26,7 @@ type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval.T
 
 type TraceID = System.Guid
 
-type TraceData =
-  { input : InputVars
-    timestamp : NodaTime.Instant
-    functionResults : List<FunctionResult> }
+type TraceData = { input : InputVars; functionResults : List<FunctionResult> }
 
 type Trace = TraceID * TraceData
 

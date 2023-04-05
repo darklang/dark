@@ -952,6 +952,30 @@
                                 ],
                                 [
                                   [
+                                    "MPList",
+                                    387662539,
+                                    [
+                                      [
+                                        "MPBool",
+                                        435227293,
+                                        true
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "EList",
+                                    657848009,
+                                    [
+                                      [
+                                        "EBool",
+                                        435227293,
+                                        true
+                                      ]
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  [
                                     "MPString",
                                     491115870,
                                     "string"
@@ -1187,7 +1211,7 @@
         [
           "var",
           [
-            "DObj",
+            "DDict",
             {
               "-infinity \u002B 0": [
                 "DFloat",
@@ -1318,9 +1342,6 @@
                                       923423468,
                                       6
                                     ]
-                                  ],
-                                  [
-                                    "NotInPipe"
                                   ]
                                 ],
                                 [
@@ -1328,10 +1349,6 @@
                                   648327618,
                                   7
                                 ]
-                              ],
-                              [
-                                "InPipe",
-                                312312798
                               ]
                             ],
                             [
@@ -1339,14 +1356,8 @@
                               325843618,
                               8
                             ]
-                          ],
-                          [
-                            "NotInPipe"
                           ]
                         ]
-                      ],
-                      [
-                        "NotInPipe"
                       ]
                     ]
                   }
@@ -1379,6 +1390,58 @@
               "db": [
                 "DDB",
                 "Visitors"
+              ],
+              "dict": [
+                "DDict",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict with error": [
+                "DDict",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "dict3": [
+                "DDict",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "dict4": [
+                "DDict",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict5": [
+                "DDict",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
               ],
               "e \u002B 0": [
                 "DFloat",
@@ -4207,70 +4270,6 @@
               "null": [
                 "DUnit"
               ],
-              "obj": [
-                "DObj",
-                {
-                  "foo": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj with error": [
-                "DObj",
-                {
-                  "v": [
-                    "DError",
-                    [
-                      "SourceNone"
-                    ],
-                    "some error string"
-                  ]
-                }
-              ],
-              "obj2": [
-                "DObj",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DUnit"
-                  ]
-                }
-              ],
-              "obj3": [
-                "DObj",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DStr",
-                    "x"
-                  ]
-                }
-              ],
-              "obj4": [
-                "DObj",
-                {
-                  "foo\\\\bar": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj5": [
-                "DObj",
-                {
-                  "$type": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
               "option": [
                 "DOption",
                 null
@@ -4296,6 +4295,70 @@
               "pi \u002B 1": [
                 "DFloat",
                 4.141592653589793
+              ],
+              "record": [
+                "DRecord",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record with error": [
+                "DRecord",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "record2": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DUnit"
+                  ]
+                }
+              ],
+              "record3": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "record4": [
+                "DRecord",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record5": [
+                "DRecord",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
               ],
               "result": [
                 "DResult",
@@ -4447,7 +4510,6 @@
           ]
         ]
       ],
-      "timestamp": "2022-07-04T17:46:57Z",
       "functionResults": [
         [
           "fnName",
@@ -4455,7 +4517,7 @@
           "hash",
           0,
           [
-            "DObj",
+            "DDict",
             {
               "-infinity \u002B 0": [
                 "DFloat",
@@ -4586,9 +4648,6 @@
                                       923423468,
                                       6
                                     ]
-                                  ],
-                                  [
-                                    "NotInPipe"
                                   ]
                                 ],
                                 [
@@ -4596,10 +4655,6 @@
                                   648327618,
                                   7
                                 ]
-                              ],
-                              [
-                                "InPipe",
-                                312312798
                               ]
                             ],
                             [
@@ -4607,14 +4662,8 @@
                               325843618,
                               8
                             ]
-                          ],
-                          [
-                            "NotInPipe"
                           ]
                         ]
-                      ],
-                      [
-                        "NotInPipe"
                       ]
                     ]
                   }
@@ -4647,6 +4696,58 @@
               "db": [
                 "DDB",
                 "Visitors"
+              ],
+              "dict": [
+                "DDict",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict with error": [
+                "DDict",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "dict3": [
+                "DDict",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "dict4": [
+                "DDict",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "dict5": [
+                "DDict",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
               ],
               "e \u002B 0": [
                 "DFloat",
@@ -7475,70 +7576,6 @@
               "null": [
                 "DUnit"
               ],
-              "obj": [
-                "DObj",
-                {
-                  "foo": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj with error": [
-                "DObj",
-                {
-                  "v": [
-                    "DError",
-                    [
-                      "SourceNone"
-                    ],
-                    "some error string"
-                  ]
-                }
-              ],
-              "obj2": [
-                "DObj",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DUnit"
-                  ]
-                }
-              ],
-              "obj3": [
-                "DObj",
-                {
-                  "type": [
-                    "DStr",
-                    "weird"
-                  ],
-                  "value": [
-                    "DStr",
-                    "x"
-                  ]
-                }
-              ],
-              "obj4": [
-                "DObj",
-                {
-                  "foo\\\\bar": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
-              "obj5": [
-                "DObj",
-                {
-                  "$type": [
-                    "DInt",
-                    5
-                  ]
-                }
-              ],
               "option": [
                 "DOption",
                 null
@@ -7564,6 +7601,70 @@
               "pi \u002B 1": [
                 "DFloat",
                 4.141592653589793
+              ],
+              "record": [
+                "DRecord",
+                {
+                  "foo": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record with error": [
+                "DRecord",
+                {
+                  "v": [
+                    "DError",
+                    [
+                      "SourceNone"
+                    ],
+                    "some error string"
+                  ]
+                }
+              ],
+              "record2": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DUnit"
+                  ]
+                }
+              ],
+              "record3": [
+                "DRecord",
+                {
+                  "type": [
+                    "DStr",
+                    "weird"
+                  ],
+                  "value": [
+                    "DStr",
+                    "x"
+                  ]
+                }
+              ],
+              "record4": [
+                "DRecord",
+                {
+                  "foo\\\\bar": [
+                    "DInt",
+                    5
+                  ]
+                }
+              ],
+              "record5": [
+                "DRecord",
+                {
+                  "$type": [
+                    "DInt",
+                    5
+                  ]
+                }
               ],
               "result": [
                 "DResult",
@@ -8680,6 +8781,30 @@
                                       "ECharacter",
                                       657848009,
                                       "c"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPList",
+                                      387662539,
+                                      [
+                                        [
+                                          "MPBool",
+                                          435227293,
+                                          true
+                                        ]
+                                      ]
+                                    ],
+                                    [
+                                      "EList",
+                                      657848009,
+                                      [
+                                        [
+                                          "EBool",
+                                          435227293,
+                                          true
+                                        ]
+                                      ]
                                     ]
                                   ],
                                   [
@@ -9897,6 +10022,30 @@
                                       "ECharacter",
                                       657848009,
                                       "c"
+                                    ]
+                                  ],
+                                  [
+                                    [
+                                      "MPList",
+                                      387662539,
+                                      [
+                                        [
+                                          "MPBool",
+                                          435227293,
+                                          true
+                                        ]
+                                      ]
+                                    ],
+                                    [
+                                      "EList",
+                                      657848009,
+                                      [
+                                        [
+                                          "EBool",
+                                          435227293,
+                                          true
+                                        ]
+                                      ]
                                     ]
                                   ],
                                   [

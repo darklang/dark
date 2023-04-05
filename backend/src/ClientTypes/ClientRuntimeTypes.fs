@@ -77,6 +77,7 @@ type MatchPattern =
   | MPFloat of id * double
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 
 module Expr =
@@ -92,7 +93,7 @@ module Expr =
     | ELambda of id * List<id * string> * T
     | EFieldAccess of id * T * string
     | EVariable of id * string
-    | EApply of id * FnTarget * List<DType> * List<T> * IsInPipe
+    | EApply of id * FnTarget * List<DType> * List<T>
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
@@ -110,10 +111,6 @@ module Expr =
   and StringSegment =
     | StringText of string
     | StringInterpolation of T
-
-  and IsInPipe =
-    | InPipe of id
-    | NotInPipe
 
   and FnTarget =
     | FnName of FQFnName.T
@@ -144,7 +141,8 @@ module Dval =
     | DList of List<T>
     | DTuple of T * T * List<T>
     | DFnVal of FnValImpl // See docs/dblock-serialization.md
-    | DObj of Map<string, T>
+    | DDict of Map<string, T>
+    | DRecord of Map<string, T> // CLEANUP add type name
     | DError of DvalSource * string
     | DIncomplete of DvalSource
     | DHttpResponse of int64 * List<string * string> * T

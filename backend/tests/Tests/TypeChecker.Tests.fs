@@ -57,7 +57,7 @@ let testBasicTypecheckWorks : Test =
 let testArguments : Test =
   let t (name, returnType, body) =
     task {
-      let! meta = createTestCanvas name
+      let canvasID = System.Guid.NewGuid()
       let userFn : RT.UserFunction.T =
         { tlid = id 7
           name = name
@@ -70,7 +70,7 @@ let testArguments : Test =
 
       let expr = S.eUserFn name [] []
       let fns = Map.ofList [ name, userFn ]
-      let! state = executionStateFor meta false Map.empty fns
+      let! state = executionStateFor canvasID false Map.empty Map.empty fns
       let! result = Exe.executeExpr state Map.empty expr
       return normalizeDvalResult result
     }

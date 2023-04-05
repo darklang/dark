@@ -16,12 +16,7 @@ module Cron = LibBackend.Cron
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 
-module TI = LibBackend.TraceInputs
-module TFR = LibBackend.TraceFunctionResults
-
-
 let p (code : string) = Parser.parsePTExpr code
-
 
 
 let testCronFetchActiveCrons =
@@ -35,18 +30,18 @@ let testCronFetchActiveCrons =
 
 let testCronSanity =
   testTask "cron sanity" {
-    let! meta = initializeTestCanvas "cron-sanity"
+    let! canvasID = initializeTestCanvas "cron-sanity"
 
     let h = testCron "test" PT.Handler.EveryDay (p " 5 + 3")
-    let oplists = [ handlerOp h ]
+    let oplists = [ PT.SetHandler h ]
 
     do!
       Canvas.saveTLIDs
-        meta
+        canvasID
         [ (h.tlid, oplists, PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
-      { canvasID = meta.id
+      { canvasID = canvasID
         tlid = h.tlid
         cronName = "test"
         interval = PT.Handler.EveryDay }
@@ -58,17 +53,17 @@ let testCronSanity =
 
 let testCronJustRan =
   testTask "test cron just ran" {
-    let! meta = initializeTestCanvas "cron-just-ran"
+    let! canvasID = initializeTestCanvas "cron-just-ran"
 
     let h = testCron "test" PT.Handler.EveryDay (p "5 + 3")
 
     do!
       Canvas.saveTLIDs
-        meta
-        [ (h.tlid, [ handlerOp h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
+        canvasID
+        [ (h.tlid, [ PT.SetHandler h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
-      { canvasID = meta.id
+      { canvasID = canvasID
         tlid = h.tlid
         cronName = "test"
         interval = PT.Handler.EveryDay }

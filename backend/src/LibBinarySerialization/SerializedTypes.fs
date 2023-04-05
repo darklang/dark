@@ -164,6 +164,7 @@ type MatchPattern =
   | MPFloat of id * Sign * string * string
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 [<MessagePack.MessagePackObject>]
 type BinaryOperation =
@@ -417,7 +418,7 @@ module Toplevel =
 /// and is preferred throughout code and documentation.
 [<MessagePack.MessagePackObject>]
 type Op =
-  | SetHandler of tlid * Handler.T
+  | SetHandler of Handler.T
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string

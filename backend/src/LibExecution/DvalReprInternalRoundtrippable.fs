@@ -75,7 +75,8 @@ module FormatV0 =
     | DList of List<Dval>
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
-    | DObj of DvalMap
+    | DDict of DvalMap
+    | DRecord of DvalMap
     | DError of DvalSource * string
     | DIncomplete of DvalSource
     | DHttpResponse of int64 * List<string * string> * Dval
@@ -115,7 +116,8 @@ module FormatV0 =
     | DList l -> RT.DList(List.map toRT l)
     | DTuple (first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
-    | DObj o -> RT.DObj(Map.map toRT o)
+    | DDict o -> RT.DDict(Map.map toRT o)
+    | DRecord o -> RT.DRecord(Map.map toRT o)
     | DOption None -> RT.DOption None
     | DOption (Some dv) -> RT.DOption(Some(toRT dv))
     | DResult (Ok dv) -> RT.DResult(Ok(toRT dv))
@@ -151,7 +153,8 @@ module FormatV0 =
     | RT.DList l -> DList(List.map fromRT l)
     | RT.DTuple (first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
-    | RT.DObj o -> DObj(Map.map fromRT o)
+    | RT.DDict o -> DDict(Map.map fromRT o)
+    | RT.DRecord o -> DRecord(Map.map fromRT o)
     | RT.DOption None -> DOption None
     | RT.DOption (Some dv) -> DOption(Some(fromRT dv))
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
@@ -199,7 +202,8 @@ module Test =
     | RT.DConstructor (_typeName, _caseName, fields) ->
       List.all isRoundtrippableDval fields
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
-    | RT.DObj map -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DRecord map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
     | RT.DTuple (v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
     | RT.DOption (Some v)

@@ -1,5 +1,5 @@
 [http-handler POST /]
-request.body |> Bytes.length |> Int.toString |> String.toBytes_v0
+request.body |> Bytes.length
 
 [request]
 POST / HTTP/1.1
@@ -16,6 +16,9 @@ x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
 Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Content-Length: 84
+Content-Length: 142
 
-Application error: the executed code did not result in a redirect or bytes response.
+Application error: expected an http response, got:
+Int: 13
+
+Consider using `Http.response`, `Http.responseWithHeaders`, or a similar function.

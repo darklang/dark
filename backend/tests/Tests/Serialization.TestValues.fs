@@ -66,8 +66,6 @@ module RuntimeTypes =
       )
       RT.MPFloat(12385781243UL, 79375.847583) ]
 
-  let isInPipes : List<RT.IsInPipe> = [ RT.NotInPipe; RT.InPipe(18274UL) ]
-
   let exprs : List<RT.Expr> =
     [ RT.EInteger(124151234UL, 7)
       RT.EBool(158584UL, false)
@@ -96,15 +94,13 @@ module RuntimeTypes =
         128384UL,
         RT.FnTargetExpr(RT.EUnit(1235123UL)),
         [ RT.TBool ],
-        [ RT.EUnit(7756UL) ],
-        RT.NotInPipe
+        [ RT.EUnit(7756UL) ]
       )
       RT.EApply(
         128384UL,
         RT.FnName(RT.FQFnName.User "user fn"),
         [],
-        [ RT.EUnit(7756UL) ],
-        RT.NotInPipe
+        [ RT.EUnit(7756UL) ]
       )
       RT.EList(737481UL, [ RT.EUnit(74618UL) ])
       RT.ETuple(
@@ -157,7 +153,7 @@ module RuntimeTypes =
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
     |> Map
-    |> RT.DObj
+    |> RT.DDict
 
 module ProgramTypes =
   let fqFnNames : List<PT.FQFnName.T> =
@@ -359,6 +355,11 @@ module ProgramTypes =
                                PT.EInteger(232748650UL, 7L))
                               (PT.MPCharacter(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
+                              (PT.MPList(
+                                387662539UL,
+                                [ PT.MPBool(435227293UL, true) ]
+                               ),
+                               PT.EList(657848009UL, [ PT.EBool(435227293UL, true) ]))
                               (PT.MPString(491115870UL, "string"),
                                PT.EString(
                                  820329949UL,
@@ -604,7 +605,7 @@ module ProgramTypes =
   let oplist : PT.Oplist =
     let id = 923832423UL
     let tlid = 94934534UL
-    [ PT.SetHandler(Handler.http.tlid, Handler.http)
+    [ PT.SetHandler(Handler.http)
       PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")

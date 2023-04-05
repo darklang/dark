@@ -20,11 +20,7 @@ module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
-let testOwner : Lazy<Task<Account.UserInfo>> =
-  lazy
-    (UserName.create "test"
-     |> Account.getUser
-     |> Task.map (Exception.unwrapOptionInternal "Could not get testOwner user" []))
+let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
 let nameToTestDomain (name : string) : string =
   let name =
@@ -40,36 +36,27 @@ let nameToTestDomain (name : string) : string =
   |> fun s -> $"{s}.dlio.localhost"
 
 let initializeCanvasForOwner
-  (owner : Account.UserInfo)
+  (ownerID : UserID)
   (name : string)
-  : Task<Canvas.Meta> =
+  : Task<CanvasID * string> =
   task {
     let domain = nameToTestDomain name
-    return! Canvas.create owner.id domain
+    let! canvasID = Canvas.create ownerID domain
+    return (canvasID, domain)
   }
 
-let initializeTestCanvas (name : string) : Task<Canvas.Meta> =
+let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
   task {
     let! owner = testOwner.Force()
     return! initializeCanvasForOwner owner name
   }
 
-// Same as initializeTestCanvas, for tests that don't need to hit the DB
-let createCanvasForOwner
-  (owner : Account.UserInfo)
-  (name : string)
-  : Task<Canvas.Meta> =
+let initializeTestCanvas (name : string) : Task<CanvasID> =
   task {
-    let domain = nameToTestDomain name
-    let id = System.Guid.NewGuid()
-    return { id = id; domain = domain; owner = owner.id }
+    let! (canvasID, domain) = initializeTestCanvas' name
+    return canvasID
   }
 
-let createTestCanvas (name : string) : Task<Canvas.Meta> =
-  task {
-    let! owner = testOwner.Force()
-    return! createCanvasForOwner owner name
-  }
 
 let testHttpRouteHandler
   (route : string)
@@ -132,8 +119,6 @@ let testUserRecordType
 
 
 
-let handlerOp (h : PT.Handler.T) = PT.SetHandler(h.tlid, h)
-
 let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
 
@@ -159,20 +144,20 @@ let libraries : Lazy<RT.Libraries> =
      { stdlibTypes = testTypes; stdlibFns = testFns; packageFns = Map.empty })
 
 let executionStateFor
-  (meta : Canvas.Meta)
+  (canvasID : CanvasID)
   (internalFnsAllowed : bool)
   (dbs : Map<string, RT.DB.T>)
+  (userTypes : Map<RT.FQTypeName.UserTypeName, RT.UserType.T>)
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let domains = Canvas.domainsForCanvasID meta.id
+    let domains = Canvas.domainsForCanvasID canvasID
     let program : RT.ProgramContext =
-      { canvasID = meta.id
-        accountID = meta.owner
+      { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
         userFns = userFunctions
         dbs = dbs
-        userTypes = Map.empty
+        userTypes = userTypes
         secrets = [] }
 
     let testContext : RT.TestContext =
@@ -231,7 +216,7 @@ let executionStateFor
   }
 
 /// Saves and reloads the canvas for the Toplevels
-let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
+let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
   task {
     let descs =
       tls
@@ -240,13 +225,13 @@ let canvasForTLs (meta : Canvas.Meta) (tls : List<PT.Toplevel.T>) : Task<Canvas.
 
         let op =
           match tl with
-          | PT.Toplevel.TLHandler h -> PT.SetHandler(h.tlid, h)
+          | PT.Toplevel.TLHandler h -> PT.SetHandler h
           | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
 
         (tlid, [ op ], tl, Canvas.NotDeleted))
 
-    do! Canvas.saveTLIDs meta descs
-    return! Canvas.loadAll meta
+    do! Canvas.saveTLIDs canvasID descs
+    return! Canvas.loadAll canvasID
   }
 
 
@@ -331,12 +316,18 @@ let rec debugDval (v : Dval) : string =
     $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DObj obj ->
+  | DRecord obj ->
     obj
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
-    |> fun contents -> $"DObj {{\n  {contents}}}"
+    |> fun contents -> $"DRecord {{\n  {contents}}}"
+  | DDict obj ->
+    obj
+    |> Map.toList
+    |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
+    |> String.concat ",\n  "
+    |> fun contents -> $"DDict {{\n  {contents}}}"
   | DBytes b ->
     b
     |> Array.toList
@@ -390,7 +381,8 @@ module Expect =
 
     | DList vs -> List.all check vs
     | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
-    | DObj vs -> vs |> Map.values |> List.all check
+    | DDict vs -> vs |> Map.values |> List.all check
+    | DRecord vs -> vs |> Map.values |> List.all check
     | DStr str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DConstructor (_typeName, _caseName, fields) ->
@@ -470,6 +462,7 @@ module Expect =
     | MPUnit (_), MPUnit (_) -> ()
     | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
+    | MPList (_, pats), MPList (_, pats') -> eqList path pats pats'
     // exhaustiveness check
     | MPVariable _, _
     | MPConstructor _, _
@@ -479,7 +472,8 @@ module Expect =
     | MPBool _, _
     | MPCharacter _, _
     | MPUnit _, _
-    | MPTuple _, _ -> check path actual expected
+    | MPTuple _, _
+    | MPList _, _ -> check path actual expected
 
 
 
@@ -566,8 +560,7 @@ module Expect =
       eq ("second" :: path) second second'
       eqList path theRest theRest'
 
-    | EApply (_, name, typeArgs, args, inPipe),
-      EApply (_, name', typeArgs', args', inPipe') ->
+    | EApply (_, name, typeArgs, args), EApply (_, name', typeArgs', args') ->
       let path = (string name :: path)
       check path name name'
 
@@ -578,10 +571,6 @@ module Expect =
         typeArgs'
 
       eqList path args args'
-
-      match (inPipe, inPipe') with
-      | InPipe id, InPipe id' -> if checkIDs then check path id id'
-      | _ -> check path inPipe inPipe'
 
     | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
@@ -701,7 +690,7 @@ module Expect =
       check (".Length" :: path) (List.length theRestL) (List.length theRestR)
       List.iteri2 (fun i l r -> de (string i :: path) l r) theRestL theRestR
 
-    | DObj ls, DObj rs ->
+    | DDict ls, DDict rs ->
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
         (fun key v1 ->
@@ -717,6 +706,24 @@ module Expect =
           | None -> check (key :: path) ls rs)
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
+
+    | DRecord ls, DRecord rs ->
+      // check keys from ls are in both, check matching values
+      Map.forEachWithIndex
+        (fun key v1 ->
+          match Map.tryFind key rs with
+          | Some v2 -> de (key :: path) v1 v2
+          | None -> check (key :: path) ls rs)
+        ls
+      // check keys from rs are in both
+      Map.forEachWithIndex
+        (fun key _ ->
+          match Map.tryFind key rs with
+          | Some _ -> () // already checked
+          | None -> check (key :: path) ls rs)
+        rs
+      check (".Length" :: path) (Map.count ls) (Map.count rs)
+
 
     | DConstructor (typeName, caseName, fields),
       DConstructor (typeName', caseName', fields') ->
@@ -743,7 +750,8 @@ module Expect =
     | DStr _, DStr _ -> check path (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
-    | DObj _, _
+    | DDict _, _
+    | DRecord _, _
     | DConstructor _, _
     | DList _, _
     | DTuple _, _
@@ -797,7 +805,7 @@ module Expect =
     success.Value
 
   let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
-    dvalEquality (DObj m1) (DObj m2)
+    dvalEquality (DDict m1) (DDict m2)
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
@@ -805,7 +813,8 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let rec visit dv : unit =
     match dv with
     // Keep for exhaustiveness checking
-    | DObj map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DRecord map -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DConstructor (_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
@@ -941,14 +950,21 @@ let interestingDvals =
     ("list", DList [ Dval.int 4 ])
     ("list with derror",
      DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
-    ("obj", DObj(Map.ofList [ "foo", Dval.int 5 ]))
-    ("obj2", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DUnit) ]))
-    ("obj3", DObj(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+    ("record", DRecord(Map.ofList [ "foo", Dval.int 5 ]))
+    ("record2", DRecord(Map.ofList [ ("type", DStr "weird"); ("value", DUnit) ]))
+    ("record3", DRecord(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
     // More Json.NET tests
-    ("obj4", DObj(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
-    ("obj5", DObj(Map.ofList [ "$type", Dval.int 5 ]))
-    ("obj with error",
-     DObj(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
+    ("record4", DRecord(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
+    ("record5", DRecord(Map.ofList [ "$type", Dval.int 5 ]))
+    ("record with error",
+     DRecord(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
+    ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]))
+    ("dict3", DDict(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+    // More Json.NET tests
+    ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
+    ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]))
+    ("dict with error",
+     DDict(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
     ("incomplete", DIncomplete SourceNone)
     ("incomplete2", DIncomplete(SourceID(14219007199254740993UL, 8UL)))
     ("error", DError(SourceNone, "some error string"))
@@ -990,16 +1006,12 @@ let interestingDvals =
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
                            [],
-                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ],
-                           NotInPipe
+                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ]
                          )
-                         EInteger(648327618UL, 7) ],
-                       InPipe(312312798UL)
+                         EInteger(648327618UL, 7) ]
                      )
-                     EInteger(325843618UL, 8) ],
-                   NotInPipe
-                 ) ],
-               NotInPipe
+                     EInteger(325843618UL, 8) ]
+                 ) ]
              )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }

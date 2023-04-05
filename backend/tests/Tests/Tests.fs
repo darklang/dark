@@ -9,7 +9,6 @@ open Prelude
 
 module Telemetry = LibService.Telemetry
 
-module CTApi = ClientTypes.Api
 module CTPusher = ClientTypes.Pusher
 
 let initSerializers () =
@@ -21,6 +20,7 @@ let initSerializers () =
   Json.Vanilla.allow<ClientTypes.Program.Handler.T> "canvasClone"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
 
+
 [<EntryPoint>]
 let main (args : string array) : int =
   try
@@ -28,14 +28,12 @@ let main (args : string array) : int =
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
-    (LibBackend.Account.initializeDevelopmentAccounts name).Result
 
     LibAnalysis.initSerializers ()
     initSerializers ()
 
     let tests =
-      [ Tests.Account.tests
-        Tests.AnalysisTypes.tests
+      [ Tests.AnalysisTypes.tests
         Tests.BwdServer.tests
         Tests.Canvas.tests
         Tests.Cron.tests
@@ -54,7 +52,6 @@ let main (args : string array) : int =
         Tests.VanillaSerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
-        Tests.Traces.tests
         Tests.StorageTraces.tests
         Tests.TypeChecker.tests
         Tests.Undo.tests ]

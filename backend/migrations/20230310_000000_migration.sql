@@ -10,14 +10,8 @@ $t$ LANGUAGE plpgsql;
 CREATE TABLE IF NOT EXISTS
 accounts_v0
 ( id UUID PRIMARY KEY
-, username VARCHAR(255) UNIQUE NOT NULL -- TODO: remove
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE TRIGGER set_account_timestamp
-BEFORE UPDATE ON accounts_v0
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
 
 CREATE TABLE IF NOT EXISTS
 canvases_v0
@@ -73,48 +67,6 @@ queue_events_v0
 CREATE INDEX IF NOT EXISTS
 idx_queue_events_count
 ON queue_events_v0 (canvas_id, module, name);
-
-
--- TODO: we want to remove this
-CREATE TABLE IF NOT EXISTS
-trace_old_function_arguments_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
-, canvas_id UUID NOT NULL
-, tlid BIGINT NOT NULL
-, trace_id UUID NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
-, arguments_json TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS
-trace_old_function_arguments_most_recent
-ON trace_old_function_arguments_v0
-(canvas_id, tlid, timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS
-trace_old_function_arguments_for_trace
-ON trace_old_function_arguments_v0
-(canvas_id, tlid, trace_id);
-
-
-CREATE TABLE IF NOT EXISTS
-trace_old_function_results_v0
-( id UUID PRIMARY KEY DEFAULT gen_random_uuid() -- TODO move to application code
-, canvas_id UUID NOT NULL
-, tlid BIGINT NOT NULL
-, caller_id BIGINT NOT NULL
-, fnname TEXT NOT NULL
-, hash TEXT NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
-, value TEXT NOT NULL
-, trace_id UUID NOT NULL
-, hash_version INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS
-idx_trace_old_function_results_v0_most_recent
-ON trace_old_function_results_v0
-(canvas_id, trace_id, tlid, timestamp DESC);
 
 
 CREATE TABLE IF NOT EXISTS

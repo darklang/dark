@@ -115,6 +115,7 @@ module MatchPattern =
     | PT.MPUnit id -> RT.MPUnit id
     | PT.MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, toRT first, toRT second, List.map toRT theRest)
+    | PT.MPList (id, pats) -> RT.MPList(id, List.map toRT pats)
 
 
 
@@ -139,8 +140,7 @@ module Expr =
         id,
         RT.FnName(FQFnName.toRT fnName),
         List.map DType.toRT typeArgs,
-        List.map toRT args,
-        RT.NotInPipe
+        List.map toRT args
       )
     | PT.EInfix (id, PT.InfixFnCall fnName, arg1, arg2) ->
       let (module_, fn, version) = InfixFnName.toFnName fnName

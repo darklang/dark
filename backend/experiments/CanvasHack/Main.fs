@@ -32,7 +32,7 @@ and CanvasHackHttpHandler =
     [<Legivel.Attributes.YamlField("path")>]
     Path : string }
 
-let baseDir = $"dark-editor"
+let baseDir = $"canvases/dark-editor"
 
 [<EntryPoint>]
 let main (args : string []) =
@@ -40,18 +40,9 @@ let main (args : string []) =
     initSerializers ()
 
     task {
-      // See if "dark" user exists and create them if not
-      let username = UserName.create "dark"
-      match! LibBackend.Account.getUser username with
-      | None ->
-        print "creating dark user"
-        let! userID = LibBackend.Account.createUser username
-        userID |> Exception.raiseInternal "" [] |> ignore<UserID>
-      | Some _ -> print "Using existing dark user"
-
-
       match args with
-      | [||] ->
+      | [||]
+      | [| "--help" |] ->
         print
           $"`canvas-hack {CommandNames.import}` to load dark-editor from disk or
             `canvas-hack {CommandNames.export}' to save dark-editor to disk"
@@ -70,41 +61,44 @@ let main (args : string []) =
           | Some (Legivel.Serialization.Success s) -> s.Data
           | _ -> Exception.raiseCode "couldn't parse config file for canvas"
 
-        let canvasName = "dark-editor"
-        let! owner = UserName.create "dark" |> LibBackend.Account.getUser
-        let owner = owner |> Exception.unwrapOptionInternal "Dark used not found" []
-        let! c = LibBackend.Canvas.create owner.id canvasName
+        // Create the canvas - expect this to be empty
+        let domain = "dark-editor.dlio.localhost"
+        let host = $"http://{domain}:11011"
+        let canvasID = LibBackend.Config.allowedDarkInternalCanvasID
+        let! ownerID = LibBackend.Account.createUser ()
+        do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
-        // For each of the handlers defined in `config.yml`,
-        // produce a set of Ops to add.
-        // TODO: I'm not sure why I can't seem to omit the
-        // `TLSavepoint` or decrease the opCtr and still have this work.
-        let createHttpHandlerOps =
+        // Parse each file, extract the functions and types. The expressions will be
+        // used for handlers according to the config file
+
+        let ops =
           config.HttpHandlers
           |> Map.toList
           |> List.map (fun (name, details) ->
-            let handlerId = gid ()
-            let ast =
-              System.IO.File.ReadAllText $"{baseDir}/{name}.dark"
-              |> Parser.parsePTExpr
+            let modul = Parser.parseModule [] $"{baseDir}/{name}.dark"
 
-            let handler : PT.Handler.T =
-              { tlid = handlerId
-                ast = ast
-                spec =
-                  PT.Handler.Spec.HTTP(
-                    details.Path,
-                    details.Method,
-                    { moduleID = 129952UL
-                      nameID = 33052UL
-                      modifierID = 10038562UL }
-                  ) }
+            let types = modul.types |> List.map PT.Op.SetType
+            let fns = modul.fns |> List.map PT.Op.SetFunction
+            let handler =
+              match modul.exprs with
+              | [ expr ] ->
+                print $"Adding {details.Method} {details.Path} HTTP handler"
+                PT.Op.SetHandler(
+                  { tlid = gid ()
+                    ast = expr
+                    spec =
+                      PT.Handler.Spec.HTTP(
+                        details.Path,
+                        details.Method,
+                        { moduleID = gid (); nameID = gid (); modifierID = gid () }
+                      ) }
+                )
+              | _ -> Exception.raiseCode "expected exactly one expr in file"
 
-            [ PT.Op.TLSavepoint(140418122UL); PT.Op.SetHandler(handlerId, handler) ])
+            [ PT.Op.TLSavepoint(140418122UL) ] @ types @ fns @ [ handler ])
+          |> List.flatten
 
-        let ops = List.collect identity createHttpHandlerOps
-
-        let canvasWithTopLevels = C.fromOplist c [] ops
+        let canvasWithTopLevels = C.fromOplist canvasID [] ops
 
         let oplists =
           ops
@@ -114,7 +108,9 @@ let main (args : string []) =
             | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
             | None -> None)
 
-        do! C.saveTLIDs c oplists
+        do! C.saveTLIDs canvasID oplists
+        print $"Success saving to {host}"
+
 
       | [| CommandNames.export |] ->
         // Find the canvas
@@ -140,10 +136,12 @@ let main (args : string []) =
           $"CanvasHack isn't sure what to do with these arguments.
           Currently expecting just '{CommandNames.import}' or '{CommandNames.export}'"
 
+      NonBlockingConsole.wait ()
       return 0
     }
     |> fun x -> x.Result
+
   with
   | e ->
-    printException "" [] e
+    printException "Exception running CanvasHack" [ "args", args ] e
     1

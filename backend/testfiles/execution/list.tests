@@ -33,6 +33,23 @@ List.dropWhile_v0 [] (fun item -> item < 3) = []
 
 List.empty_v0 = []
 
+(List.iter [1; 2; 3] (fun x -> Test.incrementSideEffectCounter ());
+ Test.sideEffectCount) = 3
+
+(List.iter [1; 2; 3; 4; 5] (fun x -> if x % 2 == 0 then Test.incrementSideEffectCounter ());
+ Test.sideEffectCount) = 2
+
+(List.iter [] (fun x -> Test.incrementSideEffectCounter ());
+ Test.sideEffectCount) = 0
+
+(List.iter [10; 20; 30] (fun x -> Test.incrementSideEffectCounter(); Test.incrementSideEffectCounter ());
+ Test.sideEffectCount) = 6
+
+(List.iter [1; 2; 3] (fun x -> if x > 2 then Test.incrementSideEffectCounter ());
+ Test.sideEffectCount) = 1
+
+
+
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`"
 List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
 List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3 ]

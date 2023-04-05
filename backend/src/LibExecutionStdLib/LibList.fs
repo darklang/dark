@@ -43,7 +43,8 @@ module DvalComparator =
     | DUuid u1, DUuid u2 -> compare u1 u2
     | DBytes b1, DBytes b2 -> compare b1 b2
     | DHttpResponse _, DHttpResponse _ -> 0 // this is being deleted soon
-    | DObj o1, DObj o2 -> compareMaps (Map.toList o1) (Map.toList o2)
+    | DDict o1, DDict o2 -> compareMaps (Map.toList o1) (Map.toList o2)
+    | DRecord o1, DRecord o2 -> compareMaps (Map.toList o1) (Map.toList o2)
     | DOption o1, DOption o2 ->
       match o1, o2 with
       | None, None -> 0
@@ -81,7 +82,8 @@ module DvalComparator =
     | DUuid _, _
     | DBytes _, _
     | DHttpResponse _, _
-    | DObj _, _
+    | DDict _, _
+    | DRecord _, _
     | DOption _, _
     | DResult _, _
     | DConstructor _, _ ->
@@ -817,7 +819,7 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! r = LibExecution.Interpreter.applyFnVal state b [ dv ]
+                let! r = Interpreter.applyFnVal state b [ dv ]
 
                 match r with
                 | DBool b -> return b
@@ -1435,4 +1437,35 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    { name = fn "List" "iter" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], TUnit)) "" [ "element" ] ]
+      returnType = TUnit
+      description =
+        "Applies the given function <param fn> to each element of the <param list>."
+      fn =
+        (function
+        | state, _, [ DList l; DFnVal b ] ->
+          uply {
+            do!
+              l
+              |> Ply.List.iterSequentially (fun e ->
+                uply {
+                  match! Interpreter.applyFnVal state b [ e ] with
+                  | DUnit -> return ()
+                  | v ->
+                    Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
+                })
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    ]

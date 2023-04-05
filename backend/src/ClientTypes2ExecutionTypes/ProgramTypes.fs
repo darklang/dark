@@ -194,6 +194,7 @@ module MatchPattern =
     | CTPT.MPUnit (id) -> PT.MPUnit(id)
     | CTPT.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
+    | CTPT.MPList (id, pats) -> PT.MPList(id, List.map fromCT pats)
 
   let rec toCT (pat : PT.MatchPattern) : CTPT.MatchPattern =
     match pat with
@@ -208,6 +209,7 @@ module MatchPattern =
     | PT.MPUnit (id) -> CTPT.MPUnit(id)
     | PT.MPTuple (id, first, second, theRest) ->
       CTPT.MPTuple(id, toCT first, toCT second, List.map toCT theRest)
+    | PT.MPList (id, pats) -> CTPT.MPList(id, List.map toCT pats)
 
 
 module BinaryOperation =
@@ -568,8 +570,7 @@ module Op =
 
   let fromCT (op : CTPT.Op) : PT.Op =
     match op with
-    | CTPT.Op.SetHandler (tlid, handler) ->
-      PT.Op.SetHandler(tlid, Handler.fromCT handler)
+    | CTPT.Op.SetHandler (handler) -> PT.Op.SetHandler(Handler.fromCT handler)
     | CTPT.Op.CreateDB (tlid, name) -> PT.Op.CreateDB(tlid, name)
     | CTPT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       PT.Op.AddDBCol(dbid, colNameID, colTypeID)
@@ -595,8 +596,7 @@ module Op =
 
   let toCT (op : PT.Op) : CTPT.Op =
     match op with
-    | PT.Op.SetHandler (tlid, handler) ->
-      CTPT.Op.SetHandler(tlid, Handler.toCT handler)
+    | PT.Op.SetHandler (handler) -> CTPT.Op.SetHandler(Handler.toCT handler)
     | PT.Op.CreateDB (tlid, name) -> CTPT.Op.CreateDB(tlid, name)
     | PT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
       CTPT.Op.AddDBCol(dbid, colNameID, colTypeID)

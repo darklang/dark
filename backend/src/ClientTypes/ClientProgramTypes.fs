@@ -95,6 +95,7 @@ type MatchPattern =
   | MPFloat of id * Sign * string * string
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
 
 type BinaryOperation =
   | BinOpAnd
@@ -254,7 +255,7 @@ type Toplevel =
   | TLType of UserType.T
 
 type Op =
-  | SetHandler of tlid * Handler.T
+  | SetHandler of Handler.T
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string

@@ -16,7 +16,6 @@ module RT = LibExecution.RuntimeTypes
 module WorkerStates = LibBackend.QueueSchedulingRules.WorkerStates
 module CTRuntime = ClientTypes.Runtime
 module CTAnalysis = ClientTypes.Analysis
-module CTApi = ClientTypes.Api
 module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
 module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
 module CT2Ops = ClientTypes2BackendTypes.Ops
@@ -148,11 +147,6 @@ module PersistedSerializations =
               [ "request",
                 V.RuntimeTypes.dval
                 |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT ]
-            functionArguments =
-              [ V.tlid,
-                [ "testParam",
-                  V.RuntimeTypes.dval
-                  |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT ] ]
             functionResults =
               [ (V.tlid,
                  7UL,
@@ -407,7 +401,6 @@ module PersistedSerializations =
               traceID = V.uuid
               traceData =
                 { input = [ "var", CV.dval ]
-                  timestamp = V.instant
                   functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
               dbs =
                 [ { tlid = V.tlid
@@ -433,7 +426,6 @@ module PersistedSerializations =
               traceID = V.uuid
               traceData =
                 { input = [ "var", CV.dval ]
-                  timestamp = V.instant
                   functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
               dbs =
                 [ { tlid = V.tlid
@@ -459,8 +451,7 @@ module PersistedSerializations =
         v<LibExecution.AnalysisTypes.TraceData>
           "testTraceData"
           { input = [ "var", V.RuntimeTypes.dval ]
-            timestamp = V.instant
-            function_results = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
+            functionResults = [ ("fnName", 7UL, "hash", 0, V.RuntimeTypes.dval) ] } ]
 
 
   let generateTestFiles () =
@@ -606,12 +597,6 @@ module RoundtripTests =
           V.RuntimeTypes.matchPatterns
           CT2Runtime.MatchPattern.toCT
           CT2Runtime.MatchPattern.fromCT
-          None
-        testRoundtripList
-          "RT.IsInPipe"
-          V.RuntimeTypes.isInPipes
-          CT2Runtime.Expr.pipeToCT
-          CT2Runtime.Expr.pipefromCT
           None
         testRoundtripList
           "RT.Expr"

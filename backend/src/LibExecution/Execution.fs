@@ -13,16 +13,12 @@ let traceNoDvals : RT.TraceDval = fun _ _ _ -> ()
 let traceNoTLIDs : RT.TraceTLID = fun _ -> ()
 let loadNoFnResults : RT.LoadFnResult = fun _ _ -> None
 let storeNoFnResults : RT.StoreFnResult = fun _ _ _ -> ()
-let loadNoFnArguments : RT.LoadFnArguments = fun _ -> []
-let storeNoFnArguments : RT.StoreFnArguments = fun _ _ -> ()
 
 let noTracing (realOrPreview : RT.RealOrPreview) : RT.Tracing =
   { traceDval = traceNoDvals
     traceTLID = traceNoTLIDs
     loadFnResult = loadNoFnResults
     storeFnResult = storeNoFnResults
-    loadFnArguments = loadNoFnArguments
-    storeFnArguments = storeNoFnArguments
     realOrPreview = realOrPreview }
 
 let noTestContext : RT.TestContext =
@@ -73,7 +69,7 @@ let executeFunction
   (args : List<RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let! result = Interpreter.callFn state callerID name typeArgs args RT.NotInPipe
+    let! result = Interpreter.callFn state callerID name typeArgs args
     // Does nothing in non-tests
     state.test.postTestExecutionHook state.test result
     return result

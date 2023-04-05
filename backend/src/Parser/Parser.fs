@@ -33,6 +33,7 @@ module DType =
     match name, typeArgs with
     // no type args
     | "bool", [] -> PT.TBool
+    | "bytes", [] -> PT.TBytes
     | "int", [] -> PT.TInt
     | "string", [] -> PT.TStr
     | "char", [] -> PT.TChar
@@ -45,7 +46,10 @@ module DType =
     // with type args
     | "List", [ arg ] -> PT.TList(fromSynType arg)
     | "Option", [ arg ] -> PT.TOption(fromSynType arg)
-
+    | "Result", [ okArg; errorArg ] ->
+      PT.TResult(fromSynType okArg, fromSynType errorArg)
+    | "Tuple", first :: second :: theRest ->
+      PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | _ ->
       // Some user- or stdlib- type
       // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
@@ -59,7 +63,6 @@ module DType =
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
       match matchingCustomTypes with
-      | [] -> PT.TVariable(name)
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
@@ -150,6 +153,7 @@ module MatchPattern =
       PT.MPConstructor(id, constructorName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
+    | SynPat.ArrayOrList (_, pats, _) -> PT.MPList(id, List.map r pats)
     | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
 
 
@@ -208,7 +212,8 @@ module Expr =
     let id = gid ()
 
     match ast with
-    // constant values
+
+    // Literals (ints, chars, bools, etc)
     | SynExpr.Null _ ->
       Exception.raiseInternal "null not supported, use `()`" [ "ast", ast ]
     | SynExpr.Const (SynConst.Unit _, _) -> PT.EUnit id
@@ -221,6 +226,7 @@ module Expr =
     | SynExpr.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       PT.EFloat(id, sign, whole, fraction)
+
 
     // Strings
     | SynExpr.Const (SynConst.String (s, _, _), _) ->
@@ -245,6 +251,8 @@ module Expr =
              [ "name", ident.idText ]
       PT.EInfix(id, PT.InfixFnCall op, placeholder, placeholder)
 
+
+    // Binary Ops: && / ||
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
       ->
@@ -256,16 +264,22 @@ module Expr =
 
       PT.EInfix(id, PT.BinOp op, placeholder, placeholder)
 
+
+    // Negation
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       ident.idText = "op_UnaryNegation"
       ->
       let name = PT.FQFnName.stdlibFqName "Int" "negate" 0
       PT.EFnCall(id, name, [], [])
 
+
+    // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
       let name, version = parseFn ident.idText
       PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [], [])
 
+
+    // `Nothing`
     | SynExpr.Ident ident when ident.idText = "Nothing" ->
       PT.EConstructor(id, None, "Nothing", [])
 
@@ -296,9 +310,10 @@ module Expr =
       | _ ->
         Exception.raiseInternal
           "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
-          [ "name", name.idText ]
+          [ "name", name.idText; "matchingEnumCases", matchingEnumCases ]
 
-    // Lists and arrays
+
+    // List literals
     | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
 
     // a literal list is sometimes made up of nested Sequentials
@@ -356,7 +371,8 @@ module Expr =
 
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
 
-    // package manager function calls
+
+    // Package manager function calls
     // (preliminary support)
     | SynExpr.LongIdent (_,
                          SynLongIdent ([ owner; package; modName; fnName ], _, _),
@@ -372,13 +388,14 @@ module Expr =
       )
 
 
-    // Field access
+    // Field access: a.b.c.d
     | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
       let obj1 =
         PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
       let obj2 = PT.EFieldAccess(id, obj1, nameOrBlank f2.idText)
       PT.EFieldAccess(id, obj2, nameOrBlank f3.idText)
 
+    // a.b.c
     | SynExpr.LongIdent (_, SynLongIdent ([ var; field1; field2 ], _, _), _, _) ->
       let obj1 =
         PT.EFieldAccess(
@@ -388,9 +405,11 @@ module Expr =
         )
       PT.EFieldAccess(id, obj1, nameOrBlank field2.idText)
 
+    // a.b
     | SynExpr.LongIdent (_, SynLongIdent ([ var; field ], _, _), _, _) ->
       PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank field.idText)
 
+    // a.b
     | SynExpr.DotGet (expr, _, SynLongIdent ([ field ], _, _), _) ->
       PT.EFieldAccess(id, c expr, nameOrBlank field.idText)
 
@@ -424,9 +443,13 @@ module Expr =
       PT.ELambda(id, vars, c body)
 
 
-    // if/then expressions
+    // if/else expressions
     | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
       PT.EIf(id, c cond, c thenExpr, c elseExpr)
+
+    // if (no else) expression
+    | SynExpr.IfThenElse (cond, thenExpr, None, _, _, _, _) ->
+      PT.EIf(id, c cond, c thenExpr, PT.EUnit(gid ()))
 
 
     // `let` bindings
@@ -443,10 +466,8 @@ module Expr =
     // `match` exprs:
     //
     // ```fsharp
-    // // 'cond'
     // match Some 1 with // 'cond'
-    // // 'cases'
-    // | None -> ...
+    // | None -> ... // cases
     // | Some 1 -> ...
     // | ...
     | SynExpr.Match (_, cond, cases, _, _) ->
@@ -474,9 +495,22 @@ module Expr =
 
       PT.ERecord(id, typeName, fields)
 
+
+    // Parens (eg `(5)`)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
 
+
+    // "Typed" (we don't use this)
+    | SynExpr.Typed (expr, _, _) -> c expr // just unwrap
+
+
+    // Do (eg do ())
     | SynExpr.Do (expr, _) -> c expr // just unwrap
+
+
+    // Sequential code: (a; b) -> let _ = a in b
+    | SynExpr.Sequential (_, _, a, b, _) ->
+      PT.ELet(id, PT.LPVariable(gid (), "_"), c a, c b)
 
 
     // Pipes (|>)
@@ -534,6 +568,7 @@ module Expr =
                    _) when name.idText = "flag" ->
       PT.EFeatureFlag(gid (), label, placeholder, placeholder, placeholder)
 
+
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
@@ -561,6 +596,7 @@ module Expr =
         else
           PT.EFnCall(id, PT.FQFnName.User name, [], [ c arg ])
 
+
       // Enums
       | PT.EConstructor (id, typeName, caseName, _fields) ->
         let fields =
@@ -577,6 +613,8 @@ module Expr =
             "converted specific fncall exp", e
             "argument", arg ]
 
+
+    // Error handling
     | SynExpr.FromParseError _ as expr ->
       Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
     | expr ->
@@ -839,23 +877,28 @@ let convertToTest availableTypes (ast : SynExpr) : Test =
       expected = convert expected }
   | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
-type Module =
+type Module<'expr> =
   { types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
     packageFns : List<PT.Package.Fn>
-    modules : List<string * Module>
-    tests : List<Test> }
+    modules : List<string * Module<'expr>>
+    exprs : List<'expr> }
 
 let emptyModule =
-  { types = []; dbs = []; fns = []; modules = []; tests = []; packageFns = [] }
+  { types = []; dbs = []; fns = []; modules = []; exprs = []; packageFns = [] }
+
+type TestModule = Module<Test>
+
+type TypeDefs =
+  list<LibExecution.ProgramTypes.FQTypeName.T * LibExecution.ProgramTypes.UserType.Definition>
 
 
-
-let parseTestFile
+let parseFile
+  (parseExprFn : TypeDefs -> SynExpr -> 'expr)
   (stdlibTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
   (filename : string)
-  : Module =
+  : Module<'expr> =
   let longIdentToList (li : LongIdent) : List<string> =
     li |> List.map (fun id -> id.idText)
 
@@ -915,10 +958,10 @@ let parseTestFile
     |> List.tryHead
 
   let rec parseModule
-    (parent : Module)
+    (parent : Module<'expr>)
     (attrs : SynAttributes)
     (decls : List<SynModuleDecl>)
-    : Module =
+    : Module<'expr> =
     let package = getPackage attrs
 
     List.fold
@@ -927,7 +970,7 @@ let parseTestFile
         packageFns = parent.packageFns
         dbs = parent.dbs
         modules = []
-        tests = [] }
+        exprs = [] }
       (fun m decl ->
         let availableTypes =
           (m.types @ parent.types)
@@ -953,11 +996,8 @@ let parseTestFile
               types = m.types @ List.concat types
               dbs = m.dbs @ List.concat dbs }
 
-        | SynModuleDecl.Expr (SynExpr.Do (expr, _), _) ->
-          { m with tests = m.tests @ [ convertToTest availableTypes expr ] }
-
         | SynModuleDecl.Expr (expr, _) ->
-          { m with tests = m.tests @ [ convertToTest availableTypes expr ] }
+          { m with exprs = m.exprs @ [ parseExprFn availableTypes expr ] }
 
         | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
                                                         _,
@@ -1000,6 +1040,14 @@ let parseTestFile
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
       [ "parseTree", results.ParseTree; "input", input; "filename", filename ]
+
+let parseTestFile : List<PT.FQTypeName.T * PT.CustomType.T> -> string -> Module<Test> =
+  parseFile convertToTest
+
+let parseModule : List<PT.FQTypeName.T * PT.CustomType.T>
+  -> string
+  -> Module<PT.Expr> =
+  parseFile Expr.fromSynExpr
 
 
 let parseAsFSharpSourceFile (input : string) : SynExpr =

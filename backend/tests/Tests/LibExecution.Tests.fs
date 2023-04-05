@@ -28,7 +28,7 @@ module Canvas = LibBackend.Canvas
 
 open TestUtils.TestUtils
 
-let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
+let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
   task {
     let workersWithIDs = workers |> List.map (fun w -> w, (gid ()))
 
@@ -36,7 +36,6 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
       workersWithIDs
       |> List.map (fun (worker, tlid) ->
         PT.SetHandler(
-          tlid,
           { tlid = tlid
             ast = PT.Expr.EUnit(gid ())
             spec =
@@ -46,17 +45,17 @@ let setupWorkers (meta : Canvas.Meta) (workers : List<string>) : Task<unit> =
               ) }
         ))
 
-    let c = Canvas.empty meta |> Canvas.addOps ops []
+    let c = Canvas.empty canvasID |> Canvas.addOps ops []
 
     let oplists =
       workersWithIDs
       |> List.map (fun (_w, tlid) ->
         tlid, ops, PT.Toplevel.TLHandler c.handlers[tlid], Canvas.NotDeleted)
 
-    do! Canvas.saveTLIDs meta oplists
+    do! Canvas.saveTLIDs canvasID oplists
   }
 
-let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
+let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
   task {
     let ops =
       // Convert the DBs back into ops so that DB operations will run
@@ -84,12 +83,11 @@ let setupDBs (meta : Canvas.Meta) (dbs : List<PT.DB.T>) : Task<unit> =
       ops
       |> List.map (fun (db, ops) ->
         db.tlid, ops, PT.Toplevel.TLDB db, Canvas.NotDeleted)
-    do! Canvas.saveTLIDs meta oplists
+    do! Canvas.saveTLIDs canvasID oplists
   }
 
 
 let t
-  (owner : Task<LibBackend.Account.UserInfo>)
   (internalFnsAllowed : bool)
   (canvasName : string)
   (actualExpr : PT.Expr)
@@ -97,19 +95,25 @@ let t
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
   (packageFns : List<PT.Package.Fn>)
+  (types : List<PT.UserType.T>)
   (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
   : Test =
   testTask $"line{lineNumber}" {
     try
-      let! owner = owner
-      let! meta =
-        let initializeCanvas = internalFnsAllowed || dbs <> [] || workers <> []
+      let! canvasID =
         // Little optimization to skip the DB sometimes
+        let initializeCanvas = internalFnsAllowed || dbs <> [] || workers <> []
         if initializeCanvas then
-          initializeCanvasForOwner owner canvasName
+          initializeTestCanvas canvasName
         else
-          createCanvasForOwner owner canvasName
+          System.Guid.NewGuid() |> Task.FromResult
+
+      let rtTypes =
+        types
+        |> List.map (fun typ ->
+          PT2RT.FQTypeName.UserTypeName.toRT typ.name, PT2RT.UserType.toRT typ)
+        |> Map.ofList
 
       let rtDBs =
         (dbs |> List.map (fun db -> db.name, PT2RT.DB.toRT db) |> Map.ofList)
@@ -127,7 +131,7 @@ let t
         |> Map
 
       let! (state : RT.ExecutionState) =
-        executionStateFor meta internalFnsAllowed rtDBs rtFunctions
+        executionStateFor canvasID internalFnsAllowed rtDBs rtTypes rtFunctions
       let state =
         { state with libraries = { state.libraries with packageFns = rtPackageFns } }
 
@@ -136,8 +140,8 @@ let t
       let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedExpr)
 
       // Initialize
-      if workers <> [] then do! setupWorkers meta workers
-      if dbs <> [] then do! setupDBs meta dbs
+      if workers <> [] then do! setupWorkers canvasID workers
+      if dbs <> [] then do! setupDBs canvasID dbs
 
       let results, traceDvalFn = Exe.traceDvals ()
       let state =
@@ -180,20 +184,18 @@ let fileTests () : Test =
 
     let filename = System.IO.Path.GetFileName file
     let testName = System.IO.Path.GetFileNameWithoutExtension file
-    let owner = testOwner.Force()
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests (moduleName : string) (module' : Parser.Module) =
+    let rec moduleToTests (moduleName : string) (module' : Parser.TestModule) =
 
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) module'.modules
 
       let tests =
-        module'.tests
+        module'.exprs
         |> List.map (fun test ->
           t
-            owner
             initializeCanvas
             test.name
             test.actual
@@ -201,6 +203,7 @@ let fileTests () : Test =
             test.lineNumber
             module'.dbs
             module'.packageFns
+            module'.types
             module'.fns
             [])
 

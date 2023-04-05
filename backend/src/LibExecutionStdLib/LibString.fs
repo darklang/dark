@@ -925,6 +925,23 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "String" "fromBytes" 0
+      typeParams = []
+      parameters = [ Param.make "bytes" TBytes "" ]
+      returnType = TStr
+      description =
+        "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
+      fn =
+        (function
+        | _, _, [ DBytes bytes ] ->
+          let str = System.Text.Encoding.UTF8.GetString bytes
+          Ply(DStr str)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "String" "startsWith" 0
       typeParams = []
       parameters = [ Param.make "subject" TStr ""; Param.make "prefix" TStr "" ]
