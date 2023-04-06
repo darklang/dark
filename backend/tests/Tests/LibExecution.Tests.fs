@@ -187,13 +187,13 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests (moduleName : string) (module' : Parser.TestModule) =
+    let rec moduleToTests (moduleName : string) (module' : Parser.TestModule.T) =
 
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) module'.modules
 
       let tests =
-        module'.exprs
+        module'.tests
         |> List.map (fun test ->
           t
             initializeCanvas
@@ -221,7 +221,7 @@ let fileTests () : Test =
         |> List.map (fun typ -> PT.FQTypeName.Stdlib typ.name, typ.definition)
 
       (baseDir + filename)
-      |> Parser.parseTestFile stdlibTypes
+      |> Parser.TestModule.parseTestFile stdlibTypes
       |> moduleToTests testName)
   |> Array.toList
   |> testList "All"

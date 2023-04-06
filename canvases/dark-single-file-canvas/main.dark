@@ -1,0 +1,34 @@
+type CustomEnum = A | B | C
+
+let stringify (e: CustomEnum) =
+  match e with
+  | A -> "eh"
+  | B -> "bee"
+  | C -> "sea"
+
+// TODO: demo DB
+
+// TODO: demo workers
+
+// TODO: demo CRON
+
+// TODO: demo REPL
+
+[<HttpHandler("GET", "/")>]
+let _indexHandler _req =
+  let respBody = String.toBytes "testing 123"
+  Http.response respBody 200
+
+
+[<HttpHandler("POST", "/stringify-enum")>]
+let _stringifyEnumHandler (request) =
+  // req body should be like { "A": [] }
+  let reqBody =
+    request.body
+    |> String.fromBytes_v0
+    |> Json.parse<CustomEnum>
+  let reqBody = Result.withDefault_v0 reqBody B
+
+  let respBody = (stringify reqBody) |> String.toBytes_v0
+
+  Http.response respBody 200

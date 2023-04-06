@@ -14,6 +14,8 @@ module C = LibBackend.Canvas
 
 let initSerializers () = ()
 
+let baseDir = $"canvases"
+
 module CommandNames =
   [<Literal>]
   let import = "load-from-disk"
@@ -21,18 +23,144 @@ module CommandNames =
   [<Literal>]
   let export = "save-to-disk"
 
-type CanvasHackConfig =
-  { [<Legivel.Attributes.YamlField("http-handlers")>]
-    HttpHandlers : Map<string, CanvasHackHttpHandler> }
+module CanvasHackConfig =
+  type JustVersion =
+    { [<Legivel.Attributes.YamlField("version")>]
+      Version : string }
 
-and CanvasHackHttpHandler =
-  { [<Legivel.Attributes.YamlField("method")>]
-    Method : string
+  // One file per HTTP handler
+  type V1 =
+    { [<Legivel.Attributes.YamlField("id")>]
+      CanvasId : string
 
-    [<Legivel.Attributes.YamlField("path")>]
-    Path : string }
+      [<Legivel.Attributes.YamlField("http-handlers")>]
+      HttpHandlers : Map<string, V1HttpHandler> }
 
-let baseDir = $"canvases/dark-editor"
+  and V1HttpHandler =
+    { [<Legivel.Attributes.YamlField("method")>]
+      Method : string
+
+      [<Legivel.Attributes.YamlField("path")>]
+      Path : string }
+
+  // One .dark file to define the full canvas
+  type V2 =
+    { [<Legivel.Attributes.YamlField("id")>]
+      CanvasId : string
+
+      [<Legivel.Attributes.YamlField("main")>]
+      Main : string }
+
+let parseYamlExn<'a> (filename : string) : 'a =
+  let contents = System.IO.File.ReadAllText filename
+  let deserialized = Legivel.Serialization.Deserialize<'a> contents
+
+  match List.head deserialized with
+  | Some (Legivel.Serialization.Success s) -> s.Data
+  | ex ->
+    //Exception.raiseCode "couldn't parse config file for canvas"
+    Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
+
+let seedCanvasV1 (canvasName : string) =
+  task {
+    let canvasDir = $"{baseDir}/{canvasName}"
+    let config = parseYamlExn<CanvasHackConfig.V1> $"{canvasDir}/config.yml"
+
+    // Create the canvas - expect this to be empty
+    let domain = $"{canvasName}.dlio.localhost"
+    let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
+    let canvasID = Guid.Parse config.CanvasId
+    let! ownerID = LibBackend.Account.createUser ()
+    do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
+
+    // Parse each file, extract the functions and types. The expressions will be
+    // used for handlers according to the config file
+
+    let ops =
+      config.HttpHandlers
+      |> Map.toList
+      |> List.map (fun (name, details) ->
+        let modul =
+          Parser.CanvasV1.parseHandlerFromFile [] $"{canvasDir}/{name}.dark"
+
+        let types = modul.types |> List.map PT.Op.SetType
+
+        let fns = modul.fns |> List.map PT.Op.SetFunction
+
+        let handler =
+          match modul.httpHandlers with
+          | [ expr ] ->
+            print $"Adding {details.Method} {details.Path} HTTP handler"
+            PT.Op.SetHandler(
+              { tlid = gid ()
+                ast = expr
+                spec =
+                  PT.Handler.Spec.HTTP(
+                    details.Path,
+                    details.Method,
+                    { moduleID = gid (); nameID = gid (); modifierID = gid () }
+                  ) }
+            )
+          | _ -> Exception.raiseCode "expected exactly one expr in file"
+
+        [ PT.Op.TLSavepoint(gid ()) ] @ types @ fns @ [ handler ])
+      |> List.flatten
+
+    let canvasWithTopLevels = C.fromOplist canvasID [] ops
+
+    let oplists =
+      ops
+      |> Op.oplist2TLIDOplists
+      |> List.filterMap (fun (tlid, oplists) ->
+        match Map.get tlid (C.toplevels canvasWithTopLevels) with
+        | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
+        | None -> None)
+
+    do! C.saveTLIDs canvasID oplists
+    print $"Success saved canvas - endpoints available at {host}"
+  }
+
+let seedCanvasV2 (canvasName : string) =
+  task {
+    let canvasDir = $"{baseDir}/{canvasName}"
+    let config = parseYamlExn<CanvasHackConfig.V2> $"{canvasDir}/config.yml"
+
+    // Create the canvas - expect this to be empty
+    let domain = $"{canvasName}.dlio.localhost"
+    let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
+    let canvasID = Guid.Parse config.CanvasId
+
+    let! ownerID = LibBackend.Account.createUser ()
+    do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
+
+    let ops =
+      let modul = Parser.CanvasV2.parseFromFile [] $"{canvasDir}/{config.Main}.dark"
+
+      let types = modul.types |> List.map PT.Op.SetType
+      let fns = modul.fns |> List.map PT.Op.SetFunction
+
+      let handlers =
+        modul.handlers
+        |> List.map (fun (spec, ast) ->
+          PT.Op.SetHandler({ tlid = gid (); ast = ast; spec = spec }))
+
+      let createSavepoint = PT.Op.TLSavepoint(gid ())
+
+      [ createSavepoint ] @ types @ fns @ handlers
+
+    let canvasWithTopLevels = C.fromOplist canvasID [] ops
+
+    let oplists =
+      ops
+      |> Op.oplist2TLIDOplists
+      |> List.filterMap (fun (tlid, oplists) ->
+        match Map.get tlid (C.toplevels canvasWithTopLevels) with
+        | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
+        | None -> None)
+
+    do! C.saveTLIDs canvasID oplists
+    print $"Success saved canvas - endpoints available at {host}"
+  }
 
 [<EntryPoint>]
 let main (args : string []) =
@@ -47,70 +175,15 @@ let main (args : string []) =
           $"`canvas-hack {CommandNames.import}` to load dark-editor from disk or
             `canvas-hack {CommandNames.export}' to save dark-editor to disk"
 
-      | [| CommandNames.import |] ->
-        // Read+parse the config.yml file
-        let configFileContents : string =
-          $"{baseDir}/config.yml" |> System.IO.File.ReadAllText
-
+      | [| CommandNames.import; canvasName |] ->
         let config =
-          Legivel.Serialization.Deserialize<CanvasHackConfig> configFileContents
+          parseYamlExn<CanvasHackConfig.JustVersion>
+            $"{baseDir}/{canvasName}/config.yml"
 
-        // TODO: better error-handling here
-        let config : CanvasHackConfig =
-          match List.head config with
-          | Some (Legivel.Serialization.Success s) -> s.Data
-          | _ -> Exception.raiseCode "couldn't parse config file for canvas"
-
-        // Create the canvas - expect this to be empty
-        let domain = "dark-editor.dlio.localhost"
-        let host = $"http://{domain}:11011"
-        let canvasID = LibBackend.Config.allowedDarkInternalCanvasID
-        let! ownerID = LibBackend.Account.createUser ()
-        do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
-
-        // Parse each file, extract the functions and types. The expressions will be
-        // used for handlers according to the config file
-
-        let ops =
-          config.HttpHandlers
-          |> Map.toList
-          |> List.map (fun (name, details) ->
-            let modul = Parser.parseModule [] $"{baseDir}/{name}.dark"
-
-            let types = modul.types |> List.map PT.Op.SetType
-            let fns = modul.fns |> List.map PT.Op.SetFunction
-            let handler =
-              match modul.exprs with
-              | [ expr ] ->
-                print $"Adding {details.Method} {details.Path} HTTP handler"
-                PT.Op.SetHandler(
-                  { tlid = gid ()
-                    ast = expr
-                    spec =
-                      PT.Handler.Spec.HTTP(
-                        details.Path,
-                        details.Method,
-                        { moduleID = gid (); nameID = gid (); modifierID = gid () }
-                      ) }
-                )
-              | _ -> Exception.raiseCode "expected exactly one expr in file"
-
-            [ PT.Op.TLSavepoint(140418122UL) ] @ types @ fns @ [ handler ])
-          |> List.flatten
-
-        let canvasWithTopLevels = C.fromOplist canvasID [] ops
-
-        let oplists =
-          ops
-          |> Op.oplist2TLIDOplists
-          |> List.filterMap (fun (tlid, oplists) ->
-            match Map.get tlid (C.toplevels canvasWithTopLevels) with
-            | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
-            | None -> None)
-
-        do! C.saveTLIDs canvasID oplists
-        print $"Success saving to {host}"
-
+        match config.Version with
+        | "1" -> do! seedCanvasV1 canvasName
+        | "2" -> do! seedCanvasV2 canvasName
+        | _ -> Exception.raiseCode "unknown canvas import config version"
 
       | [| CommandNames.export |] ->
         // Find the canvas

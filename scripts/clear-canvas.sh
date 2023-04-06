@@ -3,15 +3,15 @@
 
 set -euo pipefail
 
-DBLOG="${DARK_CONFIG_RUNDIR}/logs/clear-dark-editor-canvas.log"
-echo "Clearing dark-editor canvas (logs in ${DBLOG})"
+DBLOG="${DARK_CONFIG_RUNDIR}/logs/clear-canvas.log"
+echo "Clearing canvas (logs in ${DBLOG})"
 DB="${DARK_CONFIG_DB_DBNAME}"
 
 function run_sql { psql -d "$DB" -c "$@" >> "$DBLOG" ; }
 
 function fetch_sql { psql -d "$DB" -t -c "$@"; }
 
-CANVASES="${DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_ID}"
+CANVASES=$(fetch_sql "SELECT canvas_id FROM domains_v0 where domain ='$1.dlio.localhost';")
 SCRIPT=""
 for cid in $CANVASES; do
   SCRIPT+="DELETE FROM scheduling_rules_v0 WHERE canvas_id = '$cid';";

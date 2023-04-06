@@ -12,7 +12,12 @@
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Parser.fs" />
+    <Compile Include="Utils.fs" />
+    <Compile Include="ProgramTypes.fs" />
+    <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="TestModule.fs" />
+    <Compile Include="CanvasV1.fs" />
+    <Compile Include="CanvasV2.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

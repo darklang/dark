@@ -1,7 +1,4 @@
-/// Converts strings of F# into Dark. Used for testing.
-module Parser
-
-// refer to https://fsharp.github.io/fsharp-compiler-docs
+module Parser.ProgramTypes
 
 open FSharp.Compiler
 open FSharp.Compiler.CodeAnalysis
@@ -12,6 +9,7 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
+open Utils
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = PT.EString(12345678UL, [ PT.StringText "PLACEHOLDER VALUE" ])
@@ -22,7 +20,7 @@ let (|Placeholder|_|) (input : PT.Expr) =
 
 module DType =
   let rec fromNameAndTypeArgs
-    availableTypes
+    (availableTypes : AvailableTypes)
     (name : string)
     (typeArgs : List<SynType>)
     : PT.DType =
@@ -32,7 +30,9 @@ module DType =
     | "bool", [] -> PT.TBool
     | "bytes", [] -> PT.TBytes
     | "int", [] -> PT.TInt
-    | "string", [] -> PT.TStr
+    | ("string"
+      | "String"),
+      [] -> PT.TStr
     | "char", [] -> PT.TChar
     | "float", [] -> PT.TFloat
     | "DateTime", [] -> PT.TDateTime
@@ -66,10 +66,7 @@ module DType =
           $"Matched against multiple custom types - not sure what to do"
           [ "name", name; "typeArgs", typeArgs ]
 
-  and fromSynType
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-    (typ : SynType)
-    : PT.DType =
+  and fromSynType (availableTypes : AvailableTypes) (typ : SynType) : PT.DType =
     let c = fromSynType availableTypes
 
     match typ with
@@ -182,10 +179,7 @@ module Expr =
                  ("op_BangEquals", PT.ComparisonNotEquals)
                  ("op_PlusPlus", PT.StringConcat) ]
 
-  let rec fromSynExpr
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-    (ast : SynExpr)
-    : PT.Expr =
+  let rec fromSynExpr (availableTypes : AvailableTypes) (ast : SynExpr) : PT.Expr =
     let c = fromSynExpr availableTypes
 
     let convertLambdaVar (var : SynSimplePat) : string =
@@ -490,14 +484,11 @@ module Expr =
 
       PT.ERecord(id, typeName, fields)
 
-
     // Parens (eg `(5)`)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
 
-
     // "Typed" (we don't use this)
     | SynExpr.Typed (expr, _, _) -> c expr // just unwrap
-
 
     // Do (eg do ())
     | SynExpr.Do (expr, _) -> c expr // just unwrap
@@ -617,25 +608,28 @@ module Expr =
 
 
 module UserFunction =
-  let rec private parseArgPat
-    availableTypes
+  let rec parseArgPat
+    (availableTypes : AvailableTypes)
     (pat : SynPat)
     : PT.UserFunction.Parameter =
     let r = parseArgPat availableTypes
 
     match pat with
     | SynPat.Paren (pat, _) -> r pat
+
     | SynPat.Const (SynConst.Unit, _) ->
       { id = gid (); name = "unit"; typ = PT.TUnit; description = "" }
+
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
       { id = gid ()
         name = id.idText
         typ = DType.fromSynType availableTypes typ
         description = "" }
+
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let private parseSignature
-    availableTypes
+    (availableTypes : AvailableTypes)
     (pat : SynPat)
     : string * List<string> * List<PT.UserFunction.Parameter> =
     match pat with
@@ -643,12 +637,12 @@ module UserFunction =
       let typeParams =
         match typeArgPats with
         | None -> []
-        | Some (SynValTyparDecls (pats, _canInfer)) ->
+        | Some (SynValTyparDecls (pats, _)) ->
           match pats with
           | None -> []
           | Some typeParams ->
             match typeParams with
-            | SynTyparDecls.PostfixList (decls, constraints, _range) ->
+            | SynTyparDecls.PostfixList (decls, constraints, _) ->
               match constraints with
               | [] ->
                 decls
@@ -676,6 +670,7 @@ module UserFunction =
       let parameters =
         match argPats with
         | SynArgPats.Pats pats -> List.map (parseArgPat availableTypes) pats
+
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
@@ -683,17 +678,19 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
-  let fromSynBinding availableTypes (binding : SynBinding) : PT.UserFunction.T =
+  let fromSynBinding
+    (availableTypes : AvailableTypes)
+    (binding : SynBinding)
+    : PT.UserFunction.T =
     match binding with
-    // CLEANUP use returnInfo
-    | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, a, b, c) ->
+    | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature availableTypes pat
 
       { tlid = gid ()
         name = name
         typeParams = typeParams
         parameters = parameters
-        returnType = PT.TVariable "a"
+        returnType = PT.TVariable "a" // TODO: use returnInfo
         description = ""
         infix = false
         body = Expr.fromSynExpr availableTypes expr }
@@ -702,7 +699,7 @@ module UserFunction =
 module CustomType =
   module Enum =
     let private parseField
-      availableTypes
+      (availableTypes : AvailableTypes)
       (typ : SynField)
       : PT.CustomType.EnumField =
       match typ with
@@ -712,7 +709,7 @@ module CustomType =
           label = fieldName |> Option.map (fun id -> id.idText) }
 
     let private parseCase
-      availableTypes
+      (availableTypes : AvailableTypes)
       (case : SynUnionCase)
       : PT.CustomType.EnumCase =
       match case with
@@ -739,7 +736,7 @@ module CustomType =
 
   module Record =
     let private parseField
-      availableTypes
+      (availableTypes : AvailableTypes)
       (field : SynField)
       : PT.CustomType.RecordField =
       match field with
@@ -761,9 +758,11 @@ module CustomType =
           List.map parseField additionalFields
         )
 
-
 module UserType =
-  let fromSynTypeDefn availableTypes (typeDef : SynTypeDefn) : PT.UserType.T =
+  let fromSynTypeDefn
+    (availableTypes : AvailableTypes)
+    (typeDef : SynTypeDefn)
+    : PT.UserType.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -786,314 +785,15 @@ module UserType =
       { tlid = gid ()
         name = { typ = id.idText; version = 0 }
         definition = CustomType.Enum.fromCases availableTypes typeDef cases }
+
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
 
-module UserDB =
-  let private parseDBSchemaField availableTypes (field : SynField) : PT.DB.Col =
-    match field with
-    | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-      { name = Some(id.idText) // CLEANUP
-        nameID = gid ()
-        typ = Some(DType.fromSynType availableTypes typ)
-        typeID = gid () }
-    | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
+let parseExprWithTypes (availableTypes : AvailableTypes) (code : string) : PT.Expr =
+  code
+  |> Utils.parseAsFSharpSourceFile
+  |> Utils.singleExprFromImplFile
+  |> Expr.fromSynExpr availableTypes
 
-  let fromSynTypeDefn availableTypes (typeDef : SynTypeDefn) : PT.DB.T =
-    match typeDef with
-    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
-                                           _),
-                   _members,
-                   _,
-                   _,
-                   _) ->
-      { tlid = gid ()
-        name = id.idText
-        nameID = gid ()
-        version = 0
-        cols = List.map (parseDBSchemaField availableTypes) fields }
-    | _ ->
-      Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
-
-
-module PackageFn =
-  let fromSynBinding
-    ((p1, p2, p3) : string * string * string)
-    (binding : SynBinding)
-    : PT.Package.Fn =
-    let availableTypes = [] // eventually, we'll likely need package types supported here
-    let userFn = UserFunction.fromSynBinding availableTypes binding
-    { name =
-        { owner = p1
-          package = p2
-          module_ = p3
-          function_ = userFn.name
-          version = 0 }
-      typeParams = userFn.typeParams
-      parameters =
-        userFn.parameters
-        |> List.map (fun (p : PT.UserFunction.Parameter) ->
-          { name = p.name; typ = p.typ; description = "" })
-      returnType = userFn.returnType
-      description = userFn.description
-      deprecated = false
-      author = ""
-      tlid = userFn.tlid
-      body = userFn.body }
-
-
-
-
-
-type Test = { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
-
-let convertToTest availableTypes (ast : SynExpr) : Test =
-  let convert (x : SynExpr) : PT.Expr = Expr.fromSynExpr availableTypes x
-
-  match ast with
-  | SynExpr.App (_,
-                 _,
-                 SynExpr.App (_,
-                              _,
-                              SynExpr.LongIdent (_,
-                                                 SynLongIdent ([ ident ], _, _),
-                                                 _,
-                                                 _),
-                              actual,
-                              _),
-                 expected,
-                 range) when ident.idText = "op_Equality" ->
-    // Exception.raiseInternal $"whole thing: {actual}"
-    { name = "test"
-      lineNumber = range.Start.Line
-      actual = convert actual
-      expected = convert expected }
-  | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
-
-type Module<'expr> =
-  { types : List<PT.UserType.T>
-    dbs : List<PT.DB.T>
-    fns : List<PT.UserFunction.T>
-    packageFns : List<PT.Package.Fn>
-    modules : List<string * Module<'expr>>
-    exprs : List<'expr> }
-
-let emptyModule =
-  { types = []; dbs = []; fns = []; modules = []; exprs = []; packageFns = [] }
-
-type TestModule = Module<Test>
-
-type TypeDefs =
-  list<LibExecution.ProgramTypes.FQTypeName.T * LibExecution.ProgramTypes.UserType.Definition>
-
-
-let parseFile
-  (parseExprFn : TypeDefs -> SynExpr -> 'expr)
-  (stdlibTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-  (filename : string)
-  : Module<'expr> =
-  let longIdentToList (li : LongIdent) : List<string> =
-    li |> List.map (fun id -> id.idText)
-
-  let checker = FSharpChecker.Create()
-  let input = System.IO.File.ReadAllText filename
-
-  // Throws an exception here if we don't do this:
-  // https://github.com/fsharp/FSharp.Compiler.Service/blob/122520fa62edec7be5d00854989b282bf3ce7315/src/fsharp/service/FSharpCheckerResults.fs#L1555
-  let parsingOptions =
-    { FSharpParsingOptions.Default with SourceFiles = [| filename |] }
-
-  let fsharpFilename = System.IO.Path.GetFileNameWithoutExtension filename + ".fs"
-
-  let results =
-    checker.ParseFile(fsharpFilename, Text.SourceText.ofString input, parsingOptions)
-    |> Async.RunSynchronously
-
-
-  let parseTypeDecl
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-    (typeDef : SynTypeDefn)
-    : List<PT.DB.T> * List<PT.UserType.T> =
-    match typeDef with
-    | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
-      let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
-      let isDB =
-        attrs
-        |> List.exists (fun attr ->
-          longIdentToList attr.TypeName.LongIdent = [ "DB" ])
-      if isDB then
-        [ UserDB.fromSynTypeDefn availableTypes typeDef ], []
-      else
-        [], [ UserType.fromSynTypeDefn availableTypes typeDef ]
-
-  let getPackage (attrs : SynAttributes) : Option<string * string * string> =
-    attrs
-    |> List.map (fun attr -> attr.Attributes)
-    |> List.concat
-    |> List.filterMap (fun (attr : SynAttribute) ->
-      if longIdentToList attr.TypeName.LongIdent = [ "Package" ] then
-        match attr.ArgExpr with
-        | SynExpr.Paren (SynExpr.Tuple (_,
-                                        [ SynExpr.Const (SynConst.String (p1, _, _),
-                                                         _)
-                                          SynExpr.Const (SynConst.String (p2, _, _),
-                                                         _)
-                                          SynExpr.Const (SynConst.String (p3, _, _),
-                                                         _) ],
-                                        _,
-                                        _),
-                         _,
-                         _,
-                         _) -> Some(p1, p2, p3)
-        | _ -> None
-      else
-        None)
-    |> List.tryHead
-
-  let rec parseModule
-    (parent : Module<'expr>)
-    (attrs : SynAttributes)
-    (decls : List<SynModuleDecl>)
-    : Module<'expr> =
-    let package = getPackage attrs
-
-    List.fold
-      { types = parent.types
-        fns = parent.fns
-        packageFns = parent.packageFns
-        dbs = parent.dbs
-        modules = []
-        exprs = [] }
-      (fun m decl ->
-        let availableTypes =
-          (m.types @ parent.types)
-          |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
-          |> (@) stdlibTypes
-
-        match decl with
-        | SynModuleDecl.Let (_, bindings, _) ->
-          match package with
-          | Some package ->
-            let newPackageFns = List.map (PackageFn.fromSynBinding package) bindings
-            { m with packageFns = m.packageFns @ newPackageFns }
-
-          | None ->
-            let newUserFns =
-              List.map (UserFunction.fromSynBinding availableTypes) bindings
-            { m with fns = m.fns @ newUserFns }
-
-        | SynModuleDecl.Types (defns, _) ->
-          let (dbs, types) =
-            List.map (parseTypeDecl availableTypes) defns |> List.unzip
-          { m with
-              types = m.types @ List.concat types
-              dbs = m.dbs @ List.concat dbs }
-
-        | SynModuleDecl.Expr (expr, _) ->
-          { m with exprs = m.exprs @ [ parseExprFn availableTypes expr ] }
-
-        | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
-                                                        _,
-                                                        _,
-                                                        [ name ],
-                                                        _,
-                                                        _,
-                                                        _,
-                                                        _),
-                                      _,
-                                      decls,
-                                      _,
-                                      _,
-                                      _) ->
-          let nested = parseModule m attrs decls
-          { m with modules = m.modules @ [ (name.idText, nested) ] }
-        | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
-      decls
-
-  match results.ParseTree with
-  | (ParsedInput.ImplFile (ParsedImplFileInput (_,
-                                                _,
-                                                _,
-                                                _,
-                                                _,
-                                                [ SynModuleOrNamespace ([ _id ],
-                                                                        _,
-                                                                        _,
-                                                                        decls,
-                                                                        _,
-                                                                        attrs,
-                                                                        _,
-                                                                        _,
-                                                                        _) ],
-                                                _,
-                                                _,
-                                                _))) ->
-    parseModule emptyModule attrs decls
-  | _ ->
-    Exception.raiseInternal
-      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
-      [ "parseTree", results.ParseTree; "input", input; "filename", filename ]
-
-let parseTestFile : List<PT.FQTypeName.T * PT.CustomType.T> -> string -> Module<Test> =
-  parseFile convertToTest
-
-let parseModule : List<PT.FQTypeName.T * PT.CustomType.T>
-  -> string
-  -> Module<PT.Expr> =
-  parseFile Expr.fromSynExpr
-
-
-let parseAsFSharpSourceFile (input : string) : SynExpr =
-  let file = "test.fs"
-  let checker = FSharpChecker.Create()
-
-  // Throws an exception here if we don't do this:
-  // https://github.com/fsharp/FSharp.Compiler.Service/blob/122520fa62edec7be5d00854989b282bf3ce7315/src/fsharp/service/FSharpCheckerResults.fs#L1555
-  let parsingOptions = { FSharpParsingOptions.Default with SourceFiles = [| file |] }
-
-  let results =
-    checker.ParseFile(file, Text.SourceText.ofString input, parsingOptions)
-    |> Async.RunSynchronously
-
-  match results.ParseTree with
-  | (ParsedInput.ImplFile (ParsedImplFileInput (_,
-                                                _,
-                                                _,
-                                                _,
-                                                _,
-                                                [ SynModuleOrNamespace (_,
-                                                                        _,
-                                                                        _,
-                                                                        [ SynModuleDecl.Expr (expr,
-                                                                                              _) ],
-                                                                        _,
-                                                                        _,
-                                                                        _,
-                                                                        _,
-                                                                        _) ],
-                                                _,
-                                                _,
-                                                _))) -> expr
-  | _ ->
-    Exception.raiseInternal
-      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
-      [ "parseTree", results.ParseTree; "input", input ]
-
-let parsePTExprWithTypes
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-  (code : string)
-  : PT.Expr =
-  code |> parseAsFSharpSourceFile |> Expr.fromSynExpr availableTypes
-
-let parseRTExprWithTypes
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-  (code : string)
-  : LibExecution.RuntimeTypes.Expr =
-  parsePTExprWithTypes availableTypes code
-  |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
-
-let parsePTExpr = parsePTExprWithTypes []
-
-let parseRTExpr = parseRTExprWithTypes []
+let parseExpr = parseExprWithTypes []

@@ -22,7 +22,8 @@ let ptFQFnName =
 
 let testPipesToRuntimeTypes =
   test "pipes to runtime types" {
-    let actual = Parser.parseRTExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
+    let actual =
+      Parser.RuntimeTypes.parseExpr "value.age |> (-) 2 |> (+) value.age |> (<) 3"
 
     let expected =
       S.eFn

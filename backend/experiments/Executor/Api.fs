@@ -11,7 +11,6 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PT = LibExecution.ProgramTypes
 
-
 open Microsoft.AspNetCore.Http.Extensions
 open Microsoft.Extensions.Primitives
 open System.Runtime.CompilerServices
@@ -47,7 +46,7 @@ module ExecuteText =
   let post (ctx : HttpContext) : Task<LibExecution.RuntimeTypes.Dval> =
     task {
       let! ps = ctx.ReadVanillaJsonAsync<Request>()
-      let expr = Parser.parseRTExpr ps.code
+      let expr = Parser.RuntimeTypes.parseExpr ps.code
       return! Execute.execute expr Map.empty
     }
 

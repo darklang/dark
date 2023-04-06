@@ -55,7 +55,7 @@ let libraries : RT.Libraries =
 
 
 let execute
-  (mod' : Parser.Module<PT.Expr>)
+  (mod' : Parser.CanvasV2.CanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
 
@@ -104,7 +104,7 @@ let main (args : string []) =
   try
     initSerializers ()
     let mainFile = "/home/dark/app/backend/experiments/cli/program.dark"
-    let mod' = Parser.parseModule [] mainFile
+    let mod' = Parser.CanvasV2.parseFromFile [] mainFile
     let args = args |> Array.toList |> List.map RT.DStr |> RT.DList
     let result = execute mod' (Map [ "args", args ])
     NonBlockingConsole.wait ()

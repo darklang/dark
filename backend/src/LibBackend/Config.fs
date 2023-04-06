@@ -102,7 +102,7 @@ let serializationGenerateTestData =
   bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"
 
 
-/// Canvases that are allowed access to the
+/// Canvases that are allowed access to the DarkInternal stdlib functions
 let allowedDarkInternalCanvasID = uuid "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_ID"
 
 
