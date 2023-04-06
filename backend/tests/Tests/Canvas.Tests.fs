@@ -42,7 +42,7 @@ let testHttpOplistRoundtrip =
   testTask "test http oplist roundtrip" {
     let! canvasID = initializeTestCanvas "http_oplist_roundtrip"
 
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     let oplist = [ PT.SetHandler handler ]
     do!
       Canvas.saveTLIDs
@@ -61,7 +61,7 @@ let testHttpOplistLoadsUserTypes =
   testTask "httpOplistLoadsUserTypes" {
     let! canvasID = initializeTestCanvas "http_oplist_loads_user_tipes"
 
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     let typ =
       testUserRecordType ({ typ = "test-tipe"; version = 0 }) ("age", PT.TInt) []
 
@@ -85,7 +85,7 @@ let testHttpOplistLoadsUserTypes =
 let testUndoTooFarDoesntBreak =
   testTask "undo too far doesnt break" {
     let! canvasID = initializeTestCanvas "undo too far doesnt break"
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     do!
       Canvas.saveTLIDs
         canvasID
@@ -134,7 +134,7 @@ let testUndoTooFarDoesntBreak =
 let testHttpLoadIgnoresDeletedHandler =
   testTask "Http load ignores deleted handler" {
     let! canvasID = initializeTestCanvas "http-load-ignores-deleted-handler"
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     do!
       Canvas.saveTLIDs
         canvasID
@@ -175,7 +175,7 @@ let testHttpLoadIgnoresDeletedFns =
   testTask "Http load ignores deleted fns" {
     let! canvasID = initializeTestCanvas "http-load-ignores-deleted-fns"
 
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInteger(gid (), 5L))
+    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     let f = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "5 + 3")
     let fNew = testUserFn "testfnNew" [] [] (PT.TVariable "a") (parse "6 + 4")
 

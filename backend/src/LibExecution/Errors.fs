@@ -41,14 +41,13 @@ let expectedLambdaValue
 /// reason. Really, any function using this should have a Result type instead.
 let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string =
   let actual = DvalReprDeveloper.toRepr dv
-  $"Expected the argument `{paramName}` to be {expected}, but it was `{actual}`"
+  $"Expected `{paramName}` to be {expected}, but it was `{actual}`"
 
 /// Used for lists which contain invalid values for some reason.
-let argumentMemberWasnt (typ : DType) (paramName : string) (dv : Dval) : string =
+let argumentWasntType (expected : DType) (paramName : string) (dv : Dval) : string =
   let actual = DvalReprDeveloper.toRepr dv
-  let typ = DvalReprDeveloper.typeName typ
-  $"Expected `{paramName}` to be a list of {typ}s, but the list contained `{actual}`"
-
+  let expected = DvalReprDeveloper.typeName expected
+  $"Expected `{paramName}` to be a `{expected}`, but it was `{actual}`"
 
 let typeErrorMsg (colName : string) (expected : DType) (actual : Dval) : string =
   let expected = DvalReprDeveloper.typeName expected
@@ -82,7 +81,7 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
       let altfn = { std with module_ = "Float" }
 
       $" Try using {FQFnName.StdlibFnName.toString altfn}, or use Float::truncate to truncate Floats to Ints."
-    | TInt, TStr, FQFnName.Stdlib std when
+    | TInt, TString, FQFnName.Stdlib std when
       (std.module_ = "Int" && std.function_ = "add")
       || (std.module_ = "" && std.function_ = "+")
       ->

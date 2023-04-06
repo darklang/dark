@@ -146,7 +146,7 @@ type DType =
   | TInt
   | TFloat
   | TChar
-  | TStr
+  | TString
   | TUuid
   | TBytes
   | TDateTime
@@ -167,7 +167,7 @@ type DType =
   | TVariable of string
 
   /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of FQTypeName.T * typeArgs : List<DType>
 
@@ -190,12 +190,12 @@ type DType =
 /// Expressions here are runtime variants of the AST in ProgramTypes, having had
 /// superfluous information removed.
 type Expr =
-  | EInteger of id * int64
+  | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
 
   /// A single Extended Grapheme Cluster
-  | ECharacter of id * string
+  | EChar of id * string
   | EFloat of id * double
   | EUnit of id
 
@@ -253,9 +253,9 @@ and FnTarget =
 and MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
-  | MPInteger of id * int64
+  | MPInt of id * int64
   | MPBool of id * bool
-  | MPCharacter of id * string
+  | MPChar of id * string
   | MPString of id * string
   | MPFloat of id * double
   | MPUnit of id
@@ -276,7 +276,7 @@ and [<NoComparison>] Dval =
   | DFloat of double
   | DBool of bool
   | DUnit
-  | DStr of string
+  | DString of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
@@ -401,9 +401,9 @@ module CustomType =
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
-    | EInteger (id, _)
+    | EInt (id, _)
     | EString (id, _)
-    | ECharacter (id, _)
+    | EChar (id, _)
     | EBool (id, _)
     | EUnit id
     | EFloat (id, _)
@@ -432,9 +432,9 @@ module LetPattern =
 module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
-    | MPInteger (id, _)
+    | MPInt (id, _)
     | MPString (id, _)
-    | MPCharacter (id, _)
+    | MPChar (id, _)
     | MPBool (id, _)
     | MPUnit id
     | MPFloat (id, _)
@@ -480,7 +480,7 @@ module Dval =
     | DBool _ -> TBool
     | DUnit -> TUnit
     | DChar _ -> TChar
-    | DStr _ -> TStr
+    | DString _ -> TString
     | DList (head :: _) -> TList(toType head)
     | DList [] -> TList any
     | DTuple (first, second, theRest) ->
@@ -544,7 +544,7 @@ module Dval =
     | DFloat _, TFloat
     | DBool _, TBool
     | DUnit, TUnit
-    | DStr _, TStr
+    | DString _, TString
     | DDateTime _, TDateTime
     | DPassword _, TPassword
     | DUuid _, TUuid
@@ -609,7 +609,7 @@ module Dval =
     | DFloat _, _
     | DBool _, _
     | DUnit, _
-    | DStr _, _
+    | DString _, _
     | DDateTime _, _
     | DPassword _, _
     | DUuid _, _

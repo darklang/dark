@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "response" varA ""
-          Param.make "headers" (TDict TStr) ""
+          Param.make "headers" (TDict TString) ""
           Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -53,9 +53,11 @@ let fns : List<BuiltInFn> =
             Map.toList o
             |> List.map (fun (k, v) ->
               match k, v with
-              | k, DStr v -> k, v
+              | k, DString v -> k, v
               | _, v ->
-                Exception.raiseCode (Errors.argumentWasnt "a string" "value" v))
+                Exception.raiseCode (
+                  Errors.argumentWasntType (TList TString) "value" v
+                ))
 
           Ply(DHttpResponse(code, pairs, dv))
         | _ -> incorrectArgs ())
@@ -136,14 +138,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Http" "redirectTo" 0
       typeParams = []
-      parameters = [ Param.make "url" TStr "" ]
+      parameters = [ Param.make "url" TString "" ]
       returnType = THttpResponse varA
       description =
         "Returns a <type Response> that can be returned from an HTTP handler to
          respond with a {{302}} redirect to <param url>"
       fn =
         (function
-        | _, _, [ DStr url ] ->
+        | _, _, [ DString url ] ->
           Ply(DHttpResponse(302L, [ ("Location", url) ], DBytes([||])))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -153,14 +155,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Http" "badRequest" 0
       typeParams = []
-      parameters = [ Param.make "error" TStr "" ]
+      parameters = [ Param.make "error" TString "" ]
       returnType = THttpResponse varA
       description =
         "Returns a <type Response> that can be returned from an HTTP handler to
          respond with a {{400}} status and string <param error> message"
       fn =
         (function
-        | _, _, [ DStr _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
+        | _, _, [ DString _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -218,8 +220,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Http" "setCookie" 2
       typeParams = []
       parameters =
-        [ Param.make "name" TStr ""
-          Param.make "value" TStr ""
+        [ Param.make "name" TString ""
+          Param.make "value" TString ""
           Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =
@@ -230,7 +232,7 @@ let fns : List<BuiltInFn> =
          and/or {{SameSite}})."
       fn =
         (function
-        | _, _, [ DStr name; DStr value; DDict o ] ->
+        | _, _, [ DString name; DString value; DDict o ] ->
 
           let fold_cookie_params acc key value =
             match (String.toLowercase key, value) with
@@ -251,14 +253,14 @@ let fns : List<BuiltInFn> =
             | "path", v
             | "domain", v ->
               (match v with
-               | DStr str -> (sprintf "%s=%s" key str :: acc)
+               | DString str -> (sprintf "%s=%s" key str :: acc)
                | _ ->
                  Exception.raiseCode (
-                   Errors.argumentWasnt "a string" "`Path` or `Domain`" v
+                   Errors.argumentWasnt "a String" "`Path` or `Domain`" v
                  ))
             | "samesite", v ->
               (match v with
-               | DStr str when
+               | DString str when
                  List.contains (String.toLowercase str) [ "strict"; "lax"; "none" ]
                  ->
                  (sprintf "%s=%s" key str :: acc)
@@ -304,7 +306,7 @@ let fns : List<BuiltInFn> =
 
           nameValue :: cookieParams
           |> String.concat "; "
-          |> DStr
+          |> DString
           |> fun x -> Map.add "Set-Cookie" x Map.empty
           |> DDict
           |> Ply

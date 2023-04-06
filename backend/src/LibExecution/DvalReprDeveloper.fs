@@ -12,8 +12,8 @@ let rec typeName (t : DType) : string =
   | TFloat -> "Float"
   | TBool -> "Bool"
   | TUnit -> "Unit"
-  | TChar -> "Character"
-  | TStr -> "String"
+  | TChar -> "Char"
+  | TString -> "String"
   | TList nested -> $"List<{typeName nested}>"
   | TTuple (n1, n2, rest) ->
     let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
@@ -28,7 +28,7 @@ let rec typeName (t : DType) : string =
   | TDB _ -> "Datastore"
   | TDateTime -> "DateTime"
   | TPassword -> "Password"
-  | TUuid -> "UUID"
+  | TUuid -> "Uuid"
   | TOption nested -> $"Option<{typeName nested}>"
   | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
   | TCustomType (t, typeArgs) ->
@@ -70,7 +70,7 @@ let toRepr (dv : Dval) : string =
 
     match dv with
     | DPassword _ -> "<password>"
-    | DStr s -> $"\"{s}\""
+    | DString s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
     | DInt i -> string i
     | DBool true -> "true"

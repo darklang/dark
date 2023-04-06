@@ -22,10 +22,10 @@ module Request =
     let headers =
       headers
       |> lowercaseHeaderKeys
-      |> List.map (fun (k, v) -> RT.DTuple(RT.DStr(k), RT.DStr(v), []))
+      |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
       |> RT.DList
 
-    [ "body", RT.DBytes body; "headers", headers; "url", RT.DStr uri ]
+    [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
     |> RT.Dval.obj
 
 

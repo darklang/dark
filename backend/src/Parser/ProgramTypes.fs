@@ -20,24 +20,22 @@ let (|Placeholder|_|) (input : PT.Expr) =
 
 module DType =
   let rec fromNameAndTypeArgs
-    (availableTypes : AvailableTypes)
+    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (name : string)
     (typeArgs : List<SynType>)
     : PT.DType =
     let fromSynType = fromSynType availableTypes
     match name, typeArgs with
     // no type args
-    | "bool", [] -> PT.TBool
-    | "bytes", [] -> PT.TBytes
-    | "int", [] -> PT.TInt
-    | ("string"
-      | "String"),
-      [] -> PT.TStr
-    | "char", [] -> PT.TChar
-    | "float", [] -> PT.TFloat
+    | "Bool", [] -> PT.TBool
+    | "Bytes", [] -> PT.TBytes
+    | "Int", [] -> PT.TInt
+    | "String", [] -> PT.TString
+    | "Char", [] -> PT.TChar
+    | "Float", [] -> PT.TFloat
     | "DateTime", [] -> PT.TDateTime
-    | "UUID", [] -> PT.TUuid
-    | "unit", [] -> PT.TUnit
+    | "Uuid", [] -> PT.TUuid
+    | "Unit", [] -> PT.TUnit
     | "Password", [] -> PT.TPassword
 
     // with type args
@@ -51,20 +49,21 @@ module DType =
       // Some user- or stdlib- type
       // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
 
-      // TODO: support custom types that aren't the 0th version of the type
-      let matchingCustomTypes =
+      // TODO: support types that aren't the 0th version of the type
+      let matchingTypes =
         availableTypes
         |> List.choose (fun (typeName, _def) ->
           match typeName with
           | PT.FQTypeName.User u -> if u.typ = name then Some typeName else None
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
-      match matchingCustomTypes with
+      match matchingTypes with
+      | [] -> Exception.raiseInternal $"No type found named \"{name}\"" []
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
-          $"Matched against multiple custom types - not sure what to do"
-          [ "name", name; "typeArgs", typeArgs ]
+          $"Matched against multiple types - not sure what to do"
+          [ "name", name; "typeArgs", typeArgs; "types", matchingTypes ]
 
   and fromSynType (availableTypes : AvailableTypes) (typ : SynType) : PT.DType =
     let c = fromSynType availableTypes
@@ -123,11 +122,11 @@ module MatchPattern =
     match pat with
     | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
-    | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInteger(id, n)
-    | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInteger(id, int64 n)
-    | SynPat.Const (SynConst.UInt64 n, _) -> PT.MPInteger(id, int64 n)
-    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInteger(id, parseInt64 n)
-    | SynPat.Const (SynConst.Char c, _) -> PT.MPCharacter(id, string c)
+    | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInt(id, n)
+    | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInt(id, int64 n)
+    | SynPat.Const (SynConst.UInt64 n, _) -> PT.MPInt(id, int64 n)
+    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInt(id, parseInt64 n)
+    | SynPat.Const (SynConst.Char c, _) -> PT.MPChar(id, string c)
     | SynPat.Const (SynConst.Bool b, _) -> PT.MPBool(id, b)
     | SynPat.Const (SynConst.Unit, _) -> PT.MPUnit(id)
     | SynPat.Null _ ->
@@ -206,11 +205,11 @@ module Expr =
     | SynExpr.Null _ ->
       Exception.raiseInternal "null not supported, use `()`" [ "ast", ast ]
     | SynExpr.Const (SynConst.Unit _, _) -> PT.EUnit id
-    | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInteger(id, n)
-    | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(id, int64 n)
-    | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInteger(id, int64 n)
-    | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInteger(id, parseInt64 n)
-    | SynExpr.Const (SynConst.Char c, _) -> PT.ECharacter(id, string c)
+    | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInt(id, n)
+    | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInt(id, int64 n)
+    | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInt(id, int64 n)
+    | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInt(id, parseInt64 n)
+    | SynExpr.Const (SynConst.Char c, _) -> PT.EChar(id, string c)
     | SynExpr.Const (SynConst.Bool b, _) -> PT.EBool(id, b)
     | SynExpr.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d

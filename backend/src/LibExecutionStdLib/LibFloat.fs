@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Divide <type float> <param a> by <type float> <param b>"
+      description = "Divide <type Float> <param a> by <type Float> <param b>"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a / b))
@@ -182,7 +182,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Add <type float> <param a> to <type float> <param b>"
+      description = "Add <type Float> <param a> to <type Float> <param b>"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
@@ -196,7 +196,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Multiply <type float> <param a> by <type float> <param b>"
+      description = "Multiply <type Float> <param a> by <type Float> <param b>"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a * b))
@@ -210,7 +210,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
-      description = "Subtract <type float> <param b> from <type float> <param a>"
+      description = "Subtract <type Float> <param b> from <type Float> <param a>"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
@@ -291,7 +291,7 @@ let fns : List<BuiltInFn> =
                 | DFloat ft -> ft
                 | _ ->
                   Exception.raiseCode (
-                    Errors.argumentWasnt "a list of floats" "a" ldv
+                    Errors.argumentWasntType (TList TFloat) "a" ldv
                   ))
               l
 
@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the lesser of <type float> <param a> and <type float> <param b>"
+        "Returns the lesser of <type Float> <param a> and <type Float> <param b>"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Min(a, b)))
@@ -323,7 +323,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the greater of <type float> <param a> and <type float> <param b>"
+        "Returns the greater of <type Float> <param a> and <type Float> <param b>"
       fn =
         (function
         | _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(Math.Max(a, b)))
@@ -339,7 +339,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "value" TFloat ""
           Param.make "limitA" TFloat ""
           Param.make "limitB" TFloat "" ]
-      returnType = TResult(TFloat, TStr)
+      returnType = TResult(TFloat, TString)
       description =
         "If <param value> is within the range given by <param limitA> and <param
          limitB>, returns <param value>.
@@ -355,7 +355,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DFloat v; DFloat a; DFloat b ] ->
           if System.Double.IsNaN a || System.Double.IsNaN b then
             "clamp requires arguments to be valid numbers"
-            |> DStr
+            |> DString
             |> Error
             |> DResult
             |> Ply
@@ -373,7 +373,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Discard the fractional portion of <type float> <param a>, rounding towards zero."
+        "Discard the fractional portion of <type Float> <param a>, rounding towards zero."
       fn =
         (function
         | _, _, [ DFloat a ] -> a |> Math.Truncate |> int64 |> DInt |> Ply
@@ -384,19 +384,19 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Float" "parse" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TFloat, TStr)
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TResult(TFloat, TString)
       description =
-        "Returns the <type float> value wrapped in a {{Result}} of the <type string>"
+        "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           (try
             float (s) |> DFloat |> Ok |> DResult |> Ply
            with
            | e ->
-             "Expected a string representation of an IEEE float"
-             |> DStr
+             "Expected a String representation of an IEEE float"
+             |> DString
              |> Error
              |> DResult
              |> Ply)
@@ -409,7 +409,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "toString" 0
       typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
-      returnType = TStr
+      returnType = TString
       description = "Return {\"true\"} or {\"false\"}"
       fn =
         (function
@@ -425,7 +425,7 @@ let fns : List<BuiltInFn> =
             else
               let result = sprintf "%.12g" f
               if result.Contains "." then result else $"{result}.0"
-          Ply(DStr result)
+          Ply(DString result)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

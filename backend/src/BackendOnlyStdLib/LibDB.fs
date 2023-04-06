@@ -18,8 +18,8 @@ let dbType = TDB varA
 // CLEANUP use varA for valParam
 let ocamlTObj = TDict(varA)
 let ocamlCompatibleValParam = Param.make "val" ocamlTObj ""
-let keyParam = Param.make "key" TStr ""
-let keysParam = Param.make "keys" (TList TStr) ""
+let keyParam = Param.make "key" TString ""
+let keysParam = Param.make "keys" (TList TString) ""
 let tableParam = Param.make "table" dbType ""
 let ocamlCompatibleSpecParam = Param.make "spec" ocamlTObj ""
 let queryParam = Param.makeWithArgs "filter" (TFn([ varA ], TBool)) "" [ "value" ]
@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
         "Upsert <param val> into <param table>, accessible by <param key>"
       fn =
         (function
-        | state, _, [ DDict value; DStr key; DDB dbname ] ->
+        | state, _, [ DDict value; DString key; DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
             let! _id = UserDB.set state true db key value
@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
       description = "Finds a value in <param table> by <param key>"
       fn =
         (function
-        | state, _, [ DStr key; DDB dbname ] ->
+        | state, _, [ DString key; DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
@@ -94,8 +94,8 @@ let fns : List<BuiltInFn> =
             let skeys =
               List.map
                 (function
-                | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                | DString s -> s
+                | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
             let! items = UserDB.getMany state db skeys
@@ -126,8 +126,8 @@ let fns : List<BuiltInFn> =
             let skeys =
               List.map
                 (function
-                | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                | DString s -> s
+                | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
             let! result = UserDB.getMany state db skeys
@@ -154,8 +154,8 @@ let fns : List<BuiltInFn> =
             let skeys =
               List.map
                 (function
-                | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                | DString s -> s
+                | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
             let! result = UserDB.getManyWithKeys state db skeys
@@ -174,7 +174,7 @@ let fns : List<BuiltInFn> =
       description = "Delete <param key> from <param table>"
       fn =
         (function
-        | state, _, [ DStr key; DDB dbname ] ->
+        | state, _, [ DString key; DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
             let! _result = UserDB.delete state db key
@@ -353,11 +353,11 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "generateKey" 0
       typeParams = []
       parameters = []
-      returnType = TStr
+      returnType = TString
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, _, [] -> System.Guid.NewGuid() |> string |> DStr |> Ply
+        | _, _, [] -> System.Guid.NewGuid() |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -376,7 +376,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
-            return results |> List.map (fun k -> DStr k) |> DList
+            return results |> List.map (fun k -> DString k) |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

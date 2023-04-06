@@ -312,8 +312,8 @@ open LibExecution.RuntimeTypes
 
 let rec debugDval (v : Dval) : string =
   match v with
-  | DStr s ->
-    $"DStr '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
+  | DString s ->
+    $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
   | DRecord obj ->
@@ -383,7 +383,7 @@ module Expect =
     | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
     | DRecord vs -> vs |> Map.values |> List.all check
-    | DStr str -> str.IsNormalized()
+    | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DConstructor (_typeName, _caseName, fields) ->
       // TODO: revisit - I'm not sure what to do here.
@@ -455,10 +455,10 @@ module Expect =
       check path caseName caseName'
       eqList (caseName :: path) fieldPats fieldPats'
     | MPString (_, str), MPString (_, str') -> check path str str'
-    | MPInteger (_, l), MPInteger (_, l') -> check path l l'
+    | MPInt (_, l), MPInt (_, l') -> check path l l'
     | MPFloat (_, d), MPFloat (_, d') -> check path d d'
     | MPBool (_, l), MPBool (_, l') -> check path l l'
-    | MPCharacter (_, c), MPCharacter (_, c') -> check path c c'
+    | MPChar (_, c), MPChar (_, c') -> check path c c'
     | MPUnit (_), MPUnit (_) -> ()
     | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
@@ -467,10 +467,10 @@ module Expect =
     | MPVariable _, _
     | MPConstructor _, _
     | MPString _, _
-    | MPInteger _, _
+    | MPInt _, _
     | MPFloat _, _
     | MPBool _, _
-    | MPCharacter _, _
+    | MPChar _, _
     | MPUnit _, _
     | MPTuple _, _
     | MPList _, _ -> check path actual expected
@@ -489,7 +489,7 @@ module Expect =
     | TFloat, _
     | TBool, _
     | TUnit, _
-    | TStr, _
+    | TString, _
     | TList (_), _
     | TTuple (_, _, _), _
     | TDict (_), _
@@ -541,9 +541,9 @@ module Expect =
         | StringInterpolation e, StringInterpolation e' -> eq path e e'
         | _ -> check path s s'
       List.iter2 checkSegment s s'
-    | ECharacter (_, v), ECharacter (_, v')
+    | EChar (_, v), EChar (_, v')
     | EVariable (_, v), EVariable (_, v') -> check path v v'
-    | EInteger (_, v), EInteger (_, v') -> check path v v'
+    | EInt (_, v), EInt (_, v') -> check path v v'
     | EFloat (_, v), EFloat (_, v') -> check path v v'
     | EBool (_, v), EBool (_, v') -> check path v v'
     | ELet (_, pat, rhs, body), ELet (_, pat', rhs', body') ->
@@ -620,9 +620,9 @@ module Expect =
 
     // exhaustiveness check
     | EUnit _, _
-    | EInteger _, _
+    | EInt _, _
     | EString _, _
-    | ECharacter _, _
+    | EChar _, _
     | EVariable _, _
     | EBool _, _
     | EFloat _, _
@@ -746,7 +746,7 @@ module Expect =
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
       exprEqualityBaseFn false path l1.body l2.body errorFn
-    | DStr _, DStr _ -> check path (debugDval actual) (debugDval expected)
+    | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
     | DDict _, _
@@ -756,7 +756,7 @@ module Expect =
     | DTuple _, _
     | DResult _, _
     | DOption _, _
-    | DStr _, _
+    | DString _, _
     | DInt _, _
     | DDateTime _, _
     | DBool _, _
@@ -824,7 +824,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DResult (Ok v)
     | DOption (Some v) -> visit v
     | DOption None
-    | DStr _
+    | DString _
     | DInt _
     | DDateTime _
     | DBool _
@@ -838,7 +838,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DDB _
     | DUuid _
     | DBytes _
-    | DStr _ -> f dv
+    | DString _ -> f dv
     f dv
   visit dv
   state
@@ -939,26 +939,27 @@ let interestingDvals =
     ("false", DBool false)
     ("null", DUnit)
     ("datastore", DDB "Visitors")
-    ("string", DStr "incredibly this was broken")
+    ("string", DString "incredibly this was broken")
     // Json.NET has a habit of converting things automatically based on the type in the string
-    ("date string", DStr "2018-09-14T00:31:41Z")
-    ("int string", DStr "1039485")
-    ("int string2", DStr "-1039485")
-    ("int string3", DStr "0")
-    ("uuid string", DStr "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
+    ("date string", DString "2018-09-14T00:31:41Z")
+    ("int string", DString "1039485")
+    ("int string2", DString "-1039485")
+    ("int string3", DString "0")
+    ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
     ("list", DList [ Dval.int 4 ])
     ("list with derror",
      DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
     ("record", DRecord(Map.ofList [ "foo", Dval.int 5 ]))
-    ("record2", DRecord(Map.ofList [ ("type", DStr "weird"); ("value", DUnit) ]))
-    ("record3", DRecord(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+    ("record2", DRecord(Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]))
+    ("record3",
+     DRecord(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]))
     // More Json.NET tests
     ("record4", DRecord(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
     ("record5", DRecord(Map.ofList [ "$type", Dval.int 5 ]))
     ("record with error",
      DRecord(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
     ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]))
-    ("dict3", DDict(Map.ofList [ ("type", DStr "weird"); ("value", DStr "x") ]))
+    ("dict3", DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]))
     // More Json.NET tests
     ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
     ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]))
@@ -1005,17 +1006,18 @@ let interestingDvals =
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
                            [],
-                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ]
+                           [ EInt(234213618UL, 5); EInt(923423468UL, 6) ]
                          )
-                         EInteger(648327618UL, 7) ]
+                         EInt(648327618UL, 7) ]
                      )
-                     EInteger(325843618UL, 8) ]
+                     EInt(325843618UL, 8) ]
                  ) ]
              )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
      ))
-    ("httpresponse", DHttpResponse(200L, [ "content-length", "9" ], DStr "success"))
+    ("httpresponse",
+     DHttpResponse(200L, [ "content-length", "9" ], DString "success"))
     ("db", DDB "Visitors")
     ("date",
      DDateTime(
@@ -1026,11 +1028,11 @@ let interestingDvals =
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
     ("option", DOption None)
     ("option2", DOption(Some(Dval.int 15)))
-    ("option3", DOption(Some(DStr "a string")))
+    ("option3", DOption(Some(DString "a string")))
     ("character", DChar "s")
     ("result", DResult(Ok(Dval.int 15)))
-    ("result2", DResult(Error(DList [ DStr "dunno if really supported" ])))
-    ("result3", DResult(Ok(DStr "a string")))
+    ("result2", DResult(Error(DList [ DString "dunno if really supported" ])))
+    ("result3", DResult(Ok(DString "a string")))
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes)
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
@@ -1044,13 +1046,13 @@ let interestingDvals =
     ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []))
     ("simple3Tuple", DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]))
     ("tupleWithUnit", DTuple(Dval.int 1, Dval.int 2, [ DUnit ]))
-    ("tupleWithError", DTuple(Dval.int 1, DResult(Error(DStr "error")), [])) ]
+    ("tupleWithError", DTuple(Dval.int 1, DResult(Error(DString "error")), [])) ]
 
 let sampleDvals : List<string * Dval> =
   List.map (Tuple2.mapSecond DInt) interestingInts
   @ List.map (Tuple2.mapSecond DFloat) interestingFloats
-    @ List.map (Tuple2.mapSecond DStr) interestingStrings
-      @ List.map (Tuple2.mapSecond DStr) naughtyStrings @ interestingDvals
+    @ List.map (Tuple2.mapSecond DString) interestingStrings
+      @ List.map (Tuple2.mapSecond DString) naughtyStrings @ interestingDvals
 
 // Utilties shared among tests
 module Http =

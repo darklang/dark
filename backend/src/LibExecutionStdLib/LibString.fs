@@ -26,12 +26,12 @@ let incorrectArgs = Errors.incorrectArgs
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
+      parameters = [ Param.make "s" TString "" ]
       returnType = TBool
       description = "Returns {{true}} if <param s> is the empty string {{\"\"}}"
       fn =
         (function
-        | _, _, [ DStr s ] -> Ply(DBool(s = ""))
+        | _, _, [ DString s ] -> Ply(DBool(s = ""))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -41,15 +41,15 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "foreach" 1
       typeParams = []
       parameters =
-        [ Param.make "s" TStr ""
+        [ Param.make "s" TString ""
           Param.makeWithArgs "fn" (TFn([ TChar ], TChar)) "" [ "character" ] ]
-      returnType = TStr
+      returnType = TString
       description =
         "Iterate over each Character (EGC, not byte) in the string, performing the
          operation in <param fn> on each one."
       fn =
         (function
-        | state, _, [ DStr s; DFnVal b ] ->
+        | state, _, [ DString s; DFnVal b ] ->
           (String.toEgcSeq s
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
                      dvals
 
                  let str = String.concat "" chars
-                 return DStr str
+                 return DString str
              })))
 
         | _ -> incorrectArgs ())
@@ -82,11 +82,11 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "newline" 0
       typeParams = []
       parameters = []
-      returnType = TStr
+      returnType = TString
       description = "Returns a string containing a single '\n'"
       fn =
         (function
-        | _, _, [] -> Ply(DStr "\n")
+        | _, _, [] -> Ply(DString "\n")
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -95,12 +95,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "toList" 1
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
+      parameters = [ Param.make "s" TString "" ]
       returnType = TList TChar
       description = "Returns the list of Characters (EGC, not byte) in the string"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           (s
            |> String.toEgcSeq
            |> Seq.map (fun c -> DChar c)
@@ -116,19 +116,19 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "replaceAll" 0
       typeParams = []
       parameters =
-        [ Param.make "s" TStr "The string to operate on"
-          Param.make "searchFor" TStr "The string to search for within <param s>"
-          Param.make "replaceWith" TStr "" ]
-      returnType = TStr
+        [ Param.make "s" TString "The string to operate on"
+          Param.make "searchFor" TString "The string to search for within <param s>"
+          Param.make "replaceWith" TString "" ]
+      returnType = TString
       description =
         "Replace all instances on <param searchFor> in <param s> with <param
          replaceWith>"
       fn =
         (function
-        | _, _, [ DStr s; DStr search; DStr replace ] ->
+        | _, _, [ DString s; DString search; DString replace ] ->
           if search = "" then
             if s = "" then
-              Ply(DStr replace)
+              Ply(DString replace)
             else
               // .Net Replace doesn't allow empty string, but we do.
               String.toEgcSeq s
@@ -136,10 +136,10 @@ let fns : List<BuiltInFn> =
               |> FSharpPlus.List.intersperse replace
               |> (fun l -> replace :: l @ [ replace ])
               |> String.concat ""
-              |> DStr
+              |> DString
               |> Ply
           else
-            Ply(DStr(s.Replace(search, replace)))
+            Ply(DString(s.Replace(search, replace)))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "replace"
       previewable = Pure
@@ -148,12 +148,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "toUppercase" 1
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TString
       description = "Returns the string, uppercased"
       fn =
         (function
-        | _, _, [ DStr s ] -> Ply(DStr(String.toUppercase s))
+        | _, _, [ DString s ] -> Ply(DString(String.toUppercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -162,12 +162,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "toLowercase" 1
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TString
       description = "Returns the string, lowercased"
       fn =
         (function
-        | _, _, [ DStr s ] -> Ply(DStr(String.toLowercase s))
+        | _, _, [ DString s ] -> Ply(DString(String.toLowercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -176,12 +176,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "length" 1
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
+      parameters = [ Param.make "s" TString "" ]
       returnType = TInt
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, [ DStr s ] -> s |> String.lengthInEgcs |> Dval.int |> Ply
+        | _, _, [ DString s ] -> s |> String.lengthInEgcs |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
       previewable = Pure
@@ -190,15 +190,16 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "append" 1
       typeParams = []
-      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]
+      returnType = TString
       description =
         "Concatenates the two strings by appending <param s2> to <param s1> and
          returns the joined string."
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, _, [ DStr s1; DStr s2 ] -> (s1 + s2) |> String.normalize |> DStr |> Ply
+        | _, _, [ DString s1; DString s2 ] ->
+          (s1 + s2) |> String.normalize |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -207,14 +208,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "prepend" 0
       typeParams = []
-      parameters = [ Param.make "s1" TStr ""; Param.make "s2" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]
+      returnType = TString
       description =
         "Concatenates the two strings by prepending <param s2> to <param s1> and
          returns the joined string."
       fn =
         (function
-        | _, _, [ DStr s1; DStr s2 ] -> Ply(DStr(s2 + s1))
+        | _, _, [ DString s1; DString s2 ] -> Ply(DString(s2 + s1))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -223,14 +224,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "slugify" 2
       typeParams = []
-      parameters = [ Param.make "string" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "string" TString "" ]
+      returnType = TString
       description =
         "Turns a string into a prettified slug, including only lowercased
          alphanumeric characters, joined by hyphens"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           // Should work the same as https://blog.tersmitten.nl/slugify/
           // explicitly limit to (roman) alphanumeric for pretty urls
           let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
@@ -244,7 +245,7 @@ let fns : List<BuiltInFn> =
           |> replace toRemove ""
           |> String.trim
           |> replace toBeHyphenated "-"
-          |> DStr
+          |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -254,13 +255,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "reverse" 0
       typeParams = []
-      parameters = [ Param.make "string" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "string" TString "" ]
+      returnType = TString
       description = "Reverses <param string>"
       fn =
         (function
-        | _, _, [ DStr s ] ->
-          String.toEgcSeq s |> Seq.rev |> String.concat "" |> DStr |> Ply
+        | _, _, [ DString s ] ->
+          String.toEgcSeq s |> Seq.rev |> String.concat "" |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "reverse"
       previewable = Pure
@@ -269,14 +270,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "split" 1
       typeParams = []
-      parameters = [ Param.make "s" TStr ""; Param.make "separator" TStr "" ]
-      returnType = TList TStr
+      parameters = [ Param.make "s" TString ""; Param.make "separator" TString "" ]
+      returnType = TList TString
       description =
         "Splits a string at the separator, returning a list of strings without the separator.
         If the separator is not present, returns a list containing only the initial string."
       fn =
         (function
-        | _, _, [ DStr s; DStr sep ] ->
+        | _, _, [ DString s; DString sep ] ->
           let ecgStringSplit str sep =
             let startsWithSeparator str = sep = (str |> List.truncate sep.Length)
 
@@ -297,12 +298,12 @@ let fns : List<BuiltInFn> =
             result |> ResizeArray.toList
 
           if sep = "" then
-            s |> String.toEgcSeq |> Seq.toList |> List.map DStr |> DList |> Ply
+            s |> String.toEgcSeq |> Seq.toList |> List.map DString |> DList |> Ply
           else
             ecgStringSplit
               (s |> String.toEgcSeq |> Seq.toList)
               (sep |> String.toEgcSeq |> Seq.toList)
-            |> List.map DStr
+            |> List.map DString
             |> DList
             |> Ply
         | _ -> incorrectArgs ())
@@ -313,22 +314,26 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "join" 0
       typeParams = []
-      parameters = [ Param.make "l" (TList TStr) ""; Param.make "separator" TStr "" ]
-      returnType = TStr
+      parameters =
+        [ Param.make "l" (TList TString) ""; Param.make "separator" TString "" ]
+      returnType = TString
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, [ DList l; DStr sep ] ->
+        | _, _, [ DList l; DString sep ] ->
           let strs =
             List.map
               (fun s ->
                 match s with
-                | DStr st -> st
-                | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TStr "l" dv))
+                | DString st -> st
+                | dv ->
+                  Exception.raiseCode (
+                    Errors.argumentWasntType (TList TString) "l" dv
+                  ))
               l
 
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
-          Ply(DStr((String.concat sep strs)))
+          Ply(DString((String.concat sep strs)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -338,17 +343,18 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "fromList" 1
       typeParams = []
       parameters = [ Param.make "l" (TList TChar) "" ]
-      returnType = TStr
+      returnType = TString
       description = "Returns the list of characters as a string"
       fn =
         (function
         | _, _, [ DList l ] ->
-          DStr(
+          DString(
             l
             |> List.map (fun dval ->
               match dval with
               | DChar c -> c
-              | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TChar "l" dv))
+              | dv ->
+                Exception.raiseCode (Errors.argumentWasntType (TList TChar) "l" dv))
             |> String.concat ""
           )
           |> Ply
@@ -361,11 +367,11 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "fromChar" 1
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
-      returnType = TStr
-      description = "Converts a <type char> to a <type string>"
+      returnType = TString
+      description = "Converts a <type Char> to a <type String>"
       fn =
         (function
-        | _, _, [ DChar c ] -> Ply(DStr(c))
+        | _, _, [ DChar c ] -> Ply(DString(c))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -374,19 +380,19 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "base64Encode" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TString
       description =
         "URLBase64 encodes a string without padding. Uses URL-safe encoding with
         {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in
         [RFC 4648 section 5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           let defaultEncoded = s |> UTF8.toBytes |> Convert.ToBase64String
           // Inlined version of Base64.urlEncodeToString, except
           defaultEncoded.Replace('+', '-').Replace('/', '_').Replace("=", "")
-          |> DStr
+          |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -396,8 +402,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "base64Decode" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TStr, TStr)
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TResult(TString, TString)
       description =
         "Base64 decodes a string. The returned value is wrapped in {{Result}}.
          Works with both the URL-safe and standard Base64
@@ -407,9 +413,9 @@ let fns : List<BuiltInFn> =
          [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | _, _, [ DStr s ] ->
-          let errPipe e = e |> DStr |> Error |> DResult |> Ply
-          let okPipe r = r |> DStr |> Ok |> DResult |> Ply
+        | _, _, [ DString s ] ->
+          let errPipe e = e |> DString |> Error |> DResult |> Ply
+          let okPipe r = r |> DString |> Ok |> DResult |> Ply
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -443,14 +449,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "digest" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TString
       description =
         "Take a string and hash it to a cryptographically-secure digest.
          Don't rely on either the size or the algorithm."
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           let sha384Hash = SHA384.Create()
           let data = System.Text.Encoding.UTF8.GetBytes(s)
 
@@ -458,7 +464,7 @@ let fns : List<BuiltInFn> =
 
           // Deliberately keep padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DStr
+          |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -469,16 +475,16 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "random" 2
       typeParams = []
       parameters = [ Param.make "length" TInt "" ]
-      returnType = TResult(TStr, TStr)
+      returnType = TResult(TString, TString)
       description =
-        "Generate a <type string> of length <param length> from random characters"
+        "Generate a <type String> of length <param length> from random characters"
       fn =
         (function
         | _, _, [ DInt l as dv ] ->
           if l < 0L then
             dv
             |> Errors.argumentWasnt "positive" "length"
-            |> DStr
+            |> DString
             |> Error
             |> DResult
             |> Ply
@@ -496,7 +502,7 @@ let fns : List<BuiltInFn> =
               |> List.map string
               |> String.concat ""
 
-            randomString (int l) |> DStr |> Ok |> DResult |> Ply
+            randomString (int l) |> DString |> Ok |> DResult |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -505,13 +511,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "htmlEscape" 0
       typeParams = []
-      parameters = [ Param.make "html" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "html" TString "" ]
+      returnType = TString
       description =
         "Escape an untrusted string in order to include it safely in HTML output"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           let htmlEscape (html : string) : string =
             List.map
               (fun c ->
@@ -529,7 +535,7 @@ let fns : List<BuiltInFn> =
               (Seq.toList html)
             |> String.concat ""
 
-          Ply(DStr(htmlEscape s))
+          Ply(DString(htmlEscape s))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       // CLEANUP mark as Pure
@@ -540,12 +546,12 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "contains" 0
       typeParams = []
       parameters =
-        [ Param.make "lookingIn" TStr ""; Param.make "searchingFor" TStr "" ]
+        [ Param.make "lookingIn" TString ""; Param.make "searchingFor" TString "" ]
       returnType = TBool
       description = "Checks if <param lookingIn> contains <param searchingFor>"
       fn =
         (function
-        | _, _, [ DStr haystack; DStr needle ] ->
+        | _, _, [ DString haystack; DString needle ] ->
           Ply(DBool(haystack.Contains needle))
         | _ -> incorrectArgs ())
       sqlSpec =
@@ -559,10 +565,10 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "slice" 0
       typeParams = []
       parameters =
-        [ Param.make "string" TStr ""
+        [ Param.make "string" TString ""
           Param.make "from" TInt ""
           Param.make "to" TInt "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Returns the substring of <param string> between the <param from> and <param
          to> indices.
@@ -570,7 +576,7 @@ let fns : List<BuiltInFn> =
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, _, [ DStr s; DInt first; DInt last ] ->
+        | _, _, [ DString s; DInt first; DInt last ] ->
 
           let chars = String.toEgcSeq s
           let length = Seq.length chars |> int64
@@ -591,7 +597,7 @@ let fns : List<BuiltInFn> =
           |> FSharpPlus.List.drop f
           |> List.truncate (l - f)
           |> String.concat ""
-          |> DStr
+          |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -602,8 +608,8 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "first" 0
       typeParams = []
       parameters =
-        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
-      returnType = TStr
+        [ Param.make "string" TString ""; Param.make "characterCount" TInt "" ]
+      returnType = TString
       description =
         "Returns the first <param characterCount> characters of <param string>, as a
          String.
@@ -614,7 +620,7 @@ let fns : List<BuiltInFn> =
          If <param characterCount> is negative, returns the empty string."
       fn =
         (function
-        | _, _, [ DStr s; DInt n ] ->
+        | _, _, [ DString s; DInt n ] ->
           let n = String.lengthInEgcs s |> int64 |> min n |> max 0L |> int
 
           String.toEgcSeq s
@@ -622,7 +628,7 @@ let fns : List<BuiltInFn> =
           |> List.truncate n
           |> String.concat ""
           |> String.normalize
-          |> DStr
+          |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -633,8 +639,8 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "last" 0
       typeParams = []
       parameters =
-        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
-      returnType = TStr
+        [ Param.make "string" TString ""; Param.make "characterCount" TInt "" ]
+      returnType = TString
       description =
         "Returns the last <param characterCount> characters of <param string>, as a
          String.
@@ -645,7 +651,7 @@ let fns : List<BuiltInFn> =
          If <param characterCount> is negative, returns the empty string."
       fn =
         (function
-        | _, _, [ DStr s; DInt n ] ->
+        | _, _, [ DString s; DInt n ] ->
           let egcSeq = String.toEgcSeq s
           let stringEgcCount = Seq.length egcSeq
 
@@ -676,7 +682,7 @@ let fns : List<BuiltInFn> =
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
             stringBuilder.ToString()
 
-          Ply(DStr(lastN s n))
+          Ply(DString(lastN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -686,8 +692,8 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "dropLast" 0
       typeParams = []
       parameters =
-        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
-      returnType = TStr
+        [ Param.make "string" TString ""; Param.make "characterCount" TInt "" ]
+      returnType = TString
       description =
         "Returns all but the last <param characterCount> characters of <param
          string>, as a String.
@@ -697,7 +703,7 @@ let fns : List<BuiltInFn> =
          If <param characterCount> is negative, returns <param string>."
       fn =
         (function
-        | _, _, [ DStr s; DInt n ] ->
+        | _, _, [ DString s; DInt n ] ->
           let egcSeq = String.toEgcSeq s
           let stringEgcCount = Seq.length egcSeq
 
@@ -726,7 +732,7 @@ let fns : List<BuiltInFn> =
                * under substringing (see https://unicode.org/reports/tr15/#Concatenation). *)
             stringBuilder.ToString()
 
-          Ply(DStr(dropLastN s n))
+          Ply(DString(dropLastN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -736,8 +742,8 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "dropFirst" 0
       typeParams = []
       parameters =
-        [ Param.make "string" TStr ""; Param.make "characterCount" TInt "" ]
-      returnType = TStr
+        [ Param.make "string" TString ""; Param.make "characterCount" TInt "" ]
+      returnType = TString
       description =
         "Returns all but the first <param characterCount> characters of <param
          string>, as a <type String>.
@@ -748,7 +754,7 @@ let fns : List<BuiltInFn> =
          If <param characterCount> is negative, returns <param string>."
       fn =
         (function
-        | _, _, [ DStr s; DInt n ] ->
+        | _, _, [ DString s; DInt n ] ->
           let dropFirstN s (numEgcs : int64) =
             let stringBuilder = new StringBuilder(String.length s) in
             // We iterate through every EGC, adding it to the buffer
@@ -770,7 +776,7 @@ let fns : List<BuiltInFn> =
             // under substringing (see https://unicode.org/reports/tr15/#Concatenation).
             stringBuilder.ToString()
 
-          Ply(DStr(dropFirstN s n))
+          Ply(DString(dropFirstN s n))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -780,10 +786,10 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "padStart" 0
       typeParams = []
       parameters =
-        [ Param.make "string" TStr ""
-          Param.make "padWith" TStr ""
+        [ Param.make "string" TString ""
+          Param.make "padWith" TString ""
           Param.make "goalLength" TInt "" ]
-      returnType = TResult(TStr, TStr)
+      returnType = TResult(TString, TString)
       description =
         "If <param string> is shorter than <param goalLength> characters, returns a
          copy of <param string> starting with enough copies of <param padWith> for the
@@ -792,9 +798,9 @@ let fns : List<BuiltInFn> =
          If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>"
       fn =
         (function
-        | _, _, [ DStr s; DStr padWith as dv; DInt l ] ->
-          let errPipe e = e |> DStr |> Error |> DResult |> Ply
-          let okPipe r = r |> DStr |> Ok |> DResult |> Ply
+        | _, _, [ DString s; DString padWith as dv; DInt l ] ->
+          let errPipe e = e |> DString |> Error |> DResult |> Ply
+          let okPipe r = r |> DString |> Ok |> DResult |> Ply
           if String.lengthInEgcs padWith <> 1 then
             Errors.argumentWasnt "1 character long" "padWith" dv |> errPipe
           else
@@ -819,10 +825,10 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "padEnd" 0
       typeParams = []
       parameters =
-        [ Param.make "string" TStr ""
-          Param.make "padWith" TStr ""
+        [ Param.make "string" TString ""
+          Param.make "padWith" TString ""
           Param.make "goalLength" TInt "" ]
-      returnType = TResult(TStr, TStr)
+      returnType = TResult(TString, TString)
       description =
         "If <param string> is shorter than <param goalLength> characters, returns a
          copy of <param string> ending with enough copies of <param padWith> for the
@@ -832,9 +838,9 @@ let fns : List<BuiltInFn> =
          <param string>."
       fn =
         (function
-        | _, _, [ DStr s; DStr padWith as dv; DInt l ] ->
-          let errPipe e = e |> DStr |> Error |> DResult |> Ply
-          let okPipe r = r |> DStr |> Ok |> DResult |> Ply
+        | _, _, [ DString s; DString padWith as dv; DInt l ] ->
+          let errPipe e = e |> DString |> Error |> DResult |> Ply
+          let okPipe r = r |> DString |> Ok |> DResult |> Ply
           if String.lengthInEgcs padWith <> 1 then
             Errors.argumentWasnt "1 character long" "padWith" dv |> errPipe
           else
@@ -858,8 +864,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "trim" 0
       typeParams = []
-      parameters = [ Param.make "str" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "str" TString "" ]
+      returnType = TString
       description =
         "Returns a copy of <param str> with all leading and trailing whitespace
          removed. 'whitespace' here means all Unicode characters with the
@@ -867,7 +873,7 @@ let fns : List<BuiltInFn> =
          {{\"\\n\"}}"
       fn =
         (function
-        | _, _, [ DStr toTrim ] -> toTrim |> String.trim |> DStr |> Ply
+        | _, _, [ DString toTrim ] -> toTrim |> String.trim |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure
@@ -876,15 +882,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "trimStart" 0
       typeParams = []
-      parameters = [ Param.make "str" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "str" TString "" ]
+      returnType = TString
       description =
         "Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
          here means all Unicode characters with the {{White_Space}} property, which
          includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}"
       fn =
         (function
-        | _, _, [ DStr toTrim ] -> Ply(DStr(toTrim.TrimStart()))
+        | _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimStart()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "ltrim"
       previewable = Pure
@@ -893,15 +899,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "trimEnd" 0
       typeParams = []
-      parameters = [ Param.make "str" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "str" TString "" ]
+      returnType = TString
       description =
         "Returns a copy of <param str> with all trailing whitespace removed.
          'whitespace' here means all Unicode characters with the {{White_Space}}
          property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}."
       fn =
         (function
-        | _, _, [ DStr toTrim ] -> Ply(DStr(toTrim.TrimEnd()))
+        | _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimEnd()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "rtrim"
       previewable = Pure
@@ -910,13 +916,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "toBytes" 0
       typeParams = []
-      parameters = [ Param.make "str" TStr "" ]
+      parameters = [ Param.make "str" TString "" ]
       returnType = TBytes
       description =
         "Converts the given unicode string to a UTF8-encoded byte sequence."
       fn =
         (function
-        | _, _, [ DStr str ] ->
+        | _, _, [ DString str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
           Ply(DBytes theBytes)
         | _ -> incorrectArgs ())
@@ -928,14 +934,14 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "fromBytes" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
       fn =
         (function
         | _, _, [ DBytes bytes ] ->
           let str = System.Text.Encoding.UTF8.GetString bytes
-          Ply(DStr str)
+          Ply(DString str)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -944,12 +950,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "startsWith" 0
       typeParams = []
-      parameters = [ Param.make "subject" TStr ""; Param.make "prefix" TStr "" ]
+      parameters =
+        [ Param.make "subject" TString ""; Param.make "prefix" TString "" ]
       returnType = TBool
       description = "Checks if <param subject> starts with <param prefix>"
       fn =
         (function
-        | _, _, [ DStr subject; DStr prefix ] ->
+        | _, _, [ DString subject; DString prefix ] ->
           Ply(DBool(subject.StartsWith(prefix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -960,12 +967,13 @@ let fns : List<BuiltInFn> =
     { name = fn "String" "endsWith" 0
       typeParams = []
       parameters =
-        [ Param.make "subject" TStr "String to test"; Param.make "suffix" TStr "" ]
+        [ Param.make "subject" TString "String to test"
+          Param.make "suffix" TString "" ]
       returnType = TBool
       description = "Checks if <param subject> ends with <param suffix>"
       fn =
         (function
-        | _, _, [ DStr subject; DStr suffix ] ->
+        | _, _, [ DString subject; DString suffix ] ->
           Ply(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

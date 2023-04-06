@@ -43,7 +43,7 @@ type DType =
   | TFloat
   | TBool
   | TUnit
-  | TStr
+  | TString
   | TList of DType
   | TTuple of DType * DType * List<DType>
   | TDict of DType
@@ -70,9 +70,9 @@ type LetPattern = LPVariable of id * name : string
 type MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
-  | MPInteger of id * int64
+  | MPInt of id * int64
   | MPBool of id * bool
-  | MPCharacter of id * string
+  | MPChar of id * string
   | MPString of id * string
   | MPFloat of id * double
   | MPUnit of id
@@ -82,10 +82,10 @@ type MatchPattern =
 
 module Expr =
   type T =
-    | EInteger of id * int64
+    | EInt of id * int64
     | EBool of id * bool
     | EString of id * List<StringSegment>
-    | ECharacter of id * string
+    | EChar of id * string
     | EFloat of id * double
     | EUnit of id
     | ELet of id * LetPattern * T * T
@@ -135,7 +135,7 @@ module Dval =
     | DFloat of double
     | DBool of bool
     | DUnit
-    | DStr of string
+    | DString of string
     | DChar of string
     | DList of List<T>
     | DTuple of T * T * List<T>

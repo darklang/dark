@@ -117,9 +117,9 @@ type LetPattern = LPVariable of id * name : string
 type MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
-  | MPInteger of id * int64
+  | MPInt of id * int64
   | MPBool of id * bool
-  | MPCharacter of id * string
+  | MPChar of id * string
   | MPString of id * string
   | MPFloat of id * Sign * string * string
   | MPUnit of id
@@ -159,7 +159,7 @@ type DType =
   | TFloat
   | TBool
   | TUnit
-  | TStr
+  | TString
   | TList of DType
   | TTuple of DType * DType * List<DType>
   | TDict of DType
@@ -179,7 +179,7 @@ type DType =
   | TDbList of DType // TODO: cleanup and remove
 
   /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of FQTypeName.T * typeArgs : List<DType>
 
@@ -197,12 +197,12 @@ type DType =
 
 /// Expressions - the main part of the language.
 type Expr =
-  | EInteger of id * int64
+  | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.
-  | ECharacter of id * string
+  | EChar of id * string
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
@@ -231,7 +231,7 @@ type Expr =
   /// , this is the expression
   ///   `C (1, "title")`
   /// represented as
-  ///   `EConstructor(Some UserType.MyEnum, "C", [EInteger(1), EString("title")]`
+  ///   `EConstructor(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
   | EConstructor of
     id *

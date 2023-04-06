@@ -67,7 +67,7 @@ module DType =
     | ST.TFloat -> PT.TFloat
     | ST.TBool -> PT.TBool
     | ST.TUnit -> PT.TUnit
-    | ST.TStr -> PT.TStr
+    | ST.TString -> PT.TString
     | ST.TList typ -> PT.TList(toPT typ)
     | ST.TTuple (firstType, secondType, otherTypes) ->
       PT.TTuple(toPT firstType, toPT secondType, List.map toPT otherTypes)
@@ -117,9 +117,9 @@ module MatchPattern =
     | ST.MPVariable (id, str) -> PT.MPVariable(id, str)
     | ST.MPConstructor (id, caseName, fieldPats) ->
       PT.MPConstructor(id, caseName, List.map toPT fieldPats)
-    | ST.MPInteger (id, i) -> PT.MPInteger(id, i)
+    | ST.MPInt (id, i) -> PT.MPInt(id, i)
     | ST.MPBool (id, b) -> PT.MPBool(id, b)
-    | ST.MPCharacter (id, c) -> PT.MPCharacter(id, c)
+    | ST.MPChar (id, c) -> PT.MPChar(id, c)
     | ST.MPString (id, s) -> PT.MPString(id, s)
     | ST.MPFloat (id, s, w, f) -> PT.MPFloat(id, s, w, f)
     | ST.MPUnit id -> PT.MPUnit id
@@ -132,8 +132,8 @@ module MatchPattern =
 module Expr =
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
-    | ST.ECharacter (id, char) -> PT.ECharacter(id, char)
-    | ST.EInteger (id, num) -> PT.EInteger(id, num)
+    | ST.EChar (id, char) -> PT.EChar(id, char)
+    | ST.EInt (id, num) -> PT.EInt(id, num)
     | ST.EString (id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
     | ST.EFloat (id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool (id, b) -> PT.EBool(id, b)

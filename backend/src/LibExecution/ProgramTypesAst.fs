@@ -9,10 +9,10 @@ open ProgramTypes
 // Traverse is really only meant to be used by preTraversal and postTraversal
 let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   match expr with
-  | EInteger _
+  | EInt _
   | EBool _
   | EString _
-  | ECharacter _
+  | EChar _
   | EUnit _
   | EVariable _
   | EPipeTarget _
@@ -58,8 +58,8 @@ let rec matchPatternPreTraversal
   let pattern = f pattern in
   match pattern with
   | MPVariable _
-  | MPCharacter _
-  | MPInteger _
+  | MPChar _
+  | MPInt _
   | MPBool _
   | MPString _
   | MPUnit _
@@ -79,8 +79,8 @@ let rec matchPatternPostTraversal
   let result =
     match pattern with
     | MPVariable _
-    | MPCharacter _
-    | MPInteger _
+    | MPChar _
+    | MPInt _
     | MPBool _
     | MPString _
     | MPUnit _

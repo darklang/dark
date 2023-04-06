@@ -78,12 +78,12 @@ let testArguments : Test =
   testManyTask
     "type check arguments"
     t
-    [ (("myBadFn", RT.TStr, S.eInt 7),
+    [ (("myBadFn", RT.TString, S.eInt 7),
        RT.DError(
          RT.SourceNone,
          "Type error(s) in return type: Expected to see a value of type String but found a Int"
        ))
-      (("myGoodFn", RT.TStr, S.eStr "test"), RT.DStr "test")
+      (("myGoodFn", RT.TString, S.eStr "test"), RT.DString "test")
       (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]
 
 

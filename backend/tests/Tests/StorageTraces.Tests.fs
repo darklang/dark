@@ -38,7 +38,7 @@ module TCS = LibBackend.TraceCloudStorage
 //     // make irrelevant request
 //     let t1 = AT.TraceID.create()
 //     let desc = ("HTTP", "/", "GET")
-//     let! (_d : NodaTime.Instant) = TI.storeEvent canvasID t1 desc (DStr "1")
+//     let! (_d : NodaTime.Instant) = TI.storeEvent canvasID t1 desc (DString "1")
 
 //     // load+check irrelevant trace
 //     let! loaded = Traces.traceIDsForHttpHandler c handler
@@ -61,7 +61,7 @@ module TCS = LibBackend.TraceCloudStorage
 //     let t1 = AT.TraceID.create()
 //     let httpRequestPath = "/some/vars/and/such"
 //     let desc = ("HTTP", httpRequestPath, "GET")
-//     let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DStr "1")
+//     let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DString "1")
 
 //     // check we get back the data we put into it
 //     let! events = TI.loadEvents c.id ("HTTP", httpRoute, "GET")
@@ -72,7 +72,7 @@ module TCS = LibBackend.TraceCloudStorage
 //       |> List.unzip
 
 //     Expect.equal loadedPaths [ httpRequestPath ] "path is the same"
-//     Expect.equal loadedDvals [ (DStr "1") ] "data is the same"
+//     Expect.equal loadedDvals [ (DString "1") ] "data is the same"
 
 //     // check that the event is not in the 404s
 //     let! f404s = TI.getRecent404s c.id
@@ -97,7 +97,7 @@ module TCS = LibBackend.TraceCloudStorage
 //     // store an event
 //     let t1 = AT.TraceID.create()
 //     let desc = ("HTTP", requestPath, "GET")
-//     let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DStr "1")
+//     let! (_ : NodaTime.Instant) = TI.storeEvent c.id t1 desc (DString "1")
 
 //     // check we get back the path for a route with a variable in it
 //     let! events = TI.loadEvents c.id ("HTTP", route, "GET")
@@ -129,7 +129,7 @@ let testTraceRoundtrip =
         tlid1
         t1
         [ tlid1 ]
-        [ "request", DStr "1" ]
+        [ "request", DString "1" ]
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -137,7 +137,7 @@ let testTraceRoundtrip =
         tlid1
         t2
         [ tlid1 ]
-        [ "request", DStr "2" ]
+        [ "request", DString "2" ]
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -145,7 +145,7 @@ let testTraceRoundtrip =
         tlid3
         t3
         [ tlid3 ]
-        [ "request", DStr "3" ]
+        [ "request", DString "3" ]
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -153,7 +153,7 @@ let testTraceRoundtrip =
         tlid2
         t4
         [ tlid2 ]
-        [ "request", DStr "3" ]
+        [ "request", DString "3" ]
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -161,7 +161,7 @@ let testTraceRoundtrip =
         tlid2
         t5
         [ tlid2 ]
-        [ "request", DStr "3" ]
+        [ "request", DString "3" ]
         functionResults
     do!
       TCS.storeToCloudStorage
@@ -169,7 +169,7 @@ let testTraceRoundtrip =
         tlid4
         t6
         [ tlid4 ]
-        [ "request", DStr "3" ]
+        [ "request", DString "3" ]
         functionResults
 
     let! actual = TCS.Test.listAllTraceIDs c1 |> Task.map List.sort
@@ -193,16 +193,16 @@ let testTraceRoundtrip =
       }
 
     let! loaded1 = fetchRequestsFor c1 tlid1
-    Expect.equal loaded1 [ DStr "2"; DStr "1" ] "load GET events"
+    Expect.equal loaded1 [ DString "2"; DString "1" ] "load GET events"
 
     let! loaded2 = fetchRequestsFor c1 tlid3
-    Expect.equal loaded2 [ DStr "3" ] "load POST events"
+    Expect.equal loaded2 [ DString "3" ] "load POST events"
 
     let! loaded3 = fetchRequestsFor c2 tlid3
     Expect.equal loaded3 [] "load no host2 events"
 
     let! loaded4 = fetchRequestsFor c2 tlid2
-    Expect.equal loaded4 [ DStr "3" ] "load host2 events"
+    Expect.equal loaded4 [ DString "3" ] "load host2 events"
   }
 
 

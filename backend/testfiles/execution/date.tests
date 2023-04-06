@@ -1,7 +1,7 @@
-let d (datestr:string) =
+let d (datestr:String) =
   (DateTime.parse_v2 datestr) |> Test.unwrap
 
-let p (datestr:string) =
+let p (datestr:String) =
   (DateTime.parse_v2 datestr) |> Result.map_v1 (fun x -> DateTime.toString_v0 x)
 
 module DateParsing =

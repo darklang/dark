@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{Content-Type}} set for HTML form
          requests or responses"
@@ -33,7 +33,8 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type", DStr "application/x-www-form-urlencoded" ]
+              Map.ofList [ "Content-Type",
+                           DString "application/x-www-form-urlencoded" ]
             )
           )
         | _ -> incorrectArgs ())
@@ -45,7 +46,7 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "jsonContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type dict> with {{Content-Type}} set for JSON requests or
          responses"
@@ -54,7 +55,7 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type", DStr "application/json; charset=utf-8" ]
+              Map.ofList [ "Content-Type", DString "application/json; charset=utf-8" ]
             )
           )
         | _ -> incorrectArgs ())
@@ -66,14 +67,16 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "plainTextContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Content-Type'}} set for plain text
          requests or responses"
       fn =
         (function
         | _, _, [] ->
-          Ply(DDict(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ]))
+          Ply(
+            DDict(Map.ofList [ "Content-Type", DString "text/plain; charset=utf-8" ])
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -83,14 +86,16 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "htmlContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Content-Type'}} set for html requests
          or responses"
       fn =
         (function
         | _, _, [] ->
-          Ply(DDict(Map.ofList [ "Content-Type", DStr "text/html; charset=utf-8" ]))
+          Ply(
+            DDict(Map.ofList [ "Content-Type", DString "text/html; charset=utf-8" ])
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -99,15 +104,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "HttpClient" "bearerToken" 1
       typeParams = []
-      parameters = [ Param.make "token" TStr "" ]
-      returnType = TDict TStr
+      parameters = [ Param.make "token" TString "" ]
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
       fn =
         (function
-        | _, _, [ DStr token ] ->
+        | _, _, [ DString token ] ->
           let authString = "Bearer " + token
-          Ply(DDict(Map.ofList [ "Authorization", DStr authString ]))
+          Ply(DDict(Map.ofList [ "Authorization", DString authString ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

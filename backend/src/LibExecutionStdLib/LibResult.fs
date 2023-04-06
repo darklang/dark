@@ -124,7 +124,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
-      description = "Turn a <type result> into an <type option>"
+      description = "Turn a <type Result> into an <type Option>"
       fn =
         (function
         | _, _, [ DResult o ] ->

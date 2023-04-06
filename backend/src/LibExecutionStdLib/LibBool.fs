@@ -74,14 +74,14 @@ let fns : List<BuiltInFn> =
     { name = fn "Bool" "toString" 0
       typeParams = []
       parameters = [ Param.make "v" TBool "" ]
-      returnType = TStr
+      returnType = TString
       description = "Return {\"true\"} or {\"false\"}"
       fn =
         (function
         | _, _, [ DBool b ] ->
           match b with
-          | true -> Ply(DStr("true"))
-          | false -> Ply(DStr("false"))
+          | true -> Ply(DString("true"))
+          | false -> Ply(DString("false"))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

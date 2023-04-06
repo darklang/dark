@@ -14,14 +14,14 @@ let incorrectArgs = Errors.incorrectArgs
 let fns : List<BuiltInFn> =
   [ { name = fn "Password" "hash" 0
       typeParams = []
-      parameters = [ Param.make "password" TStr "" ]
+      parameters = [ Param.make "password" TString "" ]
       returnType = TPassword
       description =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
          NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           s
           // libsodium authors recommend the `interactive'
           // parameter set for interactive, online uses:
@@ -49,14 +49,14 @@ let fns : List<BuiltInFn> =
     { name = fn "Password" "check" 0
       typeParams = []
       parameters =
-        [ Param.make "password" TPassword ""; Param.make "rawPassword" TStr "" ]
+        [ Param.make "password" TPassword ""; Param.make "rawPassword" TString "" ]
       returnType = TBool
       description =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
-        | _, _, [ DPassword (Password existingpw); DStr rawpw ] ->
+        | _, _, [ DPassword (Password existingpw); DString rawpw ] ->
           Sodium.PasswordHash.ArgonHashStringVerify(existingpw, UTF8.toBytes rawpw)
           |> DBool
           |> Ply

@@ -215,7 +215,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fn = FQFnName.stdlibFnName
 
-let headersType = TList(TTuple(TStr, TStr, []))
+let headersType = TList(TTuple(TString, TString, []))
 
 type HeaderError =
   | BadInput of string
@@ -226,14 +226,14 @@ let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "request" 0
       typeParams = []
       parameters =
-        [ Param.make "method" TStr ""
-          Param.make "uri" TStr ""
+        [ Param.make "method" TString ""
+          Param.make "uri" TString ""
           Param.make "headers" headersType ""
           Param.make "body" TBytes "" ]
       returnType =
         TResult(
           TRecord [ "statusCode", TInt; "headers", headersType; "body", TBytes ],
-          TStr
+          TString
         )
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
@@ -241,13 +241,13 @@ let fns : List<BuiltInFn> =
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         (function
-        | _, _, [ DStr method; DStr uri; DList reqHeaders; DBytes reqBody ] ->
+        | _, _, [ DString method; DString uri; DList reqHeaders; DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold (Ok []) (fun agg item ->
               match agg, item with
               | (Error err, _) -> Error err
-              | (Ok pairs, DTuple (DStr k, DStr v, [])) ->
+              | (Ok pairs, DTuple (DString k, DString v, [])) ->
                 // TODO: what about whitespace? What else can break?
                 if k = "" then
                   BadInput "Empty request header key provided" |> Error
@@ -257,7 +257,7 @@ let fns : List<BuiltInFn> =
               | (_, notAPair) ->
                 // this should be a DError, not a "normal" error
                 TypeMismatch
-                  $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}"
+                  $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
                 |> Error)
             |> Result.map (fun pairs -> List.rev pairs)
 
@@ -282,8 +282,8 @@ let fns : List<BuiltInFn> =
                   response.headers
                   |> List.map (fun (k, v) ->
                     DTuple(
-                      DStr(String.toLowercase k),
-                      DStr(String.toLowercase v),
+                      DString(String.toLowercase k),
+                      DString(String.toLowercase v),
                       []
                     ))
                   |> DList
@@ -298,28 +298,28 @@ let fns : List<BuiltInFn> =
 
               | Error (HttpClient.BadUrl details) ->
                 // TODO: include a DvalSource rather than SourceNone
-                return DResult(Error(DStr $"Bad URL: {details}"))
+                return DResult(Error(DString $"Bad URL: {details}"))
 
               | Error (HttpClient.Timeout) ->
-                return DResult(Error(DStr $"Request timed out"))
+                return DResult(Error(DString $"Request timed out"))
 
               | Error (HttpClient.NetworkError) ->
-                return DResult(Error(DStr $"Network error"))
+                return DResult(Error(DString $"Network error"))
 
               | Error (HttpClient.Other details) ->
-                return DResult(Error(DStr details))
+                return DResult(Error(DString details))
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               match reqHeadersErr with
-              | BadInput details -> return DResult(Error(DStr details))
+              | BadInput details -> return DResult(Error(DString details))
               | TypeMismatch details -> return DError(SourceNone, details)
             }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return DResult(Error(DStr error)) }
+            uply { return DResult(Error(DString error)) }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

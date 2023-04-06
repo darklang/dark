@@ -18,7 +18,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DFloat a, DFloat b -> a = b
   | DBool a, DBool b -> a = b
   | DUnit, DUnit -> true
-  | DStr a, DStr b -> a = b
+  | DString a, DString b -> a = b
   | DChar a, DChar b -> a = b
   | DList a, DList b -> a.Length = b.Length && List.forall2 equals a b
   | DTuple (a1, a2, a3), DTuple (b1, b2, b3) ->
@@ -67,7 +67,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DFloat _, _
   | DBool _, _
   | DUnit, _
-  | DStr _, _
+  | DString _, _
   | DChar _, _
   | DList _, _
   | DTuple _, _
@@ -104,11 +104,11 @@ and equalsSymtable (a : Symtable) (b : Symtable) : bool =
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   match expr1, expr2 with
-  | EInteger (_, int1), EInteger (_, int2) -> int1 = int2
+  | EInt (_, int1), EInt (_, int2) -> int1 = int2
   | EBool (_, bool1), EBool (_, bool2) -> bool1 = bool2
   | EString (_, segments1), EString (_, segments2) ->
     equalsStringSegments segments1 segments2
-  | ECharacter (_, char1), ECharacter (_, char2) -> char1 = char2
+  | EChar (_, char1), EChar (_, char2) -> char1 = char2
   | EFloat (_, float1), EFloat (_, float2) -> float1 = float2
   | EUnit _, EUnit _ -> true
   | ELet (_, pattern1, expr1, body1), ELet (_, pattern2, expr2, body2) ->
@@ -164,10 +164,10 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
 
   // exhaustiveness check
-  | EInteger _, _
+  | EInt _, _
   | EBool _, _
   | EString _, _
-  | ECharacter _, _
+  | EChar _, _
   | EFloat _, _
   | EUnit _, _
   | ELet _, _
@@ -216,9 +216,9 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     tag1 = tag2
     && args1.Length = args2.Length
     && List.forall2 equalsMatchPattern args1 args2
-  | MPInteger (_, int1), MPInteger (_, int2) -> int1 = int2
+  | MPInt (_, int1), MPInt (_, int2) -> int1 = int2
   | MPBool (_, bool1), MPBool (_, bool2) -> bool1 = bool2
-  | MPCharacter (_, char1), MPCharacter (_, char2) -> char1 = char2
+  | MPChar (_, char1), MPChar (_, char2) -> char1 = char2
   | MPString (_, str1), MPString (_, str2) -> str1 = str2
   | MPFloat (_, float1), MPFloat (_, float2) -> float1 = float2
   | MPUnit _, MPUnit _ -> true
@@ -232,9 +232,9 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   // exhaustiveness check
   | MPVariable _, _
   | MPConstructor _, _
-  | MPInteger _, _
+  | MPInt _, _
   | MPBool _, _
-  | MPCharacter _, _
+  | MPChar _, _
   | MPString _, _
   | MPFloat _, _
   | MPUnit _, _
@@ -273,12 +273,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "AWS" "urlencode" 0
       typeParams = []
-      parameters = [ Param.make "str" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "str" TString "" ]
+      returnType = TString
       description = "Url encode a string per AWS' requirements"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           // Based on the original OCaml implementation which was slightly modified from
           // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
           // Buffer.add_string instead of add_bytes); see also
@@ -323,7 +323,7 @@ let fns : List<BuiltInFn> =
               sb.Append(c |> char |> int |> sprintf "%%%X")
               |> ignore<Text.StringBuilder>
 
-          sb |> string |> DStr |> Ply
+          sb |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -332,12 +332,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Twitter" "urlencode" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TString
       description = "Url encode a string per Twitter's requirements"
       fn =
         (function
-        | _, _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
+        | _, _, [ DString s ] -> s |> Uri.EscapeDataString |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

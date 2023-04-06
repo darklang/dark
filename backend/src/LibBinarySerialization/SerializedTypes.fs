@@ -111,7 +111,7 @@ type DType =
   | TFloat
   | TBool
   | TUnit
-  | TStr
+  | TString
   | TList of DType
   | TDict of DType
   | TIncomplete
@@ -155,9 +155,9 @@ type LetPattern = LPVariable of id * name : string
 type MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
-  | MPInteger of id * int64
+  | MPInt of id * int64
   | MPBool of id * bool
-  | MPCharacter of id * string
+  | MPChar of id * string
   | MPString of id * string
   | MPFloat of id * Sign * string * string
   | MPUnit of id
@@ -176,10 +176,10 @@ type Infix =
 
 [<MessagePack.MessagePackObject>]
 type Expr =
-  | EInteger of id * int64
+  | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
-  | ECharacter of id * string
+  | EChar of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
   | ELet of id * LetPattern * Expr * Expr

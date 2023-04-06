@@ -71,14 +71,14 @@ let testInfixProgramTypesToSerializedTypes =
     [ (PT.EInfix(
         8UL,
         PT.InfixFnCall(PT.ArithmeticPlus),
-        PT.EInteger(9UL, 6),
-        PT.EInteger(10UL, 6)
+        PT.EInt(9UL, 6),
+        PT.EInt(10UL, 6)
        ),
        ST.EInfix(
          8UL,
          ST.InfixFnCall(ST.ArithmeticPlus),
-         ST.EInteger(9UL, 6),
-         ST.EInteger(10UL, 6)
+         ST.EInt(9UL, 6),
+         ST.EInt(10UL, 6)
        )) ]
 
 

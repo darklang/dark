@@ -42,7 +42,7 @@ module DType =
     | CTPT.DType.TFloat -> PT.TFloat
     | CTPT.DType.TBool -> PT.TBool
     | CTPT.DType.TUnit -> PT.TUnit
-    | CTPT.DType.TStr -> PT.TStr
+    | CTPT.DType.TString -> PT.TString
     | CTPT.DType.TList (t) -> PT.TList(fromCT t)
     | CTPT.DType.TTuple (first, second, theRest) ->
       PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
@@ -72,7 +72,7 @@ module DType =
     | PT.TFloat -> CTPT.DType.TFloat
     | PT.TBool -> CTPT.DType.TBool
     | PT.TUnit -> CTPT.DType.TUnit
-    | PT.TStr -> CTPT.DType.TStr
+    | PT.TString -> CTPT.DType.TString
     | PT.TList (t) -> CTPT.DType.TList(toCT t)
     | PT.TTuple (first, second, theRest) ->
       CTPT.DType.TTuple(toCT first, toCT second, List.map toCT theRest)
@@ -186,9 +186,9 @@ module MatchPattern =
     | CTPT.MPVariable (id, str) -> PT.MPVariable(id, str)
     | CTPT.MPConstructor (id, caseName, fieldPats) ->
       PT.MPConstructor(id, caseName, List.map fromCT fieldPats)
-    | CTPT.MPInteger (id, i) -> PT.MPInteger(id, i)
+    | CTPT.MPInt (id, i) -> PT.MPInt(id, i)
     | CTPT.MPBool (id, b) -> PT.MPBool(id, b)
-    | CTPT.MPCharacter (id, str) -> PT.MPCharacter(id, str)
+    | CTPT.MPChar (id, str) -> PT.MPChar(id, str)
     | CTPT.MPString (id, str) -> PT.MPString(id, str)
     | CTPT.MPFloat (id, sign, whole, frac) -> PT.MPFloat(id, sign, whole, frac)
     | CTPT.MPUnit (id) -> PT.MPUnit(id)
@@ -201,9 +201,9 @@ module MatchPattern =
     | PT.MPVariable (id, str) -> CTPT.MPVariable(id, str)
     | PT.MPConstructor (id, caseName, fieldPats) ->
       CTPT.MPConstructor(id, caseName, List.map toCT fieldPats)
-    | PT.MPInteger (id, i) -> CTPT.MPInteger(id, i)
+    | PT.MPInt (id, i) -> CTPT.MPInt(id, i)
     | PT.MPBool (id, b) -> CTPT.MPBool(id, b)
-    | PT.MPCharacter (id, str) -> CTPT.MPCharacter(id, str)
+    | PT.MPChar (id, str) -> CTPT.MPChar(id, str)
     | PT.MPString (id, str) -> CTPT.MPString(id, str)
     | PT.MPFloat (id, sign, whole, frac) -> CTPT.MPFloat(id, sign, whole, frac)
     | PT.MPUnit (id) -> CTPT.MPUnit(id)
@@ -237,11 +237,11 @@ module Infix =
 module Expr =
   let rec fromCT (expr : CTPT.Expr) : PT.Expr =
     match expr with
-    | CTPT.Expr.EInteger (id, i) -> PT.EInteger(id, i)
+    | CTPT.Expr.EInt (id, i) -> PT.EInt(id, i)
     | CTPT.Expr.EBool (id, b) -> PT.EBool(id, b)
     | CTPT.Expr.EString (id, segment) ->
       PT.EString(id, List.map stringSegmentFromCTPT segment)
-    | CTPT.Expr.ECharacter (id, c) -> PT.ECharacter(id, c)
+    | CTPT.Expr.EChar (id, c) -> PT.EChar(id, c)
     | CTPT.Expr.EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
     | CTPT.Expr.EUnit (id) -> PT.EUnit(id)
     | CTPT.Expr.ELet (id, pat, expr, body) ->
@@ -296,10 +296,10 @@ module Expr =
 
   let rec toCT (expr : PT.Expr) : CTPT.Expr =
     match expr with
-    | PT.EInteger (id, i) -> CTPT.Expr.EInteger(id, i)
+    | PT.EInt (id, i) -> CTPT.Expr.EInt(id, i)
     | PT.EBool (id, b) -> CTPT.Expr.EBool(id, b)
     | PT.EString (id, s) -> CTPT.Expr.EString(id, List.map stringSegmentToCT s)
-    | PT.ECharacter (id, c) -> CTPT.Expr.ECharacter(id, c)
+    | PT.EChar (id, c) -> CTPT.Expr.EChar(id, c)
     | PT.EFloat (id, sign, whole, frac) -> CTPT.Expr.EFloat(id, sign, whole, frac)
     | PT.EUnit (id) -> CTPT.Expr.EUnit(id)
     | PT.ELet (id, pat, expr, body) ->

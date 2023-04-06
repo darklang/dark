@@ -1,4 +1,4 @@
-let c (arg: string) =
+let c (arg: String) =
   (Test.toChar_v0 arg) |> Test.unwrap
 
 "" ++ "" = ""
@@ -34,7 +34,7 @@ String.join_v0 ["🧟‍♀️🧟‍♂️", "🧟‍♀️🧑🏽‍🦰"] ""
 String.join_v0 ["👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️", "‍⚧️‍️🇵🇷"] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 String.join_v0 ["🧟‍♀️🧟‍♂️‍", "🧟‍♀️🧑🏽‍🦰‍‍"] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
 String.join_v0 ["🧑🏽‍🦰‍", "🧑🏼‍💻‍‍"] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
-String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a list of Strings, but the list contained `0`"
+String.join_v0 ["a"; 0] "" = Test.typeError_v0 "Expected `l` to be a `List<String>`, but it was `0`"
 
 
 Bytes.length (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62
@@ -161,7 +161,7 @@ String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 
 
 (String.random_v2 5) == (String.random_v2 5) = false
-String.random_v2 -1 = Error "Expected the argument `length` to be positive, but it was `-1`"
+String.random_v2 -1 = Error "Expected `length` to be positive, but it was `-1`"
 String.length_v1 ((String.random_v2 10) |> Test.unwrap) = 10
 String.length_v1 ((String.random_v2 5) |> Test.unwrap) = 5
 String.length_v1 ((String.random_v2 0) |> Test.unwrap) = 0
@@ -252,8 +252,8 @@ String.slugify_v2 "{|}~\x7F" = ""
 String.fromList_v1 [] = ""
 String.fromList_v1 [c "a"] = "a"
 String.fromList_v1 [c "👩‍👩‍👧‍👦", c "🏳️‍⚧️‍️", c "👱🏾", c "Z̤͔ͧ̑̓"] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
-String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `\"a\"`"
-String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a list of Characters, but the list contained `6`"
+String.fromList_v1 ["a"] = Test.typeError_v0 "Expected `l` to be a `List<Char>`, but it was `\"a\"`"
+String.fromList_v1 [6] = Test.typeError_v0 "Expected `l` to be a `List<Char>`, but it was `6`"
 
 
 String.toList_v1 "" = []
@@ -547,8 +547,8 @@ String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍�
 
 String.padStart_v0 "123" "0" 3 = Ok "123"
 String.padStart_v0 "123" "0" -3 = Ok "123"
-String.padStart_v0 "123" "_-" 4 = Error "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padStart_v0 "123" "" 10 = Error "Expected the argument `padWith` to be 1 character long, but it was `\"\"`"
+String.padStart_v0 "123" "_-" 4 = Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padStart_v0 "123" "" 10 = Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
 String.padStart_v0 "123" "0" 6 = Ok "000123"
 String.padStart_v0 "" "0" 0 = Ok ""
 String.padStart_v0 "123🍊🍊" "0" 3 = Ok "123🍊🍊"
@@ -564,8 +564,8 @@ String.padStart_v0 "鷝" "觌഻" 0 = Ok "鷝"
 
 String.padEnd_v0 "123" "0" 3 = Ok "123"
 String.padEnd_v0 "123" "0" -3 = Ok "123"
-String.padEnd_v0 "123" "_-" 3 = Error "Expected the argument `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padEnd_v0 "123" "" 10 = Error "Expected the argument `padWith` to be 1 character long, but it was `\"\"`"
+String.padEnd_v0 "123" "_-" 3 = Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padEnd_v0 "123" "" 10 = Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
 String.padEnd_v0 "123" "0" 6 = Ok "123000"
 String.padEnd_v0 "" "0" 0 = Ok ""
 String.padEnd_v0 "123🍊🍊" "0" 8 = Ok "123🍊🍊000"

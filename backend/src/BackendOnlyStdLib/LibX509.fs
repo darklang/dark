@@ -21,13 +21,13 @@ let varB = TVariable "b"
 let fns : List<BuiltInFn> =
   [ { name = fn "X509" "pemCertificatePublicKey" 0
       typeParams = []
-      parameters = [ Param.make "pemCert" TStr "" ]
-      returnType = TResult(TStr, TStr)
+      parameters = [ Param.make "pemCert" TString "" ]
+      returnType = TResult(TString, TString)
       description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
       fn =
         (function
-        | _, _, [ DStr certString ] ->
+        | _, _, [ DString certString ] ->
           try
             let cert = new X509Certificates.X509Certificate2(UTF8.toBytes certString)
             // Workaround to support ECC certs
@@ -46,14 +46,14 @@ let fns : List<BuiltInFn> =
             let label = System.ReadOnlySpan<char>("PUBLIC KEY".ToCharArray())
             let chars = PemEncoding.Write(label, data)
             let str = new System.String(chars) + "\n"
-            str |> DStr |> Ok |> DResult |> Ply
+            str |> DString |> Ok |> DResult |> Ply
           with
           | e ->
             // The OCaml version seems to support anything starting in BEGIN
             // CERTIFICATE. If it doesn't find that, it errors with No certificates. If
             // it does find that, it tries to parse it, returning X509: failed to parse
             // certificate if it fails (either data is bullshit or it's not an RSA cert).
-            Ply(DResult(Error(DStr "No certificates")))
+            Ply(DResult(Error(DString "No certificates")))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

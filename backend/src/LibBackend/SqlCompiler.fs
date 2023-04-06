@@ -58,7 +58,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | TInt, DInt i -> Sql.int64 i
   | TFloat, DFloat v -> Sql.double v
   | TBool, DBool b -> Sql.bool b
-  | TStr, DStr s -> Sql.string s
+  | TString, DString s -> Sql.string s
   | TChar, DChar c -> Sql.string c
   | TUuid, DUuid id -> Sql.uuid id
   | TUnit, DUnit -> Sql.int64 0
@@ -67,7 +67,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   //   let typeName = DvalReprDeveloper.typeName typ
   //   let typeToNpgSqlType (t : DType) : NpgsqlTypes.NpgsqlDbType =
   //     match t with
-  //     | TStr -> NpgsqlTypes.NpgsqlDbType.Text
+  //     | TString -> NpgsqlTypes.NpgsqlDbType.Text
   //     | TInt -> NpgsqlTypes.NpgsqlDbType.Bigint
   //     | TFloat -> NpgsqlTypes.NpgsqlDbType.Double
   //     | TBool -> NpgsqlTypes.NpgsqlDbType.Boolean
@@ -78,7 +78,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   //   l
   //   |> List.map (fun v ->
   //     match v with
-  //     | DStr s -> s : obj
+  //     | DString s -> s : obj
   //     | DInt i -> i
   //     | DFloat f -> f
   //     | DBool b -> b
@@ -310,23 +310,23 @@ let rec lambdaToSql
       $"(@{newname})", [ newname, dvalToSql actualType dval ], actualType
     | None -> error $"This variable is not defined: {varname}"
 
-  | EInteger (_, v) ->
-    typecheck $"integer {v}" TInt expectedType
+  | EInt (_, v) ->
+    typecheck $"Int {v}" TInt expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.int64 v ], TInt
 
   | EBool (_, v) ->
-    typecheck $"bool {v}" TBool expectedType
+    typecheck $"Bool {v}" TBool expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.bool v ], TBool
 
   | EUnit _ ->
-    typecheck "unit" TUnit expectedType
+    typecheck "Unit" TUnit expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.int64 0L ], TUnit
 
   | EFloat (_, v) ->
-    typecheck $"float {v}" TFloat expectedType
+    typecheck $"Float {v}" TFloat expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.double v ], TFloat
 
@@ -336,21 +336,21 @@ let rec lambdaToSql
       |> List.map (fun part ->
         match part with
         | StringText (s) ->
-          typecheck $"string \"{s}\"" TStr expectedType
+          typecheck $"String \"{s}\"" TString expectedType
           let name = randomString 10
           $"(@{name})", [ name, Sql.string s ]
         | StringInterpolation e ->
-          let strPart, vars, actualType = lts TStr e
-          typecheck $"string interpolation" TStr actualType
+          let strPart, vars, actualType = lts TString e
+          typecheck $"String interpolation" TString actualType
           strPart, vars)
       |> List.unzip
     let result = String.concat ", " strParts
     let strPart = $"concat({result})"
     let vars = vars |> List.concat
-    strPart, vars, TStr
+    strPart, vars, TString
 
-  | ECharacter (_, v) ->
-    typecheck $"char '{v}'" TChar expectedType
+  | EChar (_, v) ->
+    typecheck $"Char '{v}'" TChar expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ], TChar
 
@@ -363,13 +363,13 @@ let rec lambdaToSql
           ([], [], expectedType)
           (fun (prevSqls, prevVars, prevActualType) v ->
             let sql, vars, actualType = lts expectedType v
-            typecheck $"list item" actualType prevActualType
+            typecheck $"List item" actualType prevActualType
             prevSqls @ [ sql ], prevVars @ vars, actualType)
           items
       let sql =
         sqls |> String.concat ", " |> (fun s -> "((ARRAY[ " + s + " ] )::bigint[])")
       (sql, vars, TList actualType)
-    | _ -> error "Expected a list"
+    | _ -> error "Expected a List"
 
 
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
@@ -381,7 +381,7 @@ let rec lambdaToSql
 
     let primitiveFieldType t =
       match t with
-      | TStr -> "text"
+      | TString -> "text"
       | TInt -> "bigint"
       | TFloat -> "double precision"
       | TBool -> "bool"
@@ -393,7 +393,7 @@ let rec lambdaToSql
 
     let fieldname = escapeFieldname fieldname
     match dbFieldType with
-    | TStr
+    | TString
     | TInt
     | TFloat
     | TBool
@@ -484,12 +484,12 @@ let partiallyEvaluate
         | EApply (_, _, typeArgs, args) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
-            | EInteger _
+            | EInt _
             | EBool _
             | EUnit _
             | EFloat _
             | EString _
-            | ECharacter _
+            | EChar _
             | EVariable _ -> true
             | ETuple (_, e1, e2, rest) -> List.all fullySpecified (e1 :: e2 :: rest)
             | EList (_, exprs) -> List.all fullySpecified exprs
@@ -501,11 +501,11 @@ let partiallyEvaluate
           else
             return expr
         | EString _
-        | EInteger _
+        | EInt _
         | EFloat _
         | EBool _
         | EUnit _
-        | ECharacter _
+        | EChar _
         | ELet _
         | EIf _
         | ELambda _
@@ -529,10 +529,10 @@ let partiallyEvaluate
         let! result =
           uply {
             match expr with
-            | EInteger _
+            | EInt _
             | EString _
             | EVariable _
-            | ECharacter _
+            | EChar _
             | EBool _
             | EUnit _
             | EFloat _ -> return expr

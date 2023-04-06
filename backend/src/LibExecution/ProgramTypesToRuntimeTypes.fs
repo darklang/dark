@@ -30,7 +30,7 @@ module DType =
     | PT.TFloat -> RT.TFloat
     | PT.TBool -> RT.TBool
     | PT.TUnit -> RT.TUnit
-    | PT.TStr -> RT.TStr
+    | PT.TString -> RT.TString
     | PT.TList typ -> RT.TList(toRT typ)
     | PT.TTuple (firstType, secondType, otherTypes) ->
       RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)
@@ -105,9 +105,9 @@ module MatchPattern =
     | PT.MPVariable (id, str) -> RT.MPVariable(id, str)
     | PT.MPConstructor (id, caseName, fieldPats) ->
       RT.MPConstructor(id, caseName, List.map toRT fieldPats)
-    | PT.MPInteger (id, i) -> RT.MPInteger(id, i)
+    | PT.MPInt (id, i) -> RT.MPInt(id, i)
     | PT.MPBool (id, b) -> RT.MPBool(id, b)
-    | PT.MPCharacter (id, c) -> RT.MPCharacter(id, c)
+    | PT.MPChar (id, c) -> RT.MPChar(id, c)
     | PT.MPString (id, s) -> RT.MPString(id, s)
     | PT.MPFloat (id, s, w, f) ->
       let w = if w = "" then "0" else w
@@ -122,8 +122,8 @@ module MatchPattern =
 module Expr =
   let rec toRT (e : PT.Expr) : RT.Expr =
     match e with
-    | PT.ECharacter (id, char) -> RT.ECharacter(id, char)
-    | PT.EInteger (id, num) -> RT.EInteger(id, num)
+    | PT.EChar (id, char) -> RT.EChar(id, char)
+    | PT.EInt (id, num) -> RT.EInt(id, num)
     | PT.EString (id, segments) ->
       RT.EString(id, List.map stringSegmentToRT segments)
     | PT.EFloat (id, sign, whole, fraction) ->

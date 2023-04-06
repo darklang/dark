@@ -85,7 +85,7 @@ module DType =
     | RT.TFloat -> TFloat
     | RT.TBool -> TBool
     | RT.TUnit -> TUnit
-    | RT.TStr -> TStr
+    | RT.TString -> TString
     | RT.TList t -> TList(r t)
     | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
     | RT.TDict t -> TDict(r t)
@@ -115,7 +115,7 @@ module DType =
     | TFloat -> RT.TFloat
     | TBool -> RT.TBool
     | TUnit -> RT.TUnit
-    | TStr -> RT.TStr
+    | TString -> RT.TString
     | TList t -> RT.TList(r t)
     | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
     | TDict t -> RT.TDict(r t)
@@ -152,9 +152,9 @@ module MatchPattern =
     | MPVariable (id, str) -> RT.MPVariable(id, str)
     | MPConstructor (id, caseName, fieldPats) ->
       RT.MPConstructor(id, caseName, List.map r fieldPats)
-    | MPInteger (id, i) -> RT.MPInteger(id, i)
+    | MPInt (id, i) -> RT.MPInt(id, i)
     | MPBool (id, b) -> RT.MPBool(id, b)
-    | MPCharacter (id, c) -> RT.MPCharacter(id, c)
+    | MPChar (id, c) -> RT.MPChar(id, c)
     | MPString (id, s) -> RT.MPString(id, s)
     | MPFloat (id, f) -> RT.MPFloat(id, f)
     | MPUnit id -> RT.MPUnit id
@@ -168,9 +168,9 @@ module MatchPattern =
     | RT.MPVariable (id, str) -> MPVariable(id, str)
     | RT.MPConstructor (id, caseName, fieldPats) ->
       MPConstructor(id, caseName, List.map r fieldPats)
-    | RT.MPInteger (id, i) -> MPInteger(id, i)
+    | RT.MPInt (id, i) -> MPInt(id, i)
     | RT.MPBool (id, b) -> MPBool(id, b)
-    | RT.MPCharacter (id, c) -> MPCharacter(id, c)
+    | RT.MPChar (id, c) -> MPChar(id, c)
     | RT.MPString (id, s) -> MPString(id, s)
     | RT.MPFloat (id, f) -> MPFloat(id, f)
     | RT.MPUnit id -> MPUnit id
@@ -184,8 +184,8 @@ module Expr =
     let r = fromCT
 
     match e with
-    | Expr.ECharacter (id, char) -> RT.ECharacter(id, char)
-    | Expr.EInteger (id, num) -> RT.EInteger(id, num)
+    | Expr.EChar (id, char) -> RT.EChar(id, char)
+    | Expr.EInt (id, num) -> RT.EInt(id, num)
     | Expr.EString (id, segment) ->
       RT.EString(id, List.map stringSegmentToRT segment)
     | Expr.EFloat (id, f) -> RT.EFloat(id, f)
@@ -250,8 +250,8 @@ module Expr =
     let r = toCT
 
     match e with
-    | RT.ECharacter (id, char) -> Expr.ECharacter(id, char)
-    | RT.EInteger (id, num) -> Expr.EInteger(id, num)
+    | RT.EChar (id, char) -> Expr.EChar(id, char)
+    | RT.EInt (id, num) -> Expr.EInt(id, num)
     | RT.EString (id, str) -> Expr.EString(id, List.map stringSegmentToCT str)
     | RT.EFloat (id, f) -> Expr.EFloat(id, f)
 
@@ -324,7 +324,7 @@ module Dval =
     let r = fromCT
 
     match dv with
-    | Dval.DStr s -> RT.DStr s
+    | Dval.DString s -> RT.DString s
     | Dval.DChar c -> RT.DChar c
     | Dval.DInt i -> RT.DInt i
     | Dval.DBool b -> RT.DBool b
@@ -366,7 +366,7 @@ module Dval =
     let r = toCT
 
     match dv with
-    | RT.DStr s -> Dval.DStr s
+    | RT.DString s -> Dval.DString s
     | RT.DChar c -> Dval.DChar c
     | RT.DInt i -> Dval.DInt i
     | RT.DBool b -> Dval.DBool b

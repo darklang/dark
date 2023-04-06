@@ -23,7 +23,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = []
       returnType = TUuid
-      description = "Generate a new UUID v4 according to RFC 4122"
+      description = "Generate a new <type Uuid> v4 according to RFC 4122"
       fn =
         (function
         | _, _, [] -> Ply(DUuid(System.Guid.NewGuid()))
@@ -37,18 +37,18 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Uuid" "parse" 0
       typeParams = []
-      parameters = [ Param.make "uuid" TStr "" ]
-      returnType = TResult(TUuid, TStr)
+      parameters = [ Param.make "uuid" TString "" ]
+      returnType = TResult(TUuid, TString)
       description =
-        "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
+        "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           match System.Guid.TryParse s with
           | true, x -> x |> DUuid |> Ok |> DResult |> Ply
           | _ ->
             "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-            |> DStr
+            |> DString
             |> Error
             |> DResult
             |> Ply
@@ -61,12 +61,12 @@ let fns : List<BuiltInFn> =
     { name = fn "Uuid" "toString" 0
       typeParams = []
       parameters = [ Param.make "uuid" TUuid "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
       fn =
         (function
-        | _, _, [ DUuid uuid ] -> Ply(DStr(string uuid))
+        | _, _, [ DUuid uuid ] -> Ply(DString(string uuid))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -14,7 +14,7 @@ open Prelude
 let globalsFor (state : ExecutionState) : Symtable =
   let secrets =
     state.program.secrets
-    |> List.map (fun (s : Secret.T) -> (s.name, DStr s.value))
+    |> List.map (fun (s : Secret.T) -> (s.name, DString s.value))
     |> Map.ofList
 
   let dbs = Map.map (fun _ (db : DB.T) -> DDB db.name) state.program.dbs
@@ -62,7 +62,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                  | Ok str, StringInterpolation (expr) ->
                    let! result = eval state st expr
                    match result with
-                   | DStr s -> return Ok(str + s)
+                   | DString s -> return Ok(str + s)
                    | DIncomplete _
                    | DError _ -> return Error(result)
                    | dv ->
@@ -77,13 +77,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                })
              (Ok "")
       match result with
-      | Ok str -> return DStr(String.normalize str)
+      | Ok str -> return DString(String.normalize str)
       | Error dv -> return dv
     | EBool (_id, b) -> return DBool b
-    | EInteger (_id, i) -> return DInt i
+    | EInt (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
-    | ECharacter (_id, s) -> return DChar s
+    | EChar (_id, s) -> return DChar s
 
     | ELet (id, pattern, rhs, body) ->
       match pattern with
@@ -274,10 +274,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         (pattern : MatchPattern)
         : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
-        | MPInteger (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
+        | MPInt (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
         | MPBool (id, b) -> (dv = DBool b), [], [ (id, DBool b) ]
-        | MPCharacter (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
-        | MPString (id, s) -> (dv = DStr s), [], [ (id, DStr s) ]
+        | MPChar (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
+        | MPString (id, s) -> (dv = DString s), [], [ (id, DString s) ]
         | MPFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
         | MPUnit (id) -> (dv = DUnit), [], [ (id, DUnit) ]
 
