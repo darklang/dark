@@ -132,7 +132,7 @@ module MatchPattern =
 module Expr =
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
-    | ST.ECharacter (id, char) -> PT.ECharacter(id, char)
+    | ST.EChar (id, char) -> PT.EChar(id, char)
     | ST.EInt (id, num) -> PT.EInt(id, num)
     | ST.EString (id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
     | ST.EFloat (id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)

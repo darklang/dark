@@ -209,7 +209,7 @@ module Expr =
     | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInt(id, int64 n)
     | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInt(id, int64 n)
     | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInt(id, parseInt64 n)
-    | SynExpr.Const (SynConst.Char c, _) -> PT.ECharacter(id, string c)
+    | SynExpr.Const (SynConst.Char c, _) -> PT.EChar(id, string c)
     | SynExpr.Const (SynConst.Bool b, _) -> PT.EBool(id, b)
     | SynExpr.Const (SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d

@@ -541,7 +541,7 @@ module Expect =
         | StringInterpolation e, StringInterpolation e' -> eq path e e'
         | _ -> check path s s'
       List.iter2 checkSegment s s'
-    | ECharacter (_, v), ECharacter (_, v')
+    | EChar (_, v), EChar (_, v')
     | EVariable (_, v), EVariable (_, v') -> check path v v'
     | EInt (_, v), EInt (_, v') -> check path v v'
     | EFloat (_, v), EFloat (_, v') -> check path v v'
@@ -622,7 +622,7 @@ module Expect =
     | EUnit _, _
     | EInt _, _
     | EString _, _
-    | ECharacter _, _
+    | EChar _, _
     | EVariable _, _
     | EBool _, _
     | EFloat _, _

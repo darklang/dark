@@ -126,7 +126,7 @@ module MatchPattern =
 module Expr =
   let rec toST (e : PT.Expr) : ST.Expr =
     match e with
-    | PT.ECharacter (id, char) -> ST.ECharacter(id, char)
+    | PT.EChar (id, char) -> ST.EChar(id, char)
     | PT.EInt (id, num) -> ST.EInt(id, num)
     | PT.EString (id, segments) ->
       ST.EString(id, List.map stringSegmentToST segments)

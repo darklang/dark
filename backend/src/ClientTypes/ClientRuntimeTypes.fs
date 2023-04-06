@@ -85,7 +85,7 @@ module Expr =
     | EInt of id * int64
     | EBool of id * bool
     | EString of id * List<StringSegment>
-    | ECharacter of id * string
+    | EChar of id * string
     | EFloat of id * double
     | EUnit of id
     | ELet of id * LetPattern * T * T

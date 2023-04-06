@@ -83,7 +83,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EInt (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
-    | ECharacter (_id, s) -> return DChar s
+    | EChar (_id, s) -> return DChar s
 
     | ELet (id, pattern, rhs, body) ->
       match pattern with

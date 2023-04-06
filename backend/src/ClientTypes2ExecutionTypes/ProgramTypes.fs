@@ -241,7 +241,7 @@ module Expr =
     | CTPT.Expr.EBool (id, b) -> PT.EBool(id, b)
     | CTPT.Expr.EString (id, segment) ->
       PT.EString(id, List.map stringSegmentFromCTPT segment)
-    | CTPT.Expr.ECharacter (id, c) -> PT.ECharacter(id, c)
+    | CTPT.Expr.EChar (id, c) -> PT.EChar(id, c)
     | CTPT.Expr.EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
     | CTPT.Expr.EUnit (id) -> PT.EUnit(id)
     | CTPT.Expr.ELet (id, pat, expr, body) ->
@@ -299,7 +299,7 @@ module Expr =
     | PT.EInt (id, i) -> CTPT.Expr.EInt(id, i)
     | PT.EBool (id, b) -> CTPT.Expr.EBool(id, b)
     | PT.EString (id, s) -> CTPT.Expr.EString(id, List.map stringSegmentToCT s)
-    | PT.ECharacter (id, c) -> CTPT.Expr.ECharacter(id, c)
+    | PT.EChar (id, c) -> CTPT.Expr.EChar(id, c)
     | PT.EFloat (id, sign, whole, frac) -> CTPT.Expr.EFloat(id, sign, whole, frac)
     | PT.EUnit (id) -> CTPT.Expr.EUnit(id)
     | PT.ELet (id, pat, expr, body) ->

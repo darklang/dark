@@ -349,7 +349,7 @@ let rec lambdaToSql
     let vars = vars |> List.concat
     strPart, vars, TString
 
-  | ECharacter (_, v) ->
+  | EChar (_, v) ->
     typecheck $"Char '{v}'" TChar expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ], TChar
@@ -489,7 +489,7 @@ let partiallyEvaluate
             | EUnit _
             | EFloat _
             | EString _
-            | ECharacter _
+            | EChar _
             | EVariable _ -> true
             | ETuple (_, e1, e2, rest) -> List.all fullySpecified (e1 :: e2 :: rest)
             | EList (_, exprs) -> List.all fullySpecified exprs
@@ -505,7 +505,7 @@ let partiallyEvaluate
         | EFloat _
         | EBool _
         | EUnit _
-        | ECharacter _
+        | EChar _
         | ELet _
         | EIf _
         | ELambda _
@@ -532,7 +532,7 @@ let partiallyEvaluate
             | EInt _
             | EString _
             | EVariable _
-            | ECharacter _
+            | EChar _
             | EBool _
             | EUnit _
             | EFloat _ -> return expr

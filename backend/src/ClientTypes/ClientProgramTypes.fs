@@ -108,7 +108,7 @@ type Expr =
   | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
-  | ECharacter of id * string
+  | EChar of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
   | ELet of id * LetPattern * Expr * Expr

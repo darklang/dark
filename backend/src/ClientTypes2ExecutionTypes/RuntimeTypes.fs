@@ -184,7 +184,7 @@ module Expr =
     let r = fromCT
 
     match e with
-    | Expr.ECharacter (id, char) -> RT.ECharacter(id, char)
+    | Expr.EChar (id, char) -> RT.EChar(id, char)
     | Expr.EInt (id, num) -> RT.EInt(id, num)
     | Expr.EString (id, segment) ->
       RT.EString(id, List.map stringSegmentToRT segment)
@@ -250,7 +250,7 @@ module Expr =
     let r = toCT
 
     match e with
-    | RT.ECharacter (id, char) -> Expr.ECharacter(id, char)
+    | RT.EChar (id, char) -> Expr.EChar(id, char)
     | RT.EInt (id, num) -> Expr.EInt(id, num)
     | RT.EString (id, str) -> Expr.EString(id, List.map stringSegmentToCT str)
     | RT.EFloat (id, f) -> Expr.EFloat(id, f)

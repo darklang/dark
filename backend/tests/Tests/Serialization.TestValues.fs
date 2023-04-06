@@ -214,7 +214,7 @@ module ProgramTypes =
               PT.ELet(
                 537517627UL,
                 PT.LPVariable(567161UL, "char"),
-                PT.ECharacter(1031176330UL, "a"),
+                PT.EChar(1031176330UL, "a"),
                 PT.ELet(
                   399526184UL,
                   PT.LPVariable(578164UL, "float"),
@@ -352,7 +352,7 @@ module ProgramTypes =
                                PT.EInt(342670561UL, -9223372036854775808L))
                               (PT.MPBool(435227293UL, true), PT.EInt(232748650UL, 7L))
                               (PT.MPChar(387662539UL, "c"),
-                               PT.ECharacter(657848009UL, "c"))
+                               PT.EChar(657848009UL, "c"))
                               (PT.MPList(
                                 387662539UL,
                                 [ PT.MPBool(435227293UL, true) ]

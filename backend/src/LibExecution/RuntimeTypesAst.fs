@@ -18,7 +18,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EVariable _
   | EBool _
   | EUnit _
-  | ECharacter _
+  | EChar _
   | EFloat _ -> expr
   | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
@@ -47,7 +47,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EInt _
     | EString _
     | EVariable _
-    | ECharacter _
+    | EChar _
     | EBool _
     | EUnit _
     | EFloat _ -> expr

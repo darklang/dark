@@ -108,7 +108,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EBool (_, bool1), EBool (_, bool2) -> bool1 = bool2
   | EString (_, segments1), EString (_, segments2) ->
     equalsStringSegments segments1 segments2
-  | ECharacter (_, char1), ECharacter (_, char2) -> char1 = char2
+  | EChar (_, char1), EChar (_, char2) -> char1 = char2
   | EFloat (_, float1), EFloat (_, float2) -> float1 = float2
   | EUnit _, EUnit _ -> true
   | ELet (_, pattern1, expr1, body1), ELet (_, pattern2, expr2, body2) ->
@@ -167,7 +167,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EInt _, _
   | EBool _, _
   | EString _, _
-  | ECharacter _, _
+  | EChar _, _
   | EFloat _, _
   | EUnit _, _
   | ELet _, _

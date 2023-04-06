@@ -195,7 +195,7 @@ type Expr =
   | EString of id * List<StringSegment>
 
   /// A single Extended Grapheme Cluster
-  | ECharacter of id * string
+  | EChar of id * string
   | EFloat of id * double
   | EUnit of id
 
@@ -403,7 +403,7 @@ module Expr =
     match expr with
     | EInt (id, _)
     | EString (id, _)
-    | ECharacter (id, _)
+    | EChar (id, _)
     | EBool (id, _)
     | EUnit id
     | EFloat (id, _)

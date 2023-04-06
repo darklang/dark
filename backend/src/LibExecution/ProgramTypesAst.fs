@@ -12,7 +12,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EInt _
   | EBool _
   | EString _
-  | ECharacter _
+  | EChar _
   | EUnit _
   | EVariable _
   | EPipeTarget _
