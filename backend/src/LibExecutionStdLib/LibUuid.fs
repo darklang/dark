@@ -23,7 +23,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = []
       returnType = TUuid
-      description = "Generate a new UUID v4 according to RFC 4122"
+      description = "Generate a new <type Uuid> v4 according to RFC 4122"
       fn =
         (function
         | _, _, [] -> Ply(DUuid(System.Guid.NewGuid()))
@@ -40,7 +40,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "uuid" TString "" ]
       returnType = TResult(TUuid, TString)
       description =
-        "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
+        "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         (function
         | _, _, [ DString s ] ->

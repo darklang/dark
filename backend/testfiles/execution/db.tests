@@ -2,7 +2,7 @@
 [<DB>] type Z = { x : Char }
 [<DB>] type XY = { x : String; y: String }
 [<DB>] type SortedX = { x : String; sortBy: Int }
-[<DB>] type Uuid = { uu : UUID }
+[<DB>] type Uuid = { uu : Uuid }
 
 module Roundtrip =
   [<DB>] type DB = {
@@ -18,7 +18,7 @@ module Roundtrip =
     ``false`` : Bool
     char : Char
     emojiChar : Char
-    uuid : UUID
+    uuid : Uuid
     list : List<Int>
     datetime : DateTime
     unit : Unit

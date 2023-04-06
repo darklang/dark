@@ -193,18 +193,18 @@ Json.parse<DateTime> "1" = Error "Can't currently parse this type/value combinat
 let uuid (s: String) = (Uuid.parse_v0 s) |> Test.unwrap
 
 // empty
-Json.serialize<UUID> (uuid "00000000-0000-0000-0000-000000000000") = Ok "\"00000000-0000-0000-0000-000000000000\""
-Json.parse<UUID> ("\"00000000-0000-0000-0000-000000000000\"") = Ok (uuid "00000000-0000-0000-0000-000000000000")
+Json.serialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = Ok "\"00000000-0000-0000-0000-000000000000\""
+Json.parse<Uuid> ("\"00000000-0000-0000-0000-000000000000\"") = Ok (uuid "00000000-0000-0000-0000-000000000000")
 
 // normal
-Json.serialize<UUID> (uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = Ok "\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\""
-Json.parse<UUID> ("\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"") = Ok (uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
-Json.serialize<UUID> (uuid "11111111-2222-3333-4444-555555555555") = Ok "\"11111111-2222-3333-4444-555555555555\""
-Json.parse<UUID> ("\"11111111-2222-3333-4444-555555555555\"") = Ok (uuid "11111111-2222-3333-4444-555555555555")
+Json.serialize<Uuid> (uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = Ok "\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\""
+Json.parse<Uuid> ("\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"") = Ok (uuid "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+Json.serialize<Uuid> (uuid "11111111-2222-3333-4444-555555555555") = Ok "\"11111111-2222-3333-4444-555555555555\""
+Json.parse<Uuid> ("\"11111111-2222-3333-4444-555555555555\"") = Ok (uuid "11111111-2222-3333-4444-555555555555")
 
 // not UUIDs
-Json.parse<UUID> "\"00000000-0000-0000-0000-00000000000\"" = Error "Guid should contain 32 digits with 4 dashes (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." // has a missing digit at the end
-Json.serialize<UUID> "" = Error "Can't currently serialize this type/value combination"
+Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"" = Error "Guid should contain 32 digits with 4 dashes (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." // has a missing digit at the end
+Json.serialize<Uuid> "" = Error "Can't currently serialize this type/value combination"
 
 
 // Bytes
