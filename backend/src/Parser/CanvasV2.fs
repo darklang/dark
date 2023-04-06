@@ -120,8 +120,6 @@ let parseLetBinding
 /// - a nested module (not currently supported)
 /// - etc
 ///
-/// (The declarations are presented as _groups_ presumably to support recursive definitions)
-///
 /// This builds up a CanvasModule by parsing each declaration:
 /// - type definitions are parsed as user types
 /// - let bindings with no attributes are parsed as user functions
