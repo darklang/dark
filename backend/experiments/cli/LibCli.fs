@@ -42,13 +42,13 @@ let fns : List<BuiltInFn> =
         "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes wrapped in a Result"
       fn =
         (function
-        | state, _, [ DStr path ] ->
+        | state, _, [ DString path ] ->
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
               return DResult(Ok(DBytes contents))
             with
-            | e -> return DResult(Error(DStr($"Error reading file: {e.Message}")))
+            | e -> return DResult(Error(DString($"Error reading file: {e.Message}")))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

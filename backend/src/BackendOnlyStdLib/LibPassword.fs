@@ -21,7 +21,7 @@ let fns : List<BuiltInFn> =
          NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           s
           // libsodium authors recommend the `interactive'
           // parameter set for interactive, online uses:
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
-        | _, _, [ DPassword (Password existingpw); DStr rawpw ] ->
+        | _, _, [ DPassword (Password existingpw); DString rawpw ] ->
           Sodium.PasswordHash.ArgonHashStringVerify(existingpw, UTF8.toBytes rawpw)
           |> DBool
           |> Ply

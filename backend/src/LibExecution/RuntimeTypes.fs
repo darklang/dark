@@ -276,7 +276,7 @@ and [<NoComparison>] Dval =
   | DFloat of double
   | DBool of bool
   | DUnit
-  | DStr of string
+  | DString of string
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
 
   // compound types
@@ -480,7 +480,7 @@ module Dval =
     | DBool _ -> TBool
     | DUnit -> TUnit
     | DChar _ -> TChar
-    | DStr _ -> TString
+    | DString _ -> TString
     | DList (head :: _) -> TList(toType head)
     | DList [] -> TList any
     | DTuple (first, second, theRest) ->
@@ -544,7 +544,7 @@ module Dval =
     | DFloat _, TFloat
     | DBool _, TBool
     | DUnit, TUnit
-    | DStr _, TString
+    | DString _, TString
     | DDateTime _, TDateTime
     | DPassword _, TPassword
     | DUuid _, TUuid
@@ -609,7 +609,7 @@ module Dval =
     | DFloat _, _
     | DBool _, _
     | DUnit, _
-    | DStr _, _
+    | DString _, _
     | DDateTime _, _
     | DPassword _, _
     | DUuid _, _

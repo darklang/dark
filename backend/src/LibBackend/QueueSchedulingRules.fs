@@ -45,10 +45,10 @@ module SchedulingRule =
 
   let toDval (r : T) : RT.Dval =
     RT.Dval.obj [ ("id", RT.Dval.int r.id)
-                  ("rule_type", r.ruleType |> string |> RT.Dval.DStr)
+                  ("rule_type", r.ruleType |> string |> RT.Dval.DString)
                   ("canvas_id", RT.Dval.DUuid r.canvasID)
-                  ("handler_name", RT.Dval.DStr r.handlerName)
-                  ("event_space", RT.Dval.DStr r.eventSpace)
+                  ("handler_name", RT.Dval.DString r.handlerName)
+                  ("event_space", RT.Dval.DString r.eventSpace)
                   ("created_at",
                    RT.Dval.DDateTime(RT.DarkDateTime.fromInstant r.createdAt)) ]
 

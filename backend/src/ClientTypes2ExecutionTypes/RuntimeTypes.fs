@@ -324,7 +324,7 @@ module Dval =
     let r = fromCT
 
     match dv with
-    | Dval.DStr s -> RT.DStr s
+    | Dval.DString s -> RT.DString s
     | Dval.DChar c -> RT.DChar c
     | Dval.DInt i -> RT.DInt i
     | Dval.DBool b -> RT.DBool b
@@ -366,7 +366,7 @@ module Dval =
     let r = toCT
 
     match dv with
-    | RT.DStr s -> Dval.DStr s
+    | RT.DString s -> Dval.DString s
     | RT.DChar c -> Dval.DChar c
     | RT.DInt i -> Dval.DInt i
     | RT.DBool b -> Dval.DBool b

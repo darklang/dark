@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
         "Returns a header <type Dict> with {{'Authorization'}} created using HTTP basic auth"
       fn =
         (function
-        | _, _, [ DStr u; DStr p ] ->
+        | _, _, [ DString u; DString p ] ->
           /// Base64-encodes username/password combination for basic authentication
           let encodeBasicAuth (u : string) (p : string) : string =
             let input : byte [] =
@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
 
             $"Basic {Base64.defaultEncodeToString input}"
 
-          Ply(DDict(Map [ "Authorization", (DStr(encodeBasicAuth u p)) ]))
+          Ply(DDict(Map [ "Authorization", (DString(encodeBasicAuth u p)) ]))
         | _ -> incorrectArgs ())
       previewable = Pure
       sqlSpec = NotQueryable

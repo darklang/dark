@@ -64,7 +64,7 @@ let routeInputVars
       Option.bind
         (fun acc ->
           match routeVariable r with
-          | Some rv -> Some((rv, RT.DStr p) :: acc)
+          | Some rv -> Some((rv, RT.DString p) :: acc)
           | None ->
             // Concretized match, or we were passed a Postgres wildcard
             // and should treat this as a match.

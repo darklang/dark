@@ -54,7 +54,7 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   internalFn (function
-    | _, _, [ DUuid canvasID; DStr handlerName ] ->
+    | _, _, [ DUuid canvasID; DString handlerName ] ->
       uply {
         do! fn canvasID handlerName
         let! s = SchedulingRules.getWorkerSchedules canvasID
@@ -158,7 +158,7 @@ let fns : List<BuiltInFn> =
           | _, _, [ DUuid canvasID ] ->
             uply {
               let! name = Canvas.domainsForCanvasID canvasID
-              return name |> List.map DStr |> DList
+              return name |> List.map DString |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -173,12 +173,12 @@ let fns : List<BuiltInFn> =
       description = "Returns the canvasID for a domain if it exists"
       fn =
         internalFn (function
-          | _, _, [ DStr domain ] ->
+          | _, _, [ DString domain ] ->
             uply {
               let! name = Canvas.canvasIDForDomain domain
               match name with
               | Some name -> return DResult(Ok(DUuid name))
-              | None -> return DResult(Error(DStr "Canvas not found"))
+              | None -> return DResult(Error(DString "Canvas not found"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -197,7 +197,7 @@ let fns : List<BuiltInFn> =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         internalFn (function
-          | _, _, [ DStr level; DStr name; DDict log as result ] ->
+          | _, _, [ DString level; DString name; DDict log as result ] ->
             let args =
               log
               |> Map.toList
@@ -272,12 +272,12 @@ let fns : List<BuiltInFn> =
                 let parameters =
                   data.parameters
                   |> List.map (fun p ->
-                    Dval.obj [ ("name", DStr p.name)
-                               ("type", DStr(typeName p.typ)) ])
-                [ ("name", DStr(FQFnName.toString key))
-                  ("documentation", DStr data.description)
+                    Dval.obj [ ("name", DString p.name)
+                               ("type", DString(typeName p.typ)) ])
+                [ ("name", DString(FQFnName.toString key))
+                  ("documentation", DString data.description)
                   ("parameters", DList parameters)
-                  ("returnType", DStr returnType) ]
+                  ("returnType", DString returnType) ]
               Dval.obj alist)
             |> DList
             |> Ply
@@ -338,8 +338,8 @@ human-readable data."
                   (ts.relation,
                    [ ("disk_bytes", DInt(ts.diskBytes))
                      ("rows", DInt(ts.rows))
-                     ("disk_human", DStr ts.diskHuman)
-                     ("rows_human", DStr ts.rowsHuman) ]
+                     ("disk_human", DString ts.diskHuman)
+                     ("rows_human", DString ts.rowsHuman) ]
                    |> Map
                    |> DDict))
                 |> Map
@@ -377,7 +377,7 @@ human-readable data."
       description = "Returns the git hash of the server's current deploy"
       fn =
         internalFn (function
-          | _, _, [] -> uply { return DStr LibService.Config.buildHash }
+          | _, _, [] -> uply { return DString LibService.Config.buildHash }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -398,7 +398,7 @@ human-readable data."
       description = "Deletes a specific 404 for a canvas"
       fn =
         internalFn (function
-          | _, _, [ DUuid canvasID; DStr space; DStr path; DStr modifier ] ->
+          | _, _, [ DUuid canvasID; DString space; DString path; DString modifier ] ->
             uply {
               Telemetry.addTags [ "space", space
                                   "path", path
@@ -432,9 +432,9 @@ human-readable data."
               return
                 f404s
                 |> List.map (fun (space, path, modifier, instant, traceID) ->
-                  [ "space", DStr space
-                    "path", DStr path
-                    "modifier", DStr modifier
+                  [ "space", DString space
+                    "path", DString path
+                    "modifier", DString modifier
                     "timestamp", DDateTime(DarkDateTime.fromInstant instant)
                     "traceID",
                     DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
@@ -464,7 +464,7 @@ human-readable data."
               return
                 secrets
                 |> List.map (fun s ->
-                  DTuple(DStr s.name, DStr s.value, [ DInt s.version ]))
+                  DTuple(DString s.name, DString s.value, [ DInt s.version ]))
                 |> DList
             }
           | _ -> incorrectArgs ())
@@ -483,7 +483,7 @@ human-readable data."
       description = "Delete a secret"
       fn =
         internalFn (function
-          | _, _, [ DUuid canvasID; DStr name; DInt version ] ->
+          | _, _, [ DUuid canvasID; DString name; DInt version ] ->
             uply {
               do! Secret.delete canvasID name (int version)
               return DUnit
@@ -505,13 +505,13 @@ human-readable data."
       description = "Add a secret"
       fn =
         internalFn (function
-          | _, _, [ DUuid canvasID; DStr name; DStr value; DInt version ] ->
+          | _, _, [ DUuid canvasID; DString name; DString value; DInt version ] ->
             uply {
               try
                 do! Secret.insert canvasID name value (int version)
                 return DResult(Ok DUnit)
               with
-              | _ -> return DResult(Error(DStr "Error inserting secret"))
+              | _ -> return DResult(Error(DString "Error inserting secret"))
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -671,7 +671,8 @@ human-readable data."
                 Serialize.loadOplists loadAmount canvasID [ tlid ]
 
               match ops with
-              | [ (_tlid, ops) ] -> return ops |> List.map (string >> DStr) |> DList
+              | [ (_tlid, ops) ] ->
+                return ops |> List.map (string >> DString) |> DList
               | _ -> return DList []
             }
           | _ -> incorrectArgs ())
@@ -687,7 +688,7 @@ human-readable data."
       description = "Creates a new canvas"
       fn =
         internalFn (function
-          | _, _, [ DUuid owner; DStr name ] ->
+          | _, _, [ DUuid owner; DString name ] ->
             uply {
               let! canvasID = Canvas.create owner name
               return DUuid canvasID
@@ -732,7 +733,7 @@ human-readable data."
                 Map.values canvas.dbs
                 |> Seq.toList
                 |> List.map (fun db ->
-                  [ "tlid", DStr(db.tlid.ToString()); "name", DStr db.name ]
+                  [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
                   |> Map
                   |> DDict)
                 |> DList
@@ -746,9 +747,9 @@ human-readable data."
                   | PT.Handler.Cron _
                   | PT.Handler.REPL _ -> None
                   | PT.Handler.HTTP (route, method, _ids) ->
-                    [ "tlid", DStr(handler.tlid.ToString())
-                      "method", DStr method
-                      "route", DStr route ]
+                    [ "tlid", DString(handler.tlid.ToString())
+                      "method", DString method
+                      "route", DString route ]
                     |> Map
                     |> DDict
                     |> Some)

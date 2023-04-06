@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
         "Upsert <param val> into <param table>, accessible by <param key>"
       fn =
         (function
-        | state, _, [ DDict value; DStr key; DDB dbname ] ->
+        | state, _, [ DDict value; DString key; DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
             let! _id = UserDB.set state true db key value
@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
       description = "Finds a value in <param table> by <param key>"
       fn =
         (function
-        | state, _, [ DStr key; DDB dbname ] ->
+        | state, _, [ DString key; DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
@@ -94,7 +94,7 @@ let fns : List<BuiltInFn> =
             let skeys =
               List.map
                 (function
-                | DStr s -> s
+                | DString s -> s
                 | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
             let skeys =
               List.map
                 (function
-                | DStr s -> s
+                | DString s -> s
                 | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
@@ -154,7 +154,7 @@ let fns : List<BuiltInFn> =
             let skeys =
               List.map
                 (function
-                | DStr s -> s
+                | DString s -> s
                 | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
@@ -174,7 +174,7 @@ let fns : List<BuiltInFn> =
       description = "Delete <param key> from <param table>"
       fn =
         (function
-        | state, _, [ DStr key; DDB dbname ] ->
+        | state, _, [ DString key; DDB dbname ] ->
           uply {
             let db = state.program.dbs[dbname]
             let! _result = UserDB.delete state db key
@@ -357,7 +357,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, _, [] -> System.Guid.NewGuid() |> string |> DStr |> Ply
+        | _, _, [] -> System.Guid.NewGuid() |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -376,7 +376,7 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! results = UserDB.getAllKeys state db
-            return results |> List.map (fun k -> DStr k) |> DList
+            return results |> List.map (fun k -> DString k) |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

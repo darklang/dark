@@ -20,7 +20,7 @@ module DvalComparator =
     | DFloat f1, DFloat f2 -> compare f1 f2
     | DBool b1, DBool b2 -> compare b1 b2
     | DUnit, DUnit -> 0
-    | DStr s1, DStr s2 -> compare s1 s2
+    | DString s1, DString s2 -> compare s1 s2
     | DChar c1, DChar c2 -> compare c1 c2
     | DList l1, DList l2 -> compareLists l1 l2
     | DTuple (a1, b1, l1), DTuple (a2, b2, l2) ->
@@ -69,7 +69,7 @@ module DvalComparator =
     | DFloat _, _
     | DBool _, _
     | DUnit, _
-    | DStr _, _
+    | DString _, _
     | DChar _, _
     | DList _, _
     | DTuple _, _
@@ -409,7 +409,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt times; v ] ->
-          let errPipe e = e |> DStr |> Error |> DResult |> Ply
+          let errPipe e = e |> DString |> Error |> DResult |> Ply
           if times < 0L then
             Errors.argumentWasnt "positive" "times" (DInt times) |> errPipe
           else if times > 2147483647L then
@@ -774,7 +774,7 @@ let fns : List<BuiltInFn> =
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Ok |> DResult
             with
-            | e -> return DResult(Error(DStr e.Message))
+            | e -> return DResult(Error(DString e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

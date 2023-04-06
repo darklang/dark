@@ -33,7 +33,8 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type", DStr "application/x-www-form-urlencoded" ]
+              Map.ofList [ "Content-Type",
+                           DString "application/x-www-form-urlencoded" ]
             )
           )
         | _ -> incorrectArgs ())
@@ -54,7 +55,7 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type", DStr "application/json; charset=utf-8" ]
+              Map.ofList [ "Content-Type", DString "application/json; charset=utf-8" ]
             )
           )
         | _ -> incorrectArgs ())
@@ -73,7 +74,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [] ->
-          Ply(DDict(Map.ofList [ "Content-Type", DStr "text/plain; charset=utf-8" ]))
+          Ply(
+            DDict(Map.ofList [ "Content-Type", DString "text/plain; charset=utf-8" ])
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -90,7 +93,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [] ->
-          Ply(DDict(Map.ofList [ "Content-Type", DStr "text/html; charset=utf-8" ]))
+          Ply(
+            DDict(Map.ofList [ "Content-Type", DString "text/html; charset=utf-8" ])
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -105,9 +110,9 @@ let fns : List<BuiltInFn> =
         "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
       fn =
         (function
-        | _, _, [ DStr token ] ->
+        | _, _, [ DString token ] ->
           let authString = "Bearer " + token
-          Ply(DDict(Map.ofList [ "Authorization", DStr authString ]))
+          Ply(DDict(Map.ofList [ "Authorization", DString authString ]))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

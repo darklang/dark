@@ -87,7 +87,7 @@ let rec private toJsonV0 (w : Utf8JsonWriter) (typ : DType) (dv : Dval) : unit =
       w.WriteRawValue result
   | TBool, DBool b -> w.WriteBooleanValue b
   | TUnit, DUnit -> w.WriteNumberValue(0)
-  | TString, DStr s -> w.WriteStringValue s
+  | TString, DString s -> w.WriteStringValue s
   | TList ltype, DList l -> w.writeArray (fun () -> List.iter (writeDval ltype) l)
   | TDict objType, DDict o ->
     w.writeObject (fun () ->
@@ -174,7 +174,7 @@ let parseJsonV0 (typ : DType) (str : string) : Dval =
       | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
     | TBool, JsonValueKind.True -> DBool true
     | TBool, JsonValueKind.False -> DBool false
-    | TString, JsonValueKind.String -> DStr(j.GetString())
+    | TString, JsonValueKind.String -> DString(j.GetString())
     | TChar, JsonValueKind.String -> DChar(j.GetString())
     | TUuid, JsonValueKind.String -> DUuid(System.Guid(j.GetString()))
     | TPassword, JsonValueKind.String ->
@@ -220,7 +220,7 @@ module Test =
   let rec isQueryableDval (dval : Dval) : bool =
     match dval with
     | DInt _
-    | DStr _
+    | DString _
     | DUnit _
     | DBool _
     | DDateTime _

@@ -135,7 +135,7 @@ module Dval =
     | DFloat of double
     | DBool of bool
     | DUnit
-    | DStr of string
+    | DString of string
     | DChar of string
     | DList of List<T>
     | DTuple of T * T * List<T>

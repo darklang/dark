@@ -43,12 +43,12 @@ let fns : List<BuiltInFn> =
         "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           match System.Guid.TryParse s with
           | true, x -> x |> DUuid |> Ok |> DResult |> Ply
           | _ ->
             "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-            |> DStr
+            |> DString
             |> Error
             |> DResult
             |> Ply
@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
         "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
       fn =
         (function
-        | _, _, [ DUuid uuid ] -> Ply(DStr(string uuid))
+        | _, _, [ DUuid uuid ] -> Ply(DString(string uuid))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

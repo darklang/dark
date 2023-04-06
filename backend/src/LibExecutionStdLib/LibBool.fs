@@ -80,8 +80,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DBool b ] ->
           match b with
-          | true -> Ply(DStr("true"))
-          | false -> Ply(DStr("false"))
+          | true -> Ply(DString("true"))
+          | false -> Ply(DString("false"))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -18,7 +18,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DFloat a, DFloat b -> a = b
   | DBool a, DBool b -> a = b
   | DUnit, DUnit -> true
-  | DStr a, DStr b -> a = b
+  | DString a, DString b -> a = b
   | DChar a, DChar b -> a = b
   | DList a, DList b -> a.Length = b.Length && List.forall2 equals a b
   | DTuple (a1, a2, a3), DTuple (b1, b2, b3) ->
@@ -67,7 +67,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DFloat _, _
   | DBool _, _
   | DUnit, _
-  | DStr _, _
+  | DString _, _
   | DChar _, _
   | DList _, _
   | DTuple _, _
@@ -278,7 +278,7 @@ let fns : List<BuiltInFn> =
       description = "Url encode a string per AWS' requirements"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           // Based on the original OCaml implementation which was slightly modified from
           // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
           // Buffer.add_string instead of add_bytes); see also
@@ -323,7 +323,7 @@ let fns : List<BuiltInFn> =
               sb.Append(c |> char |> int |> sprintf "%%%X")
               |> ignore<Text.StringBuilder>
 
-          sb |> string |> DStr |> Ply
+          sb |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -337,7 +337,7 @@ let fns : List<BuiltInFn> =
       description = "Url encode a string per Twitter's requirements"
       fn =
         (function
-        | _, _, [ DStr s ] -> s |> Uri.EscapeDataString |> DStr |> Ply
+        | _, _, [ DString s ] -> s |> Uri.EscapeDataString |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

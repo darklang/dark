@@ -69,7 +69,7 @@ let hardToRepresentTests =
              )
            )
          )
-         RT.DStr "s" ]),
+         RT.DString "s" ]),
       (RT.DResult(
         Ok(
           RT.DFnVal(
@@ -98,7 +98,7 @@ let hardToRepresentTests =
              )
            )
          )
-         RT.DStr "s" ]),
+         RT.DString "s" ]),
 
       RT.DResult(
         Ok(

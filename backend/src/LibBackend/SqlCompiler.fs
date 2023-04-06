@@ -58,7 +58,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | TInt, DInt i -> Sql.int64 i
   | TFloat, DFloat v -> Sql.double v
   | TBool, DBool b -> Sql.bool b
-  | TString, DStr s -> Sql.string s
+  | TString, DString s -> Sql.string s
   | TChar, DChar c -> Sql.string c
   | TUuid, DUuid id -> Sql.uuid id
   | TUnit, DUnit -> Sql.int64 0
@@ -78,7 +78,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   //   l
   //   |> List.map (fun v ->
   //     match v with
-  //     | DStr s -> s : obj
+  //     | DString s -> s : obj
   //     | DInt i -> i
   //     | DFloat f -> f
   //     | DBool b -> b

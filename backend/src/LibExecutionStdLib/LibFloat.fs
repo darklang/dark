@@ -355,7 +355,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DFloat v; DFloat a; DFloat b ] ->
           if System.Double.IsNaN a || System.Double.IsNaN b then
             "clamp requires arguments to be valid numbers"
-            |> DStr
+            |> DString
             |> Error
             |> DResult
             |> Ply
@@ -390,13 +390,13 @@ let fns : List<BuiltInFn> =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           (try
             float (s) |> DFloat |> Ok |> DResult |> Ply
            with
            | e ->
              "Expected a String representation of an IEEE float"
-             |> DStr
+             |> DString
              |> Error
              |> DResult
              |> Ply)
@@ -425,7 +425,7 @@ let fns : List<BuiltInFn> =
             else
               let result = sprintf "%.12g" f
               if result.Contains "." then result else $"{result}.0"
-          Ply(DStr result)
+          Ply(DString result)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

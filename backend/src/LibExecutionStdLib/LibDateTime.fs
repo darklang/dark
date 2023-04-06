@@ -45,10 +45,10 @@ let fns : List<BuiltInFn> =
         + "}} (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}."
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           ISO8601DateParser s
           |> Result.map DDateTime
-          |> Result.mapError (fun () -> DStr "Invalid date format")
+          |> Result.mapError (fun () -> DString "Invalid date format")
           |> DResult
           |> Ply
         | _ -> incorrectArgs ())
@@ -68,7 +68,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DDateTime d ] ->
           let dt = DarkDateTime.toDateTimeUtc d
           dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
-          |> DStr
+          |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -85,7 +85,9 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDateTime d ] ->
-          (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMddTHHmmssZ") |> DStr |> Ply
+          (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMddTHHmmssZ")
+          |> DString
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -100,7 +102,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DDateTime d ] ->
-          (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMdd") |> DStr |> Ply
+          (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMdd") |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

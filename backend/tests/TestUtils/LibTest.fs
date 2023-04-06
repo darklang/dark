@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | _, _, [ DStr errorString ] -> Ply(DError(SourceNone, errorString))
+        | _, _, [ DString errorString ] -> Ply(DError(SourceNone, errorString))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -64,7 +64,7 @@ let fns : List<BuiltInFn> =
       description = "Return a value that matches errors thrown by the SqlCompiler"
       fn =
         (function
-        | _, _, [ DStr errorString ] ->
+        | _, _, [ DString errorString ] ->
           let msg = LibBackend.SqlCompiler.errorTemplate + errorString
           Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
       description = "Turns a string of length 1 into a character"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
@@ -174,7 +174,7 @@ let fns : List<BuiltInFn> =
       description = "Prints the value into stdout"
       fn =
         (function
-        | _, _, [ v; DStr msg ] ->
+        | _, _, [ v; DString msg ] ->
           print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Just"
       fn =
         (function
-        | _, _, [ DStr msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -204,7 +204,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in an OK"
       fn =
         (function
-        | _, _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a DError in a Result.Error"
       fn =
         (function
-        | _, _, [ DStr msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -232,7 +232,7 @@ let fns : List<BuiltInFn> =
       description = "Delete a user (test only)"
       fn =
         (function
-        | _, _, [ DStr username ] ->
+        | _, _, [ DString username ] ->
           uply {
             do!
               // This is unsafe. A user has canvases, and canvases have traces. It
@@ -255,14 +255,14 @@ let fns : List<BuiltInFn> =
       description = "Fetch a queue (test only)"
       fn =
         (function
-        | state, _, [ DStr eventName ] ->
+        | state, _, [ DString eventName ] ->
           uply {
             let canvasID = state.program.canvasID
             let! results =
               LibBackend.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
             let results =
               results
-              |> List.map (fun x -> DStr(LibExecution.DvalReprDeveloper.toRepr x))
+              |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
             return DList results
           }
         | _ -> incorrectArgs ())
@@ -300,7 +300,7 @@ let fns : List<BuiltInFn> =
       description = "A function that raises an F# exception"
       fn =
         (function
-        | _, _, [ DStr message ] -> raise (System.Exception(message))
+        | _, _, [ DString message ] -> raise (System.Exception(message))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -340,8 +340,8 @@ let fns : List<BuiltInFn> =
       description = "Replaces regex patterns in a string"
       fn =
         (function
-        | _, _, [ DStr str; DStr pattern; DStr replacement ] ->
-          FsRegEx.replace pattern replacement str |> DStr |> Ply
+        | _, _, [ DString str; DString pattern; DString replacement ] ->
+          FsRegEx.replace pattern replacement str |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -371,7 +371,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DHttpResponse (_, headers, _) ] ->
           headers
-          |> List.map (fun (k, v) -> DTuple(DStr k, DStr v, []))
+          |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
           |> DList
           |> Ply
         | _ -> incorrectArgs ())

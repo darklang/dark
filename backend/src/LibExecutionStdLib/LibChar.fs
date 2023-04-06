@@ -162,7 +162,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param c>"
       fn =
         (function
-        | _, _, [ DChar c ] -> Ply(DStr(c))
+        | _, _, [ DChar c ] -> Ply(DString(c))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

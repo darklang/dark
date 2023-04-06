@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
     //            Ply(
     //              DResult(
     //                Error(
-    //                  DStr(
+    //                  DString(
     //                    "`modulus` must be positive but was "
     //                    + LibExecution.DvalReprDeveloper.toRepr (DInt m)
     //                  )
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
            with
            | e ->
              if d = 0L then
-               Ply(DResult(Error(DStr($"`divisor` must be non-zero"))))
+               Ply(DResult(Error(DString($"`divisor` must be non-zero"))))
              else
                Exception.raiseInternal
                  "unexpected failure case in Int::remainder"
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
-          let errPipe e = e |> DStr |> Error |> DResult |> Ply
+          let errPipe e = e |> DString |> Error |> DResult |> Ply
           let okPipe r = r |> DInt |> Ok |> DResult |> Ply
           (try
             if exp < 0L then
@@ -434,13 +434,13 @@ let fns : List<BuiltInFn> =
       description = "Returns the <type Int> value of a <type String>"
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           (try
             s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
            with
            | _e ->
              $"Expected to parse String with only numbers, instead got \"{s}\""
-             |> DStr
+             |> DString
              |> Error
              |> DResult
              |> Ply)
@@ -457,7 +457,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, [ DInt int ] -> Ply(DStr(string int))
+        | _, _, [ DInt int ] -> Ply(DString(string int))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

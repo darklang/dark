@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
          [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | _, _, [ DStr s ] ->
+        | _, _, [ DString s ] ->
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
             [||] |> DBytes |> Ok |> DResult |> Ply
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> DStr |> Error |> DResult |> Ply
+            "Not a valid base64 string" |> DString |> Error |> DResult |> Ply
           else
             try
               s
@@ -62,7 +62,7 @@ let fns : List<BuiltInFn> =
               |> DResult
               |> Ply
             with
-            | e -> Ply(DResult(Error(DStr("Not a valid base64 string"))))
+            | e -> Ply(DResult(Error(DString("Not a valid base64 string"))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DBytes bytes ] ->
           // Differs from Base64.encodeToUrlSafe as this version has padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
-          |> DStr
+          |> DString
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -112,7 +112,7 @@ let fns : List<BuiltInFn> =
               .Append(hexUppercaseLookup[(byte &&& 0xF)])
             |> ignore<StringBuilder>
 
-          buf |> string |> DStr |> Ply
+          buf |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

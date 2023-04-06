@@ -70,7 +70,7 @@ let toRepr (dv : Dval) : string =
 
     match dv with
     | DPassword _ -> "<password>"
-    | DStr s -> $"\"{s}\""
+    | DString s -> $"\"{s}\""
     | DChar c -> $"'{c}'"
     | DInt i -> string i
     | DBool true -> "true"

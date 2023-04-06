@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
             Map.toList o
             |> List.map (fun (k, v) ->
               match k, v with
-              | k, DStr v -> k, v
+              | k, DString v -> k, v
               | _, v ->
                 Exception.raiseCode (
                   Errors.argumentWasntType (TList TString) "value" v
@@ -145,7 +145,7 @@ let fns : List<BuiltInFn> =
          respond with a {{302}} redirect to <param url>"
       fn =
         (function
-        | _, _, [ DStr url ] ->
+        | _, _, [ DString url ] ->
           Ply(DHttpResponse(302L, [ ("Location", url) ], DBytes([||])))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -162,7 +162,7 @@ let fns : List<BuiltInFn> =
          respond with a {{400}} status and string <param error> message"
       fn =
         (function
-        | _, _, [ DStr _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
+        | _, _, [ DString _ as msg ] -> Ply(DHttpResponse(400L, [], msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -232,7 +232,7 @@ let fns : List<BuiltInFn> =
          and/or {{SameSite}})."
       fn =
         (function
-        | _, _, [ DStr name; DStr value; DDict o ] ->
+        | _, _, [ DString name; DString value; DDict o ] ->
 
           let fold_cookie_params acc key value =
             match (String.toLowercase key, value) with
@@ -253,14 +253,14 @@ let fns : List<BuiltInFn> =
             | "path", v
             | "domain", v ->
               (match v with
-               | DStr str -> (sprintf "%s=%s" key str :: acc)
+               | DString str -> (sprintf "%s=%s" key str :: acc)
                | _ ->
                  Exception.raiseCode (
                    Errors.argumentWasnt "a String" "`Path` or `Domain`" v
                  ))
             | "samesite", v ->
               (match v with
-               | DStr str when
+               | DString str when
                  List.contains (String.toLowercase str) [ "strict"; "lax"; "none" ]
                  ->
                  (sprintf "%s=%s" key str :: acc)
@@ -306,7 +306,7 @@ let fns : List<BuiltInFn> =
 
           nameValue :: cookieParams
           |> String.concat "; "
-          |> DStr
+          |> DString
           |> fun x -> Map.add "Set-Cookie" x Map.empty
           |> DDict
           |> Ply

@@ -89,7 +89,7 @@ let compileTests =
       }
       testTask "symtable values escaped" {
         let expr = p "var == value.name"
-        let symtable = Map.ofList [ "var", DStr "';select * from user_data_v0;'" ]
+        let symtable = Map.ofList [ "var", DString "';select * from user_data_v0;'" ]
 
         let! sql, args = compile symtable "value" [ "name", TString ] expr
 

@@ -37,13 +37,13 @@ let routeInputVars =
   testMany2
     "routeInputVars"
     routeInputVars
-    [ ("/hello/:name", "/hello/alice-bob", Some [ "name", RT.DStr "alice-bob" ])
+    [ ("/hello/:name", "/hello/alice-bob", Some [ "name", RT.DString "alice-bob" ])
       ("/hello/alice-bob", "/hello/", None)
       ("/user/:userid/card/:cardid",
        "/user/myid/card/0",
-       Some [ "userid", RT.DStr "myid"; "cardid", RT.DStr "0" ])
+       Some [ "userid", RT.DString "myid"; "cardid", RT.DString "0" ])
       // matche when same length
-      ("/a/:b/c/d", "/a/b/c/d", Some [ "b", RT.DStr "b" ])
+      ("/a/:b/c/d", "/a/b/c/d", Some [ "b", RT.DString "b" ])
       // Succeeds with no vars
       ("/a/b/c/d", "/a/b/c/d", Some [])
       ("/a/b/c/d", "/a/b/c", None)
@@ -53,10 +53,10 @@ let routeInputVars =
       // too long, fails
       ("/a/b/c/d", "/a/b/c", None)
       // trailing wildcard matches everything after
-      ("/a/:b", "/a/b/c/d", Some [ "b", RT.DStr "b/c/d" ])
+      ("/a/:b", "/a/b/c/d", Some [ "b", RT.DString "b/c/d" ])
       ("/:a/:b/:c",
        "/a/b/c/d/e",
-       Some [ "a", RT.DStr "a"; "b", RT.DStr "b"; "c", RT.DStr "c/d/e" ])
+       Some [ "a", RT.DString "a"; "b", RT.DString "b"; "c", RT.DString "c/d/e" ])
       // Incorrect last segment, fails
       ("/a/:b/c/d", "/a/b/c/e", None)
       // Doesn't crash

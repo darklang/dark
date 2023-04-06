@@ -70,7 +70,7 @@ module FormatV0 =
     | DFloat of double
     | DBool of bool
     | DUnit
-    | DStr of string
+    | DString of string
     | DChar of string
     | DList of List<Dval>
     | DTuple of Dval * Dval * List<Dval>
@@ -94,7 +94,7 @@ module FormatV0 =
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
-    | DStr s -> RT.DStr s
+    | DString s -> RT.DString s
     | DChar c -> RT.DChar c
     | DInt i -> RT.DInt i
     | DBool b -> RT.DBool b
@@ -133,7 +133,7 @@ module FormatV0 =
 
   let rec fromRT (dv : RT.Dval) : Dval =
     match dv with
-    | RT.DStr s -> DStr s
+    | RT.DString s -> DString s
     | RT.DChar c -> DChar c
     | RT.DInt i -> DInt i
     | RT.DBool b -> DBool b
@@ -189,7 +189,7 @@ module Test =
   let rec isRoundtrippableDval (dval : RT.Dval) : bool =
     match dval with
     | RT.DFnVal _ -> false // not supported
-    | RT.DStr _
+    | RT.DString _
     | RT.DInt _
     | RT.DFloat _
     | RT.DUnit _

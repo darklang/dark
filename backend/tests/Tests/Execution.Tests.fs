@@ -210,31 +210,31 @@ let testIfPreview : Test =
     "if-then expression previews correctly"
     f
     [ (eBool false,
-       (AT.ExecutedResult(DStr "else"),
-        AT.NonExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "else")))
+       (AT.ExecutedResult(DString "else"),
+        AT.NonExecutedResult(DString "then"),
+        AT.ExecutedResult(DString "else")))
       (eUnit (),
        (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
-        AT.NonExecutedResult(DStr "then"),
-        AT.NonExecutedResult(DStr "else")))
+        AT.NonExecutedResult(DString "then"),
+        AT.NonExecutedResult(DString "else")))
       // fakevals
       (eFn "Test" "typeError" 0 [] [ eStr "test" ],
        (AT.ExecutedResult(DError(SourceNone, "test")),
-        AT.NonExecutedResult(DStr "then"),
-        AT.NonExecutedResult(DStr "else")))
+        AT.NonExecutedResult(DString "then"),
+        AT.NonExecutedResult(DString "else")))
       // others are true
       (eBool true,
-       (AT.ExecutedResult(DStr "then"),
-        AT.ExecutedResult(DStr "then"),
-        AT.NonExecutedResult(DStr "else")))
+       (AT.ExecutedResult(DString "then"),
+        AT.ExecutedResult(DString "then"),
+        AT.NonExecutedResult(DString "else")))
       (eInt 5,
        (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
-        AT.NonExecutedResult(DStr "then"),
-        AT.NonExecutedResult(DStr "else")))
+        AT.NonExecutedResult(DString "then"),
+        AT.NonExecutedResult(DString "else")))
       (eStr "test",
        (AT.ExecutedResult(DError(SourceID(7UL, ifID), "If only supports Booleans")),
-        AT.NonExecutedResult(DStr "then"),
-        AT.NonExecutedResult(DStr "else"))) ]
+        AT.NonExecutedResult(DString "then"),
+        AT.NonExecutedResult(DString "else"))) ]
 
 let testOrPreview : Test =
   let orID = gid ()
@@ -275,18 +275,18 @@ let testOrPreview : Test =
       // strings
       ((eBool false, eStr "test"),
        (AT.ExecutedResult(DBool false),
-        AT.ExecutedResult(DStr "test"),
+        AT.ExecutedResult(DString "test"),
         AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
       ((eBool true, eStr "test"),
        (AT.ExecutedResult(DBool true),
-        AT.NonExecutedResult(DStr "test"),
+        AT.NonExecutedResult(DString "test"),
         AT.ExecutedResult(DBool true)))
       ((EString(999UL, [ StringText "test" ]), eBool false),
-       (AT.ExecutedResult(DStr "test"),
+       (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool false),
         AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans"))))
       ((EString(999UL, [ StringText "test" ]), eBool true),
-       (AT.ExecutedResult(DStr "test"),
+       (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool true),
         AT.ExecutedResult(DError(SourceID(7UL, orID), "|| only supports Booleans")))) ]
 
@@ -329,18 +329,18 @@ let testAndPreview : Test =
       // strings
       ((eBool false, eStr "test"),
        (AT.ExecutedResult(DBool false),
-        AT.NonExecutedResult(DStr "test"),
+        AT.NonExecutedResult(DString "test"),
         AT.ExecutedResult(DBool false)))
       ((eBool true, eStr "test"),
        (AT.ExecutedResult(DBool true),
-        AT.ExecutedResult(DStr "test"),
+        AT.ExecutedResult(DString "test"),
         AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
       ((EString(999UL, [ StringText "test" ]), eBool false),
-       (AT.ExecutedResult(DStr "test"),
+       (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool false),
         AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans"))))
       ((EString(999UL, [ StringText "test" ]), eBool true),
-       (AT.ExecutedResult(DStr "test"),
+       (AT.ExecutedResult(DString "test"),
         AT.NonExecutedResult(DBool true),
         AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans")))) ]
 
@@ -376,26 +376,26 @@ let testFeatureFlagPreview : Test =
     "feature flag expression previews correctly"
     f
     [ (eBool true,
-       (AT.ExecutedResult(DStr "new"),
-        AT.NonExecutedResult(DStr "old"),
-        AT.ExecutedResult(DStr "new")))
+       (AT.ExecutedResult(DString "new"),
+        AT.NonExecutedResult(DString "old"),
+        AT.ExecutedResult(DString "new")))
       // everything else should be old
       (eBool false,
-       (AT.ExecutedResult(DStr "old"),
-        AT.ExecutedResult(DStr "old"),
-        AT.NonExecutedResult(DStr "new")))
+       (AT.ExecutedResult(DString "old"),
+        AT.ExecutedResult(DString "old"),
+        AT.NonExecutedResult(DString "new")))
       (eInt 5,
-       (AT.ExecutedResult(DStr "old"),
-        AT.ExecutedResult(DStr "old"),
-        AT.NonExecutedResult(DStr "new")))
+       (AT.ExecutedResult(DString "old"),
+        AT.ExecutedResult(DString "old"),
+        AT.NonExecutedResult(DString "new")))
       (eStr "test",
-       (AT.ExecutedResult(DStr "old"),
-        AT.ExecutedResult(DStr "old"),
-        AT.NonExecutedResult(DStr "new")))
+       (AT.ExecutedResult(DString "old"),
+        AT.ExecutedResult(DString "old"),
+        AT.NonExecutedResult(DString "new")))
       (eUnit (),
-       (AT.ExecutedResult(DStr "old"),
-        AT.ExecutedResult(DStr "old"),
-        AT.NonExecutedResult(DStr "new"))) ]
+       (AT.ExecutedResult(DString "old"),
+        AT.ExecutedResult(DString "old"),
+        AT.NonExecutedResult(DString "new"))) ]
 
 let testLambdaPreview : Test =
   let lID = gid ()
@@ -423,7 +423,7 @@ let testLambdaPreview : Test =
                        ))
                       (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
                       (p2ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p2ID))))
-                      (65UL, AT.NonExecutedResult(DStr "body")) ]) ]
+                      (65UL, AT.NonExecutedResult(DString "body")) ]) ]
 
 
 /// Test the results that are returned when we're "previewing" (i.e. Analysis)
@@ -573,22 +573,22 @@ let testMatchPreview : Test =
           (intRhsId, "non matching rhs", ner (DInt 17L))
 
           (pFloatId, "float pat", ner (DFloat 5.6))
-          (floatRhsId, "float rhs", ner (DStr "float"))
+          (floatRhsId, "float rhs", ner (DString "float"))
 
           (pBoolId, "bool pat", ner (DBool false))
-          (boolRhsId, "bool rhs", ner (DStr "bool"))
+          (boolRhsId, "bool rhs", ner (DString "bool"))
 
           (pUnitId, "unit pat", ner DUnit)
-          (unitRhsId, "unit rhs", ner (DStr "unit"))
+          (unitRhsId, "unit rhs", ner (DString "unit"))
 
           (pOkVarOkId, "ok var pat ok", ner (inc pOkVarOkId))
           (pOkVarVarId, "ok var pat var", ner (inc pOkVarVarId))
           (okVarRhsId, "ok var pat rhs", ner (inc pOkVarVarId))
           (okVarRhsVarId, "ok var rhs var", ner (inc pOkVarVarId))
-          (okVarRhsStrId, "ok var rhs str", ner (DStr "ok: "))
+          (okVarRhsStrId, "ok var rhs str", ner (DString "ok: "))
 
           (pNothingId, "nothing pat", ner (DOption None))
-          (nothingRhsId, "nothing pat rhs", ner (DStr "constructor nothing"))
+          (nothingRhsId, "nothing pat rhs", ner (DString "constructor nothing"))
 
           (pVarId, "catch all pat", er (DInt 6L))
           (varRhsId, "catch all rhs", er (DInt 6L)) ]
@@ -597,32 +597,33 @@ let testMatchPreview : Test =
         "float"
         (eFloat Positive "5" "6")
         [ (pFloatId, "pat", er (DFloat 5.6))
-          (floatRhsId, "rhs", er (DStr "float")) ]
+          (floatRhsId, "rhs", er (DString "float")) ]
 
       t
         "bool"
         (eBool false)
-        [ (pBoolId, "pat", er (DBool false)); (boolRhsId, "rhs", er (DStr "bool")) ]
+        [ (pBoolId, "pat", er (DBool false))
+          (boolRhsId, "rhs", er (DString "bool")) ]
 
       t
         "unit"
         (eUnit ())
-        [ (pUnitId, "pat", er DUnit); (unitRhsId, "rhs", er (DStr "unit")) ]
+        [ (pUnitId, "pat", er DUnit); (unitRhsId, "rhs", er (DString "unit")) ]
 
       t
         "ok: y"
         (eConstructor None "Ok" [ eStr "y" ])
-        [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DStr "y"))))
-          (pOkVarVarId, "var pat", er (DStr "y"))
-          (okVarRhsId, "rhs", er (DStr "ok: y"))
-          (okVarRhsVarId, "rhs", er (DStr "y"))
-          (okVarRhsStrId, "str", er (DStr "ok: ")) ]
+        [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DString "y"))))
+          (pOkVarVarId, "var pat", er (DString "y"))
+          (okVarRhsId, "rhs", er (DString "ok: y"))
+          (okVarRhsVarId, "rhs", er (DString "y"))
+          (okVarRhsStrId, "str", er (DString "ok: ")) ]
 
       t
         "nothing"
         (eConstructor None "Nothing" [])
         [ (pNothingId, "ok pat", er (DOption None))
-          (nothingRhsId, "rhs", er (DStr "constructor nothing")) ]
+          (nothingRhsId, "rhs", er (DString "constructor nothing")) ]
 
       // TODO: test constructor around a literal
       // TODO: constructor around a variable
