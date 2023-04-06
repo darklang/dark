@@ -50,7 +50,7 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
 /// Update a CanvasModule by parsing a single F# let binding
 /// Depending on the attribute present, this may add a user function, a handler, or a DB
 let parseLetBinding
-  availableTypes
+  (availableTypes : AvailableTypes)
   (m : CanvasModule)
   (letBinding : SynBinding)
   : CanvasModule =
@@ -130,7 +130,10 @@ let parseLetBinding
 ///   or as DBs (i.e. with `[<DB("name")>]`)
 /// - ? expressions are parsed as init commands (not currently supported)
 /// - anything else fails
-let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
+let parseDecls
+  (availableTypes : AvailableTypes)
+  (decls : List<SynModuleDecl>)
+  : CanvasModule =
   List.fold
     emptyModule
     (fun m decl ->
@@ -157,7 +160,7 @@ let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
 
 
 let parseFromFile
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (availableTypes : AvailableTypes)
   (filename : string)
   : CanvasModule =
   let parsedAsFSharp =

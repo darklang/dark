@@ -33,7 +33,7 @@ let parseAsFSharpSourceFile (input : string) : ParsedImplFileInput =
       [ "parseTree", results.ParseTree; "input", input ]
 
 
-let singleExprFromImplFile parsedAsFSharp =
+let singleExprFromImplFile (parsedAsFSharp : ParsedImplFileInput) : SynExpr =
   match parsedAsFSharp with
   | ParsedImplFileInput (_,
                          _,
@@ -56,3 +56,6 @@ let singleExprFromImplFile parsedAsFSharp =
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
       [ "parseTree", parsedAsFSharp ]
+
+type AvailableTypes =
+  List<LibExecution.ProgramTypes.FQTypeName.T * LibExecution.ProgramTypes.CustomType.T>

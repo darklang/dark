@@ -4,9 +4,10 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
+open Utils
 
 let parseExprWithTypes
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (availableTypes : AvailableTypes)
   (code : string)
   : LibExecution.RuntimeTypes.Expr =
   ProgramTypes.parseExprWithTypes availableTypes code

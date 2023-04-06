@@ -24,7 +24,10 @@ let empty =
 
 
 module UserDB =
-  let private parseDBSchemaField availableTypes (field : SynField) : PT.DB.Col =
+  let private parseDBSchemaField
+    (availableTypes : AvailableTypes)
+    (field : SynField)
+    : PT.DB.Col =
     match field with
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
       { name = Some(id.idText) // CLEANUP
@@ -33,7 +36,10 @@ module UserDB =
         typeID = gid () }
     | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
 
-  let fromSynTypeDefn availableTypes (typeDef : SynTypeDefn) : PT.DB.T =
+  let fromSynTypeDefn
+    (availableTypes : AvailableTypes)
+    (typeDef : SynTypeDefn)
+    : PT.DB.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -79,7 +85,7 @@ module PackageFn =
 
 /// Extracts a test from a SynExpr.
 /// The test must be in the format `expected = actual`, otherwise an exception is raised
-let parseTest availableTypes (ast : SynExpr) : Test =
+let parseTest (availableTypes : AvailableTypes) (ast : SynExpr) : Test =
   let convert (x : SynExpr) : PT.Expr = PTP.Expr.fromSynExpr availableTypes x
 
   match ast with
@@ -103,11 +109,11 @@ let parseTest availableTypes (ast : SynExpr) : Test =
 
 
 let parseFile
-  (stdlibTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (stdlibTypes : AvailableTypes)
   (parsedAsFSharp : ParsedImplFileInput)
   : T =
   let parseTypeDecl
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+    (availableTypes : AvailableTypes)
     (typeDef : SynTypeDefn)
     : List<PT.DB.T> * List<PT.UserType.T> =
     match typeDef with
@@ -224,17 +230,14 @@ let parseFile
 
 
 // Below are the fns that we intend to expose to the rest of the codebase
-let parseTestFile
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-  (filename : string)
-  : T =
+let parseTestFile (availableTypes : AvailableTypes) (filename : string) : T =
   filename
   |> System.IO.File.ReadAllText
   |> parseAsFSharpSourceFile
   |> parseFile availableTypes
 
 let parseSingleTestFromFile
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (availableTypes : AvailableTypes)
   (testSource : string)
   : Test =
   testSource

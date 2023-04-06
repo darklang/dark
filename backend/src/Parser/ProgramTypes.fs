@@ -9,6 +9,8 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
+open Utils
+
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = PT.EString(12345678UL, [ PT.StringText "PLACEHOLDER VALUE" ])
 
@@ -18,7 +20,7 @@ let (|Placeholder|_|) (input : PT.Expr) =
 
 module DType =
   let rec fromNameAndTypeArgs
-    availableTypes
+    (availableTypes : AvailableTypes)
     (name : string)
     (typeArgs : List<SynType>)
     : PT.DType =
@@ -64,10 +66,7 @@ module DType =
           $"Matched against multiple custom types - not sure what to do"
           [ "name", name; "typeArgs", typeArgs ]
 
-  and fromSynType
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-    (typ : SynType)
-    : PT.DType =
+  and fromSynType (availableTypes : AvailableTypes) (typ : SynType) : PT.DType =
     let c = fromSynType availableTypes
 
     match typ with
@@ -180,10 +179,7 @@ module Expr =
                  ("op_BangEquals", PT.ComparisonNotEquals)
                  ("op_PlusPlus", PT.StringConcat) ]
 
-  let rec fromSynExpr
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-    (ast : SynExpr)
-    : PT.Expr =
+  let rec fromSynExpr (availableTypes : AvailableTypes) (ast : SynExpr) : PT.Expr =
     let c = fromSynExpr availableTypes
 
     let convertLambdaVar (var : SynSimplePat) : string =
@@ -612,7 +608,10 @@ module Expr =
 
 
 module UserFunction =
-  let rec parseArgPat availableTypes (pat : SynPat) : PT.UserFunction.Parameter =
+  let rec parseArgPat
+    (availableTypes : AvailableTypes)
+    (pat : SynPat)
+    : PT.UserFunction.Parameter =
     let r = parseArgPat availableTypes
 
     match pat with
@@ -630,7 +629,7 @@ module UserFunction =
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let private parseSignature
-    availableTypes
+    (availableTypes : AvailableTypes)
     (pat : SynPat)
     : string * List<string> * List<PT.UserFunction.Parameter> =
     match pat with
@@ -679,7 +678,10 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
-  let fromSynBinding availableTypes (binding : SynBinding) : PT.UserFunction.T =
+  let fromSynBinding
+    (availableTypes : AvailableTypes)
+    (binding : SynBinding)
+    : PT.UserFunction.T =
     match binding with
     | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature availableTypes pat
@@ -697,7 +699,7 @@ module UserFunction =
 module CustomType =
   module Enum =
     let private parseField
-      availableTypes
+      (availableTypes : AvailableTypes)
       (typ : SynField)
       : PT.CustomType.EnumField =
       match typ with
@@ -707,7 +709,7 @@ module CustomType =
           label = fieldName |> Option.map (fun id -> id.idText) }
 
     let private parseCase
-      availableTypes
+      (availableTypes : AvailableTypes)
       (case : SynUnionCase)
       : PT.CustomType.EnumCase =
       match case with
@@ -734,7 +736,7 @@ module CustomType =
 
   module Record =
     let private parseField
-      availableTypes
+      (availableTypes : AvailableTypes)
       (field : SynField)
       : PT.CustomType.RecordField =
       match field with
@@ -757,7 +759,10 @@ module CustomType =
         )
 
 module UserType =
-  let fromSynTypeDefn availableTypes (typeDef : SynTypeDefn) : PT.UserType.T =
+  let fromSynTypeDefn
+    (availableTypes : AvailableTypes)
+    (typeDef : SynTypeDefn)
+    : PT.UserType.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -785,10 +790,7 @@ module UserType =
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
 
-let parseExprWithTypes
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
-  (code : string)
-  : PT.Expr =
+let parseExprWithTypes (availableTypes : AvailableTypes) (code : string) : PT.Expr =
   code
   |> Utils.parseAsFSharpSourceFile
   |> Utils.singleExprFromImplFile

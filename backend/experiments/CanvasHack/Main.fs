@@ -61,7 +61,7 @@ let parseYamlExn<'a> (filename : string) : 'a =
     //Exception.raiseCode "couldn't parse config file for canvas"
     Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
 
-let seedCanvasV1 canvasName =
+let seedCanvasV1 (canvasName : string) =
   task {
     let canvasDir = $"{baseDir}/{canvasName}"
     let config = parseYamlExn<CanvasHackConfig.V1> $"{canvasDir}/config.yml"
@@ -120,7 +120,7 @@ let seedCanvasV1 canvasName =
     print $"Success saved canvas - endpoints available at {host}"
   }
 
-let seedCanvasV2 canvasName =
+let seedCanvasV2 (canvasName : string) =
   task {
     let canvasDir = $"{baseDir}/{canvasName}"
     let config = parseYamlExn<CanvasHackConfig.V2> $"{canvasDir}/config.yml"

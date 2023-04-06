@@ -17,7 +17,10 @@ type CanvasModule =
 
 let emptyModule = { types = []; fns = []; httpHandlers = [] }
 
-let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
+let parseDecls
+  (availableTypes : AvailableTypes)
+  (decls : List<SynModuleDecl>)
+  : CanvasModule =
   List.fold
     emptyModule
     (fun m decl ->
@@ -46,7 +49,7 @@ let parseDecls availableTypes (decls : List<SynModuleDecl>) : CanvasModule =
 
 
 let parseHandlerFromFile
-  (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+  (availableTypes : AvailableTypes)
   (filename : string)
   : CanvasModule =
   let parsedAsFSharp =
