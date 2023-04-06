@@ -455,7 +455,7 @@ module Expect =
       check path caseName caseName'
       eqList (caseName :: path) fieldPats fieldPats'
     | MPString (_, str), MPString (_, str') -> check path str str'
-    | MPInteger (_, l), MPInteger (_, l') -> check path l l'
+    | MPInt (_, l), MPInt (_, l') -> check path l l'
     | MPFloat (_, d), MPFloat (_, d') -> check path d d'
     | MPBool (_, l), MPBool (_, l') -> check path l l'
     | MPChar (_, c), MPChar (_, c') -> check path c c'
@@ -467,7 +467,7 @@ module Expect =
     | MPVariable _, _
     | MPConstructor _, _
     | MPString _, _
-    | MPInteger _, _
+    | MPInt _, _
     | MPFloat _, _
     | MPBool _, _
     | MPChar _, _

@@ -253,7 +253,7 @@ and FnTarget =
 and MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
-  | MPInteger of id * int64
+  | MPInt of id * int64
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string
@@ -432,7 +432,7 @@ module LetPattern =
 module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
-    | MPInteger (id, _)
+    | MPInt (id, _)
     | MPString (id, _)
     | MPChar (id, _)
     | MPBool (id, _)

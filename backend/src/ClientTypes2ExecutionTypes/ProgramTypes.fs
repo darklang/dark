@@ -186,7 +186,7 @@ module MatchPattern =
     | CTPT.MPVariable (id, str) -> PT.MPVariable(id, str)
     | CTPT.MPConstructor (id, caseName, fieldPats) ->
       PT.MPConstructor(id, caseName, List.map fromCT fieldPats)
-    | CTPT.MPInteger (id, i) -> PT.MPInteger(id, i)
+    | CTPT.MPInt (id, i) -> PT.MPInt(id, i)
     | CTPT.MPBool (id, b) -> PT.MPBool(id, b)
     | CTPT.MPChar (id, str) -> PT.MPChar(id, str)
     | CTPT.MPString (id, str) -> PT.MPString(id, str)
@@ -201,7 +201,7 @@ module MatchPattern =
     | PT.MPVariable (id, str) -> CTPT.MPVariable(id, str)
     | PT.MPConstructor (id, caseName, fieldPats) ->
       CTPT.MPConstructor(id, caseName, List.map toCT fieldPats)
-    | PT.MPInteger (id, i) -> CTPT.MPInteger(id, i)
+    | PT.MPInt (id, i) -> CTPT.MPInt(id, i)
     | PT.MPBool (id, b) -> CTPT.MPBool(id, b)
     | PT.MPChar (id, str) -> CTPT.MPChar(id, str)
     | PT.MPString (id, str) -> CTPT.MPString(id, str)

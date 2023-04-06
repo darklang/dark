@@ -53,7 +53,7 @@ module RuntimeTypes =
   let matchPatterns : List<RT.MatchPattern> =
     [ RT.MPVariable(123UL, "test")
       RT.MPConstructor(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
-      RT.MPInteger(756385UL, 7857395)
+      RT.MPInt(756385UL, 7857395)
       RT.MPBool(8759375UL, true)
       RT.MPChar(4875843UL, "8jgkdjsfg")
       RT.MPString(857395UL, "iklfijo13294")
@@ -171,7 +171,7 @@ module ProgramTypes =
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
       PT.MPConstructor(7471263UL, "Nothing", [])
-      PT.MPInteger(74816UL, 84871728)
+      PT.MPInt(74816UL, 84871728)
       PT.MPBool(66453UL, false)
       PT.MPChar(83749178UL, "w")
       PT.MPString(817201237UL, "testing testing 123")
@@ -179,7 +179,7 @@ module ProgramTypes =
       PT.MPUnit(9123871238UL)
       PT.MPTuple(
         91298UL,
-        PT.MPInteger(812831UL, 123),
+        PT.MPInt(812831UL, 123),
         PT.MPBool(81871UL, true),
         [ PT.MPUnit(17123UL) ]
       ) ]
@@ -348,7 +348,7 @@ module ProgramTypes =
                                 [ PT.MPVariable(334386852UL, "x") ]
                                ),
                                PT.EVariable(863810169UL, "v"))
-                              (PT.MPInteger(928253813UL, 5L),
+                              (PT.MPInt(928253813UL, 5L),
                                PT.EInt(342670561UL, -9223372036854775808L))
                               (PT.MPBool(435227293UL, true), PT.EInt(232748650UL, 7L))
                               (PT.MPChar(387662539UL, "c"),

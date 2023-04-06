@@ -59,7 +59,7 @@ let rec matchPatternPreTraversal
   match pattern with
   | MPVariable _
   | MPChar _
-  | MPInteger _
+  | MPInt _
   | MPBool _
   | MPString _
   | MPUnit _
@@ -80,7 +80,7 @@ let rec matchPatternPostTraversal
     match pattern with
     | MPVariable _
     | MPChar _
-    | MPInteger _
+    | MPInt _
     | MPBool _
     | MPString _
     | MPUnit _

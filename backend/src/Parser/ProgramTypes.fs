@@ -122,10 +122,10 @@ module MatchPattern =
     match pat with
     | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
-    | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInteger(id, n)
-    | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInteger(id, int64 n)
-    | SynPat.Const (SynConst.UInt64 n, _) -> PT.MPInteger(id, int64 n)
-    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInteger(id, parseInt64 n)
+    | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInt(id, n)
+    | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInt(id, int64 n)
+    | SynPat.Const (SynConst.UInt64 n, _) -> PT.MPInt(id, int64 n)
+    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInt(id, parseInt64 n)
     | SynPat.Const (SynConst.Char c, _) -> PT.MPChar(id, string c)
     | SynPat.Const (SynConst.Bool b, _) -> PT.MPBool(id, b)
     | SynPat.Const (SynConst.Unit, _) -> PT.MPUnit(id)

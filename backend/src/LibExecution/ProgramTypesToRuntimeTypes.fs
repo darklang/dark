@@ -105,7 +105,7 @@ module MatchPattern =
     | PT.MPVariable (id, str) -> RT.MPVariable(id, str)
     | PT.MPConstructor (id, caseName, fieldPats) ->
       RT.MPConstructor(id, caseName, List.map toRT fieldPats)
-    | PT.MPInteger (id, i) -> RT.MPInteger(id, i)
+    | PT.MPInt (id, i) -> RT.MPInt(id, i)
     | PT.MPBool (id, b) -> RT.MPBool(id, b)
     | PT.MPChar (id, c) -> RT.MPChar(id, c)
     | PT.MPString (id, s) -> RT.MPString(id, s)

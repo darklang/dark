@@ -216,7 +216,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     tag1 = tag2
     && args1.Length = args2.Length
     && List.forall2 equalsMatchPattern args1 args2
-  | MPInteger (_, int1), MPInteger (_, int2) -> int1 = int2
+  | MPInt (_, int1), MPInt (_, int2) -> int1 = int2
   | MPBool (_, bool1), MPBool (_, bool2) -> bool1 = bool2
   | MPChar (_, char1), MPChar (_, char2) -> char1 = char2
   | MPString (_, str1), MPString (_, str2) -> str1 = str2
@@ -232,7 +232,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   // exhaustiveness check
   | MPVariable _, _
   | MPConstructor _, _
-  | MPInteger _, _
+  | MPInt _, _
   | MPBool _, _
   | MPChar _, _
   | MPString _, _

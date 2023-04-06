@@ -87,7 +87,7 @@ type LetPattern = LPVariable of id * name : string
 type MatchPattern =
   | MPVariable of id * string
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
-  | MPInteger of id * int64
+  | MPInt of id * int64
   | MPBool of id * bool
   | MPChar of id * string
   | MPString of id * string

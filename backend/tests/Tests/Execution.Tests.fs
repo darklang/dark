@@ -454,7 +454,7 @@ let testMatchPreview : Test =
 
   let patternsToMatchAgainst =
     [ // | 5 -> 17
-      (MPInteger(pIntId, 5L), EInt(intRhsId, 17L))
+      (MPInt(pIntId, 5L), EInt(intRhsId, 17L))
 
       // | 5.6 -> "float"
       (MPFloat(pFloatId, 5.6), EString(floatRhsId, [ StringText "float" ]))
