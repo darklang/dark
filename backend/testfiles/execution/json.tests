@@ -296,7 +296,19 @@ Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (Enh("printer br
 
 
 // #### Records
-// TODO
+type Person = { Name: string; Age: int }
+type People = { GroupName: string; People: List<Person> }
+
+Json.serialize<Person> { Name = "Bob"; Age = 42 } = Ok """{"Age":42,"Name":"Bob"}"""
+Json.parse<Person> """{ "Name": "Bob", "Age": 42 }""" = Ok { Name = "Bob"; Age = 42 }
+Json.serialize<People> { GroupName = "Two Georges"; People = [{ Name = "George A"; Age = 27 }; { Name = "George B"; Age = 42 }] } = Ok """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}"""
+Json.parse<People> """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""" = Ok { GroupName = "Two Georges"; People = [{ Name = "George A"; Age = 27 }; { Name = "George B"; Age = 42 }] }
+
+(let personMaybe = Json.parse<Person> """{ "Name": "Bob", "Age": 42 }"""
+ match personMaybe with
+ | Ok person -> person.Age
+ | Error _ -> 0) = 42
+
 
 
 // ### Package

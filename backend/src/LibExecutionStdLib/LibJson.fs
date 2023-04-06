@@ -135,8 +135,52 @@ let rec serialize
       w.WritePropertyName "Error"
       r errType dv)
 
-  // | TCustomType _, DRecord _ ->
-  // TODO: handle this once DRecord exists (with a TypeReference/FQTypeName)
+  | TCustomType (typeName, _typeArgs), DDict dvalMap ->
+    // TODO: try find exactly one matching type
+    let matchingType = availableTypes[typeName]
+
+    match matchingType with
+    | CustomType.Enum (firstCase, additionalCases) ->
+      Exception.raiseInternal "TODO" []
+    | CustomType.Record (firstField, additionalFields) ->
+      let fieldDefs = firstField :: additionalFields
+      w.writeObject (fun () ->
+        dvalMap
+        |> Map.toList
+        |> List.iter (fun (fieldName, dval) ->
+          w.WritePropertyName fieldName
+
+          let matchingDType =
+            fieldDefs
+            // TODO: handle case where field isn't found
+            |> List.find (fun def -> def.name = fieldName)
+            |> fun def -> def.typ
+
+          r matchingDType dval))
+
+  | TCustomType (typeName, _typeArgs), DRecord dvalMap ->
+    // TODO: try find exactly one matching type
+    let matchingType = availableTypes[typeName]
+
+    match matchingType with
+    | CustomType.Enum (firstCase, additionalCases) ->
+      Exception.raiseInternal "TODO" []
+    | CustomType.Record (firstField, additionalFields) ->
+      let fieldDefs = firstField :: additionalFields
+      w.writeObject (fun () ->
+        dvalMap
+        |> Map.toList
+        |> List.iter (fun (fieldName, dval) ->
+          w.WritePropertyName fieldName
+
+          let matchingDType =
+            fieldDefs
+            |> List.find (fun def -> def.name = fieldName)
+            |> fun def -> def.typ
+
+          r matchingDType dval))
+
+
 
   | TCustomType (tTypeName, _typeArgs), DConstructor (dTypeName, caseName, fields) ->
     // TODO: ensure that the type names are the same
@@ -382,6 +426,7 @@ let parse
           j.EnumerateObject()
           |> Seq.map (fun jp -> (jp.Name, jp.Value))
           |> Seq.toList
+
         match enumerated with
         | [ (caseName, j) ] ->
           let matchingCase =
@@ -396,7 +441,24 @@ let parse
 
         | _ -> Exception.raiseInternal "TODO" []
 
-      | CustomType.Record _ -> Exception.raiseInternal "TODO" []
+      | CustomType.Record (firstField, additionalFields) ->
+        let fieldDefs = firstField :: additionalFields
+        let dvalMap =
+          j.EnumerateObject()
+          |> Seq.map (fun jp ->
+            let correspondingType =
+              fieldDefs
+              // TODO: handle case where field isn't found
+              |> List.find (fun def -> def.name = jp.Name)
+              |> fun def -> def.typ
+            let converted = convert correspondingType jp.Value
+            (jp.Name, converted))
+          |> Map.ofSeq
+
+        // TODO: this should really be a DRecord
+        // but isn't currently, as our parser doesn't know
+        // when to parse an object as a record or a dict
+        DDict(dvalMap)
 
 
     // Explicitly not supported
