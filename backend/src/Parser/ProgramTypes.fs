@@ -30,7 +30,7 @@ module DType =
     | "Bool", [] -> PT.TBool
     | "Bytes", [] -> PT.TBytes
     | "Int", [] -> PT.TInt
-    | "String", [] -> PT.TStr
+    | "String", [] -> PT.TString
     | "Char", [] -> PT.TChar
     | "Float", [] -> PT.TFloat
     | "DateTime", [] -> PT.TDateTime

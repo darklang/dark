@@ -96,7 +96,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         match col, value with
         | RT.TInt, RT.DInt _ -> value
         | RT.TFloat, RT.DFloat _ -> value
-        | RT.TStr, RT.DStr _ -> value
+        | RT.TString, RT.DStr _ -> value
         | RT.TChar, RT.DChar _ -> value
         | RT.TBool, RT.DBool _ -> value
         | RT.TDateTime, RT.DDateTime _ -> value

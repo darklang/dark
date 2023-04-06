@@ -99,7 +99,7 @@ let rec unify
   | TFloat, DFloat _ -> Ok()
   | TBool, DBool _ -> Ok()
   | TUnit, DUnit -> Ok()
-  | TStr, DStr _ -> Ok()
+  | TString, DStr _ -> Ok()
   | TList _, DList _ -> Ok()
   | TDateTime, DDateTime _ -> Ok()
   | TDict _, DDict _ -> Ok()

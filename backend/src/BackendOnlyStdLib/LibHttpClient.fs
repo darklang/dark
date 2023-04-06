@@ -215,7 +215,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let fn = FQFnName.stdlibFnName
 
-let headersType = TList(TTuple(TStr, TStr, []))
+let headersType = TList(TTuple(TString, TString, []))
 
 type HeaderError =
   | BadInput of string
@@ -226,14 +226,14 @@ let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "request" 0
       typeParams = []
       parameters =
-        [ Param.make "method" TStr ""
-          Param.make "uri" TStr ""
+        [ Param.make "method" TString ""
+          Param.make "uri" TString ""
           Param.make "headers" headersType ""
           Param.make "body" TBytes "" ]
       returnType =
         TResult(
           TRecord [ "statusCode", TInt; "headers", headersType; "body", TBytes ],
-          TStr
+          TString
         )
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where

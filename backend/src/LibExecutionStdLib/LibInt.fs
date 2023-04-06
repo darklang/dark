@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
     // TODO: A future version should support all non-zero modulus values and should include the infix "%"
     // { name = fn "Int" "mod" 1
     //   parameters = [ Param.make "value" TInt ""; Param.make "modulus" TInt "" ]
-    //   returnType = TResult(TInt, TStr)
+    //   returnType = TResult(TInt, TString)
     //   description =
     //     "Returns the result of wrapping <param value> around so that {{0 <= res < modulus}}, as a <type Result>.
     //      If <param modulus> is positive, returns {{Ok res}}. Returns an {{Error}} if <param modulus> is {{0}} or negative.
@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "remainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
-      returnType = TResult(TInt, TStr)
+      returnType = TResult(TInt, TString)
       description =
         "Returns the integer remainder left over after dividing <param value> by
          <param divisor>, as a <type Result>.
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "power" 0
       typeParams = []
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
-      returnType = TResult(TInt, TStr)
+      returnType = TResult(TInt, TString)
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
@@ -429,8 +429,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Int" "parse" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TInt, TStr)
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TResult(TInt, TString)
       description = "Returns the <type Int> value of a <type String>"
       fn =
         (function
@@ -453,7 +453,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Int" "toString" 0
       typeParams = []
       parameters = [ Param.make "int" TInt "" ]
-      returnType = TStr
+      returnType = TString
       description = "Stringify <param int>"
       fn =
         (function

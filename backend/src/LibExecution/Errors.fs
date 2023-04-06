@@ -81,7 +81,7 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
       let altfn = { std with module_ = "Float" }
 
       $" Try using {FQFnName.StdlibFnName.toString altfn}, or use Float::truncate to truncate Floats to Ints."
-    | TInt, TStr, FQFnName.Stdlib std when
+    | TInt, TString, FQFnName.Stdlib std when
       (std.module_ = "Int" && std.function_ = "add")
       || (std.module_ = "" && std.function_ = "+")
       ->

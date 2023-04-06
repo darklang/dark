@@ -37,8 +37,8 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
 let fns : List<BuiltInFn> =
   [ { name = fn "DateTime" "parse" 2
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TDateTime, TStr)
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TResult(TDateTime, TString)
       description =
         "Parses a string representing a date and time in the ISO 8601 format exactly {{"
         + ISO8601Format
@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DateTime" "toString" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}"
       fn =
@@ -79,7 +79,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DateTime" "toStringISO8601BasicDateTime" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}"
       fn =
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DateTime" "toStringISO8601BasicDate" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
-      returnType = TStr
+      returnType = TString
       description = "Stringify <param date> to the ISO 8601 basic format YYYYMMDD"
       fn =
         (function

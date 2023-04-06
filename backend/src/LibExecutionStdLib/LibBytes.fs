@@ -28,8 +28,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Bytes" "base64Decode" 1
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TBytes, TStr)
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TResult(TBytes, TString)
       description =
         "Base64 decodes a string. Works with both the URL-safe and standard Base64
          alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
@@ -72,7 +72,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Bytes" "base64Encode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
          with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
@@ -93,7 +93,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Bytes" "hexEncode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Hex (Base16) encodes <param bytes> using an uppercase alphabet. Complies
          with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."

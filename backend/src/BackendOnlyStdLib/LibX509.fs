@@ -21,8 +21,8 @@ let varB = TVariable "b"
 let fns : List<BuiltInFn> =
   [ { name = fn "X509" "pemCertificatePublicKey" 0
       typeParams = []
-      parameters = [ Param.make "pemCert" TStr "" ]
-      returnType = TResult(TStr, TStr)
+      parameters = [ Param.make "pemCert" TString "" ]
+      returnType = TResult(TString, TString)
       description =
         "Extract the public key from a PEM encoded certificate and return the key in PEM format."
       fn =

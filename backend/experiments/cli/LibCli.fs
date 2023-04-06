@@ -36,8 +36,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "IO" "readFile" 0
       typeParams = []
-      parameters = [ Param.make "path" TStr "" ]
-      returnType = TResult(TBytes, TStr)
+      parameters = [ Param.make "path" TString "" ]
+      returnType = TResult(TBytes, TString)
       description =
         "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes wrapped in a Result"
       fn =

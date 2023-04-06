@@ -15,8 +15,9 @@ let incorrectArgs = Errors.incorrectArgs
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "basicAuth" 1
       typeParams = []
-      parameters = [ Param.make "username" TStr ""; Param.make "password" TStr "" ]
-      returnType = TDict TStr
+      parameters =
+        [ Param.make "username" TString ""; Param.make "password" TString "" ]
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Authorization'}} created using HTTP basic auth"
       fn =

@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "response" varA ""
-          Param.make "headers" (TDict TStr) ""
+          Param.make "headers" (TDict TString) ""
           Param.make "code" TInt "" ]
       returnType = THttpResponse varA
       description =
@@ -55,7 +55,9 @@ let fns : List<BuiltInFn> =
               match k, v with
               | k, DStr v -> k, v
               | _, v ->
-                Exception.raiseCode (Errors.argumentWasntType (TList TStr) "value" v))
+                Exception.raiseCode (
+                  Errors.argumentWasntType (TList TString) "value" v
+                ))
 
           Ply(DHttpResponse(code, pairs, dv))
         | _ -> incorrectArgs ())
@@ -136,7 +138,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Http" "redirectTo" 0
       typeParams = []
-      parameters = [ Param.make "url" TStr "" ]
+      parameters = [ Param.make "url" TString "" ]
       returnType = THttpResponse varA
       description =
         "Returns a <type Response> that can be returned from an HTTP handler to
@@ -153,7 +155,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Http" "badRequest" 0
       typeParams = []
-      parameters = [ Param.make "error" TStr "" ]
+      parameters = [ Param.make "error" TString "" ]
       returnType = THttpResponse varA
       description =
         "Returns a <type Response> that can be returned from an HTTP handler to
@@ -218,8 +220,8 @@ let fns : List<BuiltInFn> =
     { name = fn "Http" "setCookie" 2
       typeParams = []
       parameters =
-        [ Param.make "name" TStr ""
-          Param.make "value" TStr ""
+        [ Param.make "name" TString ""
+          Param.make "value" TString ""
           Param.make "params" (TDict varA) "" ]
       returnType = TDict varA
       description =

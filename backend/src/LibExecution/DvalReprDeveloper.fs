@@ -13,7 +13,7 @@ let rec typeName (t : DType) : string =
   | TBool -> "Bool"
   | TUnit -> "Unit"
   | TChar -> "Char"
-  | TStr -> "String"
+  | TString -> "String"
   | TList nested -> $"List<{typeName nested}>"
   | TTuple (n1, n2, rest) ->
     let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "

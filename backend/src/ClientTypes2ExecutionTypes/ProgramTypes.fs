@@ -42,7 +42,7 @@ module DType =
     | CTPT.DType.TFloat -> PT.TFloat
     | CTPT.DType.TBool -> PT.TBool
     | CTPT.DType.TUnit -> PT.TUnit
-    | CTPT.DType.TStr -> PT.TStr
+    | CTPT.DType.TString -> PT.TString
     | CTPT.DType.TList (t) -> PT.TList(fromCT t)
     | CTPT.DType.TTuple (first, second, theRest) ->
       PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
@@ -72,7 +72,7 @@ module DType =
     | PT.TFloat -> CTPT.DType.TFloat
     | PT.TBool -> CTPT.DType.TBool
     | PT.TUnit -> CTPT.DType.TUnit
-    | PT.TStr -> CTPT.DType.TStr
+    | PT.TString -> CTPT.DType.TString
     | PT.TList (t) -> CTPT.DType.TList(toCT t)
     | PT.TTuple (first, second, theRest) ->
       CTPT.DType.TTuple(toCT first, toCT second, List.map toCT theRest)

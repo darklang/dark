@@ -85,7 +85,7 @@ let rec serialize
       w.WriteRawValue result
 
   | TChar, DChar c -> w.WriteStringValue c
-  | TStr, DStr s -> w.WriteStringValue s
+  | TString, DStr s -> w.WriteStringValue s
 
   | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
 
@@ -231,7 +231,7 @@ let rec serialize
   | TInt, _
   | TFloat, _
   | TChar, _
-  | TStr, _
+  | TString, _
   | TUuid, _
   | TBytes, _
   | TDateTime, _
@@ -339,7 +339,7 @@ let parse
       | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
 
     | TChar, JsonValueKind.String -> DChar(j.GetString())
-    | TStr, JsonValueKind.String -> DStr(j.GetString())
+    | TString, JsonValueKind.String -> DStr(j.GetString())
 
     | TBytes, JsonValueKind.String ->
       j.GetString() |> Base64.decodeFromString |> DBytes
@@ -487,7 +487,7 @@ let parse
     | TInt, _
     | TFloat, _
     | TChar, _
-    | TStr, _
+    | TString, _
     | TUuid, _
     | TBytes, _
     | TDateTime, _
@@ -530,7 +530,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "Json" "serialize" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "arg" (TVariable "a") "" ]
-      returnType = TResult(TStr, TStr)
+      returnType = TResult(TString, TString)
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
@@ -550,8 +550,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Json" "parse" 0
       typeParams = [ "a" ]
-      parameters = [ Param.make "json" TStr "" ]
-      returnType = TResult(TVariable "a", TStr)
+      parameters = [ Param.make "json" TString "" ]
+      returnType = TResult(TVariable "a", TString)
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =

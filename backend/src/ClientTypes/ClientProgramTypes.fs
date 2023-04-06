@@ -46,7 +46,7 @@ type DType =
   | TFloat
   | TBool
   | TUnit
-  | TStr
+  | TString
   | TList of DType
   | TTuple of DType * DType * List<DType>
   | TDict of DType

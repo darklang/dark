@@ -339,7 +339,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "value" TFloat ""
           Param.make "limitA" TFloat ""
           Param.make "limitB" TFloat "" ]
-      returnType = TResult(TFloat, TStr)
+      returnType = TResult(TFloat, TString)
       description =
         "If <param value> is within the range given by <param limitA> and <param
          limitB>, returns <param value>.
@@ -384,8 +384,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Float" "parse" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TResult(TFloat, TStr)
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TResult(TFloat, TString)
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
@@ -409,7 +409,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Float" "toString" 0
       typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
-      returnType = TStr
+      returnType = TString
       description = "Return {\"true\"} or {\"false\"}"
       fn =
         (function

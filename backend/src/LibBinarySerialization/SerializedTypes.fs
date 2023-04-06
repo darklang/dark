@@ -111,7 +111,7 @@ type DType =
   | TFloat
   | TBool
   | TUnit
-  | TStr
+  | TString
   | TList of DType
   | TDict of DType
   | TIncomplete

@@ -132,7 +132,7 @@ module PersistedSerializations =
           "all"
           [ { name = "int"; tipe = LibBackend.PackageManager.TInt; description = "" }
             { name = "string"
-              tipe = LibBackend.PackageManager.TStr
+              tipe = LibBackend.PackageManager.TString
               description = "" }
             { name = "any"; tipe = LibBackend.PackageManager.TAny; description = "" }
             { name = "List"

@@ -840,7 +840,7 @@
               [
                 "str",
                 [
-                  "TStr"
+                  "TString"
                 ]
               ],
               [
@@ -860,7 +860,7 @@
                     "TInt"
                   ],
                   [
-                    "TStr"
+                    "TString"
                   ],
                   []
                 ]
@@ -965,7 +965,7 @@
                     "TInt"
                   ],
                   [
-                    "TStr"
+                    "TString"
                   ]
                 ]
               ],
@@ -1077,7 +1077,7 @@
           [
             "str",
             [
-              "TStr"
+              "TString"
             ]
           ],
           [
@@ -1097,7 +1097,7 @@
                 "TInt"
               ],
               [
-                "TStr"
+                "TString"
               ],
               []
             ]
@@ -1202,7 +1202,7 @@
                 "TInt"
               ],
               [
-                "TStr"
+                "TString"
               ]
             ]
           ],
@@ -2813,7 +2813,7 @@
               [
                 "str",
                 [
-                  "TStr"
+                  "TString"
                 ]
               ],
               [
@@ -2833,7 +2833,7 @@
                     "TInt"
                   ],
                   [
-                    "TStr"
+                    "TString"
                   ],
                   []
                 ]
@@ -2938,7 +2938,7 @@
                     "TInt"
                   ],
                   [
-                    "TStr"
+                    "TString"
                   ]
                 ]
               ],

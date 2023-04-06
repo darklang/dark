@@ -31,8 +31,10 @@ module Types =
   module Canvas =
     let meta = TRecord([ "id", TUuid ])
 
-    let dbMeta = TRecord([ "tlid", TStr; "name", TStr ])
-    let httpHandlerMeta = TRecord([ "tlid", TStr; "method", TStr; "route", TStr ])
+    let dbMeta = TRecord([ "tlid", TString; "name", TString ])
+
+    let httpHandlerMeta =
+      TRecord([ "tlid", TString; "method", TString; "route", TString ])
 
     let program =
       TRecord([ "dbs", TList(dbMeta); "httpHandlers", TList(httpHandlerMeta) ])
@@ -106,7 +108,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DarkInternal" "getOwner" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TStr
+      returnType = TString
       description = "Get the owner of a canvas"
       fn =
         internalFn (function
@@ -124,7 +126,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DarkInternal" "dbs" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList TStr
+      returnType = TList TString
       description = "Returns a list of toplevel ids of dbs in <param canvasName>"
       fn =
         internalFn (function
@@ -149,7 +151,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DarkInternal" "domainsForCanvasID" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList TStr
+      returnType = TList TString
       description = "Returns the domain for a canvas if it exists"
       fn =
         internalFn (function
@@ -166,8 +168,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DarkInternal" "canvasIDForDomain" 0
       typeParams = []
-      parameters = [ Param.make "domain" TStr "" ]
-      returnType = TResult(TUuid, TStr)
+      parameters = [ Param.make "domain" TString "" ]
+      returnType = TResult(TUuid, TString)
       description = "Returns the canvasID for a domain if it exists"
       fn =
         internalFn (function
@@ -187,10 +189,10 @@ let fns : List<BuiltInFn> =
     { name = fn "DarkInternal" "log" 0
       typeParams = []
       parameters =
-        [ Param.make "level" TStr ""
-          Param.make "name" TStr ""
-          Param.make "log" (TDict TStr) "" ]
-      returnType = TDict TStr
+        [ Param.make "level" TString ""
+          Param.make "name" TString ""
+          Param.make "log" (TDict TString) "" ]
+      returnType = TDict TString
       description =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
@@ -225,7 +227,7 @@ let fns : List<BuiltInFn> =
           | TBool -> "bool"
           | TUnit -> "unit"
           | TChar -> "character"
-          | TStr -> "string"
+          | TString -> "string"
           | TList _ -> "list"
           | TTuple _ -> "tuple"
           | TDict _ -> "dict"
@@ -371,7 +373,7 @@ human-readable data."
     { name = fn "DarkInternal" "serverBuildHash" 0
       typeParams = []
       parameters = []
-      returnType = TStr
+      returnType = TString
       description = "Returns the git hash of the server's current deploy"
       fn =
         internalFn (function
@@ -389,9 +391,9 @@ human-readable data."
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
-          Param.make "space" TStr ""
-          Param.make "path" TStr ""
-          Param.make "modifier" TStr "" ]
+          Param.make "space" TString ""
+          Param.make "path" TString ""
+          Param.make "modifier" TString "" ]
       returnType = TUnit
       description = "Deletes a specific 404 for a canvas"
       fn =
@@ -415,9 +417,9 @@ human-readable data."
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
         TList(
-          TRecord [ "space", TStr
-                    "path", TStr
-                    "modifier", TStr
+          TRecord [ "space", TString
+                    "path", TString
+                    "modifier", TString
                     "timestamp", TDateTime
                     "traceID", TUuid ]
         )
@@ -452,7 +454,7 @@ human-readable data."
     { name = fn "DarkInternal" "getSecrets" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TDict TStr
+      returnType = TDict TString
       description = "Get list of secrets in the canvas"
       fn =
         internalFn (function
@@ -475,7 +477,7 @@ human-readable data."
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
-          Param.make "name" TStr ""
+          Param.make "name" TString ""
           Param.make "version" TInt "" ]
       returnType = TUnit
       description = "Delete a secret"
@@ -496,10 +498,10 @@ human-readable data."
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
-          Param.make "name" TStr ""
-          Param.make "value" TStr ""
-          Param.make "version" TStr "" ]
-      returnType = TResult(TUnit, TStr)
+          Param.make "name" TString ""
+          Param.make "value" TString ""
+          Param.make "version" TString "" ]
+      returnType = TResult(TUnit, TString)
       description = "Add a secret"
       fn =
         internalFn (function
@@ -631,7 +633,7 @@ human-readable data."
     { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TString "" ]
       returnType = TUnit
       description =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
@@ -644,7 +646,7 @@ human-readable data."
     { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TStr "" ]
+        [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TString "" ]
       returnType = TUnit
       description =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
@@ -657,7 +659,7 @@ human-readable data."
     { name = fn "DarkInternal" "getOpsForToplevel" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
-      returnType = TList TStr
+      returnType = TList TString
       description = "Returns all ops for a tlid in the given canvas"
       fn =
         internalFn (function
@@ -680,7 +682,7 @@ human-readable data."
 
     { name = fn "DarkInternal" "createCanvas" 0
       typeParams = []
-      parameters = [ Param.make "owner" TUuid ""; Param.make "name" TStr "" ]
+      parameters = [ Param.make "owner" TUuid ""; Param.make "name" TString "" ]
       returnType = TUuid
       description = "Creates a new canvas"
       fn =
@@ -717,7 +719,7 @@ human-readable data."
     { name = fn "DarkInternal" "canvasProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TResult(Types.Canvas.program, TStr)
+      returnType = TResult(Types.Canvas.program, TString)
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =

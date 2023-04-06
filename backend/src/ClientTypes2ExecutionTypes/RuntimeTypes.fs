@@ -85,7 +85,7 @@ module DType =
     | RT.TFloat -> TFloat
     | RT.TBool -> TBool
     | RT.TUnit -> TUnit
-    | RT.TStr -> TStr
+    | RT.TString -> TString
     | RT.TList t -> TList(r t)
     | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
     | RT.TDict t -> TDict(r t)
@@ -115,7 +115,7 @@ module DType =
     | TFloat -> RT.TFloat
     | TBool -> RT.TBool
     | TUnit -> RT.TUnit
-    | TStr -> RT.TStr
+    | TString -> RT.TString
     | TList t -> RT.TList(r t)
     | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
     | TDict t -> RT.TDict(r t)

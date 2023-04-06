@@ -403,7 +403,7 @@ let fns : List<BuiltInFn> =
     { name = fn "List" "repeat" 0
       typeParams = []
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
-      returnType = TResult(TList varA, TStr)
+      returnType = TResult(TList varA, TString)
       description =
         "Returns a list containing <param val> repeated <param times> times"
       fn =
@@ -740,7 +740,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
-      returnType = TResult(varA, TStr)
+      returnType = TResult(varA, TString)
       description =
         "Returns a copy of <param list>, sorted using {{fn a b}} to compare values
          <var a> and <var b>.

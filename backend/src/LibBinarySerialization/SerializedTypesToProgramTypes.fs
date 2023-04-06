@@ -67,7 +67,7 @@ module DType =
     | ST.TFloat -> PT.TFloat
     | ST.TBool -> PT.TBool
     | ST.TUnit -> PT.TUnit
-    | ST.TStr -> PT.TStr
+    | ST.TString -> PT.TString
     | ST.TList typ -> PT.TList(toPT typ)
     | ST.TTuple (firstType, secondType, otherTypes) ->
       PT.TTuple(toPT firstType, toPT secondType, List.map toPT otherTypes)

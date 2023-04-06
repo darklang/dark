@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{Content-Type}} set for HTML form
          requests or responses"
@@ -45,7 +45,7 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "jsonContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type dict> with {{Content-Type}} set for JSON requests or
          responses"
@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "plainTextContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Content-Type'}} set for plain text
          requests or responses"
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
     { name = fn "HttpClient" "htmlContentType" 0
       typeParams = []
       parameters = []
-      returnType = TDict TStr
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Content-Type'}} set for html requests
          or responses"
@@ -99,8 +99,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "HttpClient" "bearerToken" 1
       typeParams = []
-      parameters = [ Param.make "token" TStr "" ]
-      returnType = TDict TStr
+      parameters = [ Param.make "token" TString "" ]
+      returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Authorization'}} set to <param token>"
       fn =

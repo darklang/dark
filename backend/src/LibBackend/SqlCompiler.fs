@@ -58,7 +58,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   | TInt, DInt i -> Sql.int64 i
   | TFloat, DFloat v -> Sql.double v
   | TBool, DBool b -> Sql.bool b
-  | TStr, DStr s -> Sql.string s
+  | TString, DStr s -> Sql.string s
   | TChar, DChar c -> Sql.string c
   | TUuid, DUuid id -> Sql.uuid id
   | TUnit, DUnit -> Sql.int64 0
@@ -67,7 +67,7 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
   //   let typeName = DvalReprDeveloper.typeName typ
   //   let typeToNpgSqlType (t : DType) : NpgsqlTypes.NpgsqlDbType =
   //     match t with
-  //     | TStr -> NpgsqlTypes.NpgsqlDbType.Text
+  //     | TString -> NpgsqlTypes.NpgsqlDbType.Text
   //     | TInt -> NpgsqlTypes.NpgsqlDbType.Bigint
   //     | TFloat -> NpgsqlTypes.NpgsqlDbType.Double
   //     | TBool -> NpgsqlTypes.NpgsqlDbType.Boolean
@@ -336,18 +336,18 @@ let rec lambdaToSql
       |> List.map (fun part ->
         match part with
         | StringText (s) ->
-          typecheck $"String \"{s}\"" TStr expectedType
+          typecheck $"String \"{s}\"" TString expectedType
           let name = randomString 10
           $"(@{name})", [ name, Sql.string s ]
         | StringInterpolation e ->
-          let strPart, vars, actualType = lts TStr e
-          typecheck $"String interpolation" TStr actualType
+          let strPart, vars, actualType = lts TString e
+          typecheck $"String interpolation" TString actualType
           strPart, vars)
       |> List.unzip
     let result = String.concat ", " strParts
     let strPart = $"concat({result})"
     let vars = vars |> List.concat
-    strPart, vars, TStr
+    strPart, vars, TString
 
   | ECharacter (_, v) ->
     typecheck $"Char '{v}'" TChar expectedType
@@ -381,7 +381,7 @@ let rec lambdaToSql
 
     let primitiveFieldType t =
       match t with
-      | TStr -> "text"
+      | TString -> "text"
       | TInt -> "bigint"
       | TFloat -> "double precision"
       | TBool -> "bool"
@@ -393,7 +393,7 @@ let rec lambdaToSql
 
     let fieldname = escapeFieldname fieldname
     match dbFieldType with
-    | TStr
+    | TString
     | TInt
     | TFloat
     | TBool

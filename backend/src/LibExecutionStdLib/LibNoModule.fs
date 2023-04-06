@@ -273,8 +273,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "AWS" "urlencode" 0
       typeParams = []
-      parameters = [ Param.make "str" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "str" TString "" ]
+      returnType = TString
       description = "Url encode a string per AWS' requirements"
       fn =
         (function
@@ -332,8 +332,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Twitter" "urlencode" 0
       typeParams = []
-      parameters = [ Param.make "s" TStr "" ]
-      returnType = TStr
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TString
       description = "Url encode a string per Twitter's requirements"
       fn =
         (function

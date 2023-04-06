@@ -37,8 +37,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Uuid" "parse" 0
       typeParams = []
-      parameters = [ Param.make "uuid" TStr "" ]
-      returnType = TResult(TUuid, TStr)
+      parameters = [ Param.make "uuid" TString "" ]
+      returnType = TResult(TUuid, TString)
       description =
         "Parse a <type UUID> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Uuid" "toString" 0
       typeParams = []
       parameters = [ Param.make "uuid" TUuid "" ]
-      returnType = TStr
+      returnType = TString
       description =
         "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
       fn =

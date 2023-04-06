@@ -33,7 +33,7 @@ module RuntimeTypes =
       RT.TFloat
       RT.TBool
       RT.TUnit
-      RT.TStr
+      RT.TString
       RT.TList RT.TInt
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
       RT.TDict RT.TBool
@@ -43,7 +43,7 @@ module RuntimeTypes =
       RT.TDB RT.TBool
       RT.TCustomType(RT.FQTypeName.User { typ = "User"; version = 0 }, [ RT.TBool ])
       RT.TBytes
-      RT.TResult(RT.TBool, RT.TStr)
+      RT.TResult(RT.TBool, RT.TString)
       RT.TVariable "test"
       RT.TFn([ RT.TBool ], RT.TBool)
       RT.TRecord["prop", RT.TBool] ]
@@ -448,9 +448,9 @@ module ProgramTypes =
                  ("float", PT.TFloat)
                  ("bool", PT.TBool)
                  ("null", PT.TUnit)
-                 ("str", PT.TStr)
+                 ("str", PT.TString)
                  ("list", PT.TList(PT.TInt))
-                 ("tuple", PT.TTuple(PT.TInt, PT.TStr, []))
+                 ("tuple", PT.TTuple(PT.TInt, PT.TString, []))
                  ("dict", PT.TDict(PT.TInt))
                  ("incomplete", PT.TIncomplete)
                  ("error", PT.TError)
@@ -467,7 +467,7 @@ module ProgramTypes =
                     []
                   ))
                  ("bytes", PT.TBytes)
-                 ("result", PT.TResult(PT.TInt, PT.TStr))
+                 ("result", PT.TResult(PT.TInt, PT.TString))
                  ("variable", PT.TVariable "v")
                  ("fn", PT.TFn([ PT.TInt ], PT.TInt))
                  ("record", PT.TRecord([ "field1", PT.TInt ])) ]

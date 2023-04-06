@@ -31,8 +31,8 @@ module DType =
     | "nothing" -> Some PT.TUnit
     | "character"
     | "char" -> Some PT.TChar
-    | "str" -> Some PT.TStr
-    | "string" -> Some PT.TStr
+    | "str" -> Some PT.TString
+    | "string" -> Some PT.TString
     | "list" -> Some(PT.TList any)
     | "tuple" -> Some(PT.TTuple(any, any, []))
     | "obj" -> Some(PT.TDict any)
@@ -50,8 +50,8 @@ module DType =
     | _ ->
       let parseListTyp (listTyp : string) : Option<PT.DType> =
         match String.toLowercase listTyp with
-        | "str" -> Some(PT.TDbList PT.TStr)
-        | "string" -> Some(PT.TDbList PT.TStr)
+        | "str" -> Some(PT.TDbList PT.TString)
+        | "string" -> Some(PT.TDbList PT.TString)
         | "char" -> Some(PT.TDbList PT.TChar)
         | "character" -> Some(PT.TDbList PT.TChar)
         | "int" -> Some(PT.TDbList PT.TInt)
@@ -63,8 +63,8 @@ module DType =
         | "uuid" -> Some(PT.TDbList PT.TUuid)
         | "dict" -> Some(PT.TDbList(PT.TDict any))
         | "date" -> Some(PT.TDbList PT.TDateTime)
-        | "title" -> Some(PT.TDbList PT.TStr)
-        | "url" -> Some(PT.TDbList PT.TStr)
+        | "title" -> Some(PT.TDbList PT.TString)
+        | "url" -> Some(PT.TDbList PT.TString)
         | _ -> None
 
       if String.startsWith "[" str && String.endsWith "]" str then

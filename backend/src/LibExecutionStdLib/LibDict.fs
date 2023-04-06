@@ -22,7 +22,7 @@ let varB = TVariable "b"
 let fns : List<BuiltInFn> =
   [ { name = fn "Dict" "singleton" 0
       typeParams = []
-      parameters = [ Param.make "key" TStr ""; Param.make "value" varA "" ]
+      parameters = [ Param.make "key" TString ""; Param.make "value" varA "" ]
       returnType = TDict varA
       description =
         "Returns a dictionary with a single entry {{<param key>: <param value>}}"
@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Dict" "keys" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = (TList TStr)
+      returnType = (TList TString)
       description =
         "Returns <param dict>'s keys in a <type List>, in an arbitrary order"
       fn =
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
             match e with
             | DTuple (DStr k, value, []) -> Map.add k value acc
             | DTuple (k, _, []) ->
-              Exception.raiseCode (Errors.argumentWasntType TStr "key" k)
+              Exception.raiseCode (Errors.argumentWasntType TString "key" k)
             | (DIncomplete _
             | DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
@@ -163,7 +163,7 @@ let fns : List<BuiltInFn> =
               ((DIncomplete _
               | DError _) as dv) -> Errors.foundFakeDval dv
             | Some _, DTuple (k, _, []) ->
-              Exception.raiseCode (Errors.argumentWasntType TStr "key" k)
+              Exception.raiseCode (Errors.argumentWasntType TString "key" k)
             | Some _, _ ->
               Exception.raiseCode "All list items must be `(key, value)`"
             | None, _ -> None
@@ -181,7 +181,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Dict" "get" 2
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
+      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TOption varA
       description =
         "If the <param dict> contains <param key>, returns the corresponding value,
@@ -197,7 +197,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Dict" "member" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
+      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TBool
       description =
         "Returns {{true}} if the <param dict> contains an entry with <param key>, and
@@ -215,7 +215,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ TStr; varA ], varB)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn([ TString; varA ], varB))
+            ""
+            [ "key"; "value" ] ]
       returnType = TDict varB
       description =
         "Returns a new dictionary that contains the same keys as the original <param
@@ -247,7 +251,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
-          Param.makeWithArgs "fn" (TFn([ TStr; varA ], TBool)) "" [ "key"; "value" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn([ TString; varA ], TBool))
+            ""
+            [ "key"; "value" ] ]
       returnType = TDict varB
       description =
         "Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type
@@ -299,7 +307,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ TStr; varA ], TOption varB))
+            (TFn([ TString; varA ], TOption varB))
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
@@ -399,7 +407,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
-          Param.make "key" TStr ""
+          Param.make "key" TString ""
           Param.make "val" varA "" ]
       returnType = (TDict(TVariable "a"))
       description =
@@ -415,7 +423,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Dict" "remove" 0
       typeParams = []
-      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TStr "" ]
+      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TDict varA
       description =
         "If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged."

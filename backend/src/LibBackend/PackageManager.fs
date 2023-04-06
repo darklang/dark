@@ -305,11 +305,11 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 // it should be straightforward to remove it by looking at the parameters actually
 // stored in the DB.
 
-// actual types used in the DB: TStr, TAny, TInt, TList, TObj
+// actual types used in the DB: TString, TAny, TInt, TList, TObj
 type tipe =
   | TAny
   | TInt
-  | TStr
+  | TString
   | TList
   | TObj
 
@@ -319,7 +319,7 @@ let rec tipe2PT (o : tipe) : PT.DType =
   match o with
   | TAny -> any
   | TInt -> PT.TInt
-  | TStr -> PT.TStr
+  | TString -> PT.TString
   | TList -> PT.TList any
   | TObj -> PT.TDict any
 

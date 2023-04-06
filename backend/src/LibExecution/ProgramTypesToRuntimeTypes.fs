@@ -30,7 +30,7 @@ module DType =
     | PT.TFloat -> RT.TFloat
     | PT.TBool -> RT.TBool
     | PT.TUnit -> RT.TUnit
-    | PT.TStr -> RT.TStr
+    | PT.TString -> RT.TString
     | PT.TList typ -> RT.TList(toRT typ)
     | PT.TTuple (firstType, secondType, otherTypes) ->
       RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)

@@ -146,7 +146,7 @@ type DType =
   | TInt
   | TFloat
   | TChar
-  | TStr
+  | TString
   | TUuid
   | TBytes
   | TDateTime
@@ -167,7 +167,7 @@ type DType =
   | TVariable of string
 
   /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of FQTypeName.T * typeArgs : List<DType>
 
@@ -480,7 +480,7 @@ module Dval =
     | DBool _ -> TBool
     | DUnit -> TUnit
     | DChar _ -> TChar
-    | DStr _ -> TStr
+    | DStr _ -> TString
     | DList (head :: _) -> TList(toType head)
     | DList [] -> TList any
     | DTuple (first, second, theRest) ->
@@ -544,7 +544,7 @@ module Dval =
     | DFloat _, TFloat
     | DBool _, TBool
     | DUnit, TUnit
-    | DStr _, TStr
+    | DStr _, TString
     | DDateTime _, TDateTime
     | DPassword _, TPassword
     | DUuid _, TUuid

@@ -159,7 +159,7 @@ type DType =
   | TFloat
   | TBool
   | TUnit
-  | TStr
+  | TString
   | TList of DType
   | TTuple of DType * DType * List<DType>
   | TDict of DType
@@ -179,7 +179,7 @@ type DType =
   | TDbList of DType // TODO: cleanup and remove
 
   /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
+  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of FQTypeName.T * typeArgs : List<DType>
 

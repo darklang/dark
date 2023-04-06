@@ -18,8 +18,8 @@ let dbType = TDB varA
 // CLEANUP use varA for valParam
 let ocamlTObj = TDict(varA)
 let ocamlCompatibleValParam = Param.make "val" ocamlTObj ""
-let keyParam = Param.make "key" TStr ""
-let keysParam = Param.make "keys" (TList TStr) ""
+let keyParam = Param.make "key" TString ""
+let keysParam = Param.make "keys" (TList TString) ""
 let tableParam = Param.make "table" dbType ""
 let ocamlCompatibleSpecParam = Param.make "spec" ocamlTObj ""
 let queryParam = Param.makeWithArgs "filter" (TFn([ varA ], TBool)) "" [ "value" ]
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
               List.map
                 (function
                 | DStr s -> s
-                | t -> Errors.argumentWasntType (TList TStr) "keys" t)
+                | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
             let! items = UserDB.getMany state db skeys
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
               List.map
                 (function
                 | DStr s -> s
-                | t -> Errors.argumentWasntType (TList TStr) "keys" t)
+                | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
             let! result = UserDB.getMany state db skeys
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
               List.map
                 (function
                 | DStr s -> s
-                | t -> Errors.argumentWasntType (TList TStr) "keys" t)
+                | t -> Errors.argumentWasntType (TList TString) "keys" t)
                 keys
 
             let! result = UserDB.getManyWithKeys state db skeys
@@ -353,7 +353,7 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "generateKey" 0
       typeParams = []
       parameters = []
-      returnType = TStr
+      returnType = TString
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function

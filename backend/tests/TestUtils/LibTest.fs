@@ -32,7 +32,7 @@ let fns : List<BuiltInFn> =
 
   [ { name = fn "Test" "typeError" 0
       typeParams = []
-      parameters = [ Param.make "errorString" TStr "" ]
+      parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt
       description = "Return a value representing a type error"
       fn =
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "sqlError" 0
       typeParams = []
-      parameters = [ Param.make "errorString" TStr "" ]
+      parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt
       description = "Return a value that matches errors thrown by the SqlCompiler"
       fn =
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "toChar" 0
       typeParams = []
-      parameters = [ Param.make "c" TStr "" ]
+      parameters = [ Param.make "c" TString "" ]
       returnType = TOption TChar
       description = "Turns a string of length 1 into a character"
       fn =
@@ -169,7 +169,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "inspect" 0
       typeParams = []
-      parameters = [ Param.make "var" varA ""; Param.make "msg" TStr "" ]
+      parameters = [ Param.make "var" varA ""; Param.make "msg" TString "" ]
       returnType = varA
       description = "Prints the value into stdout"
       fn =
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "justWithTypeError" 0
       typeParams = []
-      parameters = [ Param.make "msg" TStr "" ]
+      parameters = [ Param.make "msg" TString "" ]
       returnType = TOption varA
       description = "Returns a DError in a Just"
       fn =
@@ -199,7 +199,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "okWithTypeError" 0
       typeParams = []
-      parameters = [ Param.make "msg" TStr "" ]
+      parameters = [ Param.make "msg" TString "" ]
       returnType = TResult(varA, varB)
       description = "Returns a DError in an OK"
       fn =
@@ -213,7 +213,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "errorWithTypeError" 0
       typeParams = []
-      parameters = [ Param.make "msg" TStr "" ]
+      parameters = [ Param.make "msg" TString "" ]
       returnType = TResult(varA, varB)
       description = "Returns a DError in a Result.Error"
       fn =
@@ -227,7 +227,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "deleteUser" 0
       typeParams = []
-      parameters = [ Param.make "username" TStr "" ]
+      parameters = [ Param.make "username" TString "" ]
       returnType = TResult(TUnit, varB)
       description = "Delete a user (test only)"
       fn =
@@ -250,8 +250,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "getQueue" 0
       typeParams = []
-      parameters = [ Param.make "eventName" TStr "" ]
-      returnType = TList TStr
+      parameters = [ Param.make "eventName" TString "" ]
+      returnType = TList TString
       description = "Fetch a queue (test only)"
       fn =
         (function
@@ -295,7 +295,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "raiseException" 0
       typeParams = []
-      parameters = [ Param.make "message" TStr "" ]
+      parameters = [ Param.make "message" TString "" ]
       returnType = TVariable "a"
       description = "A function that raises an F# exception"
       fn =
@@ -333,10 +333,10 @@ let fns : List<BuiltInFn> =
     { name = fn "Test" "regexReplace" 0
       typeParams = []
       parameters =
-        [ Param.make "subject" TStr ""
-          Param.make "pattern" TStr ""
-          Param.make "replacement" TStr "" ]
-      returnType = TStr
+        [ Param.make "subject" TString ""
+          Param.make "pattern" TString ""
+          Param.make "replacement" TString "" ]
+      returnType = TString
       description = "Replaces regex patterns in a string"
       fn =
         (function
@@ -365,7 +365,7 @@ let fns : List<BuiltInFn> =
     { name = fn "Test" "httpResponseHeaders" 0
       typeParams = []
       parameters = [ Param.make "response" (THttpResponse varA) "" ]
-      returnType = TList(TList TStr)
+      returnType = TList(TList TString)
       description = "Get headers from a HttpResponse"
       fn =
         (function

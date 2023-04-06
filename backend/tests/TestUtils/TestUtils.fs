@@ -489,7 +489,7 @@ module Expect =
     | TFloat, _
     | TBool, _
     | TUnit, _
-    | TStr, _
+    | TString, _
     | TList (_), _
     | TTuple (_, _, _), _
     | TDict (_), _
