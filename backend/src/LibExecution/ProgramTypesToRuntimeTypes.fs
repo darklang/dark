@@ -182,8 +182,7 @@ module Expr =
             id,
             RT.FnName(FQFnName.toRT fnName),
             List.map DType.toRT typeArgs,
-            prev :: List.map toRT exprs,
-            RT.InPipe pipeID
+            prev :: List.map toRT exprs
           )
         | _, PT.EInfix (id, PT.InfixFnCall fnName, PT.EPipeTarget ptID, expr2) ->
           let (module_, fn, version) = InfixFnName.toFnName fnName
@@ -196,8 +195,7 @@ module Expr =
             id,
             RT.FnName(FQFnName.toRT name),
             typeArgs,
-            [ prev; toRT expr2 ],
-            RT.InPipe pipeID
+            [ prev; toRT expr2 ]
           )
         // Binops work pretty naturally here
         | _, PT.EInfix (id, PT.BinOp op, PT.EPipeTarget _, expr2) ->
@@ -206,13 +204,7 @@ module Expr =
           | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
         | _, other ->
           let typeArgs = [] // TODO: review
-          RT.EApply(
-            pipeID,
-            RT.FnTargetExpr(toRT other),
-            typeArgs,
-            [ prev ],
-            RT.InPipe pipeID
-          )
+          RT.EApply(pipeID, RT.FnTargetExpr(toRT other), typeArgs, [ prev ])
 
       match expr1, expr1 |> PT.Pipe.toPipeExpr with
       // check first PT.Expr before transform to RT.Expr for pass "Test.typeError_v0" case
