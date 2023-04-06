@@ -69,7 +69,7 @@ module F404s =
 
 module Toplevels =
   module WithDB =
-    [<DB>] type X = { x : string }
+    [<DB>] type X = { x : String }
     (DarkInternal.dbs Test.getCanvasID) |> List.length = 1
 
   module NoDB =
@@ -83,7 +83,7 @@ module UnlockedDB =
   DarkInternal.unlockedDBs Test.getCanvasID = []
 
   module WithDB =
-    [<DB>] type X = { x : string }
+    [<DB>] type X = { x : String }
     // one
     (DarkInternal.unlockedDBs Test.getCanvasID) |> List.length = 1
 

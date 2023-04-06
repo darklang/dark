@@ -20,7 +20,7 @@ let (|Placeholder|_|) (input : PT.Expr) =
 
 module DType =
   let rec fromNameAndTypeArgs
-    (availableTypes : AvailableTypes)
+    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (name : string)
     (typeArgs : List<SynType>)
     : PT.DType =
@@ -49,21 +49,21 @@ module DType =
       // Some user- or stdlib- type
       // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
 
-      // TODO: support custom types that aren't the 0th version of the type
-      let matchingCustomTypes =
+      // TODO: support types that aren't the 0th version of the type
+      let matchingTypes =
         availableTypes
         |> List.choose (fun (typeName, _def) ->
           match typeName with
           | PT.FQTypeName.User u -> if u.typ = name then Some typeName else None
           | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
 
-      match matchingCustomTypes with
-      | [] -> Exception.raiseInternal $"No custom type found with name {name}" []
+      match matchingTypes with
+      | [] -> Exception.raiseInternal $"No type found named \"{name}\"" []
       | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
       | _ ->
         Exception.raiseInternal
-          $"Matched against multiple custom types - not sure what to do"
-          [ "name", name; "typeArgs", typeArgs; "types", matchingCustomTypes ]
+          $"Matched against multiple types - not sure what to do"
+          [ "name", name; "typeArgs", typeArgs; "types", matchingTypes ]
 
   and fromSynType (availableTypes : AvailableTypes) (typ : SynType) : PT.DType =
     let c = fromSynType availableTypes

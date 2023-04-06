@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
               List.map
                 (function
                 | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                | t -> Errors.argumentWasntType (TList TStr) "keys" t)
                 keys
 
             let! items = UserDB.getMany state db skeys
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
               List.map
                 (function
                 | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                | t -> Errors.argumentWasntType (TList TStr) "keys" t)
                 keys
 
             let! result = UserDB.getMany state db skeys
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
               List.map
                 (function
                 | DStr s -> s
-                | t -> Errors.argumentWasnt "a list of strings" "keys" t)
+                | t -> Errors.argumentWasntType (TList TStr) "keys" t)
                 keys
 
             let! result = UserDB.getManyWithKeys state db skeys

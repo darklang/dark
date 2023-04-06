@@ -1,171 +1,171 @@
 // Basic types
 
 // Units
-Json.serialize<unit> () = Ok "null"
-Json.parse<unit> "null" = Ok ()
+Json.serialize<Unit> () = Ok "null"
+Json.parse<Unit> "null" = Ok ()
 
-Json.serialize<unit> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<unit> 0 = Error "Can't currently serialize this type/value combination"
-Json.serialize<int> () = Error "Can't currently serialize this type/value combination"
+Json.serialize<Unit> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Unit> 0 = Error "Can't currently serialize this type/value combination"
+Json.serialize<Int> () = Error "Can't currently serialize this type/value combination"
 
-Json.parse<int> "()" = Error "not JSON"
-Json.parse<unit> "0" = Error "Can't currently parse this type/value combination"
-Json.parse<unit> "\"\"" = Error "Can't currently parse this type/value combination"
-Json.parse<unit> "\"null\"" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "()" = Error "not JSON"
+Json.parse<Unit> "0" = Error "Can't currently parse this type/value combination"
+Json.parse<Unit> "\"\"" = Error "Can't currently parse this type/value combination"
+Json.parse<Unit> "\"null\"" = Error "Can't currently parse this type/value combination"
 
 
 // Bools
-Json.serialize<bool> true = Ok "true"
-Json.serialize<bool> false = Ok "false"
-Json.parse<bool> "true" = Ok true
-Json.parse<bool> "false" = Ok false
-Json.parse<bool> " true " = Ok true
-Json.parse<bool> " false " = Ok false
-Json.parse<List<bool>> "[true, true, false, true  ] " = Ok [true, true, false, true]
+Json.serialize<Bool> true = Ok "true"
+Json.serialize<Bool> false = Ok "false"
+Json.parse<Bool> "true" = Ok true
+Json.parse<Bool> "false" = Ok false
+Json.parse<Bool> " true " = Ok true
+Json.parse<Bool> " false " = Ok false
+Json.parse<List<Bool>> "[true, true, false, true  ] " = Ok [true, true, false, true]
 
-Json.serialize<bool> None = Test.typeError "There is no variable named: None"
-Json.serialize<bool> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<bool> 0 = Error "Can't currently serialize this type/value combination"
-Json.serialize<bool> 1 = Error "Can't currently serialize this type/value combination"
-Json.serialize<bool> "False" = Error "Can't currently serialize this type/value combination"
-Json.serialize<bool> "tRUE" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> None = Test.typeError "There is no variable named: None"
+Json.serialize<Bool> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> 0 = Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> 1 = Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> "False" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> "tRUE" = Error "Can't currently serialize this type/value combination"
 
-Json.parse<bool> 1 = Test.typeError "Json::parse was called with a Int (1), but `json` expected a String."
-Json.parse<bool> "tru" = Error "not JSON"
-Json.parse<bool> "null" = Error "Can't currently parse this type/value combination"
-Json.parse<bool> "" = Error "not JSON"
-Json.parse<bool> "\"true\"" = Error "Can't currently parse this type/value combination"
-Json.parse<bool> "0" = Error "Can't currently parse this type/value combination"
-Json.parse<bool> "1" = Error "Can't currently parse this type/value combination"
-Json.parse<bool> "False" = Error "not JSON"
-Json.parse<bool> "tRUE" = Error "not JSON"
+Json.parse<Bool> 1 = Test.typeError "Json::parse was called with a Int (1), but `json` expected a String."
+Json.parse<Bool> "tru" = Error "not JSON"
+Json.parse<Bool> "null" = Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "" = Error "not JSON"
+Json.parse<Bool> "\"true\"" = Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "0" = Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "1" = Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "False" = Error "not JSON"
+Json.parse<Bool> "tRUE" = Error "not JSON"
 
 
 // Ints
 // basic
-Json.serialize<int> 0 = Ok "0"
-Json.serialize<int> 12345 = Ok "12345"
-Json.serialize<int> -12345 = Ok "-12345"
-Json.parse<int> "0" = Ok 0
-Json.parse<int> "12345" = Ok 12345
-Json.parse<int> "-12345" = Ok -12345
-Json.parse<int> " 42 " = Ok 42
-Json.parse<int> " -42 " = Ok -42
+Json.serialize<Int> 0 = Ok "0"
+Json.serialize<Int> 12345 = Ok "12345"
+Json.serialize<Int> -12345 = Ok "-12345"
+Json.parse<Int> "0" = Ok 0
+Json.parse<Int> "12345" = Ok 12345
+Json.parse<Int> "-12345" = Ok -12345
+Json.parse<Int> " 42 " = Ok 42
+Json.parse<Int> " -42 " = Ok -42
 
 // test the limits of int32 (-2147483648 to 2147483647)
-Json.serialize<int> -2147483648 = Ok "-2147483648"
-Json.serialize<int> 2147483647 = Ok "2147483647"
-Json.parse<int> "-2147483648" = Ok -2147483648
-Json.parse<int> "2147483647" = Ok 2147483647
-//Json.serialize<int> -2147483649 = Ok "\"-2147483649\""
-//Json.serialize<int> 2147483648 = Ok "\"2147483648\""
-//Json.parse<int> "\"-2147483649\"" = Ok -2147483649
-//Json.parse<int> "\"2147483648\"" = Ok 2147483648
+Json.serialize<Int> -2147483648 = Ok "-2147483648"
+Json.serialize<Int> 2147483647 = Ok "2147483647"
+Json.parse<Int> "-2147483648" = Ok -2147483648
+Json.parse<Int> "2147483647" = Ok 2147483647
+//Json.serialize<Int> -2147483649 = Ok "\"-2147483649\""
+//Json.serialize<Int> 2147483648 = Ok "\"2147483648\""
+//Json.parse<Int> "\"-2147483649\"" = Ok -2147483649
+//Json.parse<Int> "\"2147483648\"" = Ok 2147483648
 
 // test the limits of int64 (-9223372036854775808 to 9223372036854775807)
-//Json.serialize<int> 9223372036854775807 = Ok "9223372036854775807"
-//Json.parse<int> "9223372036854775807" = Ok 9223372036854775807
-//Json.serialize<int> 9223372036854775808 = Ok "9223372036854775808"
-//Json.parse<int> "9223372036854775808" = Ok 9223372036854775808
-//Json.serialize<int> -9223372036854775808 = Ok "-9223372036854775808"
-//Json.parse<int> "-9223372036854775808" = Ok -9223372036854775808
+//Json.serialize<Int> 9223372036854775807 = Ok "9223372036854775807"
+//Json.parse<Int> "9223372036854775807" = Ok 9223372036854775807
+//Json.serialize<Int> 9223372036854775808 = Ok "9223372036854775808"
+//Json.parse<Int> "9223372036854775808" = Ok 9223372036854775808
+//Json.serialize<Int> -9223372036854775808 = Ok "-9223372036854775808"
+//Json.parse<Int> "-9223372036854775808" = Ok -9223372036854775808
 
-// TODO: review float.tests for more values to test against
+// TODO: review Float.tests for more values to test against
 
 // not ints
-Json.serialize<int> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<int> 42.5 = Error "Can't currently serialize this type/value combination"
-Json.serialize<int> "42" = Error "Can't currently serialize this type/value combination"
-Json.parse<int> " " = Error "not JSON"
-Json.parse<int> "4a" = Error "not JSON"
-Json.parse<int> "- 42" = Error "not JSON"
-Json.parse<int> "null" = Error "Can't currently parse this type/value combination"
-Json.parse<int> "true" = Error "Can't currently parse this type/value combination"
-Json.parse<int> "false" = Error "Can't currently parse this type/value combination"
-Json.parse<int> "\"42\"" = Error "Can't currently parse this type/value combination"
-Json.parse<int> "[42]" = Error "Can't currently parse this type/value combination"
-Json.parse<int> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
-//Json.parse<int> "42.5" = Error "Can't currently parse this type/value combination"
-//Json.parse<int> "1e3" = Error "Can't currently parse this type/value combination"
-//Json.parse<int> "-1e3" = Error "Can't currently parse this type/value combination"
-Json.parse<int> "\"42\n\"" = Error "not JSON"
-//Json.parse<int> "4\u0032" = Error "not JSON"
+Json.serialize<Int> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Int> 42.5 = Error "Can't currently serialize this type/value combination"
+Json.serialize<Int> "42" = Error "Can't currently serialize this type/value combination"
+Json.parse<Int> " " = Error "not JSON"
+Json.parse<Int> "4a" = Error "not JSON"
+Json.parse<Int> "- 42" = Error "not JSON"
+Json.parse<Int> "null" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "true" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "false" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "\"42\"" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "[42]" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
+//Json.parse<Int> "42.5" = Error "Can't currently parse this type/value combination"
+//Json.parse<Int> "1e3" = Error "Can't currently parse this type/value combination"
+//Json.parse<Int> "-1e3" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "\"42\n\"" = Error "not JSON"
+//Json.parse<Int> "4\u0032" = Error "not JSON"
 
 
 // Floats
-Json.serialize<float> 0.0 = Ok "0.0"
-Json.serialize<float> 1.0 = Ok "1.0"
-Json.serialize<float> 0.1 = Ok "0.1"
-Json.serialize<float> (2.0/3.0) = Ok "0.666666666667"
-Json.serialize<float> 12345.67890 = Ok "12345.6789"
-Json.serialize<float> -12345.67890 = Ok "-12345.6789"
-Json.parse<float> "0.0" = Ok 0.0
-Json.parse<float> "e" = Error "not JSON"
-Json.parse<float> "pi" = Error "not JSON"
-Json.parse<float> "12345.67890" = Ok 12345.67890
-Json.parse<float> "-12345.67890" = Ok -12345.67890
-Json.parse<float> " 42.0 " = Ok 42.0
-Json.parse<float> " -42.0 " = Ok -42.0
-Json.parse<float> "1e3" = Ok 1000.0 // OK?
-Json.parse<float> "-1e3" = Ok -1000.0 // OK?
+Json.serialize<Float> 0.0 = Ok "0.0"
+Json.serialize<Float> 1.0 = Ok "1.0"
+Json.serialize<Float> 0.1 = Ok "0.1"
+Json.serialize<Float> (2.0/3.0) = Ok "0.666666666667"
+Json.serialize<Float> 12345.67890 = Ok "12345.6789"
+Json.serialize<Float> -12345.67890 = Ok "-12345.6789"
+Json.parse<Float> "0.0" = Ok 0.0
+Json.parse<Float> "e" = Error "not JSON"
+Json.parse<Float> "pi" = Error "not JSON"
+Json.parse<Float> "12345.67890" = Ok 12345.67890
+Json.parse<Float> "-12345.67890" = Ok -12345.67890
+Json.parse<Float> " 42.0 " = Ok 42.0
+Json.parse<Float> " -42.0 " = Ok -42.0
+Json.parse<Float> "1e3" = Ok 1000.0 // OK?
+Json.parse<Float> "-1e3" = Ok -1000.0 // OK?
 
 // TODO: test the upper/lower bounds
 // TODO: test highly-precise numbers
-// TODO: review float.tests for more values to test against
+// TODO: review Float.tests for more values to test against
 
 // not floats
-Json.parse<float> " -42 . 0 " = Error "not JSON"
-Json.serialize<float> 0 = Error "Can't currently serialize this type/value combination"
-//Json.parse<float> "0" = Error "Can't currently serialize this type/value combination"
-Json.serialize<float> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<float> 42 = Error "Can't currently serialize this type/value combination"
-Json.parse<float> " " = Error "not JSON"
-Json.parse<float> "4a" = Error "not JSON"
-Json.parse<float> "- 42.0" = Error "not JSON"
-Json.parse<float> "null" = Error "Can't currently parse this type/value combination"
-Json.parse<float> "true" = Error "Can't currently parse this type/value combination"
-Json.parse<float> "false" = Error "Can't currently parse this type/value combination"
-//Json.parse<float> "\"42\"" = Error "Can't currently parse this type/value combination"
-Json.parse<float> "[42]" = Error "Can't currently parse this type/value combination"
-Json.parse<float> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
-Json.parse<float> "\"42\n\"" = Error "not JSON"
-//Json.parse<float> "4\u0032" = Error "not JSON"
+Json.parse<Float> " -42 . 0 " = Error "not JSON"
+Json.serialize<Float> 0 = Error "Can't currently serialize this type/value combination"
+//Json.parse<Float> "0" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Float> "" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Float> 42 = Error "Can't currently serialize this type/value combination"
+Json.parse<Float> " " = Error "not JSON"
+Json.parse<Float> "4a" = Error "not JSON"
+Json.parse<Float> "- 42.0" = Error "not JSON"
+Json.parse<Float> "null" = Error "Can't currently parse this type/value combination"
+Json.parse<Float> "true" = Error "Can't currently parse this type/value combination"
+Json.parse<Float> "false" = Error "Can't currently parse this type/value combination"
+//Json.parse<Float> "\"42\"" = Error "Can't currently parse this type/value combination"
+Json.parse<Float> "[42]" = Error "Can't currently parse this type/value combination"
+Json.parse<Float> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
+Json.parse<Float> "\"42\n\"" = Error "not JSON"
+//Json.parse<Float> "4\u0032" = Error "not JSON"
 
 
 // Chars
-//let charFromString (s: string) =
+//let charFromString (s: String) =
 //  (String.toList_v1 s) |> List.head_v2 |> Test.unwrap
 
-Json.serialize<char> 'a' = Ok "\"a\""
-Json.parse<char> "\"a\"" = Ok 'a'
-//Json.serialize<char> ("😂" |> charFromString ) = Ok "😂"
-//Json.parse<char> "\"😂\"" = Ok '😂'
-//Json.serialize<char> '👩‍👩‍👧‍👦' = Ok "\"👩‍👩‍👧‍👦\""
-//Json.parse<char> "\"👩‍👩‍👧‍👦\"" = Ok '👩‍👩‍👧‍👦'
-//Json.serialize<char> 'Ł' = Ok "\"Ł\""
-//Json.parse<char> "\"Ł\"" = Ok 'Ł'
+Json.serialize<Char> 'a' = Ok "\"a\""
+Json.parse<Char> "\"a\"" = Ok 'a'
+//Json.serialize<Char> ("😂" |> charFromString ) = Ok "😂"
+//Json.parse<Char> "\"😂\"" = Ok '😂'
+//Json.serialize<Char> '👩‍👩‍👧‍👦' = Ok "\"👩‍👩‍👧‍👦\""
+//Json.parse<Char> "\"👩‍👩‍👧‍👦\"" = Ok '👩‍👩‍👧‍👦'
+//Json.serialize<Char> 'Ł' = Ok "\"Ł\""
+//Json.parse<Char> "\"Ł\"" = Ok 'Ł'
 
 // not chars
-//Json.serialize<char> "test" = Error "Can't currently serialize this type/value combination"
-//Json.parse<char> "\"test\"" = Error "Can't currently parse this type/value combination"
+//Json.serialize<Char> "test" = Error "Can't currently serialize this type/value combination"
+//Json.parse<Char> "\"test\"" = Error "Can't currently parse this type/value combination"
 
 
 // Strings
-Json.serialize<string> "abc" = Ok "\"abc\""
-Json.parse<string> "\"abc\"" = Ok "abc"
-Json.serialize<string> "" = Ok "\"\""
-Json.parse<string> "\"\"" = Ok ""
-Json.serialize<string> "żółw" = Ok "\"żółw\""
-Json.parse<string> "\"żółw\"" = Ok "żółw"
-//Json.serialize<string> "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-Json.parse<string> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷\"" = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-//Json.serialize<string> "👩‍👩‍👧‍👦" = Ok "\"👩‍👩‍👧‍👦\""
-//Json.parse<string> "\"👩‍👩‍👧‍👦\"" = Ok "👩‍👩‍👧‍👦"
+Json.serialize<String> "abc" = Ok "\"abc\""
+Json.parse<String> "\"abc\"" = Ok "abc"
+Json.serialize<String> "" = Ok "\"\""
+Json.parse<String> "\"\"" = Ok ""
+Json.serialize<String> "żółw" = Ok "\"żółw\""
+Json.parse<String> "\"żółw\"" = Ok "żółw"
+//Json.serialize<String> "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷\"" = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+//Json.serialize<String> "👩‍👩‍👧‍👦" = Ok "\"👩‍👩‍👧‍👦\""
+//Json.parse<String> "\"👩‍👩‍👧‍👦\"" = Ok "👩‍👩‍👧‍👦"
 // TODO: long strings
 
 
 // Datetimes
-let d (datestr: string) = (DateTime.parse_v2 datestr) |> Test.unwrap
+let d (datestr: String) = (DateTime.parse_v2 datestr) |> Test.unwrap
 
 // now-ish
 Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = Ok "\"2023-07-28T22:42:36Z\""
@@ -190,7 +190,7 @@ Json.parse<DateTime> "1" = Error "Can't currently parse this type/value combinat
 
 
 // UUIDs
-let uuid (s: string) = (Uuid.parse_v0 s) |> Test.unwrap
+let uuid (s: String) = (Uuid.parse_v0 s) |> Test.unwrap
 
 // empty
 Json.serialize<UUID> (uuid "00000000-0000-0000-0000-000000000000") = Ok "\"00000000-0000-0000-0000-000000000000\""
@@ -220,46 +220,46 @@ Json.serialize<UUID> "" = Error "Can't currently serialize this type/value combi
 // TODO: demonstrate _more_ nesting
 
 // Lists
-Json.serialize<List<int>> [] = Ok "[]"
-Json.parse<List<int>> "[]" = Ok []
-Json.serialize<List<int>> [1, 2, 3] = Ok "[1,2,3]"
-Json.parse<List<int>> "[1,2,3]" = Ok [1, 2, 3]
-Json.serialize<List<List<List<int>>>> [[[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 0]]] = Ok "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]"
-Json.parse<List<List<List<int>>>> "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]" = Ok [[[1,2,3],[4,5,6]],[[7,8],[9,0]]]
+Json.serialize<List<Int>> [] = Ok "[]"
+Json.parse<List<Int>> "[]" = Ok []
+Json.serialize<List<Int>> [1, 2, 3] = Ok "[1,2,3]"
+Json.parse<List<Int>> "[1,2,3]" = Ok [1, 2, 3]
+Json.serialize<List<List<List<Int>>>> [[[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 0]]] = Ok "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]"
+Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]" = Ok [[[1,2,3],[4,5,6]],[[7,8],[9,0]]]
 
 // not proper lists
-Json.serialize<List<int>> [1, 2, "three"] = Error "Can't currently serialize this type/value combination"
-Json.parse<List<int>> "[1, 2, \"three\"]" = Error "Can't currently parse this type/value combination"
-Json.parse<List<int>> "[1, 2, ]" = Error "not JSON"
-//Json.serialize<List<List<List<int>>>> [[[1, 2, 3], [4, 5.5, 6]], [[7, 8], [9, 0]]] = Error "Can't currently parse this type/value combination"
-//Json.parse<List<List<List<int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Error "Can't currently parse this type/value combination"
+Json.serialize<List<Int>> [1, 2, "three"] = Error "Can't currently serialize this type/value combination"
+Json.parse<List<Int>> "[1, 2, \"three\"]" = Error "Can't currently parse this type/value combination"
+Json.parse<List<Int>> "[1, 2, ]" = Error "not JSON"
+//Json.serialize<List<List<List<Int>>>> [[[1, 2, 3], [4, 5.5, 6]], [[7, 8], [9, 0]]] = Error "Can't currently parse this type/value combination"
+//Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Error "Can't currently parse this type/value combination"
 
 
 // Tuples
-Json.serialize<Tuple<int, string, int>> (1, "two", 3) = Ok "[1,\"two\",3]"
-Json.parse<Tuple<int, string, int>> "[1,\"two\",3]" = Ok (1, "two", 3)
+Json.serialize<Tuple<Int, String, Int>> (1, "two", 3) = Ok "[1,\"two\",3]"
+Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = Ok (1, "two", 3)
 // TODO: more...
 // TODO: more nesting...
 
 // not proper tuples
-Json.parse<Tuple<string, string, int>> """[1, "two", 3]""" = Error "Can't currently parse this type/value combination"
+Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = Error "Can't currently parse this type/value combination"
 // TODO: more...
 // TODO: issues at a few levels deep
 
 
 // Options
-Json.serialize<Option<int>> Nothing = Ok "{\"Nothing\":null}"
-Json.parse<Option<int>> "{\"Nothing\":null}" = Ok Nothing
-Json.serialize<Option<int>> (Just 1) = Ok "{\"Just\":1}"
-Json.parse<Option<int>> "{\"Just\":1}" = Ok (Just 1)
+Json.serialize<Option<Int>> Nothing = Ok "{\"Nothing\":null}"
+Json.parse<Option<Int>> "{\"Nothing\":null}" = Ok Nothing
+Json.serialize<Option<Int>> (Just 1) = Ok "{\"Just\":1}"
+Json.parse<Option<Int>> "{\"Just\":1}" = Ok (Just 1)
 // TODO: more...
 
 
 // Results
-Json.serialize<Result<int, string>> (Ok 1) = Ok "{\"Ok\":1}"
-Json.serialize<Result<int, string>> (Error "err message") = Ok "{\"Error\":\"err message\"}"
-Json.parse<Result<int, string>> "{\"Ok\":1}" = Ok (Ok 1)
-Json.parse<Result<int, string>> "{\"Error\":\"err message\"}" = Ok (Error "err message")
+Json.serialize<Result<Int, String>> (Ok 1) = Ok "{\"Ok\":1}"
+Json.serialize<Result<Int, String>> (Error "err message") = Ok "{\"Error\":\"err message\"}"
+Json.parse<Result<Int, String>> "{\"Ok\":1}" = Ok (Ok 1)
+Json.parse<Result<Int, String>> "{\"Error\":\"err message\"}" = Ok (Error "err message")
 // TODO: more...
 // TODO: more nesting...
 
@@ -285,7 +285,7 @@ Json.parse<Result<int, string>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 
 // ### User-defined
 // #### Enums
-type PrettyLikely = Yeah | Enh of reason: string * int
+type PrettyLikely = Yeah | Enh of reason: String * Int
 
 Json.serialize<PrettyLikely> Yeah = Ok "{\"Yeah\":[]}"
 Json.parse<PrettyLikely> "{\"Yeah\":[]}" = Ok Yeah
@@ -296,8 +296,8 @@ Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (Enh("printer br
 
 
 // #### Records
-type Person = { Name: string; Age: int }
-type People = { GroupName: string; People: List<Person> }
+type Person = { Name: String; Age: Int }
+type People = { GroupName: String; People: List<Person> }
 
 Json.serialize<Person> { Name = "Bob"; Age = 42 } = Ok """{"Age":42,"Name":"Bob"}"""
 Json.parse<Person> """{ "Name": "Bob", "Age": 42 }""" = Ok { Name = "Bob"; Age = 42 }
@@ -326,8 +326,8 @@ Json.parse<People> """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"Geo
 
 // from old tests - worth reviewing to see if we have missing cases
 
-//Json.parse<List<int>> "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
-//Json.parse<List<int>> "[97, 2, 30, 4,]" = null
+//Json.parse<List<Int>> "[97, 2, 30, 4]" = Ok [97, 2, 30, 4]
+//Json.parse<List<Int>> "[97, 2, 30, 4,]" = null
 
 //Json.parse<TODO> "{Id : 1.0}" = null
 //Json.parse<TODO> "{Id : 1.}" = null

@@ -12,7 +12,7 @@ let rec typeName (t : DType) : string =
   | TFloat -> "Float"
   | TBool -> "Bool"
   | TUnit -> "Unit"
-  | TChar -> "Character"
+  | TChar -> "Char"
   | TStr -> "String"
   | TList nested -> $"List<{typeName nested}>"
   | TTuple (n1, n2, rest) ->
@@ -28,7 +28,7 @@ let rec typeName (t : DType) : string =
   | TDB _ -> "Datastore"
   | TDateTime -> "DateTime"
   | TPassword -> "Password"
-  | TUuid -> "UUID"
+  | TUuid -> "Uuid"
   | TOption nested -> $"Option<{typeName nested}>"
   | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
   | TCustomType (t, typeArgs) ->

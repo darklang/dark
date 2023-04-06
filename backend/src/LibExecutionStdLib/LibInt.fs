@@ -359,7 +359,7 @@ let fns : List<BuiltInFn> =
                 match i with
                 | DInt it -> it
                 | _ ->
-                  Exception.raiseCode (Errors.argumentWasnt "a list of ints" "a" ldv))
+                  Exception.raiseCode (Errors.argumentWasntType (TList TInt) "a" ldv))
               l
 
           let sum = List.fold (fun acc elem -> acc + elem) 0L ints
@@ -431,7 +431,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TStr "" ]
       returnType = TResult(TInt, TStr)
-      description = "Returns the <type int> value of a <type string>"
+      description = "Returns the <type Int> value of a <type String>"
       fn =
         (function
         | _, _, [ DStr s ] ->
@@ -439,7 +439,7 @@ let fns : List<BuiltInFn> =
             s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
            with
            | _e ->
-             $"Expected to parse string with only numbers, instead got \"{s}\""
+             $"Expected to parse String with only numbers, instead got \"{s}\""
              |> DStr
              |> Error
              |> DResult

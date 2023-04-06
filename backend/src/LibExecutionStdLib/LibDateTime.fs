@@ -233,7 +233,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description =
-        "Converts <param date> to an <type integer> representing seconds since the Unix epoch"
+        "Converts <param date> to an <type Int> representing seconds since the Unix epoch"
       fn =
         (function
         | _, _, [ DDateTime d ] ->
@@ -249,7 +249,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "seconds" TInt "" ]
       returnType = TDateTime
       description =
-        "Converts an <type integer> representing seconds since the Unix epoch into a <type Date>"
+        "Converts an <type Int> representing seconds since the Unix epoch into a <type Date>"
       fn =
         (function
         | _, _, [ DInt s ] ->
@@ -268,7 +268,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
-      description = "Returns the year portion of <param date> as an <type int>"
+      description = "Returns the year portion of <param date> as an <type Int>"
       fn =
         (function
         | _, _, [ DDateTime d ] -> d.Year |> Dval.int |> Ply
@@ -283,7 +283,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description =
-        "Returns the month portion of <param date> as an <type int> between {{1}} and {{12}}"
+        "Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}"
       fn =
         (function
         | _, _, [ DDateTime d ] -> d.Month |> Dval.int |> Ply
@@ -297,7 +297,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
-      description = "Returns the day portion of <param date> as an <type int>"
+      description = "Returns the day portion of <param date> as an <type Int>"
       fn =
         (function
         | _, _, [ DDateTime d ] -> d.Day |> Dval.int |> Ply
@@ -312,7 +312,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description =
-        "Returns the weekday of <param date> as an <type int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
+        "Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
       fn =
         (function
         | _, _, [ DDateTime d ] -> d.DayOfWeek |> int64 |> DInt |> Ply
@@ -326,7 +326,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
-      description = "Returns the hour portion of <param date> as an <type int>"
+      description = "Returns the hour portion of <param date> as an <type Int>"
       fn =
         (function
         | _, _, [ DDateTime d ] -> Ply(Dval.int d.Hour)
@@ -340,7 +340,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
-      description = "Returns the minute portion of <param date> as an <type int>"
+      description = "Returns the minute portion of <param date> as an <type Int>"
       fn =
         (function
         | _, _, [ DDateTime d ] -> Ply(Dval.int d.Minute)
@@ -354,7 +354,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
-      description = "Returns the second portion of <param date> as an <type int>"
+      description = "Returns the second portion of <param date> as an <type Int>"
       fn =
         (function
         | _, _, [ DDateTime d ] -> Ply(Dval.int d.Second)

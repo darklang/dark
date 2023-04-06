@@ -257,7 +257,7 @@ let fns : List<BuiltInFn> =
               | (_, notAPair) ->
                 // this should be a DError, not a "normal" error
                 TypeMismatch
-                  $"Expected request headers to be a List of (string * string), but got: {DvalReprDeveloper.toRepr notAPair}"
+                  $"Expected request headers to be a `List<String*String>`, but got: {DvalReprDeveloper.toRepr notAPair}"
                 |> Error)
             |> Result.map (fun pairs -> List.rev pairs)
 

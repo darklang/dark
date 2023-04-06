@@ -311,22 +311,22 @@ let rec lambdaToSql
     | None -> error $"This variable is not defined: {varname}"
 
   | EInteger (_, v) ->
-    typecheck $"integer {v}" TInt expectedType
+    typecheck $"Int {v}" TInt expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.int64 v ], TInt
 
   | EBool (_, v) ->
-    typecheck $"bool {v}" TBool expectedType
+    typecheck $"Bool {v}" TBool expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.bool v ], TBool
 
   | EUnit _ ->
-    typecheck "unit" TUnit expectedType
+    typecheck "Unit" TUnit expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.int64 0L ], TUnit
 
   | EFloat (_, v) ->
-    typecheck $"float {v}" TFloat expectedType
+    typecheck $"Float {v}" TFloat expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.double v ], TFloat
 
@@ -336,12 +336,12 @@ let rec lambdaToSql
       |> List.map (fun part ->
         match part with
         | StringText (s) ->
-          typecheck $"string \"{s}\"" TStr expectedType
+          typecheck $"String \"{s}\"" TStr expectedType
           let name = randomString 10
           $"(@{name})", [ name, Sql.string s ]
         | StringInterpolation e ->
           let strPart, vars, actualType = lts TStr e
-          typecheck $"string interpolation" TStr actualType
+          typecheck $"String interpolation" TStr actualType
           strPart, vars)
       |> List.unzip
     let result = String.concat ", " strParts
@@ -350,7 +350,7 @@ let rec lambdaToSql
     strPart, vars, TStr
 
   | ECharacter (_, v) ->
-    typecheck $"char '{v}'" TChar expectedType
+    typecheck $"Char '{v}'" TChar expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.string v ], TChar
 
@@ -363,13 +363,13 @@ let rec lambdaToSql
           ([], [], expectedType)
           (fun (prevSqls, prevVars, prevActualType) v ->
             let sql, vars, actualType = lts expectedType v
-            typecheck $"list item" actualType prevActualType
+            typecheck $"List item" actualType prevActualType
             prevSqls @ [ sql ], prevVars @ vars, actualType)
           items
       let sql =
         sqls |> String.concat ", " |> (fun s -> "((ARRAY[ " + s + " ] )::bigint[])")
       (sql, vars, TList actualType)
-    | _ -> error "Expected a list"
+    | _ -> error "Expected a List"
 
 
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->

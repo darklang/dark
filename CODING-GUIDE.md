@@ -16,6 +16,15 @@
 
 - Avoid use of `foo`, `bar`, and `baz` in names (including as sample data in tests).
 
+- Be consistent with built-in names. Always use the "correct" form below:
+  - Int (not Integer)
+  - String (not Str)
+  - Float
+  - Bool (not Boolean)
+  - Char (not Character)
+  - Uuid (not UUID)
+  - Dict (not Dictionary)
+
 ## Comments
 
 - All files should begin with a comment explaining the purpose of the file

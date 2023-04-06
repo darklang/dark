@@ -58,7 +58,7 @@ module UserEnums =
 
   // Mixed kinds of enums are OK
   type EnumOfMixedCases =
-    | W | X of string | Y of i: int | Z of c: string * i: int
+    | W | X of String | Y of i: Int | Z of c: String * i: Int
 
   (W == (Y 1)) = false
   (Y 1 == Y 1) = true
@@ -79,7 +79,7 @@ module UserEnums =
 
 
   // You can define enums based on previously-defined enums
-  type CorD = | C of int | D of AorB
+  type CorD = | C of Int | D of AorB
 
   (C != D(B)) = true
   (D(A) == D(A)) = true
@@ -88,7 +88,7 @@ module UserEnums =
   // TODO: The typechecker has been adjusted to handle this,
   //       but the type checker isn't yet integrated into the interpreter fully
   // Type errors are reported when an enum ctor is used with an incorrect # of fields
-  //type EnumWithASingleCaseOfTwoFields = | HasTwoFields of a: int * b: int
+  //type EnumWithASingleCaseOfTwoFields = | HasTwoFields of a: Int * b: Int
   //
   //(HasTwoFields 1 2) = HasTwoFields 1 2
   //HasTwoFields 1 = Test.typeError "Enum ctor HasTwoFields expects 2 fields, but was given 1"
@@ -556,7 +556,7 @@ module Equality =
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x)) = true
 
-  [<DB>] type MyDB = { x : string; y: string }
+  [<DB>] type MyDB = { x : String; y: String }
   (MyDB == MyDB) = true
   (MyDB != 5) = Test.typeError_v0 "Both values must be the same type"
 
@@ -564,13 +564,13 @@ module Equality =
 // ---------------------------
 // User-defined Functions
 // ---------------------------
-let stringFn (key:string) =
+let stringFn (key:String) =
   key ++ " appended string"
 
 let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
   arg
 
-let twoStringFn (str1: string) (str2: string) =
+let twoStringFn (str1: String) (str2: String) =
   str1 ++ " appended " ++ str2
 
 let returnsInt () =
@@ -594,7 +594,7 @@ let returnsResultError () =
 let throwsException () =
   Test.raiseException "throwsException message"
 
-let derrorFn (msg:string) =
+let derrorFn (msg:String) =
   msg ++ Test.typeError_v0 msg
 
 module FunctionCalls =
@@ -607,7 +607,7 @@ module FunctionCalls =
   returnsOptionNothing () = Nothing
   returnsResultOk () = Ok 5
   (returnsResultOk ()) |> Test.unwrap = 5
-  fnWithTypeArgAndOneParam<int> 1 = 1
+  fnWithTypeArgAndOneParam<Int> 1 = 1
 
 module InvalidFnCalls =
   functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
@@ -615,17 +615,17 @@ module InvalidFnCalls =
   stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
   fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-  fnWithTypeArgAndOneParam<int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-  fnWithTypeArgAndOneParam<int, string> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-  fnWithTypeArgAndOneParam<int, string> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
-  //TODO: fnWithTypeArgAndOneParam<int> "str2" = Test.typeError "type arg doesn't match arg."
+  fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+  fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+  fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+  //TODO: fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "type arg doesn't match arg."
 
   (let _ = Test.setExpectedExceptionCount 1 in
    throwsException ()) = Test.typeError "Unknown error"
   derrorFn "msg" = Test.typeError "msg"
 
 
-let myUserFunction_v2 (str:string) =
+let myUserFunction_v2 (str:String) =
   6
 
 // user function with _v2 in it
@@ -636,13 +636,13 @@ let myUserFunction_v2 (str:string) =
 // ---------------------------
 [<Package("test", "test", "Test")>]
 module Packages =
-  let stringFn (key:string) =
+  let stringFn (key:String) =
     key ++ " appended string"
 
   let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
     JSON.parse<'a> arg
 
-  let twoStringFn (str1: string) (str2: string) =
+  let twoStringFn (str1: String) (str2: String) =
     str1 ++ " appended " ++ str2
 
   let returnsInt () =
@@ -666,7 +666,7 @@ module Packages =
   let throwsException () =
     Test.raiseException "throwsException message"
 
-  let derrorFn (msg:string) =
+  let derrorFn (msg:String) =
     msg ++ Test.typeError_v0 msg
 
   Test.Test.Test.stringFn "string" = "string appended string"
@@ -689,6 +689,6 @@ module Packages =
      Test.Test.Test.throwsException ()) = Test.typeError "Unknown error"
 
     fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-    fnWithTypeArgAndOneParam<int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-    fnWithTypeArgAndOneParam<int, string> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-    fnWithTypeArgAndOneParam<int, string> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."

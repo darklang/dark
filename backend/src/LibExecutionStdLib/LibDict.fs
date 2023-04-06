@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
             match e with
             | DTuple (DStr k, value, []) -> Map.add k value acc
             | DTuple (k, _, []) ->
-              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+              Exception.raiseCode (Errors.argumentWasntType TStr "key" k)
             | (DIncomplete _
             | DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
@@ -163,7 +163,7 @@ let fns : List<BuiltInFn> =
               ((DIncomplete _
               | DError _) as dv) -> Errors.foundFakeDval dv
             | Some _, DTuple (k, _, []) ->
-              Exception.raiseCode (Errors.argumentWasnt "a string" "key" k)
+              Exception.raiseCode (Errors.argumentWasntType TStr "key" k)
             | Some _, _ ->
               Exception.raiseCode "All list items must be `(key, value)`"
             | None, _ -> None
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
       returnType = TOption varA
       description =
         "If the <param dict> contains <param key>, returns the corresponding value,
-         wrapped in an <type option>: {{Just value}}. Otherwise, returns {{Nothing}}."
+         wrapped in an <type Option>: {{Just value}}. Otherwise, returns {{Nothing}}."
       fn =
         (function
         | _, _, [ DDict o; DStr s ] -> Map.tryFind s o |> Dval.option |> Ply

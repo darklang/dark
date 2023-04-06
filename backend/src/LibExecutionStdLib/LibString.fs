@@ -324,7 +324,7 @@ let fns : List<BuiltInFn> =
               (fun s ->
                 match s with
                 | DStr st -> st
-                | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TStr "l" dv))
+                | dv -> Exception.raiseCode (Errors.argumentWasntType (TList TStr) "l" dv))
               l
 
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
@@ -348,7 +348,7 @@ let fns : List<BuiltInFn> =
             |> List.map (fun dval ->
               match dval with
               | DChar c -> c
-              | dv -> Exception.raiseCode (Errors.argumentMemberWasnt TChar "l" dv))
+              | dv -> Exception.raiseCode (Errors.argumentWasntType (TList TChar) "l" dv))
             |> String.concat ""
           )
           |> Ply
@@ -362,7 +362,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TStr
-      description = "Converts a <type char> to a <type string>"
+      description = "Converts a <type Char> to a <type String>"
       fn =
         (function
         | _, _, [ DChar c ] -> Ply(DStr(c))
@@ -471,7 +471,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "length" TInt "" ]
       returnType = TResult(TStr, TStr)
       description =
-        "Generate a <type string> of length <param length> from random characters"
+        "Generate a <type String> of length <param length> from random characters"
       fn =
         (function
         | _, _, [ DInt l as dv ] ->

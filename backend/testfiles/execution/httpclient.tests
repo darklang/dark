@@ -25,7 +25,7 @@ HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
 // Tests that try to make requests to the internet
 
 // type errors for bad `headers` are OK
-HttpClient.request "get" "https://darklang.com" [1] Bytes.empty = Test.typeError_v0 "Expected request headers to be a List of (string * string), but got: 1"
+HttpClient.request "get" "https://darklang.com" [1] Bytes.empty = Test.typeError_v0 "Expected request headers to be a `List<String*String>`, but got: 1"
 HttpClient.request "get" "https://darklang.com" [("", "")] Bytes.empty = Error "Empty request header key provided"
 
 // type errors for bad `method` are OK

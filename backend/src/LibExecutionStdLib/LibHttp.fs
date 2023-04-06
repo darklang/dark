@@ -55,7 +55,7 @@ let fns : List<BuiltInFn> =
               match k, v with
               | k, DStr v -> k, v
               | _, v ->
-                Exception.raiseCode (Errors.argumentWasnt "a string" "value" v))
+                Exception.raiseCode (Errors.argumentWasntType (TList TStr) "value" v))
 
           Ply(DHttpResponse(code, pairs, dv))
         | _ -> incorrectArgs ())
@@ -254,7 +254,7 @@ let fns : List<BuiltInFn> =
                | DStr str -> (sprintf "%s=%s" key str :: acc)
                | _ ->
                  Exception.raiseCode (
-                   Errors.argumentWasnt "a string" "`Path` or `Domain`" v
+                   Errors.argumentWasnt "a String" "`Path` or `Domain`" v
                  ))
             | "samesite", v ->
               (match v with
