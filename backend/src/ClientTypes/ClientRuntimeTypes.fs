@@ -72,7 +72,7 @@ type MatchPattern =
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
-  | MPCharacter of id * string
+  | MPChar of id * string
   | MPString of id * string
   | MPFloat of id * double
   | MPUnit of id

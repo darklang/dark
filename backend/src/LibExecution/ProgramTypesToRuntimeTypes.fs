@@ -107,7 +107,7 @@ module MatchPattern =
       RT.MPConstructor(id, caseName, List.map toRT fieldPats)
     | PT.MPInteger (id, i) -> RT.MPInteger(id, i)
     | PT.MPBool (id, b) -> RT.MPBool(id, b)
-    | PT.MPCharacter (id, c) -> RT.MPCharacter(id, c)
+    | PT.MPChar (id, c) -> RT.MPChar(id, c)
     | PT.MPString (id, s) -> RT.MPString(id, s)
     | PT.MPFloat (id, s, w, f) ->
       let w = if w = "" then "0" else w

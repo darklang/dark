@@ -458,7 +458,7 @@ module Expect =
     | MPInteger (_, l), MPInteger (_, l') -> check path l l'
     | MPFloat (_, d), MPFloat (_, d') -> check path d d'
     | MPBool (_, l), MPBool (_, l') -> check path l l'
-    | MPCharacter (_, c), MPCharacter (_, c') -> check path c c'
+    | MPChar (_, c), MPChar (_, c') -> check path c c'
     | MPUnit (_), MPUnit (_) -> ()
     | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
@@ -470,7 +470,7 @@ module Expect =
     | MPInteger _, _
     | MPFloat _, _
     | MPBool _, _
-    | MPCharacter _, _
+    | MPChar _, _
     | MPUnit _, _
     | MPTuple _, _
     | MPList _, _ -> check path actual expected

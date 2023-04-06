@@ -218,7 +218,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     && List.forall2 equalsMatchPattern args1 args2
   | MPInteger (_, int1), MPInteger (_, int2) -> int1 = int2
   | MPBool (_, bool1), MPBool (_, bool2) -> bool1 = bool2
-  | MPCharacter (_, char1), MPCharacter (_, char2) -> char1 = char2
+  | MPChar (_, char1), MPChar (_, char2) -> char1 = char2
   | MPString (_, str1), MPString (_, str2) -> str1 = str2
   | MPFloat (_, float1), MPFloat (_, float2) -> float1 = float2
   | MPUnit _, MPUnit _ -> true
@@ -234,7 +234,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   | MPConstructor _, _
   | MPInteger _, _
   | MPBool _, _
-  | MPCharacter _, _
+  | MPChar _, _
   | MPString _, _
   | MPFloat _, _
   | MPUnit _, _

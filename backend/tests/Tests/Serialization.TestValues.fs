@@ -55,7 +55,7 @@ module RuntimeTypes =
       RT.MPConstructor(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInteger(756385UL, 7857395)
       RT.MPBool(8759375UL, true)
-      RT.MPCharacter(4875843UL, "8jgkdjsfg")
+      RT.MPChar(4875843UL, "8jgkdjsfg")
       RT.MPString(857395UL, "iklfijo13294")
       RT.MPUnit(812394UL)
       RT.MPTuple(
@@ -173,7 +173,7 @@ module ProgramTypes =
       PT.MPConstructor(7471263UL, "Nothing", [])
       PT.MPInteger(74816UL, 84871728)
       PT.MPBool(66453UL, false)
-      PT.MPCharacter(83749178UL, "w")
+      PT.MPChar(83749178UL, "w")
       PT.MPString(817201237UL, "testing testing 123")
       PT.MPFloat(012037123UL, Positive, "123", "456")
       PT.MPUnit(9123871238UL)
@@ -276,8 +276,7 @@ module ProgramTypes =
                               PT.FQFnName.Stdlib
                                 { module_ = "Int"; function_ = "add"; version = 0 },
                               [],
-                              [ PT.EInt(250221144UL, 6L)
-                                PT.EInt(298149318UL, 2L) ]
+                              [ PT.EInt(250221144UL, 6L); PT.EInt(298149318UL, 2L) ]
                             )
                           ),
                           PT.EList(
@@ -351,9 +350,8 @@ module ProgramTypes =
                                PT.EVariable(863810169UL, "v"))
                               (PT.MPInteger(928253813UL, 5L),
                                PT.EInt(342670561UL, -9223372036854775808L))
-                              (PT.MPBool(435227293UL, true),
-                               PT.EInt(232748650UL, 7L))
-                              (PT.MPCharacter(387662539UL, "c"),
+                              (PT.MPBool(435227293UL, true), PT.EInt(232748650UL, 7L))
+                              (PT.MPChar(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
                               (PT.MPList(
                                 387662539UL,

@@ -154,7 +154,7 @@ module MatchPattern =
       RT.MPConstructor(id, caseName, List.map r fieldPats)
     | MPInteger (id, i) -> RT.MPInteger(id, i)
     | MPBool (id, b) -> RT.MPBool(id, b)
-    | MPCharacter (id, c) -> RT.MPCharacter(id, c)
+    | MPChar (id, c) -> RT.MPChar(id, c)
     | MPString (id, s) -> RT.MPString(id, s)
     | MPFloat (id, f) -> RT.MPFloat(id, f)
     | MPUnit id -> RT.MPUnit id
@@ -170,7 +170,7 @@ module MatchPattern =
       MPConstructor(id, caseName, List.map r fieldPats)
     | RT.MPInteger (id, i) -> MPInteger(id, i)
     | RT.MPBool (id, b) -> MPBool(id, b)
-    | RT.MPCharacter (id, c) -> MPCharacter(id, c)
+    | RT.MPChar (id, c) -> MPChar(id, c)
     | RT.MPString (id, s) -> MPString(id, s)
     | RT.MPFloat (id, f) -> MPFloat(id, f)
     | RT.MPUnit id -> MPUnit id

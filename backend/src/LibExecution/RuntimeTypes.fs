@@ -255,7 +255,7 @@ and MatchPattern =
   | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInteger of id * int64
   | MPBool of id * bool
-  | MPCharacter of id * string
+  | MPChar of id * string
   | MPString of id * string
   | MPFloat of id * double
   | MPUnit of id
@@ -434,7 +434,7 @@ module MatchPattern =
     match pat with
     | MPInteger (id, _)
     | MPString (id, _)
-    | MPCharacter (id, _)
+    | MPChar (id, _)
     | MPBool (id, _)
     | MPUnit id
     | MPFloat (id, _)

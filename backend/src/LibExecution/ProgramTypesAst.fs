@@ -58,7 +58,7 @@ let rec matchPatternPreTraversal
   let pattern = f pattern in
   match pattern with
   | MPVariable _
-  | MPCharacter _
+  | MPChar _
   | MPInteger _
   | MPBool _
   | MPString _
@@ -79,7 +79,7 @@ let rec matchPatternPostTraversal
   let result =
     match pattern with
     | MPVariable _
-    | MPCharacter _
+    | MPChar _
     | MPInteger _
     | MPBool _
     | MPString _

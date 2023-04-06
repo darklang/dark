@@ -126,7 +126,7 @@ module MatchPattern =
     | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInteger(id, int64 n)
     | SynPat.Const (SynConst.UInt64 n, _) -> PT.MPInteger(id, int64 n)
     | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInteger(id, parseInt64 n)
-    | SynPat.Const (SynConst.Char c, _) -> PT.MPCharacter(id, string c)
+    | SynPat.Const (SynConst.Char c, _) -> PT.MPChar(id, string c)
     | SynPat.Const (SynConst.Bool b, _) -> PT.MPBool(id, b)
     | SynPat.Const (SynConst.Unit, _) -> PT.MPUnit(id)
     | SynPat.Null _ ->

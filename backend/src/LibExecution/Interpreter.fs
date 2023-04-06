@@ -276,7 +276,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         match pattern with
         | MPInteger (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
         | MPBool (id, b) -> (dv = DBool b), [], [ (id, DBool b) ]
-        | MPCharacter (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
+        | MPChar (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
         | MPString (id, s) -> (dv = DStr s), [], [ (id, DStr s) ]
         | MPFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
         | MPUnit (id) -> (dv = DUnit), [], [ (id, DUnit) ]

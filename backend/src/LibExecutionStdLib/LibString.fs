@@ -324,7 +324,8 @@ let fns : List<BuiltInFn> =
               (fun s ->
                 match s with
                 | DStr st -> st
-                | dv -> Exception.raiseCode (Errors.argumentWasntType (TList TStr) "l" dv))
+                | dv ->
+                  Exception.raiseCode (Errors.argumentWasntType (TList TStr) "l" dv))
               l
 
           // CLEANUP: The OCaml doesn't normalize after concat, so we don't either
@@ -348,7 +349,8 @@ let fns : List<BuiltInFn> =
             |> List.map (fun dval ->
               match dval with
               | DChar c -> c
-              | dv -> Exception.raiseCode (Errors.argumentWasntType (TList TChar) "l" dv))
+              | dv ->
+                Exception.raiseCode (Errors.argumentWasntType (TList TChar) "l" dv))
             |> String.concat ""
           )
           |> Ply
