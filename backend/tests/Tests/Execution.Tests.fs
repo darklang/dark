@@ -67,7 +67,7 @@ let testExecFunctionTLIDs : Test =
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
     let fn =
-      testUserFn name [] [] (PT.TVariable "a") (PT.EInteger(gid (), 5))
+      testUserFn name [] [] (PT.TVariable "a") (PT.EInt(gid (), 5))
       |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (name, fn) ]
     let! state = executionStateFor meta false Map.empty Map.empty fns
@@ -132,11 +132,11 @@ let testRecursionInEditor : Test =
           gid (),
           PT.InfixFnCall PT.ComparisonLessThan,
           PT.EVariable(gid (), "i"),
-          PT.EInteger(gid (), 1)
+          PT.EInt(gid (), 1)
         ),
 
         // 'then' expression
-        PT.EInteger(gid (), 0),
+        PT.EInt(gid (), 0),
 
         // 'else' expression
         // calls self ("recurse") resulting in recursion
@@ -144,7 +144,7 @@ let testRecursionInEditor : Test =
           skippedCallerID,
           PT.FQFnName.userFqName "recurse",
           [],
-          [ PT.EInteger(gid (), 2) ]
+          [ PT.EInt(gid (), 2) ]
         )
       )
 
@@ -454,7 +454,7 @@ let testMatchPreview : Test =
 
   let patternsToMatchAgainst =
     [ // | 5 -> 17
-      (MPInteger(pIntId, 5L), EInteger(intRhsId, 17L))
+      (MPInteger(pIntId, 5L), EInt(intRhsId, 17L))
 
       // | 5.6 -> "float"
       (MPFloat(pFloatId, 5.6), EString(floatRhsId, [ StringText "float" ]))

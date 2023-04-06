@@ -205,10 +205,10 @@ module Expr =
     | SynExpr.Null _ ->
       Exception.raiseInternal "null not supported, use `()`" [ "ast", ast ]
     | SynExpr.Const (SynConst.Unit _, _) -> PT.EUnit id
-    | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInteger(id, n)
-    | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInteger(id, int64 n)
-    | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInteger(id, int64 n)
-    | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInteger(id, parseInt64 n)
+    | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInt(id, n)
+    | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInt(id, int64 n)
+    | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInt(id, int64 n)
+    | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInt(id, parseInt64 n)
     | SynExpr.Const (SynConst.Char c, _) -> PT.ECharacter(id, string c)
     | SynExpr.Const (SynConst.Bool b, _) -> PT.EBool(id, b)
     | SynExpr.Const (SynConst.Double d, _) ->

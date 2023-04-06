@@ -80,7 +80,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | Ok str -> return DStr(String.normalize str)
       | Error dv -> return dv
     | EBool (_id, b) -> return DBool b
-    | EInteger (_id, i) -> return DInt i
+    | EInt (_id, i) -> return DInt i
     | EFloat (_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
     | ECharacter (_id, s) -> return DChar s

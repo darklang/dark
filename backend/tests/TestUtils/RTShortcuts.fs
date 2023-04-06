@@ -53,7 +53,7 @@ let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 
 let eChar (c : string) : Expr = ECharacter(gid (), c)
 
-let eInt (i : int) : Expr = EInteger(gid (), int64 i)
+let eInt (i : int) : Expr = EInt(gid (), int64 i)
 
 let eBool (b : bool) : Expr = EBool(gid (), b)
 

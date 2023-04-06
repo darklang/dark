@@ -197,7 +197,7 @@ type DType =
 
 /// Expressions - the main part of the language.
 type Expr =
-  | EInteger of id * int64
+  | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
@@ -231,7 +231,7 @@ type Expr =
   /// , this is the expression
   ///   `C (1, "title")`
   /// represented as
-  ///   `EConstructor(Some UserType.MyEnum, "C", [EInteger(1), EString("title")]`
+  ///   `EConstructor(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
   | EConstructor of
     id *

@@ -185,7 +185,7 @@ module Expr =
 
     match e with
     | Expr.ECharacter (id, char) -> RT.ECharacter(id, char)
-    | Expr.EInteger (id, num) -> RT.EInteger(id, num)
+    | Expr.EInt (id, num) -> RT.EInt(id, num)
     | Expr.EString (id, segment) ->
       RT.EString(id, List.map stringSegmentToRT segment)
     | Expr.EFloat (id, f) -> RT.EFloat(id, f)
@@ -251,7 +251,7 @@ module Expr =
 
     match e with
     | RT.ECharacter (id, char) -> Expr.ECharacter(id, char)
-    | RT.EInteger (id, num) -> Expr.EInteger(id, num)
+    | RT.EInt (id, num) -> Expr.EInt(id, num)
     | RT.EString (id, str) -> Expr.EString(id, List.map stringSegmentToCT str)
     | RT.EFloat (id, f) -> Expr.EFloat(id, f)
 

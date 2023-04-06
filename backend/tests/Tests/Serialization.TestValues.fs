@@ -67,7 +67,7 @@ module RuntimeTypes =
       RT.MPFloat(12385781243UL, 79375.847583) ]
 
   let exprs : List<RT.Expr> =
-    [ RT.EInteger(124151234UL, 7)
+    [ RT.EInt(124151234UL, 7)
       RT.EBool(158584UL, false)
       RT.EString(
         86749UL,
@@ -113,7 +113,7 @@ module RuntimeTypes =
       RT.EConstructor(64617UL, None, "Just", [ RT.EUnit(8173UL) ])
       RT.EMatch(
         712743UL,
-        RT.EInteger(712373UL, 123),
+        RT.EInt(712373UL, 123),
         [ RT.MPVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
       )
       RT.EFeatureFlag(
@@ -186,15 +186,15 @@ module ProgramTypes =
 
   // Note: this is aimed to contain all cases of `Expr`
   let expr =
-    let e = PT.EInteger(34545UL, 5)
+    let e = PT.EInt(34545UL, 5)
     PT.ELet(
       14219007199254740992UL,
       PT.LPVariable(189271UL, "x1"),
-      PT.EInteger(929452387UL, 5L),
+      PT.EInt(929452387UL, 5L),
       PT.ELet(
         620028536UL,
         PT.LPVariable(5812673123UL, "x2"),
-        PT.EInteger(452247642UL, 9223372036854775807L),
+        PT.EInt(452247642UL, 9223372036854775807L),
         PT.ELet(
           68205955UL,
           PT.LPVariable(458172UL, "bool"),
@@ -233,21 +233,21 @@ module ProgramTypes =
                           PT.FQFnName.Stdlib
                             { module_ = "Bool"; function_ = "isError"; version = 0 },
                           [],
-                          [ PT.EInteger(160106123UL, 6L) ]
+                          [ PT.EInt(160106123UL, 6L) ]
                         ),
                         PT.EIf(
                           729246077UL,
                           PT.EInfix(
                             94793109UL,
                             PT.InfixFnCall(PT.ComparisonNotEquals),
-                            PT.EInteger(264400705UL, 5L),
-                            PT.EInteger(335743639UL, 6L)
+                            PT.EInt(264400705UL, 5L),
+                            PT.EInt(335743639UL, 6L)
                           ),
                           PT.EInfix(
                             775118986UL,
                             PT.InfixFnCall(PT.ArithmeticPlus),
-                            PT.EInteger(803876589UL, 5L),
-                            PT.EInteger(219131014UL, 2L)
+                            PT.EInt(803876589UL, 5L),
+                            PT.EInt(219131014UL, 2L)
                           ),
                           PT.ELambda(
                             947647446UL,
@@ -255,7 +255,7 @@ module ProgramTypes =
                             PT.EInfix(
                               140609068UL,
                               PT.InfixFnCall(PT.ArithmeticPlus),
-                              PT.EInteger(450951790UL, 2L),
+                              PT.EInt(450951790UL, 2L),
                               PT.EVariable(402203255UL, "y")
                             )
                           )
@@ -276,15 +276,15 @@ module ProgramTypes =
                               PT.FQFnName.Stdlib
                                 { module_ = "Int"; function_ = "add"; version = 0 },
                               [],
-                              [ PT.EInteger(250221144UL, 6L)
-                                PT.EInteger(298149318UL, 2L) ]
+                              [ PT.EInt(250221144UL, 6L)
+                                PT.EInt(298149318UL, 2L) ]
                             )
                           ),
                           PT.EList(
                             539797095UL,
-                            [ PT.EInteger(267797631UL, 5L)
-                              PT.EInteger(352138743UL, 6L)
-                              PT.EInteger(430871955UL, 7L) ]
+                            [ PT.EInt(267797631UL, 5L)
+                              PT.EInt(352138743UL, 6L)
+                              PT.EInt(430871955UL, 7L) ]
                           )
                         )
                       ),
@@ -297,12 +297,12 @@ module ProgramTypes =
                           [ ("field",
                              PT.EPipe(
                                786862131UL,
-                               PT.EInteger(555880460UL, 5L),
+                               PT.EInt(555880460UL, 5L),
                                PT.EInfix(
                                  1021880969UL,
                                  PT.InfixFnCall(PT.ArithmeticPlus),
                                  PT.EPipeTarget 936577032UL,
-                                 PT.EInteger(962393769UL, 2L)
+                                 PT.EInt(962393769UL, 2L)
                                ),
                                []
                              ))
@@ -350,9 +350,9 @@ module ProgramTypes =
                                ),
                                PT.EVariable(863810169UL, "v"))
                               (PT.MPInteger(928253813UL, 5L),
-                               PT.EInteger(342670561UL, -9223372036854775808L))
+                               PT.EInt(342670561UL, -9223372036854775808L))
                               (PT.MPBool(435227293UL, true),
-                               PT.EInteger(232748650UL, 7L))
+                               PT.EInt(232748650UL, 7L))
                               (PT.MPCharacter(387662539UL, "c"),
                                PT.ECharacter(657848009UL, "c"))
                               (PT.MPList(
@@ -373,7 +373,7 @@ module ProgramTypes =
                                PT.EInfix(
                                  275666765UL,
                                  PT.InfixFnCall(PT.ArithmeticPlus),
-                                 PT.EInteger(739193732UL, 6L),
+                                 PT.EInt(739193732UL, 6L),
                                  PT.EVariable(880556562UL, "var")
                                ))
                               (PT.MPFloat(409097457UL, Positive, "5", "6"),
@@ -393,8 +393,8 @@ module ProgramTypes =
                               882488977UL,
                               "test",
                               PT.EBool(349352147UL, true),
-                              PT.EInteger(578528886UL, 5L),
-                              PT.EInteger(562930224UL, 6L)
+                              PT.EInt(578528886UL, 5L),
+                              PT.EInt(562930224UL, 6L)
                             ),
                             PT.ELet(
                               6345345UL,

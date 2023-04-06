@@ -75,7 +75,7 @@ let requestPathMatchesRoute =
       ("/api/create-token", "/api-create_token", false)
       ("/%", "//.some-spam-address", true) ]
 
-let five = PT.EInteger(gid (), 5)
+let five = PT.EInt(gid (), 5)
 
 let filterMatchingPatternsBySpecificity =
   testMany

@@ -310,7 +310,7 @@ let rec lambdaToSql
       $"(@{newname})", [ newname, dvalToSql actualType dval ], actualType
     | None -> error $"This variable is not defined: {varname}"
 
-  | EInteger (_, v) ->
+  | EInt (_, v) ->
     typecheck $"Int {v}" TInt expectedType
     let name = randomString 10
     $"(@{name})", [ name, Sql.int64 v ], TInt
@@ -484,7 +484,7 @@ let partiallyEvaluate
         | EApply (_, _, typeArgs, args) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
-            | EInteger _
+            | EInt _
             | EBool _
             | EUnit _
             | EFloat _
@@ -501,7 +501,7 @@ let partiallyEvaluate
           else
             return expr
         | EString _
-        | EInteger _
+        | EInt _
         | EFloat _
         | EBool _
         | EUnit _
@@ -529,7 +529,7 @@ let partiallyEvaluate
         let! result =
           uply {
             match expr with
-            | EInteger _
+            | EInt _
             | EString _
             | EVariable _
             | ECharacter _

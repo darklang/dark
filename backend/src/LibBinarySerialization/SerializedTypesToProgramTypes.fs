@@ -133,7 +133,7 @@ module Expr =
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
     | ST.ECharacter (id, char) -> PT.ECharacter(id, char)
-    | ST.EInteger (id, num) -> PT.EInteger(id, num)
+    | ST.EInt (id, num) -> PT.EInt(id, num)
     | ST.EString (id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
     | ST.EFloat (id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool (id, b) -> PT.EBool(id, b)

@@ -123,7 +123,7 @@ module Expr =
   let rec toRT (e : PT.Expr) : RT.Expr =
     match e with
     | PT.ECharacter (id, char) -> RT.ECharacter(id, char)
-    | PT.EInteger (id, num) -> RT.EInteger(id, num)
+    | PT.EInt (id, num) -> RT.EInt(id, num)
     | PT.EString (id, segments) ->
       RT.EString(id, List.map stringSegmentToRT segments)
     | PT.EFloat (id, sign, whole, fraction) ->

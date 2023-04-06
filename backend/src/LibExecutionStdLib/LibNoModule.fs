@@ -104,7 +104,7 @@ and equalsSymtable (a : Symtable) (b : Symtable) : bool =
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   match expr1, expr2 with
-  | EInteger (_, int1), EInteger (_, int2) -> int1 = int2
+  | EInt (_, int1), EInt (_, int2) -> int1 = int2
   | EBool (_, bool1), EBool (_, bool2) -> bool1 = bool2
   | EString (_, segments1), EString (_, segments2) ->
     equalsStringSegments segments1 segments2
@@ -164,7 +164,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
 
   // exhaustiveness check
-  | EInteger _, _
+  | EInt _, _
   | EBool _, _
   | EString _, _
   | ECharacter _, _

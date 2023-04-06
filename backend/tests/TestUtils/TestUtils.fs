@@ -543,7 +543,7 @@ module Expect =
       List.iter2 checkSegment s s'
     | ECharacter (_, v), ECharacter (_, v')
     | EVariable (_, v), EVariable (_, v') -> check path v v'
-    | EInteger (_, v), EInteger (_, v') -> check path v v'
+    | EInt (_, v), EInt (_, v') -> check path v v'
     | EFloat (_, v), EFloat (_, v') -> check path v v'
     | EBool (_, v), EBool (_, v') -> check path v v'
     | ELet (_, pat, rhs, body), ELet (_, pat', rhs', body') ->
@@ -620,7 +620,7 @@ module Expect =
 
     // exhaustiveness check
     | EUnit _, _
-    | EInteger _, _
+    | EInt _, _
     | EString _, _
     | ECharacter _, _
     | EVariable _, _
@@ -1005,11 +1005,11 @@ let interestingDvals =
                                { module_ = ""; function_ = "+"; version = 0 }
                            )),
                            [],
-                           [ EInteger(234213618UL, 5); EInteger(923423468UL, 6) ]
+                           [ EInt(234213618UL, 5); EInt(923423468UL, 6) ]
                          )
-                         EInteger(648327618UL, 7) ]
+                         EInt(648327618UL, 7) ]
                      )
-                     EInteger(325843618UL, 8) ]
+                     EInt(325843618UL, 8) ]
                  ) ]
              )
            symtable = Map.empty

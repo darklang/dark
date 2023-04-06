@@ -13,7 +13,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let expr = f expr
 
   match expr with
-  | EInteger _
+  | EInt _
   | EString _
   | EVariable _
   | EBool _
@@ -44,7 +44,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
 
   let result =
     match expr with
-    | EInteger _
+    | EInt _
     | EString _
     | EVariable _
     | ECharacter _

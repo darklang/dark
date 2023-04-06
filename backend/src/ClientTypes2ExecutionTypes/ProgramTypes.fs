@@ -237,7 +237,7 @@ module Infix =
 module Expr =
   let rec fromCT (expr : CTPT.Expr) : PT.Expr =
     match expr with
-    | CTPT.Expr.EInteger (id, i) -> PT.EInteger(id, i)
+    | CTPT.Expr.EInt (id, i) -> PT.EInt(id, i)
     | CTPT.Expr.EBool (id, b) -> PT.EBool(id, b)
     | CTPT.Expr.EString (id, segment) ->
       PT.EString(id, List.map stringSegmentFromCTPT segment)
@@ -296,7 +296,7 @@ module Expr =
 
   let rec toCT (expr : PT.Expr) : CTPT.Expr =
     match expr with
-    | PT.EInteger (id, i) -> CTPT.Expr.EInteger(id, i)
+    | PT.EInt (id, i) -> CTPT.Expr.EInt(id, i)
     | PT.EBool (id, b) -> CTPT.Expr.EBool(id, b)
     | PT.EString (id, s) -> CTPT.Expr.EString(id, List.map stringSegmentToCT s)
     | PT.ECharacter (id, c) -> CTPT.Expr.ECharacter(id, c)

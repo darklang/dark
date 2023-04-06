@@ -9,7 +9,7 @@ open ProgramTypes
 // Traverse is really only meant to be used by preTraversal and postTraversal
 let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   match expr with
-  | EInteger _
+  | EInt _
   | EBool _
   | EString _
   | ECharacter _

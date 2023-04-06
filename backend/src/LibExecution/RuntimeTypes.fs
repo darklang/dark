@@ -190,7 +190,7 @@ type DType =
 /// Expressions here are runtime variants of the AST in ProgramTypes, having had
 /// superfluous information removed.
 type Expr =
-  | EInteger of id * int64
+  | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
 
@@ -401,7 +401,7 @@ module CustomType =
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
-    | EInteger (id, _)
+    | EInt (id, _)
     | EString (id, _)
     | ECharacter (id, _)
     | EBool (id, _)

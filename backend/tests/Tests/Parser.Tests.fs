@@ -26,7 +26,7 @@ let parserTests =
         (PT.ELet(
           id,
           PT.LPVariable(id, "x"),
-          PT.EInteger(id, 5),
+          PT.EInt(id, 5),
           PT.EPipe(
             id,
             PT.EVariable(id, "x"),
@@ -34,7 +34,7 @@ let parserTests =
               id,
               PT.FQFnName.stdlibFqName "List" "map" 0,
               [],
-              [ (PT.EPipeTarget id); PT.EInteger(id, 5) ]
+              [ (PT.EPipeTarget id); PT.EInt(id, 5) ]
             ),
             []
           )
@@ -48,23 +48,23 @@ let parserTests =
           PT.EInfix(
             id,
             (PT.InfixFnCall(PT.ArithmeticPlus)),
-            PT.EInteger(id, 5),
-            PT.EInteger(id, 3)
+            PT.EInt(id, 5),
+            PT.EInt(id, 3)
           ),
-          PT.EInteger(id, 8)
+          PT.EInt(id, 8)
         ))
       t
         "lambdas with 2 args"
         "fun x y -> 8"
-        (PT.ELambda(id, [ id, "x"; id, "y" ], PT.EInteger(id, 8)))
+        (PT.ELambda(id, [ id, "x"; id, "y" ], PT.EInt(id, 8)))
       t
         "lambdas with 3 args"
         "fun x y z -> 8"
-        (PT.ELambda(id, [ id, "x"; id, "y"; id, "z" ], PT.EInteger(id, 8)))
+        (PT.ELambda(id, [ id, "x"; id, "y"; id, "z" ], PT.EInt(id, 8)))
       t
         "lambdas with 4 args"
         "fun a b c d -> 8"
-        (PT.ELambda(id, [ id, "a"; id, "b"; id, "c"; id, "d" ], PT.EInteger(id, 8)))
+        (PT.ELambda(id, [ id, "a"; id, "b"; id, "c"; id, "d" ], PT.EInt(id, 8)))
       t "negative zero" "(-0.0)" (PT.EFloat(id, Negative, "0", "0"))
       t
         "10 cents"

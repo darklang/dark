@@ -176,7 +176,7 @@ type Infix =
 
 [<MessagePack.MessagePackObject>]
 type Expr =
-  | EInteger of id * int64
+  | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
   | ECharacter of id * string
