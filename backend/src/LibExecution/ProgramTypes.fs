@@ -52,7 +52,13 @@ module FQFnName =
     | Package of PackageFnName
 
   let oneWordFunctions =
-    Set [ "equals"; "notEquals"; "equals_v0"; "notEquals_v0"; "emit_v1" ]
+    Set [ "equals"
+          "notEquals"
+          "equals_v0"
+          "notEquals_v0"
+          "emit_v1"
+          "print"
+          "print_v0" ]
 
   // CLEANUP Packages should just have a uuid
   let namePat = @"^[a-z][a-z0-9_]*$"

@@ -18,14 +18,14 @@ let varA = TVariable "a"
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "IO" "print" 0 // CLEANUP make this not use IO prefix
+  [ { name = fn "" "print" 0
       typeParams = []
       parameters = [ Param.make "value" varA "The value to be printed." ]
       returnType = TUnit
       description = "Prints the given <param value> to the standard output."
       fn =
         (function
-        | state, _, [ value ] ->
+        | _, _, [ value ] ->
           let str = LibExecution.DvalReprDeveloper.toRepr value
           print str
           Ply(DUnit)
@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "IO" "readFile" 0
+    { name = fn "File" "read" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
         "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes wrapped in a Result"
       fn =
         (function
-        | state, _, [ DString path ] ->
+        | _, _, [ DString path ] ->
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path

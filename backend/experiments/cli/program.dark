@@ -14,7 +14,7 @@ let parseArguments (args: List<String>): Command =
 let executeCommand (command: Command) : unit =
   match command with
   | RunScript scriptPath ->
-    let script = IO.readFile scriptPath
+    let script = File.read scriptPath
     // Execute the script here
     ()
 
@@ -23,7 +23,7 @@ let executeCommand (command: Command) : unit =
 Options:
 -h, --help Show this help message and exit
 --prompt PROMPT Infer a script from the given prompt using OpenAI"
-    IO.print helpText
+    print helpText
 
   | Infer (prompt, scriptPath) ->
   // let script = System.IO.File.ReadAllText scriptPath
@@ -33,6 +33,6 @@ Options:
   ()
 
   | Invalid ->
-    IO.print "Invalid command. Use --help for more information."
+    print "Invalid command. Use --help for more information."
 
 args |> parseArguments |> executeCommand
