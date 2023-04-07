@@ -9,7 +9,7 @@ let apiKey = OPENAI_API_KEY
 
 let reqBody =
   let prompt = request.body |> String.fromBytes
-  let serialized ={model= "text-davinci-003"; max_tokens= 50; temperature= 0.7; prompt= prompt} |> Json.serialize<Request>
+  let serialized ={model= "text-davinci-003"; max_tokens= 200; temperature= 0.7; prompt= prompt} |> Json.serialize<Request>
   match serialized with
   | Ok r -> r |> String.toBytes
   | Error e -> Bytes.empty
