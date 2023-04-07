@@ -42,14 +42,16 @@
         resize: none;
       }
       input[type="text"],
-      input[type="submit"] {
+      input[type="submit"],
+      #copy-btn {
         width: 100%;
         padding: 10px;
         font-size: 16px;
         border-radius: 5px;
         border: 1px solid #ccc;
       }
-      input[type="submit"] {
+      input[type="submit"],
+      #copy-btn {
         background-color: #4caf50;
         color: white;
         cursor: pointer;
@@ -60,6 +62,9 @@
       textarea:disabled {
         background-color: #f2f2f2;
         color: #aaa;
+      }
+      form{
+        height:80%;
       }
     </style>
   </head>
@@ -74,6 +79,7 @@
       </div>
       <div class="right-half">
         <textarea id="output" disabled></textarea>
+        <button id="copy-btn">Copy</button>
       </div>
     </div>
     <script>
@@ -99,6 +105,15 @@
             document.getElementById("output").value =
               "Error calling the GPT-4 API: " + response.status + " " + response.statusText + " " + text;
           }
+        });
+        const copyBtn = document.getElementById("copy-btn");
+        copyBtn.addEventListener("click", () => {
+          const output = document.getElementById("output");
+          navigator.clipboard.writeText(output.value).then(() => {
+            console.log('Text copied to clipboard');
+          }).catch((error) => {
+            console.error('Error copying text to clipboard:', error);
+          });
         });
     </script>
   </body>
