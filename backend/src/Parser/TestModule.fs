@@ -221,9 +221,7 @@ let parseFile
         tests =
           m.tests
           |> List.map (fun test ->
-            { test with
-                actual = fixup test.actual
-                expected = fixup test.expected }) }
+            { test with actual = fixup test.actual; expected = fixup test.expected }) }
 
 
 
