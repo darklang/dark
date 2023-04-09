@@ -216,6 +216,8 @@ module Lambdas =
 
 
 module Pipes =
+  let userFn () = 6
+
   ([] |> List.push_v0 2) = [2]
   ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
   // ([] |> List.push_v0 2 |> (Test.typeError_v0 "err")) = Test.typeError_v0 "err" // CLEANUP
@@ -236,6 +238,9 @@ module Pipes =
   |> x
   |> x
   |> (+) 3)) = 10
+
+  // function
+  (() |> userFn) = 6
 
 
 module Match =

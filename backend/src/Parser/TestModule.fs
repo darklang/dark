@@ -158,75 +158,92 @@ let parseFile
     (decls : List<SynModuleDecl>)
     : T =
     let package = getPackage attrs
+    let m =
+      List.fold
+        { types = parent.types
+          fns = parent.fns
+          packageFns = parent.packageFns
+          dbs = parent.dbs
+          modules = []
+          tests = [] }
+        (fun m decl ->
+          let availableTypes =
+            (m.types @ parent.types)
+            |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
+            |> (@) stdlibTypes
 
-    List.fold
-      { types = parent.types
-        fns = parent.fns
-        packageFns = parent.packageFns
-        dbs = parent.dbs
-        modules = []
-        tests = [] }
-      (fun m decl ->
-        let availableTypes =
-          (m.types @ parent.types)
-          |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
-          |> (@) stdlibTypes
+          match decl with
+          | SynModuleDecl.Let (_, bindings, _) ->
+            match package with
+            | Some package ->
+              let newPackageFns =
+                List.map (PackageFn.fromSynBinding package) bindings
+              { m with packageFns = m.packageFns @ newPackageFns }
 
-        match decl with
-        | SynModuleDecl.Let (_, bindings, _) ->
-          match package with
-          | Some package ->
-            let newPackageFns = List.map (PackageFn.fromSynBinding package) bindings
-            { m with packageFns = m.packageFns @ newPackageFns }
+            | None ->
+              let newUserFns =
+                List.map (PTP.UserFunction.fromSynBinding availableTypes) bindings
+              { m with fns = m.fns @ newUserFns }
 
-          | None ->
-            let newUserFns =
-              List.map (PTP.UserFunction.fromSynBinding availableTypes) bindings
-            { m with fns = m.fns @ newUserFns }
+          | SynModuleDecl.Types (defns, _) ->
+            let (dbs, types) =
+              List.map (parseTypeDecl availableTypes) defns |> List.unzip
+            { m with
+                types = m.types @ List.concat types
+                dbs = m.dbs @ List.concat dbs }
 
-        | SynModuleDecl.Types (defns, _) ->
-          let (dbs, types) =
-            List.map (parseTypeDecl availableTypes) defns |> List.unzip
-          { m with
-              types = m.types @ List.concat types
-              dbs = m.dbs @ List.concat dbs }
+          | SynModuleDecl.Expr (expr, _) ->
+            { m with tests = m.tests @ [ parseTest availableTypes expr ] }
 
-        | SynModuleDecl.Expr (expr, _) ->
-          { m with tests = m.tests @ [ parseTest availableTypes expr ] }
+          | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
+                                                          _,
+                                                          _,
+                                                          [ name ],
+                                                          _,
+                                                          _,
+                                                          _,
+                                                          _),
+                                        _,
+                                        decls,
+                                        _,
+                                        _,
+                                        _) ->
+            let nested = parseModule m attrs decls
+            { m with modules = m.modules @ [ (name.idText, nested) ] }
+          | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+        decls
+    let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
+    let fixup = ProgramTypes.Expr.fixupPass fnNames
+    { m with
+        packageFns =
+          m.packageFns |> List.map (fun fn -> { fn with body = fixup fn.body })
+        fns = m.fns |> List.map (fun fn -> { fn with body = fixup fn.body })
+        tests =
+          m.tests
+          |> List.map (fun test ->
+            { test with
+                actual = fixup test.actual
+                expected = fixup test.expected }) }
 
-        | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
-                                                        _,
-                                                        _,
-                                                        [ name ],
-                                                        _,
-                                                        _,
-                                                        _,
-                                                        _),
-                                      _,
-                                      decls,
-                                      _,
-                                      _,
-                                      _) ->
-          let nested = parseModule m attrs decls
-          { m with modules = m.modules @ [ (name.idText, nested) ] }
-        | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
-      decls
 
-  match parsedAsFSharp with
-  | ParsedImplFileInput (_,
-                         _,
-                         _,
-                         _,
-                         _,
-                         [ SynModuleOrNamespace (_, _, _, decls, _, attrs, _, _, _) ],
-                         _,
-                         _,
-                         _) -> parseModule empty attrs decls
-  | _ ->
-    Exception.raiseInternal
-      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
-      [ "parsedAsFsharp", parsedAsFSharp ]
 
+
+  let (decls, attrs) =
+    match parsedAsFSharp with
+    | ParsedImplFileInput (_,
+                           _,
+                           _,
+                           _,
+                           _,
+                           [ SynModuleOrNamespace (_, _, _, decls, _, attrs, _, _, _) ],
+                           _,
+                           _,
+                           _) -> decls, attrs
+    | _ ->
+      Exception.raiseInternal
+        $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
+        [ "parsedAsFsharp", parsedAsFSharp ]
+  parseModule empty attrs decls
 
 
 // Below are the fns that we intend to expose to the rest of the codebase
