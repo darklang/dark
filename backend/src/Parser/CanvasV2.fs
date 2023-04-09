@@ -158,11 +158,11 @@ let parseDecls
 
 let postProcessModule (m : CanvasModule) : CanvasModule =
   let fnNames = m.fns |> List.map (fun f -> f.name) |> Set
-  let convert = ProgramTypes.Expr.convertVariablesToFnCalls fnNames
+  let fixup = ProgramTypes.Expr.fixupPass fnNames
   { m with
-      handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, convert expr))
-      exprs = m.exprs |> List.map convert
-      fns = m.fns |> List.map (fun f -> { f with body = convert f.body }) }
+      handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixup expr))
+      exprs = m.exprs |> List.map fixup
+      fns = m.fns |> List.map (fun f -> { f with body = fixup f.body }) }
 
 
 let parseFromFile

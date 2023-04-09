@@ -605,10 +605,10 @@ module Expr =
     | expr ->
       Exception.raiseInternal "Unsupported expression" [ "ast", ast; "expr", expr ]
 
-  let convertVariablesToFnCalls
-    (functions : Set<PT.FQFnName.UserFnName>)
-    (e : PT.Expr)
-    : PT.Expr =
+  // Second pass of parsing, fixing the thing it's impossible to get right on the
+  // first pass, such as function names. Parse the whole program once, and then run
+  // this on any expressions.
+  let fixupPass (functions : Set<PT.FQFnName.UserFnName>) (e : PT.Expr) : PT.Expr =
     e
     |> LibExecution.ProgramTypesAst.preTraversal (fun e ->
       match e with
