@@ -2,18 +2,19 @@ type Command =
   | RunScript of String
   | Help
   | Infer of String
+  | Invalid
 
 let parseArguments (args: List<String>): Command =
   match args with
   | ["--help"] -> Help
   | ["--prompt"; prompt; scriptPath] -> Infer (prompt, scriptPath)
   | [scriptPath] -> RunScript scriptPath
-  | _ -> failwith "Invalid arguments"
+  | _ -> Invalid
 
 let executeCommand (command: Command) : unit =
   match command with
   | RunScript scriptPath ->
-    let script = IO.readFile scriptPath
+    let script = File.read scriptPath
     // Execute the script here
     ()
 
@@ -30,5 +31,8 @@ Options:
   // let generatedScript = callOpenAI(prompt, script)
   // Execute the generated script here
   ()
+
+  | Invalid ->
+    print "Invalid command. Use --help for more information."
 
 args |> parseArguments |> executeCommand

@@ -156,6 +156,14 @@ let parseDecls
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
 
+let postProcessModule (m : CanvasModule) : CanvasModule =
+  let fnNames = m.fns |> List.map (fun f -> f.name) |> Set
+  let convert = ProgramTypes.Expr.convertVariablesToFnCalls fnNames
+  { m with
+      handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, convert expr))
+      exprs = m.exprs |> List.map convert
+      fns = m.fns |> List.map (fun f -> { f with body = convert f.body }) }
+
 
 let parseFromFile
   (availableTypes : AvailableTypes)
@@ -164,17 +172,20 @@ let parseFromFile
   let parsedAsFSharp =
     filename |> System.IO.File.ReadAllText |> parseAsFSharpSourceFile
 
-  match parsedAsFSharp with
-  | ParsedImplFileInput (_,
-                         _,
-                         _,
-                         _,
-                         _,
-                         [ SynModuleOrNamespace (_, _, _, decls, _, _, _, _, _) ],
-                         _,
-                         _,
-                         _) -> parseDecls availableTypes decls
-  | _ ->
-    Exception.raiseInternal
-      $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
-      [ "parsedAsFsharp", parsedAsFSharp ]
+  let decls =
+    match parsedAsFSharp with
+    | ParsedImplFileInput (_,
+                           _,
+                           _,
+                           _,
+                           _,
+                           [ SynModuleOrNamespace (_, _, _, decls, _, _, _, _, _) ],
+                           _,
+                           _,
+                           _) -> decls
+    | _ ->
+      Exception.raiseInternal
+        $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
+        [ "parsedAsFsharp", parsedAsFSharp ]
+
+  decls |> parseDecls availableTypes |> postProcessModule

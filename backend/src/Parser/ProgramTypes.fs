@@ -605,6 +605,24 @@ module Expr =
     | expr ->
       Exception.raiseInternal "Unsupported expression" [ "ast", ast; "expr", expr ]
 
+  let convertVariablesToFnCalls
+    (functions : Set<PT.FQFnName.UserFnName>)
+    (e : PT.Expr)
+    : PT.Expr =
+    e
+    |> LibExecution.ProgramTypesAst.preTraversal (fun e ->
+      match e with
+      | PT.EVariable (id, name) ->
+        if Set.contains name functions then
+          PT.EFnCall(
+            id,
+            PT.FQFnName.User(PT.FQFnName.userFnName name),
+            [],
+            [ PT.Expr.EPipeTarget(gid ()) ]
+          )
+        else
+          e
+      | _ -> e)
 
 module UserFunction =
   let rec parseArgPat
