@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <LangVersion>7.0</LangVersion>
+    <OtherFlags>--warnaserror</OtherFlags>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../experiments/cli/Cli.fsproj" />
+  </ItemGroup>
+  <!-- <Import Project="/home/dark/app/backend/.paket/Paket.Restore.targets" /> -->
+</Project>
