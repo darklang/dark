@@ -69,7 +69,6 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BwdDangerServer", "experiments\BwdDangerServer\BwdDangerServer.fsproj", "{1C03DEE5-5ADB-4D2E-969F-5F0C70DF3EC4}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibExperimentalExecution", "experiments\LibExperimentalExecution\LibExperimentalExecution.fsproj", "{F43AA91A-0F20-4258-912B-E7FD915C85D5}"
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "DarkEditor", "..\canvases\dark-editor\DarkEditor.fsproj", "{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -384,18 +383,6 @@ Global
 		{F43AA91A-0F20-4258-912B-E7FD915C85D5}.Release|x64.Build.0 = Release|Any CPU
 		{F43AA91A-0F20-4258-912B-E7FD915C85D5}.Release|x86.ActiveCfg = Release|Any CPU
 		{F43AA91A-0F20-4258-912B-E7FD915C85D5}.Release|x86.Build.0 = Release|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Debug|x64.Build.0 = Debug|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Debug|x86.Build.0 = Debug|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Release|x64.ActiveCfg = Release|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Release|x64.Build.0 = Release|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Release|x86.ActiveCfg = Release|Any CPU
-		{3B350CDD-7BA1-40C4-8483-C2A9D35E2DBF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B56110F0-2D27-4718-8C80-E7FDE3439A63} = {F84DCF8A-FC1A-4677-AF4D-616AD7DB3470}
