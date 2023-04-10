@@ -90,9 +90,18 @@ let types : List<BuiltInType> =
               name = "httpHandlers"
               typ = TList(TCustomType(FQTypeName.Stdlib (typ "Canvas" "HttpHandler" 0), [])) } ]
         )
-      description = "A program on a canvas" } ]
-
-
+      description = "A program on a canvas" }
+    { name = typ "Canvas" "F404" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 1UL; name = "space"; typ = TString },
+          [ { id = 3UL; name = "path"; typ = TString };
+            { id = 4UL; name = "modifier"; typ = TString};
+            { id = 5UL; name = "timestamp"; typ = TDateTime};
+            { id = 6UL; name = "traceID"; typ = TUuid} ])
+      description = "A 404 trace" }
+      ]
 
 
 let fns : List<BuiltInFn> =
@@ -444,14 +453,7 @@ human-readable data."
     { name = fn "DarkInternal" "getRecent404s" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType =
-        TList(
-          TRecord [ "space", TString
-                    "path", TString
-                    "modifier", TString
-                    "timestamp", TDateTime
-                    "traceID", TUuid ]
-        )
+      returnType = TList(TCustomType(FQTypeName.Stdlib(typ "Canvas" "F404" 0), []))
       description = "Fetch a list of recent 404s"
       fn =
         internalFn (function
