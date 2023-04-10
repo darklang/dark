@@ -15,5 +15,5 @@
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../experiments/cli/Cli.fsproj" />
   </ItemGroup>
-  <!-- <Import Project="/home/dark/app/backend/.paket/Paket.Restore.targets" /> -->
+  <Import Project="..\..\backend\.paket/Paket.Restore.targets" />
 </Project>
