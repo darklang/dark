@@ -1469,47 +1469,48 @@ let fns : List<BuiltInFn> =
          For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
          is {{fn item -> Int.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
 
-         Preserves the order of values and of the keys."
+          Preserves the order of values and of the keys."
       fn =
         (function
         | state, _, [ DList l; DFnVal fn ] ->
           uply {
-            let groupBy l =
-              let applyFn dval = Interpreter.applyFnVal state fn [ dval ]
+            let applyFn (dval : Dval) : DvalTask =
+              Interpreter.applyFnVal state fn [ dval ]
 
-              let rec loop groups l =
-                uply {
-                  match l with
-                  | hd :: tl ->
-                    let! key = applyFn hd
+            let rec loop
+              (groups : (Dval * Dval list) list)
+              (loopList : Dval list)
+              : Ply<Result<list<Dval>, Dval>> =
+              uply {
+                match loopList with
+                | head :: tail ->
+                  let! key = applyFn head
 
-                    if not (Dval.isFake key) then
-                      let foundGroup = List.tryFind (fun (k, _) -> k = key) groups
+                  if not (Dval.isFake key) then
+                    let foundGroup = List.tryFind (fun (k, _) -> k = key) groups
 
-                      let newGroups =
-                        match foundGroup with
-                        | Some (_, elements) ->
-                          let updatedGroup = (key, elements @ [ hd ])
-                          List.map
-                            (fun (k, v) -> if k = key then updatedGroup else (k, v))
-                            groups
-                        | None -> groups @ [ (key, [ hd ]) ]
-
-                      return! loop newGroups tl
-                    else
-                      return Error key
-                  | [] ->
-                    return
-                      Ok(
+                    let newGroups =
+                      match foundGroup with
+                      | Some (_, elements) ->
+                        let updatedGroup = (key, elements @ [ head ])
                         List.map
-                          (fun (k, elements) -> DTuple(k, DList elements, []))
+                          (fun (k, v) -> if k = key then updatedGroup else (k, v))
                           groups
-                      )
-                }
+                      | None -> groups @ [ (key, [ head ]) ]
 
-              loop [] l
+                    return! loop newGroups tail
+                  else
+                    return Error key
+                | [] ->
+                  return
+                    Ok(
+                      List.map
+                        (fun (k, elements) -> DTuple(k, DList elements, []))
+                        groups
+                    )
+              }
 
-            match! groupBy l with
+            match! loop [] l with
             | Ok result -> return DList result
             | Error fakeDval -> return fakeDval
           }
