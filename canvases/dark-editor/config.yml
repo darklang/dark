@@ -12,3 +12,6 @@ http-handlers:
   invalid-response:
     method: GET
     path: /intentionally-invalid-response
+  save-prompt:
+    method: POST
+    path: /save-prompt
