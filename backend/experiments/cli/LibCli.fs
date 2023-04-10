@@ -55,8 +55,23 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-
-
-
-
-    ]
+    { name = fn "File" "write" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString ""; Param.make "contents" TBytes "" ]
+      returnType = TResult(TUnit, TString)
+      description =
+        "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"
+      fn =
+        (function
+        | _, _, [ DString path; DBytes contents ] ->
+          uply {
+            try
+              do! System.IO.File.WriteAllBytesAsync(path, contents)
+              return DResult(Ok(DUnit))
+            with
+            | e -> return DResult(Error(DString($"Error writing file: {e.Message}")))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
