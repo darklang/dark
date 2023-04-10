@@ -128,6 +128,7 @@ let seedCanvasV2 (canvasName : string) =
     // Create the canvas - expect this to be empty
     let domain = $"{canvasName}.dlio.localhost"
     let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
+    let experimentalHost = $"http://{domain}:{LibService.Config.bwdDangerServerPort}"
     let canvasID = Guid.Parse config.CanvasId
 
     let! ownerID = LibBackend.Account.createUser ()
@@ -159,7 +160,8 @@ let seedCanvasV2 (canvasName : string) =
         | None -> None)
 
     do! C.saveTLIDs canvasID oplists
-    print $"Success saved canvas - endpoints available at {host}"
+    print
+      $"Success saved canvas - endpoints available at {host} (bwdserver) and {experimentalHost} (bwd-danger-server)"
   }
 
 [<EntryPoint>]
