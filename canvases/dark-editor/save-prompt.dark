@@ -1,0 +1,23 @@
+(
+let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
+let contents =  request.body
+let result = File.write filePath contents
+
+match result with
+| Ok r ->   Http.response r 200
+| Error e ->  Http.response e 400
+
+
+// let reqBody = request.body
+// let headers =
+//   [
+//     ("Content-Type", "application/json")
+//   ]
+
+// let response = HttpClient.request "POST" "https://ocean-test2.builtwithdark.com/gpt" headers reqBody
+
+match reqBody with
+| Ok r ->   Http.response r 200
+| Error e ->  Http.response e 400
+
+)
