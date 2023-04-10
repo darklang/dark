@@ -1487,16 +1487,24 @@ let fns : List<BuiltInFn> =
                   let! key = applyFn head
 
                   if not (Dval.isFake key) then
-                    let foundGroup = List.tryFind (fun (k, _) -> k = key) groups
+                    let (updatedGroups, found) =
+                      List.foldBack
+                        (fun (k, elems) (acc, found) ->
+                          let newElems, newFound =
+                            if k = key then
+                              (elems @ [ head ], true)
+                            else
+                              elems, found
+
+                          (k, newElems) :: acc, newFound)
+                        groups
+                        ([], false)
 
                     let newGroups =
-                      match foundGroup with
-                      | Some (_, elements) ->
-                        let updatedGroup = (key, elements @ [ head ])
-                        List.map
-                          (fun (k, v) -> if k = key then updatedGroup else (k, v))
-                          groups
-                      | None -> groups @ [ (key, [ head ]) ]
+                      if found then
+                        updatedGroups
+                      else
+                        (key, [ head ]) :: updatedGroups
 
                     return! loop newGroups tail
                   else
@@ -1511,7 +1519,7 @@ let fns : List<BuiltInFn> =
               }
 
             match! loop [] l with
-            | Ok result -> return DList result
+            | Ok result -> return DList(List.rev result)
             | Error fakeDval -> return fakeDval
           }
         | _ -> incorrectArgs ())
