@@ -19,6 +19,8 @@ backend/Build/
 backend/src/**/obj
 backend/tests/**/obj
 backend/experiments/**/obj
+canvases/**/obj
+canvases/**/bin
 
 # Terraform
 **/.terraform/*
@@ -30,3 +32,5 @@ backend/experiments/**/obj
 ###############
 
 deploy-lock-manual-deploy
+
+.env
