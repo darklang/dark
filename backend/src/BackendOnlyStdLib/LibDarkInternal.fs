@@ -257,8 +257,7 @@ let fns : List<BuiltInFn> =
             match t with
             | FQTypeName.Stdlib t ->
               $"{t.module_}.{t.typ}_v{t.version}" + typeArgsPortion
-            | FQTypeName.User t ->
-              $"{t.typ}_v{t.version}" + typeArgsPortion
+            | FQTypeName.User t -> $"{t.typ}_v{t.version}" + typeArgsPortion
             | FQTypeName.Package t ->
               $"{t.owner}/{t.package}/{t.module_}{t.typ}_v{t.version}"
               + typeArgsPortion
