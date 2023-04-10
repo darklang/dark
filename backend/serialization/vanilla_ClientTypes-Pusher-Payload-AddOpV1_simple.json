@@ -145,7 +145,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -875,7 +1022,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -1606,7 +1900,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -2339,7 +2780,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -3069,7 +3657,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -3802,7 +4537,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -4532,7 +5414,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -5263,7 +6292,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -5996,7 +7172,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -6726,7 +8049,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -8478,7 +9948,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -9682,7 +11299,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",
@@ -11433,7 +13197,154 @@
                                     "version": 0
                                   }
                                 ],
-                                [],
+                                [
+                                  [
+                                    "TInt"
+                                  ],
+                                  [
+                                    "TFloat"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TUnit"
+                                  ],
+                                  [
+                                    "TString"
+                                  ],
+                                  [
+                                    "TList",
+                                    [
+                                      "TInt"
+                                    ]
+                                  ],
+                                  [
+                                    "TTuple",
+                                    [
+                                      "TBool"
+                                    ],
+                                    [
+                                      "TBool"
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TDict",
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TIncomplete"
+                                  ],
+                                  [
+                                    "TError"
+                                  ],
+                                  [
+                                    "THttpResponse",
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TDB",
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TCustomType",
+                                    [
+                                      "User",
+                                      {
+                                        "typ": "User",
+                                        "version": 0
+                                      }
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TCustomType",
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "Mod",
+                                        "typ": "User",
+                                        "version": 0
+                                      }
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TCustomType",
+                                    [
+                                      "Package",
+                                      {
+                                        "owner": "dark",
+                                        "package": "pkg",
+                                        "module_": "Mod",
+                                        "typ": "Pack",
+                                        "version": 0
+                                      }
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TBytes"
+                                  ],
+                                  [
+                                    "TResult",
+                                    [
+                                      "TBool"
+                                    ],
+                                    [
+                                      "TString"
+                                    ]
+                                  ],
+                                  [
+                                    "TVariable",
+                                    "test"
+                                  ],
+                                  [
+                                    "TFn",
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ],
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TRecord",
+                                    [
+                                      [
+                                        "prop",
+                                        [
+                                          "TBool"
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ],
                                 [
                                   [
                                     "EInt",
@@ -12675,7 +14586,154 @@
                                     "version": 0
                                   }
                                 ],
-                                [],
+                                [
+                                  [
+                                    "TInt"
+                                  ],
+                                  [
+                                    "TFloat"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TUnit"
+                                  ],
+                                  [
+                                    "TString"
+                                  ],
+                                  [
+                                    "TList",
+                                    [
+                                      "TInt"
+                                    ]
+                                  ],
+                                  [
+                                    "TTuple",
+                                    [
+                                      "TBool"
+                                    ],
+                                    [
+                                      "TBool"
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TDict",
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TIncomplete"
+                                  ],
+                                  [
+                                    "TError"
+                                  ],
+                                  [
+                                    "THttpResponse",
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TDB",
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TCustomType",
+                                    [
+                                      "User",
+                                      {
+                                        "typ": "User",
+                                        "version": 0
+                                      }
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TCustomType",
+                                    [
+                                      "Stdlib",
+                                      {
+                                        "module_": "Mod",
+                                        "typ": "User",
+                                        "version": 0
+                                      }
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TCustomType",
+                                    [
+                                      "Package",
+                                      {
+                                        "owner": "dark",
+                                        "package": "pkg",
+                                        "module_": "Mod",
+                                        "typ": "Pack",
+                                        "version": 0
+                                      }
+                                    ],
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ],
+                                  [
+                                    "TBytes"
+                                  ],
+                                  [
+                                    "TResult",
+                                    [
+                                      "TBool"
+                                    ],
+                                    [
+                                      "TString"
+                                    ]
+                                  ],
+                                  [
+                                    "TVariable",
+                                    "test"
+                                  ],
+                                  [
+                                    "TFn",
+                                    [
+                                      [
+                                        "TBool"
+                                      ]
+                                    ],
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TRecord",
+                                    [
+                                      [
+                                        "prop",
+                                        [
+                                          "TBool"
+                                        ]
+                                      ]
+                                    ]
+                                  ]
+                                ],
                                 [
                                   [
                                     "EInt",
@@ -13419,7 +15477,154 @@
                                   "version": 0
                                 }
                               ],
-                              [],
+                              [
+                                [
+                                  "TInt"
+                                ],
+                                [
+                                  "TFloat"
+                                ],
+                                [
+                                  "TBool"
+                                ],
+                                [
+                                  "TUnit"
+                                ],
+                                [
+                                  "TString"
+                                ],
+                                [
+                                  "TList",
+                                  [
+                                    "TInt"
+                                  ]
+                                ],
+                                [
+                                  "TTuple",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TDict",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TIncomplete"
+                                ],
+                                [
+                                  "TError"
+                                ],
+                                [
+                                  "THttpResponse",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TDB",
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "User",
+                                    {
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "module_": "Mod",
+                                      "typ": "User",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TCustomType",
+                                  [
+                                    "Package",
+                                    {
+                                      "owner": "dark",
+                                      "package": "pkg",
+                                      "module_": "Mod",
+                                      "typ": "Pack",
+                                      "version": 0
+                                    }
+                                  ],
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ]
+                                ],
+                                [
+                                  "TBytes"
+                                ],
+                                [
+                                  "TResult",
+                                  [
+                                    "TBool"
+                                  ],
+                                  [
+                                    "TString"
+                                  ]
+                                ],
+                                [
+                                  "TVariable",
+                                  "test"
+                                ],
+                                [
+                                  "TFn",
+                                  [
+                                    [
+                                      "TBool"
+                                    ]
+                                  ],
+                                  [
+                                    "TBool"
+                                  ]
+                                ],
+                                [
+                                  "TRecord",
+                                  [
+                                    [
+                                      "prop",
+                                      [
+                                        "TBool"
+                                      ]
+                                    ]
+                                  ]
+                                ]
+                              ],
                               [
                                 [
                                   "EInt",

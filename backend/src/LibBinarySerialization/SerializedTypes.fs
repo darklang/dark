@@ -51,7 +51,13 @@ module FQTypeName =
   [<MessagePack.MessagePackObject>]
   type StdlibTypeName =
     { [<MessagePack.Key 0>]
-      typ : string }
+      module_ : string
+
+      [<MessagePack.Key 1>]
+      typ : string
+
+      [<MessagePack.Key 2>]
+      version : int }
 
   /// A type written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
@@ -62,10 +68,29 @@ module FQTypeName =
       [<MessagePack.Key 1>]
       version : int }
 
+  /// The name of a type in the package manager
+  [<MessagePack.MessagePackObject>]
+  type PackageTypeName =
+    { [<MessagePack.Key 0>]
+      owner : string
+
+      [<MessagePack.Key 1>]
+      package : string
+
+      [<MessagePack.Key 2>]
+      module_ : string
+
+      [<MessagePack.Key 3>]
+      typ : string
+
+      [<MessagePack.Key 4>]
+      version : int }
+
   [<MessagePack.MessagePackObject>]
   type T =
     | Stdlib of StdlibTypeName
     | User of UserTypeName
+    | Package of PackageTypeName
 
 /// A Fully-Qualified Function Name
 /// Includes package, module, and version information where relevant.

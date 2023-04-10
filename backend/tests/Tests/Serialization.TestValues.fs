@@ -42,6 +42,19 @@ module RuntimeTypes =
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(RT.FQTypeName.User { typ = "User"; version = 0 }, [ RT.TBool ])
+      RT.TCustomType(
+        RT.FQTypeName.Stdlib { module_ = "Mod"; typ = "User"; version = 0 },
+        [ RT.TBool ]
+      )
+      RT.TCustomType(
+        RT.FQTypeName.Package
+          { owner = "dark"
+            package = "pkg"
+            module_ = "Mod"
+            typ = "Pack"
+            version = 0 },
+        [ RT.TBool ]
+      )
       RT.TBytes
       RT.TResult(RT.TBool, RT.TString)
       RT.TVariable "test"
@@ -93,7 +106,7 @@ module RuntimeTypes =
       RT.EApply(
         128384UL,
         RT.FnTargetExpr(RT.EUnit(1235123UL)),
-        [ RT.TBool ],
+        dtypes,
         [ RT.EUnit(7756UL) ]
       )
       RT.EApply(
@@ -143,12 +156,6 @@ module RuntimeTypes =
     |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map Tuple2.second
 
-  let dvalFnValImpls : List<RT.FnValImpl> =
-    [ RT.Lambda
-        { parameters = []
-          symtable = [ ("val1", RT.DUnit); ("val2", RT.DInt(173648)) ] |> Map.ofList
-          body = RT.EUnit(1235123UL) } ]
-
   let dval : RT.Dval =
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
@@ -183,6 +190,41 @@ module ProgramTypes =
         PT.MPBool(81871UL, true),
         [ PT.MPUnit(17123UL) ]
       ) ]
+
+  let dtypes : List<PT.DType> =
+    [ PT.TInt
+      PT.TFloat
+      PT.TBool
+      PT.TUnit
+      PT.TString
+      PT.TList PT.TInt
+      PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
+      PT.TDict PT.TBool
+      PT.TIncomplete
+      PT.TError
+      PT.THttpResponse PT.TBool
+      PT.TDB PT.TBool
+      PT.TCustomType(PT.FQTypeName.User { typ = "User"; version = 0 }, [ PT.TBool ])
+      PT.TCustomType(
+        PT.FQTypeName.Stdlib { module_ = "Mod"; typ = "User"; version = 0 },
+        [ PT.TBool ]
+      )
+      PT.TCustomType(
+        PT.FQTypeName.Package
+          { owner = "dark"
+            package = "pkg"
+            module_ = "Mod"
+            typ = "Pack"
+            version = 0 },
+        [ PT.TBool ]
+      )
+      PT.TBytes
+      PT.TResult(PT.TBool, PT.TString)
+      PT.TVariable "test"
+      PT.TFn([ PT.TBool ], PT.TBool)
+      PT.TRecord["prop", PT.TBool] ]
+
+
 
   // Note: this is aimed to contain all cases of `Expr`
   let expr =
@@ -232,7 +274,7 @@ module ProgramTypes =
                           898531080UL,
                           PT.FQFnName.Stdlib
                             { module_ = "Bool"; function_ = "isError"; version = 0 },
-                          [],
+                          dtypes,
                           [ PT.EInt(160106123UL, 6L) ]
                         ),
                         PT.EIf(

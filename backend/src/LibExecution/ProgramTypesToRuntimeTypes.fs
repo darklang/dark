@@ -11,16 +11,25 @@ module PT = ProgramTypes
 module FQTypeName =
   module StdlibTypeName =
     let toRT (t : PT.FQTypeName.StdlibTypeName) : RT.FQTypeName.StdlibTypeName =
-      { typ = t.typ }
+      { module_ = t.module_; typ = t.typ; version = t.version }
 
   module UserTypeName =
     let toRT (u : PT.FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
       { typ = u.typ; version = u.version }
 
+  module PackageTypeName =
+    let toRT (p : PT.FQTypeName.PackageTypeName) : RT.FQTypeName.PackageTypeName =
+      { owner = p.owner
+        package = p.package
+        module_ = p.module_
+        typ = p.typ
+        version = p.version }
+
   let toRT (t : PT.FQTypeName.T) : RT.FQTypeName.T =
     match t with
     | PT.FQTypeName.Stdlib s -> RT.FQTypeName.Stdlib(StdlibTypeName.toRT s)
     | PT.FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.toRT u)
+    | PT.FQTypeName.Package p -> RT.FQTypeName.Package(PackageTypeName.toRT p)
 
 
 module DType =

@@ -30,7 +30,7 @@ let varC = TVariable "c"
 
 /// Use this to _refer_ to the Maybe type
 /// (TODO: maybe this should be available more generally in a more accessible place?)
-let maybeTypeName = FQTypeName.Stdlib { typ = "Maybe" }
+let maybeTypeName = FQTypeName.Stdlib { module_ = "Maybe"; typ = "T"; version = 0 }
 
 let maybeOf arg = TCustomType(maybeTypeName, [ arg ])
 
@@ -52,7 +52,7 @@ let (|DTotally|_|) (dval : Dval) =
 
 // TODO: having to assign IDs below is really annoying.
 let types : List<PT.BuiltInType> =
-  [ { name = tp "Maybe"
+  [ { name = tp "Maybe" "T" 0
       typeParams = [ "a" ]
       definition =
         PT.CustomType.Enum(

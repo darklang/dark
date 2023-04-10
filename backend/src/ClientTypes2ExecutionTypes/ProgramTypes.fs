@@ -20,20 +20,39 @@ module FQTypeName =
 
   module StdlibTypeName =
     let fromCT (t : CTPT.FQTypeName.StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
-      { typ = t.typ }
+      { module_ = t.module_; typ = t.typ; version = t.version }
 
     let toCT (t : PT.FQTypeName.StdlibTypeName) : CTPT.FQTypeName.StdlibTypeName =
-      { typ = t.typ }
+      { module_ = t.module_; typ = t.typ; version = t.version }
+
+  module PackageTypeName =
+    let fromCT
+      (t : CTPT.FQTypeName.PackageTypeName)
+      : PT.FQTypeName.PackageTypeName =
+      { owner = t.owner
+        package = t.package
+        module_ = t.module_
+        typ = t.typ
+        version = t.version }
+
+    let toCT (t : PT.FQTypeName.PackageTypeName) : CTPT.FQTypeName.PackageTypeName =
+      { owner = t.owner
+        package = t.package
+        module_ = t.module_
+        typ = t.typ
+        version = t.version }
 
   let fromCT (t : CTPT.FQTypeName.T) : PT.FQTypeName.T =
     match t with
     | CTPT.FQTypeName.Stdlib t -> PT.FQTypeName.Stdlib(StdlibTypeName.fromCT t)
     | CTPT.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.fromCT u)
+    | CTPT.FQTypeName.Package p -> PT.FQTypeName.Package(PackageTypeName.fromCT p)
 
   let toCT (t : PT.FQTypeName.T) : CTPT.FQTypeName.T =
     match t with
     | PT.FQTypeName.Stdlib t -> CTPT.FQTypeName.Stdlib(StdlibTypeName.toCT t)
     | PT.FQTypeName.User u -> CTPT.FQTypeName.User(UserTypeName.toCT u)
+    | PT.FQTypeName.Package p -> CTPT.FQTypeName.Package(PackageTypeName.toCT p)
 
 module DType =
   let rec fromCT (dtype : CTPT.DType) : PT.DType =

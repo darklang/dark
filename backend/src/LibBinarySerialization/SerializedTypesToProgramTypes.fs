@@ -16,12 +16,22 @@ module FQTypeName =
 
   module StdlibTypeName =
     let toPT (s : ST.FQTypeName.StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
-      { typ = s.typ }
+      { module_ = s.module_; typ = s.typ; version = s.version }
+
+  module PackageTypeName =
+    let toPT (p : ST.FQTypeName.PackageTypeName) : PT.FQTypeName.PackageTypeName =
+      { owner = p.owner
+        package = p.package
+        module_ = p.module_
+        typ = p.typ
+        version = p.version }
 
   let toPT (t : ST.FQTypeName.T) : PT.FQTypeName.T =
     match t with
     | ST.FQTypeName.Stdlib s -> PT.FQTypeName.Stdlib(StdlibTypeName.toPT s)
     | ST.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.toPT u)
+    | ST.FQTypeName.Package p -> PT.FQTypeName.Package(PackageTypeName.toPT p)
+
 
 
 module FQFnName =

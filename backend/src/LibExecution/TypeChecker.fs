@@ -44,6 +44,8 @@ module Error =
           match typeName with
           | FQTypeName.User t -> $"({t.typ}, v{t.version})"
           | FQTypeName.Stdlib t -> $"({t.typ})"
+          | FQTypeName.Package t ->
+            $"({t.owner}/{t.package}/{t.module_}/{t.typ}_v{t.version})"
         $"Type {lookupString} could not be found on the canvas"
 
       | TypeUnificationFailure uf ->
