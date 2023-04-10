@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <LangVersion>7.0</LangVersion>
+    <OtherFlags>--warnaserror</OtherFlags>
+    <!-- Publishing configuration -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <!-- We don't trim any of these, as if we do the JSON serializers break. This is
+         because they use reflection which is a documented thing that's likely to
+         break. When we get source generators going, this might improve. -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Server.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="..//LibExperimentalExecution/LibExperimentalExecution.fsproj" />
+    <ProjectReference Include="../../src/HttpMiddleware/HttpMiddleware.fsproj" />
+    <ProjectReference Include="../../src/ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
+    <ProjectReference Include="../../src/LibExperimentalStdLib/LibExperimentalStdLib.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

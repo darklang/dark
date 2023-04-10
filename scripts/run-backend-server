@@ -28,6 +28,8 @@ if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep Executor -c) -eq 0 ]]; then RUNNING=false; fi
+
+if [[ $(pgrep BwdDangerServer -c) -eq 0 ]]; then RUNNING=false; fi
 # TODO pubsub and tunnel
 
 
@@ -42,12 +44,16 @@ if [[ "$PUBLISHED" == "true" ]]; then
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish"
   EXECHOST_BINPATH="backend/Build/out/ExecHost/Release/net7.0/linux-x64/publish"
   EXECUTOR_BINPATH="backend/Build/out/Executor/Release/net7.0/linux-x64/publish"
+
+  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Release/net7.0/linux-x64/publish"
 else
   BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net7.0"
   CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net7.0"
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net7.0"
   EXECHOST_BINPATH="backend/Build/out/ExecHost/Debug/net7.0"
   EXECUTOR_BINPATH="backend/Build/out/Executor/Debug/net7.0"
+
+  BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Debug/net7.0"
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
@@ -57,6 +63,8 @@ CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
 QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 EXECHOST_EXE="${EXECHOST_BINPATH}/ExecHost"
 EXECUTOR_EXE="${EXECUTOR_BINPATH}/Executor"
+
+BWDDANGERSERVER_EXE="${BWDDANGERSERVER_BINPATH}/BwdDangerServer"
 
 # Stop the server processes
 echo "Stopping servers"
@@ -80,7 +88,7 @@ echo "Waiting for postgres"
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
-  if [[ ! -f "${BWDSERVER_EXE}" || ! -f "${CRONCHECKER_EXE}" || ! -f "${QUEUEWORKER_EXE}" || ! -f "${EXECHOST_EXE}" ]]; then
+  if [[ ! -f "${BWDSERVER_EXE}" || ! -f "${CRONCHECKER_EXE}" || ! -f "${QUEUEWORKER_EXE}" || ! -f "${EXECHOST_EXE}" || ! -f "${BWDDANGERSERVER_EXE}" ]]; then
     sleep 0.01
   fi
 done
@@ -94,5 +102,8 @@ echo "Running cronchecker"
 "${CRONCHECKER_EXE}" > "$LOGS/cronchecker.log" 2>&1 &
 echo "Running queueworker"
 "${QUEUEWORKER_EXE}" > "$LOGS/queueworker.log" 2>&1 &
+
+echo "Running bwddangerserver"
+"${BWDDANGERSERVER_EXE}" > "$LOGS/bwddangerserver.log" 2>&1 &
 
 echo "Finished loading server"

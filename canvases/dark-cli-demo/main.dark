@@ -1,0 +1,13 @@
+[<HttpHandler("GET", "/")>]
+let _indexHandler _req =
+  let files =
+    Directory.pwd
+    |> Directory.ls
+    |> Json.serialize<List<String>>
+
+  let respBody =
+    match files with
+    | Ok files -> String.toBytes files
+    | Error _ -> "failed :("
+
+  Http.response respBody 200
