@@ -21,20 +21,37 @@ module FQTypeName =
 
   module StdlibTypeName =
     let fromCT (s : FQTypeName.StdlibTypeName) : RT.FQTypeName.StdlibTypeName =
-      { typ = s.typ }
+      { module_ = s.module_; typ = s.typ; version = s.version }
 
     let toCT (s : RT.FQTypeName.StdlibTypeName) : FQTypeName.StdlibTypeName =
-      { typ = s.typ }
+      { module_ = s.module_; typ = s.typ; version = s.version }
+
+  module PackageTypeName =
+    let fromCT (p : FQTypeName.PackageTypeName) : RT.FQTypeName.PackageTypeName =
+      { owner = p.owner
+        package = p.package
+        module_ = p.module_
+        typ = p.typ
+        version = p.version }
+
+    let toCT (p : RT.FQTypeName.PackageTypeName) : FQTypeName.PackageTypeName =
+      { owner = p.owner
+        package = p.package
+        module_ = p.module_
+        typ = p.typ
+        version = p.version }
 
   let fromCT (t : FQTypeName.T) : RT.FQTypeName.T =
     match t with
     | FQTypeName.Stdlib s -> RT.FQTypeName.Stdlib(StdlibTypeName.fromCT s)
     | FQTypeName.User u -> RT.FQTypeName.User(UserTypeName.fromCT u)
+    | FQTypeName.Package p -> RT.FQTypeName.Package(PackageTypeName.fromCT p)
 
   let toCT (t : RT.FQTypeName.T) : FQTypeName.T =
     match t with
     | RT.FQTypeName.Stdlib s -> FQTypeName.Stdlib(StdlibTypeName.toCT s)
     | RT.FQTypeName.User u -> FQTypeName.User(UserTypeName.toCT u)
+    | RT.FQTypeName.Package p -> FQTypeName.Package(PackageTypeName.toCT p)
 
 
 module FQFnName =

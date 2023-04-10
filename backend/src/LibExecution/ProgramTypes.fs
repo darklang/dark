@@ -1,29 +1,41 @@
 /// The types that the user sees
 module LibExecution.ProgramTypes
 
-type id = Prelude.id
-type tlid = Prelude.tlid
-type Sign = Prelude.Sign
+open Prelude
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
-  type StdlibTypeName = { typ : string }
+  type StdlibTypeName = { module_ : string; typ : string; version : int }
 
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
+  /// The name of a type in the package manager
+  type PackageTypeName =
+    { owner : string
+      package : string
+      module_ : string
+      typ : string
+      version : int }
+
   type T =
-    // TODO: add `| Package of PackageTypeName` case
     | Stdlib of StdlibTypeName
     | User of UserTypeName
+    | Package of PackageTypeName
 
-  // TODO: review this - OK?
-  let stdlibTypeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+  let typeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
-  let stdlibTypeName (typ : string) : StdlibTypeName =
-    Prelude.assertRe "stdlib type name must match" stdlibTypeNamePat typ
 
-    { typ = typ }
+  let stdlibTypeName
+    (module_ : string)
+    (typ : string)
+    (version : int)
+    : StdlibTypeName =
+    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    assertRe "stdlib type name must match" typeNamePat typ
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { module_ = module_; typ = typ; version = version }
 
 
 

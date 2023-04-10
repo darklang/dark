@@ -44,6 +44,8 @@ let rec typeName (t : DType) : string =
     match t with
     | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
     | FQTypeName.User t -> $"{t.typ}_v{t.version}{typeArgsPortion}"
+    | FQTypeName.Package t ->
+      $"{t.owner}/{t.package}/{t.module_}/{t.typ}_v{t.version}{typeArgsPortion}"
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName

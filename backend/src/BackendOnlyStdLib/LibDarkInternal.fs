@@ -222,28 +222,28 @@ let fns : List<BuiltInFn> =
       fn =
         let rec typeName (t : DType) : string =
           match t with
-          | TInt -> "int"
-          | TFloat -> "float"
-          | TBool -> "bool"
-          | TUnit -> "unit"
-          | TChar -> "character"
-          | TString -> "string"
-          | TList _ -> "list"
-          | TTuple _ -> "tuple"
-          | TDict _ -> "dict"
-          | TRecord _ -> "dict"
+          | TInt -> "Int"
+          | TFloat -> "Float"
+          | TBool -> "Bool"
+          | TUnit -> "Unit"
+          | TChar -> "Char"
+          | TString -> "String"
+          | TList _ -> "List"
+          | TTuple _ -> "Tuple"
+          | TDict _ -> "Dict"
+          | TRecord _ -> "Dict"
           | TFn _ -> "block"
-          | TVariable _ -> "any"
-          | TIncomplete -> "incomplete"
-          | TError -> "error"
-          | THttpResponse _ -> "response"
-          | TDB _ -> "datastore"
-          | TDateTime -> "date"
-          | TPassword -> "password"
-          | TUuid -> "uuid"
-          | TOption _ -> "option"
-          | TResult _ -> "result"
-          | TBytes -> "bytes"
+          | TVariable _ -> "Any"
+          | TIncomplete -> "Incomplete"
+          | TError -> "Error"
+          | THttpResponse _ -> "Response"
+          | TDB _ -> "Datastore"
+          | TDateTime -> "DateTime"
+          | TPassword -> "Password"
+          | TUuid -> "Uuid"
+          | TOption _ -> "Option"
+          | TResult _ -> "Result"
+          | TBytes -> "Bytes"
           | TCustomType (t, typeArgs) ->
             let typeArgsPortion =
               match typeArgs with
@@ -255,10 +255,13 @@ let fns : List<BuiltInFn> =
                 |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
             match t with
-            | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
+            | FQTypeName.Stdlib t ->
+              $"{t.module_}.{t.typ}_v{t.version}" + typeArgsPortion
             | FQTypeName.User t ->
-              let versionPart = if t.version = 0 then "" else $"_v{t.version}"
-              t.typ + versionPart + typeArgsPortion
+              $"{t.typ}_v{t.version}" + typeArgsPortion
+            | FQTypeName.Package t ->
+              $"{t.owner}/{t.package}/{t.module_}{t.typ}_v{t.version}"
+              + typeArgsPortion
 
         internalFn (function
           | state, _, [] ->

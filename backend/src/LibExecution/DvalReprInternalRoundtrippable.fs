@@ -27,11 +27,13 @@ module FormatV0 =
   module FQTypeName =
 
     module StdlibTypeName =
-      type T = { typ : string }
+      type T = { module_ : string; typ : string; version : int }
 
-      let fromRT (t : RT.FQTypeName.StdlibTypeName) : T = { typ = t.typ }
+      let fromRT (t : RT.FQTypeName.StdlibTypeName) : T =
+        { module_ = t.module_; typ = t.typ; version = t.version }
 
-      let toRT (t : T) : RT.FQTypeName.StdlibTypeName = { typ = t.typ }
+      let toRT (t : T) : RT.FQTypeName.StdlibTypeName =
+        { module_ = t.module_; typ = t.typ; version = t.version }
 
 
     /// A type written by a Developer in their canvas
@@ -44,20 +46,46 @@ module FormatV0 =
       let toRT (u : T) : RT.FQTypeName.UserTypeName =
         { typ = u.typ; version = u.version }
 
+    /// The name of a type in the package manager
+    module PackageTypeName =
+      type T =
+        { owner : string
+          package : string
+          module_ : string
+          typ : string
+          version : int }
+
+      let fromRT (p : RT.FQTypeName.PackageTypeName) : T =
+        { owner = p.owner
+          package = p.package
+          module_ = p.module_
+          typ = p.typ
+          version = p.version }
+
+      let toRT (p : T) : RT.FQTypeName.PackageTypeName =
+        { owner = p.owner
+          package = p.package
+          module_ = p.module_
+          typ = p.typ
+          version = p.version }
 
     type T =
       | Stdlib of StdlibTypeName.T
       | User of UserTypeName.T
+      | Package of PackageTypeName.T
 
     let fromRT (t : RT.FQTypeName.T) : T =
       match t with
       | RT.FQTypeName.Stdlib t -> Stdlib(StdlibTypeName.fromRT t)
       | RT.FQTypeName.User u -> User(UserTypeName.fromRT u)
+      | RT.FQTypeName.Package p -> Package(PackageTypeName.fromRT p)
+
 
     let toRT (t : T) : RT.FQTypeName.T =
       match t with
       | Stdlib t -> RT.FQTypeName.Stdlib(StdlibTypeName.toRT t)
       | User u -> RT.FQTypeName.User(UserTypeName.toRT u)
+      | Package p -> RT.FQTypeName.Package(PackageTypeName.toRT p)
 
 
   type DvalMap = Map<string, Dval>

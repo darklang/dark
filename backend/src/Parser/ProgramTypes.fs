@@ -55,7 +55,8 @@ module DType =
         |> List.choose (fun (typeName, _def) ->
           match typeName with
           | PT.FQTypeName.User u -> if u.typ = name then Some typeName else None
-          | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None)
+          | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None
+          | PT.FQTypeName.Package p -> if p.typ = name then Some typeName else None)
 
       match matchingTypes with
       | [] -> Exception.raiseInternal $"No type found named \"{name}\"" []

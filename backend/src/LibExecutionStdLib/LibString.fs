@@ -222,6 +222,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // CLEANUP move to stdlib
     { name = fn "String" "slugify" 2
       typeParams = []
       parameters = [ Param.make "string" TString "" ]

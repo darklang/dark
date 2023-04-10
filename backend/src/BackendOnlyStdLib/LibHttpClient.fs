@@ -214,12 +214,26 @@ module Errors = LibExecution.Errors
 let incorrectArgs = Errors.incorrectArgs
 
 let fn = FQFnName.stdlibFnName
+let typ = FQTypeName.stdlibTypeName
 
 let headersType = TList(TTuple(TString, TString, []))
 
 type HeaderError =
   | BadInput of string
   | TypeMismatch of string
+
+
+let types : List<BuiltInType> =
+  [ { name = typ "HttpClient" "Response" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          // CLEANUP: remove ids
+          { id = 94787523UL; name = "statusCode"; typ = TInt },
+          [ { id = 94787524UL; name = "headers"; typ = headersType }
+            { id = 94787525UL; name = "body"; typ = TBytes } ]
+        )
+      description = "The response from a HTTP request" } ]
 
 
 let fns : List<BuiltInFn> =
@@ -232,7 +246,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TBytes "" ]
       returnType =
         TResult(
-          TRecord [ "statusCode", TInt; "headers", headersType; "body", TBytes ],
+          TCustomType(FQTypeName.Stdlib(typ "HttpClient" "Response" 0), []),
           TString
         )
       description =

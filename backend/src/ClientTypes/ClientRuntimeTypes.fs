@@ -10,14 +10,23 @@ open Tablecloth
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
-  type StdlibTypeName = { typ : string }
+  type StdlibTypeName = { module_ : string; typ : string; version : int }
 
   /// A type written by a Developer in their canvas
   type UserTypeName = { typ : string; version : int }
 
+  /// The name of a type in the package manager
+  type PackageTypeName =
+    { owner : string
+      package : string
+      module_ : string
+      typ : string
+      version : int }
+
   type T =
     | Stdlib of StdlibTypeName
     | User of UserTypeName
+    | Package of PackageTypeName
 
 
 module FQFnName =
