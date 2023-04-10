@@ -126,6 +126,9 @@ http-handlers:
     path: /hello/:user
 ```
 
+variables:
+user
+
 ## Standard library
 
 type HttpResponse = {
@@ -192,6 +195,8 @@ Your job is to assist in building an application in Dark. When you reply, only p
 Wait for the user to provide a prompt.
           </textarea>
 
+          <button id="save-prompt">Save the new prompt</button>
+
           <textarea name="prompt" placeholder="Insert prompt here"></textarea>
           <input type="submit" value="Submit" />
         </form>
@@ -231,8 +236,31 @@ Wait for the user to provide a prompt.
           const output = document.getElementById("output");
           navigator.clipboard.writeText(output.value).then(() => {
             console.log('Text copied to clipboard');
+            const variables = output.value.match(/variables:\n([\s\S]*)/)[1].trim().split('\n').filter(Boolean);
+            console.log(variables);
+            const form = document.createElement('form');
+            for (let i = 0; i < variables.length; i++) {
+              const label = document.createElement('label');
+              label.textContent = variables[i];
+              const input = document.createElement('input');
+              input.name = variables[i];
+              form.appendChild(label);
+              form.appendChild(input);
+            }
+            output.replaceWith(form);
+
           }).catch((error) => {
             console.error('Error copying text to clipboard:', error);
+          });
+        });
+
+        const saveBtn = document.getElementById("save-prompt");
+        saveBtn.addEventListener("click", async () => {
+          const prompt = document.getElementById("dark-prompt").value;
+          const response = await fetch("/save-prompt", {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: prompt,
           });
         });
     </script>
