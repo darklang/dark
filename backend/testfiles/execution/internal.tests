@@ -95,3 +95,8 @@ module UnlockedDB =
 module Ops =
   // getOpsForToplevel returns empty list for nonexistant TL
   DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []
+
+
+module Eval =
+  // getOpsForToplevel returns empty list for nonexistant TL
+  DarkInternal.parseAndExecuteExpr "1 + 2" Dict.empty_v0 = 3
