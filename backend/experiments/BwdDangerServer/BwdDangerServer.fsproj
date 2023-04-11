@@ -21,10 +21,10 @@
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="..//LibExperimentalExecution/LibExperimentalExecution.fsproj" />
+    <ProjectReference Include="../LibExperimentalExecution/LibExperimentalExecution.fsproj" />
     <ProjectReference Include="../../src/HttpMiddleware/HttpMiddleware.fsproj" />
     <ProjectReference Include="../../src/ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
-    <ProjectReference Include="../../src/LibExperimentalStdLib/LibExperimentalStdLib.fsproj" />
+    <ProjectReference Include="../LibExperimentalStdLib/LibExperimentalStdLib.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
