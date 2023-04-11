@@ -1,0 +1,22 @@
+[<HttpHandler("GET", "/")>]
+let _indexHandler _req =
+  let files =
+    Directory.pwd
+    |> Directory.ls
+    |> Json.serialize<List<String>>
+
+  let varName = "DOTNET_RUNNING_IN_CONTAINER"
+
+  let maybeEnvs = System.getEnvVars |> Json.serialize<List<Tuple<String, String>>>
+  let maybeEnv = System.getEnv varName
+
+  let singleEnv = match maybeEnv with
+  | Just env -> $"{varName} is {env}"
+  | None -> $"{varName} not found"
+
+  let allEnvs = match maybeEnvs with
+  | Ok envs -> envs
+  | Error -> "An error during retrieval"
+
+
+  Http.response (String.toBytes allEnvs) 200
