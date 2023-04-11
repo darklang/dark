@@ -28,27 +28,9 @@ module CanvasHackConfig =
     { [<Legivel.Attributes.YamlField("version")>]
       Version : string }
 
-  // One file per HTTP handler
-  type V1 =
-    { [<Legivel.Attributes.YamlField("id")>]
-      CanvasId : string
-
-      [<Legivel.Attributes.YamlField("http-handlers")>]
-      HttpHandlers : Map<string, V1HttpHandler> }
-
-  and V1HttpHandler =
-    { [<Legivel.Attributes.YamlField("method")>]
-      Method : string
-
-      [<Legivel.Attributes.YamlField("path")>]
-      Path : string }
-
   // One .dark file to define the full canvas
   type V2 =
-    { [<Legivel.Attributes.YamlField("id")>]
-      CanvasId : string
-
-      [<Legivel.Attributes.YamlField("main")>]
+    { [<Legivel.Attributes.YamlField("main")>]
       Main : string }
 
 let parseYamlExn<'a> (filename : string) : 'a =
@@ -61,65 +43,6 @@ let parseYamlExn<'a> (filename : string) : 'a =
     //Exception.raiseCode "couldn't parse config file for canvas"
     Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
 
-let seedCanvasV1 (canvasName : string) =
-  task {
-    let canvasDir = $"{baseDir}/{canvasName}"
-    let config = parseYamlExn<CanvasHackConfig.V1> $"{canvasDir}/config.yml"
-
-    // Create the canvas - expect this to be empty
-    let domain = $"{canvasName}.dlio.localhost"
-    let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
-    let canvasID = Guid.Parse config.CanvasId
-    let! ownerID = LibBackend.Account.createUser ()
-    do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
-
-    // Parse each file, extract the functions and types. The expressions will be
-    // used for handlers according to the config file
-
-    let ops =
-      config.HttpHandlers
-      |> Map.toList
-      |> List.map (fun (name, details) ->
-        let modul =
-          Parser.CanvasV1.parseHandlerFromFile [] $"{canvasDir}/{name}.dark"
-
-        let types = modul.types |> List.map PT.Op.SetType
-
-        let fns = modul.fns |> List.map PT.Op.SetFunction
-
-        let handler =
-          match modul.httpHandlers with
-          | [ expr ] ->
-            print $"Adding {details.Method} {details.Path} HTTP handler"
-            PT.Op.SetHandler(
-              { tlid = gid ()
-                ast = expr
-                spec =
-                  PT.Handler.Spec.HTTP(
-                    details.Path,
-                    details.Method,
-                    { moduleID = gid (); nameID = gid (); modifierID = gid () }
-                  ) }
-            )
-          | _ -> Exception.raiseCode "expected exactly one expr in file"
-
-        [ PT.Op.TLSavepoint(gid ()) ] @ types @ fns @ [ handler ])
-      |> List.flatten
-
-    let canvasWithTopLevels = C.fromOplist canvasID [] ops
-
-    let oplists =
-      ops
-      |> Op.oplist2TLIDOplists
-      |> List.filterMap (fun (tlid, oplists) ->
-        match Map.get tlid (C.toplevels canvasWithTopLevels) with
-        | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
-        | None -> None)
-
-    do! C.saveTLIDs canvasID oplists
-    print $"Success saved canvas - endpoints available at {host}"
-  }
-
 let seedCanvasV2 (canvasName : string) =
   task {
     let canvasDir = $"{baseDir}/{canvasName}"
@@ -129,7 +52,7 @@ let seedCanvasV2 (canvasName : string) =
     let domain = $"{canvasName}.dlio.localhost"
     let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
     let experimentalHost = $"http://{domain}:{LibService.Config.bwdDangerServerPort}"
-    let canvasID = Guid.Parse config.CanvasId
+    let canvasID = Guid.NewGuid()
 
     let! ownerID = LibBackend.Account.createUser ()
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
@@ -183,7 +106,6 @@ let main (args : string []) =
             $"{baseDir}/{canvasName}/config.yml"
 
         match config.Version with
-        | "1" -> do! seedCanvasV1 canvasName
         | "2" -> do! seedCanvasV2 canvasName
         | _ -> Exception.raiseCode "unknown canvas import config version"
 
