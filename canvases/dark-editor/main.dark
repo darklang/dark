@@ -1,6 +1,5 @@
-
 [<HttpHandler("GET", "/get-prompt")>]
-let _indexHandler _req =
+let _handler _req =
   let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
   let prompt = File.read filePath
 
@@ -14,7 +13,7 @@ let _indexHandler _req =
 
 
 [<HttpHandler("POST", "/save-prompt")>]
-let _indexHandler _req =
+let _handler _req =
   let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
   let contents =  request.body
   let result = File.write filePath contents
@@ -33,7 +32,7 @@ type OpenAICompletionRequest = {
 }
 
 [<HttpHandler("POST", "/api/gpt4")>]
-let _indexHandler _req =
+let _handler _req =
   let apiKey = OPENAI_API_KEY
 
   let reqBody =
@@ -47,7 +46,6 @@ let _indexHandler _req =
     match serialized with
     | Ok r -> r |> String.toBytes
     | Error e -> Bytes.empty
-
 
   let headers =
     [
@@ -64,7 +62,7 @@ let _indexHandler _req =
 
 
 [<HttpHandler("GET", "/")>]
-let _indexHandler _req =
+let _handler _req =
   let body =
     """
 <!DOCTYPE html>
@@ -258,3 +256,4 @@ let _indexHandler _req =
   """
 
   Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
+

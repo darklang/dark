@@ -34,6 +34,8 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
     match attr with
     | SynExpr.Paren (expr, _, _, _) -> parseAttrArgs expr
 
+    | SynExpr.Const (SynConst.String (s, _, _), _) -> [ s ]
+
     | SynExpr.Tuple (_, args, _, _) ->
       args
       |> List.map (fun arg ->
@@ -70,13 +72,6 @@ let parseLetBinding
 
     | [ attr ] ->
       match attr with
-      | SimpleAttribute ("DB", [ name ]) ->
-        // let newDB = PT.DB(name, randomIds ())
-        // { m with dbs = newDB :: m.dbs }
-        Exception.raiseInternal
-          $"Not currently supporting DBs - probably makes sense to wait until they are based on a type rather than 'columns'"
-          [ "attr", attr ]
-
       | SimpleAttribute ("HttpHandler", [ method; route ]) ->
         let newHttpHanlder = PT.Handler.Spec.HTTP(route, method, randomIds ())
         { m with handlers = (newHttpHanlder, expr) :: m.handlers }
@@ -113,6 +108,71 @@ let parseLetBinding
         [ "attrs", attrs ]
 
 
+
+module UserDB =
+  let private parseDBSchemaField
+    (availableTypes : AvailableTypes)
+    (field : SynField)
+    : PT.DB.Col =
+    match field with
+    | SynField (_, _, Some id, typ, _, _, _, _, _) ->
+      { name = Some(id.idText) // CLEANUP
+        nameID = gid ()
+        typ = Some(ProgramTypes.DType.fromSynType availableTypes typ)
+        typeID = gid () }
+    | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
+
+  let fromSynTypeDefn
+    (availableTypes : AvailableTypes)
+    (dbName : string)
+    (typeDef : SynTypeDefnSimpleRepr)
+    : PT.DB.T =
+    match typeDef with
+    | SynTypeDefnSimpleRepr.Record (_, fields, _) ->
+      { tlid = gid ()
+        name = dbName
+        nameID = gid ()
+        version = 0
+        cols = List.map (parseDBSchemaField availableTypes) fields }
+    | _ ->
+      Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
+
+
+let parseTypeDefn
+  (availableTypes : AvailableTypes)
+  (m : CanvasModule)
+  (typeDefn : SynTypeDefn)
+  : CanvasModule =
+  let id, attrs, typeDef =
+    match typeDefn with
+    | SynTypeDefn (SynComponentInfo (attrs, _, _, [ id ], _, _, _, _),
+                   SynTypeDefnRepr.Simple (typeDef, _),
+                   _,
+                   _,
+                   _,
+                   _) -> id, attrs, typeDef
+    | _ ->
+      Exception.raiseInternal $"Unsupported type definition" [ "typeDefn", typeDefn ]
+
+  let attrs = attrs |> List.collect (fun l -> l.Attributes)
+
+  let m =
+    let newType = ProgramTypes.UserType.fromSynTypeDefn availableTypes typeDefn
+    { m with types = m.types @ [ newType ] }
+
+  match attrs with
+  | [] -> m
+
+  | [ SimpleAttribute ("DB", [ name ]) ] ->
+    let newDB = UserDB.fromSynTypeDefn availableTypes name typeDef
+    { m with dbs = m.dbs @ [ newDB ] }
+
+  | _ ->
+    Exception.raiseInternal
+      $"Can only currently support 1 DB attribute [<...>] on a let binding"
+      [ "attrs", attrs ]
+
+
 /// An F# module has a list of declarations, which can be:
 /// - a group of let bindings
 /// - a group of type definitions
@@ -145,9 +205,7 @@ let parseDecls
         List.fold m (fun m b -> parseLetBinding availableTypes m b) bindings
 
       | SynModuleDecl.Types (defns, _) ->
-        let newTypes =
-          List.map (ProgramTypes.UserType.fromSynTypeDefn availableTypes) defns
-        { m with types = m.types @ newTypes }
+        List.fold m (fun m d -> parseTypeDefn availableTypes m d) defns
 
       | SynModuleDecl.Expr (expr, _) ->
         { m with
