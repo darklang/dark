@@ -58,8 +58,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 let types : List<BuiltInType> =
   [ { name = typ "Canvas" "Meta" 0
       typeParams = []
-      definition =
-        CustomType.Record({ id = 1UL; name = "id"; typ = TUuid }, [])
+      definition = CustomType.Record({ id = 1UL; name = "id"; typ = TUuid }, [])
       description = "Metadata about a canvas" }
     { name = typ "Canvas" "DB" 0
       typeParams = []
@@ -85,10 +84,13 @@ let types : List<BuiltInType> =
           { id = 1UL; name = "id"; typ = TUuid },
           [ { id = 2UL
               name = "dbs"
-              typ = TList(TCustomType(FQTypeName.Stdlib (typ "Canvas" "DB" 0), [])) }
+              typ = TList(TCustomType(FQTypeName.Stdlib(typ "Canvas" "DB" 0), [])) }
             { id = 3UL
               name = "httpHandlers"
-              typ = TList(TCustomType(FQTypeName.Stdlib (typ "Canvas" "HttpHandler" 0), [])) } ]
+              typ =
+                TList(
+                  TCustomType(FQTypeName.Stdlib(typ "Canvas" "HttpHandler" 0), [])
+                ) } ]
         )
       description = "A program on a canvas" }
     { name = typ "Canvas" "F404" 0
@@ -96,12 +98,12 @@ let types : List<BuiltInType> =
       definition =
         CustomType.Record(
           { id = 1UL; name = "space"; typ = TString },
-          [ { id = 3UL; name = "path"; typ = TString };
-            { id = 4UL; name = "modifier"; typ = TString};
-            { id = 5UL; name = "timestamp"; typ = TDateTime};
-            { id = 6UL; name = "traceID"; typ = TUuid} ])
-      description = "A 404 trace" }
-      ]
+          [ { id = 3UL; name = "path"; typ = TString }
+            { id = 4UL; name = "modifier"; typ = TString }
+            { id = 5UL; name = "timestamp"; typ = TDateTime }
+            { id = 6UL; name = "traceID"; typ = TUuid } ]
+        )
+      description = "A 404 trace" } ]
 
 
 let fns : List<BuiltInFn> =
@@ -751,7 +753,11 @@ human-readable data."
     { name = fn "DarkInternal" "canvasProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TResult(TCustomType(FQTypeName.Stdlib(typ "Canvas" "Program" 0), []), TString)
+      returnType =
+        TResult(
+          TCustomType(FQTypeName.Stdlib(typ "Canvas" "Program" 0), []),
+          TString
+        )
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
