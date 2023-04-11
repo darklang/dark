@@ -46,15 +46,20 @@
       }
       input[type="text"],
       input[type="submit"],
-      #copy-btn {
+      #copy-btn, #save-prompt, #get-prompt, #vars-btn{
         width: 100%;
         padding: 10px;
+        margin-bottom: 10px;
         font-size: 16px;
         border-radius: 5px;
         border: 1px solid #ccc;
       }
+      #save-prompt, #get-prompt, #vars-btn, #copy-btn {
+        width: auto;
+      }
+
       input[type="submit"],
-      #copy-btn {
+      #copy-btn, #save-prompt, #get-prompt, #vars-btn {
         background-color: #4caf50;
         color: white;
         cursor: pointer;
@@ -69,6 +74,10 @@
       form{
         height:80%;
       }
+      #var-form{
+        height:auto;
+      }
+
     </style>
   </head>
   <body>
@@ -87,7 +96,9 @@
       </div>
       <div class="right-half">
         <textarea id="output" disabled></textarea>
-        <button id="copy-btn">Copy</button>
+        <form id="var-form"> </form>
+        <button id="copy-btn">Copy code</button>
+        <button id="vars-btn">Fill variables</button>
       </div>
     </div>
     <script>
@@ -98,7 +109,7 @@
           const formData = new FormData(event.target);
           const prompt = formData.get("prompt");
           const darkPrompt = formData.get("dark-prompt");
-
+          console.log(darkPrompt + prompt);
           const response = await fetch("/api/gpt4", {
             method: "POST",
             headers: { "Content-Type": "text/plain" },
@@ -120,10 +131,20 @@
         copyBtn.addEventListener("click", () => {
           const output = document.getElementById("output");
           navigator.clipboard.writeText(output.value).then(() => {
-            console.log('Text copied to clipboard');
+          console.log("Text copied to clipboard");
+          }).catch((error) => {
+            console.error('Error copying text to clipboard:', error);
+          });
+        });
+
+        const VarsBtn = document.getElementById("vars-btn");
+        VarsBtn.addEventListener("click", () => {
             const variables = output.value.match(/variables:\n([\s\S]*)/)[1].trim().split('\n').filter(Boolean);
             console.log(variables);
-            const form = document.createElement('form');
+            const form = document.getElementById("var-form");
+            const submitButton = document.createElement('button');
+            submitButton.type = 'submit';
+            submitButton.textContent = 'Submit';
             for (let i = 0; i < variables.length; i++) {
               const label = document.createElement('label');
               label.textContent = variables[i];
@@ -132,13 +153,15 @@
               form.appendChild(label);
               form.appendChild(input);
             }
-            output.replaceWith(form);
-
-          }).catch((error) => {
-            console.error('Error copying text to clipboard:', error);
+            form.appendChild(submitButton);
+            form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(form);
+            for (let pair of formData.entries()) {
+              console.log(pair[1]);
+            }
           });
-        });
-
+          });
 
         const saveBtn = document.getElementById("save-prompt");
         saveBtn.addEventListener("click", async (event) => {
@@ -159,7 +182,6 @@
         .then(data => {
           const textarea = document.getElementById("dark-prompt");
           textarea.value = data;
-          console.log(data)
         })
         .catch(error => console.error(error));
         });
