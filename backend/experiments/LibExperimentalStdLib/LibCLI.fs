@@ -94,6 +94,32 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "System" "getEnvVars" 0
+      typeParams = []
+      parameters = []
+      returnType = TList(TTuple(TString, TString, []))
+      description =
+        "Returns a list of tuples containing all the environment variables and their values."
+      fn =
+        (function
+        | _, _, [] ->
+          let envVars = System.Environment.GetEnvironmentVariables()
+
+          let keyValuePairs =
+            envVars
+            |> Seq.cast<System.Collections.DictionaryEntry>
+            |> Seq.map (fun kv -> (string kv.Key, string kv.Value))
+            |> List.ofSeq
+            |> List.map (fun (key, value) -> DTuple(DString key, DString value, []))
+
+
+          Ply(DList keyValuePairs)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
 
     { name = fn "File" "write" 0
       typeParams = []
