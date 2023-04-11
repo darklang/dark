@@ -236,15 +236,8 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
       applyToDB (UserDB.setColName id name) tlid c
     | PT.ChangeDBColName (tlid, id, name) ->
       applyToDB (UserDB.setColName id name) tlid c
-    | PT.SetDBColType (tlid, id, tipe) ->
-      let typ =
-        PTParser.DType.parse tipe
-        |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
-      applyToDB (UserDB.setColType id typ) tlid c
-    | PT.ChangeDBColType (tlid, id, tipe) ->
-      let typ =
-        PTParser.DType.parse tipe
-        |> Exception.unwrapOptionInternal "Cannot parse col type" [ "type", tipe ]
+    | PT.SetDBColType (tlid, id, typ) -> applyToDB (UserDB.setColType id typ) tlid c
+    | PT.ChangeDBColType (tlid, id, typ) ->
       applyToDB (UserDB.setColType id typ) tlid c
     | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
     | PT.SetExpr (_tlid, _id, _e) ->

@@ -21,7 +21,7 @@ let eFn'
   (module_ : string)
   (function_ : string)
   (version : int)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
   EApply(gid (), (eStdFnName module_ function_ version), typeArgs, args)
@@ -30,22 +30,30 @@ let eFn
   (module_ : string)
   (function_ : string)
   (version : int)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
   eFn' module_ function_ version typeArgs args
 
 let eUserFn
   (function_ : string)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
   EApply(gid (), (eUserFnName function_), typeArgs, args)
 
-let eApply' (target : FnTarget) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
+let eApply'
+  (target : FnTarget)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : Expr =
   EApply(gid (), target, typeArgs, args)
 
-let eApply (target : Expr) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
+let eApply
+  (target : Expr)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : Expr =
   eApply' (FnTargetExpr target) typeArgs args
 
 

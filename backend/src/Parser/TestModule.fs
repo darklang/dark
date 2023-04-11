@@ -32,7 +32,7 @@ module UserDB =
     | SynField (_, _, Some id, typ, _, _, _, _, _) ->
       { name = Some(id.idText) // CLEANUP
         nameID = gid ()
-        typ = Some(PTP.DType.fromSynType availableTypes typ)
+        typ = Some(PTP.TypeReference.fromSynType availableTypes typ)
         typeID = gid () }
     | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
 

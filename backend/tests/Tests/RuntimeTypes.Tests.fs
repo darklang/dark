@@ -6,22 +6,6 @@ open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
 
-let dvalToType =
-  testList
-    "dvalToType"
-    [ test "simple tuple" {
-        let tpl =
-          RT.Dval.DTuple(
-            RT.Dval.DInt 1,
-            RT.Dval.DString "two",
-            [ RT.Dval.DFloat 3.14 ]
-          )
-        let actual = RT.Dval.toType tpl
-        let expected =
-          RT.DType.TTuple(RT.DType.TInt, RT.DType.TString, [ RT.DType.TFloat ])
-        Expect.equal actual expected ""
-      } ]
-
 let dvalTypeMatches =
   testList
     "dvalTypeMatches"
@@ -33,7 +17,11 @@ let dvalTypeMatches =
             [ RT.Dval.DFloat 3.14 ]
           )
         let tipe =
-          RT.DType.TTuple(RT.DType.TInt, RT.DType.TString, [ RT.DType.TFloat ])
+          RT.TypeReference.TTuple(
+            RT.TypeReference.TInt,
+            RT.TypeReference.TString,
+            [ RT.TypeReference.TFloat ]
+          )
 
         Expect.isTrue (RT.Dval.typeMatches tipe v) ""
       }
@@ -46,9 +34,13 @@ let dvalTypeMatches =
             [ RT.Dval.DFloat 3.14 ]
           )
         let tipe =
-          RT.DType.TTuple(RT.DType.TInt, RT.DType.TString, [ RT.DType.TChar ])
+          RT.TypeReference.TTuple(
+            RT.TypeReference.TInt,
+            RT.TypeReference.TString,
+            [ RT.TypeReference.TChar ]
+          )
 
         Expect.isFalse (RT.Dval.typeMatches tipe v) ""
       } ]
 
-let tests = testList "RuntimeTypes" [ dvalToType ]
+let tests = testList "RuntimeTypes" [ dvalTypeMatches ]

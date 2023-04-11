@@ -172,18 +172,20 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           match Map.tryFind field o with
           | Some v -> return v
           | None -> return DError(sourceID id, $"No field named {field} in record")
-        | _ when Dval.isFake obj -> return obj
-        | x ->
-          let actualType =
-            match Dval.toType x with
-            | TDB _ ->
-              "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
-            | tipe -> $"it's a {DvalReprDeveloper.typeName tipe}"
-
+        | DDB _ ->
           return
             DError(
               sourceID id,
-              $"Attempting to access a field of something that isn't a record or dict, ({actualType})."
+              $"Attempting to access a field of something that isn't a record or dict, "
+              + "(it's a Datastore. Use DB:: standard library functions to interact with Datastores)."
+            )
+        | _ when Dval.isFake obj -> return obj
+        | _ ->
+          return
+            DError(
+              sourceID id,
+              $"Attempting to access a field of something that isn't a record or dict, "
+              + "(it's a {DvalReprDeveloper.dvalTypeName obj})."
             )
 
 
@@ -576,7 +578,7 @@ and callFn
   (state : ExecutionState)
   (callerID : id)
   (desc : FQFnName.T)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (argvals : List<Dval>)
   : DvalTask =
   uply {
@@ -662,7 +664,7 @@ and execFn
   (fnDesc : FQFnName.T)
   (id : id)
   (fn : Fn)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : DvalMap)
   : DvalTask =
   uply {
@@ -759,7 +761,7 @@ and execFn
               state.tracing.storeFnResult fnRecord arglist result
 
             return result
-        | PackageFunction (_tlid, body) ->
+        | PackageFunction body ->
           // This is similar to InProcess but also has elements of UserCreated.
           match TypeChecker.checkFunctionCall Map.empty fn typeArgs args with
           | Ok () ->

@@ -18,12 +18,12 @@ let placeholder = PT.EString(12345678UL, [ PT.StringText "PLACEHOLDER VALUE" ])
 let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
 
-module DType =
+module TypeReference =
   let rec fromNameAndTypeArgs
     (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
     (name : string)
     (typeArgs : List<SynType>)
-    : PT.DType =
+    : PT.TypeReference =
     let fromSynType = fromSynType availableTypes
     match name, typeArgs with
     // no type args
@@ -66,7 +66,10 @@ module DType =
           $"Matched against multiple types - not sure what to do"
           [ "name", name; "typeArgs", typeArgs; "types", matchingTypes ]
 
-  and fromSynType (availableTypes : AvailableTypes) (typ : SynType) : PT.DType =
+  and fromSynType
+    (availableTypes : AvailableTypes)
+    (typ : SynType)
+    : PT.TypeReference =
     let c = fromSynType availableTypes
 
     match typ with
@@ -338,7 +341,7 @@ module Expr =
     | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
       let typeArgs =
         typeArgs
-        |> List.map (fun synType -> DType.fromSynType availableTypes synType)
+        |> List.map (fun synType -> TypeReference.fromSynType availableTypes synType)
 
       PT.EFnCall(gid (), PT.FQFnName.userFqName name.idText, typeArgs, [])
 
@@ -356,7 +359,7 @@ module Expr =
       let name, version = parseFn fnName.idText
       let typeArgs =
         typeArgs
-        |> List.map (fun synType -> DType.fromSynType availableTypes synType)
+        |> List.map (fun synType -> TypeReference.fromSynType availableTypes synType)
 
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
 
@@ -641,7 +644,7 @@ module UserFunction =
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
       { id = gid ()
         name = id.idText
-        typ = DType.fromSynType availableTypes typ
+        typ = TypeReference.fromSynType availableTypes typ
         description = "" }
 
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
@@ -723,7 +726,7 @@ module CustomType =
       match typ with
       | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
         { id = gid ()
-          typ = DType.fromSynType availableTypes typ
+          typ = TypeReference.fromSynType availableTypes typ
           label = fieldName |> Option.map (fun id -> id.idText) }
 
     let private parseCase
@@ -759,7 +762,9 @@ module CustomType =
       : PT.CustomType.RecordField =
       match field with
       | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-        { id = gid (); name = id.idText; typ = DType.fromSynType availableTypes typ }
+        { id = gid ()
+          name = id.idText
+          typ = TypeReference.fromSynType availableTypes typ }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
     let fromFields availableTypes typeDef (fields : List<SynField>) =

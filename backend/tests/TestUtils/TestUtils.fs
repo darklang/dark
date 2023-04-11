@@ -88,7 +88,7 @@ let testUserFn
   (name : string)
   (typeParams : List<string>)
   (parameters : string list)
-  (returnType : PT.DType)
+  (returnType : PT.TypeReference)
   (body : PT.Expr)
   : PT.UserFunction.T =
   { tlid = gid ()
@@ -106,8 +106,8 @@ let testUserFn
 
 let testUserRecordType
   (name : PT.FQTypeName.UserTypeName)
-  (firstField : string * PT.DType)
-  (additionalFields : List<string * PT.DType>)
+  (firstField : string * PT.TypeReference)
+  (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
   let mapField (name, typ) : PT.CustomType.RecordField =
     { id = gid (); name = name; typ = typ }
@@ -119,7 +119,7 @@ let testUserRecordType
 
 
 
-let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
+let testDBCol (name : Option<string>) (typ : Option<PT.TypeReference>) : PT.DB.Col =
   { name = name; typ = typ; nameID = gid (); typeID = gid () }
 
 let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
@@ -479,11 +479,11 @@ module Expect =
 
   let dTypeEqualityBaseFn
     (path : Path)
-    (actual : DType)
-    (expected : DType)
+    (actual : TypeReference)
+    (expected : TypeReference)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    // as long as DTypes don't get IDs, depending on structural equality is OK
+    // as long as TypeReferences don't get IDs, depending on structural equality is OK
     match actual, expected with
     | TInt, _
     | TFloat, _
@@ -493,8 +493,6 @@ module Expect =
     | TList (_), _
     | TTuple (_, _, _), _
     | TDict (_), _
-    | TIncomplete, _
-    | TError, _
     | THttpResponse (_), _
     | TDB (_), _
     | TDateTime, _
@@ -506,8 +504,7 @@ module Expect =
     | TFn (_, _), _
     | TCustomType (_, _), _
     | TOption (_), _
-    | TResult (_, _), _
-    | TRecord (_), _ ->
+    | TResult (_, _), _ ->
       if actual <> expected then errorFn path (string actual) (string expected)
 
 

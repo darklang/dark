@@ -74,7 +74,7 @@ let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
               PT.SetDBColType(
                 db.tlid,
                 col.typeID,
-                col.typ |> Exception.unwrapOptionInternal "" [] |> string
+                col.typ |> Exception.unwrapOptionInternal "" []
               ) ])
           |> List.flatten
         (db, initial :: cols))

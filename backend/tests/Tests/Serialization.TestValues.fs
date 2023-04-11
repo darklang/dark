@@ -28,7 +28,7 @@ module RuntimeTypes =
       RT.FQFnName.Package
         { owner = "a"; package = "b"; module_ = "c"; function_ = "d"; version = 2 } ]
 
-  let dtypes : List<RT.DType> =
+  let dtypes : List<RT.TypeReference> =
     [ RT.TInt
       RT.TFloat
       RT.TBool
@@ -37,8 +37,6 @@ module RuntimeTypes =
       RT.TList RT.TInt
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
       RT.TDict RT.TBool
-      RT.TIncomplete
-      RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(RT.FQTypeName.User { typ = "User"; version = 0 }, [ RT.TBool ])
@@ -58,8 +56,7 @@ module RuntimeTypes =
       RT.TBytes
       RT.TResult(RT.TBool, RT.TString)
       RT.TVariable "test"
-      RT.TFn([ RT.TBool ], RT.TBool)
-      RT.TRecord["prop", RT.TBool] ]
+      RT.TFn([ RT.TBool ], RT.TBool) ]
 
   let letPatterns : List<RT.LetPattern> = [ RT.LPVariable(123UL, "test") ]
 
@@ -191,7 +188,7 @@ module ProgramTypes =
         [ PT.MPUnit(17123UL) ]
       ) ]
 
-  let dtypes : List<PT.DType> =
+  let dtypes : List<PT.TypeReference> =
     [ PT.TInt
       PT.TFloat
       PT.TBool
@@ -200,8 +197,6 @@ module ProgramTypes =
       PT.TList PT.TInt
       PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
       PT.TDict PT.TBool
-      PT.TIncomplete
-      PT.TError
       PT.THttpResponse PT.TBool
       PT.TDB PT.TBool
       PT.TCustomType(PT.FQTypeName.User { typ = "User"; version = 0 }, [ PT.TBool ])
@@ -221,8 +216,7 @@ module ProgramTypes =
       PT.TBytes
       PT.TResult(PT.TBool, PT.TString)
       PT.TVariable "test"
-      PT.TFn([ PT.TBool ], PT.TBool)
-      PT.TRecord["prop", PT.TBool] ]
+      PT.TFn([ PT.TBool ], PT.TBool) ]
 
 
 
@@ -470,49 +464,39 @@ module ProgramTypes =
       )
     )
 
-  // Note: This is aimed to contain all cases of `DType`
+  // Note: This is aimed to contain all cases of `TypeReference`
   let dtype =
-    PT.TRecord [ ("nested",
-                  PT.TList(
-                    PT.TDict(
-                      PT.TDB(
-                        PT.THttpResponse(
-                          PT.TOption(
-                            PT.TDbList(
-                              PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit))
-                            )
-                          )
-                        )
-                      )
-                    )
-                  ))
-                 ("int", PT.TInt)
-                 ("float", PT.TFloat)
-                 ("bool", PT.TBool)
-                 ("null", PT.TUnit)
-                 ("str", PT.TString)
-                 ("list", PT.TList(PT.TInt))
-                 ("tuple", PT.TTuple(PT.TInt, PT.TString, []))
-                 ("dict", PT.TDict(PT.TInt))
-                 ("incomplete", PT.TIncomplete)
-                 ("error", PT.TError)
-                 ("httpresponse", PT.THttpResponse(PT.TInt))
-                 ("db", PT.TDB(PT.TInt))
-                 ("date", PT.TDateTime)
-                 ("char", PT.TChar)
-                 ("password", PT.TPassword)
-                 ("uuid", PT.TUuid)
-                 ("option", PT.TOption(PT.TInt))
-                 ("usertype",
-                  PT.TCustomType(
-                    PT.FQTypeName.User { typ = "name"; version = 0 },
-                    []
-                  ))
-                 ("bytes", PT.TBytes)
-                 ("result", PT.TResult(PT.TInt, PT.TString))
-                 ("variable", PT.TVariable "v")
-                 ("fn", PT.TFn([ PT.TInt ], PT.TInt))
-                 ("record", PT.TRecord([ "field1", PT.TInt ])) ]
+    PT.TTuple(
+      PT.TList(
+        PT.TDict(
+          PT.TDB(
+            PT.THttpResponse(
+              PT.TOption(PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit)))
+            )
+          )
+        )
+      ),
+      PT.TInt,
+      [ PT.TFloat
+        PT.TBool
+        PT.TUnit
+        PT.TString
+        PT.TList(PT.TInt)
+        PT.TTuple(PT.TInt, PT.TString, [])
+        PT.TDict(PT.TInt)
+        PT.THttpResponse(PT.TInt)
+        PT.TDB(PT.TInt)
+        PT.TDateTime
+        PT.TChar
+        PT.TPassword
+        PT.TUuid
+        PT.TOption(PT.TInt)
+        PT.TCustomType(PT.FQTypeName.User { typ = "name"; version = 0 }, [])
+        PT.TBytes
+        PT.TResult(PT.TInt, PT.TString)
+        PT.TVariable "v"
+        PT.TFn([ PT.TInt ], PT.TInt) ]
+    )
 
   module Handler =
     let cronIntervals : List<PT.Handler.CronInterval> =
@@ -649,11 +633,11 @@ module ProgramTypes =
       PT.CreateDB(tlid, "name")
       PT.AddDBCol(tlid, id, id)
       PT.SetDBColName(tlid, id, "name")
-      PT.SetDBColType(tlid, id, "int")
+      PT.SetDBColType(tlid, id, PT.TInt)
       PT.DeleteTL tlid
       PT.SetFunction(userFunction)
       PT.ChangeDBColName(tlid, id, "name")
-      PT.ChangeDBColType(tlid, id, "int")
+      PT.ChangeDBColType(tlid, id, PT.TInt)
       PT.UndoTL tlid
       PT.RedoTL tlid
       PT.SetExpr(tlid, id, expr)

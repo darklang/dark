@@ -164,10 +164,8 @@ module DarkDateTime =
 
   let toIsoString (d : T) : string = (toInstant d).toIsoString ()
 
-
-/// Dark runtime type
-type DType =
-  // simple types
+// Dark runtime type
+type TypeReference =
   | TUnit
   | TBool
   | TInt
@@ -178,35 +176,16 @@ type DType =
   | TBytes
   | TDateTime
   | TPassword
-
-  // nested types
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TFn of List<DType> * DType // replaces TLambda
-  | TDB of DType
-
-  // fake types
-  | TIncomplete
-  | TError
-
-  /// Used to refer to a named type argument defined in a generic type
-  /// e.g. `a` in `List<a>`
+  | TList of TypeReference
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TFn of List<TypeReference> * TypeReference
+  | TDB of TypeReference
   | TVariable of string
-
-  /// A type defined by a standard library module, a canvas/user, or a package
-  /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
-  /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
-
-  // TODO: remove all of thse in favor of TCustomType
-  // Enums
-  | TOption of DType
-  | TResult of DType * DType
-
-  // Records
-  | TDict of DType
-  | TRecord of List<string * DType> // TODO: remove in favor of TCustomType
-  | THttpResponse of DType
+  | TCustomType of FQTypeName.T * typeArgs : List<TypeReference>
+  | TOption of TypeReference // CLEANUP remove
+  | TResult of TypeReference * TypeReference // CLEANUP remove
+  | TDict of TypeReference // CLEANUP add key type
+  | THttpResponse of TypeReference // CLEANUP remove
 
   member this.isFn() : bool =
     match this with
@@ -214,45 +193,45 @@ type DType =
     | _ -> false
 
 
-/// Expressions here are runtime variants of the AST in ProgramTypes, having had
-/// superfluous information removed.
+// Expressions here are runtime variants of the AST in ProgramTypes, having had
+// superfluous information removed.
 type Expr =
   | EInt of id * int64
   | EBool of id * bool
   | EString of id * List<StringSegment>
 
-  /// A single Extended Grapheme Cluster
+  // A single Extended Grapheme Cluster
   | EChar of id * string
   | EFloat of id * double
   | EUnit of id
 
-  /// <summary>
-  /// Composed of binding pattern, the expression to create bindings for,
-  /// and the expression that follows, where the bound values are available
-  /// </summary>
-  ///
-  /// <code>
-  /// let str = expr1
-  /// expr2
-  /// </code>
+  // <summary>
+  // Composed of binding pattern, the expression to create bindings for,
+  // and the expression that follows, where the bound values are available
+  // </summary>
+  //
+  // <code>
+  // let str = expr1
+  // expr2
+  // </code>
   | ELet of id * LetPattern * Expr * Expr
 
-  /// Composed of condition, expr if true, and expr if false
+  // Composed of condition, expr if true, and expr if false
   | EIf of id * Expr * Expr * Expr
 
-  /// Composed of a parameters * the expression itself
+  // Composed of a parameters * the expression itself
   | ELambda of id * List<id * string> * Expr
 
-  /// Access a field of some expression (e.g. `someExpr.fieldName`)
+  // Access a field of some expression (e.g. `someExpr.fieldName`)
   | EFieldAccess of id * Expr * string
 
-  /// Reference some local variable by name
-  ///
-  /// i.e. after a `let binding = value`, any use of `binding`
+  // Reference some local variable by name
+  //
+  // i.e. after a `let binding = value`, any use of `binding`
   | EVariable of id * string
 
-  /// This is a function call, the first expression is the value of the function.
-  | EApply of id * FnTarget * typeArgs : List<DType> * args : List<Expr>
+  // This is a function call, the first expression is the value of the function.
+  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -385,29 +364,33 @@ and Symtable = Map<string, Dval>
 
 
 
-/// Record the source of an incomplete or error. Would be useful to add more
-/// information later, such as the iteration count that led to this, or
-/// something like a stack trace
+// Record the source of an incomplete or error. Would be useful to add more
+// information later, such as the iteration count that led to this, or
+// something like a stack trace
 and DvalSource =
-  /// We do not have context to supply an identifier
+  // We do not have context to supply an identifier
   | SourceNone
 
-  /// Caused by an expression of `id` within the given `tlid`
+  // Caused by an expression of `id` within the given `tlid`
   | SourceID of tlid * id
 
 and Param =
   { name : string
-    typ : DType
+    typ : TypeReference
     blockArgs : List<string>
     description : string }
 
-  static member make (name : string) (typ : DType) (description : string) : Param =
+  static member make
+    (name : string)
+    (typ : TypeReference)
+    (description : string)
+    : Param =
     assert_ "make called on TFn" [ "name", name ] (not (typ.isFn ()))
     { name = name; typ = typ; description = description; blockArgs = [] }
 
   static member makeWithArgs
     (name : string)
-    (typ : DType)
+    (typ : TypeReference)
     (description : string)
     (blockArgs : List<string>)
     : Param =
@@ -415,16 +398,16 @@ and Param =
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
 module CustomType =
-  type RecordField = { id : id; name : string; typ : DType }
+  type RecordField = { id : id; name : string; typ : TypeReference }
 
-  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
-/// Functions for working with Dark runtime expressions
+// Functions for working with Dark runtime expressions
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
@@ -449,13 +432,13 @@ module Expr =
     | EAnd (id, _, _)
     | EOr (id, _, _) -> id
 
-/// Functions for working with Dark Let patterns
+// Functions for working with Dark Let patterns
 module LetPattern =
   let toID (pat : LetPattern) : id =
     match pat with
     | LPVariable (id, _) -> id
 
-/// Functions for working with Dark match patterns
+// Functions for working with Dark match patterns
 module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
@@ -470,12 +453,12 @@ module MatchPattern =
     | MPConstructor (id, _, _)
     | MPList (id, _) -> id
 
-/// Functions for working with Dark runtime values
+// Functions for working with Dark runtime values
 module Dval =
-  /// A Fake Dval is some control-flow that's modelled in the interpreter as a
-  /// Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
-  /// it instead of operating on it, including when they're put in a list, in a
-  /// value, in a record, as a parameter to a function, etc.
+  // A Fake Dval is some control-flow that's modelled in the interpreter as a
+  // Dval. This is sort of like an Exception. Anytime we see a FakeDval we return
+  // it instead of operating on it, including when they're put in a list, in a
+  // value, in a record, as a parameter to a function, etc.
   let isFake (dv : Dval) : bool =
     match dv with
     | DError _ -> true
@@ -497,74 +480,18 @@ module Dval =
     | DDict obj -> Ok(Map.toList obj)
     | _ -> Error "expecting str"
 
-  /// Gets the Dark runtime type from a runtime value
-  let rec toType (dv : Dval) : DType =
-    let any = TVariable "a"
 
-    match dv with
-    | DInt _ -> TInt
-    | DFloat _ -> TFloat
-    | DBool _ -> TBool
-    | DUnit -> TUnit
-    | DChar _ -> TChar
-    | DString _ -> TString
-    | DList (head :: _) -> TList(toType head)
-    | DList [] -> TList any
-    | DTuple (first, second, theRest) ->
-      TTuple(toType first, toType second, List.map toType theRest)
-    | DDict map ->
-      map
-      |> Map.toList
-      |> List.tryHead
-      |> Option.map (fun (k, v) -> toType v)
-      |> Option.defaultValue (TVariable "a")
-      |> TDict
-    | DRecord map ->
-      map |> Map.toList |> List.map (fun (k, v) -> (k, toType v)) |> TRecord
-    | DFnVal _ -> TFn([], any) // CLEANUP: can do better here
-    | DError _ -> TError
-    | DIncomplete _ -> TIncomplete
-    | DHttpResponse (_, _, dv) -> THttpResponse(toType dv)
-    | DDB _ -> TDB any
-    | DDateTime _ -> TDateTime
-    | DPassword _ -> TPassword
-    | DUuid _ -> TUuid
-    | DOption None -> TOption any
-    | DOption (Some v) -> TOption(toType v)
-    | DResult (Ok v) -> TResult(toType v, any)
-    | DResult (Error v) -> TResult(any, toType v)
-    | DBytes _ -> TBytes
-    | DConstructor (typeName, caseName, fields) ->
-      match typeName with
-      | Some typeName ->
-        let typeArgs = List.map toType fields
-        TCustomType(typeName, typeArgs)
-      | None ->
-        match caseName, fields with
-        // option
-        | "Nothing", [] -> TOption any
-        | "Just", [ arg ] -> TOption(toType arg)
-
-        // result
-        | "Ok", [ arg ] -> TResult(any, any)
-        | "Error", [ arg ] -> TResult(any, any)
-
-        // unrecognized
-        | _ -> any // might be better to error here
-
-
-  /// <summary>
-  /// Checks if a runtime's value matches a given type
-  /// </summary>
-  /// <remarks>
-  /// In OCaml, we had simpler types so we could just call toType and compare.
-  /// But now we have nested types so they need to be checked deeper. Note:
-  /// there is also "real" type checking elsewhere - this should be unified.
-  /// Note, this is primarily used to figure out which argument has ALREADY not
-  /// matched the actual runtime parameter type of the called function. So more
-  /// accuracy is better, as the runtime is perfectly accurate.
-  /// </summary>
-  let rec typeMatches (typ : DType) (dv : Dval) : bool =
+  // <summary>
+  // Checks if a runtime's value matches a given type
+  // </summary>
+  // <remarks>
+  // We have nested types so they need to be checked deeper. CLEANUP:
+  // there is also "real" type checking elsewhere - this should be unified.
+  // Note, this is primarily used to figure out which argument has ALREADY not
+  // matched the actual runtime parameter type of the called function. So more
+  // accuracy is better, as the runtime is perfectly accurate.
+  // </summary>
+  let rec typeMatches (typ : TypeReference) (dv : Dval) : bool =
     match (dv, typ) with
     | _, TVariable _ -> true
     | DInt _, TInt
@@ -585,17 +512,6 @@ module Dval =
       pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
     | DList l, TList t -> List.all (typeMatches t) l
     | DDict m, TDict t -> Map.all (typeMatches t) m
-    | DRecord m, TRecord pairs ->
-      let actual = Map.toList m |> List.sortBy Tuple2.first
-      let expected = pairs |> List.sortBy Tuple2.first
-
-      if List.length actual <> List.length expected then
-        false
-      else
-        List.zip actual expected
-        |> List.all (fun ((aField, aVal), (eField, eType)) ->
-          aField = eField && typeMatches eType aVal)
-
     | DFnVal (Lambda l), TFn (parameters, _) ->
       List.length parameters = List.length l.parameters
     | DOption None, TOption _ -> true
@@ -604,7 +520,20 @@ module Dval =
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
-    | DRecord _, TCustomType _ ->
+    | DRecord m, TCustomType _ ->
+      // TYPECLEANUP: should load type by name
+      // | DRecord m, TRecord pairs ->
+      // let actual = Map.toList m |> List.sortBy Tuple2.first
+      // let expected = pairs |> List.sortBy Tuple2.first
+
+      // if List.length actual <> List.length expected then
+      //   false
+      // else
+      //   List.zip actual expected
+      //   |> List.all (fun ((aField, aVal), (eField, eType)) ->
+      //     aField = eField && typeMatches eType aVal)
+
+
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
@@ -731,7 +660,7 @@ module Handler =
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 module DB =
-  type Col = string * DType
+  type Col = string * TypeReference
   type T = { tlid : tlid; name : string; cols : List<Col>; version : int }
 
 module UserType =
@@ -740,14 +669,14 @@ module UserType =
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =
-  type Parameter = { name : string; typ : DType; description : string }
+  type Parameter = { name : string; typ : TypeReference; description : string }
 
   type T =
     { tlid : tlid
       name : string
       typeParams : List<string>
       parameters : List<Parameter>
-      returnType : DType
+      returnType : TypeReference
       description : string
       infix : bool
       body : Expr }
@@ -775,50 +704,48 @@ module Secret =
 // ------------
 
 module Package =
-  type Parameter = { name : string; typ : DType; description : string }
+  type Parameter = { name : string; typ : TypeReference; description : string }
 
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
       typeParams : List<string>
       parameters : List<Parameter>
-      returnType : DType
+      returnType : TypeReference
       description : string
-      author : string
-      deprecated : bool
-      tlid : tlid }
+      deprecated : bool }
 
 
-/// <summary>
-/// Used to mark whether a function can be run on the client rather than backend.
-/// </summary>
-/// <remarks>
-/// The runtime needs to know whether to save a function's results when it
-/// runs. Pure functions that can be run on the client do not need to have
-/// their results saved.
-/// In addition, some functions can be run without side-effects; to give
-/// the user a good experience, we can run them as soon as they are added.
-/// this includes DateTime::now and Int::random.
-/// </remarks>
+// <summary>
+// Used to mark whether a function can be run on the client rather than backend.
+// </summary>
+// <remarks>
+// The runtime needs to know whether to save a function's results when it
+// runs. Pure functions that can be run on the client do not need to have
+// their results saved.
+// In addition, some functions can be run without side-effects; to give
+// the user a good experience, we can run them as soon as they are added.
+// this includes DateTime::now and Int::random.
+// </remarks>
 type Previewable =
-  /// The same inputs will always yield the same outputs,
-  /// so we don't need to save results. e.g. `DateTime::add`
+  // The same inputs will always yield the same outputs,
+  // so we don't need to save results. e.g. `DateTime::add`
   | Pure
 
-  /// Output may vary with the same inputs, though we can safely preview.
-  /// e.g. `DateTime::now`. We should save the results.
+  // Output may vary with the same inputs, though we can safely preview.
+  // e.g. `DateTime::now`. We should save the results.
   | ImpurePreviewable
 
-  /// Can only be run on the server. e.g. `DB::update`
-  /// We should save the results.
+  // Can only be run on the server. e.g. `DB::update`
+  // We should save the results.
   | Impure
 
-/// Used to mark whether a function has been deprecated, and if so,
-/// details about possible replacements/alternatives, and reasoning
+// Used to mark whether a function has been deprecated, and if so,
+// details about possible replacements/alternatives, and reasoning
 type Deprecation =
   | NotDeprecated
 
-  /// The exact same function is available under a new, preferred name
+  // The exact same function is available under a new, preferred name
   | RenamedTo of FQFnName.StdlibFnName
 
   /// This has been deprecated and has a replacement we can suggest
@@ -827,37 +754,37 @@ type Deprecation =
   /// This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of string
 
-/// Used to mark whether a function has an equivalent that can be
-/// used within a Postgres query.
+// Used to mark whether a function has an equivalent that can be
+// used within a Postgres query.
 type SqlSpec =
-  /// Can be implemented, but we haven't yet
+  // Can be implemented, but we haven't yet
   | NotYetImplemented
 
-  /// This is not a function which can be queried
+  // This is not a function which can be queried
   | NotQueryable
 
-  /// A query function (it can't be called inside a query, but its argument can be a query)
+  // A query function (it can't be called inside a query, but its argument can be a query)
   | QueryFunction
 
-  /// Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
+  // Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
   | SqlUnaryOp of string
 
-  /// Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
+  // Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
   | SqlBinOp of string
 
-  /// Can be implemented by a given builtin postgres 9.6 function
+  // Can be implemented by a given builtin postgres 9.6 function
   | SqlFunction of string
 
-  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
+  // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
   | SqlFunctionWithPrefixArgs of string * List<string>
 
-  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
+  // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
   | SqlFunctionWithSuffixArgs of string * List<string>
 
   // Can be implemented by given callback that receives 1 SQLified-string argument
   // | SqlCallback of (string -> string)
 
-  /// Can be implemented by given callback that receives 2 SQLified-string argument
+  // Can be implemented by given callback that receives 2 SQLified-string argument
   | SqlCallback2 of (string -> string -> string)
 
   member this.isQueryable() : bool =
@@ -873,19 +800,19 @@ type SqlSpec =
     | SqlCallback2 _ -> true
 
 
-/// A built-in standard library type
+// A built-in standard library type
 type BuiltInType =
   { name : FQTypeName.StdlibTypeName
     typeParams : List<string>
     definition : CustomType.T
     description : string }
 
-/// A built-in standard library function
+// A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
     typeParams : List<string>
     parameters : List<Param>
-    returnType : DType
+    returnType : TypeReference
     description : string
     previewable : Previewable
     deprecated : Deprecation
@@ -896,23 +823,23 @@ and Fn =
   { name : FQFnName.T
     typeParams : List<string>
     parameters : List<Param>
-    returnType : DType
+    returnType : TypeReference
     previewable : Previewable
     sqlSpec : SqlSpec
 
     // Functions can be run in JS if they have an implementation in LibExecution.
     // Functions whose implementation is in BackendOnlyStdLib can only be implemented on the server.
 
-    /// <remarks>
-    /// May throw an exception, though we're trying to get them to never throw exceptions.
-    /// </remarks>
+    // <remarks>
+    // May throw an exception, though we're trying to get them to never throw exceptions.
+    // </remarks>
     fn : FnImpl }
 
 and BuiltInFnSig =
   (ExecutionState *
 
   // type args
-  List<DType> *
+  List<TypeReference> *
 
   // fn args
   List<Dval>)
@@ -921,16 +848,16 @@ and BuiltInFnSig =
 and FnImpl =
   | StdLib of BuiltInFnSig
   | UserFunction of tlid * Expr
-  | PackageFunction of tlid * Expr
+  | PackageFunction of Expr
 
 
 // CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
-/// Represents the context in which we're evaluating some code
+// Represents the context in which we're evaluating some code
 and RealOrPreview =
-  /// We are evaluating an expression normally
+  // We are evaluating an expression normally
   | Real
 
-  /// We are previewing the evaluation of some expression within the editor.
+  // We are previewing the evaluation of some expression within the editor.
   | Preview
 
 and FunctionRecord = tlid * FQFnName.T * id
@@ -943,7 +870,7 @@ and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instan
 
 and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
-/// Every part of a user's program
+// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
@@ -952,7 +879,7 @@ and ProgramContext =
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
 
-/// Set of callbacks used to trace the interpreter
+// Set of callbacks used to trace the interpreter
 and Tracing =
   { traceDval : TraceDval
     traceTLID : TraceTLID
@@ -960,7 +887,7 @@ and Tracing =
     storeFnResult : StoreFnResult
     realOrPreview : RealOrPreview }
 
-/// Used for testing
+// Used for testing
 and TestContext =
   { mutable sideEffectCount : int
 
@@ -968,7 +895,7 @@ and TestContext =
     mutable expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit }
 
-/// Non-user-specific functionality needed to run code
+// Non-user-specific functionality needed to run code
 and Libraries =
   { stdlibTypes : Map<FQTypeName.T, BuiltInType>
     stdlibFns : Map<FQFnName.T, BuiltInFn>
@@ -979,41 +906,41 @@ and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
 and Notifier = ExecutionState -> string -> Metadata -> unit
 
-/// All state used while running a program
+// All state used while running a program
 and ExecutionState =
   { libraries : Libraries
     tracing : Tracing
     program : ProgramContext
     test : TestContext
 
-    /// Called to report exceptions
+    // Called to report exceptions
     reportException : ExceptionReporter
 
-    /// Called to notify that something of interest (that isn't an exception)
-    /// has happened.
-    ///
-    /// Useful for tracking behaviour we want to deprecate, understanding what
-    /// users are doing, etc.
+    // Called to notify that something of interest (that isn't an exception)
+    // has happened.
+    //
+    // Useful for tracking behaviour we want to deprecate, understanding what
+    // users are doing, etc.
     notify : Notifier
 
-    /// TLID of the currently executing handler/fn
+    // TLID of the currently executing handler/fn
     tlid : tlid
 
     executingFnName : Option<FQFnName.T>
 
-    /// <summary>
-    /// Callstack of functions that have been called as part of execution
-    /// </summary>
-    ///
-    /// <remarks>
-    /// Used for recursion detection in the editor.
-    /// In the editor, we call all paths to show live values,
-    /// but with recursion that causes infinite recursion.
-    /// </remarks>
+    // <summary>
+    // Callstack of functions that have been called as part of execution
+    // </summary>
+    //
+    // <remarks>
+    // Used for recursion detection in the editor.
+    // In the editor, we call all paths to show live values,
+    // but with recursion that causes infinite recursion.
+    // </remarks>
     callstack : Set<FQFnName.T>
 
-    /// Whether the currently executing code is really being executed
-    /// (as opposed to being previewed for traces)
+    // Whether the currently executing code is really being executed
+    // (as opposed to being previewed for traces)
     onExecutionPath : bool }
 
 module ExecutionState =
@@ -1071,19 +998,19 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable
-    fn = PackageFunction(fn.tlid, fn.body) }
+    fn = PackageFunction fn.body }
 
 // -------------------------
 // renamed fns
 // -------------------------
 
-/// To cut down on the amount of code, when we rename a function and make no other
-/// changes, we don't duplicate it. Instead, we rename it and add the rename to this
-/// list. At startup, the renamed functions are created and added to the list.
-///
-/// Renames is old name first, new name second. The new one should still be in the
-/// codebase, the old one should not. If a function is renamed multiple times, add the
-/// latest rename first.
+// To cut down on the amount of code, when we rename a function and make no other
+// changes, we don't duplicate it. Instead, we rename it and add the rename to this
+// list. At startup, the renamed functions are created and added to the list.
+//
+// Renames is old name first, new name second. The new one should still be in the
+// codebase, the old one should not. If a function is renamed multiple times, add the
+// latest rename first.
 let renameFunctions
   (renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName>)
   (existing : List<BuiltInFn>)

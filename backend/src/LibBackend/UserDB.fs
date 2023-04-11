@@ -64,18 +64,20 @@ let rec queryExactFields
     return results |> List.map (fun (key, data) -> (key, toObj db data))
   }
 
-and schemaToTypes (db : RT.DB.T) : List<string * RT.DType> =
+and schemaToTypes (db : RT.DB.T) : List<string * RT.TypeReference> =
   db.cols |> List.map (fun (name, typ) -> (name, typ))
 
 // Handle the DB hacks while converting this into a DVal
 and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
-  let fieldTypes = schemaToTypes db
-  let pObj =
-    match DvalReprInternalQueryable.parseJsonV0 (RT.TRecord fieldTypes) obj with
-    | RT.DDict o -> o
-    | _ -> Exception.raiseInternal "failed format, expected DDict" [ "actual", obj ]
-  let typeChecked = typeCheck db pObj
-  RT.DDict typeChecked
+  // let fieldTypes = schemaToTypes db
+  // TYPESCLEANUP
+  Exception.raiseInternal "toObj" []
+// let pObj =
+//   match DvalReprInternalQueryable.parseJsonV0 fieldTypes obj with
+//   | RT.DDict o -> o
+//   | _ -> Exception.raiseInternal "failed format, expected DDict" [ "actual", obj ]
+// let typeChecked = typeCheck db pObj
+// RT.DDict typeChecked
 
 
 // TODO: Unify with TypeChecker.fs
@@ -105,8 +107,7 @@ and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
         | RT.TPassword, RT.DPassword _ -> value
         | RT.TUuid, RT.DUuid _ -> value
         | RT.TDict _, RT.DDict _ -> value
-        | RT.TRecord _, RT.DDict _ -> value
-        | _, RT.DUnit -> value // allow nulls for now
+        | RT.TUnit, RT.DUnit -> value // allow nulls for now
         | expectedType, valueOfActualType ->
           Exception.raiseCode (
             Errors.typeErrorMsg key expectedType valueOfActualType
@@ -492,7 +493,7 @@ let setColName (id : id) (name : string) (db : PT.DB.T) : PT.DB.T =
 
   { db with cols = List.map set db.cols }
 
-let setColType (id : id) (typ : PT.DType) (db : PT.DB.T) =
+let setColType (id : id) (typ : PT.TypeReference) (db : PT.DB.T) =
   let set (col : PT.DB.Col) =
     if col.typeID = id then { col with typ = Some typ } else col
 

@@ -28,14 +28,15 @@ let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
 
 
 let queryableRoundtripsSuccessfully (dv : RT.Dval) : bool =
-  let dvm = Map.ofList [ "field", dv ]
-  let fieldTypes = [ "field", RT.Dval.toType dv ]
-  let typ = RT.TRecord fieldTypes
+  Exception.raiseInternal "" []
+// let dvm = Map.ofList [ "field", dv ]
+// let fieldTypes = [ "field", RT.Dval.toType dv ]
+// let typ = RT.TRecord fieldTypes
 
-  dvm
-  |> DvalReprInternalQueryable.toJsonStringV0 fieldTypes
-  |> DvalReprInternalQueryable.parseJsonV0 typ
-  |> Expect.dvalEquality (RT.DDict dvm)
+// dvm
+// |> DvalReprInternalQueryable.toJsonStringV0 fieldTypes
+// |> DvalReprInternalQueryable.parseJsonV0 typ
+// |> Expect.dvalEquality (RT.DDict dvm)
 
 let testDvalRoundtrippableRoundtrips =
 
@@ -206,28 +207,28 @@ module Password =
 
   let testSerialization2 =
     test "serialization in object" {
-      let roundtrips name serialize deserialize =
-        let bytes = UTF8.toBytes "encryptedbytes"
-        let password = RT.DDict(Map.ofList [ "x", RT.DPassword(Password bytes) ])
-        let fieldTypes = [ "x", RT.TPassword ]
-        let typ = RT.TRecord fieldTypes
+      let roundtrips name serialize deserialize = Exception.raiseInternal "TODO" []
+      // let bytes = UTF8.toBytes "encryptedbytes"
+      // let password = RT.DDict(Map.ofList [ "x", RT.DPassword(Password bytes) ])
+      // let fieldTypes = [ "x", RT.TPassword ]
+      // let typ = RT.TRecord fieldTypes
 
-        let wrappedSerialize dval =
-          dval
-          |> (fun dval ->
-            match dval with
-            | RT.DDict dvalMap -> dvalMap
-            | _ -> Exception.raiseInternal "dobj only here" [])
-          |> serialize fieldTypes
+      // let wrappedSerialize dval =
+      //   dval
+      //   |> (fun dval ->
+      //     match dval with
+      //     | RT.DDict dvalMap -> dvalMap
+      //     | _ -> Exception.raiseInternal "dobj only here" [])
+      //   |> serialize fieldTypes
 
-        Expect.equalDval
-          password
-          (password
-           |> wrappedSerialize
-           |> deserialize typ
-           |> wrappedSerialize
-           |> deserialize typ)
-          $"Passwords serialize in non-redaction function: {name}"
+      // Expect.equalDval
+      //   password
+      //   (password
+      //    |> wrappedSerialize
+      //    |> deserialize typ
+      //    |> wrappedSerialize
+      //    |> deserialize typ)
+      //   $"Passwords serialize in non-redaction function: {name}"
       // roundtrips
       roundtrips
         "toInternalQueryableV1"

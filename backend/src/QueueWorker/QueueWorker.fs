@@ -52,13 +52,6 @@ let processNotification
                         "event.delivery_attempt", notification.deliveryAttempt
                         "event.pubsub.ack_id", notification.pubSubAckID
                         "event.pubsub.message_id", notification.pubSubMessageID ]
-    let resultType (dv : RT.Dval) : string =
-      match dv with
-      | RT.DOption None -> "Option(None)"
-      | RT.DOption (Some _) -> "Option(Some)"
-      | RT.DResult (Error _) -> "Result(Error)"
-      | RT.DResult (Ok _) -> "Result(Ok)"
-      | _ -> dv |> RT.Dval.toType |> DvalReprDeveloper.typeName
 
     // Function used to quit this event
     let stop
@@ -84,7 +77,8 @@ let processNotification
       Telemetry.addTags [ "event.handler.name", event.name
                           "event.handler.modifier", event.modifier
                           "event.handler.module", event.module'
-                          "event.value.type", (event.value |> resultType :> obj)
+                          "event.value.type",
+                          (event.value |> DvalReprDeveloper.dvalTypeName :> obj)
                           "event.locked_at", event.lockedAt
                           "event.enqueued_at", event.enqueuedAt ]
 
@@ -219,7 +213,8 @@ let processNotification
                           event.value
                         ))
 
-                    Telemetry.addTags [ "result_type", resultType result
+                    Telemetry.addTags [ "result_type",
+                                        DvalReprDeveloper.dvalTypeName result
                                         "queue.success", true
                                         "executed_tlids",
                                         HashSet.toList traceResults.tlids

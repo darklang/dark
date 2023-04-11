@@ -172,19 +172,17 @@ type Infix =
 /// - `List<T>`
 /// - user-defined enums
 /// - etc.
-type DType =
+type TypeReference =
   | TInt
   | TFloat
   | TBool
   | TUnit
   | TString
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TDict of DType
-  | TIncomplete
-  | TError
-  | THttpResponse of DType
-  | TDB of DType
+  | TList of TypeReference
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TDict of TypeReference
+  | THttpResponse of TypeReference
+  | TDB of TypeReference
   | TDateTime
   | TChar
   | TPassword
@@ -192,25 +190,20 @@ type DType =
   | TBytes
   // A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string // replaces TAny
-  | TFn of List<DType> * DType // replaces TLambda
-
-  | TDbList of DType // TODO: cleanup and remove
+  | TFn of List<TypeReference> * TypeReference // replaces TLambda
 
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+  | TCustomType of FQTypeName.T * typeArgs : List<TypeReference>
 
   // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
   // and the Option module defines the custom `Option` type
-  | TOption of DType
+  | TOption of TypeReference
 
   // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
   // and the Result module defines the custom `Result` type
-  | TResult of DType * DType
-
-  // TODO: remove in favor of `TCustomType` referring to defined `CustomType.Record`s
-  | TRecord of List<string * DType>
+  | TResult of TypeReference * TypeReference
 
 
 /// Expressions - the main part of the language.
@@ -234,7 +227,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
+  | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * Expr * List<Expr>
@@ -288,13 +281,13 @@ and StringSegment =
 
 /// A type defined by a standard library module, a canvas/user, or a package
 module CustomType =
-  type RecordField = { id : id; name : string; typ : DType }
+  type RecordField = { id : id; name : string; typ : TypeReference }
 
-  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type T =
-    // TODO: //| Abbreviation/Alias of DType
+    // TODO: //| Abbreviation/Alias of TypeReference
 
     /// `type MyRecord = { a : int; b : string }`
     | Record of firstField : RecordField * additionalFields : List<RecordField>
@@ -324,7 +317,11 @@ module Handler =
 
 
 module DB =
-  type Col = { name : Option<string>; typ : Option<DType>; nameID : id; typeID : id }
+  type Col =
+    { name : Option<string>
+      typ : Option<TypeReference>
+      nameID : id
+      typeID : id }
 
   type T =
     { tlid : tlid
@@ -339,14 +336,18 @@ module UserType =
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
 
 module UserFunction =
-  type Parameter = { id : id; name : string; typ : DType; description : string }
+  type Parameter =
+    { id : id
+      name : string
+      typ : TypeReference
+      description : string }
 
   type T =
     { tlid : tlid
       name : string
       typeParams : List<string>
       parameters : List<Parameter>
-      returnType : DType
+      returnType : TypeReference
       description : string
       infix : bool
       body : Expr }
@@ -375,11 +376,11 @@ type Op =
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
-  | SetDBColType of tlid * id * string
+  | SetDBColType of tlid * id * TypeReference
   | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
-  | ChangeDBColType of tlid * id * string
+  | ChangeDBColType of tlid * id * TypeReference
   | UndoTL of tlid
   | RedoTL of tlid
   | SetExpr of tlid * id * Expr
@@ -399,14 +400,14 @@ module Secret =
   type T = { name : string; value : string; version : int }
 
 module Package =
-  type Parameter = { name : string; typ : DType; description : string }
+  type Parameter = { name : string; typ : TypeReference; description : string }
 
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
       typeParams : List<string>
       parameters : List<Parameter>
-      returnType : DType
+      returnType : TypeReference
       description : string
       author : string
       deprecated : bool

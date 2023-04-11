@@ -23,7 +23,11 @@ exception FakeDvalFound of Dval
 // ------------------
 // Messages
 // ------------------
-let expectedLambdaType (fnName : string) (typ : DType) (actual : Dval) : string =
+let expectedLambdaType
+  (fnName : string)
+  (typ : TypeReference)
+  (actual : Dval)
+  : string =
   let actual = DvalReprDeveloper.toRepr actual
   let typ = DvalReprDeveloper.typeName typ
   $"Expected `{fnName}` to return a {typ}, but it returned `{actual}`"
@@ -44,12 +48,20 @@ let argumentWasnt (expected : string) (paramName : string) (dv : Dval) : string 
   $"Expected `{paramName}` to be {expected}, but it was `{actual}`"
 
 /// Used for lists which contain invalid values for some reason.
-let argumentWasntType (expected : DType) (paramName : string) (dv : Dval) : string =
+let argumentWasntType
+  (expected : TypeReference)
+  (paramName : string)
+  (dv : Dval)
+  : string =
   let actual = DvalReprDeveloper.toRepr dv
   let expected = DvalReprDeveloper.typeName expected
   $"Expected `{paramName}` to be a `{expected}`, but it was `{actual}`"
 
-let typeErrorMsg (colName : string) (expected : DType) (actual : Dval) : string =
+let typeErrorMsg
+  (colName : string)
+  (expected : TypeReference)
+  (actual : Dval)
+  : string =
   let expected = DvalReprDeveloper.typeName expected
   let actualType = DvalReprDeveloper.dvalTypeName actual
 
@@ -68,27 +80,25 @@ let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
 
 let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   let actualRepr = DvalReprDeveloper.toRepr actual
-  let actualType = Dval.toType actual
-  let actualTypeRepr = DvalReprDeveloper.typeName actualType
   let expectedTypeRepr = DvalReprDeveloper.typeName p.typ
 
   let conversionMsg =
-    match p.typ, actualType, name with
-    | TInt, TFloat, FQFnName.Stdlib std when
+    match p.typ, actual, name with
+    | TInt, DFloat _, FQFnName.Stdlib std when
       std.module_ = "Int"
       || (std.module_ = "" && Set.contains std.function_ intInfixFns)
       ->
       let altfn = { std with module_ = "Float" }
 
       $" Try using {FQFnName.StdlibFnName.toString altfn}, or use Float::truncate to truncate Floats to Ints."
-    | TInt, TString, FQFnName.Stdlib std when
+    | TInt, DString _, FQFnName.Stdlib std when
       (std.module_ = "Int" && std.function_ = "add")
       || (std.module_ = "" && std.function_ = "+")
       ->
       " Use ++ to concatenate"
     | _ -> ""
-  $"{FQFnName.toString name} was called with a {actualTypeRepr} ({actualRepr}), but `{p.name}` expected "
-  + $"a {expectedTypeRepr}.{conversionMsg}"
+  $"{FQFnName.toString name} was expected to be called with a `{expectedTypeRepr}`"
+  + $" in {p.name}, but was actually called with {actualRepr}.{conversionMsg}"
 
 let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>) =
   let paramLength = List.length fn.parameters

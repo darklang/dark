@@ -131,31 +131,27 @@ module FQFnName =
     | Package of PackageFnName
 
 [<MessagePack.MessagePackObject>]
-type DType =
+type TypeReference =
   | TInt
   | TFloat
   | TBool
   | TUnit
   | TString
-  | TList of DType
-  | TDict of DType
-  | TIncomplete
-  | TError
-  | THttpResponse of DType
-  | TDB of DType
+  | TList of TypeReference
+  | TDict of TypeReference
+  | THttpResponse of TypeReference
+  | TDB of TypeReference
   | TDateTime
   | TChar
   | TPassword
   | TUuid
-  | TOption of DType
-  | TCustomType of typeName : FQTypeName.T * typeArgs : List<DType>
+  | TOption of TypeReference
+  | TCustomType of typeName : FQTypeName.T * typeArgs : List<TypeReference>
   | TBytes
-  | TResult of DType * DType
+  | TResult of TypeReference * TypeReference
   | TVariable of string
-  | TFn of List<DType> * DType
-  | TRecord of List<string * DType>
-  | TDbList of DType // TODO: cleanup and remove
-  | TTuple of DType * DType * List<DType>
+  | TFn of List<TypeReference> * TypeReference
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
 
 [<MessagePack.MessagePackObject>]
 type InfixFnName =
@@ -212,7 +208,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
+  | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
@@ -240,14 +236,14 @@ module CustomType =
       [<MessagePack.Key 1>]
       name : string
       [<MessagePack.Key 2>]
-      typ : DType }
+      typ : TypeReference }
 
   [<MessagePack.MessagePackObject>]
   type EnumField =
     { [<MessagePack.Key 0>]
       id : id
       [<MessagePack.Key 1>]
-      typ : DType
+      typ : TypeReference
       [<MessagePack.Key 2>]
       label : Option<string> }
 
@@ -311,7 +307,7 @@ module DB =
     { [<MessagePack.Key 0>]
       name : Option<string>
       [<MessagePack.Key 1>]
-      typ : Option<DType>
+      typ : Option<TypeReference>
       [<MessagePack.Key 2>]
       nameID : id
       [<MessagePack.Key 3>]
@@ -354,7 +350,7 @@ module UserFunction =
       [<MessagePack.Key 1>]
       name : string
       [<MessagePack.Key 2>]
-      typ : DType
+      typ : TypeReference
       [<MessagePack.Key 3>]
       description : string }
 
@@ -369,7 +365,7 @@ module UserFunction =
       [<MessagePack.Key 3>]
       parameters : List<Parameter>
       [<MessagePack.Key 4>]
-      returnType : DType
+      returnType : TypeReference
       [<MessagePack.Key 5>]
       description : string
       [<MessagePack.Key 6>]
@@ -395,11 +391,11 @@ type Op =
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
-  | SetDBColType of tlid * id * string
+  | SetDBColType of tlid * id * TypeReference
   | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
-  | ChangeDBColType of tlid * id * string
+  | ChangeDBColType of tlid * id * TypeReference
   | UndoTL of tlid
   | RedoTL of tlid
   | SetExpr of tlid * id * Expr

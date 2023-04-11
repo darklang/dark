@@ -17,7 +17,7 @@ let combineErrorsUnit (l : List<Result<'ok, 'err>>) : Result<unit, List<'err>> =
     l
 
 module Error =
-  type TypeUnificationError = { expectedType : DType; actualValue : Dval }
+  type TypeUnificationError = { expectedType : TypeReference; actualValue : Dval }
 
   type IncorrectNumberOfTypeArgsError = { expected : int; actual : int }
 
@@ -87,7 +87,7 @@ open Error
 
 let rec unify
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (expected : DType)
+  (expected : TypeReference)
   (value : Dval)
   : Result<unit, List<Error.T>> =
   match (expected, value) with
@@ -96,7 +96,7 @@ let rec unify
   //
   // Potentially needs to be removed before we use this type checker for DBs?
   //   - Could always have a type checking context that allows/disallows any
-  | TVariable _, _ -> Ok()
+  | TVariable _, _ -> Ok() // CLEANUP actually unify this
   | TInt, DInt _ -> Ok()
   | TFloat, DFloat _ -> Ok()
   | TBool, DBool _ -> Ok()
@@ -117,7 +117,6 @@ let rec unify
   // and type-check the generic type args.
   | TOption _, DOption _ -> Ok()
   | TResult _, DResult _ -> Ok()
-  | TRecord _, DDict _ -> Ok()
 
   | TCustomType (typeName, typeArgs), value ->
     match Map.tryFind typeName availableTypes with
@@ -151,11 +150,31 @@ let rec unify
             err
       | _, _ -> err
 
-  // TODO: support Tuple type-checking.
-  // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
-  | expectedType, actualValue ->
-    Error [ TypeUnificationFailure
-              { expectedType = expectedType; actualValue = actualValue } ]
+  // // TODO: support Tuple type-checking.
+  // // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
+  // TODO: exhaustiveness check
+  | TTuple _, _
+  | TCustomType _, _
+  | TVariable _, _
+  | TInt, _
+  | TFloat, _
+  | TBool, _
+  | TUnit, _
+  | TString, _
+  | TList _, _
+  | TDateTime, _
+  | TDict _, _
+  | TFn _, _
+  | TPassword, _
+  | TUuid, _
+  | TChar, _
+  | TDB _, _
+  | THttpResponse _, _
+  | TBytes, _
+  | TOption _, _
+  | TResult _, _ ->
+    Error [ TypeUnificationFailure { expectedType = expected; actualValue = value } ]
+
 
 
 and unifyUserRecordWithDvalMap
@@ -213,7 +232,7 @@ and unifyUserRecordWithDvalMap
 let checkFunctionCall
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (fn : Fn)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : DvalMap)
   : Result<unit, List<Error.T>> =
 

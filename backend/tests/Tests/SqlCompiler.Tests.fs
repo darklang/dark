@@ -17,7 +17,7 @@ module Errors = LibExecution.Errors
 let compile
   (symtable : DvalMap)
   (paramName : string)
-  (dbFields : List<string * DType>)
+  (dbFields : List<string * TypeReference>)
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {

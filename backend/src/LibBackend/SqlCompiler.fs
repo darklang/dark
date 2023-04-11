@@ -38,7 +38,7 @@ type position =
 // representing the same thing. Currently nothing needs to be canonicalized.
 let rec canonicalize (expr : Expr) : Expr = expr
 
-let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
+let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : SqlValue =
   match expectedType, dval with
   | _, DError _
   | _, DIncomplete _ -> Errors.foundFakeDval dval
@@ -100,8 +100,8 @@ let rec dvalToSql (expectedType : DType) (dval : Dval) : SqlValue =
 
 let rec typecheck
   (name : string)
-  (actualType : DType)
-  (expectedType : DType)
+  (actualType : TypeReference)
+  (expectedType : TypeReference)
   : unit =
   match actualType, expectedType with
   | _, TVariable _ -> ()
@@ -198,11 +198,11 @@ let rec lambdaToSql
   (fns : Map<FQFnName.T, BuiltInFn>)
   (symtable : DvalMap)
   (paramName : string)
-  (dbFields : Map<string, DType>)
-  (expectedType : DType)
+  (dbFields : Map<string, TypeReference>)
+  (expectedType : TypeReference)
   (expr : Expr)
-  : string * List<string * SqlValue> * DType =
-  let lts (typ : DType) (e : Expr) =
+  : string * List<string * SqlValue> * TypeReference =
+  let lts (typ : TypeReference) (e : Expr) =
     lambdaToSql fns symtable paramName dbFields typ e
 
   match expr with
@@ -303,11 +303,13 @@ let rec lambdaToSql
   | EVariable (_, varname) ->
     match Map.get varname symtable with
     | Some dval ->
-      let actualType = Dval.toType dval
-      typecheck $"variable {varname}" actualType expectedType
-      let random = randomString 8
-      let newname = $"{varname}_{random}"
-      $"(@{newname})", [ newname, dvalToSql actualType dval ], actualType
+      // TYPESCLEANUP
+      Exception.raiseInternal "sqlcompiler var" []
+    // let actualType = Dval.toType dval
+    // typecheckDval $"variable {varname}" dval expectedType
+    // let random = randomString 8
+    // let newname = $"{varname}_{random}"
+    // $"(@{newname})", [ newname, dvalToSql actualType dval ], actualType
     | None -> error $"This variable is not defined: {varname}"
 
   | EInt (_, v) ->
@@ -617,7 +619,7 @@ let compileLambda
   (state : ExecutionState)
   (symtable : DvalMap)
   (paramName : string)
-  (dbFields : Map<string, DType>)
+  (dbFields : Map<string, TypeReference>)
   (body : Expr)
   : Task<string * List<string * SqlValue>> =
   task {

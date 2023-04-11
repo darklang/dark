@@ -32,8 +32,8 @@ module FQTypeName =
     | PT.FQTypeName.Package p -> RT.FQTypeName.Package(PackageTypeName.toRT p)
 
 
-module DType =
-  let rec toRT (t : PT.DType) : RT.DType =
+module TypeReference =
+  let rec toRT (t : PT.TypeReference) : RT.TypeReference =
     match t with
     | PT.TInt -> RT.TInt
     | PT.TFloat -> RT.TFloat
@@ -44,8 +44,6 @@ module DType =
     | PT.TTuple (firstType, secondType, otherTypes) ->
       RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)
     | PT.TDict typ -> RT.TDict(toRT typ)
-    | PT.TIncomplete -> RT.TIncomplete
-    | PT.TError -> RT.TError
     | PT.THttpResponse typ -> RT.THttpResponse(toRT typ)
     | PT.TDB typ -> RT.TDB(toRT typ)
     | PT.TDateTime -> RT.TDateTime
@@ -60,9 +58,6 @@ module DType =
     | PT.TVariable (name) -> RT.TVariable(name)
     | PT.TFn (paramTypes, returnType) ->
       RT.TFn(List.map toRT paramTypes, toRT returnType)
-    | PT.TRecord (rows) ->
-      RT.TRecord(List.map (fun (f, t : PT.DType) -> f, toRT t) rows)
-    | PT.TDbList typ -> RT.TList(toRT typ)
 
 
 module FQFnName =
@@ -148,7 +143,7 @@ module Expr =
       RT.EApply(
         id,
         RT.FnName(FQFnName.toRT fnName),
-        List.map DType.toRT typeArgs,
+        List.map TypeReference.toRT typeArgs,
         List.map toRT args
       )
     | PT.EInfix (id, PT.InfixFnCall fnName, arg1, arg2) ->
@@ -193,7 +188,7 @@ module Expr =
               RT.EApply(
                 id,
                 RT.FnName(FQFnName.toRT fnName),
-                List.map DType.toRT typeArgs,
+                List.map TypeReference.toRT typeArgs,
                 prev :: List.map toRT exprs
               )
             | PT.EInfix (id, PT.InfixFnCall fnName, PT.EPipeTarget ptID, expr2) ->
@@ -249,11 +244,11 @@ module Expr =
 module CustomType =
   module RecordField =
     let toRT (f : PT.CustomType.RecordField) : RT.CustomType.RecordField =
-      { id = f.id; name = f.name; typ = DType.toRT f.typ }
+      { id = f.id; name = f.name; typ = TypeReference.toRT f.typ }
 
   module EnumField =
     let toRT (f : PT.CustomType.EnumField) : RT.CustomType.EnumField =
-      { id = f.id; typ = DType.toRT f.typ; label = f.label }
+      { id = f.id; typ = TypeReference.toRT f.typ; label = f.label }
 
   module EnumCase =
     let toRT (c : PT.CustomType.EnumCase) : RT.CustomType.EnumCase =
@@ -305,7 +300,7 @@ module DB =
         List.filterMap
           (fun (c : PT.DB.Col) ->
             match c.name, c.typ with
-            | Some n, Some t -> Some(n, DType.toRT t)
+            | Some n, Some t -> Some(n, TypeReference.toRT t)
             | _ -> None)
           db.cols }
 
@@ -318,14 +313,14 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name; typ = DType.toRT p.typ; description = p.description }
+      { name = p.name; typ = TypeReference.toRT p.typ; description = p.description }
 
   let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid
       name = f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
-      returnType = DType.toRT f.returnType
+      returnType = TypeReference.toRT f.returnType
       description = f.description
       infix = f.infix
       body = Expr.toRT f.body }
@@ -344,18 +339,16 @@ module Secret =
 module Package =
   module Parameter =
     let toRT (p : PT.Package.Parameter) : RT.Package.Parameter =
-      { name = p.name; typ = DType.toRT p.typ; description = p.description }
+      { name = p.name; typ = TypeReference.toRT p.typ; description = p.description }
 
   let toRT (f : PT.Package.Fn) : RT.Package.Fn =
     { name = FQFnName.PackageFnName.toRT f.name
       body = Expr.toRT f.body
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
-      returnType = DType.toRT f.returnType
+      returnType = TypeReference.toRT f.returnType
       description = f.description
-      author = f.author
-      deprecated = f.deprecated
-      tlid = f.tlid }
+      deprecated = f.deprecated }
 
 module BuiltInType =
   let toRT (t : PT.BuiltInType) : RT.BuiltInType =

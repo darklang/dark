@@ -50,31 +50,27 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
-type DType =
+type TypeReference =
   | TInt
   | TFloat
   | TBool
   | TUnit
   | TString
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TDict of DType
-  | TIncomplete
-  | TError
-  | THttpResponse of DType
-  | TDB of DType
+  | TList of TypeReference
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TDict of TypeReference
+  | THttpResponse of TypeReference
+  | TDB of TypeReference
   | TDateTime
   | TChar
   | TPassword
   | TUuid
-  | TOption of DType
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+  | TOption of TypeReference
+  | TCustomType of FQTypeName.T * typeArgs : List<TypeReference>
   | TBytes
-  | TResult of DType * DType
+  | TResult of TypeReference * TypeReference
   | TVariable of string
-  | TFn of List<DType> * DType
-  | TRecord of List<string * DType>
-  | TDbList of DType
+  | TFn of List<TypeReference> * TypeReference
 
 type InfixFnName =
   | ArithmeticPlus
@@ -126,7 +122,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * typeArgs : List<DType> * args : List<Expr>
+  | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
@@ -146,9 +142,9 @@ and StringSegment =
 
 
 module CustomType =
-  type RecordField = { id : id; name : string; typ : DType }
+  type RecordField = { id : id; name : string; typ : TypeReference }
 
-  type EnumField = { id : id; typ : DType; label : Option<string> }
+  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
   type EnumCase = { id : id; name : string; fields : List<EnumField> }
 
   type T =
@@ -178,7 +174,11 @@ module Handler =
 
 
 module DB =
-  type Col = { name : Option<string>; typ : Option<DType>; nameID : id; typeID : id }
+  type Col =
+    { name : Option<string>
+      typ : Option<TypeReference>
+      nameID : id
+      typeID : id }
 
   type T =
     { tlid : tlid
@@ -194,12 +194,16 @@ module UserType =
 
 
 module UserFunction =
-  type Parameter = { id : id; name : string; typ : DType; description : string }
+  type Parameter =
+    { id : id
+      name : string
+      typ : TypeReference
+      description : string }
 
   type T =
     { tlid : tlid
       name : string
-      returnType : DType
+      returnType : TypeReference
       typeParams : List<string>
       parameters : List<Parameter>
       description : string
@@ -217,21 +221,21 @@ type Op =
   | CreateDB of tlid * string
   | AddDBCol of tlid * id * id
   | SetDBColName of tlid * id * string
-  | SetDBColType of tlid * id * string
+  | SetDBColType of tlid * id * TypeReference
   | DeleteTL of tlid
   | SetFunction of UserFunction.T
   | ChangeDBColName of tlid * id * string
-  | ChangeDBColType of tlid * id * string
+  | ChangeDBColType of tlid * id * TypeReference
   | UndoTL of tlid
   | RedoTL of tlid
   | SetExpr of tlid * id * Expr
   | TLSavepoint of tlid
-  | DeleteFunction of tlid
+  | DeleteFunction of tlid // CLEANUP fold into DeleteTL
   | DeleteDBCol of tlid * id
   | RenameDBname of tlid * string
   | CreateDBWithBlankOr of tlid * id * string
   | SetType of UserType.T
-  | DeleteType of tlid
+  | DeleteType of tlid // CLEANUP fold into DeleteTL
 
 type Oplist = List<Op>
 
@@ -240,14 +244,14 @@ type TLIDOplists = List<tlid * Oplist>
 type Secret = { name : string; value : string; version : int }
 
 module Package =
-  type Parameter = { name : string; typ : DType; description : string }
+  type Parameter = { name : string; typ : TypeReference; description : string }
 
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr
       typeParams : List<string>
       parameters : List<Parameter>
-      returnType : DType
+      returnType : TypeReference
       description : string
       author : string
       deprecated : bool
