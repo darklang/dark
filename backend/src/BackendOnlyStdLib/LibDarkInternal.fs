@@ -19,25 +19,13 @@ open LibBackend
 module SchedulingRules = LibBackend.QueueSchedulingRules
 
 let fn = FQFnName.stdlibFnName
+let typ = FQTypeName.stdlibTypeName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-// TODO: publish Dark types, and use them rather than these
-// anonymous-ish types
-module Types =
-  module Canvas =
-    let meta = TRecord([ "id", TUuid ])
-
-    let dbMeta = TRecord([ "tlid", TString; "name", TString ])
-
-    let httpHandlerMeta =
-      TRecord([ "tlid", TString; "method", TString; "route", TString ])
-
-    let program =
-      TRecord([ "dbs", TList(dbMeta); "httpHandlers", TList(httpHandlerMeta) ])
 
 // only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
@@ -66,6 +54,56 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
         return DUnit
       }
     | _ -> incorrectArgs ())
+
+let types : List<BuiltInType> =
+  [ { name = typ "Canvas" "Meta" 0
+      typeParams = []
+      definition = CustomType.Record({ id = 1UL; name = "id"; typ = TUuid }, [])
+      description = "Metadata about a canvas" }
+    { name = typ "Canvas" "DB" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 2UL; name = "name"; typ = TString },
+          [ { id = 3UL; name = "tlid"; typ = TString } ]
+        )
+      description = "A database on a canvas" }
+    { name = typ "Canvas" "HttpHandler" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 2UL; name = "method"; typ = TString },
+          [ { id = 3UL; name = "route"; typ = TString }
+            { id = 4UL; name = "tlid"; typ = TString } ]
+        )
+      description = "An HTTP handler on a canvas" }
+    { name = typ "Canvas" "Program" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 1UL; name = "id"; typ = TUuid },
+          [ { id = 2UL
+              name = "dbs"
+              typ = TList(TCustomType(FQTypeName.Stdlib(typ "Canvas" "DB" 0), [])) }
+            { id = 3UL
+              name = "httpHandlers"
+              typ =
+                TList(
+                  TCustomType(FQTypeName.Stdlib(typ "Canvas" "HttpHandler" 0), [])
+                ) } ]
+        )
+      description = "A program on a canvas" }
+    { name = typ "Canvas" "F404" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 1UL; name = "space"; typ = TString },
+          [ { id = 3UL; name = "path"; typ = TString }
+            { id = 4UL; name = "modifier"; typ = TString }
+            { id = 5UL; name = "timestamp"; typ = TDateTime }
+            { id = 6UL; name = "traceID"; typ = TUuid } ]
+        )
+      description = "A 404 trace" } ]
 
 
 let fns : List<BuiltInFn> =
@@ -417,14 +455,7 @@ human-readable data."
     { name = fn "DarkInternal" "getRecent404s" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType =
-        TList(
-          TRecord [ "space", TString
-                    "path", TString
-                    "modifier", TString
-                    "timestamp", TDateTime
-                    "traceID", TUuid ]
-        )
+      returnType = TList(TCustomType(FQTypeName.Stdlib(typ "Canvas" "F404" 0), []))
       description = "Fetch a list of recent 404s"
       fn =
         internalFn (function
@@ -704,7 +735,7 @@ human-readable data."
     { name = fn "DarkInternal" "darkEditorCanvas" 0
       typeParams = []
       parameters = []
-      returnType = Types.Canvas.meta
+      returnType = TCustomType(FQTypeName.Stdlib(typ "Canvas" "Meta" 0), [])
       description = "Returns basic details of the dark-editor canvas"
       fn =
         internalFn (function
@@ -722,7 +753,11 @@ human-readable data."
     { name = fn "DarkInternal" "canvasProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TResult(Types.Canvas.program, TString)
+      returnType =
+        TResult(
+          TCustomType(FQTypeName.Stdlib(typ "Canvas" "Program" 0), []),
+          TString
+        )
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
