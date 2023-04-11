@@ -75,6 +75,25 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+    { name = fn "System" "getEnv" 0
+      typeParams = []
+      parameters = [ Param.make "varName" TString "" ]
+      returnType = TOption TString
+      description =
+        "Gets the value of the environment variable with the given <param varName> if it exists."
+      fn =
+        (function
+        | _, _, [ DString varName ] ->
+          let envValue = System.Environment.GetEnvironmentVariable(varName)
+          match envValue with
+          | null -> Ply(DOption None)
+          | _ -> Ply(DOption(Some(DString envValue)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
 
     { name = fn "File" "write" 0
       typeParams = []
