@@ -164,18 +164,8 @@ let rec private toJsonV0
 
 
 
-let toJsonStringV0
-  (fieldTypes : List<string * TypeReference>)
-  (dvalMap : DvalMap)
-  : string =
-  let fieldTypes = Map fieldTypes
-  writeJson (fun w ->
-    w.writeObject (fun () ->
-      dvalMap
-      |> Map.toList
-      |> List.iter (fun (k, dval) ->
-        w.WritePropertyName k
-        toJsonV0 w (Map.find k fieldTypes) dval)))
+let toJsonStringV0 (typ : TypeReference) (dval : Dval) : string =
+  writeJson (fun w -> toJsonV0 w typ dval)
 
 
 let parseJsonV0 (typ : TypeReference) (str : string) : Dval =

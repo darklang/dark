@@ -303,32 +303,15 @@ module Handler =
 
 module DB =
   [<MessagePack.MessagePackObject>]
-  type Col =
-    { [<MessagePack.Key 0>]
-      name : Option<string>
-      [<MessagePack.Key 1>]
-      typ : Option<TypeReference>
-      [<MessagePack.Key 2>]
-      nameID : id
-      [<MessagePack.Key 3>]
-      typeID : id }
-
-  [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
-
       [<MessagePack.Key 1>]
-      nameID : id
-
-      [<MessagePack.Key 2>]
       name : string
-
-      [<MessagePack.Key 3>]
+      [<MessagePack.Key 2>]
       version : int
-
-      [<MessagePack.Key 4>]
-      cols : List<Col> }
+      [<MessagePack.Key 3>]
+      typ : TypeReference }
 
 
 module UserType =
@@ -387,28 +370,22 @@ module Toplevel =
 /// and is preferred throughout code and documentation.
 [<MessagePack.MessagePackObject>]
 type Op =
+  | SetExpr of tlid * id * Expr
   | SetHandler of Handler.T
-  | CreateDB of tlid * string
-  | AddDBCol of tlid * id * id
-  | SetDBColName of tlid * id * string
-  | SetDBColType of tlid * id * TypeReference
-  | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
   | SetFunction of UserFunction.T
-  | ChangeDBColName of tlid * id * string
-  | ChangeDBColType of tlid * id * TypeReference
+  | SetType of UserType.T
+  | CreateDB of tlid * string * TypeReference
+  | RenameDB of tlid * string
+
+  | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
+  | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
+  | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
+
+  // CLEANUP this way of doing undo/redo is bad, should be per-user
+  | TLSavepoint of tlid
   | UndoTL of tlid
   | RedoTL of tlid
-  | SetExpr of tlid * id * Expr
-  | TLSavepoint of tlid
-  | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | DeleteDBCol of tlid * id
-  | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * id * string
-  | DeleteTLForever of tlid // CLEANUP not used, can be removed (carefully)
-  | DeleteFunctionForever of tlid // CLEANUP not used, can be removed (carefully)
-  | SetType of UserType.T
-  | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | DeleteTypeForever of tlid // CLEANUP not used, can be removed (carefully)
+
 
 [<MessagePack.MessagePackObject>]
 type Oplist = List<Op>

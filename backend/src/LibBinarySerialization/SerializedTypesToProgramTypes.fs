@@ -253,16 +253,8 @@ module DB =
   let toPT (db : ST.DB.T) : PT.DB.T =
     { tlid = db.tlid
       name = db.name
-      nameID = db.nameID
       version = db.version
-      cols =
-        List.map
-          (fun (c : ST.DB.Col) ->
-            { name = c.name
-              nameID = c.nameID
-              typ = Option.map TypeReference.toPT c.typ
-              typeID = c.typeID })
-          db.cols }
+      typ = TypeReference.toPT db.typ }
 
 module UserType =
   let toPT (t : ST.UserType.T) : PT.UserType.T =
@@ -300,28 +292,15 @@ module Op =
   let toPT (op : ST.Op) : Option<PT.Op> =
     match op with
     | ST.SetHandler (handler) -> Some(PT.SetHandler(Handler.toPT handler))
-    | ST.CreateDB (tlid, name) -> Some(PT.CreateDB(tlid, name))
-    | ST.AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
-    | ST.SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
-    | ST.SetDBColType (tlid, id, typ) ->
-      Some(PT.SetDBColType(tlid, id, TypeReference.toPT typ))
+    | ST.CreateDB (tlid, name, typ) ->
+      Some(PT.CreateDB(tlid, name, TypeReference.toPT typ))
     | ST.DeleteTL tlid -> Some(PT.DeleteTL tlid)
     | ST.SetFunction fn -> Some(PT.SetFunction(UserFunction.toPT fn))
-    | ST.ChangeDBColName (tlid, id, string) ->
-      Some(PT.ChangeDBColName(tlid, id, string))
-    | ST.ChangeDBColType (tlid, id, typ) ->
-      Some(PT.ChangeDBColType(tlid, id, TypeReference.toPT typ))
     | ST.UndoTL tlid -> Some(PT.UndoTL tlid)
     | ST.RedoTL tlid -> Some(PT.RedoTL tlid)
     | ST.SetExpr (tlid, id, e) -> Some(PT.SetExpr(tlid, id, Expr.toPT e))
     | ST.TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
     | ST.DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
-    | ST.DeleteDBCol (tlid, id) -> Some(PT.DeleteDBCol(tlid, id))
-    | ST.RenameDBname (tlid, string) -> Some(PT.RenameDBname(tlid, string))
-    | ST.CreateDBWithBlankOr (tlid, id, string) ->
-      Some(PT.CreateDBWithBlankOr(tlid, id, string))
+    | ST.RenameDB (tlid, string) -> Some(PT.RenameDB(tlid, string))
     | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
     | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
-    | ST.DeleteTLForever _
-    | ST.DeleteFunctionForever _
-    | ST.DeleteTypeForever _ -> None

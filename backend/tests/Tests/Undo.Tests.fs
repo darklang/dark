@@ -81,16 +81,14 @@ let testUndo : Test =
 let testCanvasVerificationUndoRenameDupedName : Test =
   testTask "verification triggers in undo/redo case" {
     let dbID = gid ()
-    let nameID = gid ()
     let dbID2 = gid ()
-    let nameID2 = gid ()
     let canvasID = System.Guid.NewGuid()
 
     let ops1 =
-      [ PT.CreateDBWithBlankOr(dbID, nameID, "Books")
+      [ PT.CreateDB(dbID, "Books", PT.TInt)
         PT.TLSavepoint dbID
         PT.DeleteTL dbID
-        PT.CreateDBWithBlankOr(dbID2, nameID2, "Books") ]
+        PT.CreateDB(dbID2, "Books", PT.TFloat) ]
 
     Canvas.fromOplist canvasID [] ops1 |> ignore<Canvas.T>
 

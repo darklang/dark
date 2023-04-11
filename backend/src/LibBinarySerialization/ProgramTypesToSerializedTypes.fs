@@ -250,16 +250,8 @@ module DB =
   let toST (db : PT.DB.T) : ST.DB.T =
     { tlid = db.tlid
       name = db.name
-      nameID = db.nameID
       version = db.version
-      cols =
-        List.map
-          (fun (c : PT.DB.Col) ->
-            { name = c.name
-              nameID = c.nameID
-              typ = Option.map TypeReference.toST c.typ
-              typeID = c.typeID })
-          db.cols }
+      typ = TypeReference.toST db.typ }
 
 
 module UserType =
@@ -299,24 +291,15 @@ module Op =
   let toST (op : PT.Op) : ST.Op =
     match op with
     | PT.SetHandler (handler) -> ST.SetHandler(Handler.toST handler)
-    | PT.CreateDB (tlid, name) -> ST.CreateDB(tlid, name)
-    | PT.AddDBCol (tlid, id1, id2) -> ST.AddDBCol(tlid, id1, id2)
-    | PT.SetDBColName (tlid, id, name) -> ST.SetDBColName(tlid, id, name)
-    | PT.SetDBColType (tlid, id, typ) ->
-      ST.SetDBColType(tlid, id, TypeReference.toST typ)
+    | PT.CreateDB (tlid, name, typ) ->
+      ST.CreateDB(tlid, name, TypeReference.toST typ)
     | PT.DeleteTL tlid -> ST.DeleteTL tlid
     | PT.SetFunction fn -> ST.SetFunction(UserFunction.toST fn)
-    | PT.ChangeDBColName (tlid, id, string) -> ST.ChangeDBColName(tlid, id, string)
-    | PT.ChangeDBColType (tlid, id, typ) ->
-      ST.ChangeDBColType(tlid, id, TypeReference.toST typ)
     | PT.UndoTL tlid -> ST.UndoTL tlid
     | PT.RedoTL tlid -> ST.RedoTL tlid
     | PT.SetExpr (tlid, id, e) -> ST.SetExpr(tlid, id, Expr.toST e)
     | PT.TLSavepoint tlid -> ST.TLSavepoint tlid
     | PT.DeleteFunction tlid -> ST.DeleteFunction tlid
-    | PT.DeleteDBCol (tlid, id) -> ST.DeleteDBCol(tlid, id)
-    | PT.RenameDBname (tlid, string) -> ST.RenameDBname(tlid, string)
-    | PT.CreateDBWithBlankOr (tlid, id, string) ->
-      ST.CreateDBWithBlankOr(tlid, id, string)
+    | PT.RenameDB (tlid, string) -> ST.RenameDB(tlid, string)
     | PT.SetType tipe -> ST.SetType(UserType.toST tipe)
     | PT.DeleteType tlid -> ST.DeleteType tlid

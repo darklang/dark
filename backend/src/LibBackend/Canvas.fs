@@ -226,20 +226,10 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   try
     match op with
     | PT.SetHandler h -> setHandler h c
-    | PT.CreateDB (tlid, name) ->
-      if isNew && name = "" then Exception.raiseEditor "DB must have a name"
-      let db = UserDB.create tlid name
+    | PT.CreateDB (tlid, name, typ) ->
+      if name = "" then Exception.raiseEditor "DB must have a name"
+      let db = UserDB.create tlid name typ
       setDB db c
-    | PT.AddDBCol (tlid, colid, typeid) ->
-      applyToDB (UserDB.addCol colid typeid) tlid c
-    | PT.SetDBColName (tlid, id, name) ->
-      applyToDB (UserDB.setColName id name) tlid c
-    | PT.ChangeDBColName (tlid, id, name) ->
-      applyToDB (UserDB.setColName id name) tlid c
-    | PT.SetDBColType (tlid, id, typ) -> applyToDB (UserDB.setColType id typ) tlid c
-    | PT.ChangeDBColType (tlid, id, typ) ->
-      applyToDB (UserDB.setColType id typ) tlid c
-    | PT.DeleteDBCol (tlid, id) -> applyToDB (UserDB.deleteCol id) tlid c
     | PT.SetExpr (_tlid, _id, _e) ->
       // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
       // applyToAllToplevels (TL.set_expr id e) tlid c
@@ -253,9 +243,7 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
       Exception.raiseInternal
         "Undo/Redo op should have been preprocessed out!"
         [ "op", op ]
-    | PT.RenameDBname (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
-    | PT.CreateDBWithBlankOr (tlid, id, name) ->
-      setDB (UserDB.create2 tlid name id) c
+    | PT.RenameDB (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
   with

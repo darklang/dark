@@ -174,18 +174,7 @@ module Handler =
 
 
 module DB =
-  type Col =
-    { name : Option<string>
-      typ : Option<TypeReference>
-      nameID : id
-      typeID : id }
-
-  type T =
-    { tlid : tlid
-      name : string
-      nameID : id
-      version : int
-      cols : List<Col> }
+  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
 
 module UserType =
@@ -217,25 +206,21 @@ type Toplevel =
   | TLType of UserType.T
 
 type Op =
+  | SetExpr of tlid * id * Expr
   | SetHandler of Handler.T
-  | CreateDB of tlid * string
-  | AddDBCol of tlid * id * id
-  | SetDBColName of tlid * id * string
-  | SetDBColType of tlid * id * TypeReference
-  | DeleteTL of tlid
   | SetFunction of UserFunction.T
-  | ChangeDBColName of tlid * id * string
-  | ChangeDBColType of tlid * id * TypeReference
+  | SetType of UserType.T
+  | CreateDB of tlid * string * TypeReference
+  | RenameDB of tlid * string
+
+  | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
+  | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
+  | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
+
+  // CLEANUP this way of doing undo/redo is bad, should be per-user
+  | TLSavepoint of tlid
   | UndoTL of tlid
   | RedoTL of tlid
-  | SetExpr of tlid * id * Expr
-  | TLSavepoint of tlid
-  | DeleteFunction of tlid // CLEANUP fold into DeleteTL
-  | DeleteDBCol of tlid * id
-  | RenameDBname of tlid * string
-  | CreateDBWithBlankOr of tlid * id * string
-  | SetType of UserType.T
-  | DeleteType of tlid // CLEANUP fold into DeleteTL
 
 type Oplist = List<Op>
 

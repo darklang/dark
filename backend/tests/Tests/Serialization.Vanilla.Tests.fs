@@ -27,6 +27,9 @@ module V = SerializationTestValues
 module ClientTestValues =
   let dval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT V.RuntimeTypes.dval
 
+  let dtypes : List<CTRuntime.TypeReference> =
+    List.map CT2Runtime.TypeReference.toCT V.RuntimeTypes.dtypes
+
   let addOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
     { handlers = V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
       deletedHandlers =
@@ -198,12 +201,7 @@ module PersistedSerializations =
               dbs =
                 [ { tlid = V.tlid
                     name = "dbname"
-                    nameID = 7UL
-                    cols =
-                      [ { name = Some("colname")
-                          nameID = 8UL
-                          typ = Some(CT2Program.TypeReference.toCT PT.TInt)
-                          typeID = 9UL } ]
+                    typ = ClientTypes.Program.TInt
                     version = 1 } ]
               userFns =
                 List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
@@ -223,12 +221,7 @@ module PersistedSerializations =
               dbs =
                 [ { tlid = V.tlid
                     name = "dbname"
-                    nameID = 7UL
-                    cols =
-                      [ { name = Some("colname")
-                          nameID = 8UL
-                          typ = Some(CT2Program.TypeReference.toCT PT.TInt)
-                          typeID = 9UL } ]
+                    typ = ClientTypes.Program.TInt
                     version = 1 } ]
               userFns =
                 List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions

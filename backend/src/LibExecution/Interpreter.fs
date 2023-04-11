@@ -602,26 +602,10 @@ and callFn
         | None ->
           let fnRecord = (state.tlid, desc, callerID)
           let fnResult = state.tracing.loadFnResult fnRecord argvals
-          // In the case of DB::query (and friends), we want to backfill
-          // the lambda's livevalues, as the lambda was never actually
-          // executed. We hack this is here as we have no idea what this
-          // abstraction might look like in the future.
-          if state.tracing.realOrPreview = Preview && FQFnName.isDBQueryFn desc then
-            match argvals with
-            | [ DDB dbname; DFnVal (Lambda b) ] ->
-              let sample =
-                match fnResult with
-                | Some (DList (sample :: _), _) -> sample
-                | _ ->
-                  Map.find dbname state.program.dbs
-                  |> (fun (db : DB.T) -> db.cols)
-                  |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
-                  |> Map.ofList
-                  |> DDict
 
-              let! (_ : Dval) = executeLambda state b [ sample ]
-              ()
-            | _ -> ()
+          // TODO: in an old version, we executed the lambda with a fake value to
+          // give enough livevalues for the editor to autocomplete. It may be worth
+          // doing this again
 
           match fnResult with
           | Some (result, _ts) -> return result

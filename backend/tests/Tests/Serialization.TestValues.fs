@@ -550,20 +550,9 @@ module ProgramTypes =
 
   let userDB : PT.DB.T =
     { tlid = 0UL
-      nameID = 2399545UL
       name = "User"
       version = 0
-      cols =
-        [ { name = None; typ = None; nameID = 2949054UL; typeID = 5929202UL }
-          { name = None; typ = Some PT.TInt; nameID = 20109857UL; typeID = 299063UL }
-          { name = Some "name"
-            typ = None
-            nameID = 28234232UL
-            typeID = 029985336UL }
-          { name = Some "value"
-            typ = Some dtype
-            nameID = 923982352UL
-            typeID = 289429232UL } ] }
+      typ = PT.TCustomType(PT.FQTypeName.User { typ = "User"; version = 0 }, []) }
 
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
@@ -630,22 +619,15 @@ module ProgramTypes =
     let id = 923832423UL
     let tlid = 94934534UL
     [ PT.SetHandler(Handler.http)
-      PT.CreateDB(tlid, "name")
-      PT.AddDBCol(tlid, id, id)
-      PT.SetDBColName(tlid, id, "name")
-      PT.SetDBColType(tlid, id, PT.TInt)
+      PT.CreateDB(tlid, "name", PT.TFloat)
       PT.DeleteTL tlid
       PT.SetFunction(userFunction)
-      PT.ChangeDBColName(tlid, id, "name")
-      PT.ChangeDBColType(tlid, id, PT.TInt)
       PT.UndoTL tlid
       PT.RedoTL tlid
       PT.SetExpr(tlid, id, expr)
       PT.TLSavepoint tlid
       PT.DeleteFunction tlid
-      PT.DeleteDBCol(tlid, id)
-      PT.RenameDBname(tlid, "newname")
-      PT.CreateDBWithBlankOr(tlid, id, "User")
+      PT.RenameDB(tlid, "newname")
       PT.SetType(userRecordType)
       PT.DeleteType tlid ]
 

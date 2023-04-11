@@ -119,11 +119,8 @@ let testUserRecordType
 
 
 
-let testDBCol (name : Option<string>) (typ : Option<PT.TypeReference>) : PT.DB.Col =
-  { name = name; typ = typ; nameID = gid (); typeID = gid () }
-
-let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
-  { tlid = gid (); nameID = gid (); name = name; cols = cols; version = 0 }
+let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
+  { tlid = gid (); name = name; typ = typ; version = 0 }
 
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.

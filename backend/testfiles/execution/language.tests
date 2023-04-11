@@ -561,7 +561,8 @@ module Equality =
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x)) = true
 
-  [<DB>] type MyDB = { x : String; y: String }
+  type MyDBType = { x : String; y: String }
+  [<DB>] type MyDB = MyDBType
   (MyDB == MyDB) = true
   (MyDB != 5) = Test.typeError_v0 "Both values must be the same type"
 

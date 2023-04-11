@@ -198,12 +198,13 @@ let rec lambdaToSql
   (fns : Map<FQFnName.T, BuiltInFn>)
   (symtable : DvalMap)
   (paramName : string)
-  (dbFields : Map<string, TypeReference>)
+  (programTypes : Map<FQTypeName.T, CustomType.T>)
+  (dbType : TypeReference)
   (expectedType : TypeReference)
   (expr : Expr)
   : string * List<string * SqlValue> * TypeReference =
   let lts (typ : TypeReference) (e : Expr) =
-    lambdaToSql fns symtable paramName dbFields typ e
+    lambdaToSql fns symtable paramName programTypes dbType typ e
 
   match expr with
   | EApply (_, FnName name, [], args) ->
@@ -375,42 +376,43 @@ let rec lambdaToSql
 
 
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
-    let dbFieldType =
-      match Map.get fieldname dbFields with
-      | Some v -> v
-      | None -> error2 "The datastore does not have a field named" fieldname
-    typecheck fieldname dbFieldType expectedType
+    Exception.raiseInternal "sqlcompiler EFieldAccess" []
+  // let dbFieldType =
+  //   match Map.get fieldname dbType with
+  //   | Some v -> v
+  //   | None -> error2 "The datastore does not have a field named" fieldname
+  // typecheck fieldname dbFieldType expectedType
 
-    let primitiveFieldType t =
-      match t with
-      | TString -> "text"
-      | TInt -> "bigint"
-      | TFloat -> "double precision"
-      | TBool -> "bool"
-      | TDateTime -> "timestamp with time zone"
-      | TChar -> "text"
-      | TUuid -> "uuid"
-      | TUnit -> "bigint"
-      | _ -> error $"We do not support this type of DB field yet: {t}"
+  // let primitiveFieldType t =
+  //   match t with
+  //   | TString -> "text"
+  //   | TInt -> "bigint"
+  //   | TFloat -> "double precision"
+  //   | TBool -> "bool"
+  //   | TDateTime -> "timestamp with time zone"
+  //   | TChar -> "text"
+  //   | TUuid -> "uuid"
+  //   | TUnit -> "bigint"
+  //   | _ -> error $"We do not support this type of DB field yet: {t}"
 
-    let fieldname = escapeFieldname fieldname
-    match dbFieldType with
-    | TString
-    | TInt
-    | TFloat
-    | TBool
-    | TDateTime
-    | TChar
-    | TUuid
-    | TUnit ->
-      let typename = primitiveFieldType dbFieldType
-      $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
-    | TList t ->
-      let typename = primitiveFieldType t
-      let sql =
-        $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
-      (sql, [], dbFieldType)
-    | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
+  // let fieldname = escapeFieldname fieldname
+  // match dbFieldType with
+  // | TString
+  // | TInt
+  // | TFloat
+  // | TBool
+  // | TDateTime
+  // | TChar
+  // | TUuid
+  // | TUnit ->
+  //   let typename = primitiveFieldType dbFieldType
+  //   $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
+  // | TList t ->
+  //   let typename = primitiveFieldType t
+  //   let sql =
+  //     $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
+  //   (sql, [], dbFieldType)
+  // | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
   | _ -> error $"We do not yet support compiling this code: {expr}"
 
 
@@ -619,7 +621,7 @@ let compileLambda
   (state : ExecutionState)
   (symtable : DvalMap)
   (paramName : string)
-  (dbFields : Map<string, TypeReference>)
+  (dbType : TypeReference)
   (body : Expr)
   : Task<string * List<string * SqlValue>> =
   task {
@@ -635,8 +637,17 @@ let compileLambda
       |> partiallyEvaluate state paramName symtable
       |> Ply.TplPrimitives.runPlyAsTask
 
+    let types = ExecutionState.availableTypes state
+
     let sql, vars, _expectedType =
-      lambdaToSql state.libraries.stdlibFns symtable paramName dbFields TBool body
+      lambdaToSql
+        state.libraries.stdlibFns
+        symtable
+        paramName
+        types
+        dbType
+        TBool
+        body
 
     return (sql, vars)
   }

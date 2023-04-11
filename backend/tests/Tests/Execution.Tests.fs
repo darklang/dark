@@ -85,14 +85,26 @@ let testExecFunctionTLIDs : Test =
     Expect.equal value (DInt 5L) "sanity check"
   }
 
+// TYPESCLEANUP add tests for non-record-shaped types
 
 let testOtherDbQueryFunctionsHaveAnalysis : Test =
   testTask
     "The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends." {
     let varID = gid ()
 
+    let typeName : FQTypeName.UserTypeName = { typ = "MyDBType"; version = 0 }
+    let field : CustomType.RecordField = { id = gid (); name = "age"; typ = TInt }
+    let userType : UserType.T =
+      { tlid = gid (); name = typeName; definition = CustomType.Record(field, []) }
+    let userTypes = Map [ typeName, userType ]
+
     let (db : DB.T) =
-      { tlid = gid (); name = "MyDB"; version = 0; cols = [ "age", TInt ] }
+      { tlid = gid ()
+        name = "MyDB"
+        version = 0
+        typ = TCustomType(FQTypeName.User typeName, []) }
+    let dbs = Map [ "MyDB", db ]
+
 
     let ast =
       eFn
@@ -103,8 +115,7 @@ let testOtherDbQueryFunctionsHaveAnalysis : Test =
         [ eVar "MyDB"
           eLambda [ "value" ] (eFieldAccess (EVariable(varID, "value")) "age") ]
 
-    let! (results, state) =
-      executionStateForPreview "test" (Map [ "MyDB", db ]) Map.empty Map.empty
+    let! (results, state) = executionStateForPreview "test" dbs userTypes Map.empty
 
     let state =
       { state with libraries = { state.libraries with stdlibFns = Map.empty } }

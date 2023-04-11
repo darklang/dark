@@ -296,13 +296,7 @@ module DB =
     { tlid = db.tlid
       name = db.name
       version = db.version
-      cols =
-        List.filterMap
-          (fun (c : PT.DB.Col) ->
-            match c.name, c.typ with
-            | Some n, Some t -> Some(n, TypeReference.toRT t)
-            | _ -> None)
-          db.cols }
+      typ = TypeReference.toRT db.typ }
 
 module UserType =
   let toRT (t : PT.UserType.T) : RT.UserType.T =

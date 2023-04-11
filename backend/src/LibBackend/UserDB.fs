@@ -34,42 +34,7 @@ let currentDarkVersion = 0
 
 type Uuid = System.Guid
 
-let rec queryExactFields
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (queryObj : RT.DvalMap)
-  : Task<List<string * RT.Dval>> =
-  task {
-    let fieldTypes = schemaToTypes db
-    let! results =
-      Sql.query
-        "SELECT key, data
-           FROM user_data_v0
-          WHERE table_tlid = @tlid
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion
-            AND canvas_id = @canvasID
-            AND data @> @fields"
-      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                          "userVersion", Sql.int db.version
-                          "darkVersion", Sql.int currentDarkVersion
-                          "canvasID", Sql.uuid state.program.canvasID
-                          "fields",
-                          Sql.jsonb (
-                            DvalReprInternalQueryable.toJsonStringV0
-                              fieldTypes
-                              queryObj
-                          ) ]
-      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-    return results |> List.map (fun (key, data) -> (key, toObj db data))
-  }
-
-and schemaToTypes (db : RT.DB.T) : List<string * RT.TypeReference> =
-  db.cols |> List.map (fun (name, typ) -> (name, typ))
-
-// Handle the DB hacks while converting this into a DVal
-and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
-  // let fieldTypes = schemaToTypes db
+let rec toObj (db : RT.DB.T) (obj : string) : RT.Dval =
   // TYPESCLEANUP
   Exception.raiseInternal "toObj" []
 // let pObj =
@@ -81,60 +46,58 @@ and toObj (db : RT.DB.T) (obj : string) : RT.Dval =
 
 
 // TODO: Unify with TypeChecker.fs
-and typeCheck (db : RT.DB.T) (obj : RT.DvalMap) : RT.DvalMap =
-  let cols = Map.ofList db.cols
-  let tipeKeys = cols |> Map.keys |> Set.ofList
-  let objKeys = obj |> Map.keys |> Set.ofList
-  let sameKeys = tipeKeys = objKeys
+and typeCheck (db : RT.DB.T) (dval : RT.Dval) : RT.Dval =
+  Exception.raiseInternal "typecheck" ["db", db; "dval", dval]
+  // let sameKeys = tipeKeys = objKeys
 
-  if sameKeys then
-    Map.mapWithIndex
-      (fun key value ->
-        let col =
-          Map.get key cols
-          |> Exception.unwrapOptionInternal
-               "Could not find Col"
-               [ "name", key; "cols", cols ]
-        match col, value with
-        | RT.TInt, RT.DInt _ -> value
-        | RT.TFloat, RT.DFloat _ -> value
-        | RT.TString, RT.DString _ -> value
-        | RT.TChar, RT.DChar _ -> value
-        | RT.TBool, RT.DBool _ -> value
-        | RT.TDateTime, RT.DDateTime _ -> value
-        // CLEANUP use the inner type
-        | RT.TList _, RT.DList _ -> value
-        | RT.TPassword, RT.DPassword _ -> value
-        | RT.TUuid, RT.DUuid _ -> value
-        | RT.TDict _, RT.DDict _ -> value
-        | RT.TUnit, RT.DUnit -> value // allow nulls for now
-        | expectedType, valueOfActualType ->
-          Exception.raiseCode (
-            Errors.typeErrorMsg key expectedType valueOfActualType
-          ))
-      obj
-  else
-    let missingKeys = Set.difference tipeKeys objKeys
+  // if sameKeys then
+  //   Map.mapWithIndex
+  //     (fun key value ->
+  //       let col =
+  //         Map.get key cols
+  //         |> Exception.unwrapOptionInternal
+  //              "Could not find Col"
+  //              [ "name", key; "cols", cols ]
+  //       match col, value with
+  //       | RT.TInt, RT.DInt _ -> value
+  //       | RT.TFloat, RT.DFloat _ -> value
+  //       | RT.TString, RT.DString _ -> value
+  //       | RT.TChar, RT.DChar _ -> value
+  //       | RT.TBool, RT.DBool _ -> value
+  //       | RT.TDateTime, RT.DDateTime _ -> value
+  //       // CLEANUP use the inner type
+  //       | RT.TList _, RT.DList _ -> value
+  //       | RT.TPassword, RT.DPassword _ -> value
+  //       | RT.TUuid, RT.DUuid _ -> value
+  //       | RT.TDict _, RT.DDict _ -> value
+  //       | RT.TUnit, RT.DUnit -> value // allow nulls for now
+  //       | expectedType, valueOfActualType ->
+  //         Exception.raiseCode (
+  //           Errors.typeErrorMsg key expectedType valueOfActualType
+  //         ))
+  //     obj
+  // else
+  //   let missingKeys = Set.difference tipeKeys objKeys
 
-    let missingMsg =
-      "Expected but did not find: ["
-      + (missingKeys |> Set.toList |> String.concat ", ")
-      + "]"
+  //   let missingMsg =
+  //     "Expected but did not find: ["
+  //     + (missingKeys |> Set.toList |> String.concat ", ")
+  //     + "]"
 
-    let extraKeys = Set.difference objKeys tipeKeys
+  //   let extraKeys = Set.difference objKeys tipeKeys
 
-    let extraMsg =
-      "Found but did not expect: ["
-      + (extraKeys |> Set.toList |> String.concat ", ")
-      + "]"
+  //   let extraMsg =
+  //     "Found but did not expect: ["
+  //     + (extraKeys |> Set.toList |> String.concat ", ")
+  //     + "]"
 
-    match (Set.isEmpty missingKeys, Set.isEmpty extraKeys) with
-    | false, false -> Exception.raiseCode $"{missingMsg} & {extraMsg}"
-    | false, true -> Exception.raiseCode missingMsg
-    | true, false -> Exception.raiseCode extraMsg
-    | true, true ->
-      Exception.raiseCode
-        "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
+  //   match (Set.isEmpty missingKeys, Set.isEmpty extraKeys) with
+  //   | false, false -> Exception.raiseCode $"{missingMsg} & {extraMsg}"
+  //   | false, true -> Exception.raiseCode missingMsg
+  //   | true, false -> Exception.raiseCode extraMsg
+  //   | true, true ->
+  //     Exception.raiseCode
+  //       "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
 
 
 and set
@@ -142,11 +105,10 @@ and set
   (upsert : bool)
   (db : RT.DB.T)
   (key : string)
-  (vals : RT.DvalMap)
+  (dv : RT.Dval)
   : Task<Uuid> =
   let id = System.Guid.NewGuid()
-  let fieldTypes = schemaToTypes db
-  let merged = typeCheck db vals
+  let merged = typeCheck db dv
 
   let upsertQuery =
     if upsert then
@@ -167,7 +129,7 @@ and set
                       "key", Sql.string key
                       "data",
                       Sql.jsonb (
-                        DvalReprInternalQueryable.toJsonStringV0 fieldTypes merged
+                        DvalReprInternalQueryable.toJsonStringV0 db.typ merged
                       ) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
@@ -278,15 +240,13 @@ let doQuery
   (queryFor : string)
   : Task<Sql.SqlProps> =
   task {
-    let dbFields = Map.ofList db.cols
-
     let paramName =
       match b.parameters with
       | [ (_, name) ] -> name
       | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
 
     let! sql, vars =
-      SqlCompiler.compileLambda state b.symtable paramName dbFields b.body
+      SqlCompiler.compileLambda state b.symtable paramName db.typ b.body
 
     return
       Sql.query
@@ -472,137 +432,7 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
 // DB schema
 // -------------------------
 
-let create (tlid : tlid) (name : string) : PT.DB.T =
-  { tlid = tlid; name = name; nameID = tlid; cols = []; version = 0 }
-
-
-let create2 (tlid : tlid) (name : string) (nameID : id) : PT.DB.T =
-  { tlid = tlid; name = name; nameID = nameID; cols = []; version = 0 }
+let create (tlid : tlid) (name : string) (typ : PT.TypeReference) : PT.DB.T =
+  { tlid = tlid; name = name; typ = typ; version = 0 }
 
 let renameDB (n : string) (db : PT.DB.T) : PT.DB.T = { db with name = n }
-
-let addCol colid typeid (db : PT.DB.T) : PT.DB.T =
-  { db with
-      cols =
-        db.cols @ [ { name = None; typ = None; nameID = colid; typeID = typeid } ] }
-
-let setColName (id : id) (name : string) (db : PT.DB.T) : PT.DB.T =
-  let set (col : PT.DB.Col) =
-    let name = if name = "" then None else Some name
-    if col.nameID = id then { col with name = name } else col
-
-  { db with cols = List.map set db.cols }
-
-let setColType (id : id) (typ : PT.TypeReference) (db : PT.DB.T) =
-  let set (col : PT.DB.Col) =
-    if col.typeID = id then { col with typ = Some typ } else col
-
-  { db with cols = List.map set db.cols }
-
-let deleteCol id (db : PT.DB.T) =
-  { db with
-      cols = List.filter (fun col -> col.nameID <> id && col.typeID <> id) db.cols }
-
-
-// let create_migration rbid rfid cols (db : PT.DB.T) =
-//   match db.active_migration with
-//   | Some migration ->
-//       db
-//   | None ->
-//       let max_version =
-//         db.old_migrations
-//         |> List.map ~f:(fun m -> m.version)
-//         |> List.fold_left ~init:0 ~f:max
-//       in
-//       { db with
-//         active_migration =
-//           Some
-//             { starting_version = db.version
-//             ; version = max_version + 1
-//             ; cols
-//             ; state = DBMigrationInitialized
-//             ; rollback = Libshared.FluidExpression.EBlank rbid
-//             ; rollforward = Libshared.FluidExpression.EBlank rfid } }
-//
-//
-// let add_col_to_migration nameid typeid (db : PT.DB.T) =
-//   match db.active_migration with
-//   | None ->
-//       db
-//   | Some migration ->
-//       let mutated_migration =
-//         {migration with cols = migration.cols @ [(Blank nameid, Blank typeid)]}
-//       in
-//       {db with active_migration = Some mutated_migration}
-//
-//
-// let set_col_name_in_migration id name (db : PT.DB.T) =
-//   match db.active_migration with
-//   | None ->
-//       db
-//   | Some migration ->
-//       let set col =
-//         match col with
-//         | Blank hid, tipe when hid = id ->
-//             (Filled (hid, name), tipe)
-//         | Filled (nameid, oldname), tipe when nameid = id ->
-//             (Filled (nameid, name), tipe)
-//         | _ ->
-//             col
-//       in
-//       let newcols = List.map ~f:set migration.cols in
-//       let mutated_migration = {migration with cols = newcols} in
-//       {db with active_migration = Some mutated_migration}
-//
-//
-// let set_col_type_in_migration id tipe (db : RT.DB.T) =
-//   match db.active_migration with
-//   | None ->
-//       db
-//   | Some migration ->
-//       let set col =
-//         match col with
-//         | name, Blank blankid when blankid = id ->
-//             (name, Filled (blankid, tipe))
-//         | name, Filled (tipeid, oldtipe) when tipeid = id ->
-//             (name, Filled (tipeid, tipe))
-//         | _ ->
-//             col
-//       in
-//       let newcols = List.map ~f:set migration.cols in
-//       let mutated_migration = {migration with cols = newcols} in
-//       {db with active_migration = Some mutated_migration}
-//
-//
-// let abandon_migration (db : RT.DB.T) =
-//   match db.active_migration with
-//   | None ->
-//       db
-//   | Some migration ->
-//       let mutated_migration = {migration with state = DBMigrationAbandoned} in
-//       let db2 =
-//         {db with old_migrations = db.old_migrations @ [mutated_migration]}
-//       in
-//       {db2 with active_migration = None}
-//
-//
-// let delete_col_in_migration id (db : PT.DB.T) =
-//   match db.active_migration with
-//   | None ->
-//       db
-//   | Some migration ->
-//       let newcols =
-//         List.filter migration.cols ~f:(fun col ->
-//             match col with
-//             | Blank nid, _ when nid = id ->
-//                 false
-//             | Filled (nid, _), _ when nid = id ->
-//                 false
-//             | _ ->
-//                 true)
-//       in
-//       let mutated_migration = {migration with cols = newcols} in
-//       {db with active_migration = Some mutated_migration}
-//
-
-let placeholder = 0

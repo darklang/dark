@@ -660,13 +660,10 @@ module Handler =
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 module DB =
-  type Col = string * TypeReference
-  type T = { tlid : tlid; name : string; cols : List<Col>; version : int }
+  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
 
 module UserType =
-  // TODO: consider flattening this (just type UserType = { ... }, without the module level)
-  type Definition = CustomType.T
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
@@ -900,6 +897,7 @@ and Libraries =
   { stdlibTypes : Map<FQTypeName.T, BuiltInType>
     stdlibFns : Map<FQFnName.T, BuiltInFn>
 
+    // TODO: package types
     packageFns : Map<FQFnName.T, Package.Fn> }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit

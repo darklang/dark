@@ -61,23 +61,8 @@ let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
       // Convert the DBs back into ops so that DB operations will run
       dbs
       |> List.map (fun (db : PT.DB.T) ->
-        let initial = PT.CreateDBWithBlankOr(db.tlid, db.nameID, db.name)
-        let cols =
-          db.cols
-          |> List.map (fun (col : PT.DB.Col) ->
-            [ PT.AddDBCol(db.tlid, col.nameID, col.typeID)
-              PT.SetDBColName(
-                db.tlid,
-                col.nameID,
-                col.name |> Exception.unwrapOptionInternal "" []
-              )
-              PT.SetDBColType(
-                db.tlid,
-                col.typeID,
-                col.typ |> Exception.unwrapOptionInternal "" []
-              ) ])
-          |> List.flatten
-        (db, initial :: cols))
+        let initial = PT.CreateDB(db.tlid, db.name, db.typ)
+        (db, [ initial ]))
 
     let oplists =
       ops

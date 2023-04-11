@@ -480,32 +480,17 @@ module Handler =
 
 
 module DB =
-  module Col =
-    let fromCT (col : CTPT.DB.Col) : PT.DB.Col =
-      { name = col.name
-        typ = Option.map TypeReference.fromCT col.typ
-        nameID = col.nameID
-        typeID = col.typeID }
-
-    let toCT (col : PT.DB.Col) : CTPT.DB.Col =
-      { name = col.name
-        typ = Option.map TypeReference.toCT col.typ
-        nameID = col.nameID
-        typeID = col.typeID }
-
   let fromCT (db : CTPT.DB.T) : PT.DB.T =
     { tlid = db.tlid
       name = db.name
-      nameID = db.nameID
       version = db.version
-      cols = List.map Col.fromCT db.cols }
+      typ = TypeReference.fromCT db.typ }
 
   let toCT (db : PT.DB.T) : CTPT.DB.T =
     { tlid = db.tlid
       name = db.name
-      nameID = db.nameID
       version = db.version
-      cols = List.map Col.toCT db.cols }
+      typ = TypeReference.toCT db.typ }
 
 module UserType =
   let fromCT (ut : CTPT.UserType.T) : PT.UserType.T =
@@ -577,54 +562,32 @@ module Op =
   let fromCT (op : CTPT.Op) : PT.Op =
     match op with
     | CTPT.Op.SetHandler (handler) -> PT.Op.SetHandler(Handler.fromCT handler)
-    | CTPT.Op.CreateDB (tlid, name) -> PT.Op.CreateDB(tlid, name)
-    | CTPT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
-      PT.Op.AddDBCol(dbid, colNameID, colTypeID)
-    | CTPT.Op.SetDBColName (tlid, id, name) -> PT.Op.SetDBColName(tlid, id, name)
-    | CTPT.Op.SetDBColType (tlid, id, typ) ->
-      PT.Op.SetDBColType(tlid, id, TypeReference.fromCT typ)
+    | CTPT.Op.CreateDB (tlid, name, typ) ->
+      PT.Op.CreateDB(tlid, name, TypeReference.fromCT typ)
     | CTPT.Op.DeleteTL (tlid) -> PT.Op.DeleteTL(tlid)
     | CTPT.Op.SetFunction (uf) -> PT.Op.SetFunction(UserFunction.fromCT uf)
-    | CTPT.Op.ChangeDBColName (tlid, id, name) ->
-      PT.Op.ChangeDBColName(tlid, id, name)
-    | CTPT.Op.ChangeDBColType (tlid, id, typ) ->
-      PT.Op.ChangeDBColType(tlid, id, TypeReference.fromCT typ)
     | CTPT.Op.UndoTL (tlid) -> PT.Op.UndoTL(tlid)
     | CTPT.Op.RedoTL (tlid) -> PT.Op.RedoTL(tlid)
     | CTPT.Op.SetExpr (tlid, id, expr) -> PT.Op.SetExpr(tlid, id, Expr.fromCT expr)
     | CTPT.Op.TLSavepoint (tlid) -> PT.Op.TLSavepoint(tlid)
     | CTPT.Op.DeleteFunction (tlid) -> PT.Op.DeleteFunction(tlid)
-    | CTPT.Op.DeleteDBCol (tlid, colID) -> PT.Op.DeleteDBCol(tlid, colID)
-    | CTPT.Op.RenameDBname (tlid, name) -> PT.Op.RenameDBname(tlid, name)
-    | CTPT.Op.CreateDBWithBlankOr (tlid, id, name) ->
-      PT.Op.CreateDBWithBlankOr(tlid, id, name)
+    | CTPT.Op.RenameDB (tlid, name) -> PT.Op.RenameDB(tlid, name)
     | CTPT.Op.SetType (ut) -> PT.Op.SetType(UserType.fromCT ut)
     | CTPT.Op.DeleteType (tlid) -> PT.Op.DeleteType(tlid)
 
   let toCT (op : PT.Op) : CTPT.Op =
     match op with
     | PT.Op.SetHandler (handler) -> CTPT.Op.SetHandler(Handler.toCT handler)
-    | PT.Op.CreateDB (tlid, name) -> CTPT.Op.CreateDB(tlid, name)
-    | PT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
-      CTPT.Op.AddDBCol(dbid, colNameID, colTypeID)
-    | PT.Op.SetDBColName (tlid, id, name) -> CTPT.Op.SetDBColName(tlid, id, name)
-    | PT.Op.SetDBColType (tlid, id, typ) ->
-      CTPT.Op.SetDBColType(tlid, id, TypeReference.toCT typ)
+    | PT.Op.CreateDB (tlid, name, typ) ->
+      CTPT.Op.CreateDB(tlid, name, TypeReference.toCT typ)
     | PT.Op.DeleteTL (tlid) -> CTPT.Op.DeleteTL(tlid)
     | PT.Op.SetFunction (uf) -> CTPT.Op.SetFunction(UserFunction.toCT uf)
-    | PT.Op.ChangeDBColName (tlid, id, name) ->
-      CTPT.Op.ChangeDBColName(tlid, id, name)
-    | PT.Op.ChangeDBColType (tlid, id, typ) ->
-      CTPT.Op.ChangeDBColType(tlid, id, TypeReference.toCT typ)
     | PT.Op.UndoTL (tlid) -> CTPT.Op.UndoTL(tlid)
     | PT.Op.RedoTL (tlid) -> CTPT.Op.RedoTL(tlid)
     | PT.Op.SetExpr (tlid, id, expr) -> CTPT.Op.SetExpr(tlid, id, Expr.toCT expr)
     | PT.Op.TLSavepoint (tlid) -> CTPT.Op.TLSavepoint(tlid)
     | PT.Op.DeleteFunction (tlid) -> CTPT.Op.DeleteFunction(tlid)
-    | PT.Op.DeleteDBCol (tlid, colID) -> CTPT.Op.DeleteDBCol(tlid, colID)
-    | PT.Op.RenameDBname (tlid, name) -> CTPT.Op.RenameDBname(tlid, name)
-    | PT.Op.CreateDBWithBlankOr (tlid, id, name) ->
-      CTPT.Op.CreateDBWithBlankOr(tlid, id, name)
+    | PT.Op.RenameDB (tlid, name) -> CTPT.Op.RenameDB(tlid, name)
     | PT.Op.SetType (ut) -> CTPT.Op.SetType(UserType.toCT ut)
     | PT.Op.DeleteType (tlid) -> CTPT.Op.DeleteType(tlid)
 

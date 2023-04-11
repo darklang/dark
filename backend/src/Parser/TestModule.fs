@@ -24,25 +24,15 @@ let empty =
 
 
 module UserDB =
-  let private parseDBSchemaField
-    (availableTypes : AvailableTypes)
-    (field : SynField)
-    : PT.DB.Col =
-    match field with
-    | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-      { name = Some(id.idText) // CLEANUP
-        nameID = gid ()
-        typ = Some(PTP.TypeReference.fromSynType availableTypes typ)
-        typeID = gid () }
-    | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
-
   let fromSynTypeDefn
     (availableTypes : AvailableTypes)
     (typeDef : SynTypeDefn)
     : PT.DB.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
+                                                                             typ,
+                                                                             _),
                                            _),
                    _members,
                    _,
@@ -50,9 +40,8 @@ module UserDB =
                    _) ->
       { tlid = gid ()
         name = id.idText
-        nameID = gid ()
         version = 0
-        cols = List.map (parseDBSchemaField availableTypes) fields }
+        typ = PTP.TypeReference.fromSynType availableTypes typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
