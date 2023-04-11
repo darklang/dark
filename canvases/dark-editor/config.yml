@@ -15,3 +15,6 @@ http-handlers:
   save-prompt:
     method: POST
     path: /save-prompt
+  get-prompt:
+    method: GET
+    path: /get-prompt
