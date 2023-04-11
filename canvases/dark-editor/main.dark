@@ -1,4 +1,70 @@
-(
+
+[<HttpHandler("GET", "/get-prompt")>]
+let _indexHandler _req =
+  let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
+  let prompt = File.read filePath
+
+  let respBody =
+    match prompt with
+    | Ok p ->  p
+    | Error _ -> Bytes.empty
+
+  Http.response respBody 200
+
+
+
+[<HttpHandler("POST", "/save-prompt")>]
+let _indexHandler _req =
+  let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
+  let contents =  request.body
+  let result = File.write filePath contents
+
+  match result with
+  | Ok r ->   Http.response r 200
+  | Error e ->  Http.response e 400
+
+
+
+type OpenAICompletionRequest = {
+  model: String
+  max_tokens: Int
+  temperature: Float
+  prompt : String
+}
+
+[<HttpHandler("POST", "/api/gpt4")>]
+let _indexHandler _req =
+  let apiKey = OPENAI_API_KEY
+
+  let reqBody =
+    let prompt = request.body |> String.fromBytes
+    let serialized =
+      { model= "text-davinci-003"
+        max_tokens= 300
+        temperature= 0.7
+        prompt= prompt}
+      |> Json.serialize<OpenAICompletionRequest>
+    match serialized with
+    | Ok r -> r |> String.toBytes
+    | Error e -> Bytes.empty
+
+
+  let headers =
+    [
+      ("Authorization", "Bearer " ++ apiKey)
+      ("Content-Type", "application/json")
+    ]
+
+  let response = HttpClient.request "POST" "https://api.openai.com/v1/completions" headers reqBody
+
+  match response with
+  | Ok r -> Http.response r.body 200
+  | Error e -> Http.response e 400
+
+
+
+[<HttpHandler("GET", "/")>]
+let _indexHandler _req =
   let body =
     """
 <!DOCTYPE html>
@@ -192,4 +258,3 @@
   """
 
   Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
-)

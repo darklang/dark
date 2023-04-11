@@ -1,20 +1,5 @@
-version: 1
+version: 2
 
 id: 22222222-2222-2222-2222-222222222222
 
-http-handlers:
-  gpt4:
-    method: POST
-    path: /api/gpt4
-  index:
-    method: GET
-    path: /
-  invalid-response:
-    method: GET
-    path: /intentionally-invalid-response
-  save-prompt:
-    method: POST
-    path: /save-prompt
-  get-prompt:
-    method: GET
-    path: /get-prompt
+main: main
