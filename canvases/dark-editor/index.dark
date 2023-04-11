@@ -41,15 +41,25 @@
         border: 1px solid #ccc;
         resize: none;
       }
+      #dark-prompt{
+        height: 20%;
+      }
       input[type="text"],
-      input[type="submit"] {
+      input[type="submit"],
+      #copy-btn, #save-prompt, #get-prompt, #vars-btn{
         width: 100%;
         padding: 10px;
+        margin-bottom: 10px;
         font-size: 16px;
         border-radius: 5px;
         border: 1px solid #ccc;
       }
-      input[type="submit"] {
+      #save-prompt, #get-prompt, #vars-btn, #copy-btn {
+        width: auto;
+      }
+
+      input[type="submit"],
+      #copy-btn, #save-prompt, #get-prompt, #vars-btn {
         background-color: #4caf50;
         color: white;
         cursor: pointer;
@@ -61,6 +71,13 @@
         background-color: #f2f2f2;
         color: #aaa;
       }
+      form{
+        height:80%;
+      }
+      #var-form{
+        height:auto;
+      }
+
     </style>
   </head>
   <body>
@@ -68,12 +85,20 @@
       <div class="left-half">
         <form id="gpt4-form">
           <input type="text" name="dark-editor" value="dark-editor" />
+          <textarea id="dark-prompt" name="dark-prompt"> </textarea>
+
+          <button id="get-prompt">Get prompt</button>
+          <button id="save-prompt">Save the new prompt</button>
+
           <textarea name="prompt" placeholder="Insert prompt here"></textarea>
           <input type="submit" value="Submit" />
         </form>
       </div>
       <div class="right-half">
         <textarea id="output" disabled></textarea>
+        <form id="var-form"> </form>
+        <button id="copy-btn">Copy code</button>
+        <button id="vars-btn">Fill variables</button>
       </div>
     </div>
     <script>
@@ -83,11 +108,12 @@
           event.preventDefault();
           const formData = new FormData(event.target);
           const prompt = formData.get("prompt");
-
+          const darkPrompt = formData.get("dark-prompt");
+          console.log(darkPrompt + prompt);
           const response = await fetch("/api/gpt4", {
             method: "POST",
             headers: { "Content-Type": "text/plain" },
-            body: prompt,
+            body: darkPrompt + prompt,
           });
 
           if (response.ok) {
@@ -100,6 +126,66 @@
               "Error calling the GPT-4 API: " + response.status + " " + response.statusText + " " + text;
           }
         });
+
+        const copyBtn = document.getElementById("copy-btn");
+        copyBtn.addEventListener("click", () => {
+          const output = document.getElementById("output");
+          navigator.clipboard.writeText(output.value).then(() => {
+          console.log("Text copied to clipboard");
+          }).catch((error) => {
+            console.error('Error copying text to clipboard:', error);
+          });
+        });
+
+        const VarsBtn = document.getElementById("vars-btn");
+        VarsBtn.addEventListener("click", () => {
+            const variables = output.value.match(/variables:\n([\s\S]*)/)[1].trim().split('\n').filter(Boolean);
+            console.log(variables);
+            const form = document.getElementById("var-form");
+            const submitButton = document.createElement('button');
+            submitButton.type = 'submit';
+            submitButton.textContent = 'Submit';
+            for (let i = 0; i < variables.length; i++) {
+              const label = document.createElement('label');
+              label.textContent = variables[i];
+              const input = document.createElement('input');
+              input.name = variables[i];
+              form.appendChild(label);
+              form.appendChild(input);
+            }
+            form.appendChild(submitButton);
+            form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(form);
+            for (let pair of formData.entries()) {
+              console.log(pair[1]);
+            }
+          });
+          });
+
+        const saveBtn = document.getElementById("save-prompt");
+        saveBtn.addEventListener("click", async (event) => {
+          event.preventDefault();
+          const prompt = document.getElementById("dark-prompt").value;
+          const response = await fetch("/save-prompt", {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },
+            body: prompt,
+          });
+        });
+
+      const getPromptBtn = document.getElementById("get-prompt");
+        getPromptBtn.addEventListener("click", async (event) => {
+        event.preventDefault();
+        fetch('/get-prompt')
+        .then(response => response.text())
+        .then(data => {
+          const textarea = document.getElementById("dark-prompt");
+          textarea.value = data;
+        })
+        .catch(error => console.error(error));
+        });
+
     </script>
   </body>
 </html>

@@ -1,0 +1,11 @@
+(
+let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
+let prompt = File.read filePath
+
+let respBody =
+  match prompt with
+  | Ok p ->  p
+  | Error _ -> Bytes.empty
+
+Http.response respBody 200
+)

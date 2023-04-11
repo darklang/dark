@@ -57,7 +57,8 @@ http-handlers:
     path: /hello/:user
 ```
 
-
+variables:
+user
 
 ## Standard library
 

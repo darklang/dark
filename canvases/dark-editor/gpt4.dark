@@ -1,24 +1,29 @@
 type Request = {
+  model: String
+  max_tokens: Int
+  temperature: Float
   prompt : String
 }
 (
-  let request = request.body |> String.fromBytes |> Json.parse<Request>
-  match request with
-  | Ok r ->
-    let apiKey = OPENAI_API_KEY
-    let response = HttpClient.request(
-      "POST",
-      "https://api.openai.com/v1/completions",
-      [("Content-Type", "application/json"); ("Authorization", "Bearer " ++ apiKey)],
-      Json.toString({
-        prompt = r.prompt
-        temperature = 0.7
-        max_tokens = 60
-        n = 1
-        stop = "\n"
-      }) |> String.toBytes
-    )
-    Http.responseWithHeaders response.body response.headers response.statusCode
-  | Error e ->
-    Http.response (String.toBytes e) 400
+let apiKey = OPENAI_API_KEY
+
+let reqBody =
+  let prompt = request.body |> String.fromBytes
+  let serialized ={model= "text-davinci-003"; max_tokens= 300; temperature= 0.7; prompt= prompt} |> Json.serialize<Request>
+  match serialized with
+  | Ok r -> r |> String.toBytes
+  | Error e -> Bytes.empty
+
+
+let headers =
+  [
+    ("Authorization", "Bearer " ++ apiKey)
+    ("Content-Type", "application/json")
+  ]
+
+let response = HttpClient.request "POST" "https://api.openai.com/v1/completions" headers reqBody
+
+match response with
+| Ok r -> Http.response r.body 200
+| Error e -> Http.response e 400
 )
