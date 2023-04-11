@@ -68,9 +68,38 @@ let seedCanvasV2 (canvasName : string) =
         |> List.map (fun (spec, ast) ->
           PT.Op.SetHandler({ tlid = gid (); ast = ast; spec = spec }))
 
+      let dbs =
+        modul.dbs
+        |> List.map (fun db ->
+          let initial = PT.CreateDB(db.tlid, db.name)
+
+          let cols =
+            db.cols
+            |> List.map (fun (col : PT.DB.Col) ->
+              [ PT.AddDBCol(db.tlid, col.nameID, col.typeID)
+
+                PT.SetDBColName(
+                  db.tlid,
+                  col.nameID,
+                  col.name |> Exception.unwrapOptionInternal "" []
+                )
+
+                PT.SetDBColType(
+                  db.tlid,
+                  col.typeID,
+                  col.typ
+                  |> Exception.unwrapOptionInternal "" []
+                  |> LibExecution.ProgramTypesToRuntimeTypes.DType.toRT
+                  |> LibExecution.DvalReprDeveloper.typeName
+                ) ])
+            |> List.flatten
+          initial :: cols)
+        |> List.flatten
+
       let createSavepoint = PT.Op.TLSavepoint(gid ())
 
-      [ createSavepoint ] @ types @ fns @ handlers
+      [ createSavepoint ] @ types @ dbs @ fns @ handlers
+
 
     let canvasWithTopLevels = C.fromOplist canvasID [] ops
 
@@ -83,6 +112,7 @@ let seedCanvasV2 (canvasName : string) =
         | None -> None)
 
     do! C.saveTLIDs canvasID oplists
+
     print
       $"Success saved canvas - endpoints available at {host} (bwdserver) and {experimentalHost} (bwd-danger-server)"
   }
