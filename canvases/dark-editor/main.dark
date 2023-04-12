@@ -234,7 +234,7 @@ let _handler _req =
         executeCodeBtn.addEventListener("click", async () => {
           let userCode = document.getElementById("output");
           console.log("not actually using user code because it's probably invalid")
-          userCode = "1 + 2"
+          userCode = `HttpClient.request "GET" "https://example.com" [] Bytes.empty`
           const requestBody = JSON.stringify({
             userCode: userCode,
             userInput: {} // TODO, untested, untried
