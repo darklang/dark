@@ -98,5 +98,7 @@ module Ops =
 
 
 module Eval =
-  // getOpsForToplevel returns empty list for nonexistant TL
   DarkInternal.parseAndExecuteExpr "1 + 2" Dict.empty_v0 = 3
+  DarkInternal.parseAndExecuteExpr "a" { a = 3 } = 3
+  DarkInternal.parseAndExecuteExpr """let a = 3 in a + b""" { b = 2 } = 5
+  DarkInternal.parseAndExecuteExpr """(HttpClient.request "get" "https://darklang.com" [] Bytes.empty) |> Test.unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200
