@@ -27,8 +27,7 @@ let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   |> DvalReprInternalRoundtrippable.parseJsonV0
   |> Expect.dvalEquality dv
 
-// TYPESCLEANUP also test them directly
-let queryableRoundtripsSuccessfully
+let queryableRoundtripsSuccessfullyInRecord
   (
     dv : RT.Dval,
     fieldTyp : RT.TypeReference
@@ -43,6 +42,12 @@ let queryableRoundtripsSuccessfully
   |> DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef
   |> DvalReprInternalQueryable.parseJsonV0 availableTypes typeRef
   |> Expect.dvalEquality record
+
+let queryableRoundtripsSuccessfully (dv : RT.Dval, typ : RT.TypeReference) : bool =
+  dv
+  |> DvalReprInternalQueryable.toJsonStringV0 Map.empty typ
+  |> DvalReprInternalQueryable.parseJsonV0 Map.empty typ
+  |> Expect.dvalEquality dv
 
 let testDvalRoundtrippableRoundtrips =
 
@@ -120,6 +125,10 @@ let allRoundtrips =
       t
         "queryable v0"
         queryableRoundtripsSuccessfully
+        (dvs DvalReprInternalQueryable.Test.isQueryableDval)
+      t
+        "queryable record v0"
+        queryableRoundtripsSuccessfullyInRecord
         (dvs DvalReprInternalQueryable.Test.isQueryableDval)
       t
         "vanilla"
