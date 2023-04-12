@@ -30,7 +30,10 @@ module CanvasHackConfig =
 
   // One .dark file to define the full canvas
   type V2 =
-    { [<Legivel.Attributes.YamlField("main")>]
+    { [<Legivel.Attributes.YamlField("id")>]
+      CanvasId : Option<string>
+
+      [<Legivel.Attributes.YamlField("main")>]
       Main : string }
 
 let parseYamlExn<'a> (filename : string) : 'a =
@@ -52,7 +55,10 @@ let seedCanvasV2 (canvasName : string) =
     let domain = $"{canvasName}.dlio.localhost"
     let host = $"http://{domain}:{LibService.Config.bwdServerPort}"
     let experimentalHost = $"http://{domain}:{LibService.Config.bwdDangerServerPort}"
-    let canvasID = Guid.NewGuid()
+    let canvasID =
+      match config.CanvasId with
+      | None -> Guid.NewGuid()
+      | Some id -> Guid.Parse id
 
     let! ownerID = LibBackend.Account.createUser ()
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain

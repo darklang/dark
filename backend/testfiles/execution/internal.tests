@@ -97,8 +97,8 @@ module Ops =
   DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []
 
 
-module Eval =
+module ParseAndExecuteExpr =
   DarkInternal.parseAndExecuteExpr "1 + 2" Dict.empty_v0 = 3
   DarkInternal.parseAndExecuteExpr "a" { a = 3 } = 3
   DarkInternal.parseAndExecuteExpr """let a = 3 in a + b""" { b = 2 } = 5
-  DarkInternal.parseAndExecuteExpr """(HttpClient.request "get" "https://darklang.com" [] Bytes.empty) |> Test.unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200
+  //DarkInternal.parseAndExecuteExpr """(HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Test.unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200

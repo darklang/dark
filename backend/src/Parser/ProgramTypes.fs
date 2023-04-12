@@ -41,6 +41,7 @@ module DType =
     // with type args
     | "List", [ arg ] -> PT.TList(fromSynType arg)
     | "Option", [ arg ] -> PT.TOption(fromSynType arg)
+    | "Dict", [ valArg ] -> PT.TDict(fromSynType valArg)
     | "Result", [ okArg; errorArg ] ->
       PT.TResult(fromSynType okArg, fromSynType errorArg)
     | "Tuple", first :: second :: theRest ->

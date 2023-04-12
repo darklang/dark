@@ -803,22 +803,25 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "parseAndExecuteExpr" 0
-      typeParams = []
+      typeParams = [ ]
       parameters =
         [ Param.make "code" TString ""; Param.make "userInputs" (TDict TString) "" ]
-      returnType =
-        // TODO: improve type
-        TResult(TVariable "a", TString)
+      returnType = TResult(TString, TString)
       description =
         "Parses and executes arbitrary Dark code in the context of the current canvas."
       fn =
         internalFn (function
           | state, _, [ DString code; DDict userInputs ] ->
             uply {
+              // TODO: return an appropriate error if this fails
               let expr = Parser.RuntimeTypes.parseExprWithTypes [] code
+
               let symtable = LibExecution.Interpreter.withGlobals state userInputs
+
+              // TODO: return an appropriate error if this fails
               let! evalResult = LibExecution.Interpreter.eval state symtable expr
-              return evalResult
+
+              return DvalReprDeveloper.toRepr evalResult |> DString |> Ok |> DResult
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
