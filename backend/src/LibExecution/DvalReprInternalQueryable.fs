@@ -70,10 +70,11 @@ type Utf8JsonWriter with
 
 let rec private toJsonV0
   (w : Utf8JsonWriter)
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (typ : TypeReference)
   (dv : Dval)
   : unit =
-  let writeDval = toJsonV0 w
+  let writeDval = toJsonV0 w availableTypes
 
   match typ, dv with
   // basic types
@@ -110,15 +111,23 @@ let rec private toJsonV0
           w.WritePropertyName k
           writeDval objType v)
         o)
-  | TCustomType (typeName, _), DRecord dvalMap ->
-    Exception.raiseInternal "Pass in type map" []
-  // let schema = Map.ofList fields
-  // w.writeObject (fun () ->
-  //   dvalMap
-  //   |> Map.toList
-  //   |> List.iter (fun (k, dval) ->
-  //     w.WritePropertyName k
-  //     writeDval (Map.find k schema) dval))
+  | TCustomType (typeName, args), dv ->
+    match Map.tryFind typeName availableTypes, dv with
+    | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
+    | Some (CustomType.Record (f1, fs)), DRecord dm ->
+      let fields = f1 :: fs
+      w.writeObject (fun () ->
+        fields
+        |> List.iter (fun f ->
+          w.WritePropertyName f.name
+          let dval = Map.find f.name dm
+          writeDval f.typ dval))
+    | Some (CustomType.Enum _), DConstructor _ ->
+      Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
+    | Some typ, dv ->
+      Exception.raiseInternal
+        "Value to be stored does not match Datastore type"
+        [ "value", dv; "type", typ; "typeName", typeName ]
 
   // Not supported
   | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
@@ -164,11 +173,19 @@ let rec private toJsonV0
 
 
 
-let toJsonStringV0 (typ : TypeReference) (dval : Dval) : string =
-  writeJson (fun w -> toJsonV0 w typ dval)
+let toJsonStringV0
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (typ : TypeReference)
+  (dval : Dval)
+  : string =
+  writeJson (fun w -> toJsonV0 w availableTypes typ dval)
 
 
-let parseJsonV0 (typ : TypeReference) (str : string) : Dval =
+let parseJsonV0
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (typ : TypeReference)
+  (str : string)
+  : Dval =
   let rec convert (typ : TypeReference) (j : JsonElement) : Dval =
     match typ, j.ValueKind with
     | TUnit, JsonValueKind.Number -> DUnit
@@ -200,21 +217,30 @@ let parseJsonV0 (typ : TypeReference) (str : string) : Dval =
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
       objFields |> Map.mapWithIndex (fun k v -> convert typ v) |> DDict
-    | TCustomType _, JsonValueKind.Object ->
-      Exception.raiseInternal "Need actual type" []
-    //   // Use maps to cooalesce duplicate keys and ensure the obj matches the type
-    //   let typFields = Map typFields
-    //   let objFields =
-    //     j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-    //   if Map.count objFields = Map.count typFields then
-    //     objFields
-    //     |> Map.mapWithIndex (fun k v ->
-    //       match Map.tryFind k typFields with
-    //       | Some t -> convert t v
-    //       | None -> Exception.raiseInternal "Missing field" [ "field", k ])
-    //     |> DDict // CLEANUPRECORD
-    //   else
-    //     Exception.raiseInternal "Invalid fields" []
+    | TCustomType (typeName, args), JsonValueKind.Object ->
+      match Map.tryFind typeName availableTypes with
+      | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
+      | Some (CustomType.Record (f1, fs)) ->
+        let fields = f1 :: fs
+        let objFields =
+          j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
+        if Map.count objFields = List.length fields then
+          fields
+          |> List.map (fun f ->
+            let dval =
+              match Map.tryFind f.name objFields with
+              | Some j -> convert f.typ j
+              | None -> Exception.raiseInternal "Missing field" [ "field", f.name ]
+            f.name, dval)
+          |> Map
+          |> DRecord
+        else
+          Exception.raiseInternal
+            "Record has incorrect field count"
+            [ "expected", List.length fields; "actual", Map.count objFields ]
+      | Some (CustomType.Enum (f1, fs)) ->
+        Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
+
     | TBytes _, _ -> Exception.raiseInternal "Not supported yet" []
     | TOption _, _ -> Exception.raiseInternal "Not supported yet" []
     | TResult _, _ -> Exception.raiseInternal "Not supported yet" []

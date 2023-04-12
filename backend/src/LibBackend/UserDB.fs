@@ -110,6 +110,8 @@ and set
   let id = System.Guid.NewGuid()
   let merged = typeCheck db dv
 
+  let availableTypes = RT.ExecutionState.availableTypes state
+
   let upsertQuery =
     if upsert then
       "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data"
@@ -129,7 +131,10 @@ and set
                       "key", Sql.string key
                       "data",
                       Sql.jsonb (
-                        DvalReprInternalQueryable.toJsonStringV0 db.typ merged
+                        DvalReprInternalQueryable.toJsonStringV0
+                          availableTypes
+                          db.typ
+                          merged
                       ) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)

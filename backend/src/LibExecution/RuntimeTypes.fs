@@ -181,7 +181,7 @@ type TypeReference =
   | TFn of List<TypeReference> * TypeReference
   | TDB of TypeReference
   | TVariable of string
-  | TCustomType of FQTypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of FQTypeName.T * typeArgs : List<TypeReference> // CLEANUP check all uses
   | TOption of TypeReference // CLEANUP remove
   | TResult of TypeReference * TypeReference // CLEANUP remove
   | TDict of TypeReference // CLEANUP add key type
@@ -398,6 +398,7 @@ and Param =
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
 module CustomType =
+  // TYPESCLEANUP support type parameters
   type RecordField = { id : id; name : string; typ : TypeReference }
 
   type EnumField = { id : id; typ : TypeReference; label : Option<string> }
