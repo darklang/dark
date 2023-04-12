@@ -803,7 +803,7 @@ human-readable data."
 
 
     { name = fn "DarkInternal" "parseAndExecuteExpr" 0
-      typeParams = [ ]
+      typeParams = []
       parameters =
         [ Param.make "code" TString ""; Param.make "userInputs" (TDict TString) "" ]
       returnType = TResult(TString, TString)
