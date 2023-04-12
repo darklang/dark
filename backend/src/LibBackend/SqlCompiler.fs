@@ -178,7 +178,7 @@ let rec inline'
          | None ->
            // the variable might be in the symtable, so put it back to fill in later
            expr)
-
+      | EPipe (pipeID, expr1, expr2, rest) -> Expr.pipeToExpr pipeID expr1 expr2 rest
       | expr -> expr)
     expr
 
@@ -517,8 +517,9 @@ let partiallyEvaluate
         | EConstructor _
         | EMatch _
         | EFeatureFlag _
-        | EForbiddenExpr _
         | EAnd _
+        | EPipe _
+        | EPipeTarget _
         | EOr _ -> return expr
       }
 
@@ -536,10 +537,13 @@ let partiallyEvaluate
             | ECharacter _
             | EBool _
             | EUnit _
+            | EPipeTarget _
             | EFloat _ -> return expr
-            | EForbiddenExpr (id, msg, expr) ->
-              let! expr = r expr
-              return EForbiddenExpr(id, msg, expr)
+            | EPipe (id, expr1, expr2, rest) ->
+              let! expr1' = r expr1
+              let! expr2' = r expr2
+              let! rest' = Ply.List.mapSequentially r rest
+              return EPipe(id, expr1', expr2', rest')
             | ELet (id, pat, rhs, next) ->
               let! rhs = r rhs
               let! next = r next

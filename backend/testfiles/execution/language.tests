@@ -237,14 +237,22 @@ module Pipes =
   |> x
   |> (+) 3)) = 10
 
+  // field access
+  (let x = { y = { z = { a = [1;2;3;4;5] }}} in
+  (x.y.z.a
+  |> List.length_v0)) = 5
+
   // check typing
 
-  // TODO: resolve this test
-  // (let x = 1 in
-  // (5
-  // |> x
-  // |> x
-  // |> (+) 3)) = Test.typeError_v0 "Expected a function value, got something else: 1"
+  (let x = fun a b -> a + 1 in
+  (7
+  |> x)) = Test.typeError_v0 "Expected 2 arguments, got 1"
+
+  (let x = 1 in
+  (5
+  |> x
+  |> x
+  |> (+) 3)) = Test.typeError_v0 "Expected a lambda, got something else: 1"
 
   (51
   |> 57

@@ -162,11 +162,15 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
   | EOr (_, lhs1, rhs1), EOr (_, lhs2, rhs2) ->
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
-  | EForbiddenExpr (_, msg1, e1), EForbiddenExpr (_, msg2, e2) ->
-    msg1 = msg2 && equalsExpr e1 e2
+  | EPipe (_, expr11, expr12, rest1), EPipe (_, expr21, expr22, rest2) ->
+    equalsExpr expr11 expr21
+    && equalsExpr expr12 expr22
+    && List.forall2 (fun e1 e2 -> equalsExpr e1 e2) rest1 rest2
+  | EPipeTarget _, EPipeTarget _ -> true
 
   // exhaustiveness check
-  | EForbiddenExpr _, _
+  | EPipeTarget _, _
+  | EPipe _, _
   | EInteger _, _
   | EBool _, _
   | EString _, _

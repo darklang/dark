@@ -19,6 +19,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EBool _
   | EUnit _
   | ECharacter _
+  | EPipeTarget _
   | EFloat _ -> expr
   | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
@@ -38,7 +39,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EOr (id, left, right) -> EOr(id, r left, r right)
   | EConstructor (id, typeName, caseName, fields) ->
     EConstructor(id, typeName, caseName, List.map r fields)
-  | EForbiddenExpr (id, msg, e) -> EForbiddenExpr(id, msg, r e)
+  | EPipe (id, expr1, expr2, rest) -> EPipe(id, r expr1, r expr2, List.map r rest)
 
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
@@ -52,6 +53,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | ECharacter _
     | EBool _
     | EUnit _
+    | EPipeTarget _
     | EFloat _ -> expr
     | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
     | EApply (id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
@@ -71,7 +73,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EOr (id, left, right) -> EOr(id, r left, r right)
     | EConstructor (id, typeName, caseName, fields) ->
       EConstructor(id, typeName, caseName, List.map r fields)
-    | EForbiddenExpr (id, msg, e) -> EForbiddenExpr(id, msg, r e)
+    | EPipe (id, expr1, expr2, rest) -> EPipe(id, r expr1, r expr2, List.map r rest)
 
 
   f result

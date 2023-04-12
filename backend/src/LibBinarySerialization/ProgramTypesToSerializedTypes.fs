@@ -162,8 +162,7 @@ module Expr =
         List.map (Tuple2.mapSecond toST) fields
       )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
-      let toST' = PT.Pipe.toExpr >> toST >> ST.Pipe.toPipeExpr
-      ST.EPipe(pipeID, toST expr1, toST' expr2, List.map toST' rest)
+      ST.EPipe(pipeID, toST expr1, toST expr2, List.map toST rest)
     | PT.EConstructor (id, typeName, caseName, fields) ->
       ST.EConstructor(
         id,
@@ -180,7 +179,6 @@ module Expr =
     | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       ST.EFeatureFlag(id, name, toST cond, toST caseA, toST caseB)
-    | PT.EForbiddenExpr (id, msg, expr) -> ST.EForbiddenExpr(id, msg, toST expr)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with

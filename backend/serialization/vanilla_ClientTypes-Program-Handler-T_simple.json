@@ -326,7 +326,7 @@
                                 5
                               ],
                               [
-                                "EPipeInfix",
+                                "EInfix",
                                 1021880969,
                                 [
                                   "InfixFnCall",

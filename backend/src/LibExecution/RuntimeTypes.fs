@@ -239,9 +239,8 @@ type Expr =
   | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
-
-  // Using to mark forbidden Expr for certain cases like using literal in the middle of PipeExpr
-  | EForbiddenExpr of id * message : string * Expr
+  | EPipe of id * Expr * Expr * List<Expr>
+  | EPipeTarget of id
 
 and LetPattern = LPVariable of id * name : string
 
@@ -402,6 +401,31 @@ module CustomType =
 
 /// Functions for working with Dark runtime expressions
 module Expr =
+
+  let pipeToExpr
+    (pipeID : id)
+    (expr1 : Expr)
+    (expr2 : Expr)
+    (rest : list<Expr>)
+    : Expr =
+    let folder (prev : Expr) (next : Expr) : Expr =
+      // Convert v |> fn1 a |> fn2 |> fn3 b c
+      // into fn3 (fn2 (fn1 v a)) b c
+      match next with
+      | EApply (id, fnTarget, typeArgs, EPipeTarget _ :: exprs) ->
+        EApply(id, fnTarget, typeArgs, prev :: exprs)
+      | EAnd (id, EPipeTarget _, right) -> EAnd(id, prev, right)
+      | EOr (id, EPipeTarget _, right) -> EOr(id, prev, right)
+      | _ as other ->
+        let typeArgs = []
+        EApply(pipeID, FnTargetExpr(other), typeArgs, [ prev ])
+    List.fold expr1 folder (expr2 :: rest)
+
+  let pipeToExprOption (pipe : Expr) : option<Expr> =
+    match pipe with
+    | EPipe (id, expr1, expr2, rest) -> pipeToExpr id expr1 expr2 rest |> Some
+    | _ -> None
+
   let toID (expr : Expr) : id =
     match expr with
     | EInteger (id, _)
@@ -421,9 +445,10 @@ module Expr =
     | ERecord (id, _, _)
     | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)
-    | EForbiddenExpr (id, _, _)
     | EMatch (id, _, _)
     | EAnd (id, _, _)
+    | EPipe (id, _, _, _)
+    | EPipeTarget id
     | EOr (id, _, _) -> id
 
 /// Functions for working with Dark Let patterns

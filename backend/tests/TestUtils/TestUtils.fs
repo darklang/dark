@@ -532,7 +532,8 @@ module Expect =
 
     match actual, expected with
     // expressions with no values
-    | EUnit _, EUnit _ -> ()
+    | EUnit _, EUnit _
+    | EPipeTarget _, EPipeTarget _ -> ()
     // expressions with single string values
     | EString (_, s), EString (_, s') ->
       let rec checkSegment s s' =
@@ -559,7 +560,10 @@ module Expect =
       eq ("first" :: path) first first'
       eq ("second" :: path) second second'
       eqList path theRest theRest'
-
+    | EPipe (_, expr1, expr2, rest), EPipe (_, expr1', expr2', rest') ->
+      eq path expr1 expr1'
+      eq path expr2 expr2'
+      eqList path rest rest'
     | EApply (_, name, typeArgs, args), EApply (_, name', typeArgs', args') ->
       let path = (string name :: path)
       check path name name'
@@ -619,7 +623,8 @@ module Expect =
       eq ("right" :: path) r r'
 
     // exhaustiveness check
-    | EForbiddenExpr _, _
+    | EPipe _, _
+    | EPipeTarget _, _
     | EUnit _, _
     | EInteger _, _
     | EString _, _

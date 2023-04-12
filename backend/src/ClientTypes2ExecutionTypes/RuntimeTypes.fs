@@ -232,7 +232,9 @@ module Expr =
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
     | Expr.EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | Expr.EOr (id, left, right) -> RT.EOr(id, r left, r right)
-    | Expr.EForbiddenExpr (id, msg, expr) -> RT.EForbiddenExpr(id, msg, r expr)
+    | Expr.EPipe (id, expr1, expr2, rest) ->
+      RT.EPipe(id, r expr1, r expr2, List.map r rest)
+    | Expr.EPipeTarget id -> RT.EPipeTarget id
 
   and stringSegmentToRT (segment : Expr.StringSegment) : RT.StringSegment =
     match segment with
@@ -298,7 +300,9 @@ module Expr =
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
-    | RT.EForbiddenExpr (id, msg, expr) -> Expr.EForbiddenExpr(id, msg, r expr)
+    | RT.EPipe (id, expr1, expr2, rest) ->
+      Expr.EPipe(id, r expr1, r expr2, List.map r rest)
+    | RT.EPipeTarget id -> Expr.EPipeTarget id
 
   and stringSegmentToCT (segment : RT.StringSegment) : Expr.StringSegment =
     match segment with

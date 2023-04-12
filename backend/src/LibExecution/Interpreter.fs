@@ -48,6 +48,75 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return ()
     }
 
+  let eAnd (id : id) (left : Dval) (right : Expr) : Ply<Dval> =
+    uply {
+      match left with
+      | DBool false ->
+        do! preview st right
+        return DBool false
+      | DBool true ->
+        match! eval state st right with
+        | DBool true -> return DBool true
+        | DBool false -> return DBool false
+        | right when Dval.isFake right -> return right
+        | _ -> return DError(sourceID id, "&& only supports Booleans")
+      | left when Dval.isFake left ->
+        do! preview st right
+        return left
+      | _ ->
+        do! preview st right
+        return DError(sourceID id, "&& only supports Booleans")
+    }
+
+  let eOr (id : id) (left : Dval) (right : Expr) : Ply<Dval> =
+    uply {
+      match left with
+      | DBool true ->
+        do! preview st right
+        return DBool true
+      | DBool false ->
+        match! eval state st right with
+        | DBool true -> return DBool true
+        | DBool false -> return DBool false
+        | right when Dval.isFake right -> return right
+        | _ -> return DError(sourceID id, "|| only supports Booleans")
+      | left when Dval.isFake left ->
+        do! preview st right
+        return left
+      | _ ->
+        do! preview st right
+        return DError(sourceID id, "|| only supports Booleans")
+    }
+
+  let eLambda (_id : id) (parameters : list<id * string>) (body : Expr) : Ply<Dval> =
+    uply {
+      if state.tracing.realOrPreview = Preview then
+        // In case this never gets executed, add default analysis results
+        parameters
+        |> List.iter (fun (id, _name) ->
+          state.tracing.traceDval false id (DIncomplete(sourceID id)))
+
+        // Since we return a DBlock, it's contents may never be
+        // executed. So first we execute with no context to get some
+        // live values.
+        let previewST =
+          parameters
+          |> List.choose (fun (id, name) ->
+            if name = "" then None else Some(name, DIncomplete(sourceID id)))
+          |> Map.ofList
+        do! preview previewST body
+
+      let parameters =
+        parameters
+        |> List.choose (fun param ->
+          match param with
+          | _, "" -> None
+          | id, name -> Some(id, name))
+
+      // It is the responsibility of wherever executes the DBlock to pass in
+      // args and execute the body.
+      return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
+    }
 
   uply {
     match e with
@@ -224,34 +293,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return! eval state st oldcode
 
 
-    | ELambda (_id, parameters, body) ->
-      if state.tracing.realOrPreview = Preview then
-        // In case this never gets executed, add default analysis results
-        parameters
-        |> List.iter (fun (id, _name) ->
-          state.tracing.traceDval false id (DIncomplete(sourceID id)))
-
-        // Since we return a DBlock, it's contents may never be
-        // executed. So first we execute with no context to get some
-        // live values.
-        let previewST =
-          parameters
-          |> List.choose (fun (id, name) ->
-            if name = "" then None else Some(name, DIncomplete(sourceID id)))
-          |> Map.ofList
-        do! preview previewST body
-
-      let parameters =
-        parameters
-        |> List.choose (fun param ->
-          match param with
-          | _, "" -> None
-          | id, name -> Some(id, name))
-
-      // It is the responsibility of wherever executes the DBlock to pass in
-      // args and execute the body.
-      return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
-
+    | ELambda (_id, parameters, body) -> return! eLambda _id parameters body
 
     | EMatch (id, matchExpr, cases) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
@@ -438,41 +480,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | EOr (id, left, right) ->
-      match! eval state st left with
-      | DBool true ->
-        do! preview st right
-        return DBool true
-      | DBool false ->
-        match! eval state st right with
-        | DBool true -> return DBool true
-        | DBool false -> return DBool false
-        | right when Dval.isFake right -> return right
-        | _ -> return DError(sourceID id, "|| only supports Booleans")
-      | left when Dval.isFake left ->
-        do! preview st right
-        return left
-      | _ ->
-        do! preview st right
-        return DError(sourceID id, "|| only supports Booleans")
+      let! left' = eval state st left
+      return! eOr id left' right
 
 
     | EAnd (id, left, right) ->
-      match! eval state st left with
-      | DBool false ->
-        do! preview st right
-        return DBool false
-      | DBool true ->
-        match! eval state st right with
-        | DBool true -> return DBool true
-        | DBool false -> return DBool false
-        | right when Dval.isFake right -> return right
-        | _ -> return DError(sourceID id, "&& only supports Booleans")
-      | left when Dval.isFake left ->
-        do! preview st right
-        return left
-      | _ ->
-        do! preview st right
-        return DError(sourceID id, "&& only supports Booleans")
+      let! left' = eval state st left
+      return! eAnd id left' right
 
 
     | EConstructor (id, typeName, caseName, fields) ->
@@ -499,13 +513,46 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         match List.tryFind Dval.isFake fields with
         | Some fakeDval -> return fakeDval
         | None -> return DConstructor(Some typeName, caseName, fields)
-    | EForbiddenExpr (id, msg, expr) ->
-      let! result = eval state st expr
-      let msg' =
-        match msg with
-        | "" -> $"{DvalReprDeveloper.toRepr result}".Replace("\"", "")
-        | _ -> $"{msg}{DvalReprDeveloper.toRepr result}"
-      return DError(sourceID id, msg')
+    | EPipe (pipeId, expr1, expr2, rest) ->
+      // Convert v |> fn1 a |> fn2 |> fn3 b c
+      // into fn3 (fn2 (fn1 v a)) b c
+      // This conversion should correspond to ast.ml:inject_param_and_execute
+      // from the OCaml interpreter
+      let folder (prev : Dval) (next : Expr) : DvalTask =
+        uply {
+          match prev, next with
+          | DError (sourceID, msg), _ -> return DError(sourceID, msg)
+          | dv, EApply (id, fnTarget, typeArgs, EPipeTarget _ :: exprs) ->
+            let! args = Ply.List.mapSequentially (eval state st) exprs
+            match fnTarget with
+            | FnName name -> return! callFn state id name typeArgs (dv :: args)
+            | FnTargetExpr e ->
+              let! target = eval' state st e
+              return! applyFn state target id (prev :: args)
+          | left, EAnd (id, EPipeTarget _, right) -> return! eAnd id left right
+          | left, EOr (id, EPipeTarget _, right) -> return! eOr id left right
+          | dv, ELambda (id, parameters, body) ->
+            let! target = eLambda id parameters body
+            return! applyFn state target id [ dv ]
+          | dv, EVariable (id, name) ->
+            match st.TryFind name with
+            | None ->
+              return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
+            | Some (DFnVal _ as target) -> return! applyFn state target id [ dv ]
+            | Some other ->
+              let msg =
+                $"Expected a lambda, got something else: {DvalReprDeveloper.toRepr other}"
+              return DError((sourceID id), msg)
+          | _, other ->
+            let! result = eval state st other
+            let msg =
+              $"Expected a function value, got something else: {DvalReprDeveloper.toRepr result}"
+            return DError(SourceNone, msg)
+        }
+      let! init = eval state st expr1
+      return! Ply.List.foldSequentially folder init (expr2 :: rest)
+    | EPipeTarget id ->
+      return Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
   }
 
 /// Interprets an expression and reduces to a Dark value

@@ -331,7 +331,7 @@
                                     5
                                   ],
                                   [
-                                    "EPipeInfix",
+                                    "EInfix",
                                     1021880969,
                                     [
                                       "InfixFnCall",
@@ -8174,7 +8174,7 @@
                                       5
                                     ],
                                     [
-                                      "EPipeInfix",
+                                      "EInfix",
                                       1021880969,
                                       [
                                         "InfixFnCall",
@@ -9415,7 +9415,7 @@
                                       5
                                     ],
                                     [
-                                      "EPipeInfix",
+                                      "EInfix",
                                       1021880969,
                                       [
                                         "InfixFnCall",

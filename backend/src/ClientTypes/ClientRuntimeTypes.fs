@@ -106,8 +106,8 @@ module Expr =
     | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
-    | EForbiddenExpr of id * string * T
-
+    | EPipe of id * T * T * List<T>
+    | EPipeTarget of id
   and StringSegment =
     | StringText of string
     | StringInterpolation of T
