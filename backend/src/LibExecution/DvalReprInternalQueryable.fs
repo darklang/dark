@@ -289,7 +289,7 @@ module Test =
       fields |> List.all isQueryableDval
 
     // TODO support
-    | DRecord _ // CLEANUPRECORD
+    | DRecord _ // TYPESCLEANUP
     | DTuple _
     | DBytes _
     | DHttpResponse _

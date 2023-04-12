@@ -151,13 +151,14 @@ module RuntimeTypes =
     // TODO: is this exhaustive? I haven't checked.
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
-    |> List.map Tuple2.second
+    |> List.map (fun (name, (dv, t)) -> dv)
 
   let dval : RT.Dval =
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
+    |> List.map (fun (name, (dv, t)) -> name, dv)
     |> Map
-    |> RT.DDict
+    |> RT.DRecord
 
 module ProgramTypes =
   let fqFnNames : List<PT.FQFnName.T> =

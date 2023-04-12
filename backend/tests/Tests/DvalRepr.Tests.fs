@@ -27,17 +27,22 @@ let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   |> DvalReprInternalRoundtrippable.parseJsonV0
   |> Expect.dvalEquality dv
 
+// TYPESCLEANUP also test them directly
+let queryableRoundtripsSuccessfully
+  (
+    dv : RT.Dval,
+    fieldTyp : RT.TypeReference
+  ) : bool =
+  let record = RT.DRecord(Map.ofList [ "field", dv ])
+  let typeName = S.userTypeName "MyType" 0
+  let typeRef = S.userTypeReference "MyType" 0
 
-let queryableRoundtripsSuccessfully (dv : RT.Dval) : bool =
-  Exception.raiseInternal "" []
-// let dvm = Map.ofList [ "field", dv ]
-// let fieldTypes = [ "field", RT.Dval.toType dv ]
-// let typ = RT.TRecord fieldTypes
+  let availableTypes = Map [ typeName, S.customTypeRecord [ "field", fieldTyp ] ]
 
-// dvm
-// |> DvalReprInternalQueryable.toJsonStringV0 fieldTypes
-// |> DvalReprInternalQueryable.parseJsonV0 typ
-// |> Expect.dvalEquality (RT.DDict dvm)
+  record
+  |> DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef
+  |> DvalReprInternalQueryable.parseJsonV0 availableTypes typeRef
+  |> Expect.dvalEquality record
 
 let testDvalRoundtrippableRoundtrips =
 
@@ -102,22 +107,23 @@ module ToHashableRepr =
 let allRoundtrips =
   let t = testListUsingProperty
 
-  let all = sampleDvals
-  let dvs (filter : RT.Dval -> bool) = List.filter (fun (_, dv) -> filter dv) all
+  let dvs (filter : RT.Dval -> bool) : List<string * (RT.Dval * RT.TypeReference)> =
+    List.filter (fun (_, (dv, _)) -> filter dv) sampleDvals
 
   testList
     "roundtrips"
     [ t
         "roundtrippable"
         roundtrippableRoundtripsSuccessfully
-        (dvs (DvalReprInternalRoundtrippable.Test.isRoundtrippableDval))
+        (dvs DvalReprInternalRoundtrippable.Test.isRoundtrippableDval
+         |> List.map (fun (name, (v, _)) -> name, v))
       t
         "queryable v0"
         queryableRoundtripsSuccessfully
         (dvs DvalReprInternalQueryable.Test.isQueryableDval)
       t
         "vanilla"
-        (fun dv ->
+        (fun (dv, _) ->
           dv
           |> CT2Runtime.Dval.toCT
           |> Json.Vanilla.serialize
