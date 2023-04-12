@@ -148,7 +148,7 @@ let executionStateFor
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let domains = Canvas.domainsForCanvasID canvasID
+    let! domains = Canvas.domainsForCanvasID canvasID
     let program : RT.ProgramContext =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
@@ -180,7 +180,8 @@ let executionStateFor
               Exception.raiseInternal
                 $"UNEXPECTED EXCEPTION COUNT in test {domains}"
                 [ "expectedExceptionCount", tc.expectedExceptionCount
-                  "actualExceptionCount", tc.exceptionReports.Length ] }
+                  "actualExceptionCount", tc.exceptionReports.Length
+                  "reports", tc.exceptionReports ] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
