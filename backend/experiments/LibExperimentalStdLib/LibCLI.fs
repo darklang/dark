@@ -75,7 +75,8 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "System" "getEnv" 0
+
+    { name = fn "EnvVar" "get" 0
       typeParams = []
       parameters = [ Param.make "varName" TString "" ]
       returnType = TOption TString
@@ -94,7 +95,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "System" "getEnvVars" 0
+    { name = fn "EnvVar" "getAll" 0
       typeParams = []
       parameters = []
       returnType = TList(TTuple(TString, TString, []))
