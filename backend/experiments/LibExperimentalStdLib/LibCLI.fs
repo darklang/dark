@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
     { name = fn "EnvVar" "getAll" 0
       typeParams = []
       parameters = []
-      returnType = TList(TTuple(TString, TString, []))
+      returnType = TDict TString
       description =
         "Returns a list of tuples containing all the environment variables and their values."
       fn =
@@ -106,15 +106,19 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           let envVars = System.Environment.GetEnvironmentVariables()
 
-          let keyValuePairs =
+          let tupleList =
             envVars
             |> Seq.cast<System.Collections.DictionaryEntry>
             |> Seq.map (fun kv -> (string kv.Key, string kv.Value))
             |> List.ofSeq
-            |> List.map (fun (key, value) -> DTuple(DString key, DString value, []))
 
+          let envMap =
+            tupleList
+            |> List.map (fun (key, value) -> key, DString value)
+            |> Map.ofList
+            |> DDict
 
-          Ply(DList keyValuePairs)
+          Ply(envMap)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

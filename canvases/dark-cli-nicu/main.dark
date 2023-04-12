@@ -7,7 +7,10 @@ let _indexHandler _req =
 
   let varName = "DOTNET_RUNNING_IN_CONTAINER"
 
-  let maybeEnvs = EnvVar.getAll |> Json.serialize<List<Tuple<String, String>>>
+  let _ = "Transofrming to list so that we can serialize it"
+  let envsToList = Dict.toList EnvVar.getAll
+
+  let maybeEnvs = Json.serialize<List<Tuple<String, String>>> envsToList
   let maybeEnv = EnvVar.get varName
 
   let singleEnv = match maybeEnv with
