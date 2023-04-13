@@ -1410,50 +1410,30 @@ let fns : List<BuiltInFn> =
             let applyFn (dval : Dval) : DvalTask =
               Interpreter.applyFnVal state fn [ dval ]
 
-            let rec loop
-              (groups : (Dval * Dval list) list)
-              (loopList : Dval list)
-              : Ply<Result<list<Dval>, Dval>> =
-              uply {
-                match loopList with
-                | head :: tail ->
-                  let! key = applyFn head
+            // apply the function to each element in the list
+            let! result =
+              Ply.List.mapSequentially
+                (fun dval ->
+                  uply {
+                    let! key = applyFn dval
+                    return (key, dval)
+                  })
+                l
 
-                  if not (Dval.isFake key) then
-                    let (updatedGroups, found) =
-                      List.foldBack
-                        (fun (k, elems) (acc, found) ->
-                          let newElems, newFound =
-                            if k = key then
-                              (elems @ [ head ], true)
-                            else
-                              elems, found
+            let badKey = List.tryFind (fun (k, _) -> Dval.isFake k) result
 
-                          (k, newElems) :: acc, newFound)
-                        groups
-                        ([], false)
+            match badKey with
+            | Some (key, _) -> return key
+            | None ->
+              let groups =
+                result
+                |> List.groupBy fst
+                |> List.map (fun (key, elementsWithKey) ->
+                  let elements = List.map snd elementsWithKey
+                  DTuple(key, DList elements, []))
+                |> DList
 
-                    let newGroups =
-                      if found then
-                        updatedGroups
-                      else
-                        (key, [ head ]) :: updatedGroups
-
-                    return! loop newGroups tail
-                  else
-                    return Error key
-                | [] ->
-                  return
-                    Ok(
-                      List.map
-                        (fun (k, elements) -> DTuple(k, DList elements, []))
-                        groups
-                    )
-              }
-
-            match! loop [] l with
-            | Ok result -> return DList(List.rev result)
-            | Error fakeDval -> return fakeDval
+              return groups
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
