@@ -171,6 +171,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | DDict o ->
           match Map.tryFind field o with
           | Some v -> return v
+          | None -> return DError(sourceID id, $"No field named {field} in dict")
+        | DRecord o ->
+          match Map.tryFind field o with
+          | Some v -> return v
           | None -> return DError(sourceID id, $"No field named {field} in record")
         | DDB _ ->
           return
