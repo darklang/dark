@@ -240,21 +240,10 @@ List.zip_v0 [] [] = Just []
 List.zip_v0 [Test.typeError_v0 "msg"] [Just ""] = Test.typeError "msg"
 
 
-List.groupAdjacentBy_v0 [1, 2, 2, 3, 2, 2, 2, 1, 1, 1] (fun a b -> a == b) = [[1], [2, 2], [3], [2, 2, 2], [1, 1, 1]]
-List.groupAdjacentBy_v0 [1, 2, 3, 2, 3, 2] (fun x y -> x < y) = [[1, 2, 3], [2, 3], [2]]
-List.groupAdjacentBy_v0 [] (fun x y -> x == y) = []
-List.groupAdjacentBy_v0 [1] (fun x y -> x == y) = [[1]]
-List.groupAdjacentBy_v0 ["a"] (fun x y -> x == y) = [["a"]]
-List.groupAdjacentBy_v0 [5, 4, 3, 3, 2, 1] (fun x y -> x > y) = [[5, 4, 3], [3, 2, 1]]
-List.groupAdjacentBy_v0 [1, 1, 1, 1, 1] (fun a b -> a == b) = [[1, 1, 1, 1, 1]]
-List.groupAdjacentBy_v0 [1, 2, 3, 4, 5] (fun x y -> 1) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `1`"
-
-
-List.groupBy_v0 [1, 2, 3, 4, 5] (fun x -> Int.mod_v0 x 2) = [(1, [1, 3, 5]), (0, [2, 4])]
-List.groupBy_v0 [1, 2, 3, 4, 5] (fun x -> Int.mod_v0 x 2) = [(1, [1, 3, 5]), (0, [2, 4])]
-List.groupBy_v0 ["apple", "banana", "avocado", "grape", "apricot"] (fun s -> String.first_v0 s 1) = [("a", ["apple", "avocado", "apricot"]), ("b", ["banana"]), ("g", ["grape"])]
-List.groupBy_v0 ['a', 'b', 'c', 'a', 'b'] (fun c -> c) = [('a', ['a', 'a']), ('b', ['b', 'b']), ('c', ['c'])]
-List.groupBy_v0 [1, 2, 3, 4, 5] (fun x -> Int.mod_v0 x 2 == 0) = [(false, [1, 3, 5]), (true, [2, 4])]
-List.groupBy_v0 [1, 2, 3, 4, 5] (fun x -> ((Int.mod_v0 x 2), "test")) = [((1, "test"), [1, 3, 5]), ((0, "test"), [2, 4])]
-List.groupBy_v0 [] (fun x -> x) = []
-
+List.groupByWithKey_v0 [1, 2, 3, 4, 5] (fun x -> Int.mod_v0 x 2) = [(1, [1, 3, 5]), (0, [2, 4])]
+List.groupByWithKey_v0 [1, 2, 3, 4, 5] (fun x -> Int.mod_v0 x 2) = [(1, [1, 3, 5]), (0, [2, 4])]
+List.groupByWithKey_v0 ["apple", "banana", "avocado", "grape", "apricot"] (fun s -> String.first_v0 s 1) = [("a", ["apple", "avocado", "apricot"]), ("b", ["banana"]), ("g", ["grape"])]
+List.groupByWithKey_v0 ['a', 'b', 'c', 'a', 'b'] (fun c -> c) = [('a', ['a', 'a']), ('b', ['b', 'b']), ('c', ['c'])]
+List.groupByWithKey_v0 [1, 2, 3, 4, 5] (fun x -> Int.mod_v0 x 2 == 0) = [(false, [1, 3, 5]), (true, [2, 4])]
+List.groupByWithKey_v0 [1, 2, 3, 4, 5] (fun x -> ((Int.mod_v0 x 2), "test")) = [((1, "test"), [1, 3, 5]), ((0, "test"), [2, 4])]
+List.groupByWithKey_v0 [] (fun x -> x) = []

@@ -1389,74 +1389,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "groupAdjacentBy" 0
-      typeParams = []
-      parameters =
-        [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA; varA ], TBool)) "" [ "a"; "b" ] ]
-      returnType = TList(TList varA)
-      description =
-        "Groups <param list> into sublists, where each sublist contains values that
-         are equal according to <param fn>.
-
-         For example, if <param list> is {{[1, 2, 2, 3, 2, 2, 2, 1, 1, 1]}} and <param fn>
-         is {{fn a b -> a == b}}, returns {{[[1], [2, 2], [3], [2, 2, 2], [1, 1, 1]]}}.
-
-         Important: It behaves differently from Haskell's groupBy: https://stackoverflow.com/a/1316392
-         Each value is compared to the next value in the list, not the initial value in the group.
-
-         Preserves the order of values."
-      fn =
-        (function
-        | state, _, [ DList l; DFnVal fn ] ->
-          uply {
-            let group l =
-              let applyFn dvalA dvalB =
-                Interpreter.applyFnVal state fn [ dvalA; dvalB ]
-
-              let rec loop currentGroup groups l =
-                uply {
-                  match currentGroup, groups, l with
-                  | [], [], [] -> return Ok([])
-                  | _, _, hd :: tl ->
-                    match currentGroup with
-                    | [] -> return! loop [ hd ] groups tl
-                    | cgHd :: _ ->
-                      let! fnResult = applyFn cgHd hd
-
-                      match fnResult with
-                      | DBool true -> return! loop (hd :: currentGroup) groups tl
-                      | DBool false ->
-                        return! loop [ hd ] (List.rev currentGroup :: groups) tl
-
-                      | (DIncomplete _
-                      | DError _) as dv ->
-                        // fake dvals
-                        return Error dv
-
-                      | v ->
-                        return
-                          Exception.raiseCode (
-                            Errors.expectedLambdaType "fn" TBool v
-                          )
-                  | cg, [], [] -> return Ok(List.rev (List.rev cg :: groups))
-                  | cg, gs, [] -> return Ok(List.rev (List.rev cg :: gs))
-                }
-
-              loop [] [] l
-
-            match! group l with
-            | Ok result -> return DList(List.map (fun g -> DList g) result)
-            | Error fakeDval -> return fakeDval
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-
-    { name = fn "List" "groupBy" 0
+    { name = fn "List" "groupByWithKey" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1526,7 +1459,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
 
 
     { name = fn "List" "partition" 0
