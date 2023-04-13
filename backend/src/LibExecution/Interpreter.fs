@@ -143,11 +143,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
               | _, "", _ -> return DError(sourceID id, "Record key is empty")
-              | DDict m, k, v -> return (DDict(Map.add k v m))
-              // If we haven't got a DDict we're propagating an error so let it go
+              | DRecord m, k, v -> return (DRecord(Map.add k v m))
+              // If we haven't got a DRecord we're propagating an error so let it go
               | r, _, v -> return r
             })
-          (DDict(Map.empty))
+          // TYPESCLEANUP
+          (DRecord(Map.empty))
           fields
 
 
@@ -168,10 +169,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return DError(sourceID id, "Field name is empty")
       else
         match obj with
-        | DDict o ->
-          match Map.tryFind field o with
-          | Some v -> return v
-          | None -> return DError(sourceID id, $"No field named {field} in dict")
         | DRecord o ->
           match Map.tryFind field o with
           | Some v -> return v
@@ -189,7 +186,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             DError(
               sourceID id,
               $"Attempting to access a field of something that isn't a record or dict, "
-              + "(it's a {DvalReprDeveloper.dvalTypeName obj})."
+              + $"(it's a {DvalReprDeveloper.dvalTypeName obj})."
             )
 
 

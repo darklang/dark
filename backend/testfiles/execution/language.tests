@@ -101,9 +101,11 @@ module UserEnums =
 
 
 module FieldAccess =
-  (let x = { col1 = 1 } in x.col1) = 1
-  (let x = { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
-  (let x = { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in record"
+  type MyRecord = { col1: Int }
+
+  (let x = MyRecord { col1 = 1 } in x.col1) = 1
+  (let x = MyRecord { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
+  (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in record"
   (Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
   (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
 
@@ -474,7 +476,7 @@ module Constructors =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a String (\"not an option\"), but `option2` expected a Option<'b>."
+  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\"."
 
 module ErrorPropagation =
   List.head (Test.typeError_v0 "test") = Test.typeError_v0 "test"

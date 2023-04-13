@@ -1,3 +1,7 @@
+type FruitRecord = {
+  fruits : List<String>
+}
+
 // getQueue works
 Test.getQueue_v0 "TestWorker" = []
 
@@ -9,7 +13,7 @@ Test.getQueue_v0 "TestWorker" = []
 // emit_v1 works with mixed values
 (let _ = emit_v1 "value" "TestWorker" in
  let _ = emit_v1 1 "TestWorker" in
- let _ = emit_v1 {``Fruits`` = ["apple", "banana"] } "TestWorker" in
+ let _ = emit_v1 (FruitRecord {fruits = ["apple", "banana"] }) "TestWorker" in
  let queue = Test.getQueue_v0 "TestWorker" in
  List.sort queue) =
    [

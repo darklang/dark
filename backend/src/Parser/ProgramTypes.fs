@@ -538,6 +538,19 @@ module Expr =
       PT.EPipe(id, c expr, placeholder, [])
 
 
+    | SynExpr.App (_, _, SynExpr.Ident typeName, SynExpr.Record (_, _, fields, _), _) ->
+      let fields =
+        fields
+        |> List.map (fun field ->
+          match field with
+          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
+            (nameOrBlank name.idText, c expr)
+          | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
+
+      // TYPESCLEANUP: use typename
+      PT.ERecord(id, None, fields)
+
+
     // Enum values (EConstructors)
     // TODO: remove this explicit handling
     // when the Option and Result types are defined in StdLib
@@ -545,6 +558,7 @@ module Expr =
       List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
       ->
       PT.EConstructor(id, None, name.idText, [ c arg ])
+
 
 
     // Feature flags
