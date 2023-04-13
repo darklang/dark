@@ -222,6 +222,7 @@ type Expr =
   | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
+  | EDict of id * List<string * Expr>
 
 and StringSegment =
   | StringText of string

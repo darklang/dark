@@ -229,6 +229,7 @@ type Expr =
   | EVariable of id * string
   | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
+  | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * Expr * List<Expr>
 

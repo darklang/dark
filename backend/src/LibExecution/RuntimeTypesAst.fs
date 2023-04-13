@@ -38,6 +38,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EOr (id, left, right) -> EOr(id, r left, r right)
   | EConstructor (id, typeName, caseName, fields) ->
     EConstructor(id, typeName, caseName, List.map r fields)
+  | EDict (id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
@@ -69,6 +70,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EOr (id, left, right) -> EOr(id, r left, r right)
     | EConstructor (id, typeName, caseName, fields) ->
       EConstructor(id, typeName, caseName, List.map r fields)
+    | EDict (id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
 
 
   f result

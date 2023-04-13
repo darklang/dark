@@ -233,6 +233,8 @@ module Expr =
         caseName,
         List.map toRT fields
       )
+    | PT.EDict (id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)
+
 
 
   and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =

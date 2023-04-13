@@ -162,6 +162,12 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
   | EOr (_, lhs1, rhs1), EOr (_, lhs2, rhs2) ->
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
+  | EDict (_, fields1), EDict (_, fields2) ->
+    fields1.Length = fields2.Length
+    && List.forall2
+         (fun (k1, v1) (k2, v2) -> k1 = k2 && equalsExpr v1 v2)
+         fields1
+         fields2
 
   // exhaustiveness check
   | EInt _, _
@@ -184,6 +190,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFeatureFlag _, _
   | EAnd _, _
   | EOr _, _
+  | EDict _, _
   | EConstructor _, _ -> false
 
 

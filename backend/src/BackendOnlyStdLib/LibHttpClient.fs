@@ -306,7 +306,7 @@ let fns : List<BuiltInFn> =
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
-                  |> Dval.obj
+                  |> Dval.record
                   |> Ok
                   |> DResult
 

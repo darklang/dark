@@ -569,11 +569,18 @@ module Expect =
 
     | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
-
       List.iter2
         (fun (k, v) (k', v') ->
           check path k k'
           eq (k :: path) v v')
+        fields
+        fields'
+
+    | EDict (_, fields), EDict (_, fields') ->
+      List.iter2
+        (fun (k, v) (k', v') ->
+          check ("key" :: path) k k'
+          eq ("value" :: path) v v')
         fields
         fields'
 
@@ -627,6 +634,7 @@ module Expect =
     | ETuple _, _
     | EApply _, _
     | ERecord _, _
+    | EDict _, _
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _

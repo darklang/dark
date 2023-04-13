@@ -19,4 +19,4 @@ Test.getQueue_v0 "TestWorker" = []
    [
     "\"value\"";
     "1";
-    "{\n  Fruits: [\n    \"apple\", \"banana\"\n  ]\n}"]
+    "{\n  fruits: [\n    \"apple\", \"banana\"\n  ]\n}"]

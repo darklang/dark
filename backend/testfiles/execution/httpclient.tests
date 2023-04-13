@@ -59,16 +59,18 @@ HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error
 // Basic request works including headers
 (let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { statusCode = 200
-     headers =
-      [
-        ("server", "gunicorn/19.9.0")
-        ("access-control-allow-origin", "*")
-        ("access-control-allow-credentials", "true")
-        ("content-type", "text/html; charset=utf-8")
-        ("content-length", "0")
-      ]
-     body = Bytes.empty}
+ Record.set_v0 response "headers" respHeaders) =
+   // TYPESCLEANUP - add type to stdlib
+   HttpClient.Response
+    { statusCode = 200
+      headers =
+        [
+          ("server", "gunicorn/19.9.0")
+          ("access-control-allow-origin", "*")
+          ("access-control-allow-credentials", "true")
+          ("content-type", "text/html; charset=utf-8")
+          ("content-length", "0")
+        ]
+      body = Bytes.empty }
 
 // TODO: http2, http3

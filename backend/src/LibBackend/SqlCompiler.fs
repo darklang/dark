@@ -518,6 +518,7 @@ let partiallyEvaluate
         | EList _
         | ETuple _
         | ERecord _
+        | EDict _
         | EConstructor _
         | EMatch _
         | EFeatureFlag _
@@ -590,6 +591,17 @@ let partiallyEvaluate
                   fields
 
               return ERecord(id, typeName, fields)
+            | EDict (id, fields) ->
+              let! fields =
+                Ply.List.mapSequentially
+                  (fun (key, expr) ->
+                    uply {
+                      let! expr = r expr
+                      return (key, expr)
+                    })
+                  fields
+
+              return EDict(id, fields)
             | EConstructor (id, typeName, caseName, fields) ->
               let! fields = Ply.List.mapSequentially r fields
               return EConstructor(id, typeName, caseName, fields)

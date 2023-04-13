@@ -126,6 +126,7 @@ type Expr =
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | EDict of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EConstructor of
     id *

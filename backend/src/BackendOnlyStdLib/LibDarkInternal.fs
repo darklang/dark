@@ -309,13 +309,13 @@ let fns : List<BuiltInFn> =
                 let parameters =
                   data.parameters
                   |> List.map (fun p ->
-                    Dval.obj [ ("name", DString p.name)
-                               ("type", DString(typeName p.typ)) ])
+                    Dval.record [ ("name", DString p.name)
+                                  ("type", DString(typeName p.typ)) ])
                 [ ("name", DString(FQFnName.toString key))
                   ("documentation", DString data.description)
                   ("parameters", DList parameters)
                   ("returnType", DString returnType) ]
-              Dval.obj alist)
+              Dval.record alist)
             |> DList
             |> Ply
           | _ -> incorrectArgs ())

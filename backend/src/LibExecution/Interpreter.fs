@@ -151,6 +151,24 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           (DRecord(Map.empty))
           fields
 
+    | EDict (id, fields) ->
+      return!
+        Ply.List.foldSequentially
+          (fun r (k, expr) ->
+            uply {
+              let! v = eval state st expr
+              match (r, k, v) with
+              | r, _, _ when Dval.isFake r -> return r
+              | _, _, v when Dval.isFake v -> return v
+              | _, "", _ -> return DError(sourceID id, "Record key is empty")
+              | DDict m, k, v -> return (DDict(Map.add k v m))
+              // If we haven't got a DDict we're propagating an error so let it go
+              | r, _, v -> return r
+            })
+          (DDict Map.empty)
+          fields
+
+
 
     | EApply (id, fnTarget, typeArgs, exprs) ->
       let! args = Ply.List.mapSequentially (eval state st) exprs

@@ -236,6 +236,7 @@ type Expr =
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | EDict of id * List<string * Expr>
   | EConstructor of
     id *
     Option<FQTypeName.T> *
@@ -427,6 +428,7 @@ module Expr =
     | EList (id, _)
     | ETuple (id, _, _, _)
     | ERecord (id, _, _)
+    | EDict (id, _)
     | EConstructor (id, _, _, _)
     | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _)
@@ -597,19 +599,41 @@ module Dval =
     List.find (fun (dv : Dval) -> isFake dv) list
     |> Option.defaultValue (DList list)
 
-  let obj (fields : List<string * Dval>) : Dval =
+  let record (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DDict Map.empty)
+      (DRecord (Map.empty))
       (fun m (k, v) ->
         match m, k, v with
+        // TYPESCLEANUP: remove hacks
         // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
         | m, _k, _v when isFake m -> m
+        // Errors should propagate (but only if we're not already propagating an error)
+        | DRecord _, _, v when isFake v -> v
         // Skip empty rows
-        | _, "", _ -> m
-        | _, _, DIncomplete _ -> m
+        | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
+        // Error if the key appears twice
+        | DRecord m, k, _v when Map.containsKey k m ->
+          DError(SourceNone, $"Duplicate key: {k}")
+        // Otherwise add it
+        | DRecord m, k, v -> DRecord(Map.add k v m)
+        // If we haven't got a DDict we're propagating an error so let it go
+        | m, _, _ -> m)
+      fields
+
+  let dict (fields : List<string * Dval>) : Dval =
+    // Give a warning for duplicate keys
+    List.fold
+      (DDict (Map.empty))
+      (fun m (k, v) ->
+        match m, k, v with
+        // TYPESCLEANUP: remove hacks
+        // If we're propagating a fakeval keep doing it. We handle it without this line but let's be certain
+        | m, _k, _v when isFake m -> m
         // Errors should propagate (but only if we're not already propagating an error)
         | DDict _, _, v when isFake v -> v
+        // Skip empty rows
+        | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
         // Error if the key appears twice
         | DDict m, k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")

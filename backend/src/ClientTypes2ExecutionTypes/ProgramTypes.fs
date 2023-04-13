@@ -298,6 +298,8 @@ module Expr =
         caseName,
         List.map fromCT fields
       )
+    | CTPT.EDict (id, fields) ->
+      PT.Expr.EDict(id, fields |> List.map (fun (key, value) -> (key, fromCT value)))
 
   and stringSegmentFromCTPT (segment : CTPT.StringSegment) : PT.StringSegment =
     match segment with
@@ -363,6 +365,8 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
+    | PT.EDict (id, fields) ->
+      CTPT.Expr.EDict(id, fields |> List.map (fun (key, value) -> (key, toCT value)))
 
 
   and stringSegmentToCT (segment : PT.StringSegment) : CTPT.StringSegment =

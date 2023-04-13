@@ -103,6 +103,7 @@ module Expr =
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
+    | EDict of id * List<string * T>
     | EConstructor of
       id *
       typeName : Option<FQTypeName.T> *

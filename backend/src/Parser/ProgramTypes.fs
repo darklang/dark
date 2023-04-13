@@ -470,7 +470,7 @@ module Expr =
       PT.EMatch(id, c cond, List.map convertCase cases)
 
 
-    // records: `{ A = 2; B = "yellow" }`
+    // Dicts: `{ "A" = 2; "B"" = "yellow" }`
     | SynExpr.Record (_, _, fields, _) ->
       let fields =
         fields
@@ -480,12 +480,7 @@ module Expr =
             (nameOrBlank name.idText, c expr)
           | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
-      let typeName =
-        // TODO: determine the appropriate typeName
-        // based on the fields and types available
-        None
-
-      PT.ERecord(id, typeName, fields)
+      PT.EDict(id, fields)
 
     // Parens (eg `(5)`)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
@@ -537,8 +532,12 @@ module Expr =
       // the very bottom on the pipe chain, this is just the first expression
       PT.EPipe(id, c expr, placeholder, [])
 
-
-    | SynExpr.App (_, _, SynExpr.Ident typeName, SynExpr.Record (_, _, fields, _), _) ->
+    // Records
+    | SynExpr.App (_,
+                   _,
+                   SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _),
+                   SynExpr.Record (_, _, fields, _),
+                   _) when List.all (fun n -> String.isCapitalized (string n)) names ->
       let fields =
         fields
         |> List.map (fun field ->
@@ -549,6 +548,24 @@ module Expr =
 
       // TYPESCLEANUP: use typename
       PT.ERecord(id, None, fields)
+
+    // More records: MyRecord { x = 5 } or Dict { x = 5 }
+    | SynExpr.App (_, _, SynExpr.Ident name, SynExpr.Record (_, _, fields, _), _) when
+      String.isCapitalized (string name)
+      ->
+      let fields =
+        fields
+        |> List.map (fun field ->
+          match field with
+          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
+            (nameOrBlank name.idText, c expr)
+          | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
+
+      if string name = "Dict" then
+        PT.EDict(id, fields)
+      else
+        // TYPESCLEANUP: use typename
+        PT.ERecord(id, None, fields)
 
 
     // Enum values (EConstructors)
