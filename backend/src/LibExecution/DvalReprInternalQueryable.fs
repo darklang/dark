@@ -211,8 +211,15 @@ let parseJsonV0
       |> DDateTime
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
-    // | TTuple (t1, t2, rest), JsonValueKind.Array ->
-    //   j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
+    | TTuple (t1, t2, rest), JsonValueKind.Array ->
+      let arr = j.EnumerateArray() |> Seq.toList
+      if List.length arr = 2 + List.length rest then
+        let d1 = convert t1 arr[0]
+        let d2 = convert t2 arr[1]
+        let rest = List.map2 convert rest arr[2..]
+        DTuple(d1, d2, rest)
+      else
+        Exception.raiseInternal "Invalid tuple" []
     | TDict typ, JsonValueKind.Object ->
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
@@ -285,12 +292,11 @@ module Test =
     | DList dvals -> List.all isQueryableDval dvals
     | DDict map -> map |> Map.values |> List.all isQueryableDval
     | DConstructor (_typeName, _caseName, fields) ->
-      // TODO I'm not sure what's appropriate here.
       fields |> List.all isQueryableDval
+    | DTuple (d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
     // TODO support
     | DRecord _ // TYPESCLEANUP
-    | DTuple _
     | DBytes _
     | DHttpResponse _
     | DOption _
