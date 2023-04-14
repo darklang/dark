@@ -28,45 +28,47 @@ module Roundtrip =
   }
   [<DB>] type SampleDB = Sample
 
-  let sample () = {
-    iNsEnSiTiVe = "iNsEnSiTiVe"
-    ``ALLCAPS`` = 1
-    int = 2
-    float = 3.0
-    negZero = -0.0
-    nan = Test.nan
-    infinity = Test.infinity
-    negInfinity = Test.negativeInfinity
-    ``true`` = true
-    ``false`` = false
-    list = [1;2;3]
-    char = 'c'
-    emojiChar = (Test.toChar "👍") |> Test.unwrap
-    uuid = (Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap
-    datetime = (DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap
-    unit = ()
-    // dont test password because hashing it twice will get different values
-  }
+  let sample () =
+    Sample {
+      iNsEnSiTiVe = "iNsEnSiTiVe"
+      ``ALLCAPS`` = 1
+      int = 2
+      float = 3.0
+      negZero = -0.0
+      nan = Test.nan
+      infinity = Test.infinity
+      negInfinity = Test.negativeInfinity
+      ``true`` = true
+      ``false`` = false
+      list = [1;2;3]
+      char = 'c'
+      emojiChar = (Test.toChar "👍") |> Test.unwrap
+      uuid = (Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap
+      datetime = (DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap
+      unit = ()
+      // dont test password because hashing it twice will get different values
+    }
 
-  let otherSample () = {
-    iNsEnSiTiVe = "normal"
-    ``ALLCAPS`` = 2
-    int = 3
-    float = 4.0
-    negZero = -1.0
-    nan = 0.0
-    infinity = 5.4
-    negInfinity = -385.33
-    ``true`` = false
-    ``false`` = true
-    list = [1;3;45]
-    char = 'd'
-    emojiChar = 'e'
-    uuid = (Uuid.parse "55555555-5555-5555-5555-555555555555") |> Test.unwrap
-    datetime = (DateTime.parse_v2 "2011-11-11T11:11:11Z") |> Test.unwrap
-    unit = ()
-    // dont test password because hashing it twice will get different values
-  }
+  let otherSample () =
+    Sample {
+      iNsEnSiTiVe = "normal"
+      ``ALLCAPS`` = 2
+      int = 3
+      float = 4.0
+      negZero = -1.0
+      nan = 0.0
+      infinity = 5.4
+      negInfinity = -385.33
+      ``true`` = false
+      ``false`` = true
+      list = [1;3;45]
+      char = 'd'
+      emojiChar = 'e'
+      uuid = (Uuid.parse "55555555-5555-5555-5555-555555555555") |> Test.unwrap
+      datetime = (DateTime.parse_v2 "2011-11-11T11:11:11Z") |> Test.unwrap
+      unit = ()
+      // dont test password because hashing it twice will get different values
+    }
 
   // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
   (let v = sample ()
@@ -175,18 +177,18 @@ module Roundtrip =
 
 
 module ValueMissingColumnGivesGoodError =
-  (DB.set_v1 { x = "x"; col = "v" } "i" XDB) = Test.typeError_v0 "Found but did not expect: [col]"
+  (DB.set_v1 (X { x = "x"; col = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [col]"
 
 
 module SetDoesUpsert =
-  (let old = DB.set_v1 { x = "hello" } "hello" XDB in
-  let newval = DB.set_v1 { x = "goodbye" } "hello" XDB in
-  DB.getAllWithKeys_v2 XDB) = { hello = { x = "goodbye"} }
+  (let old = DB.set_v1 (X { x = "hello" }) "hello" XDB in
+  let newval = DB.set_v1 (X { x = "goodbye" }) "hello" XDB in
+  DB.getAllWithKeys_v2 XDB) = { hello = X { x = "goodbye"} }
 
 module SetCharUpserts =
-  (let old = DB.set_v1 { x = 'a' } "a" ZDB in
-  let newval = DB.set_v1 { x = 'b' } "a" ZDB in
-  DB.getAllWithKeys_v2 ZDB) = { a = { x = 'b'} }
+  (let old = DB.set_v1 (X { x = 'a' }) "a" ZDB in
+  let newval = DB.set_v1 (X { x = 'b' }) "a" ZDB in
+  DB.getAllWithKeys_v2 ZDB) = { a = X { x = 'b'} }
 
 
 
@@ -200,92 +202,92 @@ module Get =
 
   // returns single value
   (let _ = DB.set_v1 { x = "hello" } "key" XDB in
-   DB.get_v2 "key" XDB) = Just { x = "hello" }
+   DB.get_v2 "key" XDB) = Just (X { x = "hello" })
 
   // returns correct value given reassigned entry
   (let _ = DB.set_v1 { x = "hello" } "key" XDB in
    let _ = DB.set_v1 { x = "goodbye" } "key" XDB in
-   DB.get_v2 "key" XDB) = Just { x = "goodbye" }
+   DB.get_v2 "key" XDB) = Just (X { x = "goodbye" })
 
   // returns value given multiple entries
   (let _ = DB.set_v1 { x = "pancake" } "key1" XDB in
    let _ = DB.set_v1 { x = "waffle" } "key2" XDB in
    let _ = DB.set_v1 { x = "scone" } "key3" XDB in
-   DB.get_v2 "key2" XDB) = Just { x = "waffle" }
+   DB.get_v2 "key2" XDB) = Just (X { x = "waffle" })
 
 
 
 module GetAll =
-  (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedXDB in
-   let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedXDB in
-   let three = DB.set_v1 { x = "howdy"; sortBy = 2  } "three" SortedXDB in
+  (let one = DB.set_v1 (SortedX { x = "hello"; sortBy = 0 }) "one" SortedXDB in
+   let two = DB.set_v1 (SortedX { x = "goodbye"; sortBy = 1 }) "two" SortedXDB in
+   let three = DB.set_v1 (SortedX { x = "howdy"; sortBy = 2 }) "three" SortedXDB in
    (DB.getAll_v3 SortedXDB)
    |> List.sortBy_v0 (fun x -> x.sortBy)) =
-     [ { x = "hello"; sortBy = 0}
-     ; { x = "goodbye"; sortBy = 1}
-     ; { x = "howdy"; sortBy = 2}]
+     [ (SortedX { x = "hello"; sortBy = 0})
+     ; (SortedX { x = "goodbye"; sortBy = 1})
+     ; (SortedX { x = "howdy"; sortBy = 2})]
 
 
 module GetAllKeys =
-  (let one = DB.set_v1 { x = "hello" } "one" XDB in
-   let two = DB.set_v1 { x = "goodbye" } "two" XDB in
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
    (DB.keys_v1 XDB) |> List.sort_v0) = [ "one"; "two" ]
 
 
 module GetAllWithKeys =
-  (let one = DB.set_v1 { x = "hello" } "one" XDB in
-   let two = DB.set_v1 { x = "goodbye" } "two" XDB in
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
    DB.getAllWithKeys_v2 XDB) = { one = { x = "hello"} ; two = { x = "goodbye"} }
 
 
 module GetManyWithKeys =
-  (let one = DB.set_v1 { x = "hello" } "one" XDB in
-   let two = DB.set_v1 { x = "goodbye" } "two" XDB in
-   DB.getManyWithKeys_v1 ["one"; "two"] XDB) = { one = { x = "hello"} ; two = { x = "goodbye"} }
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   DB.getManyWithKeys_v1 ["one"; "two"] XDB) = { one = (X { x = "hello"}) ; two = (X { x = "goodbye"}) }
 
 
 module GetExisting =
-  (let one = DB.set_v1 { x = "hello" } "one" XDB in
-  let two = DB.set_v1 { x = "goodbye" } "two" XDB in
-  DB.getExisting_v0 ["three"; "two"] XDB) = [ { x = "goodbye" } ]
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+  let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+  DB.getExisting_v0 ["three"; "two"] XDB) = [ (X { x = "goodbye" }) ]
 
 
 module GetMany =
-  (let one = DB.set_v1 { x = "hello" } "one" XDB in
-   let two = DB.set_v1 { x = "goodbye" } "two" XDB in
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
    DB.getMany_v3 ["three"; "two"] XDB) = Nothing
 
-  (let one = DB.set_v1 { x = "hello" } "one" XDB in
-   let two = DB.set_v1 { x = "goodbye" } "two" XDB in
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
    (DB.getMany_v3 ["one"; "two"] XDB)
    |> Test.unwrap
-   |> List.sortBy (fun v -> v.x)) = [ { x = "goodbye"}; { x = "hello"}]
+   |> List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye"}); (X { x = "hello"})]
 
 
 module Delete =
-  (let one = DB.set_v1 { x = "hello"} "one" XDB in
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
    let delete = DB.delete_v1 "one" XDB in
    DB.getAllWithKeys_v2 XDB) = {}
 
   // delete nothing
-  (let one = DB.set_v1 { x = "hello"} "one" XDB in
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
    let delete = DB.delete_v1 "two" XDB in
-   DB.getAllWithKeys_v2 XDB) = { one = { x = "hello"} }
+   DB.getAllWithKeys_v2 XDB) = { one = (X { x = "hello"}) }
 
   // deletes only one
-  (let one = DB.set_v1 { x = "hello"} "one" XDB in
-   let two = DB.set_v1 { x = "goodbye" } "two" XDB in
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
    let delete = DB.delete_v1 "one" XDB in
-   DB.getAllWithKeys_v2 XDB) = { two = { x = "goodbye"} }
+   DB.getAllWithKeys_v2 XDB) = { two = (X { x = "goodbye"}) }
 
 module DeleteAll =
-  (let one = DB.set_v1 { x = "hello"} "one" XDB in
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
    let delete = DB.deleteAll_v1 XDB in
    DB.getAll_v3 XDB) = []
 
   // deletes all
-  (let one = DB.set_v1 { x = "hello"} "one" XDB in
-   let two = DB.set_v1 { x = "goodbye" } "two" XDB in
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
    let delete = DB.deleteAll_v1 XDB in
    DB.getAll_v3 XDB) = []
 
@@ -298,14 +300,14 @@ module Count =
   DB.count XDB = 0
 
   // one entries
-  (let _ = DB.set_v1 { x = "hello" } "one" XDB in
+  (let _ = DB.set_v1 (X { x = "hello" }) "one" XDB in
    DB.count XDB) = 1
 
   // multiple entries
-  (let _ = DB.set_v1 { x = "hello" } "one" XDB in
-   let _ = DB.set_v1 { x = "goodbye" } "two" XDB in
-   let _ = DB.set_v1 { x = "howdy" } "three" XDB in
-   let _ = DB.set_v1 { x = "cheers" } "four" XDB in
+  (let _ = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let _ = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   let _ = DB.set_v1 (X { x = "howdy" }) "three" XDB in
+   let _ = DB.set_v1 (X { x = "cheers" }) "four" XDB in
    DB.count XDB) = 4
 
 // ------------
@@ -322,7 +324,7 @@ type Person = {
 
 let addFriend (key: String) (name: String) (height: Int) (human: Bool) (dob: String) (income: Float) =
   let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
-  let obj = { height = height; name = name; human = human; dob = dob; income = income } in
+  let obj = PersonDB { height = height; name = name; human = human; dob = dob; income = income } in
   DB.set_v1 obj key Person
 
 let prepFriends () =
@@ -452,9 +454,12 @@ module CompiledFunctions =
   (friends (fun p -> DateTime.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
 
 module PartialEvaluation =
+  type A = { a : Int }
+  type Z = { z : A }
+  type Y = { y : Z }
   // fieldAccesses outside query
   (let _ = prepFriends ()
-   let x = { y = { z = { a = 5 }}}
+   let x = Y { y = Z { z = A { a = 5 }}}
    ((DB.query_v4 PersonDB (fun p -> x.y.z.a < p.height))
    |> List.map_v0 (fun p -> p.name)
    |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
@@ -471,21 +476,21 @@ module PartialEvaluation =
 module QueryOneWithKey =
   // multiple
   (let _ = prepFriends () in
-   DB.queryOneWithKey_v3 Person (fun p -> p.human)) = Nothing
+   DB.queryOneWithKey_v3 PersonDB (fun p -> p.human)) = Nothing
 
   // none
   (let _ = prepFriends () in
-   DB.queryOneWithKey_v3 Person (fun p -> p.name == "bob")) = Nothing
+   DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == "bob")) = Nothing
 
   // one
   (let _ = prepFriends () in
-  (DB.queryOneWithKey_v3 Person (fun p -> p.name == "Rachel"))
+  (DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == "Rachel"))
    |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
    // interpolated
   (let _ = prepFriends () in
    let test = "ache" in
-   (DB.queryOneWithKey_v3 Person (fun p -> p.name == $"R{test}l"))
+   (DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == $"R{test}l"))
    |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
 
 

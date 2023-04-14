@@ -136,9 +136,12 @@ let parseDecls
     emptyModule
     (fun m decl ->
       let availableTypes =
-        (m.types)
-        |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
-        |> (@) availableTypes
+        m.types
+        |> List.map (fun t ->
+          let typeName = PT.FQTypeName.User t.name
+          (PT.FQTypeName.toString typeName, (typeName, t.definition)))
+        |> Map
+        |> Map.mergeFavoringRight availableTypes
 
       match decl with
       | SynModuleDecl.Let (_, bindings, _) ->

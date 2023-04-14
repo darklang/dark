@@ -146,7 +146,7 @@ let makeTest versionName filename =
       let canvasID = System.Guid.NewGuid()
       let! state = executionStateFor canvasID false Map.empty Map.empty Map.empty
 
-      let userTypes = []
+      let userTypes = Map.empty
 
       // Parse the Dark code
       let test =

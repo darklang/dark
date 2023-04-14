@@ -200,14 +200,22 @@ let fileTests () : Test =
     if shouldSkip then
       testList $"skipped - {testName}" []
     else
-      let stdlibTypes =
-        LibExecutionStdLib.StdLib.types
-        @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
-        |> List.map (fun typ -> PT.FQTypeName.Stdlib typ.name, typ.definition)
+      try
+        let stdlibTypes =
+          LibExecutionStdLib.StdLib.types
+          @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
+          |> List.map (fun typ ->
+            let typeName = PT.FQTypeName.Stdlib typ.name
+            PT.FQTypeName.toString typeName, (typeName, typ.definition))
+          |> Map
 
-      (baseDir + filename)
-      |> Parser.TestModule.parseTestFile stdlibTypes
-      |> moduleToTests testName)
+        (baseDir + filename)
+        |> Parser.TestModule.parseTestFile stdlibTypes
+        |> moduleToTests testName
+      with
+      | e ->
+        print $"Exception in {file}: {e.Message}"
+        reraise ())
   |> Array.toList
   |> testList "All"
 

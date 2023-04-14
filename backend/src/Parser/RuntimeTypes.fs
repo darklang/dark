@@ -13,4 +13,4 @@ let parseExprWithTypes
   ProgramTypes.parseExprWithTypes availableTypes code
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
-let parseExpr = parseExprWithTypes []
+let parseExpr = parseExprWithTypes Map.empty

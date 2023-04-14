@@ -19,52 +19,53 @@ let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
 
 module TypeReference =
+
+  let private parseTypeRef (name : string) : string * int =
+    match name with
+    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
+    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+    | _ ->
+      Exception.raiseInternal
+        "Bad format in typeRef"
+        [ "name", name ]
+
+
   let rec fromNameAndTypeArgs
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+    (availableTypes : AvailableTypes)
     (name : string)
     (typeArgs : List<SynType>)
     : PT.TypeReference =
     let fromSynType = fromSynType availableTypes
-    match name, typeArgs with
+
+    match parseTypeRef name, typeArgs with
     // no type args
-    | "Bool", [] -> PT.TBool
-    | "Bytes", [] -> PT.TBytes
-    | "Int", [] -> PT.TInt
-    | "String", [] -> PT.TString
-    | "Char", [] -> PT.TChar
-    | "Float", [] -> PT.TFloat
-    | "DateTime", [] -> PT.TDateTime
-    | "Uuid", [] -> PT.TUuid
-    | "Unit", [] -> PT.TUnit
-    | "Password", [] -> PT.TPassword
+    | ("Bool", 0), [] -> PT.TBool
+    | ("Bytes", 0), [] -> PT.TBytes
+    | ("Int", 0), [] -> PT.TInt
+    | ("String", 0), [] -> PT.TString
+    | ("Char", 0), [] -> PT.TChar
+    | ("Float", 0), [] -> PT.TFloat
+    | ("DateTime", 0), [] -> PT.TDateTime
+    | ("Uuid", 0), [] -> PT.TUuid
+    | ("Unit", 0), [] -> PT.TUnit
+    | ("Password", 0), [] -> PT.TPassword
 
     // with type args
-    | "List", [ arg ] -> PT.TList(fromSynType arg)
-    | "Option", [ arg ] -> PT.TOption(fromSynType arg)
-    | "Result", [ okArg; errorArg ] ->
+    | ("List", 0), [ arg ] -> PT.TList(fromSynType arg)
+    | ("Option", 0), [ arg ] -> PT.TOption(fromSynType arg)
+    | ("Result", 0), [ okArg; errorArg ] ->
       PT.TResult(fromSynType okArg, fromSynType errorArg)
-    | "Tuple", first :: second :: theRest ->
+    // TYPESCLEANUP - don't use word Tuple here
+    | ("Tuple", 0), first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-    | _ ->
+    | (name, version), args ->
       // Some user- or stdlib- type
       // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
+      let fullName = $"{name}_v{version}"
 
-      // TODO: support types that aren't the 0th version of the type
-      let matchingTypes =
-        availableTypes
-        |> List.choose (fun (typeName, _def) ->
-          match typeName with
-          | PT.FQTypeName.User u -> if u.typ = name then Some typeName else None
-          | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None
-          | PT.FQTypeName.Package p -> if p.typ = name then Some typeName else None)
-
-      match matchingTypes with
-      | [] -> Exception.raiseInternal $"No type found named \"{name}\"" []
-      | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
-      | _ ->
-        Exception.raiseInternal
-          $"Matched against multiple types - not sure what to do"
-          [ "name", name; "typeArgs", typeArgs; "types", matchingTypes ]
+      match Map.get fullName availableTypes with
+      | None -> Exception.raiseInternal $"No type found named \"{name}\"" []
+      | Some (actualTypeName, matchedType) -> PT.TCustomType(actualTypeName, List.map fromSynType typeArgs)
 
   and fromSynType
     (availableTypes : AvailableTypes)
@@ -95,7 +96,7 @@ module TypeReference =
                    _,
                    _,
                    _,
-                   _) -> fromNameAndTypeArgs availableTypes ident.idText typeArgs
+                   range) -> fromNameAndTypeArgs availableTypes ident.idText typeArgs
 
     | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
       let typeArgs = []
@@ -280,6 +281,7 @@ module Expr =
     | SynExpr.Ident name ->
       let matchingEnumCases =
         availableTypes
+        |> Map.values
         |> List.choose (fun (typeName, typeDef) ->
           match typeDef with
           | PT.CustomType.Enum (firstCase, additionalCases) ->
@@ -850,4 +852,4 @@ let parseExprWithTypes (availableTypes : AvailableTypes) (code : string) : PT.Ex
   |> Utils.singleExprFromImplFile
   |> Expr.fromSynExpr availableTypes
 
-let parseExpr = parseExprWithTypes []
+let parseExpr = parseExprWithTypes Map.empty

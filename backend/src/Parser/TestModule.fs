@@ -51,7 +51,7 @@ module PackageFn =
     ((p1, p2, p3) : string * string * string)
     (binding : SynBinding)
     : PT.Package.Fn =
-    let availableTypes = [] // eventually, we'll likely need package types supported here
+    let availableTypes = Map.empty // eventually, we'll likely need package types supported here
     let userFn = PTP.UserFunction.fromSynBinding availableTypes binding
     { name =
         { owner = p1
@@ -158,8 +158,11 @@ let parseFile
         (fun m decl ->
           let availableTypes =
             (m.types @ parent.types)
-            |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
-            |> (@) stdlibTypes
+            |> List.map (fun t ->
+              let typeName = PT.FQTypeName.User t.name
+              PT.FQTypeName.toString typeName, (typeName, t.definition))
+            |> Map
+            |> Map.mergeFavoringRight stdlibTypes
 
           match decl with
           | SynModuleDecl.Let (_, bindings, _) ->

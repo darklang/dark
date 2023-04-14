@@ -23,6 +23,16 @@ module FQTypeName =
     | User of UserTypeName
     | Package of PackageTypeName
 
+  let toString (fqtn : T) : string =
+    match fqtn with
+    | Stdlib s ->
+      if s.module_ = "" then
+        $"{s.typ}_v{s.version}"
+      else
+        $"{s.module_}.{s.typ}_v{s.version}"
+    | User u -> $"{u.typ}_v{u.version}"
+    | Package p -> $"{p.owner}.{p.package}.{p.module_}.{p.typ}_v{p.version}"
+
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let typeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
