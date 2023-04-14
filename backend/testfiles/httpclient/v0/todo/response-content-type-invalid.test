@@ -17,12 +17,13 @@ Content-Length: LENGTH
 (let reqHeaders = {}
  let response = (HttpClient.request "get" "http://URL" {} reqHeaders) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { body = "\"Hello back\""
-     statusCode = 200
-     headers =
-      [
-        ("content-length", "LENGTH")
-        "Content-Type" = "invalid content type header"
-        ("server", "kestrel")
-      ]}
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { body = "\"Hello back\""
+      statusCode = 200
+      headers =
+        [
+          ("content-length", "LENGTH")
+          "Content-Type" = "invalid content type header"
+          ("server", "kestrel")
+        ]}

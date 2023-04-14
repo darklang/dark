@@ -19,13 +19,14 @@ Redirect destination reached
 // This is here to be a destination for valid redirect tests
 (let response = (HttpClient.request "put" "http://URL" "" {} {("content-type", "text/plain; charset=utf-8")}) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { body = "Redirect destination reached"
-     statusCode = 200
-     headers =
-      [
-        "Arbitrary-header" = "Test value"
-        ("content-length", "LENGTH")
-        ("content-type", "text/plain; charset=utf-8")
-        ("server", "kestrel")
-      ]}
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { body = "Redirect destination reached"
+      statusCode = 200
+      headers =
+        [
+          "Arbitrary-header" = "Test value"
+          ("content-length", "LENGTH")
+          ("content-type", "text/plain; charset=utf-8")
+          ("server", "kestrel")
+        ]}

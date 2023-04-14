@@ -17,18 +17,19 @@ Location: /v0/response-redirect-dest-with-cookies
 (let reqHeaders = { Cookie = "yummy_cookie=choco; tasty_cookie=strawberry" }
  let response = (HttpClient.request "get" "http://URL" {} reqHeaders) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { body = "Redirect destination reached with cookies"
-     statusCode = 200
-     headers =
-      [
-        "Arbitrary-header" = "Test value"
-        "Content-Length" = "41"
-        ("content-type", "text/plain; charset=utf-8")
-        "HTTP/1.1 302 Found" = ""
-        Location = "/v0/response-redirect-dest-with-cookies"
-        ("server", "kestrel")
-        "Transfer-Encoding" = "chunked"
-      }
-     raw = "Redirect destination reached with cookies"}
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { body = "Redirect destination reached with cookies"
+      statusCode = 200
+      headers =
+        [
+          "Arbitrary-header" = "Test value"
+          "Content-Length" = "41"
+          ("content-type", "text/plain; charset=utf-8")
+          "HTTP/1.1 302 Found" = ""
+          Location = "/v0/response-redirect-dest-with-cookies"
+          ("server", "kestrel")
+          "Transfer-Encoding" = "chunked"
+        ]
+      raw = "Redirect destination reached with cookies"}
 

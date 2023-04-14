@@ -21,13 +21,14 @@ Content-Length: LENGTH
  let reqBody = { var1 = 2; var2 = [] }
  let response = (HttpClient.request "post" "http://URL" reqBody {} reqHeaders) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
-Dict.set_v0 response "headers" respHeaders) =
-   { body = ""
-     statusCode = 200
-     headers =
-      [
-        ("content-type", "text/plain; charset=utf-8")
-        "Transfer-Encoding" = "chunked"
-        ("server", "kestrel")
-      }
-     raw = ""}
+Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { body = ""
+      statusCode = 200
+      headers =
+        [
+          ("content-type", "text/plain; charset=utf-8")
+          "Transfer-Encoding" = "chunked"
+          ("server", "kestrel")
+        ]
+      raw = ""}

@@ -15,12 +15,13 @@ Content-Length: 0
 (let reqHeaders = [("Content-type", "application/x-www-form-urlencoded")]
  let response = (HttpClient.request "get" "http://URL" reqHeaders Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { statusCode = 200
-     headers =
-      [
-        ("server", "kestrel")
-        ("transfer-encoding", "chunked")
-        ("content-type", "application/x-www-form-urlencoded; charset=utf-8")
-      ]
-     body = Bytes.empty }
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { statusCode = 200
+      headers =
+        [
+          ("server", "kestrel")
+          ("transfer-encoding", "chunked")
+          ("content-type", "application/x-www-form-urlencoded; charset=utf-8")
+        ]
+      body = Bytes.empty }

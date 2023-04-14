@@ -15,16 +15,17 @@ Location: /v0/response-redirect-dest-post-with-json-content-type-no-body
 [test]
 (let response = (HttpClient.request "post" "http://URL" "" {} {"Content-Type" = "application/json" }) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { body = "Redirect destination reached"
-     statusCode = 200
-     headers =
-      [
-        "Arbitrary-header" = "Test value"
-        "Content-Length" = "28"
-        ("content-type", "text/plain; charset=utf-8")
-        "HTTP/1.1 302 Found" = ""
-        "Location" = "/v0/response-redirect-dest-post-with-json-content-type-no-body"
-        ("server", "kestrel")
-        "Transfer-Encoding" = "chunked"
-      ]}
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { body = "Redirect destination reached"
+      statusCode = 200
+      headers =
+        [
+          "Arbitrary-header" = "Test value"
+          "Content-Length" = "28"
+          ("content-type", "text/plain; charset=utf-8")
+          "HTTP/1.1 302 Found" = ""
+          "Location" = "/v0/response-redirect-dest-post-with-json-content-type-no-body"
+          ("server", "kestrel")
+          "Transfer-Encoding" = "chunked"
+        ]}
