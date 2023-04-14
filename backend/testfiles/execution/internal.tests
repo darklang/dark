@@ -90,7 +90,7 @@ module UnlockedDB =
     (DarkInternal.unlockedDBs Test.getCanvasID) |> List.length = 1
 
     // one but locked
-    (let _ = DB.set_v1 { x = "str" } "test" X in
+    (let _ = DB.set_v1 (X { x = "str" }) "test" XDB in
      DarkInternal.unlockedDBs Test.getCanvasID) = []
 
 

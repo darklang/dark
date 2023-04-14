@@ -427,10 +427,8 @@ let parse
             (jp.Name, converted))
           |> Map.ofSeq
 
-        // TODO: this should really be a DRecord
-        // but isn't currently, as our parser doesn't know
-        // when to parse an object as a record or a dict
-        DDict(dvalMap)
+        // TYPESCLEANUP add typename
+        DRecord(dvalMap)
 
 
     // Explicitly not supported
