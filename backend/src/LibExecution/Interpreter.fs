@@ -102,8 +102,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       /// - new vars (name * value)
       /// - traces
       let rec checkPattern
-        dv
-        pattern
+        (dv : Dval)
+        (pattern : LetPattern)
         : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
 
