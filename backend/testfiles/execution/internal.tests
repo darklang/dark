@@ -95,10 +95,3 @@ module UnlockedDB =
 module Ops =
   // getOpsForToplevel returns empty list for nonexistant TL
   DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []
-
-
-module ParseAndExecuteExpr =
-  DarkInternal.parseAndExecuteExpr "1 + 2" Dict.empty_v0 = Ok "3"
-  DarkInternal.parseAndExecuteExpr "a" { a = 3 } = Ok "3"
-  DarkInternal.parseAndExecuteExpr """let a = 3 in a + b""" { b = 2 } = Ok "5"
-  //DarkInternal.parseAndExecuteExpr """(HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Test.unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200
