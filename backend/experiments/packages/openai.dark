@@ -1,5 +1,8 @@
 module OpenAI
 
+// Some other in-progress work may be found here:
+// https://raw.githubusercontent.com/StachuDotNet/dark/7aed7d0882dc1822007e14a443de9e8f72d09871/packages/openai/main.dark
+
 // syntax to reference another package
 // (later, we could alias here, say `import TempFileStorage as Storage`)
 import TempFileStorage
