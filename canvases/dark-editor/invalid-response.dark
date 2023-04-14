@@ -1,5 +1,0 @@
-(// this exists to demonstrate how we handle returning a non-HttpResponse)
-
- // TODO: move this to another canvas (one that just demonstrates a sample canvas)
-
- "intentionally-invalid response to demo how we handle returning a non-HttpResponse")

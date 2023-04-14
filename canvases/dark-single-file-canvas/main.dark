@@ -32,3 +32,32 @@ let _stringifyEnumHandler (request) =
   let respBody = (stringify reqBody) |> String.toBytes_v0
 
   Http.response respBody 200
+
+
+
+
+[<DB("TestDB")>]
+type Test = {
+  id: Int
+  name: String
+}
+
+[<HttpHandler("GET", "/get-tests")>]
+let _handler _req =
+  let allRecords = DB.getAll_v3 TestDB
+  let respBody = allRecords |> Json.serialize<List<Test>>
+
+  let respBody =
+    match respBody with
+    | Ok v -> v |> String.toBytes
+    | Err e -> "fail"
+
+
+  Http.response respBody 200
+
+
+[<HttpHandler("GET", "/add-test")>]
+let _handler _req =
+  let key = DB.generateKey_v0
+  let _ = DB.set_v1 { id = 1; name = key } key TestDB
+  Http.response Bytes.empty 200
