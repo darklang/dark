@@ -34,6 +34,8 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
     match attr with
     | SynExpr.Paren (expr, _, _, _) -> parseAttrArgs expr
 
+    | SynExpr.Const (SynConst.String (s, _, _), _) -> [ s ]
+
     | SynExpr.Tuple (_, args, _, _) ->
       args
       |> List.map (fun arg ->
@@ -70,13 +72,6 @@ let parseLetBinding
 
     | [ attr ] ->
       match attr with
-      | SimpleAttribute ("DB", [ name ]) ->
-        // let newDB = PT.DB(name, randomIds ())
-        // { m with dbs = newDB :: m.dbs }
-        Exception.raiseInternal
-          $"Not currently supporting DBs - probably makes sense to wait until they are based on a type rather than 'columns'"
-          [ "attr", attr ]
-
       | SimpleAttribute ("HttpHandler", [ method; route ]) ->
         let newHttpHanlder = PT.Handler.Spec.HTTP(route, method, randomIds ())
         { m with handlers = (newHttpHanlder, expr) :: m.handlers }
@@ -113,6 +108,54 @@ let parseLetBinding
         [ "attrs", attrs ]
 
 
+
+module UserDB =
+  let fromSynTypeDefn
+    (availableTypes : AvailableTypes)
+    (typeDef : SynTypeDefn)
+    : PT.DB.T =
+    match typeDef with
+    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
+                                                                             typ,
+                                                                             _),
+                                           _),
+                   _members,
+                   _,
+                   _,
+                   _) ->
+      { tlid = gid ()
+        name = id.idText
+        version = 0
+        typ = Parser.ProgramTypes.TypeReference.fromSynType availableTypes typ }
+    | _ ->
+      Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
+
+let parseTypeDefn
+  (availableTypes : AvailableTypes)
+  (m : CanvasModule)
+  (typeDefn : SynTypeDefn)
+  : CanvasModule =
+  match typeDefn with
+  | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _),
+                  _,
+                  _,
+                  _,
+                  _,
+                  _) ->
+  let isDB =
+    attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
+    |> List.exists (fun attr ->
+      longIdentToList attr.TypeName.LongIdent = [ "DB" ])
+
+  let (newDBs, newTypes) =
+    if isDB then
+      [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
+    else
+      [], [ Parser.ProgramTypes.UserType.fromSynTypeDefn availableTypes typeDefn ]
+
+  { m with types = m.types @ newTypes ; dbs = m.dbs @ newDBs  }
+
 /// An F# module has a list of declarations, which can be:
 /// - a group of let bindings
 /// - a group of type definitions
@@ -125,7 +168,7 @@ let parseLetBinding
 /// - let bindings with no attributes are parsed as user functions
 /// - let bindings with attributes are parsed
 ///   as handlers (i.e. with `[<HttpHandler("method", "path")>]`)
-///   or as DBs (i.e. with `[<DB("name")>]`)
+///   or as DBs (i.e. with `[<DB>] DBName = Type`)
 /// - ? expressions are parsed as init commands (not currently supported)
 /// - anything else fails
 let parseDecls
@@ -148,9 +191,7 @@ let parseDecls
         List.fold m (fun m b -> parseLetBinding availableTypes m b) bindings
 
       | SynModuleDecl.Types (defns, _) ->
-        let newTypes =
-          List.map (ProgramTypes.UserType.fromSynTypeDefn availableTypes) defns
-        { m with types = m.types @ newTypes }
+        List.fold m (fun m d -> parseTypeDefn availableTypes m d) defns
 
       | SynModuleDecl.Expr (expr, _) ->
         { m with

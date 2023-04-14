@@ -103,9 +103,9 @@ let parseFile
   : T =
   let parseTypeDecl
     (availableTypes : AvailableTypes)
-    (typeDef : SynTypeDefn)
+    (typeDefn : SynTypeDefn)
     : List<PT.DB.T> * List<PT.UserType.T> =
-    match typeDef with
+    match typeDefn with
     | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
       let isDB =
@@ -113,9 +113,9 @@ let parseFile
         |> List.exists (fun attr ->
           longIdentToList attr.TypeName.LongIdent = [ "DB" ])
       if isDB then
-        [ UserDB.fromSynTypeDefn availableTypes typeDef ], []
+        [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
       else
-        [], [ PTP.UserType.fromSynTypeDefn availableTypes typeDef ]
+        [], [ PTP.UserType.fromSynTypeDefn availableTypes typeDefn ]
 
   let getPackage (attrs : SynAttributes) : Option<string * string * string> =
     attrs

@@ -131,6 +131,4 @@ Wait for the user to provide a prompt.
 
 ---
 
-Make a handler which takes a prompt from "prompt" field of the request body and calls
-the openAI completion API with it. Return the API response in the response body.
 

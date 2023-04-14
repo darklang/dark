@@ -52,6 +52,7 @@ module TypeReference =
     | ("Option", 0), [ arg ] -> PT.TOption(fromSynType arg)
     | ("Result", 0), [ okArg; errorArg ] ->
       PT.TResult(fromSynType okArg, fromSynType errorArg)
+    | ("Dict", 0), [ valArg ] -> PT.TDict(fromSynType valArg)
     // TYPESCLEANUP - don't use word Tuple here
     | ("Tuple", 0), first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)

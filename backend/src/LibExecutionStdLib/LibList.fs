@@ -1388,6 +1388,59 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
+    { name = fn "List" "groupByWithKey" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "item" ] ]
+      returnType = TList(TTuple(varB, TList varA, []))
+      description =
+        "Groups <param list> into tuples (key, elements), where the key is computed by applying
+         <param fn> to each element in the list.
+
+         For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
+         is {{fn item -> Int.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
+
+          Preserves the order of values and of the keys."
+      fn =
+        (function
+        | state, _, [ DList l; DFnVal fn ] ->
+          uply {
+            let applyFn (dval : Dval) : DvalTask =
+              Interpreter.applyFnVal state fn [ dval ]
+
+            // apply the function to each element in the list
+            let! result =
+              Ply.List.mapSequentially
+                (fun dval ->
+                  uply {
+                    let! key = applyFn dval
+                    return (key, dval)
+                  })
+                l
+
+            let badKey = List.tryFind (fun (k, _) -> Dval.isFake k) result
+
+            match badKey with
+            | Some (key, _) -> return key
+            | None ->
+              let groups =
+                result
+                |> List.groupBy fst
+                |> List.map (fun (key, elementsWithKey) ->
+                  let elements = List.map snd elementsWithKey
+                  DTuple(key, DList elements, []))
+                |> DList
+
+              return groups
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "List" "partition" 0
       typeParams = []
       parameters =
