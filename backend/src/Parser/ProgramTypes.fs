@@ -24,10 +24,7 @@ module TypeReference =
     match name with
     | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
     | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
-    | _ ->
-      Exception.raiseInternal
-        "Bad format in typeRef"
-        [ "name", name ]
+    | _ -> Exception.raiseInternal "Bad format in typeRef" [ "name", name ]
 
 
   let rec fromNameAndTypeArgs
@@ -65,7 +62,8 @@ module TypeReference =
 
       match Map.get fullName availableTypes with
       | None -> Exception.raiseInternal $"No type found named \"{name}\"" []
-      | Some (actualTypeName, matchedType) -> PT.TCustomType(actualTypeName, List.map fromSynType typeArgs)
+      | Some (actualTypeName, matchedType) ->
+        PT.TCustomType(actualTypeName, List.map fromSynType typeArgs)
 
   and fromSynType
     (availableTypes : AvailableTypes)

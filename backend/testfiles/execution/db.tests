@@ -325,7 +325,7 @@ type Person = {
 let addFriend (key: String) (name: String) (height: Int) (human: Bool) (dob: String) (income: Float) =
   let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
   let obj = PersonDB { height = height; name = name; human = human; dob = dob; income = income } in
-  DB.set_v1 obj key Person
+  DB.set_v1 obj key PersonDB
 
 let prepFriends () =
   (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in

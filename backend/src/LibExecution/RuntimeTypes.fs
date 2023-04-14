@@ -70,6 +70,18 @@ module FQTypeName =
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { module_ = module_; typ = typ; version = version }
 
+  let toString (fqtn : T) : string =
+    match fqtn with
+    | Stdlib s ->
+      if s.module_ = "" then
+        $"{s.typ}_v{s.version}"
+      else
+        $"{s.module_}.{s.typ}_v{s.version}"
+    | User u -> $"{u.typ}_v{u.version}"
+    | Package p -> $"{p.owner}.{p.package}.{p.module_}.{p.typ}_v{p.version}"
+
+
+
 
 
 
@@ -602,7 +614,7 @@ module Dval =
   let record (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DRecord (Map.empty))
+      (DRecord(Map.empty))
       (fun m (k, v) ->
         match m, k, v with
         // TYPESCLEANUP: remove hacks
@@ -624,7 +636,7 @@ module Dval =
   let dict (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DDict (Map.empty))
+      (DDict(Map.empty))
       (fun m (k, v) ->
         match m, k, v with
         // TYPESCLEANUP: remove hacks

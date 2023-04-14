@@ -135,7 +135,8 @@ let seedCanvasV2 (canvasName : string) =
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
     let ops =
-      let modul = Parser.CanvasV2.parseFromFile Map.empty $"{canvasDir}/{config.Main}.dark"
+      let modul =
+        Parser.CanvasV2.parseFromFile Map.empty $"{canvasDir}/{config.Main}.dark"
 
       let types = modul.types |> List.map PT.Op.SetType
       let fns = modul.fns |> List.map PT.Op.SetFunction

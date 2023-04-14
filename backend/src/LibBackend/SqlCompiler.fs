@@ -196,15 +196,16 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
   (fns : Map<FQFnName.T, BuiltInFn>)
+  (types : Map<FQTypeName.T, CustomType.T>)
   (symtable : DvalMap)
   (paramName : string)
   (programTypes : Map<FQTypeName.T, CustomType.T>)
-  (dbType : TypeReference)
+  (dbTypeRef : TypeReference)
   (expectedType : TypeReference)
   (expr : Expr)
   : string * List<string * SqlValue> * TypeReference =
   let lts (typ : TypeReference) (e : Expr) =
-    lambdaToSql fns symtable paramName programTypes dbType typ e
+    lambdaToSql fns types symtable paramName programTypes dbTypeRef typ e
 
   match expr with
   | EApply (_, FnName name, [], args) ->
@@ -376,43 +377,68 @@ let rec lambdaToSql
 
 
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
-    Exception.raiseInternal "sqlcompiler EFieldAccess" []
-  // let dbFieldType =
-  //   match Map.get fieldname dbType with
-  //   | Some v -> v
-  //   | None -> error2 "The datastore does not have a field named" fieldname
-  // typecheck fieldname dbFieldType expectedType
+    // debuG "v" v
+    // debuG "fieldname" fieldname
+    // debuG "expectedType" expectedType
+    // debuG "paramName" paramName
+    // debuG "dbType" dbTypeRef
+    // debuG "expr" expr
 
-  // let primitiveFieldType t =
-  //   match t with
-  //   | TString -> "text"
-  //   | TInt -> "bigint"
-  //   | TFloat -> "double precision"
-  //   | TBool -> "bool"
-  //   | TDateTime -> "timestamp with time zone"
-  //   | TChar -> "text"
-  //   | TUuid -> "uuid"
-  //   | TUnit -> "bigint"
-  //   | _ -> error $"We do not support this type of DB field yet: {t}"
+    // Because this is the param name, we know its type to be dbType
 
-  // let fieldname = escapeFieldname fieldname
-  // match dbFieldType with
-  // | TString
-  // | TInt
-  // | TFloat
-  // | TBool
-  // | TDateTime
-  // | TChar
-  // | TUuid
-  // | TUnit ->
-  //   let typename = primitiveFieldType dbFieldType
-  //   $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
-  // | TList t ->
-  //   let typename = primitiveFieldType t
-  //   let sql =
-  //     $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
-  //   (sql, [], dbFieldType)
-  // | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
+    let dbFieldType =
+      match dbTypeRef with
+      // TYPESCLEANUP use args
+      | TCustomType (typeName, args) ->
+        match Map.get typeName types with
+        | Some (CustomType.Record (f1, fields)) ->
+          match (f1 :: fields)
+                |> List.find (fun recordField -> recordField.name = fieldname)
+            with
+          | Some v -> v.typ
+          | None -> error2 "The datastore does not have a field named" fieldname
+        | Some (CustomType.Enum _) ->
+          error2
+            "The datastore's type is not a record"
+            (FQTypeName.toString typeName)
+        | None ->
+          error2
+            "The datastore does not have a type named"
+            (FQTypeName.toString typeName)
+      | _ -> error "The datastore is not a record"
+
+    typecheck fieldname dbFieldType expectedType
+
+    let primitiveFieldType t =
+      match t with
+      | TString -> "text"
+      | TInt -> "bigint"
+      | TFloat -> "double precision"
+      | TBool -> "bool"
+      | TDateTime -> "timestamp with time zone"
+      | TChar -> "text"
+      | TUuid -> "uuid"
+      | TUnit -> "bigint"
+      | _ -> error $"We do not support this type of DB field yet: {t}"
+
+    let fieldname = escapeFieldname fieldname
+    match dbFieldType with
+    | TString
+    | TInt
+    | TFloat
+    | TBool
+    | TDateTime
+    | TChar
+    | TUuid
+    | TUnit ->
+      let typename = primitiveFieldType dbFieldType
+      $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
+    | TList t ->
+      let typename = primitiveFieldType t
+      let sql =
+        $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
+      (sql, [], dbFieldType)
+    | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
   | _ -> error $"We do not yet support compiling this code: {expr}"
 
 
@@ -654,6 +680,7 @@ let compileLambda
     let sql, vars, _expectedType =
       lambdaToSql
         state.libraries.stdlibFns
+        types
         symtable
         paramName
         types
