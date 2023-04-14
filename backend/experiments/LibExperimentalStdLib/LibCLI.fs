@@ -108,16 +108,11 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           let envVars = System.Environment.GetEnvironmentVariables()
 
-          let tupleList =
+          let envMap =
             envVars
             |> Seq.cast<System.Collections.DictionaryEntry>
-            |> Seq.map (fun kv -> (string kv.Key, string kv.Value))
-            |> List.ofSeq
-
-          let envMap =
-            tupleList
-            |> List.map (fun (key, value) -> key, DString value)
-            |> Map.ofList
+            |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
+            |> Map.ofSeq
             |> DDict
 
           Ply(envMap)
