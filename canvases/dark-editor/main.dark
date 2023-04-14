@@ -163,6 +163,7 @@ let _handler _req =
         <form id="var-form"> </form>
         <button id="copy-btn">Copy code</button>
         <button id="vars-btn">Fill variables</button>
+        <button id="execute-code-btn">Execute code</button>
       </div>
     </div>
     <script>
@@ -201,6 +202,7 @@ let _handler _req =
           });
         });
 
+
         const VarsBtn = document.getElementById("vars-btn");
         VarsBtn.addEventListener("click", () => {
             const variables = output.value.match(/variables:\n([\s\S]*)/)[1].trim().split('\n').filter(Boolean);
@@ -226,6 +228,31 @@ let _handler _req =
             }
           });
           });
+
+
+        const executeCodeBtn = document.getElementById("execute-code-btn");
+        executeCodeBtn.addEventListener("click", async () => {
+          let userCode = document.getElementById("output");
+          console.log("not actually using user code because it's probably invalid")
+          userCode = `HttpClient.request "GET" "https://example.com" [] Bytes.empty`
+          const requestBody = JSON.stringify({
+            userCode: userCode,
+            userInput: {} // TODO, untested, untried
+          });
+          const response = await fetch("/execute-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: requestBody,
+          });
+
+          if (response.ok) { // check status code
+            const evalResponse = await response.text();
+            console.log(evalResponse);
+          } else {
+            const errorMessage = await response.text();
+            console.error(errorMessage);
+          }
+        });
 
         const saveBtn = document.getElementById("save-prompt");
         saveBtn.addEventListener("click", async (event) => {
@@ -257,3 +284,31 @@ let _handler _req =
 
   Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
 
+
+
+
+type ExecuteUserCodeRequest =
+  { userCode: String; userInput: Dict<String> }
+
+[<HttpHandler("POST", "/execute-code")>]
+let _handler _request =
+  let parsedReq =
+    request.body
+    |> String.fromBytes
+    |> Json.parse<ExecuteUserCodeRequest>
+
+  match parsedReq with
+  | Ok req ->
+    // note: this returns a Result<String, String>
+    // (upon success, the dval result is serialized into a "dev-friendly representation" string)
+    let evalResponse =
+      DarkEditor.parseAndExecuteExpr req.userCode req.userInput
+
+    match evalResponse with
+    | Ok resp ->
+      Http.responseWithText (String.toBytes resp) 200
+    | Error err ->
+      let errMessage ="Failed to either parse or eval Dark code: " ++ err
+      Http.responseWithText (String.toBytes errMessage) 500
+  | Error _ ->
+    Http.responseWithText "Failed to parse request" 400
