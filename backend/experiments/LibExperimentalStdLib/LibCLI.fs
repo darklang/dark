@@ -86,9 +86,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString varName ] ->
           let envValue = System.Environment.GetEnvironmentVariable(varName)
-          match envValue with
-          | null -> Ply(DOption None)
-          | _ -> Ply(DOption(Some(DString envValue)))
+
+          if isNull envValue then
+            Ply(DOption None)
+          else
+            Ply(DOption(Some(DString envValue)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
