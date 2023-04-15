@@ -354,6 +354,9 @@ let friends (lambda: ('a -> Bool)) =
 
   // Test standard language features
 module FindAll =
+  type T2 = { field2 : Int }
+  type T1 = { field1 : T2 }
+
   (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // equality
@@ -392,11 +395,11 @@ module FindAll =
   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
-  (friends (fun p -> let obj = { x = 42 } in p.height > obj.x )) =
+  (friends (fun p -> let obj = Person { x = 42 } in p.height > obj.x )) =
     [" Chandler "; "Rachel"; "Ross" ]
 
   // nested fieldaccess
-  friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
+  friends (fun p -> let obj = T1 { field1 = T2 { field2 = 42 } } in p.height > obj.field1.field2 ) =
     [" Chandler "; "Rachel"; "Ross" ]
 
   // lambda doesnt return a bool
@@ -485,13 +488,13 @@ module QueryOneWithKey =
   // one
   (let _ = prepFriends () in
   (DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == "Rachel"))
-   |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
+   |> Option.map_v1 (fun v -> (Tuple2.second v).name)) = Just "Rachel"
 
    // interpolated
   (let _ = prepFriends () in
    let test = "ache" in
    (DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == $"R{test}l"))
-   |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
+   |> Option.map_v1 (fun v -> (Tuple2.second v).name)) = Just "Rachel"
 
 
 module QueryWithKey =
@@ -502,7 +505,7 @@ module QueryWithKey =
   // one
   (let _ = prepFriends () in
    (DB.queryWithKey_v3 PersonDB (fun p -> p.name == "Rachel"))
-   |> (fun v -> v.rachel.name)) = "Rachel"
+   |> (fun v -> (Tuple2.second v).name)) = "Rachel"
 
 module QueryCount =
   // none
