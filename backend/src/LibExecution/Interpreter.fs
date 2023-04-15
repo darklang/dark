@@ -679,10 +679,10 @@ and execFn
       else
         match TypeChecker.checkFunctionReturnType userTypes fn result with
         | Ok () -> result
-        | Error errs ->
+        | Error err ->
           DError(
             sourceID,
-            $"Type error(s) in return type: {TypeChecker.Error.listToString errs}"
+            $"Type error(s) in return type: {TypeChecker.Error.toString err}"
           )
 
     if state.tracing.realOrPreview = Preview
@@ -801,12 +801,12 @@ and execFn
 
             return result |> typeErrorOrValue (ExecutionState.availableTypes state)
 
-          | Error errs ->
+          | Error err ->
             return
               DError(
                 sourceID,
                 ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.listToString errs)
+                 + TypeChecker.Error.toString err)
               )
         | UserFunction (tlid, body) ->
           match
@@ -829,11 +829,11 @@ and execFn
               state.tracing.storeFnResult fnRecord arglist result
 
               return result |> typeErrorOrValue (ExecutionState.availableTypes state)
-          | Error errs ->
+          | Error err ->
             return
               DError(
                 sourceID,
                 ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.listToString errs)
+                 + TypeChecker.Error.toString err)
               )
   }

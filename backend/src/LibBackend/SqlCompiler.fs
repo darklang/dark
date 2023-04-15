@@ -98,6 +98,7 @@ let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : SqlValue =
       (DvalReprDeveloper.typeName expectedType)
 
 
+// TYPESTODO: combine with TypeChecker.unify, which needs to add unification
 let rec typecheck
   (name : string)
   (actualType : TypeReference)
@@ -115,12 +116,15 @@ let rec typecheck
       let expected = DvalReprDeveloper.typeName expectedType
       error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
-let typecheckDval (name : string) (types : Map<FQTypeName.T, CustomType.T>) (dval : Dval) (expectedType : TypeReference) =
+let typecheckDval
+  (name : string)
+  (types : Map<FQTypeName.T, CustomType.T>)
+  (dval : Dval)
+  (expectedType : TypeReference)
+  =
   match LibExecution.TypeChecker.unify types expectedType dval with
   | Ok () -> ()
-  | Error errList ->
-      let err = errList |> List.map string |> String.concat ", "
-      error $"Incorrect type in {name}: {err}"
+  | Error err -> error $"Incorrect type in {name}: {err}"
 
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only
