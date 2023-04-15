@@ -171,6 +171,9 @@ module Roundtrip =
     (fetch (fun p -> p.unit == ())) |> List.sortBy (fun v -> v.int) = [sample (), otherSample ()]
     fetch (fun p -> p.unit != ()) = []
 
+    // Test equality for two different function results
+    fetch (fun p -> ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap) == ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap)) = [sample ()]
+
 
 // CLEANUP test ``ALL CAPS``
 // CLEANUP test partial evaluation of lists and tuples
