@@ -118,8 +118,6 @@ let rec unify
 
   // TYPESCLEANUP: handle typeArgs
   | TCustomType (typeName, typeArgs), value ->
-    debuG "exptected" expected
-    debuG "value" value
     match Map.tryFind typeName availableTypes with
     | None -> Error(TypeLookupFailure typeName)
     | Some ut ->
@@ -129,11 +127,8 @@ let rec unify
         )
 
       match ut, value with
-      | CustomType.Record (firstField, additionalFields), DDict dmap ->
-        unifyUserRecordWithDvalMap
-          availableTypes
-          (firstField :: additionalFields)
-          dmap
+      | CustomType.Record (firstField, additionalFields), DRecord dmap ->
+        unifyRecordFields availableTypes (firstField :: additionalFields) dmap
       | CustomType.Enum (firstCase, additionalCases),
         DConstructor (typeName, caseName, valFields) ->
         let matchingCase : Option<CustomType.EnumCase> =
@@ -178,36 +173,35 @@ let rec unify
 
 
 
-and unifyUserRecordWithDvalMap
+and unifyRecordFields
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (definition : List<CustomType.RecordField>)
-  (value : DvalMap)
+  (defs : List<CustomType.RecordField>)
+  (values : DvalMap)
   : Result<unit, Error.T> =
   let completeDefinition =
-    definition
+    defs
     |> List.filterMap (fun (d : CustomType.RecordField) ->
       if d.name = "" then None else Some(d.name, d.typ))
     |> Map.ofList
 
-  let definitionNames = completeDefinition |> Map.keys |> Set.ofList
-  let objNames = value |> Map.keys |> Set.ofList
+  let defNames = completeDefinition |> Map.keys |> Set.ofList
+  let valueNames = values |> Map.keys |> Set.ofList
 
-  if definitionNames = objNames then
-    value
+  if defNames = valueNames then
+    values
     |> Map.toList
-    |> List.map (fun (key, data) ->
+    |> List.map (fun (fieldName, fieldValue) ->
       unify
         availableTypes
-        (Map.get key completeDefinition
+        (Map.get fieldName completeDefinition
          |> Exception.unwrapOptionInternal
               "field name missing from type"
-              [ "fieldName", key ])
-        data)
+              [ "fieldName", fieldName ])
+        fieldValue)
     |> combineErrorsUnit
   else
     Error(
-      MismatchedRecordFields
-        { expectedFields = definitionNames; actualFields = objNames }
+      MismatchedRecordFields { expectedFields = defNames; actualFields = valueNames }
     )
 
 
