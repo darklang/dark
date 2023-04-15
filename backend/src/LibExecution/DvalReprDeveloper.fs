@@ -57,9 +57,10 @@ let dvalTypeName (dv : Dval) : string =
   | DString _ -> "String"
   | DList _ -> "List"
   | DDict _ -> "Dict"
-  | DRecord _ -> "Dict"
+  // TYPESCLEANUP - use the name
+  | DRecord _ -> "Record"
   | DFnVal _ -> "Block"
-  | DHttpResponse _ -> "Response"
+  | DHttpResponse _ -> "HttpResponse"
   | DDB _ -> "Datastore"
   | DDateTime _ -> "DateTime"
   | DPassword _ -> "Password"
