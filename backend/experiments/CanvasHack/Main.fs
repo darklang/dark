@@ -76,8 +76,7 @@ let seedCanvasV2 (canvasName : string) =
           PT.Op.SetHandler({ tlid = gid (); ast = ast; spec = spec }))
 
       let dbs =
-        modul.dbs
-        |> List.map (fun db -> PT.CreateDB(db.tlid, db.name, db.typ))
+        modul.dbs |> List.map (fun db -> PT.CreateDB(db.tlid, db.name, db.typ))
 
       let createSavepoint = PT.Op.TLSavepoint(gid ())
 

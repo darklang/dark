@@ -137,24 +137,20 @@ let parseTypeDefn
   (typeDefn : SynTypeDefn)
   : CanvasModule =
   match typeDefn with
-  | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _),
-                  _,
-                  _,
-                  _,
-                  _,
-                  _) ->
-  let isDB =
-    attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
-    |> List.exists (fun attr ->
-      longIdentToList attr.TypeName.LongIdent = [ "DB" ])
+  | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
+    let isDB =
+      attrs
+      |> List.map (fun attr -> attr.Attributes)
+      |> List.concat
+      |> List.exists (fun attr -> longIdentToList attr.TypeName.LongIdent = [ "DB" ])
 
-  let (newDBs, newTypes) =
-    if isDB then
-      [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
-    else
-      [], [ Parser.ProgramTypes.UserType.fromSynTypeDefn availableTypes typeDefn ]
+    let (newDBs, newTypes) =
+      if isDB then
+        [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
+      else
+        [], [ Parser.ProgramTypes.UserType.fromSynTypeDefn availableTypes typeDefn ]
 
-  { m with types = m.types @ newTypes ; dbs = m.dbs @ newDBs  }
+    { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
 /// An F# module has a list of declarations, which can be:
 /// - a group of let bindings
