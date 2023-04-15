@@ -55,6 +55,14 @@ let rec set
   : Task<Uuid> =
   let id = System.Guid.NewGuid()
 
+  let availableTypes = RT.ExecutionState.availableTypes state
+
+  match LibExecution.TypeChecker.unify availableTypes db.typ dv with
+  | Error err ->
+    let msg = LibExecution.TypeChecker.Error.toString err
+    Exception.raiseCode msg
+  | Ok _ -> ()
+
   let upsertQuery =
     if upsert then
       "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data"
