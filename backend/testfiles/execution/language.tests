@@ -218,7 +218,7 @@ module Lambdas =
 
 
 module Pipes =
-  let userFn () = 6
+  let userFn () : Int = 6
 
   ([] |> List.push_v0 2) = [2]
   ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
@@ -572,37 +572,37 @@ module Equality =
 // ---------------------------
 // User-defined Functions
 // ---------------------------
-let stringFn (key:String) =
+let stringFn (key:String) : String =
   key ++ " appended string"
 
-let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
+let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
   arg
 
-let twoStringFn (str1: String) (str2: String) =
+let twoStringFn (str1: String) (str2: String) : String =
   str1 ++ " appended " ++ str2
 
-let returnsInt () =
+let returnsInt () : Int =
   5
 
-let returnsString () =
+let returnsString () : String =
   "string"
 
-let returnsOptionJust () =
+let returnsOptionJust () : Option<Int> =
   Just 5
 
-let returnsOptionNothing () =
+let returnsOptionNothing () : Option<Int> =
   Nothing
 
-let returnsResultOk () =
+let returnsResultOk () : Result<Int, 'err> =
   Ok 5
 
-let returnsResultError () =
+let returnsResultError () : Result<String, Bool> =
   Error false
 
-let throwsException () =
+let throwsException () : 'a =
   Test.raiseException "throwsException message"
 
-let derrorFn (msg:String) =
+let derrorFn (msg:String) : String =
   msg ++ Test.typeError_v0 msg
 
 module FunctionCalls =
@@ -633,7 +633,7 @@ module InvalidFnCalls =
   derrorFn "msg" = Test.typeError "msg"
 
 
-let myUserFunction_v2 (str:String) =
+let myUserFunction_v2 (str:String) : Int =
   6
 
 // user function with _v2 in it
@@ -644,37 +644,37 @@ let myUserFunction_v2 (str:String) =
 // ---------------------------
 [<Package("test", "test", "Test")>]
 module Packages =
-  let stringFn (key:String) =
+  let stringFn (key:String) : String =
     key ++ " appended string"
 
-  let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
+  let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
     JSON.parse<'a> arg
 
-  let twoStringFn (str1: String) (str2: String) =
+  let twoStringFn (str1: String) (str2: String) : String =
     str1 ++ " appended " ++ str2
 
-  let returnsInt () =
+  let returnsInt () : Int =
     5
 
-  let returnsString () =
+  let returnsString () : String =
     "string"
 
-  let returnsOptionJust () =
+  let returnsOptionJust () : Option<Int> =
     Just 5
 
-  let returnsOptionNothing () =
+  let returnsOptionNothing () : Option<'a> =
     Nothing
 
-  let returnsResultOk () =
+  let returnsResultOk () : Result<Int, String> =
     Ok 5
 
-  let returnsResultError () =
+  let returnsResultError () : Result<Char, Bool> =
     Error false
 
-  let throwsException () =
+  let throwsException () : DateTime =
     Test.raiseException "throwsException message"
 
-  let derrorFn (msg:String) =
+  let derrorFn (msg:String) : String =
     msg ++ Test.typeError_v0 msg
 
   Test.Test.Test.stringFn "string" = "string appended string"

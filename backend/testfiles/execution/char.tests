@@ -1,10 +1,10 @@
-let smiley () =
+let smiley () : Char =
   (String.toList_v1 "😂") |> List.head |> Test.unwrap
 
-let hand () =
+let hand () : Char =
   (String.toList_v1 "✋🏿") |> List.head |> Test.unwrap
 
-let family () =
+let family () : Char =
   (String.toList_v1 "👩‍👩‍👧‍👦") |> List.head |> Test.unwrap
 
 Char.toLowercase_v1 'A' = 'a'

@@ -1,4 +1,4 @@
-let c (arg: String) =
+let c (arg: String) : Char =
   (Test.toChar_v0 arg) |> Test.unwrap
 
 "" ++ "" = ""

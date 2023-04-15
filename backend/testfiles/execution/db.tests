@@ -28,7 +28,7 @@ module Roundtrip =
   }
   [<DB>] type SampleDB = Sample
 
-  let sample () =
+  let sample () : Sample =
     Sample {
       iNsEnSiTiVe = "iNsEnSiTiVe"
       ``ALLCAPS`` = 1
@@ -49,7 +49,7 @@ module Roundtrip =
       // dont test password because hashing it twice will get different values
     }
 
-  let otherSample () =
+  let otherSample () : Sample =
     Sample {
       iNsEnSiTiVe = "normal"
       ``ALLCAPS`` = 2
@@ -86,7 +86,7 @@ module Roundtrip =
   //  Password.check_v0 y.password "password") = true
 
   module QueryEquality =
-    let fetch (fn : 'a -> Bool) =
+    let fetch (fn : 'a -> Bool) : 'a =
       let z = DB.set_v1 (sample ()) "sample" SampleDB in
       let z = DB.set_v1 (otherSample ()) "other" SampleDB in
       DB.query_v4 SampleDB fn
@@ -197,22 +197,22 @@ module Get =
   (DB.get_v2 "lol" XDB) = Nothing
 
   // return nothing for invalid key
-  (let _ = DB.set_v1 { x = "hello" } "key" XDB in
+  (let _ = DB.set_v1 (X { x = "hello" }) "key" XDB in
    DB.get_v2 "lol" XDB) = Nothing
 
   // returns single value
-  (let _ = DB.set_v1 { x = "hello" } "key" XDB in
+  (let _ = DB.set_v1 (X { x = "hello" }) "key" XDB in
    DB.get_v2 "key" XDB) = Just (X { x = "hello" })
 
   // returns correct value given reassigned entry
-  (let _ = DB.set_v1 { x = "hello" } "key" XDB in
-   let _ = DB.set_v1 { x = "goodbye" } "key" XDB in
+  (let _ = DB.set_v1 (X { x = "hello" }) "key" XDB in
+   let _ = DB.set_v1 (X { x = "goodbye" }) "key" XDB in
    DB.get_v2 "key" XDB) = Just (X { x = "goodbye" })
 
   // returns value given multiple entries
-  (let _ = DB.set_v1 { x = "pancake" } "key1" XDB in
-   let _ = DB.set_v1 { x = "waffle" } "key2" XDB in
-   let _ = DB.set_v1 { x = "scone" } "key3" XDB in
+  (let _ = DB.set_v1 (X { x = "pancake" }) "key1" XDB in
+   let _ = DB.set_v1 (X { x = "waffle" }) "key2" XDB in
+   let _ = DB.set_v1 (X { x = "scone" }) "key3" XDB in
    DB.get_v2 "key2" XDB) = Just (X { x = "waffle" })
 
 
@@ -322,12 +322,12 @@ type Person = {
 }
 [<DB>] type PersonDB = Person
 
-let addFriend (key: String) (name: String) (height: Int) (human: Bool) (dob: String) (income: Float) =
+let addFriend (key: String) (name: String) (height: Int) (human: Bool) (dob: String) (income: Float) : Person =
   let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
   let obj = PersonDB { height = height; name = name; human = human; dob = dob; income = income } in
   DB.set_v1 obj key PersonDB
 
-let prepFriends () =
+let prepFriends () : Unit =
   (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
    let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
    // Note spaces around Chandler, that's to test trim functions
@@ -335,17 +335,17 @@ let prepFriends () =
    let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
    ())
 
-let d (datestr:String) =
+let d (datestr:String) : DateTime =
   (DateTime.parse_v2 datestr) |> Test.unwrap
 
-let rossDOB () =
+let rossDOB () : DateTime =
   d "1967-05-12T00:00:00Z"
 
-let friendsError (lambda: ('a -> Bool)) =
+let friendsError (lambda: ('a -> Bool)) : Person =
   let _ = prepFriends () in
   DB.query_v4 PersonDB lambda
 
-let friends (lambda: ('a -> Bool)) =
+let friends (lambda: ('a -> Bool)) : List<Person> =
   let _ = prepFriends () in
   (DB.query_v4 PersonDB lambda)
   |> List.map_v0 (fun p -> p.name)

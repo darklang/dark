@@ -731,19 +731,26 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
+  let parseReturnInfo (availableTypes : AvailableTypes) (returnInfo : Option<SynBindingReturnInfo>) : PT.TypeReference =
+    match returnInfo with
+    | None -> Exception.raiseInternal "Functions must have return types specified" []
+    | Some (SynBindingReturnInfo (typeName, _, _, _)) -> TypeReference.fromSynType availableTypes typeName
+
+
   let fromSynBinding
     (availableTypes : AvailableTypes)
     (binding : SynBinding)
     : PT.UserFunction.T =
     match binding with
-    | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, _, _, _) ->
+    | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature availableTypes pat
+      let returnType = parseReturnInfo availableTypes returnInfo
 
       { tlid = gid ()
         name = name
         typeParams = typeParams
         parameters = parameters
-        returnType = PT.TVariable "a" // TODO: use returnInfo
+        returnType = returnType
         description = ""
         infix = false
         body = Expr.fromSynExpr availableTypes expr }

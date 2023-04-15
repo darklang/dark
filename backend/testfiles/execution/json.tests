@@ -165,7 +165,7 @@ Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 
 // Datetimes
-let d (datestr: String) = (DateTime.parse_v2 datestr) |> Test.unwrap
+let d (datestr: String) : DateTime = (DateTime.parse_v2 datestr) |> Test.unwrap
 
 // now-ish
 Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = Ok "\"2023-07-28T22:42:36Z\""
@@ -190,7 +190,7 @@ Json.parse<DateTime> "1" = Error "Can't currently parse this type/value combinat
 
 
 // UUIDs
-let uuid (s: String) = (Uuid.parse_v0 s) |> Test.unwrap
+let uuid (s: String) : Uuid = (Uuid.parse_v0 s) |> Test.unwrap
 
 // empty
 Json.serialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = Ok "\"00000000-0000-0000-0000-000000000000\""
