@@ -731,10 +731,14 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
-  let parseReturnInfo (availableTypes : AvailableTypes) (returnInfo : Option<SynBindingReturnInfo>) : PT.TypeReference =
+  let parseReturnInfo
+    (availableTypes : AvailableTypes)
+    (returnInfo : Option<SynBindingReturnInfo>)
+    : PT.TypeReference =
     match returnInfo with
     | None -> Exception.raiseInternal "Functions must have return types specified" []
-    | Some (SynBindingReturnInfo (typeName, _, _, _)) -> TypeReference.fromSynType availableTypes typeName
+    | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
+      TypeReference.fromSynType availableTypes typeName
 
 
   let fromSynBinding
