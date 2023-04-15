@@ -674,14 +674,16 @@ and execFn
     let sourceID = SourceID(state.tlid, id) in
 
     let typeErrorOrValue userTypes result =
-      (* https://www.notion.so/darklang/What-should-happen-when-the-return-type-is-wrong-533f274f94754549867fefc554f9f4e3 *)
-      match TypeChecker.checkFunctionReturnType userTypes fn result with
-      | Ok () -> result
-      | Error errs ->
-        DError(
-          sourceID,
-          $"Type error(s) in return type: {TypeChecker.Error.listToString errs}"
-        )
+      if Dval.isFake result then
+        result
+      else
+        match TypeChecker.checkFunctionReturnType userTypes fn result with
+        | Ok () -> result
+        | Error errs ->
+          DError(
+            sourceID,
+            $"Type error(s) in return type: {TypeChecker.Error.listToString errs}"
+          )
 
     if state.tracing.realOrPreview = Preview
        && not state.onExecutionPath
