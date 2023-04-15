@@ -115,6 +115,13 @@ let rec typecheck
       let expected = DvalReprDeveloper.typeName expectedType
       error $"Incorrect type in {name}, expected {expected}, but got a {actual}"
 
+let typecheckDval (name : string) (types : Map<FQTypeName.T, CustomType.T>) (dval : Dval) (expectedType : TypeReference) =
+  match LibExecution.TypeChecker.unify types expectedType dval with
+  | Ok () -> ()
+  | Error errList ->
+      let err = errList |> List.map string |> String.concat ", "
+      error $"Incorrect type in {name}: {err}"
+
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only
   // CLEANUP: error on bad field name
@@ -302,16 +309,16 @@ let rec lambdaToSql
     $"({leftSql} OR {rightSql})", leftVars @ rightVars, TBool
 
 
+  // TYPESCLEANUP - this could be the paramName, now that we support more than
+  // records here.
   | EVariable (_, varname) ->
     match Map.get varname symtable with
     | Some dval ->
-      // TYPESCLEANUP
-      Exception.raiseInternal "sqlcompiler var" []
-    // let actualType = Dval.toType dval
-    // typecheckDval $"variable {varname}" dval expectedType
-    // let random = randomString 8
-    // let newname = $"{varname}_{random}"
-    // $"(@{newname})", [ newname, dvalToSql actualType dval ], actualType
+      typecheckDval $"variable {varname}" types dval expectedType
+      let random = randomString 8
+      let newname = $"{varname}_{random}"
+      // TYPESCLEANUP - this should be a concrete type
+      $"(@{newname})", [ newname, dvalToSql expectedType dval ], expectedType
     | None -> error $"This variable is not defined: {varname}"
 
   | EInt (_, v) ->
@@ -377,13 +384,6 @@ let rec lambdaToSql
 
 
   | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
-    // debuG "v" v
-    // debuG "fieldname" fieldname
-    // debuG "expectedType" expectedType
-    // debuG "paramName" paramName
-    // debuG "dbType" dbTypeRef
-    // debuG "expr" expr
-
     // Because this is the param name, we know its type to be dbType
 
     let dbFieldType =

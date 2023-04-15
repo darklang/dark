@@ -96,7 +96,7 @@ let rec unify
   //
   // Potentially needs to be removed before we use this type checker for DBs?
   //   - Could always have a type checking context that allows/disallows any
-  | TVariable _, _ -> Ok() // CLEANUP actually unify this
+  | TVariable _, _ -> Ok() // TYPESCLEANUP actually unify this
   | TInt, DInt _ -> Ok()
   | TFloat, DFloat _ -> Ok()
   | TBool, DBool _ -> Ok()
