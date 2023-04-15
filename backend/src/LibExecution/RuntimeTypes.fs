@@ -204,6 +204,35 @@ type TypeReference =
     | TFn _ -> true
     | _ -> false
 
+  member this.isConcrete() : bool =
+    let rec isConcrete (t : TypeReference) : bool =
+      match this with
+      | TVariable _ -> false
+      | TList t -> isConcrete t
+      | TTuple (t1, t2, ts) ->
+        isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
+      | TFn (ts, t) -> List.forall isConcrete ts && isConcrete t
+      | TDB t -> isConcrete t
+      | TCustomType (_, ts) -> List.forall isConcrete ts
+      | TOption t -> isConcrete t
+      | TResult (t1, t2) -> isConcrete t1 && isConcrete t2
+      | TDict t -> isConcrete t
+      | THttpResponse t -> isConcrete t
+      // exhaustiveness
+      | TUnit
+      | TBool
+      | TInt
+      | TFloat
+      | TChar
+      | TString
+      | TUuid
+      | TBytes
+      | TDateTime
+      | TPassword -> true
+    isConcrete this
+
+
+
 
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
 // superfluous information removed.
