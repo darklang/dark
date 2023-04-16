@@ -79,10 +79,10 @@ module Roundtrip =
   type Passwords = { password : Password }
   [<DB>] type PasswordsDB = Passwords
 
-  // TYPESCLEANUP
+  // TYPESCLEANUP - support passwords
   // (let pw = Password.hash_v0 "password" in
-  //  let x = DB.set_v1 { password = pw } "test" PasswordsDB in
-  //  let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
+  //  let x = DB.set_v1 (Passwords { password = pw }) "test" PasswordsDB in
+  //  let y = (DB.queryOne_v4 PasswordsDB (fun p -> p.password == pw)) |> Test.unwrap in
   //  Password.check_v0 y.password "password") = true
 
   module QueryEquality =
