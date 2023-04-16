@@ -4,8 +4,8 @@
 ///
 /// Based on https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-10-creating-an-exec-host-deployment-for-running-one-off-commands/
 ///
-/// Run with `ExecHost --help` for usage
-module ExecHost
+/// Run with `ProdExec --help` for usage
+module ProdExec
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -46,7 +46,7 @@ let listMigrations () : unit =
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
 let triggerRollbar () : unit =
   let tags = [ "int", 6 :> obj; "string", "string"; "float", -0.6; "bool", true ]
-  let prefix = "execHost test: "
+  let prefix = "ProdExec test: "
 
   // Send async notification ("info" level in the rollbar UI)
   Rollbar.notify $"{prefix} notify" tags
@@ -62,19 +62,19 @@ let triggerRollbar () : unit =
 /// going out
 let triggerPagingRollbar () : int =
   // This one pages
-  let prefix = "execHost test: "
+  let prefix = "prodExec test: "
   // Send sync exception - do this last to wait for the others
   let e = new System.Exception($"{prefix} last ditch blocking exception")
   Rollbar.lastDitchBlockAndPage $"{prefix} last ditch block and page" e
 
 let help () : unit =
   [ "USAGE:"
-    "  ExecHost migrations list"
-    "  ExecHost migrations run"
-    "  ExecHost trigger-rollbar"
-    "  ExecHost trigger-pageable-rollbar"
-    "  ExecHost convert-st-to-rt [canvasID]"
-    "  ExecHost help" ]
+    "  ProdExec migrations list"
+    "  ProdExec migrations run"
+    "  ProdExec trigger-rollbar"
+    "  ProdExec trigger-pageable-rollbar"
+    "  ProdExec convert-st-to-rt [canvasID]"
+    "  ProdExec help" ]
   |> List.join "\n"
   |> print
 
@@ -128,9 +128,9 @@ let convertToRT (canvasID : CanvasID) : Task<unit> =
 let run (options : Options) : Task<int> =
   task {
     // Track calls to this
-    use _ = Telemetry.createRoot "ExecHost run"
+    use _ = Telemetry.createRoot "ProdExec run"
     Telemetry.addTags [ "options", options ]
-    Rollbar.notify "execHost called" [ "options", string options ]
+    Rollbar.notify "prodExec called" [ "options", string options ]
 
     match options with
 
@@ -176,7 +176,7 @@ let initSerializers () =
   Json.Vanilla.allow<pos> "Prelude"
 
   // one-off types used internally
-  // we probably don't need most of these, but it's key that ExecHost doesn't ever
+  // we probably don't need most of these, but it's key that ProdExec doesn't ever
   // fail, so we're extra-cautious, and include _everything_.
   Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
@@ -196,7 +196,7 @@ let initSerializers () =
 
 [<EntryPoint>]
 let main (args : string []) : int =
-  let name = "ExecHost"
+  let name = "ProdExec"
   try
     initSerializers ()
     LibService.Init.init name
@@ -209,7 +209,7 @@ let main (args : string []) : int =
     result
   with
   | e ->
-    // Don't reraise or report as ExecHost is only run interactively
+    // Don't reraise or report as ProdExec is only run interactively
     printException "" [] e
     LibService.Init.shutdown name
     1
