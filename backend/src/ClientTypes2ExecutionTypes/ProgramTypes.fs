@@ -54,66 +54,57 @@ module FQTypeName =
     | PT.FQTypeName.User u -> CTPT.FQTypeName.User(UserTypeName.toCT u)
     | PT.FQTypeName.Package p -> CTPT.FQTypeName.Package(PackageTypeName.toCT p)
 
-module DType =
-  let rec fromCT (dtype : CTPT.DType) : PT.DType =
+module TypeReference =
+  let rec fromCT (dtype : CTPT.TypeReference) : PT.TypeReference =
     match dtype with
-    | CTPT.DType.TInt -> PT.TInt
-    | CTPT.DType.TFloat -> PT.TFloat
-    | CTPT.DType.TBool -> PT.TBool
-    | CTPT.DType.TUnit -> PT.TUnit
-    | CTPT.DType.TString -> PT.TString
-    | CTPT.DType.TList (t) -> PT.TList(fromCT t)
-    | CTPT.DType.TTuple (first, second, theRest) ->
+    | CTPT.TypeReference.TInt -> PT.TInt
+    | CTPT.TypeReference.TFloat -> PT.TFloat
+    | CTPT.TypeReference.TBool -> PT.TBool
+    | CTPT.TypeReference.TUnit -> PT.TUnit
+    | CTPT.TypeReference.TString -> PT.TString
+    | CTPT.TypeReference.TList (t) -> PT.TList(fromCT t)
+    | CTPT.TypeReference.TTuple (first, second, theRest) ->
       PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
-    | CTPT.DType.TDict (t) -> PT.TDict(fromCT t)
-    | CTPT.DType.TIncomplete -> PT.TIncomplete
-    | CTPT.DType.TError -> PT.TError
-    | CTPT.DType.THttpResponse (t) -> PT.THttpResponse(fromCT t)
-    | CTPT.DType.TDB (t) -> PT.TDB(fromCT t)
-    | CTPT.DType.TDateTime -> PT.TDateTime
-    | CTPT.DType.TChar -> PT.TChar
-    | CTPT.DType.TPassword -> PT.TPassword
-    | CTPT.DType.TUuid -> PT.TUuid
-    | CTPT.DType.TOption (t) -> PT.TOption(fromCT t)
-    | CTPT.DType.TCustomType (t, typeArgs) ->
+    | CTPT.TypeReference.TDict (t) -> PT.TDict(fromCT t)
+    | CTPT.TypeReference.THttpResponse (t) -> PT.THttpResponse(fromCT t)
+    | CTPT.TypeReference.TDB (t) -> PT.TDB(fromCT t)
+    | CTPT.TypeReference.TDateTime -> PT.TDateTime
+    | CTPT.TypeReference.TChar -> PT.TChar
+    | CTPT.TypeReference.TPassword -> PT.TPassword
+    | CTPT.TypeReference.TUuid -> PT.TUuid
+    | CTPT.TypeReference.TOption (t) -> PT.TOption(fromCT t)
+    | CTPT.TypeReference.TCustomType (t, typeArgs) ->
       PT.TCustomType(FQTypeName.fromCT t, List.map fromCT typeArgs)
-    | CTPT.DType.TBytes -> PT.TBytes
-    | CTPT.DType.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
-    | CTPT.DType.TVariable (name) -> PT.TVariable(name)
-    | CTPT.DType.TFn (args, body) -> PT.TFn(List.map fromCT args, fromCT body)
-    | CTPT.DType.TRecord (pairs) ->
-      PT.TRecord(pairs |> List.map (fun (name, v) -> (name, fromCT v)))
-    | CTPT.DType.TDbList (t) -> PT.TDbList(fromCT t)
+    | CTPT.TypeReference.TBytes -> PT.TBytes
+    | CTPT.TypeReference.TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
+    | CTPT.TypeReference.TVariable (name) -> PT.TVariable(name)
+    | CTPT.TypeReference.TFn (args, body) ->
+      PT.TFn(List.map fromCT args, fromCT body)
 
-  let rec toCT (dtype : PT.DType) : CTPT.DType =
+  let rec toCT (dtype : PT.TypeReference) : CTPT.TypeReference =
     match dtype with
-    | PT.TInt -> CTPT.DType.TInt
-    | PT.TFloat -> CTPT.DType.TFloat
-    | PT.TBool -> CTPT.DType.TBool
-    | PT.TUnit -> CTPT.DType.TUnit
-    | PT.TString -> CTPT.DType.TString
-    | PT.TList (t) -> CTPT.DType.TList(toCT t)
+    | PT.TInt -> CTPT.TypeReference.TInt
+    | PT.TFloat -> CTPT.TypeReference.TFloat
+    | PT.TBool -> CTPT.TypeReference.TBool
+    | PT.TUnit -> CTPT.TypeReference.TUnit
+    | PT.TString -> CTPT.TypeReference.TString
+    | PT.TList (t) -> CTPT.TypeReference.TList(toCT t)
     | PT.TTuple (first, second, theRest) ->
-      CTPT.DType.TTuple(toCT first, toCT second, List.map toCT theRest)
-    | PT.TDict (t) -> CTPT.DType.TDict(toCT t)
-    | PT.TIncomplete -> CTPT.DType.TIncomplete
-    | PT.TError -> CTPT.DType.TError
-    | PT.THttpResponse (t) -> CTPT.DType.THttpResponse(toCT t)
-    | PT.TDB (t) -> CTPT.DType.TDB(toCT t)
-    | PT.TDateTime -> CTPT.DType.TDateTime
-    | PT.TChar -> CTPT.DType.TChar
-    | PT.TPassword -> CTPT.DType.TPassword
-    | PT.TUuid -> CTPT.DType.TUuid
-    | PT.TOption (t) -> CTPT.DType.TOption(toCT t)
+      CTPT.TypeReference.TTuple(toCT first, toCT second, List.map toCT theRest)
+    | PT.TDict (t) -> CTPT.TypeReference.TDict(toCT t)
+    | PT.THttpResponse (t) -> CTPT.TypeReference.THttpResponse(toCT t)
+    | PT.TDB (t) -> CTPT.TypeReference.TDB(toCT t)
+    | PT.TDateTime -> CTPT.TypeReference.TDateTime
+    | PT.TChar -> CTPT.TypeReference.TChar
+    | PT.TPassword -> CTPT.TypeReference.TPassword
+    | PT.TUuid -> CTPT.TypeReference.TUuid
+    | PT.TOption (t) -> CTPT.TypeReference.TOption(toCT t)
     | PT.TCustomType (t, typeArgs) ->
-      CTPT.DType.TCustomType(FQTypeName.toCT t, List.map toCT typeArgs)
-    | PT.TBytes -> CTPT.DType.TBytes
-    | PT.TResult (ok, err) -> CTPT.DType.TResult(toCT ok, toCT err)
-    | PT.TVariable (name) -> CTPT.DType.TVariable(name)
-    | PT.TFn (args, body) -> CTPT.DType.TFn(List.map toCT args, toCT body)
-    | PT.TRecord (pairs) ->
-      CTPT.DType.TRecord(pairs |> List.map (fun (name, v) -> (name, toCT v)))
-    | PT.TDbList (t) -> CTPT.DType.TDbList(toCT t)
+      CTPT.TypeReference.TCustomType(FQTypeName.toCT t, List.map toCT typeArgs)
+    | PT.TBytes -> CTPT.TypeReference.TBytes
+    | PT.TResult (ok, err) -> CTPT.TypeReference.TResult(toCT ok, toCT err)
+    | PT.TVariable (name) -> CTPT.TypeReference.TVariable(name)
+    | PT.TFn (args, body) -> CTPT.TypeReference.TFn(List.map toCT args, toCT body)
 
 
 module FQFnName =
@@ -277,7 +268,7 @@ module Expr =
       PT.EFnCall(
         id,
         FQFnName.fromCT fnName,
-        List.map DType.fromCT typeArgs,
+        List.map TypeReference.fromCT typeArgs,
         List.map fromCT args
       )
     | CTPT.Expr.EList (id, exprs) -> PT.EList(id, List.map fromCT exprs)
@@ -307,6 +298,8 @@ module Expr =
         caseName,
         List.map fromCT fields
       )
+    | CTPT.EDict (id, fields) ->
+      PT.Expr.EDict(id, fields |> List.map (fun (key, value) -> (key, fromCT value)))
 
   and stringSegmentFromCTPT (segment : CTPT.StringSegment) : PT.StringSegment =
     match segment with
@@ -342,7 +335,7 @@ module Expr =
       CTPT.Expr.EFnCall(
         id,
         FQFnName.toCT fnName,
-        List.map DType.toCT typeArgs,
+        List.map TypeReference.toCT typeArgs,
         List.map toCT args
       )
     | PT.EList (id, exprs) -> CTPT.Expr.EList(id, List.map toCT exprs)
@@ -372,6 +365,8 @@ module Expr =
     | PT.EPipeTarget (id) -> CTPT.Expr.EPipeTarget(id)
     | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
       CTPT.Expr.EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
+    | PT.EDict (id, fields) ->
+      CTPT.Expr.EDict(id, fields |> List.map (fun (key, value) -> (key, toCT value)))
 
 
   and stringSegmentToCT (segment : PT.StringSegment) : CTPT.StringSegment =
@@ -384,17 +379,17 @@ module Expr =
 module CustomType =
   module RecordField =
     let fromCT (rf : CTPT.CustomType.RecordField) : PT.CustomType.RecordField =
-      { id = rf.id; name = rf.name; typ = DType.fromCT rf.typ }
+      { id = rf.id; name = rf.name; typ = TypeReference.fromCT rf.typ }
 
     let toCT (rf : PT.CustomType.RecordField) : CTPT.CustomType.RecordField =
-      { id = rf.id; name = rf.name; typ = DType.toCT rf.typ }
+      { id = rf.id; name = rf.name; typ = TypeReference.toCT rf.typ }
 
   module EnumField =
     let fromCT (ef : CTPT.CustomType.EnumField) : PT.CustomType.EnumField =
-      { id = ef.id; typ = DType.fromCT ef.typ; label = ef.label }
+      { id = ef.id; typ = TypeReference.fromCT ef.typ; label = ef.label }
 
     let toCT (ef : PT.CustomType.EnumField) : CTPT.CustomType.EnumField =
-      { id = ef.id; typ = DType.toCT ef.typ; label = ef.label }
+      { id = ef.id; typ = TypeReference.toCT ef.typ; label = ef.label }
 
   module EnumCase =
     let fromCT (ec : CTPT.CustomType.EnumCase) : PT.CustomType.EnumCase =
@@ -489,32 +484,17 @@ module Handler =
 
 
 module DB =
-  module Col =
-    let fromCT (col : CTPT.DB.Col) : PT.DB.Col =
-      { name = col.name
-        typ = Option.map DType.fromCT col.typ
-        nameID = col.nameID
-        typeID = col.typeID }
-
-    let toCT (col : PT.DB.Col) : CTPT.DB.Col =
-      { name = col.name
-        typ = Option.map DType.toCT col.typ
-        nameID = col.nameID
-        typeID = col.typeID }
-
   let fromCT (db : CTPT.DB.T) : PT.DB.T =
     { tlid = db.tlid
       name = db.name
-      nameID = db.nameID
       version = db.version
-      cols = List.map Col.fromCT db.cols }
+      typ = TypeReference.fromCT db.typ }
 
   let toCT (db : PT.DB.T) : CTPT.DB.T =
     { tlid = db.tlid
       name = db.name
-      nameID = db.nameID
       version = db.version
-      cols = List.map Col.toCT db.cols }
+      typ = TypeReference.toCT db.typ }
 
 module UserType =
   let fromCT (ut : CTPT.UserType.T) : PT.UserType.T =
@@ -533,13 +513,13 @@ module UserFunction =
     let fromCT (p : CTPT.UserFunction.Parameter) : PT.UserFunction.Parameter =
       { id = p.id
         name = p.name
-        typ = DType.fromCT p.typ
+        typ = TypeReference.fromCT p.typ
         description = p.description }
 
     let toCT (p : PT.UserFunction.Parameter) : CTPT.UserFunction.Parameter =
       { id = p.id
         name = p.name
-        typ = DType.toCT p.typ
+        typ = TypeReference.toCT p.typ
         description = p.description }
 
   let fromCT (uf : CTPT.UserFunction.T) : PT.UserFunction.T =
@@ -547,7 +527,7 @@ module UserFunction =
       name = uf.name
       typeParams = uf.typeParams
       parameters = List.map Parameter.fromCT uf.parameters
-      returnType = DType.fromCT uf.returnType
+      returnType = TypeReference.fromCT uf.returnType
       description = uf.description
       infix = uf.infix
       body = Expr.fromCT uf.body }
@@ -557,7 +537,7 @@ module UserFunction =
       name = uf.name
       typeParams = uf.typeParams
       parameters = List.map Parameter.toCT uf.parameters
-      returnType = DType.toCT uf.returnType
+      returnType = TypeReference.toCT uf.returnType
       description = uf.description
       infix = uf.infix
       body = Expr.toCT uf.body }
@@ -586,52 +566,32 @@ module Op =
   let fromCT (op : CTPT.Op) : PT.Op =
     match op with
     | CTPT.Op.SetHandler (handler) -> PT.Op.SetHandler(Handler.fromCT handler)
-    | CTPT.Op.CreateDB (tlid, name) -> PT.Op.CreateDB(tlid, name)
-    | CTPT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
-      PT.Op.AddDBCol(dbid, colNameID, colTypeID)
-    | CTPT.Op.SetDBColName (tlid, id, name) -> PT.Op.SetDBColName(tlid, id, name)
-    | CTPT.Op.SetDBColType (tlid, id, tipe) -> PT.Op.SetDBColType(tlid, id, tipe)
+    | CTPT.Op.CreateDB (tlid, name, typ) ->
+      PT.Op.CreateDB(tlid, name, TypeReference.fromCT typ)
     | CTPT.Op.DeleteTL (tlid) -> PT.Op.DeleteTL(tlid)
     | CTPT.Op.SetFunction (uf) -> PT.Op.SetFunction(UserFunction.fromCT uf)
-    | CTPT.Op.ChangeDBColName (tlid, id, name) ->
-      PT.Op.ChangeDBColName(tlid, id, name)
-    | CTPT.Op.ChangeDBColType (tlid, id, tipe) ->
-      PT.Op.ChangeDBColType(tlid, id, tipe)
     | CTPT.Op.UndoTL (tlid) -> PT.Op.UndoTL(tlid)
     | CTPT.Op.RedoTL (tlid) -> PT.Op.RedoTL(tlid)
     | CTPT.Op.SetExpr (tlid, id, expr) -> PT.Op.SetExpr(tlid, id, Expr.fromCT expr)
     | CTPT.Op.TLSavepoint (tlid) -> PT.Op.TLSavepoint(tlid)
     | CTPT.Op.DeleteFunction (tlid) -> PT.Op.DeleteFunction(tlid)
-    | CTPT.Op.DeleteDBCol (tlid, colID) -> PT.Op.DeleteDBCol(tlid, colID)
-    | CTPT.Op.RenameDBname (tlid, name) -> PT.Op.RenameDBname(tlid, name)
-    | CTPT.Op.CreateDBWithBlankOr (tlid, id, name) ->
-      PT.Op.CreateDBWithBlankOr(tlid, id, name)
+    | CTPT.Op.RenameDB (tlid, name) -> PT.Op.RenameDB(tlid, name)
     | CTPT.Op.SetType (ut) -> PT.Op.SetType(UserType.fromCT ut)
     | CTPT.Op.DeleteType (tlid) -> PT.Op.DeleteType(tlid)
 
   let toCT (op : PT.Op) : CTPT.Op =
     match op with
     | PT.Op.SetHandler (handler) -> CTPT.Op.SetHandler(Handler.toCT handler)
-    | PT.Op.CreateDB (tlid, name) -> CTPT.Op.CreateDB(tlid, name)
-    | PT.Op.AddDBCol (dbid, colNameID, colTypeID) ->
-      CTPT.Op.AddDBCol(dbid, colNameID, colTypeID)
-    | PT.Op.SetDBColName (tlid, id, name) -> CTPT.Op.SetDBColName(tlid, id, name)
-    | PT.Op.SetDBColType (tlid, id, tipe) -> CTPT.Op.SetDBColType(tlid, id, tipe)
+    | PT.Op.CreateDB (tlid, name, typ) ->
+      CTPT.Op.CreateDB(tlid, name, TypeReference.toCT typ)
     | PT.Op.DeleteTL (tlid) -> CTPT.Op.DeleteTL(tlid)
     | PT.Op.SetFunction (uf) -> CTPT.Op.SetFunction(UserFunction.toCT uf)
-    | PT.Op.ChangeDBColName (tlid, id, name) ->
-      CTPT.Op.ChangeDBColName(tlid, id, name)
-    | PT.Op.ChangeDBColType (tlid, id, tipe) ->
-      CTPT.Op.ChangeDBColType(tlid, id, tipe)
     | PT.Op.UndoTL (tlid) -> CTPT.Op.UndoTL(tlid)
     | PT.Op.RedoTL (tlid) -> CTPT.Op.RedoTL(tlid)
     | PT.Op.SetExpr (tlid, id, expr) -> CTPT.Op.SetExpr(tlid, id, Expr.toCT expr)
     | PT.Op.TLSavepoint (tlid) -> CTPT.Op.TLSavepoint(tlid)
     | PT.Op.DeleteFunction (tlid) -> CTPT.Op.DeleteFunction(tlid)
-    | PT.Op.DeleteDBCol (tlid, colID) -> CTPT.Op.DeleteDBCol(tlid, colID)
-    | PT.Op.RenameDBname (tlid, name) -> CTPT.Op.RenameDBname(tlid, name)
-    | PT.Op.CreateDBWithBlankOr (tlid, id, name) ->
-      CTPT.Op.CreateDBWithBlankOr(tlid, id, name)
+    | PT.Op.RenameDB (tlid, name) -> CTPT.Op.RenameDB(tlid, name)
     | PT.Op.SetType (ut) -> CTPT.Op.SetType(UserType.toCT ut)
     | PT.Op.DeleteType (tlid) -> CTPT.Op.DeleteType(tlid)
 
@@ -647,10 +607,12 @@ module Secret =
 module Package =
   module Parameter =
     let fromCT (p : CTPT.Package.Parameter) : PT.Package.Parameter =
-      { name = p.name; typ = DType.fromCT p.typ; description = p.description }
+      { name = p.name
+        typ = TypeReference.fromCT p.typ
+        description = p.description }
 
     let toCT (p : PT.Package.Parameter) : CTPT.Package.Parameter =
-      { name = p.name; typ = DType.toCT p.typ; description = p.description }
+      { name = p.name; typ = TypeReference.toCT p.typ; description = p.description }
 
   module Fn =
     let fromCT (fn : CTPT.Package.Fn) : PT.Package.Fn =
@@ -658,7 +620,7 @@ module Package =
         body = Expr.fromCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.fromCT fn.parameters
-        returnType = DType.fromCT fn.returnType
+        returnType = TypeReference.fromCT fn.returnType
         description = fn.description
         author = fn.author
         deprecated = fn.deprecated
@@ -669,7 +631,7 @@ module Package =
         body = Expr.toCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.toCT fn.parameters
-        returnType = DType.toCT fn.returnType
+        returnType = TypeReference.toCT fn.returnType
         description = fn.description
         author = fn.author
         deprecated = fn.deprecated

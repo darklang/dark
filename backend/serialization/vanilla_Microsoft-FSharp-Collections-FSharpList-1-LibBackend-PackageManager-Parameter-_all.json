@@ -1,36 +1,25 @@
 [
   {
     "name": "int",
-    "tipe": [
+    "typ": [
       "TInt"
     ],
     "description": ""
   },
   {
     "name": "string",
-    "tipe": [
+    "typ": [
       "TString"
     ],
     "description": ""
   },
   {
-    "name": "any",
-    "tipe": [
-      "TAny"
-    ],
-    "description": ""
-  },
-  {
     "name": "List",
-    "tipe": [
-      "TList"
-    ],
-    "description": ""
-  },
-  {
-    "name": "obj",
-    "tipe": [
-      "TObj"
+    "typ": [
+      "TList",
+      [
+        "TInt"
+      ]
     ],
     "description": ""
   }

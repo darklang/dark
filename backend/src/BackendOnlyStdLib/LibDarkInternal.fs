@@ -258,7 +258,7 @@ let fns : List<BuiltInFn> =
       description =
         "Returns a list of objects, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =
-        let rec typeName (t : DType) : string =
+        let rec typeName (t : TypeReference) : string =
           match t with
           | TInt -> "Int"
           | TFloat -> "Float"
@@ -269,11 +269,8 @@ let fns : List<BuiltInFn> =
           | TList _ -> "List"
           | TTuple _ -> "Tuple"
           | TDict _ -> "Dict"
-          | TRecord _ -> "Dict"
           | TFn _ -> "block"
           | TVariable _ -> "Any"
-          | TIncomplete -> "Incomplete"
-          | TError -> "Error"
           | THttpResponse _ -> "Response"
           | TDB _ -> "Datastore"
           | TDateTime -> "DateTime"
@@ -312,13 +309,13 @@ let fns : List<BuiltInFn> =
                 let parameters =
                   data.parameters
                   |> List.map (fun p ->
-                    Dval.obj [ ("name", DString p.name)
-                               ("type", DString(typeName p.typ)) ])
+                    Dval.record [ ("name", DString p.name)
+                                  ("type", DString(typeName p.typ)) ])
                 [ ("name", DString(FQFnName.toString key))
                   ("documentation", DString data.description)
                   ("parameters", DList parameters)
                   ("returnType", DString returnType) ]
-              Dval.obj alist)
+              Dval.record alist)
             |> DList
             |> Ply
           | _ -> incorrectArgs ())

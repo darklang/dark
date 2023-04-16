@@ -41,11 +41,12 @@ hello.dark
 (
   let requestSize = request.body |> Bytes.length |> Int.toString
   let body = "hello " ++ user ++ "\n" ++ "Request size: " ++ requestSize
-  {
-    statusCode = 200
-    headers = []
-    body = String.toBytes body
-  }
+  HttpClient.Response
+    {
+      statusCode = 200
+      headers = []
+      body = String.toBytes body
+    }
 )
 ```
 

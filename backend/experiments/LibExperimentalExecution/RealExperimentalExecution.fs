@@ -133,7 +133,7 @@ let reexecuteFunction
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
   (name : RT.FQFnName.T)
-  (typeArgs : List<RT.DType>)
+  (typeArgs : List<RT.TypeReference>)
   (args : List<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {

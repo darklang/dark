@@ -64,7 +64,8 @@ let seedCanvasV2 (canvasName : string) =
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
     let ops =
-      let modul = Parser.CanvasV2.parseFromFile [] $"{canvasDir}/{config.Main}.dark"
+      let modul =
+        Parser.CanvasV2.parseFromFile Map.empty $"{canvasDir}/{config.Main}.dark"
 
       let types = modul.types |> List.map PT.Op.SetType
       let fns = modul.fns |> List.map PT.Op.SetFunction
@@ -75,32 +76,7 @@ let seedCanvasV2 (canvasName : string) =
           PT.Op.SetHandler({ tlid = gid (); ast = ast; spec = spec }))
 
       let dbs =
-        modul.dbs
-        |> List.map (fun db ->
-          let initial = PT.CreateDB(db.tlid, db.name)
-
-          let cols =
-            db.cols
-            |> List.map (fun (col : PT.DB.Col) ->
-              [ PT.AddDBCol(db.tlid, col.nameID, col.typeID)
-
-                PT.SetDBColName(
-                  db.tlid,
-                  col.nameID,
-                  col.name |> Exception.unwrapOptionInternal "" []
-                )
-
-                PT.SetDBColType(
-                  db.tlid,
-                  col.typeID,
-                  col.typ
-                  |> Exception.unwrapOptionInternal "" []
-                  |> LibExecution.ProgramTypesToRuntimeTypes.DType.toRT
-                  |> LibExecution.DvalReprDeveloper.typeName
-                ) ])
-            |> List.flatten
-          initial :: cols)
-        |> List.flatten
+        modul.dbs |> List.map (fun db -> PT.CreateDB(db.tlid, db.name, db.typ))
 
       let createSavepoint = PT.Op.TLSavepoint(gid ())
 

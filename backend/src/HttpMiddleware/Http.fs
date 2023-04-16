@@ -26,7 +26,7 @@ module Request =
       |> RT.DList
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
-    |> RT.Dval.obj
+    |> RT.Dval.record
 
 
 module Response =

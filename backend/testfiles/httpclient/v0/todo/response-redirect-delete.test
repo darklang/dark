@@ -16,14 +16,15 @@ Location: /v0/response-redirect-destination
  | Ok _ -> "fail"
  | Error response ->
     let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
-    Dict.set_v0 response "headers" respHeaders) =
-   { body = ""
-     statusCode = 302
-     headers =
-      [
-        "HTTP/1.1 302 Found" = ""
-        "Location" = "/v0/response-redirect-destination"
-        ("server", "kestrel")
-        "Transfer-Encoding" = "chunked"
-      }
-     raw = ""}
+    Record.set_v0 response "headers" respHeaders) =
+  HttpClient.Response
+    { body = ""
+      statusCode = 302
+      headers =
+        [
+          "HTTP/1.1 302 Found" = ""
+          "Location" = "/v0/response-redirect-destination"
+          ("server", "kestrel")
+          "Transfer-Encoding" = "chunked"
+        ]
+      raw = ""}

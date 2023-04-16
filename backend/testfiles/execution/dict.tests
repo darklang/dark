@@ -1,67 +1,67 @@
-Dict.empty_v0 = {}
+Dict.empty_v0 = Dict {}
 
-Dict.filterMap_v0 {} (fun (key, value) -> 0) = {}
-Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then Nothing else (Just (key ++ value))) = { c = "cz"; a = "ax"}
-Dict.filterMap_v0 { a = "x"; b = "y"; c = "z" } (fun (key, value) -> if value == "y" then false else (Just (key ++ value))) = Test.typeError_v0 "Expected `fn` to return a Option<'b>, but it returned `false`"
-Dict.filter_v1 { key1 = "val1"; key2 = "val2" } (fun (k, v) -> k == "key1") = { key1 = "val1"}
-Dict.filter_v1 { key1 = 1; key2 = 3 }  (fun (k, v) -> v < 2) = { key1 = 1 }
-Dict.filter_v1 {} (fun (k, v) -> 0) = {}
-Dict.filter_v1 { a = 1; b = 2; c = 3 } (fun (k, v) -> 2) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `2`"
+Dict.filterMap_v0 (Dict {}) (fun (key, value) -> 0) = (Dict {})
+Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) -> if value == "y" then Nothing else (Just (key ++ value))) = (Dict { c = "cz"; a = "ax"})
+Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) -> if value == "y" then false else (Just (key ++ value))) = Test.typeError_v0 "Expected `fn` to return a Option<'b>, but it returned `false`"
+Dict.filter_v1 (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, v) -> k == "key1") = (Dict { key1 = "val1"})
+Dict.filter_v1 (Dict { key1 = 1; key2 = 3 })  (fun (k, v) -> v < 2) = (Dict { key1 = 1 })
+Dict.filter_v1 (Dict {}) (fun (k, v) -> 0) = (Dict {})
+Dict.filter_v1 (Dict { a = 1; b = 2; c = 3 }) (fun (k, v) -> 2) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `2`"
 
-Dict.fromListOverwritingDuplicates_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = { b = 2 ; duplicate_key = 3 }
-Dict.fromListOverwritingDuplicates_v0 [("a",1); ("b",2); ("c",3)] = { c = 3 ; b = 2 ; a= 1 }
-Dict.fromListOverwritingDuplicates_v0 [] = {}
+Dict.fromListOverwritingDuplicates_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = (Dict { b = 2 ; duplicate_key = 3 })
+Dict.fromListOverwritingDuplicates_v0 [("a",1); ("b",2); ("c",3)] = (Dict { c = 3 ; b = 2 ; a= 1 })
+Dict.fromListOverwritingDuplicates_v0 [] = (Dict {})
 Dict.fromListOverwritingDuplicates_v0 [("a",1); ("b",2); ("c",3,3)]  = Test.typeError_v0 "All list items must be `(key, value)`"
 Dict.fromListOverwritingDuplicates_v0 [(1,1)] = Test.typeError_v0 "Expected `key` to be a `String`, but it was `1`"
 Dict.fromListOverwritingDuplicates_v0 [("a",1); 2; ("c",3)] = Test.typeError_v0 "All list items must be `(key, value)`"
 Dict.fromListOverwritingDuplicates_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
 Dict.fromList_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = Nothing
-Dict.fromList_v0 [("a",1); ("b",2); ("c",3)] = Just { c = 3; b = 2; a = 1 }
-Dict.fromList_v0 [("Content-Length",0); ("Server", "dark") ] = Just {``Content-Length`` = 0; Server = "dark"}
+Dict.fromList_v0 [("a",1); ("b",2); ("c",3)] = Just (Dict { c = 3; b = 2; a = 1 })
+Dict.fromList_v0 [("Content-Length",0); ("Server", "dark") ] = Just (Dict {``Content-Length`` = 0; Server = "dark"})
 Dict.fromList_v0 [("a",1); ("b",2); ("c",3,3)] = Test.typeError_v0 "All list items must be `(key, value)`"
 Dict.fromList_v0 [(1,1)] = Test.typeError_v0 "Expected `key` to be a `String`, but it was `1`"
 Dict.fromList_v0 [("a",1); 2; ("c",3)] = Test.typeError_v0 "All list items must be `(key, value)`"
-Dict.fromList_v0 [] = Just {}
+Dict.fromList_v0 [] = Just (Dict {})
 Dict.fromList_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
-Dict.get_v2 { key1 = "val1" } "key1" = Just "val1"
+Dict.get_v2 (Dict { key1 = "val1" }) "key1" = Just "val1"
 
-Dict.isEmpty_v0 { a = 1 } = false
-Dict.isEmpty_v0 {} = true
+Dict.isEmpty_v0 (Dict { a = 1 }) = false
+Dict.isEmpty_v0 (Dict {}) = true
 
-Dict.keys_v0 { key1 = "val1" } = [ "key1"]
+Dict.keys_v0 (Dict { key1 = "val1" }) = [ "key1"]
 
-Dict.map_v0 { key1 = "val1"; key2 = "val2"; } (fun (k, x) -> k ++ x) = { key2 = "key2val2"; key1 = "key1val1" }
-Dict.map_v0 { key1 = 5; key2 = 3; key3 = 3; } (fun (k, x) -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 1) (Int.lessThanOrEqualTo_v0 x 4)) = { key3 = true; key2 = true; key1 = false; }
-Dict.map_v0 { a = 1; b = 2; } (fun (k, x) -> x + 1) = { b = 3; a = 2 }
-Dict.map_v0 {} (fun (key, value) -> 0) = {}
+Dict.map_v0 (Dict { key1 = "val1"; key2 = "val2"; }) (fun (k, x) -> k ++ x) = (Dict { key2 = "key2val2"; key1 = "key1val1" })
+Dict.map_v0 (Dict { key1 = 5; key2 = 3; key3 = 3; }) (fun (k, x) -> Bool.and_v0 (Int.greaterThanOrEqualTo_v0 x 1) (Int.lessThanOrEqualTo_v0 x 4)) = (Dict { key3 = true; key2 = true; key1 = false; })
+Dict.map_v0 (Dict { a = 1; b = 2; }) (fun (k, x) -> x + 1) = (Dict { b = 3; a = 2 })
+Dict.map_v0 (Dict {}) (fun (key, value) -> 0) = (Dict {})
 
-Dict.member_v0 { otherKey = 5; someKey = 5 } "someKey" = true
-Dict.member_v0 { otherKey = 5 } "someKey" = false
+Dict.member_v0 (Dict { otherKey = 5; someKey = 5 }) "someKey" = true
+Dict.member_v0 (Dict { otherKey = 5 }) "someKey" = false
 
-Dict.merge_v0 { key1 = "val1" } { key2 = "val2" } = { key2 = "val2"; key1 = "val1"}
-Dict.merge_v0 { key1 = "val_l" } { key1 = "val_r" } = {key1 = "val_r"}
-Dict.merge_v0 {} {} = {}
+Dict.merge_v0 (Dict { key1 = "val1" }) (Dict { key2 = "val2" }) = (Dict { key2 = "val2"; key1 = "val1"})
+Dict.merge_v0 (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict {key1 = "val_r"})
+Dict.merge_v0 (Dict {}) (Dict {}) = (Dict {})
 
-Dict.set_v0 { key1 = "val1before" } "key1" "val1after" = { key1 = "val1after" }
-Dict.set_v0 { key1 = "val1" } "key2" "val2" = { key1 = "val1"; key2 = "val2" }
+Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" = (Dict { key1 = "val1after" })
+Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" = (Dict { key1 = "val1"; key2 = "val2" })
 // Dicts do not currently enforce value typing, therefore the following tests pass
-Dict.set_v0 { key1 = "val1" } "key2" 2 = { key1 = "val1"; key2 = 2 }
-Dict.set_v0 { key1 = 1 } "key1" "changedTypeValue" = { key1 = "changedTypeValue" }
+Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2 = (Dict { key1 = "val1"; key2 = 2 })
+Dict.set_v0 (Dict { key1 = 1 }) "key1" "changedTypeValue" = (Dict { key1 = "changedTypeValue" })
 
-Dict.singleton_v0 "one" 1 = { one = 1 }
-Dict.singleton_v0 "Content-Length" 1 = { ``Content-Length`` = 1 }
+Dict.singleton_v0 "one" 1 = (Dict { one = 1 })
+Dict.singleton_v0 "Content-Length" 1 = (Dict { ``Content-Length`` = 1 })
 
-Dict.size_v0 { a = 3; b = 1; c = 1 } = 3
-Dict.size_v0 {} = 0
+Dict.size_v0 (Dict { a = 3; b = 1; c = 1 }) = 3
+Dict.size_v0 (Dict {}) = 0
 
-Dict.toList_v0 { a = 1; b = 2; c = 3 } = [ ("a", 1 ), ("b", 2), ("c", 3)]
-Dict.toList_v0 {} = []
+Dict.toList_v0 (Dict { a = 1; b = 2; c = 3 }) = [ ("a", 1 ), ("b", 2), ("c", 3)]
+Dict.toList_v0 (Dict {}) = []
 
-Dict.values_v0 { key1 = "val1" } = ["val1"]
+Dict.values_v0 (Dict { key1 = "val1" }) = ["val1"]
 
-Dict.remove_v0 {key1 = "val1" ; key2 = "val2"} "key1" = {key2 = "val2"}
-Dict.remove_v0 {key1 = "val1"} "key1" = {}
-Dict.remove_v0 {key1 = "val1"} "key2" = {key1 = "val1"}
-Dict.remove_v0 {} "key1" = {}
+Dict.remove_v0 (Dict {key1 = "val1" ; key2 = "val2"}) "key1" = (Dict {key2 = "val2"})
+Dict.remove_v0 (Dict {key1 = "val1"}) "key1" = (Dict {})
+Dict.remove_v0 (Dict {key1 = "val1"}) "key2" = (Dict {key1 = "val1"})
+Dict.remove_v0 (Dict {}) "key1" = (Dict {})

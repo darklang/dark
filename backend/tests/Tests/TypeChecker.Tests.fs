@@ -26,7 +26,7 @@ module S = TestUtils.RTShortcuts
 let testBasicTypecheckWorks : Test =
   let t
     ((fn, args) : RT.FQFnName.T * List<string * RT.Dval>)
-    : Result<unit, TypeChecker.Error.T list> =
+    : Result<unit, TypeChecker.Error.T> =
     let args = Map.ofList args
 
     let fn =
@@ -50,8 +50,8 @@ let testBasicTypecheckWorks : Test =
      [ (intAdd, [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
        ((intAdd, [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
         Error(
-          [ TypeChecker.Error.TypeUnificationFailure
-              { expectedType = RT.TInt; actualValue = RT.DBool true } ]
+          (TypeChecker.Error.TypeUnificationFailure
+            { expectedType = RT.TInt; actualValue = RT.DBool true })
         )) ])
 
 let testArguments : Test =

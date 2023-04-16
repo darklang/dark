@@ -110,68 +110,47 @@ let parseLetBinding
 
 
 module UserDB =
-  let private parseDBSchemaField
-    (availableTypes : AvailableTypes)
-    (field : SynField)
-    : PT.DB.Col =
-    match field with
-    | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-      { name = Some(id.idText) // CLEANUP
-        nameID = gid ()
-        typ = Some(ProgramTypes.DType.fromSynType availableTypes typ)
-        typeID = gid () }
-    | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
-
   let fromSynTypeDefn
     (availableTypes : AvailableTypes)
-    (dbName : string)
-    (typeDef : SynTypeDefnSimpleRepr)
+    (typeDef : SynTypeDefn)
     : PT.DB.T =
     match typeDef with
-    | SynTypeDefnSimpleRepr.Record (_, fields, _) ->
+    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
+                                                                             typ,
+                                                                             _),
+                                           _),
+                   _members,
+                   _,
+                   _,
+                   _) ->
       { tlid = gid ()
-        name = dbName
-        nameID = gid ()
+        name = id.idText
         version = 0
-        cols = List.map (parseDBSchemaField availableTypes) fields }
+        typ = Parser.ProgramTypes.TypeReference.fromSynType availableTypes typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
-
 
 let parseTypeDefn
   (availableTypes : AvailableTypes)
   (m : CanvasModule)
   (typeDefn : SynTypeDefn)
   : CanvasModule =
-  let id, attrs, typeDef =
-    match typeDefn with
-    | SynTypeDefn (SynComponentInfo (attrs, _, _, [ id ], _, _, _, _),
-                   SynTypeDefnRepr.Simple (typeDef, _),
-                   _,
-                   _,
-                   _,
-                   _) -> id, attrs, typeDef
-    | _ ->
-      Exception.raiseInternal $"Unsupported type definition" [ "typeDefn", typeDefn ]
+  match typeDefn with
+  | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
+    let isDB =
+      attrs
+      |> List.map (fun attr -> attr.Attributes)
+      |> List.concat
+      |> List.exists (fun attr -> longIdentToList attr.TypeName.LongIdent = [ "DB" ])
 
-  let attrs = attrs |> List.collect (fun l -> l.Attributes)
+    let (newDBs, newTypes) =
+      if isDB then
+        [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
+      else
+        [], [ Parser.ProgramTypes.UserType.fromSynTypeDefn availableTypes typeDefn ]
 
-  let m =
-    let newType = ProgramTypes.UserType.fromSynTypeDefn availableTypes typeDefn
-    { m with types = m.types @ [ newType ] }
-
-  match attrs with
-  | [] -> m
-
-  | [ SimpleAttribute ("DB", [ name ]) ] ->
-    let newDB = UserDB.fromSynTypeDefn availableTypes name typeDef
-    { m with dbs = m.dbs @ [ newDB ] }
-
-  | _ ->
-    Exception.raiseInternal
-      $"Can only currently support 1 DB attribute [<...>] on a let binding"
-      [ "attrs", attrs ]
-
+    { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
 /// An F# module has a list of declarations, which can be:
 /// - a group of let bindings
@@ -185,7 +164,7 @@ let parseTypeDefn
 /// - let bindings with no attributes are parsed as user functions
 /// - let bindings with attributes are parsed
 ///   as handlers (i.e. with `[<HttpHandler("method", "path")>]`)
-///   or as DBs (i.e. with `[<DB("name")>]`)
+///   or as DBs (i.e. with `[<DB>] DBName = Type`)
 /// - ? expressions are parsed as init commands (not currently supported)
 /// - anything else fails
 let parseDecls
@@ -196,9 +175,12 @@ let parseDecls
     emptyModule
     (fun m decl ->
       let availableTypes =
-        (m.types)
-        |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
-        |> (@) availableTypes
+        m.types
+        |> List.map (fun t ->
+          let typeName = PT.FQTypeName.User t.name
+          (PT.FQTypeName.toString typeName, (typeName, t.definition)))
+        |> Map
+        |> Map.mergeFavoringRight availableTypes
 
       match decl with
       | SynModuleDecl.Let (_, bindings, _) ->

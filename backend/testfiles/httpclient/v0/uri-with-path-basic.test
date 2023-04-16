@@ -15,11 +15,12 @@ Hello back
 [test]
 (let response = (HttpClient.request "get" "http://URL/some/2path/hyphen-ated/under_scored" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { statusCode = 200
-     headers = [
-        ("server", "kestrel")
-        ("content-length", "LENGTH")
-        ("content-type", "text/plain; charset=utf-8")
-      ]
-     body = "Hello back" |> String.toBytes_v0 }
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { statusCode = 200
+      headers = [
+          ("server", "kestrel")
+          ("content-length", "LENGTH")
+          ("content-type", "text/plain; charset=utf-8")
+        ]
+      body = "Hello back" |> String.toBytes_v0 }

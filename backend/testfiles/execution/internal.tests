@@ -69,7 +69,8 @@ module F404s =
 
 module Toplevels =
   module WithDB =
-    [<DB>] type X = { x : String }
+    type X = { x : String }
+    [<DB>] type XDB = X
     (DarkInternal.dbs Test.getCanvasID) |> List.length = 1
 
   module NoDB =
@@ -83,12 +84,13 @@ module UnlockedDB =
   DarkInternal.unlockedDBs Test.getCanvasID = []
 
   module WithDB =
-    [<DB>] type X = { x : String }
+    type X = { x : String }
+    [<DB>] type XDB = X
     // one
     (DarkInternal.unlockedDBs Test.getCanvasID) |> List.length = 1
 
     // one but locked
-    (let _ = DB.set_v1 { x = "str" } "test" X in
+    (let _ = DB.set_v1 (X { x = "str" }) "test" XDB in
      DarkInternal.unlockedDBs Test.getCanvasID) = []
 
 

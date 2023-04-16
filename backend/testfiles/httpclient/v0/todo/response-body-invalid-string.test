@@ -16,12 +16,13 @@ RANDOM_BYTES
 // RANDOM_BYTES filled in by the test suite
 (let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-   { body = "utf-8 decoding error"
-     statusCode = 200
-     headers =
-      [
-        ("content-length", "LENGTH")
-        ("server", "kestrel")
-      }
-     raw = "utf-8 decoding error"}
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { body = "utf-8 decoding error"
+      statusCode = 200
+      headers =
+        [
+          ("content-length", "LENGTH")
+          ("server", "kestrel")
+        ]
+      raw = "utf-8 decoding error"}

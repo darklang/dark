@@ -28,7 +28,7 @@ module RuntimeTypes =
       RT.FQFnName.Package
         { owner = "a"; package = "b"; module_ = "c"; function_ = "d"; version = 2 } ]
 
-  let dtypes : List<RT.DType> =
+  let dtypes : List<RT.TypeReference> =
     [ RT.TInt
       RT.TFloat
       RT.TBool
@@ -37,8 +37,6 @@ module RuntimeTypes =
       RT.TList RT.TInt
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
       RT.TDict RT.TBool
-      RT.TIncomplete
-      RT.TError
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(RT.FQTypeName.User { typ = "User"; version = 0 }, [ RT.TBool ])
@@ -58,8 +56,7 @@ module RuntimeTypes =
       RT.TBytes
       RT.TResult(RT.TBool, RT.TString)
       RT.TVariable "test"
-      RT.TFn([ RT.TBool ], RT.TBool)
-      RT.TRecord["prop", RT.TBool] ]
+      RT.TFn([ RT.TBool ], RT.TBool) ]
 
   let letPatterns : List<RT.LetPattern> = [ RT.LPVariable(123UL, "test") ]
 
@@ -154,13 +151,14 @@ module RuntimeTypes =
     // TODO: is this exhaustive? I haven't checked.
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
-    |> List.map Tuple2.second
+    |> List.map (fun (name, (dv, t)) -> dv)
 
   let dval : RT.Dval =
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
+    |> List.map (fun (name, (dv, t)) -> name, dv)
     |> Map
-    |> RT.DDict
+    |> RT.DRecord
 
 module ProgramTypes =
   let fqFnNames : List<PT.FQFnName.T> =
@@ -191,7 +189,7 @@ module ProgramTypes =
         [ PT.MPUnit(17123UL) ]
       ) ]
 
-  let dtypes : List<PT.DType> =
+  let dtypes : List<PT.TypeReference> =
     [ PT.TInt
       PT.TFloat
       PT.TBool
@@ -200,8 +198,6 @@ module ProgramTypes =
       PT.TList PT.TInt
       PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
       PT.TDict PT.TBool
-      PT.TIncomplete
-      PT.TError
       PT.THttpResponse PT.TBool
       PT.TDB PT.TBool
       PT.TCustomType(PT.FQTypeName.User { typ = "User"; version = 0 }, [ PT.TBool ])
@@ -221,8 +217,7 @@ module ProgramTypes =
       PT.TBytes
       PT.TResult(PT.TBool, PT.TString)
       PT.TVariable "test"
-      PT.TFn([ PT.TBool ], PT.TBool)
-      PT.TRecord["prop", PT.TBool] ]
+      PT.TFn([ PT.TBool ], PT.TBool) ]
 
 
 
@@ -470,49 +465,39 @@ module ProgramTypes =
       )
     )
 
-  // Note: This is aimed to contain all cases of `DType`
+  // Note: This is aimed to contain all cases of `TypeReference`
   let dtype =
-    PT.TRecord [ ("nested",
-                  PT.TList(
-                    PT.TDict(
-                      PT.TDB(
-                        PT.THttpResponse(
-                          PT.TOption(
-                            PT.TDbList(
-                              PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit))
-                            )
-                          )
-                        )
-                      )
-                    )
-                  ))
-                 ("int", PT.TInt)
-                 ("float", PT.TFloat)
-                 ("bool", PT.TBool)
-                 ("null", PT.TUnit)
-                 ("str", PT.TString)
-                 ("list", PT.TList(PT.TInt))
-                 ("tuple", PT.TTuple(PT.TInt, PT.TString, []))
-                 ("dict", PT.TDict(PT.TInt))
-                 ("incomplete", PT.TIncomplete)
-                 ("error", PT.TError)
-                 ("httpresponse", PT.THttpResponse(PT.TInt))
-                 ("db", PT.TDB(PT.TInt))
-                 ("date", PT.TDateTime)
-                 ("char", PT.TChar)
-                 ("password", PT.TPassword)
-                 ("uuid", PT.TUuid)
-                 ("option", PT.TOption(PT.TInt))
-                 ("usertype",
-                  PT.TCustomType(
-                    PT.FQTypeName.User { typ = "name"; version = 0 },
-                    []
-                  ))
-                 ("bytes", PT.TBytes)
-                 ("result", PT.TResult(PT.TInt, PT.TString))
-                 ("variable", PT.TVariable "v")
-                 ("fn", PT.TFn([ PT.TInt ], PT.TInt))
-                 ("record", PT.TRecord([ "field1", PT.TInt ])) ]
+    PT.TTuple(
+      PT.TList(
+        PT.TDict(
+          PT.TDB(
+            PT.THttpResponse(
+              PT.TOption(PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit)))
+            )
+          )
+        )
+      ),
+      PT.TInt,
+      [ PT.TFloat
+        PT.TBool
+        PT.TUnit
+        PT.TString
+        PT.TList(PT.TInt)
+        PT.TTuple(PT.TInt, PT.TString, [])
+        PT.TDict(PT.TInt)
+        PT.THttpResponse(PT.TInt)
+        PT.TDB(PT.TInt)
+        PT.TDateTime
+        PT.TChar
+        PT.TPassword
+        PT.TUuid
+        PT.TOption(PT.TInt)
+        PT.TCustomType(PT.FQTypeName.User { typ = "name"; version = 0 }, [])
+        PT.TBytes
+        PT.TResult(PT.TInt, PT.TString)
+        PT.TVariable "v"
+        PT.TFn([ PT.TInt ], PT.TInt) ]
+    )
 
   module Handler =
     let cronIntervals : List<PT.Handler.CronInterval> =
@@ -566,20 +551,9 @@ module ProgramTypes =
 
   let userDB : PT.DB.T =
     { tlid = 0UL
-      nameID = 2399545UL
       name = "User"
       version = 0
-      cols =
-        [ { name = None; typ = None; nameID = 2949054UL; typeID = 5929202UL }
-          { name = None; typ = Some PT.TInt; nameID = 20109857UL; typeID = 299063UL }
-          { name = Some "name"
-            typ = None
-            nameID = 28234232UL
-            typeID = 029985336UL }
-          { name = Some "value"
-            typ = Some dtype
-            nameID = 923982352UL
-            typeID = 289429232UL } ] }
+      typ = PT.TCustomType(PT.FQTypeName.User { typ = "User"; version = 0 }, []) }
 
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
@@ -646,22 +620,15 @@ module ProgramTypes =
     let id = 923832423UL
     let tlid = 94934534UL
     [ PT.SetHandler(Handler.http)
-      PT.CreateDB(tlid, "name")
-      PT.AddDBCol(tlid, id, id)
-      PT.SetDBColName(tlid, id, "name")
-      PT.SetDBColType(tlid, id, "int")
+      PT.CreateDB(tlid, "name", PT.TFloat)
       PT.DeleteTL tlid
       PT.SetFunction(userFunction)
-      PT.ChangeDBColName(tlid, id, "name")
-      PT.ChangeDBColType(tlid, id, "int")
       PT.UndoTL tlid
       PT.RedoTL tlid
       PT.SetExpr(tlid, id, expr)
       PT.TLSavepoint tlid
       PT.DeleteFunction tlid
-      PT.DeleteDBCol(tlid, id)
-      PT.RenameDBname(tlid, "newname")
-      PT.CreateDBWithBlankOr(tlid, id, "User")
+      PT.RenameDB(tlid, "newname")
       PT.SetType(userRecordType)
       PT.DeleteType tlid ]
 

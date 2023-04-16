@@ -88,7 +88,7 @@ let testUserFn
   (name : string)
   (typeParams : List<string>)
   (parameters : string list)
-  (returnType : PT.DType)
+  (returnType : PT.TypeReference)
   (body : PT.Expr)
   : PT.UserFunction.T =
   { tlid = gid ()
@@ -106,8 +106,8 @@ let testUserFn
 
 let testUserRecordType
   (name : PT.FQTypeName.UserTypeName)
-  (firstField : string * PT.DType)
-  (additionalFields : List<string * PT.DType>)
+  (firstField : string * PT.TypeReference)
+  (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
   let mapField (name, typ) : PT.CustomType.RecordField =
     { id = gid (); name = name; typ = typ }
@@ -119,11 +119,8 @@ let testUserRecordType
 
 
 
-let testDBCol (name : Option<string>) (typ : Option<PT.DType>) : PT.DB.Col =
-  { name = name; typ = typ; nameID = gid (); typeID = gid () }
-
-let testDB (name : string) (cols : List<PT.DB.Col>) : PT.DB.T =
-  { tlid = gid (); nameID = gid (); name = name; cols = cols; version = 0 }
+let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
+  { tlid = gid (); name = name; typ = typ; version = 0 }
 
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
@@ -151,7 +148,7 @@ let executionStateFor
   (userFunctions : Map<string, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
-    let domains = Canvas.domainsForCanvasID canvasID
+    let! domains = Canvas.domainsForCanvasID canvasID
     let program : RT.ProgramContext =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
@@ -183,7 +180,8 @@ let executionStateFor
               Exception.raiseInternal
                 $"UNEXPECTED EXCEPTION COUNT in test {domains}"
                 [ "expectedExceptionCount", tc.expectedExceptionCount
-                  "actualExceptionCount", tc.exceptionReports.Length ] }
+                  "actualExceptionCount", tc.exceptionReports.Length
+                  "reports", tc.exceptionReports ] }
 
     // Typically, exceptions thrown in tests have surprised us. Take these errors and
     // catch them much closer to where they happen (usually in the function
@@ -479,11 +477,11 @@ module Expect =
 
   let dTypeEqualityBaseFn
     (path : Path)
-    (actual : DType)
-    (expected : DType)
+    (actual : TypeReference)
+    (expected : TypeReference)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    // as long as DTypes don't get IDs, depending on structural equality is OK
+    // as long as TypeReferences don't get IDs, depending on structural equality is OK
     match actual, expected with
     | TInt, _
     | TFloat, _
@@ -493,8 +491,6 @@ module Expect =
     | TList (_), _
     | TTuple (_, _, _), _
     | TDict (_), _
-    | TIncomplete, _
-    | TError, _
     | THttpResponse (_), _
     | TDB (_), _
     | TDateTime, _
@@ -506,8 +502,7 @@ module Expect =
     | TFn (_, _), _
     | TCustomType (_, _), _
     | TOption (_), _
-    | TResult (_, _), _
-    | TRecord (_), _ ->
+    | TResult (_, _), _ ->
       if actual <> expected then errorFn path (string actual) (string expected)
 
 
@@ -574,11 +569,18 @@ module Expect =
 
     | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
-
       List.iter2
         (fun (k, v) (k', v') ->
           check path k k'
           eq (k :: path) v v')
+        fields
+        fields'
+
+    | EDict (_, fields), EDict (_, fields') ->
+      List.iter2
+        (fun (k, v) (k', v') ->
+          check ("key" :: path) k k'
+          eq ("value" :: path) v v')
         fields
         fields'
 
@@ -632,6 +634,7 @@ module Expect =
     | ETuple _, _
     | EApply _, _
     | ERecord _, _
+    | EDict _, _
     | EFieldAccess _, _
     | EFeatureFlag _, _
     | EConstructor _, _
@@ -929,53 +932,68 @@ let naughtyStrings : List<string * string> =
   |> List.filterWithIndex (fun i (_, str) ->
     i <> 139 && not (String.startsWith "#" str))
 
-let interestingDvals =
-  [ ("float", DFloat 7.2)
-    ("float2", DFloat -7.2)
-    ("float3", DFloat 15.0)
-    ("float4", DFloat -15.0)
-    ("int5", DInt 5L)
-    ("true", DBool true)
-    ("false", DBool false)
-    ("null", DUnit)
-    ("datastore", DDB "Visitors")
-    ("string", DString "incredibly this was broken")
+let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
+  [ ("float", DFloat 7.2, TFloat)
+    ("float2", DFloat -7.2, TFloat)
+    ("float3", DFloat 15.0, TFloat)
+    ("float4", DFloat -15.0, TFloat)
+    ("int5", DInt 5L, TInt)
+    ("true", DBool true, TBool)
+    ("false", DBool false, TBool)
+    ("unit", DUnit, TUnit)
+    ("datastore", DDB "Visitors", TDB TInt)
+    ("string", DString "incredibly this was broken", TString)
     // Json.NET has a habit of converting things automatically based on the type in the string
-    ("date string", DString "2018-09-14T00:31:41Z")
-    ("int string", DString "1039485")
-    ("int string2", DString "-1039485")
-    ("int string3", DString "0")
-    ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
-    ("list", DList [ Dval.int 4 ])
+    ("date string", DString "2018-09-14T00:31:41Z", TString)
+    ("int string", DString "1039485", TString)
+    ("int string2", DString "-1039485", TString)
+    ("int string3", DString "0", TString)
+    ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
+    ("list", DList [ Dval.int 4 ], TList TInt)
     ("list with derror",
-     DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ])
-    ("record", DRecord(Map.ofList [ "foo", Dval.int 5 ]))
-    ("record2", DRecord(Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]))
+     DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ],
+     TList TInt)
+    ("record",
+     DRecord(Map.ofList [ "foo", Dval.int 5 ]),
+     TCustomType(S.userTypeName "Foo" 0, []))
+    ("record2",
+     DRecord(Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]),
+     TCustomType(S.userTypeName "Foo" 0, []))
     ("record3",
-     DRecord(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]))
+     DRecord(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
+     TCustomType(S.userTypeName "Foo" 0, []))
     // More Json.NET tests
-    ("record4", DRecord(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
-    ("record5", DRecord(Map.ofList [ "$type", Dval.int 5 ]))
+    ("record4",
+     DRecord(Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
+     TCustomType(S.userTypeName "Foo" 0, []))
+    ("record5",
+     DRecord(Map.ofList [ "$type", Dval.int 5 ]),
+     TCustomType(S.userTypeName "Foo" 0, []))
     ("record with error",
-     DRecord(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
-    ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]))
-    ("dict3", DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]))
+     DRecord(Map.ofList [ "v", DError(SourceNone, "some error string") ]),
+     TCustomType(S.userTypeName "Foo" 0, []))
+    ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]), TDict TInt)
+    ("dict3",
+     DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
+     TDict TString)
     // More Json.NET tests
-    ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]))
-    ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]))
+    ("dict4", DDict(Map.ofList [ "foo\\\\bar", Dval.int 5 ]), TDict TInt)
+    ("dict5", DDict(Map.ofList [ "$type", Dval.int 5 ]), TDict TInt)
     ("dict with error",
-     DDict(Map.ofList [ "v", DError(SourceNone, "some error string") ]))
-    ("incomplete", DIncomplete SourceNone)
-    ("incomplete2", DIncomplete(SourceID(14219007199254740993UL, 8UL)))
-    ("error", DError(SourceNone, "some error string"))
-    ("block",
+     DDict(Map.ofList [ "v", DError(SourceNone, "some error string") ]),
+     TDict TInt)
+    ("incomplete", DIncomplete SourceNone, TInt)
+    ("incomplete2", DIncomplete(SourceID(14219007199254740993UL, 8UL)), TBool)
+    ("error", DError(SourceNone, "some error string"), TString)
+    ("lambda",
      DFnVal(
        Lambda
          { body = RT.EUnit(id 1234)
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
-     ))
-    ("block with pipe",
+     ),
+     TFn([ TInt ], TUnit))
+    ("lambda with pipe",
      DFnVal(
        Lambda
          { body =
@@ -1015,25 +1033,30 @@ let interestingDvals =
              )
            symtable = Map.empty
            parameters = [ (id 5678, "a") ] }
-     ))
+     ),
+     TFn([ TInt ], TInt))
     ("httpresponse",
-     DHttpResponse(200L, [ "content-length", "9" ], DString "success"))
-    ("db", DDB "Visitors")
+     DHttpResponse(200L, [ "content-length", "9" ], DString "success"),
+     THttpResponse TString)
+    ("db", DDB "Visitors", TDB TInt)
     ("date",
      DDateTime(
        DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
-     ))
-    ("password", DPassword(Password(UTF8.toBytes "somebytes")))
-    ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
-    ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"))
-    ("option", DOption None)
-    ("option2", DOption(Some(Dval.int 15)))
-    ("option3", DOption(Some(DString "a string")))
-    ("character", DChar "s")
-    ("result", DResult(Ok(Dval.int 15)))
-    ("result2", DResult(Error(DList [ DString "dunno if really supported" ])))
-    ("result3", DResult(Ok(DString "a string")))
-    ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes)
+     ),
+     TDateTime)
+    ("password", DPassword(Password(UTF8.toBytes "somebytes")), TPassword)
+    ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
+    ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
+    ("option", DOption None, TOption TInt)
+    ("option2", DOption(Some(Dval.int 15)), TOption TInt)
+    ("option3", DOption(Some(DString "a string")), TOption TString)
+    ("character", DChar "s", TChar)
+    ("result", DResult(Ok(Dval.int 15)), TResult(TInt, TString))
+    ("result2",
+     DResult(Error(DList [ DString "supported" ])),
+     TResult(TInt, TList TString))
+    ("result3", DResult(Ok(DString "a string")), TResult(TString, TBool))
+    ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
      DBytes(
@@ -1041,18 +1064,27 @@ let interestingDvals =
          LibBackend.Config.Testdata
          "sample_image_bytes.png"
      // TODO: deeply nested data
-     ))
+     ),
+     TBytes)
 
-    ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []))
-    ("simple3Tuple", DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]))
-    ("tupleWithUnit", DTuple(Dval.int 1, Dval.int 2, [ DUnit ]))
-    ("tupleWithError", DTuple(Dval.int 1, DResult(Error(DString "error")), [])) ]
+    ("simple2Tuple", DTuple(Dval.int 1, Dval.int 2, []), TTuple(TInt, TInt, []))
+    ("simple3Tuple",
+     DTuple(Dval.int 1, Dval.int 2, [ Dval.int 3 ]),
+     TTuple(TInt, TInt, [ TInt ]))
+    ("tupleWithUnit",
+     DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
+     TTuple(TInt, TInt, [ TUnit ]))
+    ("tupleWithError",
+     DTuple(Dval.int 1, DResult(Error(DString "error")), []),
+     TTuple(TInt, TResult(TInt, TString), [])) ]
 
-let sampleDvals : List<string * Dval> =
-  List.map (Tuple2.mapSecond DInt) interestingInts
-  @ List.map (Tuple2.mapSecond DFloat) interestingFloats
-    @ List.map (Tuple2.mapSecond DString) interestingStrings
-      @ List.map (Tuple2.mapSecond DString) naughtyStrings @ interestingDvals
+let sampleDvals : List<string * (Dval * TypeReference)> =
+  (List.map (fun (k, v) -> k, DInt v, TInt) interestingInts
+   @ List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
+     @ List.map (fun (k, v) -> k, DString v, TString) interestingStrings
+       @ List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
+         @ interestingDvals)
+  |> List.map (fun (k, v, t) -> k, (v, t))
 
 // Utilties shared among tests
 module Http =

@@ -57,7 +57,7 @@ type Utf8JsonWriter with
 let rec serialize
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (w : Utf8JsonWriter)
-  (typ : DType)
+  (typ : TypeReference)
   (dv : Dval)
   : unit =
   let r = serialize availableTypes w
@@ -108,14 +108,6 @@ let rec serialize
           w.WritePropertyName k
           r objType v)
         o)
-  | TRecord fields, DDict dvalMap ->
-    let schema = Map.ofList fields
-    w.writeObject (fun () ->
-      dvalMap
-      |> Map.toList
-      |> List.iter (fun (k, dval) ->
-        w.WritePropertyName k
-        r (Map.find k schema) dval))
 
   | TTuple (t1, t2, trest), DTuple (d1, d2, rest) ->
     let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
@@ -150,13 +142,13 @@ let rec serialize
         |> List.iter (fun (fieldName, dval) ->
           w.WritePropertyName fieldName
 
-          let matchingDType =
+          let matchingTypeReference =
             fieldDefs
             // TODO: handle case where field isn't found
             |> List.find (fun def -> def.name = fieldName)
             |> fun def -> def.typ
 
-          r matchingDType dval))
+          r matchingTypeReference dval))
 
   | TCustomType (typeName, _typeArgs), DRecord dvalMap ->
     // TODO: try find exactly one matching type
@@ -173,12 +165,12 @@ let rec serialize
         |> List.iter (fun (fieldName, dval) ->
           w.WritePropertyName fieldName
 
-          let matchingDType =
+          let matchingTypeReference =
             fieldDefs
             |> List.find (fun def -> def.name = fieldName)
             |> fun def -> def.typ
 
-          r matchingDType dval))
+          r matchingTypeReference dval))
 
 
 
@@ -217,10 +209,6 @@ let rec serialize
 
   | TDB _, DDB _ -> Exception.raiseInternal "Cannot serialize DB references" []
 
-  | TError _, DError _
-  | TIncomplete, DIncomplete _ ->
-    Exception.raiseInternal "Fake types/values are not supported" []
-
   | THttpResponse _, _ ->
     Exception.raiseInternal "Not worth supporting - about to be deleted" []
 
@@ -240,14 +228,11 @@ let rec serialize
   | TTuple _, _
   | TFn _, _
   | TDB _, _
-  | TIncomplete, _
-  | TError, _
   | TVariable _, _
   | TCustomType _, _
   | TOption _, _
   | TResult _, _
-  | TDict _, _
-  | TRecord _, _ ->
+  | TDict _, _ ->
     Exception.raiseInternal
       "Can't currently serialize this type/value combination"
       [ "value", dv; "type", typ ]
@@ -291,9 +276,12 @@ module JsonParseError =
 
   type T =
     | NotJson
-    | TypeUnsupported of DType
-    | TypeNotYetSupported of DType
-    | CantMatchWithType of typ : DType * json : string * errorPath : List<ErrorPath>
+    | TypeUnsupported of TypeReference
+    | TypeNotYetSupported of TypeReference
+    | CantMatchWithType of
+      typ : TypeReference *
+      json : string *
+      errorPath : List<ErrorPath>
     | Uncaught of System.Exception
 
   exception JsonParseException of T
@@ -317,10 +305,10 @@ module JsonParseError =
 
 let parse
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (typ : DType)
+  (typ : TypeReference)
   (str : string)
   : Result<Dval, string> =
-  let rec convert (typ : DType) (j : JsonElement) : Dval =
+  let rec convert (typ : TypeReference) (j : JsonElement) : Dval =
     match typ, j.ValueKind with
     // basic types
     | TUnit, JsonValueKind.Null -> DUnit
@@ -374,22 +362,6 @@ let parse
         Exception.raiseInternal
           "Invalid tuple - really shouldn't be possible to hit this"
           []
-
-    | TRecord typFields, JsonValueKind.Object ->
-      // Use maps to cooalesce duplicate keys and ensure the obj matches the type
-      let typFields = Map typFields
-      let objFields =
-        j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-
-      if Map.count objFields = Map.count typFields then
-        objFields
-        |> Map.map (fun k v ->
-          match Map.tryFind k typFields with
-          | Some t -> convert t v
-          | None -> Exception.raiseInternal "Missing field" [ "field", k ])
-        |> DDict
-      else
-        Exception.raiseInternal "Invalid fields" []
 
     | TOption _, JsonValueKind.Null -> DOption None
     | TOption oType, JsonValueKind.Object ->
@@ -455,15 +427,14 @@ let parse
             (jp.Name, converted))
           |> Map.ofSeq
 
-        // TODO: this should really be a DRecord
-        // but isn't currently, as our parser doesn't know
-        // when to parse an object as a record or a dict
-        DDict(dvalMap)
+        // TYPESCLEANUP add typename
+        DRecord(dvalMap)
 
 
     // Explicitly not supported
     | TVariable _, _ ->
-      // this should disappear when we use a TypeReference here rather than a DType
+      // this should disappear when we use a TypeReference here rather than a TypeReference
+      // TYPESCLEANUP-I don't think it does, bunecessarily, but it should be knowable here
       JsonParseError.TypeUnsupported typ
       |> JsonParseError.JsonParseException
       |> raise
@@ -472,16 +443,13 @@ let parse
 
     | TDB _, _ -> Exception.raiseInternal "Cannot serialize DB references" []
 
-    | TIncomplete, _
-    | TError, _ -> Exception.raiseInternal "Fake types/values are not supported" []
-
     | THttpResponse _, _ ->
       Exception.raiseInternal
         "Can't currently parse this type/value combination"
         [ "type", typ; "value", j ]
 
 
-    // exhaust DTypes
+    // exhaust TypeReferences
     | TUnit, _
     | TBool, _
     | TInt, _
@@ -496,14 +464,11 @@ let parse
     | TTuple _, _
     | TFn _, _
     | TDB _, _
-    | TIncomplete, _
-    | TError, _
     | TVariable _, _
     | TCustomType _, _
     | TOption _, _
     | TResult _, _
     | TDict _, _
-    | TRecord _, _
     | THttpResponse _, _ ->
       Exception.raiseInternal
         "Can't currently parse this type/value combination"

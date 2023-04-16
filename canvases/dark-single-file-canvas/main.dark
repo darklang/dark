@@ -36,11 +36,11 @@ let _stringifyEnumHandler (request) =
 
 
 
-[<DB("TestDB")>]
 type Test = {
   id: Int
   name: String
 }
+[<DB>] TestDB = Test
 
 [<HttpHandler("GET", "/get-tests")>]
 let _handler _req =

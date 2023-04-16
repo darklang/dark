@@ -65,7 +65,7 @@ let executeFunction
   (state : RT.ExecutionState)
   (callerID : id)
   (name : RT.FQFnName.T)
-  (typeArgs : List<RT.DType>)
+  (typeArgs : List<RT.TypeReference>)
   (args : List<RT.Dval>)
   : Task<RT.Dval> =
   task {

@@ -104,7 +104,7 @@ let main (args : string []) =
   try
     initSerializers ()
     let mainFile = "/home/dark/app/backend/experiments/cli/program.dark"
-    let mod' = Parser.CanvasV2.parseFromFile [] mainFile
+    let mod' = Parser.CanvasV2.parseFromFile Map.empty mainFile
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
     let result = execute mod' (Map [ "args", args ])
     NonBlockingConsole.wait ()

@@ -30,7 +30,7 @@ Json.serialize<Bool> 1 = Error "Can't currently serialize this type/value combin
 Json.serialize<Bool> "False" = Error "Can't currently serialize this type/value combination"
 Json.serialize<Bool> "tRUE" = Error "Can't currently serialize this type/value combination"
 
-Json.parse<Bool> 1 = Test.typeError "Json::parse was called with a Int (1), but `json` expected a String."
+Json.parse<Bool> 1 = Test.typeError "Json::parse was expected to be called with a `String` in json, but was actually called with 1."
 Json.parse<Bool> "tru" = Error "not JSON"
 Json.parse<Bool> "null" = Error "Can't currently parse this type/value combination"
 Json.parse<Bool> "" = Error "not JSON"
@@ -165,7 +165,7 @@ Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 
 // Datetimes
-let d (datestr: String) = (DateTime.parse_v2 datestr) |> Test.unwrap
+let d (datestr: String) : DateTime = (DateTime.parse_v2 datestr) |> Test.unwrap
 
 // now-ish
 Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = Ok "\"2023-07-28T22:42:36Z\""
@@ -190,7 +190,7 @@ Json.parse<DateTime> "1" = Error "Can't currently parse this type/value combinat
 
 
 // UUIDs
-let uuid (s: String) = (Uuid.parse_v0 s) |> Test.unwrap
+let uuid (s: String) : Uuid = (Uuid.parse_v0 s) |> Test.unwrap
 
 // empty
 Json.serialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = Ok "\"00000000-0000-0000-0000-000000000000\""
@@ -299,10 +299,10 @@ Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (Enh("printer br
 type Person = { Name: String; Age: Int }
 type People = { GroupName: String; People: List<Person> }
 
-Json.serialize<Person> { Name = "Bob"; Age = 42 } = Ok """{"Age":42,"Name":"Bob"}"""
-Json.parse<Person> """{ "Name": "Bob", "Age": 42 }""" = Ok { Name = "Bob"; Age = 42 }
-Json.serialize<People> { GroupName = "Two Georges"; People = [{ Name = "George A"; Age = 27 }; { Name = "George B"; Age = 42 }] } = Ok """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}"""
-Json.parse<People> """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""" = Ok { GroupName = "Two Georges"; People = [{ Name = "George A"; Age = 27 }; { Name = "George B"; Age = 42 }] }
+Json.serialize<Person> (Person { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Name":"Bob"}"""
+Json.parse<Person> """{ "Name": "Bob", "Age": 42 }""" = Ok (Person { Name = "Bob"; Age = 42 })
+Json.serialize<People> (People { GroupName = "Two Georges"; People = [Person { Name = "George A"; Age = 27 }; Person { Name = "George B"; Age = 42 }] }) = Ok """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}"""
+Json.parse<People> """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""" = Ok (People { GroupName = "Two Georges"; People = [Person { Name = "George A"; Age = 27 }; Person { Name = "George B"; Age = 42 }] })
 
 (let personMaybe = Json.parse<Person> """{ "Name": "Bob", "Age": 42 }"""
  match personMaybe with

@@ -58,4 +58,4 @@ let singleExprFromImplFile (parsedAsFSharp : ParsedImplFileInput) : SynExpr =
       [ "parseTree", parsedAsFSharp ]
 
 type AvailableTypes =
-  List<LibExecution.ProgramTypes.FQTypeName.T * LibExecution.ProgramTypes.CustomType.T>
+  Map<string, (LibExecution.ProgramTypes.FQTypeName.T * LibExecution.ProgramTypes.CustomType.T)>

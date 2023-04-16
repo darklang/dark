@@ -44,13 +44,13 @@ module SchedulingRule =
       createdAt : NodaTime.Instant }
 
   let toDval (r : T) : RT.Dval =
-    RT.Dval.obj [ ("id", RT.Dval.int r.id)
-                  ("rule_type", r.ruleType |> string |> RT.Dval.DString)
-                  ("canvas_id", RT.Dval.DUuid r.canvasID)
-                  ("handler_name", RT.Dval.DString r.handlerName)
-                  ("event_space", RT.Dval.DString r.eventSpace)
-                  ("created_at",
-                   RT.Dval.DDateTime(RT.DarkDateTime.fromInstant r.createdAt)) ]
+    RT.Dval.record [ ("id", RT.Dval.int r.id)
+                     ("rule_type", r.ruleType |> string |> RT.Dval.DString)
+                     ("canvas_id", RT.Dval.DUuid r.canvasID)
+                     ("handler_name", RT.Dval.DString r.handlerName)
+                     ("event_space", RT.Dval.DString r.eventSpace)
+                     ("created_at",
+                      RT.Dval.DDateTime(RT.DarkDateTime.fromInstant r.createdAt)) ]
 
 
 module WorkerStates =

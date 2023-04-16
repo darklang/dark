@@ -38,8 +38,7 @@ let counterComponent: Component<Int, CounterMsg> =
     Views = [ "default", counterView ] }
 
 
-[<DB("MsgHistory")>]
-let MsgHistory: List<Msg> = []
+[<DB>] MsgHistory = List<Msg{}
 
 let currentState () =
   let msgs = DB.getAll_v3 MsgHistory

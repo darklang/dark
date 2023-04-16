@@ -16,20 +16,21 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 [test]
 (let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
- Dict.set_v0 response "headers" respHeaders) =
-  { body = "Redirect destination reached"
-    statusCode = 200
-    error = ""
-    headers =
-      [
-        "Arbitrary-header" = "Test value"
-        "Content-Length" = "28"
-        "Content-Type" = "text/plain; charset=ISO-8859-1"
-        "HTTP/1.1 301 Moved Permanently" = ""
-        Location = "/v0/response-redirect-conflicting-charset-dest"
-        "Redirect-header" = "1"
-        ("server", "kestrel")
-        "Transfer-Encoding" = "chunked"
-      }
-    raw = "Redirect destination reached"
-  }
+ Record.set_v0 response "headers" respHeaders) =
+   HttpClient.Response
+    { body = "Redirect destination reached"
+      statusCode = 200
+      error = ""
+      headers =
+        [
+          "Arbitrary-header" = "Test value"
+          "Content-Length" = "28"
+          "Content-Type" = "text/plain; charset=ISO-8859-1"
+          "HTTP/1.1 301 Moved Permanently" = ""
+          Location = "/v0/response-redirect-conflicting-charset-dest"
+          "Redirect-header" = "1"
+          ("server", "kestrel")
+          "Transfer-Encoding" = "chunked"
+        ]
+      raw = "Redirect destination reached"
+    }

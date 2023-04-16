@@ -18,56 +18,58 @@ let placeholder = PT.EString(12345678UL, [ PT.StringText "PLACEHOLDER VALUE" ])
 let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
 
-module DType =
+module TypeReference =
+
+  let private parseTypeRef (name : string) : string * int =
+    match name with
+    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
+    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+    | _ -> Exception.raiseInternal "Bad format in typeRef" [ "name", name ]
+
+
   let rec fromNameAndTypeArgs
-    (availableTypes : List<PT.FQTypeName.T * PT.CustomType.T>)
+    (availableTypes : AvailableTypes)
     (name : string)
     (typeArgs : List<SynType>)
-    : PT.DType =
+    : PT.TypeReference =
     let fromSynType = fromSynType availableTypes
-    match name, typeArgs with
+
+    match parseTypeRef name, typeArgs with
     // no type args
-    | "Bool", [] -> PT.TBool
-    | "Bytes", [] -> PT.TBytes
-    | "Int", [] -> PT.TInt
-    | "String", [] -> PT.TString
-    | "Char", [] -> PT.TChar
-    | "Float", [] -> PT.TFloat
-    | "DateTime", [] -> PT.TDateTime
-    | "Uuid", [] -> PT.TUuid
-    | "Unit", [] -> PT.TUnit
-    | "Password", [] -> PT.TPassword
+    | ("Bool", 0), [] -> PT.TBool
+    | ("Bytes", 0), [] -> PT.TBytes
+    | ("Int", 0), [] -> PT.TInt
+    | ("String", 0), [] -> PT.TString
+    | ("Char", 0), [] -> PT.TChar
+    | ("Float", 0), [] -> PT.TFloat
+    | ("DateTime", 0), [] -> PT.TDateTime
+    | ("Uuid", 0), [] -> PT.TUuid
+    | ("Unit", 0), [] -> PT.TUnit
+    | ("Password", 0), [] -> PT.TPassword
 
     // with type args
-    | "List", [ arg ] -> PT.TList(fromSynType arg)
-    | "Option", [ arg ] -> PT.TOption(fromSynType arg)
-    | "Dict", [ valArg ] -> PT.TDict(fromSynType valArg)
-    | "Result", [ okArg; errorArg ] ->
+    | ("List", 0), [ arg ] -> PT.TList(fromSynType arg)
+    | ("Option", 0), [ arg ] -> PT.TOption(fromSynType arg)
+    | ("Result", 0), [ okArg; errorArg ] ->
       PT.TResult(fromSynType okArg, fromSynType errorArg)
-    | "Tuple", first :: second :: theRest ->
+    | ("Dict", 0), [ valArg ] -> PT.TDict(fromSynType valArg)
+    // TYPESCLEANUP - don't use word Tuple here
+    | ("Tuple", 0), first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-    | _ ->
+    | (name, version), args ->
       // Some user- or stdlib- type
       // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
+      let fullName = $"{name}_v{version}"
 
-      // TODO: support types that aren't the 0th version of the type
-      let matchingTypes =
-        availableTypes
-        |> List.choose (fun (typeName, _def) ->
-          match typeName with
-          | PT.FQTypeName.User u -> if u.typ = name then Some typeName else None
-          | PT.FQTypeName.Stdlib t -> if t.typ = name then Some typeName else None
-          | PT.FQTypeName.Package p -> if p.typ = name then Some typeName else None)
+      match Map.get fullName availableTypes with
+      | None -> Exception.raiseInternal $"No type found named \"{name}\"" []
+      | Some (actualTypeName, matchedType) ->
+        PT.TCustomType(actualTypeName, List.map fromSynType typeArgs)
 
-      match matchingTypes with
-      | [] -> Exception.raiseInternal $"No type found named \"{name}\"" []
-      | [ matchedType ] -> PT.TCustomType(matchedType, List.map fromSynType typeArgs)
-      | _ ->
-        Exception.raiseInternal
-          $"Matched against multiple types - not sure what to do"
-          [ "name", name; "typeArgs", typeArgs; "types", matchingTypes ]
-
-  and fromSynType (availableTypes : AvailableTypes) (typ : SynType) : PT.DType =
+  and fromSynType
+    (availableTypes : AvailableTypes)
+    (typ : SynType)
+    : PT.TypeReference =
     let c = fromSynType availableTypes
 
     match typ with
@@ -93,7 +95,7 @@ module DType =
                    _,
                    _,
                    _,
-                   _) -> fromNameAndTypeArgs availableTypes ident.idText typeArgs
+                   range) -> fromNameAndTypeArgs availableTypes ident.idText typeArgs
 
     | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
       let typeArgs = []
@@ -278,6 +280,7 @@ module Expr =
     | SynExpr.Ident name ->
       let matchingEnumCases =
         availableTypes
+        |> Map.values
         |> List.choose (fun (typeName, typeDef) ->
           match typeDef with
           | PT.CustomType.Enum (firstCase, additionalCases) ->
@@ -339,7 +342,7 @@ module Expr =
     | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
       let typeArgs =
         typeArgs
-        |> List.map (fun synType -> DType.fromSynType availableTypes synType)
+        |> List.map (fun synType -> TypeReference.fromSynType availableTypes synType)
 
       PT.EFnCall(gid (), PT.FQFnName.userFqName name.idText, typeArgs, [])
 
@@ -357,7 +360,7 @@ module Expr =
       let name, version = parseFn fnName.idText
       let typeArgs =
         typeArgs
-        |> List.map (fun synType -> DType.fromSynType availableTypes synType)
+        |> List.map (fun synType -> TypeReference.fromSynType availableTypes synType)
 
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
 
@@ -468,7 +471,7 @@ module Expr =
       PT.EMatch(id, c cond, List.map convertCase cases)
 
 
-    // records: `{ A = 2; B = "yellow" }`
+    // Dicts: `{ "A" = 2; "B"" = "yellow" }`
     | SynExpr.Record (_, _, fields, _) ->
       let fields =
         fields
@@ -478,12 +481,7 @@ module Expr =
             (nameOrBlank name.idText, c expr)
           | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
-      let typeName =
-        // TODO: determine the appropriate typeName
-        // based on the fields and types available
-        None
-
-      PT.ERecord(id, typeName, fields)
+      PT.EDict(id, fields)
 
     // Parens (eg `(5)`)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
@@ -535,6 +533,41 @@ module Expr =
       // the very bottom on the pipe chain, this is just the first expression
       PT.EPipe(id, c expr, placeholder, [])
 
+    // Records
+    | SynExpr.App (_,
+                   _,
+                   SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _),
+                   SynExpr.Record (_, _, fields, _),
+                   _) when List.all (fun n -> String.isCapitalized (string n)) names ->
+      let fields =
+        fields
+        |> List.map (fun field ->
+          match field with
+          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
+            (nameOrBlank name.idText, c expr)
+          | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
+
+      // TYPESCLEANUP: use typename
+      PT.ERecord(id, None, fields)
+
+    // More records: MyRecord { x = 5 } or Dict { x = 5 }
+    | SynExpr.App (_, _, SynExpr.Ident name, SynExpr.Record (_, _, fields, _), _) when
+      String.isCapitalized (string name)
+      ->
+      let fields =
+        fields
+        |> List.map (fun field ->
+          match field with
+          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
+            (nameOrBlank name.idText, c expr)
+          | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
+
+      if string name = "Dict" then
+        PT.EDict(id, fields)
+      else
+        // TYPESCLEANUP: use typename
+        PT.ERecord(id, None, fields)
+
 
     // Enum values (EConstructors)
     // TODO: remove this explicit handling
@@ -543,6 +576,7 @@ module Expr =
       List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
       ->
       PT.EConstructor(id, None, name.idText, [ c arg ])
+
 
 
     // Feature flags
@@ -642,7 +676,7 @@ module UserFunction =
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
       { id = gid ()
         name = id.idText
-        typ = DType.fromSynType availableTypes typ
+        typ = TypeReference.fromSynType availableTypes typ
         description = "" }
 
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
@@ -697,19 +731,30 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
+  let parseReturnInfo
+    (availableTypes : AvailableTypes)
+    (returnInfo : Option<SynBindingReturnInfo>)
+    : PT.TypeReference =
+    match returnInfo with
+    | None -> Exception.raiseInternal "Functions must have return types specified" []
+    | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
+      TypeReference.fromSynType availableTypes typeName
+
+
   let fromSynBinding
     (availableTypes : AvailableTypes)
     (binding : SynBinding)
     : PT.UserFunction.T =
     match binding with
-    | SynBinding (_, _, _, _, _, _, _, pat, _returnInfo, expr, _, _, _) ->
+    | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature availableTypes pat
+      let returnType = parseReturnInfo availableTypes returnInfo
 
       { tlid = gid ()
         name = name
         typeParams = typeParams
         parameters = parameters
-        returnType = PT.TVariable "a" // TODO: use returnInfo
+        returnType = returnType
         description = ""
         infix = false
         body = Expr.fromSynExpr availableTypes expr }
@@ -724,7 +769,7 @@ module CustomType =
       match typ with
       | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
         { id = gid ()
-          typ = DType.fromSynType availableTypes typ
+          typ = TypeReference.fromSynType availableTypes typ
           label = fieldName |> Option.map (fun id -> id.idText) }
 
     let private parseCase
@@ -760,7 +805,9 @@ module CustomType =
       : PT.CustomType.RecordField =
       match field with
       | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-        { id = gid (); name = id.idText; typ = DType.fromSynType availableTypes typ }
+        { id = gid ()
+          name = id.idText
+          typ = TypeReference.fromSynType availableTypes typ }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
     let fromFields availableTypes typeDef (fields : List<SynField>) =
@@ -815,4 +862,4 @@ let parseExprWithTypes (availableTypes : AvailableTypes) (code : string) : PT.Ex
   |> Utils.singleExprFromImplFile
   |> Expr.fromSynExpr availableTypes
 
-let parseExpr = parseExprWithTypes []
+let parseExpr = parseExprWithTypes Map.empty

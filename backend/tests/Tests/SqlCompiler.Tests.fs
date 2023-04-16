@@ -17,16 +17,24 @@ module Errors = LibExecution.Errors
 let compile
   (symtable : DvalMap)
   (paramName : string)
-  (dbFields : List<string * DType>)
+  ((rowName, rowType) : string * TypeReference)
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
     let canvasID = System.Guid.NewGuid()
-    let! state = executionStateFor canvasID false Map.empty Map.empty Map.empty
+
+    let typeName : FQTypeName.UserTypeName = { typ = "MyType"; version = 0 }
+    let field : CustomType.RecordField =
+      { id = gid (); name = rowName; typ = rowType }
+    let userType : UserType.T =
+      { tlid = gid (); name = typeName; definition = CustomType.Record(field, []) }
+    let userTypes = Map [ typeName, userType ]
+    let typeReference = TCustomType(FQTypeName.User typeName, [])
+
+    let! state = executionStateFor canvasID false Map.empty userTypes Map.empty
 
     try
-      let! sql, args =
-        C.compileLambda state symtable paramName (Map.ofList dbFields) expr
+      let! sql, args = C.compileLambda state symtable paramName typeReference expr
 
       let args = Map.ofList args
       return sql, args
@@ -59,12 +67,12 @@ let compileTests =
   testList
     "compile tests"
     [ testTask "compile true" {
-        let! sql, args = compile Map.empty "value" [] (p "true")
+        let! sql, args = compile Map.empty "value" ("myfield", TBool) (p "true")
         matchSql sql @"\(@([A-Z]+)\)" args [ Sql.bool true ]
       }
       testTask "compile field" {
         let! sql, args =
-          compile Map.empty "value" [ "myfield", TBool ] (p "value.myfield")
+          compile Map.empty "value" ("myfield", TBool) (p "value.myfield")
 
         matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
       }
@@ -79,7 +87,7 @@ let compileTests =
             []
             [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
 
-        let! sql, args = compile Map.empty "value" [ injection, TString ] expr
+        let! sql, args = compile Map.empty "value" (injection, TString) expr
 
         matchSql
           sql
@@ -91,7 +99,7 @@ let compileTests =
         let expr = p "var == value.name"
         let symtable = Map.ofList [ "var", DString "';select * from user_data_v0;'" ]
 
-        let! sql, args = compile symtable "value" [ "name", TString ] expr
+        let! sql, args = compile symtable "value" ("name", TString) expr
 
         matchSql
           sql
@@ -101,7 +109,7 @@ let compileTests =
       }
       testTask "pipes expand correctly into nested functions" {
         let expr = p "value.age |> (-) 2 |> (+) value.age |> (<) 3"
-        let! sql, args = compile Map.empty "value" [ "age", TInt ] expr
+        let! sql, args = compile Map.empty "value" ("age", TInt) expr
 
         matchSql
           sql

@@ -25,7 +25,7 @@ let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
     let! canvasID = initializeTestCanvas "db_oplist_roundtrip"
 
-    let db = testDB "myDB" []
+    let db = testDB "myDB" PT.TInt
     let oplist =
       [ PT.UndoTL db.tlid; PT.RedoTL db.tlid; PT.UndoTL db.tlid; PT.RedoTL db.tlid ]
 
@@ -212,45 +212,14 @@ let testHttpLoadIgnoresDeletedFns =
   }
 
 
-let testDbCreateWithOrblankName =
-  testTask "DB create with orblank name" {
-    let! canvasID = initializeTestCanvas "db-create-with-orblank-name"
-
-    let dbid = gid ()
-    let nameID = gid ()
-    let colNameID = gid ()
-    let colTypeID = gid ()
-    let name = "Books"
-    let db : PT.DB.T =
-      { tlid = dbid
-        name = name
-        nameID = nameID
-        version = 0
-        cols =
-          [ { name = None; nameID = colNameID; typ = None; typeID = colTypeID } ] }
-
-    let ops =
-      [ PT.CreateDBWithBlankOr(dbid, nameID, name)
-        PT.AddDBCol(dbid, colNameID, colTypeID) ]
-    let canvas = Canvas.fromOplist canvasID [] ops
-    Expect.equal (canvas.dbs[dbid]) db "Datastore is created"
-  }
-
 let testDbRename =
   testTask "DB rename" {
     let! canvasID = initializeTestCanvas "db-rename"
 
-    let dbid = gid ()
-    let nameID = gid ()
-    let colNameID = gid ()
-    let colTypeID = gid ()
-    let name = "Books"
-    let ops =
-      [ PT.CreateDBWithBlankOr(dbid, nameID, name)
-        PT.AddDBCol(dbid, colNameID, colTypeID)
-        PT.RenameDBname(dbid, "BsCode") ]
+    let dbID = gid ()
+    let ops = [ PT.CreateDB(dbID, "Books", PT.TString); PT.RenameDB(dbID, "BsCode") ]
     let canvas = Canvas.fromOplist canvasID [] ops
-    Expect.equal canvas.dbs[dbid].name "BsCode" "Datastore is created"
+    Expect.equal canvas.dbs[dbID].name "BsCode" "Datastore is created"
   }
 
 let testSetHandlerAfterDelete =
@@ -330,10 +299,10 @@ let testLoadAllDBs =
   testTask "load all dbs" {
     let! canvasID = initializeTestCanvas "load-all-dbs"
     let dbid1, dbid2, dbid3 = gid (), gid (), gid ()
-    let nameid1, nameid2, nameid3 = gid (), gid (), gid ()
-    let ops1 = [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books"); PT.DeleteTL dbid1 ]
-    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, nameid2, "Books2") ]
-    let ops3 = [ PT.CreateDBWithBlankOr(dbid3, nameid3, "Books3") ]
+    let typ = PT.TString
+    let ops1 = [ PT.CreateDB(dbid1, "Books", typ); PT.DeleteTL dbid1 ]
+    let ops2 = [ PT.CreateDB(dbid2, "Books2", typ) ]
+    let ops3 = [ PT.CreateDB(dbid3, "Books3", typ) ]
     let c1 = Canvas.empty canvasID |> Canvas.addOps (ops1 @ ops2 @ ops3) []
     do!
       Canvas.saveTLIDs
@@ -351,11 +320,10 @@ let testLoadAllDBs =
 let testCanvasVerificationDuplicationCreation =
   testTask "canvas verification duplication creation" {
     let! canvasID = initializeTestCanvas "canvas-verification-duplication-creation"
-    let dbid1, dbid2 = gid (), gid ()
-    let nameid1, nameid2 = gid (), gid ()
+    let dbID1, dbID2 = gid (), gid ()
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
-        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books") ]
+      [ PT.CreateDB(dbID1, "Books", PT.TString)
+        PT.CreateDB(dbID2, "Books", PT.TInt) ]
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
       Expect.equal false true "should not verify"
@@ -368,23 +336,22 @@ let testCanvasVerificationDuplicationCreationOffDisk =
     let! canvasID =
       initializeTestCanvas "canvas-verification-duplication-creation-off-disk"
 
-    let dbid1, dbid2 = gid (), gid ()
-    let nameid1, nameid2 = gid (), gid ()
+    let dbID1, dbID2 = gid (), gid ()
     // same name
-    let ops1 = [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books") ]
-    let ops2 = [ PT.CreateDBWithBlankOr(dbid2, nameid2, "Books") ]
+    let ops1 = [ PT.CreateDB(dbID1, "Books", PT.TInt) ]
+    let ops2 = [ PT.CreateDB(dbID2, "Books", PT.TBool) ]
     let c1 = Canvas.empty canvasID |> Canvas.addOps (ops1 @ ops2) []
     do!
       Canvas.saveTLIDs
         canvasID
-        [ (dbid1, ops1, PT.Toplevel.TLDB c1.dbs[dbid1], Canvas.NotDeleted)
-          (dbid2, ops2, PT.Toplevel.TLDB c1.dbs[dbid2], Canvas.NotDeleted) ]
+        [ (dbID1, ops1, PT.Toplevel.TLDB c1.dbs[dbID1], Canvas.NotDeleted)
+          (dbID2, ops2, PT.Toplevel.TLDB c1.dbs[dbID2], Canvas.NotDeleted) ]
 
     // CLEANUP: i'm not sure that it works or that it tests what it's supposed to test
     try
       let! (_ : Canvas.T) =
         match LibBackend.Op.requiredContextToValidateOplist ops2 with
-        | LibBackend.Op.NoContext -> Canvas.loadTLIDs canvasID [ dbid2 ]
+        | LibBackend.Op.NoContext -> Canvas.loadTLIDs canvasID [ dbID2 ]
         | LibBackend.Op.AllDatastores -> Canvas.loadAll canvasID
 
       Expect.equal false true "should not verify"
@@ -396,11 +363,10 @@ let testCanvasVerificationDuplicationRenaming =
   testTask "canvas verification duplication renaming" {
     let! canvasID = initializeTestCanvas "canvas-verification-duplication-renaming"
     let dbid1, dbid2 = gid (), gid ()
-    let nameid1, nameid2 = gid (), gid ()
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
-        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books2")
-        PT.RenameDBname(dbid2, "Books") ]
+      [ PT.CreateDB(dbid1, "Books", PT.TString)
+        PT.CreateDB(dbid2, "Books2", PT.TInt)
+        PT.RenameDB(dbid2, "Books") ]
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
       Expect.equal false true "should not verify"
@@ -412,10 +378,9 @@ let testCanvasVerificationNoError =
   testTask "canvas verification no error" {
     let! canvasID = initializeTestCanvas "canvas-verification-no-error"
     let dbid1, dbid2 = gid (), gid ()
-    let nameid1, nameid2 = gid (), gid ()
     let ops =
-      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
-        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books2") ]
+      [ PT.CreateDB(dbid1, "Books", PT.TString)
+        PT.CreateDB(dbid2, "Books2", PT.TInt) ]
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
     with
@@ -426,12 +391,11 @@ let testCanvasVerificationUndoRenameDupedName =
   testTask "canvas verification undo rename duped name" {
     let! canvasID = initializeTestCanvas "canvas-verification-undo-rename-duped-name"
     let dbid1, dbid2 = gid (), gid ()
-    let nameid1, nameid2 = gid (), gid ()
     let ops1 =
-      [ PT.CreateDBWithBlankOr(dbid1, nameid1, "Books")
+      [ PT.CreateDB(dbid1, "Books", PT.TInt)
         PT.TLSavepoint dbid1
         PT.DeleteTL dbid1
-        PT.CreateDBWithBlankOr(dbid2, nameid2, "Books") ]
+        PT.CreateDB(dbid2, "Books", PT.TString) ]
     let ops2 = ops1 @ [ PT.UndoTL dbid1 ]
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops1 |> ignore<Canvas.T>
@@ -455,7 +419,6 @@ let tests =
       testHttpLoadIgnoresDeletedFns
       testHttpLoadIgnoresDeletedHandler
       testUndoTooFarDoesntBreak
-      testDbCreateWithOrblankName
       testDbRename
       testSetHandlerAfterDelete
       testSetFunctionAfterDelete

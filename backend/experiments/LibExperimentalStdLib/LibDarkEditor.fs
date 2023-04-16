@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DString code; DDict userInputs ] ->
           uply {
             // TODO: return an appropriate error if this fails
-            let expr = Parser.RuntimeTypes.parseExprWithTypes [] code
+            let expr = Parser.RuntimeTypes.parseExprWithTypes Map.empty code
 
             let symtable = LibExecution.Interpreter.withGlobals state userInputs
 

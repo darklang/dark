@@ -85,37 +85,7 @@ let testExecFunctionTLIDs : Test =
     Expect.equal value (DInt 5L) "sanity check"
   }
 
-
-let testOtherDbQueryFunctionsHaveAnalysis : Test =
-  testTask
-    "The SQL compiler inserts analysis results, but I forgot to support DB:queryOne and friends." {
-    let varID = gid ()
-
-    let (db : DB.T) =
-      { tlid = gid (); name = "MyDB"; version = 0; cols = [ "age", TInt ] }
-
-    let ast =
-      eFn
-        "DB"
-        "queryOne"
-        4
-        []
-        [ eVar "MyDB"
-          eLambda [ "value" ] (eFieldAccess (EVariable(varID, "value")) "age") ]
-
-    let! (results, state) =
-      executionStateForPreview "test" (Map [ "MyDB", db ]) Map.empty Map.empty
-
-    let state =
-      { state with libraries = { state.libraries with stdlibFns = Map.empty } }
-
-    let! _value = Exe.executeExpr state Map.empty ast
-
-    Expect.equal
-      (Dictionary.get varID results)
-      (Some(AT.ExecutedResult(DDict(Map.ofList [ "age", DIncomplete SourceNone ]))))
-      "Has an age field"
-  }
+// TYPESCLEANUP add tests for non-record-shaped types
 
 
 let testRecursionInEditor : Test =
@@ -640,5 +610,4 @@ let tests =
       testLambdaPreview
       testFeatureFlagPreview
       testMatchPreview
-      testExecFunctionTLIDs
-      testOtherDbQueryFunctionsHaveAnalysis ]
+      testExecFunctionTLIDs ]

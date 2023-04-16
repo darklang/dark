@@ -34,7 +34,7 @@ let maybeTypeName = FQTypeName.Stdlib { module_ = "Maybe"; typ = "T"; version = 
 
 let maybeOf arg = TCustomType(maybeTypeName, [ arg ])
 
-let maybeParamOf name (arg : DType) = Param.make name (maybeOf arg) ""
+let maybeParamOf name (arg : TypeReference) = Param.make name (maybeOf arg) ""
 
 let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 

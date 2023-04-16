@@ -70,8 +70,8 @@ module InfixFnName =
     | ST.ComparisonNotEquals -> PT.ComparisonNotEquals
     | ST.StringConcat -> PT.StringConcat
 
-module DType =
-  let rec toPT (t : ST.DType) : PT.DType =
+module TypeReference =
+  let rec toPT (t : ST.TypeReference) : PT.TypeReference =
     match t with
     | ST.TInt -> PT.TInt
     | ST.TFloat -> PT.TFloat
@@ -82,8 +82,6 @@ module DType =
     | ST.TTuple (firstType, secondType, otherTypes) ->
       PT.TTuple(toPT firstType, toPT secondType, List.map toPT otherTypes)
     | ST.TDict typ -> PT.TDict(toPT typ)
-    | ST.TIncomplete -> PT.TIncomplete
-    | ST.TError -> PT.TError
     | ST.THttpResponse typ -> PT.THttpResponse(toPT typ)
     | ST.TDB typ -> PT.TDB(toPT typ)
     | ST.TDateTime -> PT.TDateTime
@@ -98,9 +96,6 @@ module DType =
     | ST.TVariable (name) -> PT.TVariable(name)
     | ST.TFn (paramTypes, returnType) ->
       PT.TFn(List.map toPT paramTypes, toPT returnType)
-    | ST.TRecord (rows) ->
-      PT.TRecord(List.map (fun (f, t : ST.DType) -> f, toPT t) rows)
-    | ST.TDbList typ -> PT.TDbList(toPT typ)
 
 
 module BinaryOperation =
@@ -155,7 +150,7 @@ module Expr =
       PT.EFnCall(
         id,
         FQFnName.toPT name,
-        List.map DType.toPT typeArgs,
+        List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
     | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
@@ -192,6 +187,7 @@ module Expr =
       PT.EFeatureFlag(id, name, toPT cond, toPT caseA, toPT caseB)
     | ST.EInfix (id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
+    | ST.EDict (id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with
@@ -202,7 +198,7 @@ module Expr =
 module CustomType =
   module EnumField =
     let toPT (f : ST.CustomType.EnumField) : PT.CustomType.EnumField =
-      { id = f.id; typ = DType.toPT f.typ; label = f.label }
+      { id = f.id; typ = TypeReference.toPT f.typ; label = f.label }
 
   module EnumCase =
     let toPT (c : ST.CustomType.EnumCase) : PT.CustomType.EnumCase =
@@ -210,7 +206,7 @@ module CustomType =
 
   module RecordField =
     let toPT (f : ST.CustomType.RecordField) : PT.CustomType.RecordField =
-      { id = f.id; name = f.name; typ = DType.toPT f.typ }
+      { id = f.id; name = f.name; typ = TypeReference.toPT f.typ }
 
   let toPT (d : ST.CustomType.T) : PT.CustomType.T =
     match d with
@@ -258,16 +254,8 @@ module DB =
   let toPT (db : ST.DB.T) : PT.DB.T =
     { tlid = db.tlid
       name = db.name
-      nameID = db.nameID
       version = db.version
-      cols =
-        List.map
-          (fun (c : ST.DB.Col) ->
-            { name = c.name
-              nameID = c.nameID
-              typ = Option.map DType.toPT c.typ
-              typeID = c.typeID })
-          db.cols }
+      typ = TypeReference.toPT db.typ }
 
 module UserType =
   let toPT (t : ST.UserType.T) : PT.UserType.T =
@@ -280,7 +268,7 @@ module UserFunction =
     let toPT (p : ST.UserFunction.Parameter) : PT.UserFunction.Parameter =
       { id = p.id
         name = p.name
-        typ = DType.toPT p.typ
+        typ = TypeReference.toPT p.typ
         description = p.description }
 
   let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
@@ -288,7 +276,7 @@ module UserFunction =
       name = f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toPT f.parameters
-      returnType = DType.toPT f.returnType
+      returnType = TypeReference.toPT f.returnType
       description = f.description
       infix = f.infix
       body = Expr.toPT f.body }
@@ -305,27 +293,15 @@ module Op =
   let toPT (op : ST.Op) : Option<PT.Op> =
     match op with
     | ST.SetHandler (handler) -> Some(PT.SetHandler(Handler.toPT handler))
-    | ST.CreateDB (tlid, name) -> Some(PT.CreateDB(tlid, name))
-    | ST.AddDBCol (tlid, id1, id2) -> Some(PT.AddDBCol(tlid, id1, id2))
-    | ST.SetDBColName (tlid, id, name) -> Some(PT.SetDBColName(tlid, id, name))
-    | ST.SetDBColType (tlid, id, string) -> Some(PT.SetDBColType(tlid, id, string))
+    | ST.CreateDB (tlid, name, typ) ->
+      Some(PT.CreateDB(tlid, name, TypeReference.toPT typ))
     | ST.DeleteTL tlid -> Some(PT.DeleteTL tlid)
     | ST.SetFunction fn -> Some(PT.SetFunction(UserFunction.toPT fn))
-    | ST.ChangeDBColName (tlid, id, string) ->
-      Some(PT.ChangeDBColName(tlid, id, string))
-    | ST.ChangeDBColType (tlid, id, string) ->
-      Some(PT.ChangeDBColType(tlid, id, string))
     | ST.UndoTL tlid -> Some(PT.UndoTL tlid)
     | ST.RedoTL tlid -> Some(PT.RedoTL tlid)
     | ST.SetExpr (tlid, id, e) -> Some(PT.SetExpr(tlid, id, Expr.toPT e))
     | ST.TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
     | ST.DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
-    | ST.DeleteDBCol (tlid, id) -> Some(PT.DeleteDBCol(tlid, id))
-    | ST.RenameDBname (tlid, string) -> Some(PT.RenameDBname(tlid, string))
-    | ST.CreateDBWithBlankOr (tlid, id, string) ->
-      Some(PT.CreateDBWithBlankOr(tlid, id, string))
+    | ST.RenameDB (tlid, string) -> Some(PT.RenameDB(tlid, string))
     | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
     | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
-    | ST.DeleteTLForever _
-    | ST.DeleteFunctionForever _
-    | ST.DeleteTypeForever _ -> None

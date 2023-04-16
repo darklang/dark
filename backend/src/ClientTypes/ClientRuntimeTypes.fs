@@ -47,30 +47,27 @@ module FQFnName =
     | Package of PackageFnName
 
 
-type DType =
+type TypeReference =
   | TInt
   | TFloat
   | TBool
   | TUnit
   | TString
-  | TList of DType
-  | TTuple of DType * DType * List<DType>
-  | TDict of DType
-  | TIncomplete
-  | TError
-  | THttpResponse of DType
-  | TDB of DType
+  | TList of TypeReference
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TDict of TypeReference
+  | THttpResponse of TypeReference
+  | TDB of TypeReference
   | TDateTime
   | TChar
   | TPassword
   | TUuid
-  | TOption of DType
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+  | TOption of TypeReference
+  | TCustomType of FQTypeName.T * typeArgs : List<TypeReference>
   | TBytes
-  | TResult of DType * DType
+  | TResult of TypeReference * TypeReference
   | TVariable of string
-  | TFn of List<DType> * DType
-  | TRecord of List<string * DType>
+  | TFn of List<TypeReference> * TypeReference
 
 
 type LetPattern = LPVariable of id * name : string
@@ -102,10 +99,11 @@ module Expr =
     | ELambda of id * List<id * string> * T
     | EFieldAccess of id * T * string
     | EVariable of id * string
-    | EApply of id * FnTarget * List<DType> * List<T>
+    | EApply of id * FnTarget * List<TypeReference> * List<T>
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
+    | EDict of id * List<string * T>
     | EConstructor of
       id *
       typeName : Option<FQTypeName.T> *

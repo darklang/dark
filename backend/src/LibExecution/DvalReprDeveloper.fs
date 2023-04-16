@@ -6,7 +6,7 @@ open Tablecloth
 
 open RuntimeTypes
 
-let rec typeName (t : DType) : string =
+let rec typeName (t : TypeReference) : string =
   match t with
   | TInt -> "Int"
   | TFloat -> "Float"
@@ -19,11 +19,8 @@ let rec typeName (t : DType) : string =
     let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
     $"({nested})"
   | TDict nested -> $"Dict<{typeName nested}>"
-  | TRecord _ -> "Dict"
   | TFn _ -> "Block"
   | TVariable varname -> $"'{varname}"
-  | TIncomplete -> "Incomplete"
-  | TError -> "Error"
   | THttpResponse _ -> "Response"
   | TDB _ -> "Datastore"
   | TDateTime -> "DateTime"
@@ -48,7 +45,31 @@ let rec typeName (t : DType) : string =
       $"{t.owner}/{t.package}/{t.module_}/{t.typ}_v{t.version}{typeArgsPortion}"
   | TBytes -> "Bytes"
 
-let dvalTypeName (dv : Dval) : string = dv |> Dval.toType |> typeName
+let dvalTypeName (dv : Dval) : string =
+  match dv with
+  | DIncomplete _ -> "Incomplete"
+  | DError _ -> "Error"
+  | DInt _ -> "Int"
+  | DFloat _ -> "Float"
+  | DBool _ -> "Bool"
+  | DUnit -> "Unit"
+  | DChar _ -> "Char"
+  | DString _ -> "String"
+  | DList _ -> "List"
+  | DDict _ -> "Dict"
+  // TYPESCLEANUP - use the name
+  | DRecord _ -> "Record"
+  | DFnVal _ -> "Block"
+  | DHttpResponse _ -> "HttpResponse"
+  | DDB _ -> "Datastore"
+  | DDateTime _ -> "DateTime"
+  | DPassword _ -> "Password"
+  | DUuid _ -> "Uuid"
+  | DOption _ -> "Option"
+  | DResult _ -> "Result"
+  | DTuple _ -> "Tuple"
+  | DConstructor _ -> "Constructor"
+  | DBytes _ -> "Bytes"
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr

@@ -101,9 +101,11 @@ module UserEnums =
 
 
 module FieldAccess =
-  (let x = { col1 = 1 } in x.col1) = 1
-  (let x = { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
-  (let x = { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in record"
+  type MyRecord = { col1: Int }
+
+  (let x = MyRecord { col1 = 1 } in x.col1) = 1
+  (let x = MyRecord { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
+  (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in record"
   (Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
   (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
 
@@ -216,7 +218,7 @@ module Lambdas =
 
 
 module Pipes =
-  let userFn () = 6
+  let userFn () : Int = 6
 
   ([] |> List.push_v0 2) = [2]
   ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
@@ -474,7 +476,7 @@ module Constructors =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was called with a String (\"not an option\"), but `option2` expected a Option<'b>."
+  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\"."
 
 module ErrorPropagation =
   List.head (Test.typeError_v0 "test") = Test.typeError_v0 "test"
@@ -561,7 +563,8 @@ module Equality =
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x)) = true
 
-  [<DB>] type MyDB = { x : String; y: String }
+  type MyDBType = { x : String; y: String }
+  [<DB>] type MyDB = MyDBType
   (MyDB == MyDB) = true
   (MyDB != 5) = Test.typeError_v0 "Both values must be the same type"
 
@@ -569,37 +572,37 @@ module Equality =
 // ---------------------------
 // User-defined Functions
 // ---------------------------
-let stringFn (key:String) =
+let stringFn (key:String) : String =
   key ++ " appended string"
 
-let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
+let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
   arg
 
-let twoStringFn (str1: String) (str2: String) =
+let twoStringFn (str1: String) (str2: String) : String =
   str1 ++ " appended " ++ str2
 
-let returnsInt () =
+let returnsInt () : Int =
   5
 
-let returnsString () =
+let returnsString () : String =
   "string"
 
-let returnsOptionJust () =
+let returnsOptionJust () : Option<Int> =
   Just 5
 
-let returnsOptionNothing () =
+let returnsOptionNothing () : Option<Int> =
   Nothing
 
-let returnsResultOk () =
+let returnsResultOk () : Result<Int, 'err> =
   Ok 5
 
-let returnsResultError () =
+let returnsResultError () : Result<String, Bool> =
   Error false
 
-let throwsException () =
+let throwsException () : 'a =
   Test.raiseException "throwsException message"
 
-let derrorFn (msg:String) =
+let derrorFn (msg:String) : String =
   msg ++ Test.typeError_v0 msg
 
 module FunctionCalls =
@@ -630,7 +633,7 @@ module InvalidFnCalls =
   derrorFn "msg" = Test.typeError "msg"
 
 
-let myUserFunction_v2 (str:String) =
+let myUserFunction_v2 (str:String) : Int =
   6
 
 // user function with _v2 in it
@@ -641,37 +644,37 @@ let myUserFunction_v2 (str:String) =
 // ---------------------------
 [<Package("test", "test", "Test")>]
 module Packages =
-  let stringFn (key:String) =
+  let stringFn (key:String) : String =
     key ++ " appended string"
 
-  let fnWithTypeArgAndOneParam<'a> (arg: 'a) =
+  let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
     JSON.parse<'a> arg
 
-  let twoStringFn (str1: String) (str2: String) =
+  let twoStringFn (str1: String) (str2: String) : String =
     str1 ++ " appended " ++ str2
 
-  let returnsInt () =
+  let returnsInt () : Int =
     5
 
-  let returnsString () =
+  let returnsString () : String =
     "string"
 
-  let returnsOptionJust () =
+  let returnsOptionJust () : Option<Int> =
     Just 5
 
-  let returnsOptionNothing () =
+  let returnsOptionNothing () : Option<'a> =
     Nothing
 
-  let returnsResultOk () =
+  let returnsResultOk () : Result<Int, String> =
     Ok 5
 
-  let returnsResultError () =
+  let returnsResultError () : Result<Char, Bool> =
     Error false
 
-  let throwsException () =
+  let throwsException () : DateTime =
     Test.raiseException "throwsException message"
 
-  let derrorFn (msg:String) =
+  let derrorFn (msg:String) : String =
     msg ++ Test.typeError_v0 msg
 
   Test.Test.Test.stringFn "string" = "string appended string"

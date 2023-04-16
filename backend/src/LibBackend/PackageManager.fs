@@ -296,37 +296,11 @@ let writeBody2 (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 // Fetching functions
 // ------------------
 
-// CLEANUP This is the OCaml Tipe, which is what's stored in the DB for parameter
-// function types. This is stored as jsonb in the parameters column of packages_v0.
-// While technically this is the OCaml tipe, in practice many of the types are the
-// same or nearly the same as ProgramTypes.DType.
-//
-// The code below is copied from the old OCamlTypes files. It can be simplified, and
-// it should be straightforward to remove it by looking at the parameters actually
-// stored in the DB.
 
-// actual types used in the DB: TString, TAny, TInt, TList, TObj
-type tipe =
-  | TAny
-  | TInt
-  | TString
-  | TList
-  | TObj
-
-let rec tipe2PT (o : tipe) : PT.DType =
-  let any = PT.TVariable "a"
-
-  match o with
-  | TAny -> any
-  | TInt -> PT.TInt
-  | TString -> PT.TString
-  | TList -> PT.TList any
-  | TObj -> PT.TDict any
-
-type Parameter = { name : string; tipe : tipe; description : string }
+type Parameter = { name : string; typ : PT.TypeReference; description : string }
 
 let parameter2PT (o : Parameter) : PT.Package.Parameter =
-  { name = o.name; description = o.description; typ = tipe2PT o.tipe }
+  { name = o.name; description = o.description; typ = o.typ }
 
 type ParametersDBFormat = List<Parameter>
 
@@ -381,11 +355,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
             parameters
             |> Json.Vanilla.deserialize<ParametersDBFormat>
             |> List.map parameter2PT
-          let returnType =
-            PTParser.DType.parse returnType
-            |> Exception.unwrapOptionInternal
-                 "Cannot parse returnType"
-                 [ "type", returnType ]
+          let returnType = returnType |> Json.Vanilla.deserialize<PT.TypeReference>
           { name = name
             typeParams = [] // CLEANUP
             parameters = parameters

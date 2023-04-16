@@ -143,12 +143,31 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
               | _, "", _ -> return DError(sourceID id, "Record key is empty")
+              | DRecord m, k, v -> return (DRecord(Map.add k v m))
+              // If we haven't got a DRecord we're propagating an error so let it go
+              | r, _, v -> return r
+            })
+          // TYPESCLEANUP
+          (DRecord(Map.empty))
+          fields
+
+    | EDict (id, fields) ->
+      return!
+        Ply.List.foldSequentially
+          (fun r (k, expr) ->
+            uply {
+              let! v = eval state st expr
+              match (r, k, v) with
+              | r, _, _ when Dval.isFake r -> return r
+              | _, _, v when Dval.isFake v -> return v
+              | _, "", _ -> return DError(sourceID id, "Record key is empty")
               | DDict m, k, v -> return (DDict(Map.add k v m))
               // If we haven't got a DDict we're propagating an error so let it go
               | r, _, v -> return r
             })
-          (DDict(Map.empty))
+          (DDict Map.empty)
           fields
+
 
 
     | EApply (id, fnTarget, typeArgs, exprs) ->
@@ -168,22 +187,24 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return DError(sourceID id, "Field name is empty")
       else
         match obj with
-        | DDict o ->
+        | DRecord o ->
           match Map.tryFind field o with
           | Some v -> return v
           | None -> return DError(sourceID id, $"No field named {field} in record")
-        | _ when Dval.isFake obj -> return obj
-        | x ->
-          let actualType =
-            match Dval.toType x with
-            | TDB _ ->
-              "it's a Datastore. Use DB:: standard library functions to interact with Datastores"
-            | tipe -> $"it's a {DvalReprDeveloper.typeName tipe}"
-
+        | DDB _ ->
           return
             DError(
               sourceID id,
-              $"Attempting to access a field of something that isn't a record or dict, ({actualType})."
+              $"Attempting to access a field of something that isn't a record or dict, "
+              + "(it's a Datastore. Use DB:: standard library functions to interact with Datastores)."
+            )
+        | _ when Dval.isFake obj -> return obj
+        | _ ->
+          return
+            DError(
+              sourceID id,
+              $"Attempting to access a field of something that isn't a record or dict, "
+              + $"(it's a {DvalReprDeveloper.dvalTypeName obj})."
             )
 
 
@@ -576,7 +597,7 @@ and callFn
   (state : ExecutionState)
   (callerID : id)
   (desc : FQFnName.T)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (argvals : List<Dval>)
   : DvalTask =
   uply {
@@ -600,26 +621,10 @@ and callFn
         | None ->
           let fnRecord = (state.tlid, desc, callerID)
           let fnResult = state.tracing.loadFnResult fnRecord argvals
-          // In the case of DB::query (and friends), we want to backfill
-          // the lambda's livevalues, as the lambda was never actually
-          // executed. We hack this is here as we have no idea what this
-          // abstraction might look like in the future.
-          if state.tracing.realOrPreview = Preview && FQFnName.isDBQueryFn desc then
-            match argvals with
-            | [ DDB dbname; DFnVal (Lambda b) ] ->
-              let sample =
-                match fnResult with
-                | Some (DList (sample :: _), _) -> sample
-                | _ ->
-                  Map.find dbname state.program.dbs
-                  |> (fun (db : DB.T) -> db.cols)
-                  |> List.map (fun (field, _) -> (field, DIncomplete SourceNone))
-                  |> Map.ofList
-                  |> DDict
 
-              let! (_ : Dval) = executeLambda state b [ sample ]
-              ()
-            | _ -> ()
+          // TODO: in an old version, we executed the lambda with a fake value to
+          // give enough livevalues for the editor to autocomplete. It may be worth
+          // doing this again
 
           match fnResult with
           | Some (result, _ts) -> return result
@@ -662,21 +667,23 @@ and execFn
   (fnDesc : FQFnName.T)
   (id : id)
   (fn : Fn)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : DvalMap)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, id) in
 
     let typeErrorOrValue userTypes result =
-      (* https://www.notion.so/darklang/What-should-happen-when-the-return-type-is-wrong-533f274f94754549867fefc554f9f4e3 *)
-      match TypeChecker.checkFunctionReturnType userTypes fn result with
-      | Ok () -> result
-      | Error errs ->
-        DError(
-          sourceID,
-          $"Type error(s) in return type: {TypeChecker.Error.listToString errs}"
-        )
+      if Dval.isFake result then
+        result
+      else
+        match TypeChecker.checkFunctionReturnType userTypes fn result with
+        | Ok () -> result
+        | Error err ->
+          DError(
+            sourceID,
+            $"Type error(s) in return type: {TypeChecker.Error.toString err}"
+          )
 
     if state.tracing.realOrPreview = Preview
        && not state.onExecutionPath
@@ -759,7 +766,7 @@ and execFn
               state.tracing.storeFnResult fnRecord arglist result
 
             return result
-        | PackageFunction (_tlid, body) ->
+        | PackageFunction body ->
           // This is similar to InProcess but also has elements of UserCreated.
           match TypeChecker.checkFunctionCall Map.empty fn typeArgs args with
           | Ok () ->
@@ -794,12 +801,12 @@ and execFn
 
             return result |> typeErrorOrValue (ExecutionState.availableTypes state)
 
-          | Error errs ->
+          | Error err ->
             return
               DError(
                 sourceID,
                 ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.listToString errs)
+                 + TypeChecker.Error.toString err)
               )
         | UserFunction (tlid, body) ->
           match
@@ -822,11 +829,11 @@ and execFn
               state.tracing.storeFnResult fnRecord arglist result
 
               return result |> typeErrorOrValue (ExecutionState.availableTypes state)
-          | Error errs ->
+          | Error err ->
             return
               DError(
                 sourceID,
                 ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.listToString errs)
+                 + TypeChecker.Error.toString err)
               )
   }

@@ -17,62 +17,6 @@ open VendoredTablecloth
 
 module PT = ProgramTypes
 
-module DType =
-  let parse (str : string) : Option<PT.DType> =
-    let any = PT.TVariable "a"
-
-    match String.toLowercase str with
-    | "any" -> Some any
-    | "int" -> Some PT.TInt
-    | "integer" -> Some PT.TInt
-    | "float" -> Some PT.TFloat
-    | "bool" -> Some PT.TBool
-    | "boolean" -> Some PT.TBool
-    | "nothing" -> Some PT.TUnit
-    | "character"
-    | "char" -> Some PT.TChar
-    | "str" -> Some PT.TString
-    | "string" -> Some PT.TString
-    | "list" -> Some(PT.TList any)
-    | "tuple" -> Some(PT.TTuple(any, any, []))
-    | "obj" -> Some(PT.TDict any)
-    | "block" -> Some(PT.TFn([ PT.TVariable "a" ], PT.TVariable "b"))
-    | "incomplete" -> Some PT.TIncomplete
-    | "error" -> Some PT.TError
-    | "response" -> Some(PT.THttpResponse any)
-    | "datastore" -> Some(PT.TDB any)
-    | "date" -> Some PT.TDateTime
-    | "password" -> Some PT.TPassword
-    | "uuid" -> Some PT.TUuid
-    | "option" -> Some(PT.TOption any)
-    | "result" -> Some(PT.TResult(PT.TVariable "a", PT.TVariable "b"))
-    | "dict" -> Some(PT.TDict any)
-    | _ ->
-      let parseListTyp (listTyp : string) : Option<PT.DType> =
-        match String.toLowercase listTyp with
-        | "str" -> Some(PT.TDbList PT.TString)
-        | "string" -> Some(PT.TDbList PT.TString)
-        | "char" -> Some(PT.TDbList PT.TChar)
-        | "character" -> Some(PT.TDbList PT.TChar)
-        | "int" -> Some(PT.TDbList PT.TInt)
-        | "integer" -> Some(PT.TDbList PT.TInt)
-        | "float" -> Some(PT.TDbList PT.TFloat)
-        | "bool" -> Some(PT.TDbList PT.TBool)
-        | "boolean" -> Some(PT.TDbList PT.TBool)
-        | "password" -> Some(PT.TDbList PT.TPassword)
-        | "uuid" -> Some(PT.TDbList PT.TUuid)
-        | "dict" -> Some(PT.TDbList(PT.TDict any))
-        | "date" -> Some(PT.TDbList PT.TDateTime)
-        | "title" -> Some(PT.TDbList PT.TString)
-        | "url" -> Some(PT.TDbList PT.TString)
-        | _ -> None
-
-      if String.startsWith "[" str && String.endsWith "]" str then
-        str |> String.dropLeft 1 |> String.dropRight 1 |> parseListTyp
-      else
-        None
-
-
 module Handler =
   module CronInterval =
     let toString (interval : PT.Handler.CronInterval) : string =

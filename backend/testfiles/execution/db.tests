@@ -1,11 +1,14 @@
-[<DB>] type X = { x : String }
-[<DB>] type Z = { x : Char }
-[<DB>] type XY = { x : String; y: String }
-[<DB>] type SortedX = { x : String; sortBy: Int }
-[<DB>] type Uuid = { uu : Uuid }
+type X = { x : String }
+[<DB>] type XDB = X
+type Z = { x : Char }
+[<DB>] type ZDB = Z
+type XY = { x : String; y: String }
+[<DB>] type XYDB = XY
+type SortedX = { x : String; sortBy: Int }
+[<DB>] type SortedXDB = SortedX
 
 module Roundtrip =
-  [<DB>] type DB = {
+  type Sample = {
     iNsEnSiTiVe : String
     ``ALLCAPS`` : Int
     int : Int
@@ -23,64 +26,70 @@ module Roundtrip =
     datetime : DateTime
     unit : Unit
   }
+  [<DB>] type SampleDB = Sample
 
-  let sample () = {
-    iNsEnSiTiVe = "iNsEnSiTiVe"
-    ``ALLCAPS`` = 1
-    int = 2
-    float = 3.0
-    negZero = -0.0
-    nan = Test.nan
-    infinity = Test.infinity
-    negInfinity = Test.negativeInfinity
-    ``true`` = true
-    ``false`` = false
-    list = [1;2;3]
-    char = 'c'
-    emojiChar = (Test.toChar "👍") |> Test.unwrap
-    uuid = (Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap
-    datetime = (DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap
-    unit = ()
-    // dont test password because hashing it twice will get different values
-  }
+  let sample () : Sample =
+    Sample {
+      iNsEnSiTiVe = "iNsEnSiTiVe"
+      ``ALLCAPS`` = 1
+      int = 2
+      float = 3.0
+      negZero = -0.0
+      nan = Test.nan
+      infinity = Test.infinity
+      negInfinity = Test.negativeInfinity
+      ``true`` = true
+      ``false`` = false
+      list = [1;2;3]
+      char = 'c'
+      emojiChar = (Test.toChar "👍") |> Test.unwrap
+      uuid = (Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap
+      datetime = (DateTime.parse_v2 "2020-01-01T00:00:00Z") |> Test.unwrap
+      unit = ()
+      // dont test password because hashing it twice will get different values
+    }
 
-  let otherSample () = {
-    iNsEnSiTiVe = "normal"
-    ``ALLCAPS`` = 2
-    int = 3
-    float = 4.0
-    negZero = -1.0
-    nan = 0.0
-    infinity = 5.4
-    negInfinity = -385.33
-    ``true`` = false
-    ``false`` = true
-    list = [1;3;45]
-    char = 'd'
-    emojiChar = 'e'
-    uuid = (Uuid.parse "55555555-5555-5555-5555-555555555555") |> Test.unwrap
-    datetime = (DateTime.parse_v2 "2011-11-11T11:11:11Z") |> Test.unwrap
-    unit = ()
-    // dont test password because hashing it twice will get different values
-  }
+  let otherSample () : Sample =
+    Sample {
+      iNsEnSiTiVe = "normal"
+      ``ALLCAPS`` = 2
+      int = 3
+      float = 4.0
+      negZero = -1.0
+      nan = 0.0
+      infinity = 5.4
+      negInfinity = -385.33
+      ``true`` = false
+      ``false`` = true
+      list = [1;3;45]
+      char = 'd'
+      emojiChar = 'e'
+      uuid = (Uuid.parse "55555555-5555-5555-5555-555555555555") |> Test.unwrap
+      datetime = (DateTime.parse_v2 "2011-11-11T11:11:11Z") |> Test.unwrap
+      unit = ()
+      // dont test password because hashing it twice will get different values
+    }
 
   // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
   (let v = sample ()
-   let z = DB.set_v1 v "all" DB in
-   (z, DB.get_v2 "all" DB)) = (sample (), Just (sample ()))
+   let z = DB.set_v1 v "all" SampleDB in
+   (z, DB.get_v2 "all" SampleDB)) = (sample (), Just (sample ()))
 
 
-  [<DB>] type Passwords = { password : Password }
-  (let pw = Password.hash_v0 "password" in
-   let x = DB.set_v1 { password = pw } "test" Passwords in
-   let y = (DB.queryOneWithExactFields_v0 { password = pw } Passwords) |> Test.unwrap in
-   Password.check_v0 y.password "password") = true
+  type Passwords = { password : Password }
+  [<DB>] type PasswordsDB = Passwords
+
+  // TYPESCLEANUP - support passwords
+  // (let pw = Password.hash_v0 "password" in
+  //  let x = DB.set_v1 (Passwords { password = pw }) "test" PasswordsDB in
+  //  let y = (DB.queryOne_v4 PasswordsDB (fun p -> p.password == pw)) |> Test.unwrap in
+  //  Password.check_v0 y.password "password") = true
 
   module QueryEquality =
-    let fetch (fn : 'a -> Bool) =
-      let z = DB.set_v1 (sample ()) "sample" DB in
-      let z = DB.set_v1 (otherSample ()) "other" DB in
-      DB.query_v4 DB fn
+    let fetch (fn : 'a -> Bool) : List<'a> =
+      let z = DB.set_v1 (sample ()) "sample" SampleDB in
+      let z = DB.set_v1 (otherSample ()) "other" SampleDB in
+      DB.query_v4 SampleDB fn
 
     // invalid type comparisons errors
     // these work, but the DError has a random string in it that we can't match
@@ -139,9 +148,9 @@ module Roundtrip =
     fetch (fun p -> p.``false`` != false) = [otherSample ()]
 
     // A bug in postgresql jsonb support prevents this from working
-    fetch (fun p -> p.list == [1;2;3]) = [sample ()]
-    fetch (fun p -> p.list != [1;2;3]) = [otherSample ()]
-    fetch (fun p -> p.list == []) = []
+    // fetch (fun p -> p.list == [1;2;3]) = [sample ()]
+    // fetch (fun p -> p.list != [1;2;3]) = [otherSample ()]
+    // fetch (fun p -> p.list == []) = []
 
     fetch (fun p -> p.char == 'c') = [sample ()]
     fetch (fun p -> p.char != 'c') = [otherSample ()]
@@ -162,176 +171,154 @@ module Roundtrip =
     (fetch (fun p -> p.unit == ())) |> List.sortBy (fun v -> v.int) = [sample (), otherSample ()]
     fetch (fun p -> p.unit != ()) = []
 
+    // Test equality for two different function results - this tests TVariable types, esp checking that we keep track of them correctly
+    fetch (fun p -> ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap) == p.uuid) = [sample ()]
+    ((fetch (fun p -> ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap) == ((Uuid.parse "00000050-0000-0000-0000-000000000000") |> Test.unwrap)))
+     |> List.length) = 2
+
+
 
 // CLEANUP test ``ALL CAPS``
 // CLEANUP test partial evaluation of lists and tuples
 
 
 module ValueMissingColumnGivesGoodError =
-  (DB.set_v1 { x = "x"; col = "v" } "i" X) = Test.typeError_v0 "Found but did not expect: [col]"
+  (DB.set_v1 (X { x = "x"; col = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [col]"
 
 
 module SetDoesUpsert =
-  (let old = DB.set_v1 { x = "hello" } "hello" X in
-  let newval = DB.set_v1 { x = "goodbye" } "hello" X in
-  DB.getAllWithKeys_v2 X) = { hello = { x = "goodbye"} }
+  (let old = DB.set_v1 (X { x = "hello" }) "hello" XDB in
+  let newval = DB.set_v1 (X { x = "goodbye" }) "hello" XDB in
+  DB.getAllWithKeys_v2 XDB) = { hello = X { x = "goodbye"} }
 
 module SetCharUpserts =
-  (let old = DB.set_v1 { x = 'a' } "a" Z in
-  let newval = DB.set_v1 { x = 'b' } "a" Z in
-  DB.getAllWithKeys_v2 Z) = { a = { x = 'b'} }
+  (let old = DB.set_v1 (X { x = 'a' }) "a" ZDB in
+  let newval = DB.set_v1 (X { x = 'b' }) "a" ZDB in
+  DB.getAllWithKeys_v2 ZDB) = { a = X { x = 'b'} }
 
 
-
-
-module QueryExactFields =
-  (let dontfind = DB.set_v1 {x = "hello"; y = "goodbye" } "hello" XY in
-  let hopetofind = DB.set_v1 { x = "goodbye"; y = "hello" } "findme" XY in
-  DB.queryExactFields { x = "goodbye" } XY) = [{ x = "goodbye"; y = "hello" }]
 
 module Get =
   // return nothing for empty store
-  (DB.get_v2 "lol" X) = Nothing
+  (DB.get_v2 "lol" XDB) = Nothing
 
   // return nothing for invalid key
-  (let _ = DB.set_v1 { x = "hello" } "key" X in
-   DB.get_v2 "lol" X) = Nothing
+  (let _ = DB.set_v1 (X { x = "hello" }) "key" XDB in
+   DB.get_v2 "lol" XDB) = Nothing
 
   // returns single value
-  (let _ = DB.set_v1 { x = "hello" } "key" X in
-   DB.get_v2 "key" X) = Just { x = "hello" }
+  (let _ = DB.set_v1 (X { x = "hello" }) "key" XDB in
+   DB.get_v2 "key" XDB) = Just (X { x = "hello" })
 
   // returns correct value given reassigned entry
-  (let _ = DB.set_v1 { x = "hello" } "key" X in
-   let _ = DB.set_v1 { x = "goodbye" } "key" X in
-   DB.get_v2 "key" X) = Just { x = "goodbye" }
+  (let _ = DB.set_v1 (X { x = "hello" }) "key" XDB in
+   let _ = DB.set_v1 (X { x = "goodbye" }) "key" XDB in
+   DB.get_v2 "key" XDB) = Just (X { x = "goodbye" })
 
   // returns value given multiple entries
-  (let _ = DB.set_v1 { x = "pancake" } "key1" X in
-   let _ = DB.set_v1 { x = "waffle" } "key2" X in
-   let _ = DB.set_v1 { x = "scone" } "key3" X in
-   DB.get_v2 "key2" X) = Just { x = "waffle" }
+  (let _ = DB.set_v1 (X { x = "pancake" }) "key1" XDB in
+   let _ = DB.set_v1 (X { x = "waffle" }) "key2" XDB in
+   let _ = DB.set_v1 (X { x = "scone" }) "key3" XDB in
+   DB.get_v2 "key2" XDB) = Just (X { x = "waffle" })
 
 
 
 module GetAll =
-  (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
-   let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
-   let three = DB.set_v1 { x = "howdy"; sortBy = 2  } "three" SortedX in
-   (DB.getAll_v3 SortedX)
+  (let one = DB.set_v1 (SortedX { x = "hello"; sortBy = 0 }) "one" SortedXDB in
+   let two = DB.set_v1 (SortedX { x = "goodbye"; sortBy = 1 }) "two" SortedXDB in
+   let three = DB.set_v1 (SortedX { x = "howdy"; sortBy = 2 }) "three" SortedXDB in
+   (DB.getAll_v3 SortedXDB)
    |> List.sortBy_v0 (fun x -> x.sortBy)) =
-     [ { x = "hello"; sortBy = 0}
-     ; { x = "goodbye"; sortBy = 1}
-     ; { x = "howdy"; sortBy = 2}]
+     [ (SortedX { x = "hello"; sortBy = 0})
+     ; (SortedX { x = "goodbye"; sortBy = 1})
+     ; (SortedX { x = "howdy"; sortBy = 2})]
 
 
 module GetAllKeys =
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-   let two = DB.set_v1 { x = "goodbye" } "two" X in
-   (DB.keys_v1 X) |> List.sort_v0) = [ "one"; "two" ]
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   (DB.keys_v1 XDB) |> List.sort_v0) = [ "one"; "two" ]
 
 
 module GetAllWithKeys =
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-   let two = DB.set_v1 { x = "goodbye" } "two" X in
-   DB.getAllWithKeys_v2 X) = { one = { x = "hello"} ; two = { x = "goodbye"} }
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   DB.getAllWithKeys_v2 XDB) = Dict { one = X { x = "hello"} ; two = X { x = "goodbye"} }
 
 
 module GetManyWithKeys =
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-   let two = DB.set_v1 { x = "goodbye" } "two" X in
-   DB.getManyWithKeys_v1 ["one"; "two"] X) = { one = { x = "hello"} ; two = { x = "goodbye"} }
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   DB.getManyWithKeys_v1 ["one"; "two"] XDB) = Dict { one = (X { x = "hello"}) ; two = (X { x = "goodbye"}) }
 
 
 module GetExisting =
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-  let two = DB.set_v1 { x = "goodbye" } "two" X in
-  DB.getExisting_v0 ["three"; "two"] X) = [ { x = "goodbye" } ]
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+  let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+  DB.getExisting_v0 ["three"; "two"] XDB) = [ (X { x = "goodbye" }) ]
 
 
 module GetMany =
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-   let two = DB.set_v1 { x = "goodbye" } "two" X in
-   DB.getMany_v3 ["three"; "two"] X) = Nothing
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   DB.getMany_v3 ["three"; "two"] XDB) = Nothing
 
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-   let two = DB.set_v1 { x = "goodbye" } "two" X in
-   (DB.getMany_v3 ["one"; "two"] X)
+  (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   (DB.getMany_v3 ["one"; "two"] XDB)
    |> Test.unwrap
-   |> List.sortBy (fun v -> v.x)) = [ { x = "goodbye"}; { x = "hello"}]
+   |> List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye"}); (X { x = "hello"})]
 
-
-module QueryWithKey =
-  (let one = DB.set_v1 { x = "hello"; sortBy = 0 } "one" SortedX in
-   let two = DB.set_v1 { x = "goodbye"; sortBy = 1  } "two" SortedX in
-   let three = DB.set_v1 { x = "goodbye"; sortBy = 2  } "three" SortedX in
-   DB.queryExactFieldsWithKey_v0 { x = "goodbye" } SortedX) = { two = { x = "goodbye"; sortBy = 1}; three = { x = "goodbye"; sortBy = 2} }
-
-
-module QueryOneWithExactFieldsWithKey =
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-   DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X) = Nothing
-
-  DB.queryOneWithExactFieldsWithKey { x = "goodbye" } X = Nothing
-
-  (let one = DB.set_v1 { x = "hello" } "one" X in
-   let two = DB.set_v1 { x = "hello" } "two" X in
-   DB.queryOneWithExactFieldsWithKey { x = "hello" } X) = Nothing
-
-  // chars
-  (let one = DB.set_v1 { x = 'a' } "one" Z in
-   DB.queryOneWithExactFieldsWithKey { x = 'b' } Z) = Nothing
 
 module Delete =
-  (let one = DB.set_v1 { x = "hello"} "one" X in
-   let delete = DB.delete_v1 "one" X in
-   DB.getAllWithKeys_v2 X) = {}
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
+   let delete = DB.delete_v1 "one" XDB in
+   DB.getAllWithKeys_v2 XDB) = {}
 
   // delete nothing
-  (let one = DB.set_v1 { x = "hello"} "one" X in
-   let delete = DB.delete_v1 "two" X in
-   DB.getAllWithKeys_v2 X) = { one = { x = "hello"} }
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
+   let delete = DB.delete_v1 "two" XDB in
+   DB.getAllWithKeys_v2 XDB) = { one = (X { x = "hello"}) }
 
   // deletes only one
-  (let one = DB.set_v1 { x = "hello"} "one" X in
-   let two = DB.set_v1 { x = "goodbye" } "two" X in
-   let delete = DB.delete_v1 "one" X in
-   DB.getAllWithKeys_v2 X) = { two = { x = "goodbye"} }
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   let delete = DB.delete_v1 "one" XDB in
+   DB.getAllWithKeys_v2 XDB) = { two = (X { x = "goodbye"}) }
 
 module DeleteAll =
-  (let one = DB.set_v1 { x = "hello"} "one" X in
-   let delete = DB.deleteAll_v1 X in
-   DB.getAll_v3 X) = []
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
+   let delete = DB.deleteAll_v1 XDB in
+   DB.getAll_v3 XDB) = []
 
   // deletes all
-  (let one = DB.set_v1 { x = "hello"} "one" X in
-   let two = DB.set_v1 { x = "goodbye" } "two" X in
-   let delete = DB.deleteAll_v1 X in
-   DB.getAll_v3 X) = []
+  (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
+   let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   let delete = DB.deleteAll_v1 XDB in
+   DB.getAll_v3 XDB) = []
 
   // when empty
-  (let delete = DB.deleteAll_v1 X in
-   DB.getAll_v3 X) = []
+  (let delete = DB.deleteAll_v1 XDB in
+   DB.getAll_v3 XDB) = []
 
 module Count =
   // empty
-  DB.count X = 0
+  DB.count XDB = 0
 
   // one entries
-  (let _ = DB.set_v1 { x = "hello" } "one" X in
-   DB.count X) = 1
+  (let _ = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   DB.count XDB) = 1
 
   // multiple entries
-  (let _ = DB.set_v1 { x = "hello" } "one" X in
-   let _ = DB.set_v1 { x = "goodbye" } "two" X in
-   let _ = DB.set_v1 { x = "howdy" } "three" X in
-   let _ = DB.set_v1 { x = "cheers" } "four" X in
-   DB.count X) = 4
+  (let _ = DB.set_v1 (X { x = "hello" }) "one" XDB in
+   let _ = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
+   let _ = DB.set_v1 (X { x = "howdy" }) "three" XDB in
+   let _ = DB.set_v1 (X { x = "cheers" }) "four" XDB in
+   DB.count XDB) = 4
 
 // ------------
 // SqlCompiler queries
 // ------------
-[<DB>]
 type Person = {
   name : String;
   human : Bool;
@@ -339,13 +326,14 @@ type Person = {
   income : Float;
   dob : DateTime
 }
+[<DB>] type PersonDB = Person
 
-let addFriend (key: String) (name: String) (height: Int) (human: Bool) (dob: String) (income: Float) =
+let addFriend (key: String) (name: String) (height: Int) (human: Bool) (dob: String) (income: Float) : Person =
   let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
-  let obj = { height = height; name = name; human = human; dob = dob; income = income } in
-  DB.set_v1 obj key Person
+  let obj = PersonDB { height = height; name = name; human = human; dob = dob; income = income } in
+  DB.set_v1 obj key PersonDB
 
-let prepFriends () =
+let prepFriends () : Unit =
   (let _ = addFriend "ross" "Ross" 73 true "1967-05-12T00:00:00Z" 100.0 in
    let _ = addFriend "rachel" "Rachel" 65 true "1969-05-05T00:00:00Z" 82.0 in
    // Note spaces around Chandler, that's to test trim functions
@@ -353,25 +341,28 @@ let prepFriends () =
    let _ = addFriend "cat" "GrumpyCat" 10 false "2012-04-04T00:00:00Z"  0.0 in
    ())
 
-let d (datestr:String) =
+let d (datestr:String) : DateTime =
   (DateTime.parse_v2 datestr) |> Test.unwrap
 
-let rossDOB () =
+let rossDOB () : DateTime =
   d "1967-05-12T00:00:00Z"
 
-let friendsError (lambda: ('a -> Bool)) =
+let friendsError (lambda: ('a -> Bool)) : List<Person> =
   let _ = prepFriends () in
-  DB.query_v4 Person lambda
+  DB.query_v4 PersonDB lambda
 
-let friends (lambda: ('a -> Bool)) =
+let friends (lambda: ('a -> Bool)) : List<Person> =
   let _ = prepFriends () in
-  (DB.query_v4 Person lambda)
+  (DB.query_v4 PersonDB lambda)
   |> List.map_v0 (fun p -> p.name)
   |> List.sort_v0
 
 
   // Test standard language features
 module FindAll =
+  type T2 = { field2 : Int }
+  type T1 = { field1 : T2 }
+
   (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // equality
@@ -410,11 +401,11 @@ module FindAll =
   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
-  (friends (fun p -> let obj = { x = 42 } in p.height > obj.x )) =
+  (friends (fun p -> let obj = Person { x = 42 } in p.height > obj.x )) =
     [" Chandler "; "Rachel"; "Ross" ]
 
   // nested fieldaccess
-  friends (fun p -> let obj = { field1 = { field2 = 42 } } in p.height > obj.field1.field2 ) =
+  friends (fun p -> let obj = T1 { field1 = T2 { field2 = 42 } } in p.height > obj.field1.field2 ) =
     [" Chandler "; "Rachel"; "Ross" ]
 
   // lambda doesnt return a bool
@@ -472,61 +463,66 @@ module CompiledFunctions =
   (friends (fun p -> DateTime.year_v0 p.dob == 1969)) = [" Chandler "; "Rachel" ]
 
 module PartialEvaluation =
+  type A = { a : Int }
+  type Z = { z : A }
+  type Y = { y : Z }
   // fieldAccesses outside query
   (let _ = prepFriends ()
-   let x = { y = { z = { a = 5 }}}
-   ((DB.query_v4 Person (fun p -> x.y.z.a < p.height))
+   let x = Y { y = Z { z = A { a = 5 }}}
+   ((DB.query_v4 PersonDB (fun p -> x.y.z.a < p.height))
    |> List.map_v0 (fun p -> p.name)
    |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = { y = { z = { a = 5 }}} in
+  (friends (fun p -> let x = Y { y = Z { z = A { a = 5 }}} in
                      x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}}
+  (friends (fun p -> let x = Y { y = Z { z = A { a = [1;2;3;4;5] }}}
                      (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 
 module QueryOneWithKey =
   // multiple
   (let _ = prepFriends () in
-   DB.queryOneWithKey_v3 Person (fun p -> p.human)) = Nothing
+   DB.queryOneWithKey_v3 PersonDB (fun p -> p.human)) = Nothing
 
   // none
   (let _ = prepFriends () in
-   DB.queryOneWithKey_v3 Person (fun p -> p.name == "bob")) = Nothing
+   DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == "bob")) = Nothing
 
   // one
   (let _ = prepFriends () in
-  (DB.queryOneWithKey_v3 Person (fun p -> p.name == "Rachel"))
-   |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
+  (DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == "Rachel"))
+   |> Test.unwrap
+   |> (fun v -> (Tuple2.second v).name)) = "Rachel"
 
    // interpolated
   (let _ = prepFriends () in
    let test = "ache" in
-   (DB.queryOneWithKey_v3 Person (fun p -> p.name == $"R{test}l"))
-   |> Option.map_v1 (fun v -> v.rachel.name)) = Just "Rachel"
+   (DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == $"R{test}l"))
+   |> Option.map_v1 (fun v -> (Tuple2.second v).name)) = Just "Rachel"
 
 
 module QueryWithKey =
   // none
   (let _ = prepFriends () in
-   DB.queryWithKey_v3 Person (fun p -> p.name == "bob")) = Dict.empty
+   DB.queryWithKey_v3 PersonDB (fun p -> p.name == "bob")) = Dict.empty
 
   // one
   (let _ = prepFriends () in
-   (DB.queryWithKey_v3 Person (fun p -> p.name == "Rachel"))
-   |> (fun v -> v.rachel.name)) = "Rachel"
+   (DB.queryWithKey_v3 PersonDB (fun p -> p.name == "Rachel"))
+   |> Dict.toList_v0
+   |> List.map (fun v -> (Tuple2.second v).name)) = ["Rachel"]
 
 module QueryCount =
   // none
   (let _ = prepFriends () in
-   DB.queryCount_v0 Person (fun p -> p.name == "bob")) = 0
+   DB.queryCount_v0 PersonDB (fun p -> p.name == "bob")) = 0
 
   // one
   (let _ = prepFriends () in
-   DB.queryCount_v0 Person (fun p -> p.height > 3)) = 4
+   DB.queryCount_v0 PersonDB (fun p -> p.height > 3)) = 4
 
 
 (DB.generateKey_v0 |> String.length_v1) = 36

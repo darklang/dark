@@ -61,23 +61,8 @@ let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
       // Convert the DBs back into ops so that DB operations will run
       dbs
       |> List.map (fun (db : PT.DB.T) ->
-        let initial = PT.CreateDBWithBlankOr(db.tlid, db.nameID, db.name)
-        let cols =
-          db.cols
-          |> List.map (fun (col : PT.DB.Col) ->
-            [ PT.AddDBCol(db.tlid, col.nameID, col.typeID)
-              PT.SetDBColName(
-                db.tlid,
-                col.nameID,
-                col.name |> Exception.unwrapOptionInternal "" []
-              )
-              PT.SetDBColType(
-                db.tlid,
-                col.typeID,
-                col.typ |> Exception.unwrapOptionInternal "" [] |> string
-              ) ])
-          |> List.flatten
-        (db, initial :: cols))
+        let initial = PT.CreateDB(db.tlid, db.name, db.typ)
+        (db, [ initial ]))
 
     let oplists =
       ops
@@ -215,14 +200,22 @@ let fileTests () : Test =
     if shouldSkip then
       testList $"skipped - {testName}" []
     else
-      let stdlibTypes =
-        LibExecutionStdLib.StdLib.types
-        @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
-        |> List.map (fun typ -> PT.FQTypeName.Stdlib typ.name, typ.definition)
+      try
+        let stdlibTypes =
+          LibExecutionStdLib.StdLib.types
+          @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
+          |> List.map (fun typ ->
+            let typeName = PT.FQTypeName.Stdlib typ.name
+            PT.FQTypeName.toString typeName, (typeName, typ.definition))
+          |> Map
 
-      (baseDir + filename)
-      |> Parser.TestModule.parseTestFile stdlibTypes
-      |> moduleToTests testName)
+        (baseDir + filename)
+        |> Parser.TestModule.parseTestFile stdlibTypes
+        |> moduleToTests testName
+      with
+      | e ->
+        print $"Exception in {file}: {e.Message}"
+        reraise ())
   |> Array.toList
   |> testList "All"
 

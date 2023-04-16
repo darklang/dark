@@ -92,8 +92,8 @@ module FQFnName =
     | RT.FQFnName.Package p -> FQFnName.Package(PackageFnName.toCT p)
 
 
-module DType =
-  let rec toCT (t : RT.DType) : DType =
+module TypeReference =
+  let rec toCT (t : RT.TypeReference) : TypeReference =
     let r = toCT
     let rl = List.map toCT
 
@@ -106,8 +106,6 @@ module DType =
     | RT.TList t -> TList(r t)
     | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
     | RT.TDict t -> TDict(r t)
-    | RT.TIncomplete -> TIncomplete
-    | RT.TError -> TError
     | RT.THttpResponse t -> THttpResponse(r t)
     | RT.TDB t -> TDB(r t)
     | RT.TDateTime -> TDateTime
@@ -121,9 +119,8 @@ module DType =
     | RT.TResult (ok, error) -> TResult(r ok, r error)
     | RT.TVariable (name) -> TVariable(name)
     | RT.TFn (ts, returnType) -> TFn(rl ts, r returnType)
-    | RT.TRecord (pairs) -> TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
 
-  let rec fromCT (t : DType) : RT.DType =
+  let rec fromCT (t : TypeReference) : RT.TypeReference =
     let r = fromCT
     let rl = List.map fromCT
 
@@ -136,8 +133,6 @@ module DType =
     | TList t -> RT.TList(r t)
     | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
     | TDict t -> RT.TDict(r t)
-    | TIncomplete -> RT.TIncomplete
-    | TError -> RT.TError
     | THttpResponse t -> RT.THttpResponse(r t)
     | TDB t -> RT.TDB(r t)
     | TDateTime -> RT.TDateTime
@@ -151,7 +146,6 @@ module DType =
     | TResult (ok, error) -> RT.TResult(r ok, r error)
     | TVariable (name) -> RT.TVariable(name)
     | TFn (ts, returnType) -> RT.TFn(rl ts, r returnType)
-    | TRecord (pairs) -> RT.TRecord(List.map (fun (k, t) -> (k, r t)) pairs)
 
 module LetPattern =
   let rec fromCT (p : LetPattern) : RT.LetPattern =
@@ -220,7 +214,7 @@ module Expr =
       RT.EApply(
         id,
         fnTargetFromCT target,
-        List.map DType.fromCT typeArgs,
+        List.map TypeReference.fromCT typeArgs,
         List.map r exprs
       )
     | Expr.EList (id, exprs) -> RT.EList(id, List.map r exprs)
@@ -249,6 +243,7 @@ module Expr =
       RT.EFeatureFlag(id, r cond, r caseA, r caseB)
     | Expr.EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | Expr.EOr (id, left, right) -> RT.EOr(id, r left, r right)
+    | Expr.EDict (id, pairs) -> RT.EDict(id, List.map (Tuple2.mapSecond r) pairs)
 
   and stringSegmentToRT (segment : Expr.StringSegment) : RT.StringSegment =
     match segment with
@@ -285,7 +280,7 @@ module Expr =
       Expr.EApply(
         id,
         fnTargetToCT target,
-        List.map DType.toCT typeArgs,
+        List.map TypeReference.toCT typeArgs,
         List.map r exprs
       )
     | RT.EList (id, exprs) -> Expr.EList(id, List.map r exprs)
@@ -314,6 +309,7 @@ module Expr =
       Expr.EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> Expr.EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> Expr.EOr(id, r left, r right)
+    | RT.EDict (id, pairs) -> Expr.EDict(id, List.map (Tuple2.mapSecond r) pairs)
 
   and stringSegmentToCT (segment : RT.StringSegment) : Expr.StringSegment =
     match segment with

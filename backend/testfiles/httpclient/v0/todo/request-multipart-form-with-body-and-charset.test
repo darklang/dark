@@ -17,13 +17,14 @@ Content-Length: LENGTH
 (let reqHeaders = { "Content-type" = "multipart/form-data" }
  let response = (HttpClient.request "post" "http://URL" [] {} reqHeaders) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
-Dict.set_v0 response "headers" respHeaders) =
-   { body = ""
-     statusCode = 200
-     headers =
-      [
-        ("content-length", "LENGTH")
-        ("content-type", "text/plain; charset=utf-8")
-        ("server", "kestrel")
-      }
-     raw = ""}
+Record.set_v0 response "headers" respHeaders) =
+  HttpClient.Response
+    { body = ""
+      statusCode = 200
+      headers =
+        [
+          ("content-length", "LENGTH")
+          ("content-type", "text/plain; charset=utf-8")
+          ("server", "kestrel")
+        ]
+      raw = ""}

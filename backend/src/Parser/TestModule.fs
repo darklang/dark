@@ -24,25 +24,15 @@ let empty =
 
 
 module UserDB =
-  let private parseDBSchemaField
-    (availableTypes : AvailableTypes)
-    (field : SynField)
-    : PT.DB.Col =
-    match field with
-    | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-      { name = Some(id.idText) // CLEANUP
-        nameID = gid ()
-        typ = Some(PTP.DType.fromSynType availableTypes typ)
-        typeID = gid () }
-    | _ -> Exception.raiseInternal $"Unsupported DB schema field" [ "field", field ]
-
   let fromSynTypeDefn
     (availableTypes : AvailableTypes)
     (typeDef : SynTypeDefn)
     : PT.DB.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
+                                                                             typ,
+                                                                             _),
                                            _),
                    _members,
                    _,
@@ -50,9 +40,8 @@ module UserDB =
                    _) ->
       { tlid = gid ()
         name = id.idText
-        nameID = gid ()
         version = 0
-        cols = List.map (parseDBSchemaField availableTypes) fields }
+        typ = PTP.TypeReference.fromSynType availableTypes typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
@@ -62,7 +51,7 @@ module PackageFn =
     ((p1, p2, p3) : string * string * string)
     (binding : SynBinding)
     : PT.Package.Fn =
-    let availableTypes = [] // eventually, we'll likely need package types supported here
+    let availableTypes = Map.empty // eventually, we'll likely need package types supported here
     let userFn = PTP.UserFunction.fromSynBinding availableTypes binding
     { name =
         { owner = p1
@@ -114,9 +103,9 @@ let parseFile
   : T =
   let parseTypeDecl
     (availableTypes : AvailableTypes)
-    (typeDef : SynTypeDefn)
+    (typeDefn : SynTypeDefn)
     : List<PT.DB.T> * List<PT.UserType.T> =
-    match typeDef with
+    match typeDefn with
     | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
       let isDB =
@@ -124,9 +113,9 @@ let parseFile
         |> List.exists (fun attr ->
           longIdentToList attr.TypeName.LongIdent = [ "DB" ])
       if isDB then
-        [ UserDB.fromSynTypeDefn availableTypes typeDef ], []
+        [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
       else
-        [], [ PTP.UserType.fromSynTypeDefn availableTypes typeDef ]
+        [], [ PTP.UserType.fromSynTypeDefn availableTypes typeDefn ]
 
   let getPackage (attrs : SynAttributes) : Option<string * string * string> =
     attrs
@@ -169,8 +158,11 @@ let parseFile
         (fun m decl ->
           let availableTypes =
             (m.types @ parent.types)
-            |> List.map (fun t -> PT.FQTypeName.User t.name, t.definition)
-            |> (@) stdlibTypes
+            |> List.map (fun t ->
+              let typeName = PT.FQTypeName.User t.name
+              PT.FQTypeName.toString typeName, (typeName, t.definition))
+            |> Map
+            |> Map.mergeFavoringRight stdlibTypes
 
           match decl with
           | SynModuleDecl.Let (_, bindings, _) ->

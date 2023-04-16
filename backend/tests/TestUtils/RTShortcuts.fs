@@ -21,7 +21,7 @@ let eFn'
   (module_ : string)
   (function_ : string)
   (version : int)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
   EApply(gid (), (eStdFnName module_ function_ version), typeArgs, args)
@@ -30,22 +30,30 @@ let eFn
   (module_ : string)
   (function_ : string)
   (version : int)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
   eFn' module_ function_ version typeArgs args
 
 let eUserFn
   (function_ : string)
-  (typeArgs : List<DType>)
+  (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
   EApply(gid (), (eUserFnName function_), typeArgs, args)
 
-let eApply' (target : FnTarget) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
+let eApply'
+  (target : FnTarget)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : Expr =
   EApply(gid (), target, typeArgs, args)
 
-let eApply (target : Expr) (typeArgs : List<DType>) (args : List<Expr>) : Expr =
+let eApply
+  (target : Expr)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : Expr =
   eApply' (FnTargetExpr target) typeArgs args
 
 
@@ -78,3 +86,27 @@ let eConstructor
   (args : Expr list)
   : Expr =
   EConstructor(gid (), typeName, name, args)
+
+let userTypeName (name : string) (version : int) : FQTypeName.T =
+  FQTypeName.User { typ = name; version = version }
+
+let userTypeReference (name : string) (version : int) : TypeReference =
+  TCustomType(userTypeName name version, [])
+
+let customTypeRecord (fields : List<string * TypeReference>) : CustomType.T =
+  let fields =
+    fields
+    |> List.map (fun (name, typ) ->
+      { id = gid (); name = name; typ = typ } : CustomType.RecordField)
+  match fields with
+  | [] -> Exception.raiseInternal "userRecord must have at least one field" []
+  | hd :: rest -> CustomType.Record(hd, rest)
+
+let userTypeRecord
+  (name : string)
+  (version : int)
+  (fields : List<string * TypeReference>)
+  : UserType.T =
+  { tlid = gid ()
+    name = { typ = name; version = version }
+    definition = customTypeRecord fields }
