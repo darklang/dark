@@ -86,7 +86,7 @@ module Roundtrip =
   //  Password.check_v0 y.password "password") = true
 
   module QueryEquality =
-    let fetch (fn : 'a -> Bool) : 'a =
+    let fetch (fn : 'a -> Bool) : List<'a> =
       let z = DB.set_v1 (sample ()) "sample" SampleDB in
       let z = DB.set_v1 (otherSample ()) "other" SampleDB in
       DB.query_v4 SampleDB fn
@@ -240,13 +240,13 @@ module GetAllKeys =
 module GetAllWithKeys =
   (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
    let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
-   DB.getAllWithKeys_v2 XDB) = { one = { x = "hello"} ; two = { x = "goodbye"} }
+   DB.getAllWithKeys_v2 XDB) = Dict { one = X { x = "hello"} ; two = X { x = "goodbye"} }
 
 
 module GetManyWithKeys =
   (let one = DB.set_v1 (X { x = "hello" }) "one" XDB in
    let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
-   DB.getManyWithKeys_v1 ["one"; "two"] XDB) = { one = (X { x = "hello"}) ; two = (X { x = "goodbye"}) }
+   DB.getManyWithKeys_v1 ["one"; "two"] XDB) = Dict { one = (X { x = "hello"}) ; two = (X { x = "goodbye"}) }
 
 
 module GetExisting =
@@ -344,7 +344,7 @@ let d (datestr:String) : DateTime =
 let rossDOB () : DateTime =
   d "1967-05-12T00:00:00Z"
 
-let friendsError (lambda: ('a -> Bool)) : Person =
+let friendsError (lambda: ('a -> Bool)) : List<Person> =
   let _ = prepFriends () in
   DB.query_v4 PersonDB lambda
 
@@ -471,11 +471,11 @@ module PartialEvaluation =
    |> List.sort_v0)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = { y = { z = { a = 5 }}} in
+  (friends (fun p -> let x = Y { y = Z { z = A { a = 5 }}} in
                      x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = { y = { z = { a = [1;2;3;4;5] }}}
+  (friends (fun p -> let x = Y { y = Z { z = A { a = [1;2;3;4;5] }}}
                      (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 
@@ -491,7 +491,8 @@ module QueryOneWithKey =
   // one
   (let _ = prepFriends () in
   (DB.queryOneWithKey_v3 PersonDB (fun p -> p.name == "Rachel"))
-   |> Option.map_v1 (fun v -> (Tuple2.second v).name)) = Just "Rachel"
+   |> Test.unwrap
+   |> (fun v -> (Tuple2.second v).name)) = "Rachel"
 
    // interpolated
   (let _ = prepFriends () in
@@ -508,7 +509,8 @@ module QueryWithKey =
   // one
   (let _ = prepFriends () in
    (DB.queryWithKey_v3 PersonDB (fun p -> p.name == "Rachel"))
-   |> (fun v -> (Tuple2.second v).name)) = "Rachel"
+   |> Dict.toList_v0
+   |> Option.map_v1 (fun v -> (Tuple2.second v).name)) = ["Rachel"]
 
 module QueryCount =
   // none
