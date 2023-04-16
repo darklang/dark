@@ -1,6 +1,6 @@
 [http-handler GET /]
 (let body = String.toBytes_v0 "1" in
-let headers = { header1 = "value1"; Header2 = "Value2"; ``Header-3`` = "Value-3" } in
+let headers = Dict { header1 = "value1"; Header2 = "Value2"; ``Header-3`` = "Value-3" }
 Http.responseWithHeaders body headers 200)
 
 [request]
