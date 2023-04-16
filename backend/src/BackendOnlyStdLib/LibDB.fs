@@ -321,9 +321,9 @@ let fns : List<BuiltInFn> =
     { name = fn "DB" "queryWithKey" 3
       typeParams = []
       parameters = [ tableParam; queryParam ]
-      returnType = valType
+      returnType = TDict valType
       description =
-        "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an object. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
@@ -332,7 +332,7 @@ let fns : List<BuiltInFn> =
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               // TYPESCLEANUP - add name
-              return results |> Map.ofList |> DRecord
+              return results |> Map.ofList |> DDict
             with
             | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
           }
