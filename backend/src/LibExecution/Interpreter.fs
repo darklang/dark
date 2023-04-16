@@ -576,11 +576,13 @@ and executeLambda
     // provide this error message here. We don't have this information in
     // other places, and the alternative is just to provide incompletes
     // with no context
-    if List.length l.parameters <> List.length args then
+    let expectedLength = List.length l.parameters
+    let actualLength = List.length args
+    if expectedLength <> actualLength then
       Ply(
         DError(
           SourceNone,
-          $"Expected {List.length l.parameters} arguments, got {List.length args}"
+          $"Expected {expectedLength} arguments, got {actualLength}"
         )
       )
     else
