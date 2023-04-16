@@ -331,7 +331,6 @@ let fns : List<BuiltInFn> =
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
-              // TYPESCLEANUP - add name
               return results |> Map.ofList |> DDict
             with
             | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
