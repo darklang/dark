@@ -51,7 +51,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   uply {
     match e with
-    | EString (_id, segments) ->
+    | EString (id, segments) ->
       let! result =
         segments
         |> Ply.List.foldSequentially
@@ -69,11 +69,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                      return
                        Error(
                          DError(
-                           sourceID _id,
+                           sourceID id,
                            "Expected string, got " + DvalReprDeveloper.toRepr dv
                          )
                        )
-                 | Error dv, _ -> return Error(dv)
+                 | Error dv, _ -> return Error dv
                })
              (Ok "")
       match result with
@@ -148,8 +148,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, v -> return r
             })
           // TYPESCLEANUP
-          (DRecord(Map.empty))
+          (DRecord Map.empty)
           fields
+
 
     | EDict (id, fields) ->
       return!
