@@ -711,26 +711,9 @@ and execFn
 
       let fnRecord = (state.tlid, fnDesc, id) in
 
-      let badArg =
-        List.tryFind
-          (fun expr ->
-            match expr with
-            // CLEANUP: does anyone use Bool.isError?
-            | DError _ when
-              fnDesc = FQFnName.Stdlib
-                         { module_ = "Bool"; function_ = "isError"; version = 0 }
-              ->
-              // TODO: state.notify here, then check a month later, to evaluate and then delete
-              false
-            | DError _
-            | DIncomplete _ -> true
-            | _ -> false)
-          arglist
-
-      match badArg with
-      | Some (DIncomplete src) -> return DIncomplete src
-      | Some (DError _ as err) -> return err
-      | _ ->
+      match List.tryFind Dval.isFake arglist with
+      | Some fake -> return fake
+      | None ->
         match fn.fn with
         | StdLib f ->
           if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
