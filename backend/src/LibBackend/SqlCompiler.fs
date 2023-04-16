@@ -39,8 +39,9 @@ type position =
 // representing the same thing. Currently nothing needs to be canonicalized.
 let rec canonicalize (expr : Expr) : Expr = expr
 
-let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : SqlValue =
-  debuG "dvalToSql" (expectedType, dval)
+// Returns a typeReference since we don't always know what type it should have (eg is
+// a polymorphic function is being called)
+let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : (SqlValue * TypeReference) =
   match expectedType, dval with
   | _, DError _
   | _, DIncomplete _ -> Errors.foundFakeDval dval
@@ -53,17 +54,26 @@ let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : SqlValue =
   | _, DResult _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
   | _, DConstructor _ // TODO: revisit
+  | _,  DRecord _
   | _, DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
+  | TVariable _, DDateTime date
   | TDateTime, DDateTime date ->
-    date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz
-  | TInt, DInt i -> Sql.int64 i
-  | TFloat, DFloat v -> Sql.double v
-  | TBool, DBool b -> Sql.bool b
-  | TString, DString s -> Sql.string s
-  | TChar, DChar c -> Sql.string c
-  | TUuid, DUuid id -> Sql.uuid id
-  | TUnit, DUnit -> Sql.int64 0
+    (date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz, TDateTime)
+  | TVariable _, DInt i
+  | TInt, DInt i -> Sql.int64 i, TInt
+  | TVariable _,  DFloat v
+  | TFloat, DFloat v -> Sql.double v, TFloat
+  | TVariable _,  DBool b
+  | TBool, DBool b -> Sql.bool b, TBool
+  | TVariable _, DString s
+  | TString, DString s -> Sql.string s, TString
+  | TVariable _,  DChar c
+  | TChar, DChar c -> Sql.string c, TChar
+  | TVariable _,  DUuid id
+  | TUuid, DUuid id -> Sql.uuid id, TUuid
+  | TVariable _,  DUnit
+  | TUnit, DUnit -> Sql.int64 0, TUnit
   // CLEANUP: add test first
   // | TList typ, DList l ->
   //   let typeName = DvalReprDeveloper.typeName typ
@@ -93,8 +103,17 @@ let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : SqlValue =
   //         (DvalReprDeveloper.toRepr v))
   //   |> List.toArray
   //   |> Sql.array (typeToNpgSqlType typ)
-  | _ ->
-    error3
+  // exhaustiveness check
+  | _, DInt _
+  | _, DFloat _
+  | _, DBool _
+  | _, DString _
+  | _, DChar _
+  | _, DUuid _
+  | _, DUnit
+  | _, DList _
+  | _, DDateTime _ ->
+    error
       "This value is not of the expected type"
       (DvalReprDeveloper.toRepr dval)
       (DvalReprDeveloper.typeName expectedType)
@@ -216,7 +235,6 @@ let rec lambdaToSql
   (expectedType : TypeReference)
   (expr : Expr)
   : string * List<string * SqlValue> * TypeReference =
-  debuG "call lts" (expectedType, expr)
   let lts (expectedType : TypeReference) (expr : Expr) =
     lambdaToSql fns types symtable paramName dbTypeRef expectedType expr
 
@@ -260,8 +278,6 @@ let rec lambdaToSql
           else
             error
               $"{FQFnName.StdlibFnName.toString fn.name} has {paramCount} functions but we have {argCount} arguments"
-
-        debuG "eapply actual types" actualTypes
 
         // Check the unified return type (basic on the actual arguments) against the
         // expected type
@@ -326,8 +342,10 @@ let rec lambdaToSql
         typecheckDval $"variable {varname}" types dval expectedType
         let random = randomString 8
         let newname = $"{varname}_{random}"
-        // TYPESCLEANUP - this should be a concrete type
-        $"(@{newname})", [ newname, dvalToSql expectedType dval ], expectedType
+        // Fetch the actualType here as well as we might be passing in an abstract
+        // type.
+        let (sqlValue, actualType) = dvalToSql expectedType dval
+        $"(@{newname})", [ newname, sqlValue], actualType
       | None -> error $"This variable is not defined: {varname}"
 
     | EInt (_, v) ->
@@ -418,7 +436,6 @@ let rec lambdaToSql
               "The datastore does not have a type named"
               (FQTypeName.toString typeName)
         | _ -> error "The datastore is not a record"
-      debuG "dbFieldType" (fieldname, dbFieldType, expectedType)
 
       typecheck fieldname dbFieldType expectedType
 
@@ -463,7 +480,7 @@ let rec lambdaToSql
       "sql", sql
       "vars", vars ]
     (actualType.isConcrete())
-  debug "lts" (sql, vars, actualType)
+  (sql, vars, actualType)
 
 
 //  Trying to get rid of complex expressions, including values which can be
@@ -700,10 +717,6 @@ let compileLambda
       |> Ply.TplPrimitives.runPlyAsTask
 
     let types = ExecutionState.availableTypes state
-    debuG "body" body
-    debugList "symtable" (Map.toList symtable) |> ignore<List<string * Dval>>
-    debuG "types" types
-    debuG "dbType" dbType
 
     let sql, vars, _expectedType =
       lambdaToSql
