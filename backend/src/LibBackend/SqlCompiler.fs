@@ -41,7 +41,10 @@ let rec canonicalize (expr : Expr) : Expr = expr
 
 // Returns a typeReference since we don't always know what type it should have (eg is
 // a polymorphic function is being called)
-let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : (SqlValue * TypeReference) =
+let rec dvalToSql
+  (expectedType : TypeReference)
+  (dval : Dval)
+  : (SqlValue * TypeReference) =
   match expectedType, dval with
   | _, DError _
   | _, DIncomplete _ -> Errors.foundFakeDval dval
@@ -54,7 +57,7 @@ let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : (SqlValue * Typ
   | _, DResult _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
   | _, DConstructor _ // TODO: revisit
-  | _,  DRecord _
+  | _, DRecord _
   | _, DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
   | TVariable _, DDateTime date
@@ -62,17 +65,17 @@ let rec dvalToSql (expectedType : TypeReference) (dval : Dval) : (SqlValue * Typ
     (date |> DarkDateTime.toDateTimeUtc |> Sql.timestamptz, TDateTime)
   | TVariable _, DInt i
   | TInt, DInt i -> Sql.int64 i, TInt
-  | TVariable _,  DFloat v
+  | TVariable _, DFloat v
   | TFloat, DFloat v -> Sql.double v, TFloat
-  | TVariable _,  DBool b
+  | TVariable _, DBool b
   | TBool, DBool b -> Sql.bool b, TBool
   | TVariable _, DString s
   | TString, DString s -> Sql.string s, TString
-  | TVariable _,  DChar c
+  | TVariable _, DChar c
   | TChar, DChar c -> Sql.string c, TChar
-  | TVariable _,  DUuid id
+  | TVariable _, DUuid id
   | TUuid, DUuid id -> Sql.uuid id, TUuid
-  | TVariable _,  DUnit
+  | TVariable _, DUnit
   | TUnit, DUnit -> Sql.int64 0, TUnit
   // CLEANUP: add test first
   // | TList typ, DList l ->
@@ -345,7 +348,7 @@ let rec lambdaToSql
         // Fetch the actualType here as well as we might be passing in an abstract
         // type.
         let (sqlValue, actualType) = dvalToSql expectedType dval
-        $"(@{newname})", [ newname, sqlValue], actualType
+        $"(@{newname})", [ newname, sqlValue ], actualType
       | None -> error $"This variable is not defined: {varname}"
 
     | EInt (_, v) ->
@@ -421,9 +424,7 @@ let rec lambdaToSql
         | TCustomType (typeName, args) ->
           match Map.get typeName types with
           | Some (CustomType.Record (f1, fields)) ->
-            let field =
-              f1 :: fields
-              |> List.find (fun f -> f.name = fieldname)
+            let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
             match field with
             | Some v -> v.typ
             | None -> error2 "The datastore does not have a field named" fieldname
@@ -479,7 +480,7 @@ let rec lambdaToSql
       "expr", expr
       "sql", sql
       "vars", vars ]
-    (actualType.isConcrete())
+    (actualType.isConcrete ())
   (sql, vars, actualType)
 
 
