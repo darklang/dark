@@ -76,6 +76,53 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "EnvVar" "get" 0
+      typeParams = []
+      parameters = [ Param.make "varName" TString "" ]
+      returnType = TOption TString
+      description =
+        "Gets the value of the environment variable with the given <param varName> if it exists."
+      fn =
+        (function
+        | _, _, [ DString varName ] ->
+          let envValue = System.Environment.GetEnvironmentVariable(varName)
+
+          if isNull envValue then
+            Ply(DOption None)
+          else
+            Ply(DOption(Some(DString envValue)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "EnvVar" "getAll" 0
+      typeParams = []
+      parameters = []
+      returnType = TDict TString
+      description =
+        "Returns a list of tuples containing all the environment variables and their values."
+      fn =
+        (function
+        | _, _, [] ->
+          let envVars = System.Environment.GetEnvironmentVariables()
+
+          let envMap =
+            envVars
+            |> Seq.cast<System.Collections.DictionaryEntry>
+            |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
+            |> Map.ofSeq
+            |> DDict
+
+          Ply(envMap)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+
     { name = fn "File" "write" 0
       typeParams = []
       parameters = [ Param.make "path" TString ""; Param.make "contents" TBytes "" ]
