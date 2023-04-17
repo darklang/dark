@@ -1,0 +1,10 @@
+let main () : Unit =
+  let dir = "packages"
+  do
+    dir
+    |> Directory.list
+    |> List.filter (fun x -> x |> String.endsWith ".dark")
+    |> print
+  0
+
+main ()
