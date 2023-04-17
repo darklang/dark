@@ -18,7 +18,6 @@ cd backend && dotnet "$@" 2>&1 | while read -r line; do
     killall CronChecker || true
     killall QueueWorker || true
     killall Tests || true
-    killall Executor || true
   fi
   echo "$line"
 done

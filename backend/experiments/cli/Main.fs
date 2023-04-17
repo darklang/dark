@@ -29,7 +29,7 @@ open System.Reflection
 let info () =
   let buildAttributes =
     Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // This reads values created during the build in Executor.fsproj
+  // This reads values created during the build in Cli.fsproj
   // It doesn't feel like this is how it's supposed to be used, but it works. But
   // what if we wanted more than two parameters?
   let buildDate = buildAttributes.Key

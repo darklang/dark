@@ -211,7 +211,6 @@ jobs:
             - backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/QueueWorker
             - backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish/CronChecker
             - backend/Build/out/ProdExec/Release/net7.0/linux-x64/publish/ProdExec
-            # - backend/Build/out/Executor/Release/net7.0/linux-x64/publish/Executor
       - show-large-files-and-directories
       - save_cache:
           paths:

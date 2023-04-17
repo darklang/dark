@@ -32,13 +32,13 @@
     +++++++++++++++++++++++++++
   -->
   <!-- Creates a GitHash property -->
-  <Target Name="GitHash" BeforeTargets="AddExecutorAssemblyMetadata">
+  <Target Name="GitHash" BeforeTargets="AddCliAssemblyMetadata">
     <Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" ConsoleToMSBuild="True" IgnoreExitCode="False">
       <Output PropertyName="GitHash" TaskParameter="ConsoleOutput" />
     </Exec>
   </Target>
   <!-- Creates a BuildDate property -->
-  <Target Name="BuildDate" BeforeTargets="AddExecutorAssemblyMetadata">
+  <Target Name="BuildDate" BeforeTargets="AddCliAssemblyMetadata">
     <Exec Command="date" ConsoleToMSBuild="True" IgnoreExitCode="False">
       <Output PropertyName="BuildDate" TaskParameter="ConsoleOutput" />
     </Exec>
@@ -46,7 +46,7 @@
   <!-- Creates AssemblyMetadataAttributes which can be used via
        `System.Reflection.Assembly.GetEntryAssembly.GetCustomAttributes<
           System.Reflection.AssemblyMetadataAttribute>()` -->
-  <Target Name="AddExecutorAssemblyMetadata" BeforeTargets="CoreGenerateAssemblyInfo">
+  <Target Name="AddCliAssemblyMetadata" BeforeTargets="CoreGenerateAssemblyInfo">
     <ItemGroup>
       <AssemblyAttribute Include="AssemblyMetadata">
         <_Parameter1>$(BuildDate)</_Parameter1>
