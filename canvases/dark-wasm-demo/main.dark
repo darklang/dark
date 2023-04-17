@@ -1,0 +1,47 @@
+[<HttpHandler("GET", "/")>]
+let _handler _req =
+  let body =
+    """
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dark WASM demo</title>
+  </head>
+
+  <body>
+    <div> TODO </div>
+
+    <script src="_framework/blazor.webassembly.js" autostart="false"></script>
+    <script>
+      // fns exposed for use by WASM'd Dark (Wasm.fsproj)
+      function handleEvalResult (message) {
+        console.log("handleEvalResult", message);
+      }
+      function handleUpdatedCounter (newValue) {
+        console.log("handleUpdatedCounter", newValue);
+      }
+
+
+      // set up Blazor
+      Blazor.start({
+        //loadBootResource: function (type, name, defaultUri, integrity) {
+        //  return `http://127.0.0.1:8080/${name}`;
+        //}
+      }).then(() => {
+        DotNet.invokeMethod("Wasm", "InitializeDarkRuntime");
+
+        // TODO: do this in response to some user input
+        DotNet.invokeMethod("Wasm", "ParseAndEvalExpr", "1");
+      });
+
+      function incrementCounter() {
+        DotNet.invokeMethod("Wasm", "IncrementCounter");
+      }
+    </script>
+  </body>
+</html>
+  """
+
+  Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200

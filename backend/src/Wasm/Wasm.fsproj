@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OtherFlags>--warnaserror</OtherFlags>
+    <!-- Things that were uncommented in classic-dark -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
+    <!-- <BlazorEnableCompression>false</BlazorEnableCompression> -->
+    <!-- Things that were commented in classic-dark -->
+    <!-- <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings> -->
+    <!-- <EmccCompileOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccCompileOptimizationFlag> -->
+    <!-- <EmccLinkOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccLinkOptimizationFlag> -->
+    <!-- <WasmNativeStrip>false</WasmNativeStrip> -->
+    <!-- <WasmLinkIcalls>true</WasmLinkIcalls> -->
+    <!-- <WasmDebugLevel>1</WasmDebugLevel> -->
+    <!-- <WasmDedup>false</WasmDedup> -->
+    <!-- <WasmNativeDebugSymbols>true</WasmNativeDebugSymbols> -->
+    <!-- <EmccVerbose>true</EmccVerbose> -->
+    <!-- <RuntimeIdentifier>browser-wasm</RuntimeIdentifier> -->
+    <!-- should optimize the download slightly -->
+    <!-- <BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport> -->
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../Parser/Parser.fsproj" />
+    <ProjectReference Include="../LibAnalysis/LibAnalysis.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="WasmHelpers.fs" />
+    <Compile Include="Counter.fs" />
+    <Compile Include="Eval.fs" />
+    <Compile Include="Init.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>
