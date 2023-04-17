@@ -31,8 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="WasmHelpers.fs" />
-    <Compile Include="Counter.fs" />
-    <Compile Include="Eval.fs" />
+    <Compile Include="DarkEditor.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
