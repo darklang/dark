@@ -209,11 +209,13 @@ let rec inline'
         | LPTuple (_id, first, second, theRest) ->
           match currentExpr with
           | ETuple (_, firstExpr, secondExpr, restExpr) ->
-            // Each expression is paired with the corresponding let pattern
-            let zipped =
-              List.zip
-                (firstExpr :: secondExpr :: restExpr)
-                (first :: second :: theRest)
+            let exprList = firstExpr :: secondExpr :: restExpr
+            let patternList = first :: second :: theRest
+
+            if List.length exprList <> List.length patternList then
+              error "Tuple length mismatch"
+
+            let zipped = List.zip exprList patternList
 
             List.fold symtable mapLetPattern zipped
 
