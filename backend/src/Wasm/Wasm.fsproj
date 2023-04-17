@@ -4,10 +4,12 @@
     <TargetFramework>net7.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <OtherFlags>--warnaserror</OtherFlags>
-    <!-- Things that were uncommented in classic-dark -->
     <PublishTrimmed>true</PublishTrimmed>
+
+    <!-- Things that were uncommented in classic-dark -->
     <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
     <!-- <BlazorEnableCompression>false</BlazorEnableCompression> -->
+
     <!-- Things that were commented in classic-dark -->
     <!-- <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings> -->
     <!-- <EmccCompileOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccCompileOptimizationFlag> -->
