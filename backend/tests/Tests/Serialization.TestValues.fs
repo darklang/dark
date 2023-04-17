@@ -268,7 +268,7 @@ module ProgramTypes =
                         PT.EFnCall(
                           898531080UL,
                           PT.FQFnName.Stdlib
-                            { module_ = "Bool"; function_ = "isError"; version = 0 },
+                            { module_ = "Int"; function_ = "toString"; version = 0 },
                           dtypes,
                           [ PT.EInt(160106123UL, 6L) ]
                         ),

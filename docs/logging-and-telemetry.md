@@ -20,7 +20,7 @@ can muster. We also report some "notices", such as admin actions, deploys, etc.
 As such:
 
 - if an error occurs, notify rollbar and honeycomb, also print a log cause why not
-- if there's an action of note, for example using ExecHost, it should get a rollbar notification
+- if there's an action of note, for example using ProdExec, it should get a rollbar notification
 - web requests, executions, DB calls, etc, should all honeycomb
 
 We use honeycomb via the OpenTelemetry tracing in .NET.

@@ -140,8 +140,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -1000,8 +1000,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -1861,8 +1861,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -2724,8 +2724,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -3584,8 +3584,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -4447,8 +4447,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -5307,8 +5307,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -6168,8 +6168,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -7031,8 +7031,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -7891,8 +7891,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -9087,8 +9087,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -10237,8 +10237,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],
@@ -11750,8 +11750,8 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Bool",
-                                    "function_": "isError",
+                                    "module_": "Int",
+                                    "function_": "toString",
                                     "version": 0
                                   }
                                 ],
@@ -12923,8 +12923,8 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Bool",
-                                    "function_": "isError",
+                                    "module_": "Int",
+                                    "function_": "toString",
                                     "version": 0
                                   }
                                 ],
@@ -13785,8 +13785,8 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Bool",
-                                  "function_": "isError",
+                                  "module_": "Int",
+                                  "function_": "toString",
                                   "version": 0
                                 }
                               ],

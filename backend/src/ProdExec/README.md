@@ -1,4 +1,4 @@
-# Exec host
+# Prod Execution Host
 
 Based on
 https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-10-creating-an-exec-host-deployment-for-running-one-off-commands/,

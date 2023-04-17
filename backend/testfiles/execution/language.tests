@@ -33,10 +33,13 @@ module Tuple =
 
 
 module Records =
-  { col1 = 1 ; col1 = 2 } = { col1 = 2 }
-  { col1 = 1 ; col2 = 3 } = { col1 = 1 ; col2 = 3 }
-  { col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
-  { col1 = 2 ; ___ = 3 } = Test.typeError "Record key is empty"
+  type Cols1 = { col1 : Int }
+  type Cols2 = { col1 : Int; col2 : Int }
+
+  Cols1 { col1 = 1 ; col1 = 2 } = Cols1 { col1 = 2 }
+  Cols2 { col1 = 1 ; col2 = 3 } = Cols2 { col1 = 1 ; col2 = 3 }
+  Cols2 { col1 = 2 ; col2 = Test.typeError_v0 "test" } = Test.typeError_v0 "test"
+  Cols2 { col1 = 2 ; ___ = 3 } = Test.typeError "Record key is empty"
 
 
 module UserEnums =
@@ -185,8 +188,6 @@ module FeatureFlag =
   flag "test" 5 "old" "new" = "old"
   flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
   flag "test" (List.head []) "old" "new" = "old"
-  flag "test" {x = true} "old" "new" = "old"
-  flag "test" {x = true} "old" "new" = "old"
   flag "test" [true] "old" "new" = "old"
   flag "test" (Test.negativeInfinity "extra arg") "old" "new" = "old"
 
@@ -479,12 +480,13 @@ module Error =
   Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\"."
 
 module ErrorPropagation =
+  type EPRec = { i: Int; m: Int; j: Int; n: Int }
   List.head (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   (if Test.typeError_v0 "test" then 5 else 6) = Test.typeError_v0 "test"
   (List.head (Test.typeError_v0 "test")).field = Test.typeError_v0 "test"
   [ 5; 6; List.head (Test.typeError_v0 "test") ] = Test.typeError_v0 "test"
   [ 5; 6; Test.typeError_v0 "test"] = Test.typeError_v0 "test"
-  { i = Test.typeError_v0 "1"; m = 5; j = List.head (Test.typeError_v0 "2"); n = 6 } = Test.typeError_v0 "1"
+  EPRec { i = Test.typeError_v0 "1"; m = 5; j = List.head (Test.typeError_v0 "2"); n = 6 } = Test.typeError_v0 "1"
   5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
   5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   ("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
@@ -523,6 +525,7 @@ module Darkinternal =
 // ---------------------------
 
 module Equality =
+  type ERec = { x: Int; y: Int }
   (5 == 5) = true
   (5 != 6) = true
   (5.6 == 5.6) = true
@@ -541,9 +544,9 @@ module Equality =
   (() != 0.0) = Test.typeError_v0 "Both values must be the same type"
   ([ 1; 2; 3 ] == [ 1; 2; 3 ]) = true
   ([ 1; 2; 3 ] != [ 3; 2; 1 ]) = true
-  ({ x = 6; y = 7 } == { x = 6; y = 7 }) = true
-  ({ x = 6; y = 7 } == { y = 7; x = 6 }) = true
-  ({ x = 6; y = 7 } != { x = 7; y = 6 }) = true
+  (ERec { x = 6; y = 7 } == ERec { x = 6; y = 7 }) = true
+  (ERec { x = 6; y = 7 } == ERec { y = 7; x = 6 }) = true
+  (ERec { x = 6; y = 7 } != ERec { x = 7; y = 6 }) = true
   ("asd" == "asd") = true
   ("asd" != "sad") = true
   ((DateTime.parse_v2 "2019-07-28T22:42:36Z") == (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true

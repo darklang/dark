@@ -1,4 +1,5 @@
-module LibExperimentalStdLib.LibCLI
+/// Standard libraries for Files, Directories, and other OS/file system stuff
+module StdLibCli.Cli
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -18,7 +19,23 @@ let varA = TVariable "a"
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "File" "read" 0
+  [ { name = fn "" "print" 0
+      typeParams = []
+      parameters = [ Param.make "value" varA "The value to be printed." ]
+      returnType = TUnit
+      description = "Prints the given <param value> to the standard output."
+      fn =
+        (function
+        | _, _, [ value ] ->
+          let str = LibExecution.DvalReprDeveloper.toRepr value
+          print str
+          Ply(DUnit)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "File" "read" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -33,42 +50,6 @@ let fns : List<BuiltInFn> =
               return DResult(Ok(DBytes contents))
             with
             | e -> return DResult(Error(DString($"Error reading file: {e.Message}")))
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Directory" "pwd" 0
-      typeParams = []
-      parameters = []
-      returnType = TString
-      description = "Returns the current working directory"
-      fn =
-        (function
-        | _, _, [] ->
-          uply {
-            let contents = System.IO.Directory.GetCurrentDirectory()
-            return DString contents
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Directory" "ls" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "" ]
-      returnType = TList TString
-      description = "Returns the current working directory"
-      fn =
-        (function
-        | _, _, [ DString path ] ->
-          uply {
-            let contents = System.IO.Directory.EnumerateFiles path |> Seq.toList
-            return List.map DString contents |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -122,7 +103,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-
     { name = fn "File" "write" 0
       typeParams = []
       parameters = [ Param.make "path" TString ""; Param.make "contents" TBytes "" ]
@@ -138,6 +118,43 @@ let fns : List<BuiltInFn> =
               return DResult(Ok(DUnit))
             with
             | e -> return DResult(Error(DString($"Error writing file: {e.Message}")))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Directory" "current" 0
+      typeParams = []
+      parameters = [ Param.make "" TUnit "" ]
+      returnType = TString
+      description = "Returns the current working directory"
+      fn =
+        (function
+        | _, _, [] ->
+          uply {
+            let contents = System.IO.Directory.GetCurrentDirectory()
+            return DString contents
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Directory" "list" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "" ]
+      returnType = TList TString
+      description = "Returns the directory at <param path>"
+      fn =
+        (function
+        | _, _, [ DString path ] ->
+          uply {
+            // TODO make async
+            let contents = System.IO.Directory.EnumerateFiles path |> Seq.toList
+            return List.map DString contents |> DList
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -16,9 +16,9 @@ do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/ExecHost/Release/net7.0/linux-x64/publish/ExecHost"
+  EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish/LocalExec"
 else
-  EXE="backend/Build/out/ExecHost/Debug/net7.0/linux-x64/ExecHost"
+  EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
 fi
 
 "${EXE}" "$@"
