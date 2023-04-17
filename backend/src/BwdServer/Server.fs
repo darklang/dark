@@ -116,7 +116,8 @@ let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
   app.UseStaticFiles(
     StaticFileOptions(
       ServeUnknownFileTypes = true,
-      FileProvider = new PhysicalFileProvider("/home/dark/app/backend/static/dark_wasm"),
+      FileProvider =
+        new PhysicalFileProvider("/home/dark/app/backend/static/dark_wasm"),
       OnPrepareResponse =
         (fun ctx ->
           ctx.Context.Response.Headers[ "Access-Control-Allow-Origin" ] <-

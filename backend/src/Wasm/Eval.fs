@@ -23,11 +23,12 @@ type EvalWorker =
         // So we'll just hardcode a simple expression for now.
         // TODO: fix parser or bite the bullet and use TreeSitter for parsing
         PT.EInfix(
-          gid(),
+          gid (),
           (PT.InfixFnCall(PT.ArithmeticPlus)),
-          PT.EInt(gid(), 5),
-          PT.EInt(gid(), 3)
-        ) |> PT2RT.Expr.toRT
+          PT.EInt(gid (), 5),
+          PT.EInt(gid (), 3)
+        )
+        |> PT2RT.Expr.toRT
 
       let! evalResult = LibAnalysis.simpleEval expr
       let result = LibExecution.DvalReprDeveloper.toRepr evalResult

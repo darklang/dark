@@ -26,7 +26,7 @@ let getJsRuntimeThis () : IJSInProcessRuntime =
   jsRuntimeTypeInstance.GetValue(null) :?> IJSInProcessRuntime
 
 /// Call a function exposed in JS land
-let postMessage(functionToCall: string) (message : string) : unit =
+let postMessage (functionToCall : string) (message : string) : unit =
   let jsRuntimeThis = getJsRuntimeThis ()
   let response = jsRuntimeThis.Invoke(functionToCall, message)
   ()
