@@ -240,8 +240,18 @@ module ProgramTypes =
       PT.LPTuple(
         189271UL,
         PT.LPVariable(18274132UL, "x0"),
-        PT.LPVariable(27838182UL, "x1"),
-        []
+        PT.LPTuple(
+          189272UL,
+          PT.LPVariable(18274133UL, "x1"),
+          PT.LPVariable(27838183UL, "x2"),
+          []
+        ),
+        [ PT.LPTuple(
+            189273UL,
+            PT.LPVariable(18274134UL, "x3"),
+            PT.LPVariable(27838184UL, "x4"),
+            []
+          ) ]
       ),
       PT.EInt(929452387UL, 5L),
       PT.ELet(
