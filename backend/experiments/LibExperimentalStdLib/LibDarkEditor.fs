@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString code ] ->
           uply {
-            let expr = Parser.RuntimeTypes.parseExprWithTypes Map.empty code
+            let expr = Parser.ProgramTypes.parseExprWithTypes Map.empty code
             let serializedExpr = Json.Vanilla.serialize expr
             return serializedExpr |> DString |> Ok |> DResult
           }
