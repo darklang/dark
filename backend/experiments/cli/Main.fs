@@ -10,6 +10,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module StdLibCli = StdLibCli.StdLib
 
 // ---------------------
 // Version information
@@ -46,7 +47,7 @@ let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  LibExecutionStdLib.StdLib.fns @ LibCli.fns
+  LibExecutionStdLib.StdLib.fns @ StdLibCli.fns
   |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 

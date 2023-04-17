@@ -18,13 +18,13 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="LibCli.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/Parser/Parser.fsproj" />
     <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../../src/StdLibCli/StdLibCli.fsproj" />
   </ItemGroup>
   <!--
     +++++++++++++++++++++++++++

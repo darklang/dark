@@ -11,6 +11,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module StdLibCli = StdLibCli.StdLib
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
   LibExecutionStdLib.StdLib.types
@@ -18,7 +19,7 @@ let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  LibExecutionStdLib.StdLib.fns
+  LibExecutionStdLib.StdLib.fns @ StdLibCli.fns
   |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 
@@ -79,7 +80,11 @@ let main (args : string []) : int =
   let name = "LocalExec"
   try
     initSerializers ()
-    // (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    LibService.Init.init name
+    LibService.Telemetry.Console.loadTelemetry
+      name
+      LibService.Telemetry.DontTraceDBQueries
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let mainFile = "/home/dark/app/backend/src/LocalExec/main.dark"
     let mod' = Parser.CanvasV2.parseFromFile Map.empty mainFile
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList

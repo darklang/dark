@@ -1,4 +1,4 @@
-module LibExperimentalStdLib.LibCLI
+module StdLibCli.Cli
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -18,7 +18,23 @@ let varA = TVariable "a"
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "File" "read" 0
+  [ { name = fn "" "print" 0
+      typeParams = []
+      parameters = [ Param.make "value" varA "The value to be printed." ]
+      returnType = TUnit
+      description = "Prints the given <param value> to the standard output."
+      fn =
+        (function
+        | _, _, [ value ] ->
+          let str = LibExecution.DvalReprDeveloper.toRepr value
+          print str
+          Ply(DUnit)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "File" "read" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TBytes, TString)

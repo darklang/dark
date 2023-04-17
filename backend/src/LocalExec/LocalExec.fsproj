@@ -21,6 +21,7 @@
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../../src/Parser/Parser.fsproj" />
     <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../../src/StdLibCli/StdLibCli.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
