@@ -54,6 +54,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn "DarkEditor" "parseAndSerializeExpr" 0
       typeParams = []
       parameters = [ Param.make "code" TString "" ]
