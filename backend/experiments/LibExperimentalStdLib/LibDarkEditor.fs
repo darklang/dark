@@ -52,4 +52,22 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+    { name = fn "DarkEditor" "parseAndSerializeExpr" 0
+      typeParams = []
+      parameters = [ Param.make "code" TString "" ]
+      returnType = TResult(TString, TString)
+      description = "Parses Dark code and serializes the result to JSON."
+      fn =
+        function
+        | _, _, [ DString code ] ->
+          uply {
+            let expr = Parser.RuntimeTypes.parseExprWithTypes Map.empty code
+            let serializedExpr = Json.Vanilla.serialize expr
+            return serializedExpr |> DString |> Ok |> DResult
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
