@@ -1,5 +1,5 @@
 /// StdLib HttpClient Auth functions
-module LibExecutionStdLib.LibHttpClientAuth
+module StdLibExecution.LibHttpClientAuth
 
 open FSharpPlus
 

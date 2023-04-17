@@ -14,12 +14,12 @@ module Exe = LibExecution.Execution
 module StdLibCli = StdLibCli.StdLib
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-  LibExecutionStdLib.StdLib.types
+  StdLibExecution.StdLib.types
   |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  LibExecutionStdLib.StdLib.fns @ StdLibCli.fns
+  StdLibExecution.StdLib.fns @ StdLibCli.fns
   |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 

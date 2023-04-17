@@ -1,4 +1,4 @@
-module LibExecutionStdLib.LibJson
+module StdLibExecution.LibJson
 
 open System.Text.Json
 

@@ -12,7 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
     <ProjectReference Include="../LibExperimentalStdLib/LibExperimentalStdLib.fsproj" />

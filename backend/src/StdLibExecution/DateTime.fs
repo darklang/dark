@@ -1,4 +1,4 @@
-module LibExecutionStdLib.LibDateTime
+module StdLibExecution.LibDateTime
 
 open LibExecution.RuntimeTypes
 open Prelude

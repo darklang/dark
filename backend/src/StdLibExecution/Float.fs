@@ -1,4 +1,4 @@
-module LibExecutionStdLib.LibFloat
+module StdLibExecution.LibFloat
 
 open LibExecution.RuntimeTypes
 open Prelude

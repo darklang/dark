@@ -1,4 +1,4 @@
-module LibExecutionStdLib.LibNoModule
+module StdLibExecution.LibNoModule
 
 open Prelude
 open System

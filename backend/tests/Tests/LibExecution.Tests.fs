@@ -202,7 +202,7 @@ let fileTests () : Test =
     else
       try
         let stdlibTypes =
-          LibExecutionStdLib.StdLib.types
+          StdLibExecution.StdLib.types
           @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
           |> List.map (fun typ ->
             let typeName = PT.FQTypeName.Stdlib typ.name

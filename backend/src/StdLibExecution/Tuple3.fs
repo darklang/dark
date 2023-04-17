@@ -1,5 +1,5 @@
 /// StdLib functions to create and utilize tuples with 3 elements
-module LibExecutionStdLib.LibTuple3
+module StdLibExecution.LibTuple3
 
 open Prelude
 open LibExecution.RuntimeTypes

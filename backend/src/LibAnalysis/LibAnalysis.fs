@@ -52,12 +52,12 @@ module Eval =
           secrets = request.secrets }
 
       let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-        LibExecutionStdLib.StdLib.types
+        StdLibExecution.StdLib.types
         |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
         |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
       let stdlibFns =
-        LibExecutionStdLib.StdLib.fns
+        StdLibExecution.StdLib.fns
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       let packageFns =

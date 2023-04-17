@@ -1,4 +1,4 @@
-module LibExecutionStdLib.LibBytes
+module StdLibExecution.LibBytes
 
 open LibExecution.RuntimeTypes
 open Prelude

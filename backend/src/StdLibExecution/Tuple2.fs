@@ -1,5 +1,5 @@
 /// StdLib functions to create and utilize tuples with 2 elements
-module LibExecutionStdLib.LibTuple2
+module StdLibExecution.LibTuple2
 
 open Prelude
 open LibExecution.RuntimeTypes

@@ -12,7 +12,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
   </ItemGroup>
   <ItemGroup>
