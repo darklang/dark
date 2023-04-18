@@ -616,6 +616,68 @@ let testMatchPreview : Test =
       // TODO: constructor around a constructor around a value
       ]
 
+
+let testLetPreview : Test =
+  let letID = gid ()
+
+  let createLetPattern
+    (patternMatch : LetPattern)
+    (expr : Expr)
+    (finalExpr : Expr)
+    : Task<Map<id, AT.ExecutionResult>> =
+    task {
+      let ast = ELet(letID, patternMatch, expr, finalExpr)
+
+      let! results = execSaveDvals "let-preview" [] [] [] ast
+      let stuff = results |> Dictionary.toList |> Map
+
+      return stuff
+    }
+
+  testList
+    "test let preview"
+    [ testTask "let hello = 1 in hello" {
+        let lpID = gid ()
+
+        let letPattern = LPVariable(lpID, "hello")
+        let assignExpr = eInt 1
+        let retExpr = eVar "hello"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+        Expect.equal
+          (Map.get lpID result)
+          (Some(AT.ExecutedResult(DInt 1L)))
+          "hello assigned correctly"
+      }
+
+      testTask "let (x, y) = (1, 2) in y" {
+        let lpID = gid ()
+        let xID = gid ()
+        let yID = gid ()
+
+        let letPattern =
+          LPTuple(lpID, LPVariable(xID, "x"), LPVariable(yID, "y"), [])
+        let assignExpr = eTuple (eInt 1) (eInt 2) []
+        let retExpr = eVar "y"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+        Expect.equal
+          (Map.get xID result)
+          (Some(AT.ExecutedResult(DInt 1L)))
+          "x assigned correctly"
+
+        Expect.equal
+          (Map.get yID result)
+          (Some(AT.ExecutedResult(DInt 2L)))
+          "y assigned correctly"
+      } ]
+
+
+
+
+
 let tests =
   testList
     "ExecutionUnitTests"
