@@ -3,23 +3,48 @@
 /// Aggregates functions in other modules
 module StdLibDarkInternal.StdLib
 
-module RT = LibExecution.RuntimeTypes
+open System.Threading.Tasks
 
-let fn = RT.FQFnName.stdlibFnName
+open Prelude
+
+module RT = LibExecution.RuntimeTypes
 
 let renames = []
 
+// only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
+let internalFn (f : RT.BuiltInFnSig) : RT.BuiltInFnSig =
+  (fun (state, typeArgs, args) ->
+    uply {
+      if state.program.internalFnsAllowed then
+        return! f (state, typeArgs, args)
+      else
+        return
+          Exception.raiseInternal
+            "internal function attempted to be used in another canvas"
+            [ "canavasId", state.program.canvasID ]
+    })
+
+
 let types : List<RT.BuiltInType> =
-  [ Libs.Infra.types
-    Libs.UserManagement.types
-    Libs.Canvases.types
-    Libs.Documentation.types ]
+  [ Libs.Canvases.types
+    Libs.DBs.types
+    Libs.Documentation.types
+    Libs.Domains.types
+    Libs.Infra.types
+    Libs.Secrets.types
+    Libs.Users.types
+    Libs.Workers.types ]
   |> List.concat
 
 let fns : List<RT.BuiltInFn> =
-  [ Libs.Infra.fns
-    Libs.UserManagement.fns
-    Libs.Canvases.fns
-    Libs.Documentation.fns ]
+  [ Libs.Canvases.fns
+    Libs.DBs.fns
+    Libs.Documentation.fns
+    Libs.Domains.fns
+    Libs.Infra.fns
+    Libs.Secrets.fns
+    Libs.Users.fns
+    Libs.Workers.fns ]
   |> List.concat
+  |> List.map (fun f -> { f with fn = internalFn f.fn })
   |> RT.renameFunctions renames
