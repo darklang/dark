@@ -19,12 +19,15 @@ module Interpreter = LibExecution.Interpreter
 open LibBackend
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-  (StdLibExecution.StdLib.types @ BackendOnlyStdLib.StdLib.types)
+  (StdLibExecution.StdLib.types @ StdLibCloudExecution.StdLib.types
+  // @ StdLibDarkInternal.StdLib.types
+  )
   |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  StdLibExecution.StdLib.fns @ BackendOnlyStdLib.StdLib.fns
+  StdLibExecution.StdLib.fns
+  @ StdLibCloudExecution.StdLib.fns @ StdLibDarkInternal.StdLib.fns
   |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 

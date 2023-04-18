@@ -203,7 +203,8 @@ let fileTests () : Test =
       try
         let stdlibTypes =
           StdLibExecution.StdLib.types
-          @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
+          @ StdLibCloudExecution.StdLib.types @ TestUtils.LibMaybe.types
+          // @ StdLibDarkInternal.StdLib.types
           |> List.map (fun typ ->
             let typeName = PT.FQTypeName.Stdlib typ.name
             PT.FQTypeName.toString typeName, (typeName, typ.definition))

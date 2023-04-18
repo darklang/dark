@@ -1,5 +1,5 @@
 /// StdLib functions for building Dark functionality via Dark canvases
-module BackendOnlyStdLib.LibDarkInternal
+module StdLibDarkInternal.Libs.DarkInternal
 
 open System.Threading.Tasks
 

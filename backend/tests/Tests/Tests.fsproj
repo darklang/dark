@@ -19,7 +19,8 @@
     <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
-    <ProjectReference Include="../../src/BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
+    <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
     <ProjectReference Include="../../src/LibAnalysis/LibAnalysis.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />

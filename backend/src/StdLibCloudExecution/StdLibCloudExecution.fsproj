@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- This library only exists so that we can separate LibBackendStdLib from LibBackend -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net7.0</TargetFramework>
@@ -11,16 +10,18 @@
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
-    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="RealExecution.fs" />
-    <Compile Include="Init.fs" />
+    <Compile Include="Libs/DB.fs" />
+    <Compile Include="Libs/Event.fs" />
+    <Compile Include="Libs/HttpClient.fs" />
+    <Compile Include="Libs/Password.fs" />
+    <Compile Include="Libs/X509.fs" />
+    <Compile Include="StdLib.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

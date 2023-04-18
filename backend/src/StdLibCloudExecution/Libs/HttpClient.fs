@@ -1,5 +1,5 @@
 /// StdLib functions in the HttpClient module
-module BackendOnlyStdLib.LibHttpClient
+module StdLibCloudExecution.Libs.HttpClient
 
 open System.IO
 open System.Net.Http

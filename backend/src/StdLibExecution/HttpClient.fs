@@ -1,6 +1,6 @@
 /// <remarks>
 /// The HttpClient module is shared between this file and several LibHttpV_.fs
-/// files in BackendOnlyStdLib, where the impure fns live.
+/// files in StdLibCloudExecution, where the impure fns live.
 /// </remarks>
 module StdLibExecution.LibHttpClient
 

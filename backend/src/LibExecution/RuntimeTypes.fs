@@ -890,8 +890,8 @@ and Fn =
     previewable : Previewable
     sqlSpec : SqlSpec
 
-    // Functions can be run in JS if they have an implementation in LibExecution.
-    // Functions whose implementation is in BackendOnlyStdLib can only be implemented on the server.
+    // Functions can be run in WASM if they have an implementation in LibExecution.
+    // Functions whose implementation is in StdLibCloudExecution can only be implemented on the server.
 
     // <remarks>
     // May throw an exception, though we're trying to get them to never throw exceptions.
