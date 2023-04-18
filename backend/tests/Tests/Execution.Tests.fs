@@ -672,6 +672,64 @@ let testLetPreview : Test =
           (Map.get yID result)
           (Some(AT.ExecutedResult(DInt 2L)))
           "y assigned correctly"
+      }
+
+      testTask "let (a, b, ((c, d), e)) = (1, 2, ((3, 4), 5)) in c" {
+        let lpID = gid ()
+        let aID = gid ()
+        let bID = gid ()
+        let cID = gid ()
+        let dID = gid ()
+        let eID = gid ()
+        let innerTupleID = gid ()
+        let outerTupleID = gid ()
+
+        let letPattern =
+          LPTuple(
+            lpID,
+            LPVariable(aID, "a"),
+            LPVariable(bID, "b"),
+            [ LPTuple(
+                outerTupleID,
+                LPTuple(innerTupleID, LPVariable(cID, "c"), LPVariable(dID, "d"), []),
+                LPVariable(eID, "e"),
+                []
+              ) ]
+          )
+
+        let assignExpr =
+          eTuple
+            (eInt 1)
+            (eInt 2)
+            [ eTuple (eTuple (eInt 3) (eInt 4) []) (eInt 5) [] ]
+        let retExpr = eVar "c"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+        Expect.equal
+          (Map.get aID result)
+          (Some(AT.ExecutedResult(DInt 1L)))
+          "a assigned correctly"
+
+        Expect.equal
+          (Map.get bID result)
+          (Some(AT.ExecutedResult(DInt 2L)))
+          "b assigned correctly"
+
+        Expect.equal
+          (Map.get cID result)
+          (Some(AT.ExecutedResult(DInt 3L)))
+          "c assigned correctly"
+
+        Expect.equal
+          (Map.get dID result)
+          (Some(AT.ExecutedResult(DInt 4L)))
+          "d assigned correctly"
+
+        Expect.equal
+          (Map.get eID result)
+          (Some(AT.ExecutedResult(DInt 5L)))
+          "e assigned correctly"
       } ]
 
 
