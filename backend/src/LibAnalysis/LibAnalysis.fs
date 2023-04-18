@@ -6,7 +6,6 @@ open System.Threading.Tasks
 open Prelude
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
