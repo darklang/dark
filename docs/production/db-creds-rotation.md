@@ -83,7 +83,7 @@ drop table check_its_working;
       - get the base64 for the new user: echo -n "userNEW" | base64
       - edit the secret: `kubectl edit secrets cloudsql-db-credentials -n darklang`
     - restart each service (least risky first):
-      - `kubectl rollout restart deployment exechost-deployment -n darklang`
+      - `kubectl rollout restart deployment prodexec-deployment -n darklang`
       - `kubectl rollout restart deployment queueworker-deployment -n darklang`
       - `kubectl rollout restart deployment bwdserver-deployment -n darklang`
     - check each starts up

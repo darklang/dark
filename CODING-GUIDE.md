@@ -91,7 +91,7 @@
   of your script, so that it fails instead of taking the service down.
   (CLEANUP: make this happen automatically)
 
-- migrations are run manually before deployment (using `ExecHost migrations run`)
+- migrations are run manually before deployment (using `ProdExec migrations run`)
 
 ### Initialization
 

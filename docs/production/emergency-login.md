@@ -6,7 +6,7 @@ login.darklang.com) is down, on-call will still need a way to log in.
 To do this, run:
 
 - `scripts/production/connect-to-exec host`
-- `./app/ExecHost emergency-login <username>`
+- `./app/ProdExec emergency-login <username>`
 
 This will:
 

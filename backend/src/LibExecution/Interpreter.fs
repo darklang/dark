@@ -51,7 +51,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   uply {
     match e with
-    | EString (_id, segments) ->
+    | EString (id, segments) ->
       let! result =
         segments
         |> Ply.List.foldSequentially
@@ -69,11 +69,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                      return
                        Error(
                          DError(
-                           sourceID _id,
+                           sourceID id,
                            "Expected string, got " + DvalReprDeveloper.toRepr dv
                          )
                        )
-                 | Error dv, _ -> return Error(dv)
+                 | Error dv, _ -> return Error dv
                })
              (Ok "")
       match result with
@@ -148,8 +148,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               | r, _, v -> return r
             })
           // TYPESCLEANUP
-          (DRecord(Map.empty))
+          (DRecord Map.empty)
           fields
+
 
     | EDict (id, fields) ->
       return!
@@ -160,7 +161,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               match (r, k, v) with
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
-              | _, "", _ -> return DError(sourceID id, "Record key is empty")
+              | _, "", _ -> return DError(sourceID id, "Dict key is empty")
               | DDict m, k, v -> return (DDict(Map.add k v m))
               // If we haven't got a DDict we're propagating an error so let it go
               | r, _, v -> return r
@@ -575,11 +576,13 @@ and executeLambda
     // provide this error message here. We don't have this information in
     // other places, and the alternative is just to provide incompletes
     // with no context
-    if List.length l.parameters <> List.length args then
+    let expectedLength = List.length l.parameters
+    let actualLength = List.length args
+    if expectedLength <> actualLength then
       Ply(
         DError(
           SourceNone,
-          $"Expected {List.length l.parameters} arguments, got {List.length args}"
+          $"Expected {expectedLength} arguments, got {actualLength}"
         )
       )
     else
@@ -708,26 +711,9 @@ and execFn
 
       let fnRecord = (state.tlid, fnDesc, id) in
 
-      let badArg =
-        List.tryFind
-          (fun expr ->
-            match expr with
-            // CLEANUP: does anyone use Bool.isError?
-            | DError _ when
-              fnDesc = FQFnName.Stdlib
-                         { module_ = "Bool"; function_ = "isError"; version = 0 }
-              ->
-              // TODO: state.notify here, then check a month later, to evaluate and then delete
-              false
-            | DError _
-            | DIncomplete _ -> true
-            | _ -> false)
-          arglist
-
-      match badArg with
-      | Some (DIncomplete src) -> return DIncomplete src
-      | Some (DError _ as err) -> return err
-      | _ ->
+      match List.tryFind Dval.isFake arglist with
+      | Some fake -> return fake
+      | None ->
         match fn.fn with
         | StdLib f ->
           if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then

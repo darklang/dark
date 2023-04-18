@@ -189,12 +189,12 @@ module ValueMissingColumnGivesGoodError =
 module SetDoesUpsert =
   (let old = DB.set_v1 (X { x = "hello" }) "hello" XDB in
   let newval = DB.set_v1 (X { x = "goodbye" }) "hello" XDB in
-  DB.getAllWithKeys_v2 XDB) = { hello = X { x = "goodbye"} }
+  DB.getAllWithKeys_v2 XDB) = Dict { hello = X { x = "goodbye"} }
 
 module SetCharUpserts =
   (let old = DB.set_v1 (X { x = 'a' }) "a" ZDB in
   let newval = DB.set_v1 (X { x = 'b' }) "a" ZDB in
-  DB.getAllWithKeys_v2 ZDB) = { a = X { x = 'b'} }
+  DB.getAllWithKeys_v2 ZDB) = Dict { a = X { x = 'b'} }
 
 
 
@@ -273,18 +273,18 @@ module GetMany =
 module Delete =
   (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
    let delete = DB.delete_v1 "one" XDB in
-   DB.getAllWithKeys_v2 XDB) = {}
+   DB.getAllWithKeys_v2 XDB) = Dict {}
 
   // delete nothing
   (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
    let delete = DB.delete_v1 "two" XDB in
-   DB.getAllWithKeys_v2 XDB) = { one = (X { x = "hello"}) }
+   DB.getAllWithKeys_v2 XDB) = Dict { one = (X { x = "hello"}) }
 
   // deletes only one
   (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in
    let two = DB.set_v1 (X { x = "goodbye" }) "two" XDB in
    let delete = DB.delete_v1 "one" XDB in
-   DB.getAllWithKeys_v2 XDB) = { two = (X { x = "goodbye"}) }
+   DB.getAllWithKeys_v2 XDB) = Dict { two = (X { x = "goodbye"}) }
 
 module DeleteAll =
   (let one = DB.set_v1 (X { x = "hello"}) "one" XDB in

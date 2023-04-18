@@ -1,4 +1,5 @@
-module Cli.Main
+/// Run scripts locally using some builtin F#/dotnet libraries
+module LocalExec
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -11,35 +12,6 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module StdLibCli = StdLibCli.StdLib
-
-// ---------------------
-// Version information
-// ---------------------
-
-type VersionInfo = { hash : string; buildDate : string; inDevelopment : bool }
-
-#if DEBUG
-let inDevelopment : bool = true
-#else
-let inDevelopment : bool = false
-#endif
-
-open System.Reflection
-
-let info () =
-  let buildAttributes =
-    Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // This reads values created during the build in Executor.fsproj
-  // It doesn't feel like this is how it's supposed to be used, but it works. But
-  // what if we wanted more than two parameters?
-  let buildDate = buildAttributes.Key
-  let gitHash = buildAttributes.Value
-  { hash = gitHash; buildDate = buildDate; inDevelopment = inDevelopment }
-
-
-// ---------------------
-// Execution
-// ---------------------
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
   LibExecutionStdLib.StdLib.types
@@ -98,13 +70,22 @@ let execute
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
+
+
+
 let initSerializers () = Json.Vanilla.allow<pos> "Prelude"
 
 [<EntryPoint>]
-let main (args : string []) =
+let main (args : string []) : int =
+  let name = "LocalExec"
   try
     initSerializers ()
-    let mainFile = "/home/dark/app/backend/experiments/cli/program.dark"
+    LibService.Init.init name
+    LibService.Telemetry.Console.loadTelemetry
+      name
+      LibService.Telemetry.DontTraceDBQueries
+    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    let mainFile = "/home/dark/app/backend/src/LocalExec/main.dark"
     let mod' = Parser.CanvasV2.parseFromFile Map.empty mainFile
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
     let result = execute mod' (Map [ "args", args ])
@@ -116,9 +97,12 @@ let main (args : string []) =
     | RT.DInt i -> (int i)
     | dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
-      System.Console.WriteLine "Error: main function must return an int"
+      System.Console.WriteLine
+        $"Error: main function must return an int, not {output}"
       1
   with
   | e ->
-    printException "Error starting cli" [] e
+    // Don't reraise or report as ProdExec is only run interactively
+    printException "" [] e
+    // LibService.Init.shutdown name
     1

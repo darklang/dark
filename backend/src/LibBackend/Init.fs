@@ -44,7 +44,7 @@ type WaitForDB =
 ///
 /// <remarks> This function does not do any behaviour which accesses DB tables and
 /// data, as the DB might not be migrated to it's correct form at this point (eg in
-/// the test of dev environment). This is called by ExecHost, which does the
+/// the test of dev environment). This is called by ProdExec, which does the
 /// migration. You cannot expect the DB to be ready when LibBackend is initialized -
 /// call `waitForDB` if you need that.</remarks>
 let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =

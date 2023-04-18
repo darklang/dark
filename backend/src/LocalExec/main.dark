@@ -1,0 +1,11 @@
+let main () : Int =
+  let dir = "packages/darklang/stdlib"
+  do
+    dir
+    |> Directory.list
+    |> List.filter_v2 (fun x -> x |> String.endsWith ".dark")
+    |> String.join ", "
+    |> print
+  0
+
+main ()

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+PUBLISHED=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --published)
+    PUBLISHED=true
+    shift
+    ;;
+  esac
+done
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  EXE="backend/Build/out/ProdExec/Release/net7.0/linux-x64/publish/ProdExec"
+else
+  EXE="backend/Build/out/ProdExec/Debug/net7.0/linux-x64/ProdExec"
+fi
+
+"${EXE}" "$@"
