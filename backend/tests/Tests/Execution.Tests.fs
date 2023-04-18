@@ -410,14 +410,17 @@ let testMatchPreview : Test =
   let pBoolId, boolRhsId = gid (), gid ()
   let pStrId, strRhsId = gid (), gid ()
   let pUnitId, unitRhsId = gid (), gid ()
+  let pTupleId, tupleRhsId = gid (), gid ()
 
   let (pOkVarOkId,
        pOkVarVarId,
        okVarRhsId,
        binopFnValId,
        okVarRhsVarId,
-       okVarRhsStrId) =
-    gid (), gid (), gid (), gid (), gid (), gid ()
+       okVarRhsStrId,
+       pTupleIdX,
+       pTupleIdY) =
+    gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
 
   let pNothingId, nothingRhsId = gid (), gid ()
   let pVarId, varRhsId = gid (), gid ()
@@ -437,6 +440,10 @@ let testMatchPreview : Test =
 
       // | () -> "unit"
       (MPUnit(pUnitId), EString(unitRhsId, [ StringText "unit" ]))
+
+      // | (2, y) -> "tuple"
+      (MPTuple(pTupleId, MPInt(pTupleIdX, 2L), MPVariable(pTupleIdY, "y"), []),
+       EString(tupleRhsId, [ StringText "tuple" ]))
 
       // | Ok x -> "ok: " ++ x
       (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
@@ -588,6 +595,15 @@ let testMatchPreview : Test =
           (okVarRhsId, "rhs", er (DString "ok: y"))
           (okVarRhsVarId, "rhs", er (DString "y"))
           (okVarRhsStrId, "str", er (DString "ok: ")) ]
+
+      t
+        "tuple match"
+        (eTuple (eInt 2) (eStr "sample") [])
+        [ (pTupleId, "matching pat", er (DTuple(DInt 2L, DString "sample", [])))
+          (tupleRhsId, "matching rhs", er (DString "tuple"))
+
+          (pVarId, "2nd matching pat", ner (DTuple(DInt 2L, DString "sample", [])))
+          (varRhsId, "2nd matching rhs", ner (DTuple(DInt 2L, DString "sample", []))) ]
 
       t
         "nothing"
