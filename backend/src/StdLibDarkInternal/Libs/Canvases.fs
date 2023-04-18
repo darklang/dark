@@ -1,5 +1,5 @@
 /// StdLib functions for building Dark functionality via Dark canvases
-module StdLibDarkInternal.Libs.DarkInternal
+module StdLibDarkInternal.Libs.Canvases
 
 open System.Threading.Tasks
 
@@ -92,40 +92,11 @@ let types : List<BuiltInType> =
                   TCustomType(FQTypeName.Stdlib(typ "Canvas" "HttpHandler" 0), [])
                 ) } ]
         )
-      description = "A program on a canvas" }
-    { name = typ "Canvas" "F404" 0
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { id = 1UL; name = "space"; typ = TString },
-          [ { id = 3UL; name = "path"; typ = TString }
-            { id = 4UL; name = "modifier"; typ = TString }
-            { id = 5UL; name = "timestamp"; typ = TDateTime }
-            { id = 6UL; name = "traceID"; typ = TUuid } ]
-        )
-      description = "A 404 trace" } ]
+      description = "A program on a canvas" } ]
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "createUser" 0
-      typeParams = []
-      parameters = []
-      returnType = TUuid
-      description = "Creates a user, and returns their userID."
-      fn =
-        internalFn (function
-          | _, _, [] ->
-            uply {
-              let! canvasID = Account.createUser ()
-              return DUuid canvasID
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getAllCanvasIDs" 0
+  [ { name = fn "DarkInternal" "getAllCanvasIDs" 0
       typeParams = []
       parameters = []
       returnType = TList TUuid
@@ -136,6 +107,24 @@ let fns : List<BuiltInFn> =
             uply {
               let! hosts = Canvas.allCanvasIDs ()
               return hosts |> List.map DUuid |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "DarkInternal" "createCanvas" 0
+      typeParams = []
+      parameters = [ Param.make "owner" TUuid ""; Param.make "name" TString "" ]
+      returnType = TUuid
+      description = "Creates a new canvas"
+      fn =
+        internalFn (function
+          | _, _, [ DUuid owner; DString name ] ->
+            uply {
+              let! canvasID = Canvas.create owner name
+              return DUuid canvasID
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -161,31 +150,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "dbs" 0
-      typeParams = []
-      parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList TString
-      description = "Returns a list of toplevel ids of dbs in <param canvasName>"
-      fn =
-        internalFn (function
-          | _, _, [ DUuid canvasID ] ->
-            uply {
-              let! dbTLIDs =
-                Sql.query
-                  "SELECT tlid
-                     FROM toplevel_oplists_v0
-                    WHERE canvas_id = @canvasID
-                      AND tipe = 'db'"
-                |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-                |> Sql.executeAsync (fun read -> read.tlid "tlid")
-              return dbTLIDs |> List.map int64 |> List.map DInt |> DList
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
+    // ---------------------
+    // Domains
+    // ---------------------
     { name = fn "DarkInternal" "domainsForCanvasID" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
@@ -224,205 +191,8 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "log" 0
-      typeParams = []
-      parameters =
-        [ Param.make "level" TString ""
-          Param.make "name" TString ""
-          Param.make "log" (TDict TString) "" ]
-      returnType = TDict TString
-      description =
-        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
-      fn =
-        internalFn (function
-          | _, _, [ DString level; DString name; DDict log as result ] ->
-            let args =
-              log
-              |> Map.toList
-              // We could just leave the dval vals as strings and use params, but
-              // then we can't do numeric things (MAX, AVG, >, etc) with these
-              // logs
-              |> List.map (fun (k, v) -> (k, DvalReprDeveloper.toRepr v :> obj))
-            Telemetry.addEvent name (("level", level) :: args)
-            Ply result
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "allFunctions" 0
-      typeParams = []
-      parameters = []
-      returnType = TList varA
-      description =
-        "Returns a list of objects, representing the functions available in the standard library. Does not return DarkInternal functions"
-      fn =
-        let rec typeName (t : TypeReference) : string =
-          match t with
-          | TInt -> "Int"
-          | TFloat -> "Float"
-          | TBool -> "Bool"
-          | TUnit -> "Unit"
-          | TChar -> "Char"
-          | TString -> "String"
-          | TList _ -> "List"
-          | TTuple _ -> "Tuple"
-          | TDict _ -> "Dict"
-          | TFn _ -> "block"
-          | TVariable _ -> "Any"
-          | THttpResponse _ -> "Response"
-          | TDB _ -> "Datastore"
-          | TDateTime -> "DateTime"
-          | TPassword -> "Password"
-          | TUuid -> "Uuid"
-          | TOption _ -> "Option"
-          | TResult _ -> "Result"
-          | TBytes -> "Bytes"
-          | TCustomType (t, typeArgs) ->
-            let typeArgsPortion =
-              match typeArgs with
-              | [] -> ""
-              | args ->
-                args
-                |> List.map (fun t -> typeName t)
-                |> String.concat ", "
-                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
-
-            match t with
-            | FQTypeName.Stdlib t ->
-              $"{t.module_}.{t.typ}_v{t.version}" + typeArgsPortion
-            | FQTypeName.User t -> $"{t.typ}_v{t.version}" + typeArgsPortion
-            | FQTypeName.Package t ->
-              $"{t.owner}/{t.package}/{t.module_}{t.typ}_v{t.version}"
-              + typeArgsPortion
-
-        internalFn (function
-          | state, _, [] ->
-            state.libraries.stdlibFns
-            |> Map.toList
-            |> List.filter (fun (key, data) ->
-              (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)
-            |> List.map (fun (key, data) ->
-              let alist =
-                let returnType = typeName data.returnType
-                let parameters =
-                  data.parameters
-                  |> List.map (fun p ->
-                    Dval.record [ ("name", DString p.name)
-                                  ("type", DString(typeName p.typ)) ])
-                [ ("name", DString(FQFnName.toString key))
-                  ("documentation", DString data.description)
-                  ("parameters", DList parameters)
-                  ("returnType", DString returnType) ]
-              Dval.record alist)
-            |> DList
-            |> Ply
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getAndLogTableSizes" 0
-      typeParams = []
-      parameters = []
-      returnType = TDict(varA)
-      // returnType = varA CLEANUP
-      description =
-        "Query the postgres database for the current size (disk + rowcount) of all
-tables. This uses pg_stat, so it is fast but imprecise. This function is logged
-in OCaml; its primary purpose is to send data to honeycomb, but also gives
-human-readable data."
-      fn =
-        internalFn (function
-          | _, _, [] ->
-            uply {
-              let! tableStats = Db.tableStats ()
-              // Send events to honeycomb. We could save some events by sending
-              // these all as a single event - tablename.disk = 1, etc - but
-              // by having an event per table, it's easier to query and graph:
-              // `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`.
-              // (Also, if/when we add more tables, the graph-query doesn't need
-              // to be updated)
-              //
-              // There are ~40k minutes/month, and 20 tables, so a 1/min cron
-              // would consume 80k of our 1.5B monthly events. That seems
-              // reasonable.
-              tableStats
-              |> List.iter (fun ts ->
-                Telemetry.addEvent
-                  "postgres_table_sizes"
-                  [ ("relation", ts.relation)
-                    ("disk_bytes", ts.diskBytes)
-                    ("rows", ts.rows)
-                    ("disk_human", ts.diskHuman)
-                    ("rows_human", ts.rowsHuman) ])
-              // Reformat a bit for human-usable dval output.
-              // - Example from my local dev: {
-              //     Total: {
-              //       disk: 835584,
-              //       diskHuman: "816 kB",
-              //       rows: 139,
-              //       rowsHuman: 139
-              //     },
-              //     access: {...},
-              //     ...
-              // }
-              return
-                tableStats
-                |> List.map (fun ts ->
-                  (ts.relation,
-                   [ ("disk_bytes", DInt(ts.diskBytes))
-                     ("rows", DInt(ts.rows))
-                     ("disk_human", DString ts.diskHuman)
-                     ("rows_human", DString ts.rowsHuman) ]
-                   |> Map
-                   |> DDict))
-                |> Map
-                |> DDict
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "raiseInternalException" 0
-      typeParams = []
-      parameters = [ Param.make "argument" varA "Added as a tag" ]
-      returnType = TUnit
-      description =
-        "Raise an internal exception inside Dark. This is intended to test exceptions
-        and exception tracking, not for any real use."
-      fn =
-        internalFn (function
-          | _, _, [ arg ] ->
-            Exception.raiseInternal
-              "DarkInternal::raiseInternalException"
-              [ "arg", arg ]
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "serverBuildHash" 0
-      typeParams = []
-      parameters = []
-      returnType = TString
-      description = "Returns the git hash of the server's current deploy"
-      fn =
-        internalFn (function
-          | _, _, [] -> uply { return DString LibService.Config.buildHash }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     // ---------------------
-    // Apis - 404s
+    // 404s
     // ---------------------
     { name = fn "DarkInternal" "delete404" 0
       typeParams = []
@@ -479,7 +249,7 @@ human-readable data."
 
 
     // ---------------------
-    // Apis - secrets
+    // Secrets
     // ---------------------
     { name = fn "DarkInternal" "getSecrets" 0
       typeParams = []
@@ -550,7 +320,7 @@ human-readable data."
 
 
     // ---------------------
-    // Apis - toplevels
+    // Toplevels
     // ---------------------
     { name = fn "DarkInternal" "deleteToplevelForever" 0
       typeParams = []
@@ -581,8 +351,34 @@ human-readable data."
 
 
     // ---------------------
-    // Apis - DBs
+    // DBs
     // ---------------------
+    { name = fn "DarkInternal" "dbs" 0
+      typeParams = []
+      parameters = [ Param.make "canvasID" TUuid "" ]
+      returnType = TList TString
+      description = "Returns a list of toplevel ids of dbs in <param canvasName>"
+      fn =
+        internalFn (function
+          | _, _, [ DUuid canvasID ] ->
+            uply {
+              let! dbTLIDs =
+                Sql.query
+                  "SELECT tlid
+                     FROM toplevel_oplists_v0
+                    WHERE canvas_id = @canvasID
+                      AND tipe = 'db'"
+                |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+                |> Sql.executeAsync (fun read -> read.tlid "tlid")
+              return dbTLIDs |> List.map int64 |> List.map DInt |> DList
+            }
+          | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+
     { name = fn "DarkInternal" "unlockedDBs" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
@@ -602,7 +398,7 @@ human-readable data."
 
 
     // ---------------------
-    // Apis - workers
+    // Workers
     // ---------------------
     { name = fn "DarkInternal" "getQueueCount" 0
       typeParams = []
@@ -616,24 +412,6 @@ human-readable data."
               let tlid = uint64 tlid
               let! count = Stats.workerStats canvasID tlid
               return DInt count
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "getAllSchedulingRules" 0
-      typeParams = []
-      parameters = []
-      returnType = TList varA
-      description = "Returns a list of all queue scheduling rules"
-      fn =
-        internalFn (function
-          | _, _, [] ->
-            uply {
-              let! rules = SchedulingRules.getAllSchedulingRules ()
-              return rules |> List.map SchedulingRules.SchedulingRule.toDval |> DList
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -686,6 +464,10 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
+
+    // ---------------------
+    // Programs
+    // ---------------------
     { name = fn "DarkInternal" "getOpsForToplevel" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
@@ -704,24 +486,6 @@ human-readable data."
               | [ (_tlid, ops) ] ->
                 return ops |> List.map (string >> DString) |> DList
               | _ -> return DList []
-            }
-          | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "DarkInternal" "createCanvas" 0
-      typeParams = []
-      parameters = [ Param.make "owner" TUuid ""; Param.make "name" TString "" ]
-      returnType = TUuid
-      description = "Creates a new canvas"
-      fn =
-        internalFn (function
-          | _, _, [ DUuid owner; DString name ] ->
-            uply {
-              let! canvasID = Canvas.create owner name
-              return DUuid canvasID
             }
           | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

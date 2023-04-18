@@ -9,7 +9,17 @@ let fn = RT.FQFnName.stdlibFnName
 
 let renames = []
 
-let types : List<RT.BuiltInType> = [ Libs.DarkInternal.types ] |> List.concat
+let types : List<RT.BuiltInType> =
+  [ Libs.Infra.types
+    Libs.UserManagement.types
+    Libs.Canvases.types
+    Libs.Documentation.types ]
+  |> List.concat
 
 let fns : List<RT.BuiltInFn> =
-  [ Libs.DarkInternal.fns ] |> List.concat |> RT.renameFunctions renames
+  [ Libs.Infra.fns
+    Libs.UserManagement.fns
+    Libs.Canvases.fns
+    Libs.Documentation.fns ]
+  |> List.concat
+  |> RT.renameFunctions renames
