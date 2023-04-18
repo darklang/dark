@@ -429,7 +429,7 @@ let _handler _request =
     // note: this returns a Result<String, String>
     // (upon success, the dval result is serialized into a "dev-friendly representation" string)
     let evalResponse =
-      DarkEditor.parseAndExecuteExpr req.userCode req.userInput
+      Experiments.parseAndExecuteExpr req.userCode req.userInput
 
     match evalResponse with
     | Ok resp ->

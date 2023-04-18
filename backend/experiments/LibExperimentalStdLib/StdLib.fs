@@ -16,4 +16,4 @@ let renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName> =
 let types : List<PT.BuiltInType> = [] |> List.concat
 
 let fns : List<BuiltInFn> =
-  [ LibDarkEditor.fns ] |> List.concat |> renameFunctions renames
+  [ LibExperiments.fns ] |> List.concat |> renameFunctions renames

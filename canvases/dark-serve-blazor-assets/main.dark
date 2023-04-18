@@ -1,8 +1,7 @@
 [<HttpHandler("GET", "/:path")>]
 let _handler _req =
   let body =
-    $"{Directory.pwd}/backend/static/dark_wasm/_framework/{path}"
-    |> File.read
+    (Experiments.readFromStaticDir $"dark_wasm/_framework/{path}")
     |> Result.withDefault Bytes.empty
 
   let contentType =
