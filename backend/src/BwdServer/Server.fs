@@ -101,31 +101,6 @@ let getBody (ctx : HttpContext) : Task<byte array> =
   }
 
 
-open Microsoft.AspNetCore.StaticFiles
-open Microsoft.Extensions.FileProviders
-
-let configureStaticContent (app : IApplicationBuilder) : IApplicationBuilder =
-  let contentTypeProvider = FileExtensionContentTypeProvider()
-  // See also scripts/deployment/_push-assets-to-cdn
-  contentTypeProvider.Mappings[ ".wasm" ] <- "application/wasm"
-  contentTypeProvider.Mappings[ ".pdb" ] <- "text/plain"
-  contentTypeProvider.Mappings[ ".dll" ] <- "application/octet-stream"
-  contentTypeProvider.Mappings[ ".dat" ] <- "application/octet-stream"
-  contentTypeProvider.Mappings[ ".blat" ] <- "application/octet-stream"
-
-  app.UseStaticFiles(
-    StaticFileOptions(
-      ServeUnknownFileTypes = true,
-      FileProvider =
-        new PhysicalFileProvider("/home/dark/app/backend/static/dark_wasm"),
-      OnPrepareResponse =
-        (fun ctx ->
-          ctx.Context.Response.Headers[ "Access-Control-Allow-Origin" ] <-
-            StringValues([| "*" |])),
-      ContentTypeProvider = contentTypeProvider
-    )
-  )
-
 // ---------------
 // Responses
 // ---------------
@@ -453,7 +428,6 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> fun app -> app.UseRouting()
   // must go after UseRouting
   |> Kubernetes.configureApp healthCheckPort
-  |> configureStaticContent
   |> fun app -> app.Run(RequestDelegate handler)
 
 let configureServices (services : IServiceCollection) : unit =

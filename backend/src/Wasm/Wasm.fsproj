@@ -24,6 +24,7 @@
     <!-- should optimize the download slightly -->
     <!-- <BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport> -->
   </PropertyGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../Parser/Parser.fsproj" />
@@ -31,9 +32,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="WasmHelpers.fs" />
-    <Compile Include="DarkEditor.fs" />
     <Compile Include="Init.fs" />
+    <Compile Include="DarkEditor.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

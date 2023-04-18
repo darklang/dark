@@ -106,53 +106,6 @@ let performAnalysis
      analysisRequest.requestTime))
 
 
-let simpleEval (expr : RT.Expr) : Task<RT.Dval> =
-  task {
-    let program : RT.ProgramContext =
-      { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
-        userFns = Map.empty // request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
-        userTypes = Map.empty //request.userTypes |> List.map (fun t -> t.name, t) |> Map
-        dbs = Map.empty //request.dbs |> List.map (fun t -> t.name, t) |> Map
-        secrets = [] } //request.secrets }
-
-    let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-      LibExecutionStdLib.StdLib.types
-      |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
-      |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-
-    let stdlibFns =
-      LibExecutionStdLib.StdLib.fns
-      |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-
-    let packageFns = Map.empty //request.packageFns |> Map.fromListBy (fun fn -> RT.FQFnName.Package fn.name)
-
-    let libraries : RT.Libraries =
-      { stdlibTypes = stdlibTypes; stdlibFns = stdlibFns; packageFns = packageFns }
-    let results, traceDvalFn = Exe.traceDvals ()
-    let functionResults = [] //request.traceData.functionResults
-
-    let tracing =
-      { LibExecution.Execution.noTracing RT.Preview with
-          traceDval = traceDvalFn
-          loadFnResult = Eval.loadFromTrace functionResults }
-
-    let state =
-      Exe.createState
-        libraries
-        tracing
-        RT.consoleReporter // TODO: review
-        RT.consoleNotifier // TODO: review
-        (gid ())
-        program
-
-    let inputVars = Map.empty //Map request.traceData.input
-    let! (result : RT.Dval) = Exe.executeExpr state inputVars expr
-    // TODO: use traces in `results`
-    return result
-  }
-
-
 let initSerializers () =
   // allow universally-serializable types
   Json.Vanilla.allow<pos> "Prelude"
