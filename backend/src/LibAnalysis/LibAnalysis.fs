@@ -53,7 +53,6 @@ module Eval =
 
       let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
         StdLibExecution.StdLib.types
-        |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
         |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
       let stdlibFns =

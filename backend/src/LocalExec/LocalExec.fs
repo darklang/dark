@@ -15,7 +15,6 @@ module StdLibCli = StdLibCli.StdLib
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
   StdLibExecution.StdLib.types
-  |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
