@@ -5,11 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <OtherFlags>--warnaserror</OtherFlags>
     <PublishTrimmed>true</PublishTrimmed>
-
     <!-- Things that were uncommented in classic-dark -->
     <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
     <!-- <BlazorEnableCompression>false</BlazorEnableCompression> -->
-
     <!-- Things that were commented in classic-dark -->
     <!-- <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings> -->
     <!-- <EmccCompileOptimizationFlag>-O0 -s ASSERTIONS=2 -s STACK_OVERFLOW_CHECK=2 -s SAFE_HEAP=1</EmccCompileOptimizationFlag> -->
@@ -24,7 +22,6 @@
     <!-- should optimize the download slightly -->
     <!-- <BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport> -->
   </PropertyGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../Parser/Parser.fsproj" />
@@ -36,4 +33,5 @@
     <Compile Include="DarkEditor.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

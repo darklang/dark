@@ -6,11 +6,8 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 open Utils
 
-let parseExprWithTypes
-  (availableTypes : AvailableTypes)
-  (code : string)
-  : LibExecution.RuntimeTypes.Expr =
-  ProgramTypes.parseExprWithTypes availableTypes code
+let parseExprWithTypes (code : string) : LibExecution.RuntimeTypes.Expr =
+  ProgramTypes.parseExprWithTypes code
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
-let parseExpr = parseExprWithTypes Map.empty
+let parseExpr = parseExprWithTypes

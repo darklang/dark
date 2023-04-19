@@ -201,17 +201,8 @@ let fileTests () : Test =
       testList $"skipped - {testName}" []
     else
       try
-        let stdlibTypes =
-          StdLibExecution.StdLib.types
-          @ StdLibCloudExecution.StdLib.types @ TestUtils.LibMaybe.types
-          // @ StdLibDarkInternal.StdLib.types
-          |> List.map (fun typ ->
-            let typeName = PT.FQTypeName.Stdlib typ.name
-            PT.FQTypeName.toString typeName, (typeName, typ.definition))
-          |> Map
-
         (baseDir + filename)
-        |> Parser.TestModule.parseTestFile stdlibTypes
+        |> Parser.TestModule.parseTestFile
         |> moduleToTests testName
       with
       | e ->

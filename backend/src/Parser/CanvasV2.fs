@@ -51,14 +51,10 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
 
 /// Update a CanvasModule by parsing a single F# let binding
 /// Depending on the attribute present, this may add a user function, a handler, or a DB
-let parseLetBinding
-  (availableTypes : AvailableTypes)
-  (m : CanvasModule)
-  (letBinding : SynBinding)
-  : CanvasModule =
+let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule =
   match letBinding with
   | SynBinding (_, _, _, _, attrs, _, _, pat, _returnInfo, expr, _, _, _) ->
-    let expr = ProgramTypes.Expr.fromSynExpr availableTypes expr
+    let expr = ProgramTypes.Expr.fromSynExpr expr
 
     let attrs = attrs |> List.collect (fun l -> l.Attributes)
 
@@ -67,7 +63,7 @@ let parseLetBinding
 
     match attrs with
     | [] ->
-      let newFn = ProgramTypes.UserFunction.fromSynBinding availableTypes letBinding
+      let newFn = ProgramTypes.UserFunction.fromSynBinding letBinding
       { m with fns = newFn :: m.fns }
 
     | [ attr ] ->
@@ -110,10 +106,7 @@ let parseLetBinding
 
 
 module UserDB =
-  let fromSynTypeDefn
-    (availableTypes : AvailableTypes)
-    (typeDef : SynTypeDefn)
-    : PT.DB.T =
+  let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.DB.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
@@ -127,15 +120,11 @@ module UserDB =
       { tlid = gid ()
         name = id.idText
         version = 0
-        typ = Parser.ProgramTypes.TypeReference.fromSynType availableTypes typ }
+        typ = Parser.ProgramTypes.TypeReference.fromSynType typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
-let parseTypeDefn
-  (availableTypes : AvailableTypes)
-  (m : CanvasModule)
-  (typeDefn : SynTypeDefn)
-  : CanvasModule =
+let parseTypeDefn (m : CanvasModule) (typeDefn : SynTypeDefn) : CanvasModule =
   match typeDefn with
   | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
     let isDB =
@@ -146,9 +135,9 @@ let parseTypeDefn
 
     let (newDBs, newTypes) =
       if isDB then
-        [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
+        [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ Parser.ProgramTypes.UserType.fromSynTypeDefn availableTypes typeDefn ]
+        [], [ Parser.ProgramTypes.UserType.fromSynTypeDefn typeDefn ]
 
     { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
@@ -167,31 +156,19 @@ let parseTypeDefn
 ///   or as DBs (i.e. with `[<DB>] DBName = Type`)
 /// - ? expressions are parsed as init commands (not currently supported)
 /// - anything else fails
-let parseDecls
-  (availableTypes : AvailableTypes)
-  (decls : List<SynModuleDecl>)
-  : CanvasModule =
+let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
   List.fold
     emptyModule
     (fun m decl ->
-      let availableTypes =
-        m.types
-        |> List.map (fun t ->
-          let typeName = PT.FQTypeName.User t.name
-          (PT.FQTypeName.toString typeName, (typeName, t.definition)))
-        |> Map
-        |> Map.mergeFavoringRight availableTypes
-
       match decl with
       | SynModuleDecl.Let (_, bindings, _) ->
-        List.fold m (fun m b -> parseLetBinding availableTypes m b) bindings
+        List.fold m (fun m b -> parseLetBinding m b) bindings
 
       | SynModuleDecl.Types (defns, _) ->
-        List.fold m (fun m d -> parseTypeDefn availableTypes m d) defns
+        List.fold m (fun m d -> parseTypeDefn m d) defns
 
       | SynModuleDecl.Expr (expr, _) ->
-        { m with
-            exprs = m.exprs @ [ ProgramTypes.Expr.fromSynExpr availableTypes expr ] }
+        { m with exprs = m.exprs @ [ ProgramTypes.Expr.fromSynExpr expr ] }
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
@@ -205,10 +182,7 @@ let postProcessModule (m : CanvasModule) : CanvasModule =
       fns = m.fns |> List.map (fun f -> { f with body = fixup f.body }) }
 
 
-let parseFromFile
-  (availableTypes : AvailableTypes)
-  (filename : string)
-  : CanvasModule =
+let parseFromFile (filename : string) : CanvasModule =
   let parsedAsFSharp =
     filename |> System.IO.File.ReadAllText |> parseAsFSharpSourceFile
 
@@ -228,4 +202,4 @@ let parseFromFile
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
 
-  decls |> parseDecls availableTypes |> postProcessModule
+  decls |> parseDecls |> postProcessModule
