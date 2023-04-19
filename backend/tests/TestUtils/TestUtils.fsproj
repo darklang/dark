@@ -17,7 +17,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="RTShortcuts.fs" />
-    <Compile Include="LibMaybe.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />
   </ItemGroup>
