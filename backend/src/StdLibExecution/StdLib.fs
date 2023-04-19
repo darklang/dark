@@ -3,17 +3,16 @@ module StdLibExecution.StdLib
 open Prelude
 open LibExecution.RuntimeTypes
 
+
 module PT = LibExecution.ProgramTypes
 
-
-let fn = FQFnName.stdlibFnName
 
 let renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName> =
   // old names, new names
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let types : List<PT.BuiltInType> = [] |> List.concat
+let types : List<BuiltInType> = [] |> List.concat
 
 let fns : List<BuiltInFn> =
   [ LibBool.fns
@@ -39,4 +38,4 @@ let fns : List<BuiltInFn> =
     LibTuple2.fns
     LibTuple3.fns ]
   |> List.concat
-  |> renameFunctions renames
+  |> LibExecution.StdLib.renameFunctions renames

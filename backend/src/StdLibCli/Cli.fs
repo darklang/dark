@@ -17,6 +17,7 @@ let incorrectArgs = Errors.incorrectArgs
 
 let varA = TVariable "a"
 
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "" "print" 0

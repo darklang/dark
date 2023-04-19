@@ -3,31 +3,25 @@ module StdLibDarkInternal.Libs.Infra
 
 open System.Threading.Tasks
 
-open Npgsql.FSharp
-open LibBackend.Db
-
 open Prelude
-
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-module PT = LibExecution.ProgramTypes
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
 
-open LibBackend
-module SchedulingRules = LibBackend.QueueSchedulingRules
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
-
-let varA = TVariable "a"
-let varB = TVariable "b"
-
-
-let types : List<BuiltInType> = []
+let types : List<BuiltInType> =
+  [ { name = typ "DarkInternal" "TableSize" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 1UL; name = "disk"; typ = TFloat },
+          [ { id = 2UL; name = "rows"; typ = TFloat }
+            { id = 3UL; name = "diskHuman"; typ = TString }
+            { id = 4UL; name = "rowsHuman"; typ = TString } ]
+        )
+      description = "Size info for Postgres tables" } ]
 
 
 let fns : List<BuiltInFn> =
@@ -61,18 +55,17 @@ let fns : List<BuiltInFn> =
     { name = fn "DarkInternal" "getAndLogTableSizes" 0
       typeParams = []
       parameters = []
-      returnType = TDict varA
-      // returnType = varA CLEANUPTYPES
+      returnType = TDict(stdlibTypeRef "DarkInternal" "TableSize" 0)
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
-in OCaml; its primary purpose is to send data to honeycomb, but also gives
+via the backend; its primary purpose is to send data to Honeycomb, but also gives
 human-readable data."
       fn =
         (function
         | _, _, [] ->
           uply {
-            let! tableStats = Db.tableStats ()
+            let! tableStats = LibBackend.Db.tableStats ()
             // Send events to honeycomb. We could save some events by sending
             // these all as a single event - tablename.disk = 1, etc - but
             // by having an event per table, it's easier to query and graph:
@@ -92,17 +85,6 @@ human-readable data."
                   ("rows", ts.rows)
                   ("disk_human", ts.diskHuman)
                   ("rows_human", ts.rowsHuman) ])
-            // Reformat a bit for human-usable dval output.
-            // - Example from my local dev: {
-            //     Total: {
-            //       disk: 835584,
-            //       diskHuman: "816 kB",
-            //       rows: 139,
-            //       rowsHuman: 139
-            //     },
-            //     access: {...},
-            //     ...
-            // }
             return
               tableStats
               |> List.map (fun ts ->
@@ -124,7 +106,7 @@ human-readable data."
 
     { name = fn "DarkInternal" "raiseInternalException" 0
       typeParams = []
-      parameters = [ Param.make "argument" varA "Added as a tag" ]
+      parameters = [ Param.make "argument" (TVariable "a") "Added as a tag" ]
       returnType = TUnit
       description =
         "Raise an internal exception inside Dark. This is intended to test exceptions

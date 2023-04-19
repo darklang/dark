@@ -13,7 +13,7 @@ let fn = RT.FQFnName.stdlibFnName
 
 let renames = []
 
-let types : List<PT.BuiltInType> = [] |> List.concat
+let types : List<RT.BuiltInType> = [] |> List.concat
 
 let fns : List<RT.BuiltInFn> =
   [ Libs.DB.fns
@@ -22,4 +22,4 @@ let fns : List<RT.BuiltInFn> =
     Libs.Password.fns // move to StdLibExecution?
     Libs.X509.fns ] // move to StdLibExecution?
   |> List.concat
-  |> RT.renameFunctions renames
+  |> LibExecution.StdLib.renameFunctions renames

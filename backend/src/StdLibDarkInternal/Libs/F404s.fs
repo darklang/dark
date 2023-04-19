@@ -1,31 +1,14 @@
 /// StdLib functions for building Dark functionality via Dark canvases
-module StdLibDarkInternal.Libs.Canvases
+module StdLibDarkInternal.Libs.F404
 
 open System.Threading.Tasks
 
-open Npgsql.FSharp
-open LibBackend.Db
-
 open Prelude
-
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-module PT = LibExecution.ProgramTypes
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-module Errors = LibExecution.Errors
 module Telemetry = LibService.Telemetry
-
-open LibBackend
-module SchedulingRules = LibBackend.QueueSchedulingRules
-
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
-
-let varA = TVariable "a"
-let varB = TVariable "b"
-
+module TraceInputs = LibBackend.TraceInputs
 
 let types : List<BuiltInType> =
   [ { name = typ "DarkInternal" "F404" 0
@@ -33,10 +16,10 @@ let types : List<BuiltInType> =
       definition =
         CustomType.Record(
           { id = 1UL; name = "space"; typ = TString },
-          [ { id = 1UL; name = "path"; typ = TString }
-            { id = 1UL; name = "modifier"; typ = TString }
-            { id = 1UL; name = "timestamp"; typ = TDateTime }
-            { id = 1UL; name = "traceID"; typ = TUuid } ]
+          [ { id = 2UL; name = "path"; typ = TString }
+            { id = 3UL; name = "modifier"; typ = TString }
+            { id = 4UL; name = "timestamp"; typ = TDateTime }
+            { id = 5UL; name = "traceID"; typ = TUuid } ]
         )
       description = "404 record" } ]
 

@@ -30,6 +30,7 @@ let types : List<RT.BuiltInType> =
     Libs.DBs.types
     Libs.Documentation.types
     Libs.Domains.types
+    Libs.F404.types
     Libs.Infra.types
     Libs.Secrets.types
     Libs.Users.types
@@ -41,10 +42,11 @@ let fns : List<RT.BuiltInFn> =
     Libs.DBs.fns
     Libs.Documentation.fns
     Libs.Domains.fns
+    Libs.F404.fns
     Libs.Infra.fns
     Libs.Secrets.fns
     Libs.Users.fns
     Libs.Workers.fns ]
   |> List.concat
   |> List.map (fun f -> { f with fn = internalFn f.fn })
-  |> RT.renameFunctions renames
+  |> LibExecution.StdLib.renameFunctions renames
