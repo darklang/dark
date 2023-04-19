@@ -674,6 +674,52 @@ let testLetPreview : Test =
           "y assigned correctly"
       }
 
+      testTask "let (x, y) = (1, 1/0) in y" {
+        let lpID = gid ()
+        let xID = gid ()
+        let yID = gid ()
+        let divID = gid ()
+
+        let letPattern =
+          LPTuple(lpID, LPVariable(xID, "x"), LPVariable(yID, "y"), [])
+
+        // Should result in type error
+        let divisionExpr =
+          EApply(
+            divID,
+            PT.FQFnName.stdlibFqName "Int" "divide" 0
+            |> PT2RT.FQFnName.toRT
+            |> FnName,
+            [],
+            [ eInt 1; eInt 0 ]
+          )
+
+        let assignExpr = eTuple (eInt 1) divisionExpr []
+        let retExpr = eVar "y"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+        // TODO: remove
+        debuG "divID" (Map.get divID result) // DEBUG: divID (Some(ExecutedResult (DError (SourceNone, "Division by zero"))))
+        debuG "tuple" (Map.get (Expr.toID assignExpr) result) // DEBUG: tuple (Some(ExecutedResult (DError (SourceNone, "Division by zero"))))
+
+
+        // TODO: figure it out
+        // expected: Some (NonExecutedResult (DInt 1L))
+        // actual: Some (NonExecutedResult (DIncomplete (SourceID (7UL, 309035826UL))))
+        Expect.equal
+          (Map.get xID result)
+          (Some(AT.NonExecutedResult(DInt 1L)))
+          "x assigned correctly"
+
+        // TODO: Fix this
+        Expect.equal
+          (Map.get yID result)
+          (Some(AT.ExecutedResult(DError(SourceID(7UL, gid ()), "division by zero"))))
+          "y assignment results in a type error due to division by zero"
+      }
+
+
       testTask "let (a, b, ((c, d), e)) = (1, 2, ((3, 4), 5)) in c" {
         let lpID = gid ()
         let aID = gid ()
@@ -746,4 +792,5 @@ let tests =
       testLambdaPreview
       testFeatureFlagPreview
       testMatchPreview
-      testExecFunctionTLIDs ]
+      testExecFunctionTLIDs
+      testLetPreview ]
