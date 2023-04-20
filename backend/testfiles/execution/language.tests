@@ -46,17 +46,17 @@ module UserEnums =
   // Simple enums work
   type AorB = A | B
 
-  (let a = A
-   let b = B
+  (let a = AorB.A
+   let b = AorB.B
    a == b) = false
 
-  (let a1 = A
-   let a2 = A
+  (let a1 = AorB.A
+   let a2 = AorB.A
    a1 == a2) = true
 
-  (A == A) = true
-  (A == B) = false
-  List.unique_v0 [A; B; A; A; B] = [A; B]
+  (AorB.A == AorB.A) = true
+  (AorB.A == AorB.B) = false
+  List.unique_v0 [AorB.A; AorB.B; AorB.A; AorB.A; AorB.B] = [AorB.A; AorB.B]
 
 
   // Mixed kinds of enums are OK
