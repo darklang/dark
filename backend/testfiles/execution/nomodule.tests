@@ -28,11 +28,11 @@ notEquals_v0 (DateTime.parse_v2 "2021-07-28T22:42:36Z") (DateTime.parse_v2 "2019
 (DateTime.parse_v2 "2021-07-28T22:42:36Z") != (DateTime.parse_v2 "2019-07-28T22:42:36Z") = true
 
 
-AWS.urlencode_v0 "%" = ""
-AWS.urlencode_v0 "%%" = ""
-AWS.urlencode_v0 "%A" = "A"
-AWS.urlencode_v0 "%AA" = "%AA"
-AWS.urlencode_v0 "" = ""
-AWS.urlencode_v0 "殢" = "%E6%AE%A2"
-
-Twitter.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding
+// Moving to packages
+// AWS.urlencode_v0 "%" = ""
+// AWS.urlencode_v0 "%%" = ""
+// AWS.urlencode_v0 "%A" = "A"
+// AWS.urlencode_v0 "%AA" = "%AA"
+// AWS.urlencode_v0 "" = ""
+// AWS.urlencode_v0 "殢" = "%E6%AE%A2"
+// Twitter.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding
