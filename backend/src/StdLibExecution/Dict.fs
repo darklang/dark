@@ -265,7 +265,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DDict o; DFnVal b ] ->
           uply {
-            let filter_propagating_errors
+            let filterPropagatingErrors
               (acc : Result<DvalMap, Dval>)
               (key : string)
               (data : Dval)
@@ -288,10 +288,10 @@ let fns : List<BuiltInFn> =
                       )
                 }
 
-            let! filtered_result =
-              Ply.Map.foldSequentially filter_propagating_errors (Ok Map.empty) o
+            let! filteredResult =
+              Ply.Map.foldSequentially filterPropagatingErrors (Ok Map.empty) o
 
-            match filtered_result with
+            match filteredResult with
             | Ok o -> return DDict o
             | Error dv -> return dv
           }
