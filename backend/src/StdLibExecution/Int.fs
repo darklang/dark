@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
 
          The modulus <param b> must be 0 or negative.
 
-         Use <fn Int::remainder> if you want the remainder after division, which has
+         Use <fn Int.remainder> if you want the remainder after division, which has
          a different behavior for negative numbers."
       fn =
         (function
@@ -54,7 +54,7 @@ let fns : List<BuiltInFn> =
     //   description =
     //     "Returns the result of wrapping <param value> around so that {{0 <= res < modulus}}, as a <type Result>.
     //      If <param modulus> is positive, returns {{Ok res}}. Returns an {{Error}} if <param modulus> is {{0}} or negative.
-    //     Use <fn Int::remainder> if you want the remainder after division, which has a different behavior for negative numbers."
+    //     Use <fn Int.remainder> if you want the remainder after division, which has a different behavior for negative numbers."
     //   fn =
     //     (function
     //     | _, [ DInt v; DInt m ] ->
@@ -89,7 +89,7 @@ let fns : List<BuiltInFn> =
         "Returns the integer remainder left over after dividing <param value> by
          <param divisor>, as a <type Result>.
 
-         For example, {{Int::remainder 15 6 == Ok 3}}. The remainder will be
+         For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
          negative only if {{<var value> < 0}}.
 
          The sign of <param divisor> doesn't influence the outcome.
@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
                Ply(DResult(Error(DString($"`divisor` must be non-zero"))))
              else
                Exception.raiseInternal
-                 "unexpected failure case in Int::remainder"
+                 "unexpected failure case in Int.remainder"
                  [ "v", v; "d", d ]
                  e)
         | _ -> incorrectArgs ())

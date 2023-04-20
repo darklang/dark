@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
       parameters = [ keysParam; tableParam ]
       returnType = TOption(TList valType)
       description =
-        "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
+        "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB.etExisting)"
       fn =
         (function
         | state, _, [ DList keys; DDB dbname ] ->

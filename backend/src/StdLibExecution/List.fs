@@ -601,7 +601,7 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List::uniqueBy: Unable to sort list, perhaps the list elements are different types"
+                "List.uniqueBy: Unable to sort list, perhaps the list elements are different types"
                 |> Dval.errStr
           }
         | _ -> incorrectArgs ())
@@ -632,7 +632,7 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List::unique: Unable to sort list, perhaps the list elements are different types"
+            "List.unique: Unable to sort list, perhaps the list elements are different types"
             |> Dval.errStr
             |> Ply
         | _ -> incorrectArgs ())
@@ -664,7 +664,7 @@ let fns : List<BuiltInFn> =
 
          Use this if the values have types Dark knows how to sort.
 
-         Consider <fn List::sortBy> or <fn List::sortByComparator> if you need more
+         Consider <fn List.sortBy> or <fn List.sortByComparator> if you need more
          control over the sorting process."
       fn =
         (function
@@ -676,7 +676,7 @@ let fns : List<BuiltInFn> =
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
-            "List::sort: Unable to sort list, perhaps the list elements are different types"
+            "List.sort: Unable to sort list, perhaps the list elements are different types"
             |> Dval.errStr
             |> Ply
         | _ -> incorrectArgs ())
@@ -695,11 +695,11 @@ let fns : List<BuiltInFn> =
         "Returns a copy of <param list>, sorted in ascending order, as if each value
          evaluated to {{fn val}}.
 
-         For example, {{List::sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String::length
+         For example, {{List.sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String.length
          val}} returns {{[ \"x\", \"ab\", \"jkl\" ]}}.
 
-         Consider <fn List::sort> if the list values can be directly compared, or <fn
-         List::sortByComparator> if you want more control over the sorting process."
+         Consider <fn List.sort> if the list values can be directly compared, or <fn
+         List.sortByComparator> if you want more control over the sorting process."
       fn =
         (function
         | state, _, [ DList list; DFnVal b ] ->
@@ -726,7 +726,7 @@ let fns : List<BuiltInFn> =
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
               return
-                "List::sortBy: Unable to sort list, perhaps the list elements are different types"
+                "List.sortBy: Unable to sort list, perhaps the list elements are different types"
                 |> Dval.errStr
           }
         | _ -> incorrectArgs ())
@@ -749,7 +749,7 @@ let fns : List<BuiltInFn> =
          if <var a> should appear after <var b>, and {{0}} if the order of <var a>
          and <var b> doesn't matter.
 
-         Consider <fn List::sort> or <fn List::sortBy> if you don't need this level
+         Consider <fn List.sort> or <fn List.sortBy> if you don't need this level
          of control."
       fn =
         (function
@@ -854,7 +854,7 @@ let fns : List<BuiltInFn> =
          those values for which {{fn val}} returns {{true}}.
 
          Preserves the order of values that were not dropped. Consider <fn
-         List::filterMap> if you also want to transform the values."
+         List.filterMap> if you also want to transform the values."
       fn =
         (function
         | state, _, [ DList l; DFnVal fn ] ->
@@ -909,7 +909,7 @@ let fns : List<BuiltInFn> =
 
          Preserves the order of values that were not dropped.
 
-         This function combines <fn List::filter> and <fn List::map>."
+         This function combines <fn List.filter> and <fn List.map>."
       fn =
         (function
         | state, _, [ DList l; DFnVal b ] ->
@@ -1096,7 +1096,7 @@ let fns : List<BuiltInFn> =
         "Calls <param fn> on every <var val> in <param list>, returning a list of the
          results of those calls.
 
-         Consider <fn List::filterMap> if you also want to drop some of the values."
+         Consider <fn List.filterMap> if you also want to drop some of the values."
       returnType = TList varB
       fn =
         (function
@@ -1125,7 +1125,7 @@ let fns : List<BuiltInFn> =
         "Calls <fn fn> on every <var val> and its <var index> in <param list>,
          returning a list of the results of those calls.
 
-         Consider <fn List::map> if you don't need the index."
+         Consider <fn List.map> if you don't need the index."
       fn =
         (function
         | state, _, [ DList l; DFnVal b ] ->
@@ -1162,7 +1162,7 @@ let fns : List<BuiltInFn> =
          For example, if <param as> is {{[1,2]}} and <param bs> is
          {{[\"x\",\"y\",\"z\"]}}, returns {{[(f 1 \"x\"), (f 2 \"y\")]}}
 
-         Use <fn List::map2> if you want to enforce equivalent lengths for <param as>
+         Use <fn List.map2> if you want to enforce equivalent lengths for <param as>
          and <param bs>."
       fn =
         (function
@@ -1205,7 +1205,7 @@ let fns : List<BuiltInFn> =
          \"z\")]}}.
 
          If the lists differ in length, returns {{Nothing}} (consider <fn
-         List::map2shortest> if you want to drop values from the longer list
+         List.map2shortest> if you want to drop values from the longer list
          instead)."
       fn =
         (function
@@ -1243,10 +1243,10 @@ let fns : List<BuiltInFn> =
         For example, if <param as> is {{[1,2]}} and <param bs> is
         {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\")]}}.
 
-        Use <fn List::zip> if you want to enforce equivalent lengths for <param as>
+        Use <fn List.zip> if you want to enforce equivalent lengths for <param as>
         and <param bs>.
 
-        See <fn List::unzip> if you want to deconstruct the result into <param as>
+        See <fn List.unzip> if you want to deconstruct the result into <param as>
         and <param bs> again."
       fn =
         (function
@@ -1279,11 +1279,11 @@ let fns : List<BuiltInFn> =
         For example, if <param as> is {{[1,2,3]}} and <param bs> is
         {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}.
 
-        See <fn List::unzip> if you want to deconstruct <var list> into <param as>
+        See <fn List.unzip> if you want to deconstruct <var list> into <param as>
         and <param bs> again.
 
         If the lists differ in length, returns {{Nothing}} (consider
-        <fn List::zipShortest> if you want to drop values from the longer list
+        <fn List.zipShortest> if you want to drop values from the longer list
         instead)."
       fn =
         (function
@@ -1309,7 +1309,7 @@ let fns : List<BuiltInFn> =
       returnType = TList(TList varA)
       description =
         "Given a <param pairs> list where each value is a tuple of two values (such
-         lists are constructed by <fn List::zip> and <fn List::zipShortest>), returns
+         lists are constructed by <fn List.zip> and <fn List.zipShortest>), returns
          a list of two lists, one with every first value, and one with every second
          value.
 

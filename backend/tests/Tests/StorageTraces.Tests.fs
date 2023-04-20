@@ -215,7 +215,7 @@ let testTraceRoundtrip =
 //       { input = [ ("event", DPassword(Password(UTF8.toBytes "redactme1"))) ]
 //         timestamp = NodaTime.Instant.UnixEpoch
 //         function_results =
-//           [ ("Password::hash",
+//           [ ("Password.hash",
 //              id,
 //              "foobar",
 //              0,
@@ -225,7 +225,7 @@ let testTraceRoundtrip =
 //       { input = [ ("event", DPassword(Password(UTF8.toBytes "Redacted"))) ]
 //         timestamp = NodaTime.Instant.UnixEpoch
 //         function_results =
-//           [ ("Password::hash",
+//           [ ("Password.hash",
 //              id,
 //              "foobar",
 //              0,
@@ -302,7 +302,7 @@ let testTraceRoundtrip =
 //     Expect.equal
 //       (List.length dbGenerateResult)
 //       1
-//       "test_fn called one function (DB::generateKey)"
+//       "test_fn called one function (DB.generateKey)"
 //   }
 
 // let testErrorTracesAreStored =

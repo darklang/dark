@@ -90,7 +90,7 @@ module FQFnName =
   type StdlibFnName = { modules : List<string>; function_ : string; version : int }
 
   /// A UserFunction is a function written by a Developer in their canvas
-  type UserFnName = {modules : List<string>; function_ : string; version : int}
+  type UserFnName = { modules : List<string>; function_ : string; version : int }
 
   /// The name of a function in the package manager
   type PackageFnName =
@@ -130,12 +130,12 @@ module FQFnName =
 
   module StdlibFnName =
     let toString (s : StdlibFnName) : string =
-      let name = s.modules @ [ s.function_] |> String.concat "."
+      let name = s.modules @ [ s.function_ ] |> String.concat "."
       if s.version = 0 then name else $"{name}_v{s.version}"
 
   module UserFnName =
     let toString (u : UserFnName) : string =
-      let name = u.modules @ [ u.function_] |> String.concat "."
+      let name = u.modules @ [ u.function_ ] |> String.concat "."
       if u.version = 0 then name else $"{name}_v{u.version}"
 
   module PackageFnName =
@@ -155,7 +155,7 @@ module FQFnName =
   let isDBQueryFn (fqfnName : T) : bool =
     match fqfnName with
     | Stdlib std when
-      std.modules = ["DB"]
+      std.modules = [ "DB" ]
       && String.startsWith "query" std.function_
       && not (String.includes "ExactFields" std.function_)
       ->
@@ -799,18 +799,18 @@ module Package =
 // their results saved.
 // In addition, some functions can be run without side-effects; to give
 // the user a good experience, we can run them as soon as they are added.
-// this includes DateTime::now and Int::random.
+// this includes DateTime.now and Int.random.
 // </remarks>
 type Previewable =
   // The same inputs will always yield the same outputs,
-  // so we don't need to save results. e.g. `DateTime::add`
+  // so we don't need to save results. e.g. `DateTime.add`
   | Pure
 
   // Output may vary with the same inputs, though we can safely preview.
-  // e.g. `DateTime::now`. We should save the results.
+  // e.g. `DateTime.now`. We should save the results.
   | ImpurePreviewable
 
-  // Can only be run on the server. e.g. `DB::update`
+  // Can only be run on the server. e.g. `DB.update`
   // We should save the results.
   | Impure
 

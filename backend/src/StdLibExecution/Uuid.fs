@@ -29,7 +29,7 @@ let fns : List<BuiltInFn> =
         | _, _, [] -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      // similarly to DateTime::now, it's not particularly fun for this to change
+      // similarly to DateTime.now, it's not particularly fun for this to change
       // when live programming
       previewable = Impure
       deprecated = NotDeprecated }

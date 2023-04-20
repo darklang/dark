@@ -154,9 +154,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Note: this was was previously named `Date::subtract_v0`.
-    // A new DateTime::subtract_v1 was created to replace this, and subtract_v0 got
-    // replaced with this ::subtractSeconds_v0. "DateTime::subtract" implies that
+    // Note: this was was previously named `Date.subtract_v0`.
+    // A new DateTime.subtract_v1 was created to replace this, and subtract_v0 got
+    // replaced with this .subtractSeconds_v0. "DateTime.subtract" implies that
     // you are subtracting one date from another, so subtracting anything else
     // should include the name of the relevant unit in the fn name.
     { name = fn "DateTime" "subtractSeconds" 0

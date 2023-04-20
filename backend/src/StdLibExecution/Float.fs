@@ -46,9 +46,9 @@ let fns : List<BuiltInFn> =
       description =
         "Round down to an integer value.
 
-        Consider <fn Float::truncate> if your goal
-        is to discard the fractional part of a number: {{Float::floor -1.9 == -2.0}}
-        but {{Float::truncate -1.9 == -1.0}}"
+        Consider <fn Float.truncate> if your goal
+        is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
+        but {{Float.truncate -1.9 == -1.0}}"
       fn =
         (function
         | _, _, [ DFloat a ] -> a |> Math.Floor |> int64 |> DInt |> Ply
@@ -65,8 +65,8 @@ let fns : List<BuiltInFn> =
       description =
         "Round down to an integer value.
 
-         Consider <fn Float::truncate> if your goal is to discard the fractional part
-         of a number: {{Float::floor -1.9 == -2.0}} but {{Float::truncate -1.9 ==
+         Consider <fn Float.truncate> if your goal is to discard the fractional part
+         of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
          -1.0}}"
 
       fn =

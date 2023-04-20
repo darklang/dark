@@ -38,7 +38,7 @@ let fns : List<BuiltInFn> =
       returnType = TFloat
       description =
         "Returns an approximation for the mathematical constant {{τ}}, the number of
-         radians in one turn. Equivalent to {{Float::multiply Math::pi 2}}."
+         radians in one turn. Equivalent to {{Float.multiply Math.pi 2}}."
       fn =
         (function
         | _, _, [] -> Ply(DFloat System.Math.Tau)
@@ -92,7 +92,7 @@ let fns : List<BuiltInFn> =
         "Returns <param angleInRadians> in radians, the unit used by all of Dark's
          trigonometry functions.
 
-         There are {{Float::multiply 2 Math::pi}} radians in a
+         There are {{Float.multiply 2 Math.pi}} radians in a
          circle."
       fn =
         (function
@@ -168,9 +168,9 @@ let fns : List<BuiltInFn> =
 
          If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
          result}} where <var result> is in radians and is between {{0.0}} and <fn
-         Math::pi>. Otherwise, returns {{Nothing}}.
+         Math.pi>. Otherwise, returns {{Nothing}}.
 
-         This function is the inverse of <fn Math::cos>."
+         This function is the inverse of <fn Math.cos>."
       fn =
         (function
         | _, _, [ DFloat r ] ->
@@ -194,10 +194,10 @@ let fns : List<BuiltInFn> =
         "Returns the arc sine of <param ratio>, as an <type Option>.
 
          If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Just
-         result}} where <var result> is in radians and is between {{-Math::pi/2}} and
-         {{Math::pi/2}}. Otherwise, returns {{Nothing}}.
+         result}} where <var result> is in radians and is between {{-Math.pi/2}} and
+         {{Math.pi/2}}. Otherwise, returns {{Nothing}}.
 
-         This function is the inverse of <fn Math::sin>."
+         This function is the inverse of <fn Math.sin>."
       fn =
         (function
         | _, _, [ DFloat r ] ->
@@ -219,9 +219,9 @@ let fns : List<BuiltInFn> =
       returnType = TFloat
       description =
         "Returns the arc tangent of <param ratio>. The result is in radians and is between
-         {{-Math::pi/2}} and {{Math::pi/2}}.
+         {{-Math.pi/2}} and {{Math.pi/2}}.
 
-         This function is the inverse of <fn Math::tan>. Use <fn Math::atan2> to expand the
+         This function is the inverse of <fn Math.tan>. Use <fn Math.atan2> to expand the
          output range, if you know the numerator and denominator of <param ratio>."
       fn =
         (function
@@ -240,9 +240,9 @@ let fns : List<BuiltInFn> =
         "Returns the arc tangent of {{y / x}}, using the signs of <param y> and
          <param x> to determine the quadrant of the result.
 
-         The result is in radians and is between {{-Math::pi}} and {{Math::pi}}.
+         The result is in radians and is between {{-Math.pi}} and {{Math.pi}}.
 
-         Consider <fn Math::atan> if you know the value of {{y / x}} but not the
+         Consider <fn Math.atan> if you know the value of {{y / x}} but not the
          individual values <param x> and <param y>."
       fn =
         (function

@@ -480,7 +480,7 @@ module Constructors =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option::map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\"."
+  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option.map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\"."
 
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }
@@ -696,7 +696,7 @@ module Packages =
 
   module Invalid =
     Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int"
-    Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test::stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     Test.Test.Test.derrorFn "test" = Test.typeError "test"
 
     (let _ = Test.setExpectedExceptionCount 1 in

@@ -115,7 +115,7 @@ human-readable data."
         (function
         | _, _, [ arg ] ->
           Exception.raiseInternal
-            "DarkInternal::raiseInternalException"
+            "DarkInternal.raiseInternalException"
             [ "arg", arg ]
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

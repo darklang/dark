@@ -226,7 +226,7 @@ let fns : List<BuiltInFn> =
       returnType = TDict varA
       description =
         "Returns an HTTP Set-Cookie header <type Dict> suitable for use with <fn
-         Http::responseWithHeaders>, given a cookie <param name>, a <type String>
+         Http.responseWithHeaders>, given a cookie <param name>, a <type String>
          <param value> for it, and a <type Dict> of Set-Cookie <param params>
          ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}},
          and/or {{SameSite}})."
@@ -296,7 +296,7 @@ let fns : List<BuiltInFn> =
           // the implicit _v0, and
           // https://github.com/darklang/dark/pull/1917 for a
           // discussion of the bug), but incorrect. By the time it's
-          // reached Http::setCookie_v1,  you've probably already
+          // reached Http.setCookie_v1,  you've probably already
           // stored the cookie value as-is in a datastore somewhere, so
           // any changes will break attempts to look up the session.
           //

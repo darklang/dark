@@ -17,7 +17,7 @@ let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PT.FQFnName.stdlibFqName [ "String" ] "append" 1), "String::append_v1" ]
+    [ (PT.FQFnName.stdlibFqName [ "String" ] "append" 1), "String.append_v1" ]
 
 
 let testPipesToRuntimeTypes =

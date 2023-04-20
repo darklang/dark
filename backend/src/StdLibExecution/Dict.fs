@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList(TTuple(varA, varB, [])))
       description =
-        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict::fromList>"
+        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict.fromList>"
       fn =
         (function
         | _, _, [ DDict o ] ->
@@ -114,10 +114,10 @@ let fns : List<BuiltInFn> =
          must be a {{(key, value)}} tuple, where <var key> is a <type String>.
 
          If <param entries> contains duplicate <var key>s, the last entry with that
-         key will be used in the resulting dictionary (use <fn Dict::fromList> if you
+         key will be used in the resulting dictionary (use <fn Dict.fromList> if you
          want to enforce unique keys).
 
-         This function is the opposite of <fn Dict::toList>."
+         This function is the opposite of <fn Dict.toList>."
       fn =
         (function
         | _, _, [ DList l ] ->
@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
          If <param entries> contains no duplicate keys, returns {{Just <var dict>}}
          where <var dict> has <param entries>.
 
-         Otherwise, returns {{Nothing}} (use <fn Dict::fromListOverwritingDuplicates>
+         Otherwise, returns {{Nothing}} (use <fn Dict.fromListOverwritingDuplicates>
          if you want to overwrite duplicate keys)."
       fn =
         (function
@@ -226,7 +226,7 @@ let fns : List<BuiltInFn> =
          dict> with values that have been transformed by {{fn}}, which operates on
          each key-value pair.
 
-         Consider <fn Dict::filterMap> if you also want to drop some of the entries."
+         Consider <fn Dict.filterMap> if you also want to drop some of the entries."
       fn =
         (function
         | state, _, [ DDict o; DFnVal b ] ->
@@ -315,7 +315,7 @@ let fns : List<BuiltInFn> =
         "Calls <param fn> on every entry in <param dict>, returning a <type dict> that drops some entries (filter) and transforms others (map).
           If {{fn key value}} returns {{Nothing}}, does not add <var key> or <var value> to the new dictionary, dropping the entry.
           If {{fn key value}} returns {{Just newValue}}, adds the entry <var key>: <var newValue> to the new dictionary.
-          This function combines <fn Dict::filter> and <fn Dict::map>."
+          This function combines <fn Dict.filter> and <fn Dict.map>."
       fn =
         (function
         | state, _, [ DDict o; DFnVal b ] ->
