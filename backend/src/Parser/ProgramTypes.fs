@@ -129,13 +129,14 @@ module MatchPattern =
       let sign, whole, fraction = readFloat d
       PT.MPFloat(id, sign, whole, fraction)
     | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
-    | SynPat.LongIdent (SynLongIdent ([ constructorName ], _, _),
-                        _,
-                        _,
-                        SynArgPats.Pats args,
-                        _,
-                        _) ->
+    | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let args = List.map r args
+      let constructorName =
+        List.last names
+        |> Exception.unwrapOptionInternal "missing constructor name" []
+      let modules =
+        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
+      // CLEANUPTYPES use modules
       PT.MPConstructor(id, constructorName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
@@ -259,7 +260,7 @@ module Expr =
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       ident.idText = "op_UnaryNegation"
       ->
-      let name = PT.FQFnName.stdlibFqName ["Int"] "negate" 0
+      let name = PT.FQFnName.stdlibFqName [ "Int" ] "negate" 0
       PT.EFnCall(id, name, [], [])
 
 
@@ -315,7 +316,7 @@ module Expr =
     | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
       System.Char.IsUpper(modName.idText[0]) && System.Char.IsLower(fnName.idText[0])
       ->
-      let modules = [modName.idText]
+      let modules = [ modName.idText ]
       let name, version = parseFn fnName.idText
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
 
@@ -336,7 +337,7 @@ module Expr =
                        _,
                        _,
                        _) ->
-      let modules = [modName.idText]
+      let modules = [ modName.idText ]
       let name, version = parseFn fnName.idText
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
@@ -354,7 +355,12 @@ module Expr =
       ->
       PT.EFnCall(
         gid (),
-        PT.FQFnName.packageFqName "test" "test" (NonEmptyList.singleton "Test") fnName.idText 0,
+        PT.FQFnName.packageFqName
+          "test"
+          "test"
+          (NonEmptyList.singleton "Test")
+          fnName.idText
+          0,
         [],
         []
       )
