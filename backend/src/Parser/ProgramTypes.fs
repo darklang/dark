@@ -269,11 +269,6 @@ module Expr =
       let name, version = parseFn ident.idText
       PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [])
 
-
-    // Variable constructors - Ok, Error, Nothing, and Just are handled elsewhere,
-    // and Enums are expected to be fully qualified
-    | SynExpr.Ident name -> PT.EVariable(id, name.idText)
-
     // List literals
     | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
 
@@ -295,30 +290,67 @@ module Expr =
     | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
       PT.ETuple(id, c first, c second, List.map c rest)
 
-
-    // Constructors calls Long Identifiers like Result.Ok, represented in the form of
-    // ["Result"; "Ok"] (LongIdent = Ident list). The difference between this and
-    // function calls is that the last word is capitalized, vs lowercase for function
-    // calls.
-    | SynExpr.LongIdent (_, SynLongIdent ([ modName; enumName ], _, _), _, _) when
-      System.Char.IsUpper(modName.idText[0])
-      && System.Char.IsUpper(enumName.idText[0])
+    // Enum values (EConstructors)
+    // TODO: remove this explicit handling
+    // when the Option and Result types are defined in StdLib
+    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
+      List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
       ->
-      let modules = modName.idText
-      let name, version = parseEnum enumName.idText
-      // TYPESCLEANUP use FQTypeName with a version
-      PT.EConstructor(gid (), None, name, [])
+      PT.EConstructor(id, None, name.idText, [ c arg ])
+
+    // Enum values (EConstructors)
+    | SynExpr.Ident name when name.idText = "Nothing" ->
+      PT.EConstructor(id, None, name.idText, [])
 
 
-    // Function calls
-    // Long Identifiers like DateTime.now, represented in the form of ["DateTime"; "now"]
-    // (LongIdent = Ident list)
-    | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
-      System.Char.IsUpper(modName.idText[0]) && System.Char.IsLower(fnName.idText[0])
+    // Package manager function calls
+    // (preliminary support)
+    | SynExpr.LongIdent (_,
+                         SynLongIdent ([ owner; package; modName; fnName ], _, _),
+                         _,
+                         _) when
+      owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
       ->
-      let modules = [ modName.idText ]
-      let name, version = parseFn fnName.idText
-      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
+      PT.EFnCall(
+        gid (),
+        PT.FQFnName.packageFqName
+          "test"
+          "test"
+          (NonEmptyList.singleton "Test")
+          fnName.idText
+          0,
+        [],
+        []
+      )
+
+
+    // Constructors/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
+    | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) when
+      (names
+       |> List.initial
+       |> Option.unwrap []
+       |> List.all (fun n -> n.idText <> "" && System.Char.IsUpper(n.idText[0])))
+      ->
+      let modules =
+        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
+      let name =
+        List.last names
+        |> Exception.unwrapOptionInternal "empty list" []
+        |> fun i -> i.idText
+
+      if System.Char.IsUpper(name[0]) then
+        let name, version = parseEnum name
+        // TYPESCLEANUP use FQTypeName with a version
+        PT.EConstructor(gid (), None, name, [])
+      else
+        let name, version = parseFn name
+        PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
+
+
+    // Variable constructors - Ok, Error, Nothing, and Just are handled elsewhere,
+    // and Enums are expected to be fully qualified
+    | SynExpr.Ident name -> PT.EVariable(id, name.idText)
+
 
     // e.g. `Json.serialize<T>`
     | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
@@ -343,28 +375,6 @@ module Expr =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, typeArgs, [])
-
-
-    // Package manager function calls
-    // (preliminary support)
-    | SynExpr.LongIdent (_,
-                         SynLongIdent ([ owner; package; modName; fnName ], _, _),
-                         _,
-                         _) when
-      owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
-      ->
-      PT.EFnCall(
-        gid (),
-        PT.FQFnName.packageFqName
-          "test"
-          "test"
-          (NonEmptyList.singleton "Test")
-          fnName.idText
-          0,
-        [],
-        []
-      )
-
 
     // Field access: a.b.c.d
     | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
@@ -552,16 +562,6 @@ module Expr =
       else
         // TYPESCLEANUP: use typename
         PT.ERecord(id, None, fields)
-
-
-    // Enum values (EConstructors)
-    // TODO: remove this explicit handling
-    // when the Option and Result types are defined in StdLib
-    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
-      List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
-      ->
-      PT.EConstructor(id, None, name.idText, [ c arg ])
-
 
 
     // Feature flags
