@@ -173,7 +173,6 @@ let run (options : Options) : Task<int> =
 
 let initSerializers () =
   // allow universally-serializable types
-  Json.Vanilla.allow<pos> "Prelude"
 
   // one-off types used internally
   // we probably don't need most of these, but it's key that ProdExec doesn't ever
@@ -190,9 +189,9 @@ let initSerializers () =
   // for Pusher.com payloads
   Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
   Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
-  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
-  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+// Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+// Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+// Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 [<EntryPoint>]
 let main (args : string []) : int =

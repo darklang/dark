@@ -97,7 +97,7 @@ let execute
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
-let initSerializers () = Json.Vanilla.allow<pos> "Prelude"
+let initSerializers () = ()
 
 [<EntryPoint>]
 let main (args : string []) =

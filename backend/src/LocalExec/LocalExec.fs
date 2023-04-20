@@ -72,7 +72,7 @@ let execute
 
 
 
-let initSerializers () = Json.Vanilla.allow<pos> "Prelude"
+let initSerializers () = ()
 
 [<EntryPoint>]
 let main (args : string []) : int =
