@@ -7,22 +7,14 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = Errors.incorrectArgs
-
-let varA = TVariable "a"
+open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "" "print" 0
+  [ { name = fnNoMod "print" 0
       typeParams = []
-      parameters = [ Param.make "value" varA "The value to be printed." ]
+      parameters = [ Param.make "value" (TVariable "a") "The value to be printed." ]
       returnType = TUnit
       description = "Prints the given <param value> to the standard output."
       fn =

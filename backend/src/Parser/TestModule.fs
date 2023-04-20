@@ -52,9 +52,9 @@ module PackageFn =
     { name =
         { owner = p1
           package = p2
-          module_ = p3
-          function_ = userFn.name
-          version = 0 }
+          modules = NonEmptyList.singleton p3
+          function_ = userFn.name.function_
+          version = userFn.name.version }
       typeParams = userFn.typeParams
       parameters =
         userFn.parameters
@@ -184,7 +184,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
             { m with modules = m.modules @ [ (name.idText, nested) ] }
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
         decls
-    let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
+    let fnNames = m.fns |> List.filter (fun fn -> fn.name.modules = []) |> List.map (fun fn -> fn.name.function_) |> Set
     let fixup = ProgramTypes.Expr.fixupPass fnNames
     { m with
         packageFns =

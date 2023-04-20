@@ -40,12 +40,7 @@ module Error =
   let toString (e : T) : string =
     match e with
     | TypeLookupFailure typeName ->
-      let lookupString =
-        match typeName with
-        | FQTypeName.User t -> $"({t.typ}, v{t.version})"
-        | FQTypeName.Stdlib t -> $"({t.typ})"
-        | FQTypeName.Package t ->
-          $"({t.owner}/{t.package}/{t.module_}/{t.typ}_v{t.version})"
+      let lookupString = FQTypeName.toString typeName
       $"Type {lookupString} could not be found"
 
     | TypeUnificationFailure uf ->

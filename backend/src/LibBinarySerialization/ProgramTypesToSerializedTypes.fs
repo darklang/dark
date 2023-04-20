@@ -10,21 +10,22 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
 module FQTypeName =
-  module UserTypeName =
-    let toST (u : PT.FQTypeName.UserTypeName) : ST.FQTypeName.UserTypeName =
-      { typ = u.typ; version = u.version }
-
   module StdlibTypeName =
     let toST (s : PT.FQTypeName.StdlibTypeName) : ST.FQTypeName.StdlibTypeName =
-      { module_ = s.module_; typ = s.typ; version = s.version }
+      { modules = s.modules; typ = s.typ; version = s.version }
+
+  module UserTypeName =
+    let toST (u : PT.FQTypeName.UserTypeName) : ST.FQTypeName.UserTypeName =
+      { modules = u.modules; typ = u.typ; version = u.version }
 
   module PackageTypeName =
     let toST (p : PT.FQTypeName.PackageTypeName) : ST.FQTypeName.PackageTypeName =
       { owner = p.owner
         package = p.package
-        module_ = p.module_
+        modules = p.modules
         typ = p.typ
         version = p.version }
+
 
   let toST (t : PT.FQTypeName.T) : ST.FQTypeName.T =
     match t with
@@ -38,17 +39,21 @@ module FQFnName =
     let toST (name : PT.FQFnName.PackageFnName) : ST.FQFnName.PackageFnName =
       { owner = name.owner
         package = name.package
-        module_ = name.module_
+        modules = name.modules
         function_ = name.function_
         version = name.version }
 
   module StdlibFnName =
     let toST (name : PT.FQFnName.StdlibFnName) : ST.FQFnName.StdlibFnName =
-      { module_ = name.module_; function_ = name.function_; version = name.version }
+      { modules = name.modules; function_ = name.function_; version = name.version }
+
+  module UserFnName =
+    let toST (name : PT.FQFnName.UserFnName) : ST.FQFnName.UserFnName =
+      { modules = name.modules; function_ = name.function_; version = name.version }
 
   let toST (fqfn : PT.FQFnName.T) : ST.FQFnName.T =
     match fqfn with
-    | PT.FQFnName.User u -> ST.FQFnName.User u
+    | PT.FQFnName.User u -> ST.FQFnName.User(UserFnName.toST u)
     | PT.FQFnName.Stdlib fn -> ST.FQFnName.Stdlib(StdlibFnName.toST fn)
     | PT.FQFnName.Package p -> ST.FQFnName.Package(PackageFnName.toST p)
 
@@ -271,7 +276,7 @@ module UserFunction =
 
   let toST (f : PT.UserFunction.T) : ST.UserFunction.T =
     { tlid = f.tlid
-      name = f.name
+      name = FQFnName.UserFnName.toST f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toST f.parameters
       returnType = TypeReference.toST f.returnType

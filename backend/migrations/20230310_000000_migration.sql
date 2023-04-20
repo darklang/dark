@@ -105,7 +105,7 @@ packages_v0
   /* owner/namespace part of the string, eg dark */
 , user_id UUID NOT NULL
 , package TEXT NOT NULL /* eg stdlib */
-, module TEXT NOT NULL /* eg Twitter */
+, modules jsonb NOT NULL /* eg "['Twitter', 'Other']" */
 , fnname TEXT NOT NULL /* eg sendText */
 , version INTEGER NOT NULL /* eg 0 */
 , description TEXT NOT NULL /* docstring */

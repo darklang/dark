@@ -85,15 +85,15 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
   let conversionMsg =
     match p.typ, actual, name with
     | TInt, DFloat _, FQFnName.Stdlib std when
-      std.module_ = "Int"
-      || (std.module_ = "" && Set.contains std.function_ intInfixFns)
+      std.modules = ["Int"]
+      || (std.modules = [] && Set.contains std.function_ intInfixFns)
       ->
-      let altfn = { std with module_ = "Float" }
+      let altfn = { std with modules = ["Float" ]}
 
       $" Try using {FQFnName.StdlibFnName.toString altfn}, or use Float::truncate to truncate Floats to Ints."
     | TInt, DString _, FQFnName.Stdlib std when
-      (std.module_ = "Int" && std.function_ = "add")
-      || (std.module_ = "" && std.function_ = "+")
+      (std.modules = ["Int"] && std.function_ = "add")
+      || (std.modules = [] && std.function_ = "+")
       ->
       " Use ++ to concatenate"
     | _ -> ""

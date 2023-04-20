@@ -47,7 +47,7 @@ let hardToRepresentTests =
   testMany2Task
     "hardToRepresent"
     execute
-    [ (fnName "List" "fold" 0,
+    [ (fnName [ "List" ] "fold" 0,
        [ RT.DList [ RT.DBool true; RT.DInt 0L ]
 
          RT.DList []
@@ -58,7 +58,7 @@ let hardToRepresentTests =
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
       true
 
-      (fnName "Result" "fromOption" 2,
+      (fnName [ "Result" ] "fromOption" 2,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -82,7 +82,7 @@ let hardToRepresentTests =
       )),
       true
 
-      (fnName "Result" "fromOption" 2,
+      (fnName [ "Result" ] "fromOption" 2,
        [ RT.DOption(
            Some(
              RT.DFnVal(

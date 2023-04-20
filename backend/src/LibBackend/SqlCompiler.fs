@@ -220,7 +220,7 @@ let rec inline'
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
   | EApply (_, FnName (FQFnName.Stdlib std), [], args) when
-    std.module_ = mName && std.function_ = fName && std.version = v
+    std.modules = [mName] && std.function_ = fName && std.version = v
     ->
     Some args
   | _ -> None

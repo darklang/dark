@@ -35,6 +35,7 @@ let renameFunctions
 
 module Shortcuts =
   let fn = FQFnName.stdlibFnName
+  let fnNoMod = FQFnName.stdlibFnName' []
   let typ = FQTypeName.stdlibTypeName
 
   let incorrectArgs = Errors.incorrectArgs

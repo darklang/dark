@@ -105,7 +105,9 @@ let t
 
       let rtFunctions =
         (functions
-         |> List.map (fun fn -> fn.name, PT2RT.UserFunction.toRT fn)
+         |> List.map (fun fn ->
+           let fn = PT2RT.UserFunction.toRT fn
+           (fn.name, fn))
          |> Map.ofList)
 
       let rtPackageFns =

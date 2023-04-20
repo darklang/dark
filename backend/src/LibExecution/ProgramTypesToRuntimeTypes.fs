@@ -11,17 +11,17 @@ module PT = ProgramTypes
 module FQTypeName =
   module StdlibTypeName =
     let toRT (t : PT.FQTypeName.StdlibTypeName) : RT.FQTypeName.StdlibTypeName =
-      { module_ = t.module_; typ = t.typ; version = t.version }
+      { modules = t.modules; typ = t.typ; version = t.version }
 
   module UserTypeName =
     let toRT (u : PT.FQTypeName.UserTypeName) : RT.FQTypeName.UserTypeName =
-      { typ = u.typ; version = u.version }
+      { modules = u.modules; typ = u.typ; version = u.version }
 
   module PackageTypeName =
     let toRT (p : PT.FQTypeName.PackageTypeName) : RT.FQTypeName.PackageTypeName =
       { owner = p.owner
         package = p.package
-        module_ = p.module_
+        modules = p.modules
         typ = p.typ
         version = p.version }
 
@@ -65,36 +65,40 @@ module FQFnName =
     let toRT (name : PT.FQFnName.PackageFnName) : RT.FQFnName.PackageFnName =
       { owner = name.owner
         package = name.package
-        module_ = name.module_
+        modules = name.modules
         function_ = name.function_
         version = name.version }
 
   module StdlibFnName =
     let toRT (name : PT.FQFnName.StdlibFnName) : RT.FQFnName.StdlibFnName =
-      { module_ = name.module_; function_ = name.function_; version = name.version }
+      { modules = name.modules; function_ = name.function_; version = name.version }
+
+  module UserFnName =
+    let toRT (name : PT.FQFnName.UserFnName) : RT.FQFnName.UserFnName =
+      { modules = name.modules; function_ = name.function_; version = name.version }
 
   let toRT (fqfn : PT.FQFnName.T) : RT.FQFnName.T =
     match fqfn with
-    | PT.FQFnName.User u -> RT.FQFnName.User u
     | PT.FQFnName.Stdlib fn -> RT.FQFnName.Stdlib(StdlibFnName.toRT fn)
+    | PT.FQFnName.User u -> RT.FQFnName.User(UserFnName.toRT u)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(PackageFnName.toRT p)
 
 module InfixFnName =
-  let toFnName (name : PT.InfixFnName) : (string * string * int) =
+  let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =
     match name with
-    | PT.ArithmeticPlus -> ("Int", "add", 0)
-    | PT.ArithmeticMinus -> ("Int", "subtract", 0)
-    | PT.ArithmeticMultiply -> ("Int", "multiply", 0)
-    | PT.ArithmeticDivide -> ("Float", "divide", 0)
-    | PT.ArithmeticModulo -> ("Int", "mod", 0)
-    | PT.ArithmeticPower -> ("Int", "power", 0)
-    | PT.ComparisonGreaterThan -> ("Int", "greaterThan", 0)
-    | PT.ComparisonGreaterThanOrEqual -> ("Int", "greaterThanOrEqualTo", 0)
-    | PT.ComparisonLessThan -> ("Int", "lessThan", 0)
-    | PT.ComparisonLessThanOrEqual -> ("Int", "lessThanOrEqualTo", 0)
-    | PT.StringConcat -> ("String", "append", 1)
-    | PT.ComparisonEquals -> ("", "equals", 0)
-    | PT.ComparisonNotEquals -> ("", "notEquals", 0)
+    | PT.ArithmeticPlus -> (["Int"], "add", 0)
+    | PT.ArithmeticMinus -> (["Int"], "subtract", 0)
+    | PT.ArithmeticMultiply -> (["Int"], "multiply", 0)
+    | PT.ArithmeticDivide -> (["Float"], "divide", 0)
+    | PT.ArithmeticModulo -> (["Int"], "mod", 0)
+    | PT.ArithmeticPower -> (["Int"], "power", 0)
+    | PT.ComparisonGreaterThan -> (["Int"], "greaterThan", 0)
+    | PT.ComparisonGreaterThanOrEqual -> (["Int"], "greaterThanOrEqualTo", 0)
+    | PT.ComparisonLessThan -> (["Int"], "lessThan", 0)
+    | PT.ComparisonLessThanOrEqual -> (["Int"], "lessThanOrEqualTo", 0)
+    | PT.StringConcat -> (["String"], "append", 1)
+    | PT.ComparisonEquals -> ([], "equals", 0)
+    | PT.ComparisonNotEquals -> ([], "notEquals", 0)
 
 
 
@@ -147,9 +151,9 @@ module Expr =
         List.map toRT args
       )
     | PT.EInfix (id, PT.InfixFnCall fnName, arg1, arg2) ->
-      let (module_, fn, version) = InfixFnName.toFnName fnName
+      let (modules, fn, version) = InfixFnName.toFnName fnName
       let name =
-        PT.FQFnName.Stdlib({ module_ = module_; function_ = fn; version = version })
+        PT.FQFnName.Stdlib({ modules = modules; function_ = fn; version = version })
       let typeArgs = []
       toRT (PT.EFnCall(id, name, typeArgs, [ arg1; arg2 ]))
     | PT.EInfix (id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
@@ -192,10 +196,10 @@ module Expr =
                 prev :: List.map toRT exprs
               )
             | PT.EInfix (id, PT.InfixFnCall fnName, PT.EPipeTarget ptID, expr2) ->
-              let (module_, fn, version) = InfixFnName.toFnName fnName
+              let (modules, fn, version) = InfixFnName.toFnName fnName
               let name =
                 PT.FQFnName.Stdlib(
-                  { module_ = module_; function_ = fn; version = version }
+                  { modules = modules; function_ = fn; version = version }
                 )
               let typeArgs = []
               RT.EApply(
@@ -313,7 +317,7 @@ module UserFunction =
 
   let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid
-      name = f.name
+      name = FQFnName.UserFnName.toRT f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
       returnType = TypeReference.toRT f.returnType

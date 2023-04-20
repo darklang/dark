@@ -11,8 +11,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module CTRuntime = ClientTypes.Runtime
-module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
+module CRT = LibAnalysis.ClientRuntimeTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
@@ -33,8 +32,8 @@ let queryableRoundtripsSuccessfullyInRecord
     fieldTyp : RT.TypeReference
   ) : bool =
   let record = RT.DRecord(Map.ofList [ "field", dv ])
-  let typeName = S.userTypeName "MyType" 0
-  let typeRef = S.userTypeReference "MyType" 0
+  let typeName = S.userTypeName [] "MyType" 0
+  let typeRef = S.userTypeReference [] "MyType" 0
 
   let availableTypes = Map [ typeName, S.customTypeRecord [ "field", fieldTyp ] ]
 
@@ -79,10 +78,9 @@ let testToDeveloperRepr =
 let testPreviousDateSerializionCompatibility =
   test "previous date serialization compatible" {
     let expected =
-      CTRuntime.Dval.DDateTime(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
+      CRT.Dval.DDateTime(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
     let actual =
-      Json.Vanilla.deserialize<CTRuntime.Dval.T>
-        """["DDateTime","1970-01-01T00:00:00"]"""
+      Json.Vanilla.deserialize<CRT.Dval.T> """["DDateTime","1970-01-01T00:00:00"]"""
     Expect.equal expected actual "not deserializing correctly"
   }
 
@@ -134,10 +132,10 @@ let allRoundtrips =
         "vanilla"
         (fun (dv, _) ->
           dv
-          |> CT2Runtime.Dval.toCT
+          |> CRT.Dval.toCT
           |> Json.Vanilla.serialize
           |> Json.Vanilla.deserialize
-          |> CT2Runtime.Dval.fromCT
+          |> CRT.Dval.fromCT
           |> Expect.dvalEquality dv)
         (dvs (function
           | RT.DPassword _ -> false
@@ -217,7 +215,7 @@ module Password =
       // redacting
       doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
       doesRedact "Json.Vanilla.serialize" (fun dv ->
-        dv |> CT2Runtime.Dval.toCT |> Json.Vanilla.serialize)
+        dv |> CRT.Dval.toCT |> Json.Vanilla.serialize)
       ()
     }
 
@@ -226,8 +224,8 @@ module Password =
       let bytes = UTF8.toBytes "encryptedbytes"
       let password = RT.DRecord(Map.ofList [ "x", RT.DPassword(Password bytes) ])
 
-      let typeName = S.userTypeName "MyType" 0
-      let typeRef = S.userTypeReference "MyType" 0
+      let typeName = S.userTypeName [] "MyType" 0
+      let typeRef = S.userTypeReference [] "MyType" 0
 
       let availableTypes = Map [ typeName, S.customTypeRecord [ "x", RT.TPassword ] ]
 
@@ -245,13 +243,13 @@ module Password =
       "no auto serialization of passwords"
       [ test "vanilla" {
           let password =
-            CTRuntime.Dval.DPassword(Password(UTF8.toBytes "some password"))
+            CRT.Dval.DPassword(Password(UTF8.toBytes "some password"))
             |> Json.Vanilla.serialize
             |> Json.Vanilla.deserialize
 
           Expect.equal
             password
-            (CTRuntime.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
+            (CRT.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
             "should be redacted"
         } ]
 

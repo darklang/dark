@@ -4,10 +4,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
-
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+open LibExecution.StdLib.Shortcuts
 
 let varA = TVariable "a"
 

@@ -287,10 +287,10 @@ Json.parse<Result<Int, String>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 // #### Enums
 type PrettyLikely = Yeah | Enh of reason: String * Int
 
-Json.serialize<PrettyLikely> Yeah = Ok "{\"Yeah\":[]}"
-Json.parse<PrettyLikely> "{\"Yeah\":[]}" = Ok Yeah
-Json.serialize<PrettyLikely> (Enh("printer broke", 7)) = Ok "{\"Enh\":[\"printer broke\",7]}"
-Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (Enh("printer broke", 7))
+Json.serialize<PrettyLikely> PrettyLikely.Yeah = Ok "{\"Yeah\":[]}"
+Json.parse<PrettyLikely> "{\"Yeah\":[]}" = Ok PrettyLikely.Yeah
+Json.serialize<PrettyLikely> (PrettyLikely.Enh("printer broke", 7)) = Ok "{\"Enh\":[\"printer broke\",7]}"
+Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (PrettyLikely.Enh("printer broke", 7))
 // TODO: more
 // TODO: more nesting...
 

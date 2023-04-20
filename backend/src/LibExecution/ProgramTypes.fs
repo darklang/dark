@@ -5,16 +5,18 @@ open Prelude
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
-  type StdlibTypeName = { module_ : string; typ : string; version : int }
 
-  /// A type written by a Developer in their canvas
-  type UserTypeName = { typ : string; version : int }
+  /// A type written in F# and shipped in the executable. Module required for all but a few cases.
+  type StdlibTypeName = { modules : List<string>; typ : string; version : int }
+
+  /// A type written by a Developer in their canvas. Module not required
+  type UserTypeName = { modules : List<string>; typ : string; version : int }
 
   /// The name of a type in the package manager
   type PackageTypeName =
     { owner : string
       package : string
-      module_ : string
+      modules : NonEmptyList<string>
       typ : string
       version : int }
 
@@ -26,26 +28,44 @@ module FQTypeName =
   let toString (fqtn : T) : string =
     match fqtn with
     | Stdlib s ->
-      if s.module_ = "" then
-        $"{s.typ}_v{s.version}"
-      else
-        $"{s.module_}.{s.typ}_v{s.version}"
-    | User u -> $"{u.typ}_v{u.version}"
-    | Package p -> $"{p.owner}.{p.package}.{p.module_}.{p.typ}_v{p.version}"
+      RuntimeTypes.FQTypeName.toString (
+        RuntimeTypes.FQTypeName.Stdlib
+          { modules = s.modules; typ = s.typ; version = s.version }
+      )
+    | User u ->
+      RuntimeTypes.FQTypeName.toString (
+        RuntimeTypes.FQTypeName.User
+          { modules = u.modules; typ = u.typ; version = u.version }
+      )
+    | Package p ->
+      RuntimeTypes.FQTypeName.toString (
+        RuntimeTypes.FQTypeName.Package
+          { owner = p.owner
+            package = p.package
+            modules = p.modules
+            typ = p.typ
+            version = p.version }
+      )
 
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let typeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
-
   let stdlibTypeName
-    (module_ : string)
+    (modul : string)
     (typ : string)
     (version : int)
     : StdlibTypeName =
-    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    if modul <> "" then assertRe "modName name must match" modNamePat modul
     assertRe "stdlib type name must match" typeNamePat typ
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { module_ = module_; typ = typ; version = version }
+    { modules = [ modul ]; typ = typ; version = version }
+
+  let userTypeName (modul : string) (typ : string) (version : int) : UserTypeName =
+    if modul <> "" then assertRe "modName name must match" modNamePat modul
+    assertRe "stdlib type name must match" typeNamePat typ
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { modules = [ modul ]; typ = typ; version = version }
+
 
 
 
@@ -54,16 +74,16 @@ module FQTypeName =
 module FQFnName =
 
   /// Standard Library Function Name
-  type StdlibFnName = { module_ : string; function_ : string; version : int }
+  type StdlibFnName = { modules : List<string>; function_ : string; version : int }
 
   /// A UserFunction is a function written by a Developer in their canvas
-  type UserFnName = string
+  type UserFnName = { modules : List<string>; function_ : string; version : int }
 
   /// The name of a function in the package manager
   type PackageFnName =
     { owner : string
       package : string
-      module_ : string
+      modules : NonEmptyList<string>
       function_ : string
       version : int }
 
@@ -91,53 +111,58 @@ module FQFnName =
   let packageFnName
     (owner : string)
     (package : string)
-    (module_ : string)
+    (modules : NonEmptyList<string>)
     (function_ : string)
     (version : int)
     : PackageFnName =
     Prelude.assertRe "owner must match" namePat owner
     Prelude.assertRe "package must match" namePat package
-    Prelude.assertRe "modName name must match" modNamePat module_
+    NonEmptyList.iter (Prelude.assertRe "modName name must match" modNamePat) modules
     Prelude.assertRe "package function name must match" fnnamePat function_
     Prelude.assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { owner = owner
       package = package
-      module_ = module_
+      modules = modules
       function_ = function_
       version = version }
 
   let packageFqName
     (owner : string)
     (package : string)
-    (module_ : string)
+    (modules : NonEmptyList<string>)
     (function_ : string)
     (version : int)
     : T =
-    Package(packageFnName owner package module_ function_ version)
-
-  let userFnName (fnName : string) : UserFnName =
-    Prelude.assertRe "user function name must match" userFnNamePat fnName
-    fnName
-
-
-  let userFqName (fnName : string) = User(userFnName fnName)
+    Package(packageFnName owner package modules function_ version)
 
   let stdlibFnName
-    (module_ : string)
+    (modules : List<string>)
     (function_ : string)
     (version : int)
     : StdlibFnName =
-    if module_ <> "" then
-      Prelude.assertRe "modName name must match" modNamePat module_
+    List.iter (Prelude.assertRe "modName name must match" modNamePat) modules
     Prelude.assertRe "stdlib function name must match" fnnamePat function_
     Prelude.assert_
       "version can't be negative"
       [ "function", function_; "version", version ]
       (version >= 0)
-    { module_ = module_; function_ = function_; version = version }
+    { modules = modules; function_ = function_; version = version }
 
-  let stdlibFqName (module_ : string) (function_ : string) (version : int) : T =
-    Stdlib(stdlibFnName module_ function_ version)
+  let stdlibFqName (modules : List<string>) (function_ : string) (version : int) : T =
+    Stdlib(stdlibFnName modules function_ version)
+
+  let userFnName (modules : List<string>) (function_ : string) (version : int) : UserFnName =
+    List.iter (Prelude.assertRe "modName name must match" modNamePat) modules
+    Prelude.assertRe "user function name must match" userFnNamePat function_
+    Prelude.assert_
+      "version can't be negative"
+      [ "function", function_; "version", version ]
+      (version >= 0)
+    { modules = modules; function_ = function_; version = version }
+
+  let userFqName (modules : List<string>) (function_ : string) (version : int) : T =
+    User(userFnName modules function_ version)
+
 
 type LetPattern = LPVariable of id * name : string
 
@@ -344,7 +369,7 @@ module UserFunction =
 
   type T =
     { tlid : tlid
-      name : string
+      name : FQFnName.UserFnName
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference

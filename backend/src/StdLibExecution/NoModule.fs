@@ -4,13 +4,11 @@ open Prelude
 open System
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
+
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-let fn = FQFnName.stdlibFnName
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
-
-let varA = TVariable "a"
 
 let rec equals (a : Dval) (b : Dval) : bool =
   match a, b with
@@ -249,8 +247,10 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   | MPList _, _ -> false
 
 
+let varA = TVariable "a"
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "" "equals" 0
+  [ { name = fnNoMod "equals" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
@@ -264,7 +264,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "" "notEquals" 0
+    { name = fnNoMod "notEquals" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
@@ -278,74 +278,75 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "AWS" "urlencode" 0
-      typeParams = []
-      parameters = [ Param.make "str" TString "" ]
-      returnType = TString
-      description = "Url encode a string per AWS' requirements"
-      fn =
-        (function
-        | _, _, [ DString s ] ->
-          // Based on the original OCaml implementation which was slightly modified from
-          // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
-          // Buffer.add_string instead of add_bytes); see also
-          // https://github.com/mirage/ocaml-uri/issues/65. It's pretty much a straight
-          // up port from the Java example at
-          // https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html,
-          // which calls it UriEncode
-          let sb = new Text.StringBuilder()
+    // { name = fn "AWS" "urlencode" 0
+    //   typeParams = []
+    //   parameters = [ Param.make "str" TString "" ]
+    //   returnType = TString
+    //   description = "Url encode a string per AWS' requirements"
+    //   fn =
+    //     (function
+    //     | _, _, [ DString s ] ->
+    //       // Based on the original OCaml implementation which was slightly modified from
+    //       // https://github.com/mirage/ocaml-cohttp/pull/294/files (to use
+    //       // Buffer.add_string instead of add_bytes); see also
+    //       // https://github.com/mirage/ocaml-uri/issues/65. It's pretty much a straight
+    //       // up port from the Java example at
+    //       // https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html,
+    //       // which calls it UriEncode
+    //       let sb = new Text.StringBuilder()
 
-          // Percent encode the path as s3 wants it. Uri doesn't
-          // encode $, or the other sep characters in a path.
-          // If upstream allows that we can nix this function
-          let bytes = UTF8.toBytes s
-          let n = Array.length bytes
+    //       // Percent encode the path as s3 wants it. Uri doesn't
+    //       // encode $, or the other sep characters in a path.
+    //       // If upstream allows that we can nix this function
+    //       let bytes = UTF8.toBytes s
+    //       let n = Array.length bytes
 
-          let is_hex (ch : byte) =
-            (ch >= byte 'A' && ch <= byte 'Z')
-            || (ch >= byte 'a' && ch <= byte 'z')
-            || (ch >= byte '0' && ch <= byte '9')
+    //       let is_hex (ch : byte) =
+    //         (ch >= byte 'A' && ch <= byte 'Z')
+    //         || (ch >= byte 'a' && ch <= byte 'z')
+    //         || (ch >= byte '0' && ch <= byte '9')
 
-          let is_special (ch : byte) =
-            ch = byte '_'
-            || ch = byte '-'
-            || ch = byte '~'
-            || ch = byte '.'
-            || ch = byte '/'
-
-
-          for i = 0 to n - 1 do
-            let (c : byte) = bytes[i]
-
-            if ((is_hex c) || (is_special c)) then
-              sb.Append(char c) |> ignore<Text.StringBuilder>
-            elif (bytes[i] = byte '%') then
-              // We're expecting already escaped strings so ignore the escapes
-              if i + 2 < n then
-                if is_hex bytes[i + 1] && is_hex bytes[i + 2] then
-                  sb.Append(char c) |> ignore<Text.StringBuilder>
-                else
-                  sb.Append "%25" |> ignore<Text.StringBuilder>
-            else
-              sb.Append(c |> char |> int |> sprintf "%%%X")
-              |> ignore<Text.StringBuilder>
-
-          sb |> string |> DString |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
+    //       let is_special (ch : byte) =
+    //         ch = byte '_'
+    //         || ch = byte '-'
+    //         || ch = byte '~'
+    //         || ch = byte '.'
+    //         || ch = byte '/'
 
 
-    { name = fn "Twitter" "urlencode" 0
-      typeParams = []
-      parameters = [ Param.make "s" TString "" ]
-      returnType = TString
-      description = "Url encode a string per Twitter's requirements"
-      fn =
-        (function
-        | _, _, [ DString s ] -> s |> Uri.EscapeDataString |> DString |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated } ]
+    //       for i = 0 to n - 1 do
+    //         let (c : byte) = bytes[i]
+
+    //         if ((is_hex c) || (is_special c)) then
+    //           sb.Append(char c) |> ignore<Text.StringBuilder>
+    //         elif (bytes[i] = byte '%') then
+    //           // We're expecting already escaped strings so ignore the escapes
+    //           if i + 2 < n then
+    //             if is_hex bytes[i + 1] && is_hex bytes[i + 2] then
+    //               sb.Append(char c) |> ignore<Text.StringBuilder>
+    //             else
+    //               sb.Append "%25" |> ignore<Text.StringBuilder>
+    //         else
+    //           sb.Append(c |> char |> int |> sprintf "%%%X")
+    //           |> ignore<Text.StringBuilder>
+
+    //       sb |> string |> DString |> Ply
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotYetImplemented
+    //   previewable = Pure
+    //   deprecated = NotDeprecated }
+
+
+    // { name = fn "Twitter" "urlencode" 0
+    //   typeParams = []
+    //   parameters = [ Param.make "s" TString "" ]
+    //   returnType = TString
+    //   description = "Url encode a string per Twitter's requirements"
+    //   fn =
+    //     (function
+    //     | _, _, [ DString s ] -> s |> Uri.EscapeDataString |> DString |> Ply
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotYetImplemented
+    //   previewable = Pure
+    //   deprecated = NotDeprecated }
+    ]

@@ -95,7 +95,7 @@ let testUserFn
     body = body
     description = ""
     infix = false
-    name = name
+    name = PT.FQFnName.userFnName [] name 0
     typeParams = typeParams
     parameters =
       List.map
@@ -145,7 +145,7 @@ let executionStateFor
   (internalFnsAllowed : bool)
   (dbs : Map<string, RT.DB.T>)
   (userTypes : Map<RT.FQTypeName.UserTypeName, RT.UserType.T>)
-  (userFunctions : Map<string, RT.UserFunction.T>)
+  (userFunctions : Map<RT.FQFnName.UserFnName, RT.UserFunction.T>)
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
@@ -955,23 +955,23 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TList TInt)
     ("record",
      DRecord(Map.ofList [ "foo", Dval.int 5 ]),
-     TCustomType(S.userTypeName "Foo" 0, []))
+     TCustomType(S.userTypeName [ "Two"; "Modules" ] "Foo" 0, []))
     ("record2",
      DRecord(Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]),
-     TCustomType(S.userTypeName "Foo" 0, []))
+     TCustomType(S.userTypeName [] "Foo" 0, []))
     ("record3",
      DRecord(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
-     TCustomType(S.userTypeName "Foo" 0, []))
+     TCustomType(S.userTypeName [] "Foo" 0, []))
     // More Json.NET tests
     ("record4",
      DRecord(Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
-     TCustomType(S.userTypeName "Foo" 0, []))
+     TCustomType(S.userTypeName [] "Foo" 0, []))
     ("record5",
      DRecord(Map.ofList [ "$type", Dval.int 5 ]),
-     TCustomType(S.userTypeName "Foo" 0, []))
+     TCustomType(S.userTypeName [] "Foo" 0, []))
     ("record with error",
      DRecord(Map.ofList [ "v", DError(SourceNone, "some error string") ]),
-     TCustomType(S.userTypeName "Foo" 0, []))
+     TCustomType(S.userTypeName [] "Foo" 0, []))
     ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]), TDict TInt)
     ("dict3",
      DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
@@ -1001,27 +1001,27 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                92356985UL,
                (FnName(
                  FQFnName.Stdlib
-                   { module_ = "List"; function_ = "push"; version = 0 }
+                   { modules = [ "List" ]; function_ = "push"; version = 0 }
                )),
                [],
                [ EApply(
                    93459985UL,
                    (FnName(
-                     FQFnName.Stdlib { module_ = ""; function_ = "+"; version = 0 }
+                     FQFnName.Stdlib { modules = []; function_ = "+"; version = 0 }
                    )),
                    [],
                    [ EApply(
                        394567785UL,
                        (FnName(
                          FQFnName.Stdlib
-                           { module_ = ""; function_ = "+"; version = 0 }
+                           { modules = []; function_ = "+"; version = 0 }
                        )),
                        [],
                        [ EApply(
                            44444485UL,
                            (FnName(
                              FQFnName.Stdlib
-                               { module_ = ""; function_ = "+"; version = 0 }
+                               { modules = []; function_ = "+"; version = 0 }
                            )),
                            [],
                            [ EInt(234213618UL, 5); EInt(923423468UL, 6) ]

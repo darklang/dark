@@ -14,47 +14,18 @@ module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module WorkerStates = LibBackend.QueueSchedulingRules.WorkerStates
-module CTRuntime = ClientTypes.Runtime
-module CTAnalysis = ClientTypes.Analysis
-module CT2Runtime = ClientTypes2ExecutionTypes.Runtime
-module CT2Program = ClientTypes2ExecutionTypes.ProgramTypes
-module CT2Ops = ClientTypes2BackendTypes.Ops
-module CT2Worker = ClientTypes2BackendTypes.Worker
+module CPT = LibAnalysis.ClientProgramTypes
+module CRT = LibAnalysis.ClientRuntimeTypes
+module CAT = LibAnalysis.ClientAnalysisTypes
 
 module V = SerializationTestValues
 
 [<RequireQualifiedAccess>]
 module ClientTestValues =
-  let dval : CTRuntime.Dval.T = CT2Runtime.Dval.toCT V.RuntimeTypes.dval
+  let dval : CRT.Dval.T = CRT.Dval.toCT V.RuntimeTypes.dval
 
-  let dtypes : List<CTRuntime.TypeReference> =
-    List.map CT2Runtime.TypeReference.toCT V.RuntimeTypes.dtypes
-
-  let addOpResultV1 : ClientTypes.Ops.AddOpResultV1 =
-    { handlers = V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
-      deletedHandlers =
-        V.ProgramTypes.Handler.handlers |> List.map CT2Program.Handler.toCT
-      dbs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
-      deletedDBs = [ V.ProgramTypes.userDB |> CT2Program.DB.toCT ]
-      userFunctions =
-        V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
-      deletedUserFunctions =
-        V.ProgramTypes.userFunctions |> List.map CT2Program.UserFunction.toCT
-      userTypes = V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT
-      deletedUserTypes =
-        V.ProgramTypes.userTypes |> List.map CT2Program.UserType.toCT }
-
-  let workerStates : ClientTypes.Worker.WorkerStates =
-    Map.ofList [ "run", CT2Worker.WorkerState.toCT WorkerStates.Running
-                 "blocked", CT2Worker.WorkerState.toCT WorkerStates.Blocked
-                 "paused", CT2Worker.WorkerState.toCT WorkerStates.Paused ]
-
-  let addOpEventV1 : ClientTypes.Pusher.Payload.AddOpV1 =
-    { ``params`` =
-        { ops = V.ProgramTypes.oplist |> List.map CT2Program.Op.toCT
-          opCtr = 0
-          clientOpCtrID = V.uuid.ToString() }
-      result = addOpResultV1 }
+  let dtypes : List<CRT.TypeReference> =
+    List.map CRT.TypeReference.toCT V.RuntimeTypes.dtypes
 
 module CV = ClientTestValues
 
@@ -97,7 +68,6 @@ module PersistedSerializations =
         // ------------------
         // Prelude
         // ------------------
-        v<Prelude.pos> "simple" { x = 10; y = -16 }
 
         // ------------------
         // LibService
@@ -112,7 +82,7 @@ module PersistedSerializations =
         // ------------------
         // LibExecution
         // ------------------
-        v<CTRuntime.Dval.T> "complete" CV.dval
+        v<CRT.Dval.T> "complete" CV.dval
 
         v<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
           "complete"
@@ -120,9 +90,7 @@ module PersistedSerializations =
            |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT)
 
         v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
-        v<ClientTypes.Program.Handler.T>
-          "simple"
-          (CT2Program.Handler.toCT V.ProgramTypes.Handler.http)
+        v<CPT.Handler.T> "simple" (CPT.Handler.toCT V.ProgramTypes.Handler.http)
 
         // ------------------
         // LibBackend
@@ -164,10 +132,10 @@ module PersistedSerializations =
         v<ClientTypes.Pusher.Payload.New404>
           "simple"
           ("HTTP", "/", "GET", V.instant, V.uuid)
-        v<ClientTypes.Pusher.Payload.UpdateWorkerStates>
-          "pusher-update-worker-states"
-          CV.workerStates
-        v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
+        // v<ClientTypes.Pusher.Payload.UpdateWorkerStates>
+        //   "pusher-update-worker-states"
+        //   CV.workerStates
+        // v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
         // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
         //   "simple"
         //   { tlids = testTLIDs }
@@ -177,56 +145,48 @@ module PersistedSerializations =
         // ------------------
         // LibAnalysis
         // ------------------
-        v<ClientTypes.Analysis.AnalysisResult>
+        v<CAT.AnalysisResult>
           "simple"
           (Ok(
             V.uuid,
             Dictionary.fromList (
-              [ (7UL, CTAnalysis.ExecutionResult.ExecutedResult CV.dval)
-                (7UL, CTAnalysis.ExecutionResult.NonExecutedResult CV.dval) ]
+              [ (7UL, CAT.ExecutionResult.ExecutedResult CV.dval)
+                (7UL, CAT.ExecutionResult.NonExecutedResult CV.dval) ]
             ),
             1,
             NodaTime.Instant.UnixEpoch
           ))
-        v<ClientTypes.Analysis.PerformAnalysisParams>
+        v<CAT.PerformAnalysisParams>
           "handler"
-          (ClientTypes.Analysis.AnalyzeHandler
+          (CAT.AnalyzeHandler
             { requestID = 2
               requestTime = NodaTime.Instant.UnixEpoch
-              handler = CT2Program.Handler.toCT V.ProgramTypes.Handler.http
+              handler = CPT.Handler.toCT V.ProgramTypes.Handler.http
               traceID = V.uuid
               traceData =
                 { input = [ "var", CV.dval ]
                   functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
               dbs =
-                [ { tlid = V.tlid
-                    name = "dbname"
-                    typ = ClientTypes.Program.TInt
-                    version = 1 } ]
-              userFns =
-                List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
-              userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
-              packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
+                [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
+              userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
+              userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
+              packageFns = [ V.ProgramTypes.packageFn |> CPT.Package.Fn.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 1 } ] })
-        v<ClientTypes.Analysis.PerformAnalysisParams>
+        v<CAT.PerformAnalysisParams>
           "function"
-          (ClientTypes.Analysis.AnalyzeFunction
+          (CAT.AnalyzeFunction
             { requestID = 3
               requestTime = NodaTime.Instant.UnixEpoch
-              func = CT2Program.UserFunction.toCT V.ProgramTypes.userFunction
+              func = CPT.UserFunction.toCT V.ProgramTypes.userFunction
               traceID = V.uuid
               traceData =
                 { input = [ "var", CV.dval ]
                   functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
               dbs =
-                [ { tlid = V.tlid
-                    name = "dbname"
-                    typ = ClientTypes.Program.TInt
-                    version = 1 } ]
-              userFns =
-                List.map CT2Program.UserFunction.toCT V.ProgramTypes.userFunctions
-              userTypes = List.map CT2Program.UserType.toCT V.ProgramTypes.userTypes
-              packageFns = [ V.ProgramTypes.packageFn |> CT2Program.Package.Fn.toCT ]
+                [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
+              userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
+              userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
+              packageFns = [ V.ProgramTypes.packageFn |> CPT.Package.Fn.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 2 } ] })
 
 
@@ -369,38 +329,38 @@ module RoundtripTests =
       [ testRoundtripList
           "RT.FqFnName"
           V.RuntimeTypes.fqFnNames
-          CT2Runtime.FQFnName.toCT
-          CT2Runtime.FQFnName.fromCT
+          CRT.FQFnName.toCT
+          CRT.FQFnName.fromCT
           None
         testRoundtripList
           "RT.TypeReference"
           V.RuntimeTypes.dtypes
-          CT2Runtime.TypeReference.toCT
-          CT2Runtime.TypeReference.fromCT
+          CRT.TypeReference.toCT
+          CRT.TypeReference.fromCT
           None
         testRoundtripList
           "RT.MatchPattern"
           V.RuntimeTypes.matchPatterns
-          CT2Runtime.MatchPattern.toCT
-          CT2Runtime.MatchPattern.fromCT
+          CRT.MatchPattern.toCT
+          CRT.MatchPattern.fromCT
           None
         testRoundtripList
           "RT.Expr"
           V.RuntimeTypes.exprs
-          CT2Runtime.Expr.toCT
-          CT2Runtime.Expr.fromCT
+          CRT.Expr.toCT
+          CRT.Expr.fromCT
           None
         testRoundtripList
           "RT.DvalSource"
           V.RuntimeTypes.dvalSources
-          CT2Runtime.Dval.DvalSource.toCT
-          CT2Runtime.Dval.DvalSource.fromCT
+          CRT.Dval.DvalSource.toCT
+          CRT.Dval.DvalSource.fromCT
           None
         testRoundtripList
           "RT.Dval"
           V.RuntimeTypes.dvals
-          CT2Runtime.Dval.toCT
-          CT2Runtime.Dval.fromCT
+          CRT.Dval.toCT
+          CRT.Dval.fromCT
           (Some (fun l r ->
             Expect.equalDval l r "dval does not roundtrip successfully")) ]
 
@@ -409,86 +369,72 @@ module RoundtripTests =
       [ testRoundtripList
           "PT.FQFnName"
           V.ProgramTypes.fqFnNames
-          CT2Program.FQFnName.toCT
-          CT2Program.FQFnName.fromCT
+          CPT.FQFnName.toCT
+          CPT.FQFnName.fromCT
           None
         testRoundtripList
           "PT.MatchPattern"
           V.ProgramTypes.matchPatterns
-          CT2Program.MatchPattern.toCT
-          CT2Program.MatchPattern.fromCT
+          CPT.MatchPattern.toCT
+          CPT.MatchPattern.fromCT
           None
         testRoundtripList
           "PT.LetPattern"
           V.ProgramTypes.letPatterns
-          CT2Program.LetPattern.toCT
-          CT2Program.LetPattern.fromCT
+          CPT.LetPattern.toCT
+          CPT.LetPattern.fromCT
           None
-        testRoundtrip
-          "PT.Expr"
-          V.ProgramTypes.expr
-          CT2Program.Expr.toCT
-          CT2Program.Expr.fromCT
+        testRoundtrip "PT.Expr" V.ProgramTypes.expr CPT.Expr.toCT CPT.Expr.fromCT
         testRoundtrip
           "PT.Dtype"
           V.ProgramTypes.dtype
-          CT2Program.TypeReference.toCT
-          CT2Program.TypeReference.fromCT
+          CPT.TypeReference.toCT
+          CPT.TypeReference.fromCT
         testRoundtripList
           "PT.CronInterval"
           V.ProgramTypes.Handler.cronIntervals
-          CT2Program.Handler.CronInterval.toCT
-          CT2Program.Handler.CronInterval.fromCT
+          CPT.Handler.CronInterval.toCT
+          CPT.Handler.CronInterval.fromCT
           None
         testRoundtripList
           "PT.HandlerSpec"
           V.ProgramTypes.Handler.specs
-          CT2Program.Handler.Spec.toCT
-          CT2Program.Handler.Spec.fromCT
+          CPT.Handler.Spec.toCT
+          CPT.Handler.Spec.fromCT
           None
         testRoundtripList
           "PT.Handler"
           V.ProgramTypes.Handler.handlers
-          CT2Program.Handler.toCT
-          CT2Program.Handler.fromCT
+          CPT.Handler.toCT
+          CPT.Handler.fromCT
           None
-        testRoundtrip
-          "PT.UserDB"
-          V.ProgramTypes.userDB
-          CT2Program.DB.toCT
-          CT2Program.DB.fromCT
+        testRoundtrip "PT.UserDB" V.ProgramTypes.userDB CPT.DB.toCT CPT.DB.fromCT
         testRoundtrip
           "PT.UserType"
           V.ProgramTypes.userRecordType
-          CT2Program.UserType.toCT
-          CT2Program.UserType.fromCT
+          CPT.UserType.toCT
+          CPT.UserType.fromCT
         testRoundtrip
           "PT.UserFunction"
           V.ProgramTypes.userFunction
-          CT2Program.UserFunction.toCT
-          CT2Program.UserFunction.fromCT
+          CPT.UserFunction.toCT
+          CPT.UserFunction.fromCT
         testRoundtripList
           "PT.Toplevel"
           V.ProgramTypes.toplevels
-          CT2Program.Toplevel.toCT
-          CT2Program.Toplevel.fromCT
-          None
-        testRoundtripList
-          "PT.Op"
-          V.ProgramTypes.oplist
-          CT2Program.Op.toCT
-          CT2Program.Op.fromCT
+          CPT.Toplevel.toCT
+          CPT.Toplevel.fromCT
           None
         testRoundtrip
           "PT.UserSecret"
           V.ProgramTypes.userSecret
-          CT2Program.Secret.toCT
-          CT2Program.Secret.fromCT
+          CPT.Secret.toCT
+          CPT.Secret.fromCT
         testRoundtrip
           "PT.Package"
           V.ProgramTypes.packageFn
-          CT2Program.Package.Fn.toCT
-          CT2Program.Package.Fn.fromCT ]
+          CPT.Package.Fn.toCT
+          CPT.Package.Fn.fromCT ]
 
 
 let tests =

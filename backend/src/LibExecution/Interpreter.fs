@@ -611,8 +611,8 @@ and callFn
       | FQFnName.Stdlib _std ->
         // CLEANUP: do this when the libraries are loaded
         state.libraries.stdlibFns.TryFind desc |> Option.map builtInFnToFn
-      | FQFnName.User name ->
-        state.program.userFns.TryFind name |> Option.map userFnToFn
+      | FQFnName.User u ->
+        state.program.userFns.TryFind u |> Option.map userFnToFn
       | FQFnName.Package _pkg ->
         state.libraries.packageFns.TryFind desc |> Option.map packageFnToFn
 

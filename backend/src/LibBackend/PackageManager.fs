@@ -309,7 +309,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
     let! fns =
       // CLEANUP: why do we have both accounts_v0 A and accounts_v0 O?
       Sql.query
-        "SELECT P.tlid, P.user_id, P.package, P.module, P.fnname, P.version,
+        "SELECT P.tlid, P.user_id, P.package, P.modules, P.fnname, P.version,
                 P.body, P.description, P.return_type, P.parameters, P.deprecated
           FROM packages_v0 P, accounts_v0 A, accounts_v0 O
           WHERE P.user_id = A.id
@@ -318,7 +318,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
       |> Sql.executeAsync (fun read ->
         (read.string "username",
          read.string "package",
-         read.string "module",
+         read.string "modules",
          read.string "fnname",
          read.int "version",
          read.bytea "body",
@@ -334,7 +334,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
       |> List.map
         (fun (username,
               package,
-              module_,
+              modules,
               fnname,
               version,
               body2,
@@ -347,7 +347,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
           let name : PT.FQFnName.PackageFnName =
             { owner = username
               package = package
-              module_ = module_
+              modules = Json.Vanilla.deserialize<NonEmptyList<string>> modules
               function_ = fnname
               version = version }
           let expr = BinarySerialization.deserializeExpr tlid body2

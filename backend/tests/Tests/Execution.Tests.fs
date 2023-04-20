@@ -28,7 +28,7 @@ let executionStateForPreview
   (name : string)
   (dbs : Map<string, DB.T>)
   (types : Map<FQTypeName.UserTypeName, UserType.T>)
-  (fns : Map<string, UserFunction.T>)
+  (fns : Map<FQFnName.UserFnName, UserFunction.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
     let canvasID = System.Guid.NewGuid()
@@ -69,7 +69,7 @@ let testExecFunctionTLIDs : Test =
     let fn =
       testUserFn name [] [] (PT.TVariable "a") (PT.EInt(gid (), 5))
       |> PT2RT.UserFunction.toRT
-    let fns = Map.ofList [ (name, fn) ]
+    let fns = Map.ofList [ (fn.name, fn) ]
     let! state = executionStateFor meta false Map.empty Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
@@ -79,7 +79,7 @@ let testExecFunctionTLIDs : Test =
           tracing =
             { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
-    let! value = Exe.executeFunction state (gid ()) (FQFnName.User name) [] []
+    let! value = Exe.executeFunction state (gid ()) (FQFnName.User fn.name) [] []
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"
@@ -112,7 +112,7 @@ let testRecursionInEditor : Test =
         // calls self ("recurse") resulting in recursion
         PT.EFnCall(
           skippedCallerID,
-          PT.FQFnName.userFqName "recurse",
+          PT.FQFnName.userFqName [] "recurse" 0,
           [],
           [ PT.EInt(gid (), 2) ]
         )
@@ -188,7 +188,7 @@ let testIfPreview : Test =
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
       // fakevals
-      (eFn "Test" "typeError" 0 [] [ eStr "test" ],
+      (eFn [ "Test" ] "typeError" 0 [] [ eStr "test" ],
        (AT.ExecutedResult(DError(SourceNone, "test")),
         AT.NonExecutedResult(DString "then"),
         AT.NonExecutedResult(DString "else")))
@@ -442,7 +442,7 @@ let testMatchPreview : Test =
       (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
-         PT.FQFnName.stdlibFqName "String" "append" 1
+         PT.FQFnName.stdlibFqName [ "String" ] "append" 1
          |> PT2RT.FQFnName.toRT
          |> FnName,
          [],

@@ -494,13 +494,6 @@ let saveTLIDs
           else
             None, None, None
 
-        let pos =
-          match tl with
-          | PT.Toplevel.TLHandler _ -> Some(Json.Vanilla.serialize { x = 0; y = 0 })
-          | PT.Toplevel.TLDB _ -> None
-          | PT.Toplevel.TLType _ -> None
-          | PT.Toplevel.TLFunction _ -> None
-
         let serializedOplist = BinarySerialization.serializeOplist tlid oplist
         let serializedOplistCache = BinarySerialization.serializeToplevel tl
 
@@ -602,7 +595,7 @@ let toProgram (c : T) : RT.ProgramContext =
   let userFns =
     c.userFunctions
     |> Map.values
-    |> List.map (fun f -> (f.name, PT2RT.UserFunction.toRT f))
+    |> List.map (fun f -> (PT2RT.FQFnName.UserFnName.toRT f.name, PT2RT.UserFunction.toRT f))
     |> Map.ofList
 
   let userTypes =

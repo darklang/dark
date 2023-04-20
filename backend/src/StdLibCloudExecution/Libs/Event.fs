@@ -3,20 +3,17 @@
 /// Those events are handled by Workers
 module StdLibCloudExecution.Libs.Event
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
 
 module Queue = LibBackend.Queue
-module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+open LibExecution.StdLib.Shortcuts
 
 let varA = TVariable "a"
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "" "emit" 1
+  [ { name = fnNoMod "emit" 1
       typeParams = []
       parameters = [ Param.make "event" varA ""; Param.make "name" TString "" ]
       returnType = varA

@@ -17,7 +17,7 @@ let ptFQFnName =
   testMany
     "ProgramTypes.FQFnName.ToString"
     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PT.FQFnName.stdlibFqName "String" "append" 1), "String::append_v1" ]
+    [ (PT.FQFnName.stdlibFqName [ "String" ] "append" 1), "String::append_v1" ]
 
 
 let testPipesToRuntimeTypes =
@@ -27,17 +27,17 @@ let testPipesToRuntimeTypes =
 
     let expected =
       S.eFn
-        "Int"
+        [ "Int" ]
         "lessThan"
         0
         []
         [ S.eFn
-            "Int"
+            [ "Int" ]
             "add"
             0
             []
             [ S.eFn
-                "Int"
+                [ "Int" ]
                 "subtract"
                 0
                 []

@@ -45,7 +45,7 @@ let testBasicTypecheckWorks : Test =
     "basic type checking"
     t
     (let intAdd =
-      RT.FQFnName.Stdlib { module_ = "Int"; function_ = "add"; version = 0 }
+      RT.FQFnName.Stdlib { modules = [ "Int" ]; function_ = "add"; version = 0 }
 
      [ (intAdd, [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
        ((intAdd, [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
@@ -60,7 +60,7 @@ let testArguments : Test =
       let canvasID = System.Guid.NewGuid()
       let userFn : RT.UserFunction.T =
         { tlid = id 7
-          name = name
+          name = { modules = []; function_ = name; version = 0 }
           typeParams = []
           parameters = []
           returnType = returnType
@@ -69,7 +69,7 @@ let testArguments : Test =
           body = body }
 
       let expr = S.eUserFn name [] []
-      let fns = Map.ofList [ name, userFn ]
+      let fns = Map.ofList [ userFn.name, userFn ]
       let! state = executionStateFor canvasID false Map.empty Map.empty fns
       let! result = Exe.executeExpr state Map.empty expr
       return normalizeDvalResult result

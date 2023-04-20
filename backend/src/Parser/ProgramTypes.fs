@@ -55,7 +55,7 @@ module TypeReference =
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | (name, version), args ->
       // TYPESCLEANUP - Not sure what we're doing for stdlib types here
-      let tn = PT.FQTypeName.User { typ = name; version = version }
+      let tn = PT.FQTypeName.User { modules = []; typ = name; version = version }
       PT.TCustomType(tn, List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : PT.TypeReference =
@@ -157,7 +157,7 @@ module Expr =
         [ "fnName", fnName ]
 
   let private parseEnum (enumName : string) : string * int =
-    match fnName with
+    match enumName with
     | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
     | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
     | _ ->
@@ -259,14 +259,14 @@ module Expr =
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       ident.idText = "op_UnaryNegation"
       ->
-      let name = PT.FQFnName.stdlibFqName "Int" "negate" 0
+      let name = PT.FQFnName.stdlibFqName ["Int"] "negate" 0
       PT.EFnCall(id, name, [], [])
 
 
     // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
       let name, version = parseFn ident.idText
-      PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [], [])
+      PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [])
 
 
     // Variable constructors - Ok, Error, Nothing, and Just are handled elsewhere,
@@ -303,9 +303,10 @@ module Expr =
       System.Char.IsUpper(modName.idText[0])
       && System.Char.IsUpper(enumName.idText[0])
       ->
-      let module_ = modName.idText
+      let modules = modName.idText
       let name, version = parseEnum enumName.idText
-      PT.EConstructor(gid (), PT.FQTypeName.User, [], [])
+      // TYPESCLEANUP use FQTypeName with a version
+      PT.EConstructor(gid (), None, name, [])
 
 
     // Function calls
@@ -314,16 +315,16 @@ module Expr =
     | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
       System.Char.IsUpper(modName.idText[0]) && System.Char.IsLower(fnName.idText[0])
       ->
-      let module_ = modName.idText
+      let modules = [modName.idText]
       let name, version = parseFn fnName.idText
-      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, [], [])
+      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
 
     // e.g. `Json.serialize<T>`
     | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-      PT.EFnCall(gid (), PT.FQFnName.userFqName name.idText, typeArgs, [])
+      PT.EFnCall(gid (), PT.FQFnName.userFqName [] name.idText 0, typeArgs, [])
 
     | SynExpr.TypeApp (SynExpr.LongIdent (_,
                                           SynLongIdent ([ modName; fnName ], _, _),
@@ -335,12 +336,12 @@ module Expr =
                        _,
                        _,
                        _) ->
-      let module_ = modName.idText
+      let modules = [modName.idText]
       let name, version = parseFn fnName.idText
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
+      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, typeArgs, [])
 
 
     // Package manager function calls
@@ -353,7 +354,7 @@ module Expr =
       ->
       PT.EFnCall(
         gid (),
-        PT.FQFnName.packageFqName "test" "test" "Test" fnName.idText 0,
+        PT.FQFnName.packageFqName "test" "test" (NonEmptyList.singleton "Test") fnName.idText 0,
         [],
         []
       )
@@ -589,11 +590,11 @@ module Expr =
       | PT.EPipe (id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
+        let (name, version) = parseFn name
         if Set.contains name PT.FQFnName.oneWordFunctions then
-          let (name, version) = parseFn name
-          PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [], [ c arg ])
+          PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [ c arg ])
         else
-          PT.EFnCall(id, PT.FQFnName.User name, [], [ c arg ])
+          PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ])
 
 
       // Enums
@@ -622,7 +623,7 @@ module Expr =
   // Second pass of parsing, fixing the thing it's impossible to get right on the
   // first pass, such as function names. Parse the whole program once, and then run
   // this on any expressions.
-  let fixupPass (functions : Set<PT.FQFnName.UserFnName>) (e : PT.Expr) : PT.Expr =
+  let fixupPass (functions : Set<string>) (e : PT.Expr) : PT.Expr =
     e
     |> LibExecution.ProgramTypesAst.preTraversal (fun e ->
       match e with
@@ -630,7 +631,7 @@ module Expr =
         if Set.contains name functions then
           PT.EFnCall(
             id,
-            PT.FQFnName.User(PT.FQFnName.userFnName name),
+            PT.FQFnName.User(PT.FQFnName.userFnName [] name 0),
             [],
             [ PT.Expr.EPipeTarget(gid ()) ]
           )
@@ -721,7 +722,7 @@ module UserFunction =
       let returnType = parseReturnInfo returnInfo
 
       { tlid = gid ()
-        name = name
+        name = PT.FQFnName.userFnName [] name 0
         typeParams = typeParams
         parameters = parameters
         returnType = returnType
@@ -789,7 +790,7 @@ module UserType =
                    _,
                    _) ->
       { tlid = gid ()
-        name = { typ = id.idText; version = 0 }
+        name = { modules = []; typ = id.idText; version = 0 }
         definition = CustomType.Record.fromFields typeDef fields }
 
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
@@ -800,7 +801,7 @@ module UserType =
                    _,
                    _) ->
       { tlid = gid ()
-        name = { typ = id.idText; version = 0 }
+        name = { modules = []; typ = id.idText; version = 0 }
         definition = CustomType.Enum.fromCases typeDef cases }
 
     | _ ->

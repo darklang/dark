@@ -1,5 +1,5 @@
 /// Handles requests for evaluating expressions
-module LibAnalysis
+module LibAnalysis.Analysis
 
 open System.Threading.Tasks
 
@@ -7,10 +7,12 @@ open Prelude
 open Tablecloth
 
 module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module Exe = LibExecution.Execution
 module AT = LibExecution.AnalysisTypes
+module Exe = LibExecution.Execution
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
+
+module CAT = ClientAnalysisTypes
+
 
 module Eval =
   let loadFromTrace
@@ -87,27 +89,21 @@ module Eval =
     }
 
 
-module CTAnalysis = ClientTypes.Analysis
-module CT2Analysis = ClientTypes2ExecutionTypes.Analysis
-
 let performAnalysis
-  (args : CTAnalysis.PerformAnalysisParams)
-  : Task<CTAnalysis.AnalysisEnvelope> =
+  (args : ClientAnalysisTypes.PerformAnalysisParams)
+  : Task<ClientAnalysisTypes.AnalysisEnvelope> =
 
-  let analysisRequest = CT2Analysis.AnalysisRequest.fromCT args
+  let analysisRequest = ClientAnalysisTypes.AnalysisRequest.fromCT args
 
   Eval.runAnalysis analysisRequest
   |> Task.map (fun analysisResponse ->
     (AT.TraceID.toUUID analysisRequest.traceID,
-     CT2Analysis.AnalysisResults.toCT analysisResponse,
+     CAT.AnalysisResults.toCT analysisResponse,
      analysisRequest.requestID,
      analysisRequest.requestTime))
 
 
 let initSerializers () =
-  // allow universally-serializable types
-  Json.Vanilla.allow<pos> "Prelude"
-
   // allow Analysis-specific serializable types
-  Json.Vanilla.allow<ClientTypes.Analysis.PerformAnalysisParams> "Analysis"
-  Json.Vanilla.allow<ClientTypes.Analysis.AnalysisResult> "Analysis"
+  Json.Vanilla.allow<CAT.PerformAnalysisParams> "Analysis"
+  Json.Vanilla.allow<CAT.AnalysisResult> "Analysis"

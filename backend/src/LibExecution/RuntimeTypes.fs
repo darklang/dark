@@ -38,16 +38,16 @@ module J = Prelude.Json
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
-  type StdlibTypeName = { module_ : string; typ : string; version : int }
+  type StdlibTypeName = { modules : List<string>; typ : string; version : int }
 
   /// A type written by a Developer in their canvas
-  type UserTypeName = { typ : string; version : int }
+  type UserTypeName = { modules : List<string>; typ : string; version : int }
 
   /// The name of a type in the package manager
   type PackageTypeName =
     { owner : string
       package : string
-      module_ : string
+      modules : NonEmptyList<string>
       typ : string
       version : int }
 
@@ -61,44 +61,42 @@ module FQTypeName =
   let typeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
   let stdlibTypeName
-    (module_ : string)
+    (modul : string)
     (typ : string)
     (version : int)
     : StdlibTypeName =
-    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    if modul <> "" then assertRe "modName name must match" modNamePat modul
     assertRe "stdlib function name must match" typeNamePat typ
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { module_ = module_; typ = typ; version = version }
+    { modules = [ modul ]; typ = typ; version = version }
 
   let toString (fqtn : T) : string =
     match fqtn with
     | Stdlib s ->
-      if s.module_ = "" then
-        $"{s.typ}_v{s.version}"
-      else
-        $"{s.module_}.{s.typ}_v{s.version}"
-    | User u -> $"{u.typ}_v{u.version}"
-    | Package p -> $"{p.owner}.{p.package}.{p.module_}.{p.typ}_v{p.version}"
-
-
-
-
+      let fqName = s.modules @ [ s.typ ] |> String.concat "."
+      $"{fqName}_v{s.version}"
+    | User u ->
+      let fqName = u.modules @ [ u.typ ] |> String.concat "."
+      $"{fqName}_v{u.version}"
+    | Package p ->
+      let mn = p.modules |> Prelude.NonEmptyList.toList |> String.concat "."
+      $"{p.owner}.{p.package}.{mn}.{p.typ}_v{p.version}"
 
 
 
 module FQFnName =
 
   /// Standard Library Function Name
-  type StdlibFnName = { module_ : string; function_ : string; version : int }
+  type StdlibFnName = { modules : List<string>; function_ : string; version : int }
 
   /// A UserFunction is a function written by a Developer in their canvas
-  type UserFnName = string
+  type UserFnName = {modules : List<string>; function_ : string; version : int}
 
   /// The name of a function in the package manager
   type PackageFnName =
     { owner : string
       package : string
-      module_ : string
+      modules : NonEmptyList<string>
       function_ : string
       version : int }
 
@@ -113,29 +111,42 @@ module FQFnName =
   /// Same as PTParser.FQFnName.fnNamePat
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
 
-  let stdlibFnName
-    (module_ : string)
+  let stdlibFnName'
+    (modules : List<string>)
     (function_ : string)
     (version : int)
     : StdlibFnName =
-    if module_ <> "" then assertRe "modName name must match" modNamePat module_
+    List.iter (assertRe "modName name must match" modNamePat) modules
     assertRe "stdlib function name must match" fnnamePat function_
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { module_ = module_; function_ = function_; version = version }
+    { modules = modules; function_ = function_; version = version }
+
+  let stdlibFnName
+    (modul : string)
+    (function_ : string)
+    (version : int)
+    : StdlibFnName =
+    stdlibFnName' [ modul ] function_ version
 
   module StdlibFnName =
-    let toString (std : StdlibFnName) : string =
-      let name =
-        if std.module_ = "" then std.function_ else $"{std.module_}::{std.function_}"
-      if std.version = 0 then name else $"{name}_v{std.version}"
+    let toString (s : StdlibFnName) : string =
+      let name = s.modules @ [ s.function_] |> String.concat "."
+      if s.version = 0 then name else $"{name}_v{s.version}"
+
+  module UserFnName =
+    let toString (u : UserFnName) : string =
+      let name = u.modules @ [ u.function_] |> String.concat "."
+      if u.version = 0 then name else $"{name}_v{u.version}"
 
   module PackageFnName =
     let toString (pkg : PackageFnName) : string =
-      $"{pkg.owner}/{pkg.package}/{pkg.module_}::{pkg.function_}_v{pkg.version}"
+      let mn = pkg.modules |> Prelude.NonEmptyList.toList |> String.concat "."
+      let name = $"{pkg.owner}.{pkg.package}.{mn}.{pkg.function_}"
+      if pkg.version = 0 then name else $"{name}_v{pkg.version}"
 
   let toString (fqfnName : T) : string =
     match fqfnName with
-    | User name -> name
+    | User name -> UserFnName.toString name
     | Stdlib std -> StdlibFnName.toString std
     | Package pkg -> PackageFnName.toString pkg
 
@@ -144,7 +155,7 @@ module FQFnName =
   let isDBQueryFn (fqfnName : T) : bool =
     match fqfnName with
     | Stdlib std when
-      std.module_ = "DB"
+      std.modules = ["DB"]
       && String.startsWith "query" std.function_
       && not (String.includes "ExactFields" std.function_)
       ->
@@ -153,7 +164,7 @@ module FQFnName =
 
   let isInternalFn (fqfnName : T) : bool =
     match fqfnName with
-    | Stdlib std -> std.module_ = "DarkInternal"
+    | Stdlib std -> List.tryHead std.modules = Some "DarkInternal"
     | _ -> false
 
 
@@ -736,7 +747,7 @@ module UserFunction =
 
   type T =
     { tlid : tlid
-      name : string
+      name : FQFnName.UserFnName
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
@@ -938,7 +949,7 @@ and ProgramContext =
   { canvasID : CanvasID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
     dbs : Map<string, DB.T>
-    userFns : Map<string, UserFunction.T>
+    userFns : Map<FQFnName.UserFnName, UserFunction.T>
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
 

@@ -8,32 +8,36 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-let eStdFnName (module_ : string) (function_ : string) (version : int) : FnTarget =
-  PT.FQFnName.stdlibFqName module_ function_ version
+let eStdFnName
+  (modules : List<string>)
+  (function_ : string)
+  (version : int)
+  : FnTarget =
+  PT.FQFnName.stdlibFqName modules function_ version
   |> PT2RT.FQFnName.toRT
   |> FnName
 
 let eUserFnName (function_ : string) : FnTarget =
-  PT.FQFnName.userFqName function_ |> PT2RT.FQFnName.toRT |> FnName
+  PT.FQFnName.userFqName [] function_ 0 |> PT2RT.FQFnName.toRT |> FnName
 
 
 let eFn'
-  (module_ : string)
+  (modules : List<string>)
   (function_ : string)
   (version : int)
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
-  EApply(gid (), (eStdFnName module_ function_ version), typeArgs, args)
+  EApply(gid (), (eStdFnName modules function_ version), typeArgs, args)
 
 let eFn
-  (module_ : string)
+  (modules : List<string>)
   (function_ : string)
   (version : int)
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
-  eFn' module_ function_ version typeArgs args
+  eFn' modules function_ version typeArgs args
 
 let eUserFn
   (function_ : string)
@@ -87,11 +91,19 @@ let eConstructor
   : Expr =
   EConstructor(gid (), typeName, name, args)
 
-let userTypeName (name : string) (version : int) : FQTypeName.T =
-  FQTypeName.User { typ = name; version = version }
+let userTypeName
+  (modules : List<string>)
+  (name : string)
+  (version : int)
+  : FQTypeName.T =
+  FQTypeName.User { modules = modules; typ = name; version = version }
 
-let userTypeReference (name : string) (version : int) : TypeReference =
-  TCustomType(userTypeName name version, [])
+let userTypeReference
+  (modules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeReference =
+  TCustomType(userTypeName modules name version, [])
 
 let customTypeRecord (fields : List<string * TypeReference>) : CustomType.T =
   let fields =
@@ -103,10 +115,11 @@ let customTypeRecord (fields : List<string * TypeReference>) : CustomType.T =
   | hd :: rest -> CustomType.Record(hd, rest)
 
 let userTypeRecord
+  (modules : List<string>)
   (name : string)
   (version : int)
   (fields : List<string * TypeReference>)
   : UserType.T =
   { tlid = gid ()
-    name = { typ = name; version = version }
+    name = { modules = modules; typ = name; version = version }
     definition = customTypeRecord fields }
