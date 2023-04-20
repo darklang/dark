@@ -89,6 +89,21 @@ def copy_static():
   return run_frontend(start, "npm run copy:static")
 
 
+def copy_dark_wasm():
+  start = time.time()
+  if optimize:
+    dark_wasm = run_backend(
+        start,
+        "rsync -a backend/Build/out/Wasm/Release/net7.0/publish/wwwroot/ backend/static/dark_wasm/"
+    )
+  else:
+    dark_wasm = run_backend(
+        start,
+        "rsync -a backend/Build/out/Wasm/Debug/net7.0/wwwroot/ backend/static/dark_wasm/"
+    )
+  return dark_wasm
+
+
 def client_build():
   start = time.time()
   build = "./scripts/build/_npm-run-build-with-retry"
@@ -238,13 +253,13 @@ def reload_backend_server():
   return run_backend(start, runserver)
 
 
-
 class Should:
 
   def __init__(self):
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
     self.fsharp_paket_install = False
+    self.copy_dark_wasm = False
     self.backend_quick_build = False
     self.backend_full_build = False
     self.backend_test = False
@@ -275,6 +290,7 @@ def execute(should):
   if should.backend_full_build:
     should.backend_quick_build = False  # no need to do both
     if not backend_full_build(): success = False
+    should.copy_dark_wasm |= success
     should.backend_test |= success
     should.reload_backend_server |= success
 
@@ -283,8 +299,12 @@ def execute(should):
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
+    should.copy_dark_wasm |= success
     should.backend_test |= success
     should.reload_backend_server |= success
+
+  if should.copy_dark_wasm:
+    if not copy_dark_wasm(): success = False
 
   if should.reload_backend_server:
     if not reload_backend_server(): success = False
@@ -364,6 +384,7 @@ def ignore(filename):
       "rundir/",
       "backend/serialization/",
       "backend/Build",
+      "backend/static/dark_wasm",
       "paket-files",
       ".paket/load",
       "/obj/fsac.cache",
