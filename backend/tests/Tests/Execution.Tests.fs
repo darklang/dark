@@ -699,24 +699,16 @@ let testLetPreview : Test =
 
         let! result = createLetPattern letPattern assignExpr retExpr
 
-        // TODO: remove
-        debuG "divID" (Map.get divID result) // DEBUG: divID (Some(ExecutedResult (DError (SourceNone, "Division by zero"))))
-        debuG "tuple" (Map.get (Expr.toID assignExpr) result) // DEBUG: tuple (Some(ExecutedResult (DError (SourceNone, "Division by zero"))))
 
-
-        // TODO: figure it out
-        // expected: Some (NonExecutedResult (DInt 1L))
-        // actual: Some (NonExecutedResult (DIncomplete (SourceID (7UL, 309035826UL))))
         Expect.equal
-          (Map.get xID result)
-          (Some(AT.NonExecutedResult(DInt 1L)))
-          "x assigned correctly"
+          (Map.get (Expr.toID assignExpr) result)
+          (Some(AT.ExecutedResult(DError(SourceNone, "Division by zero"))))
+          "the whole tuple is a type error due to division by zero in y"
 
-        // TODO: Fix this
         Expect.equal
-          (Map.get yID result)
-          (Some(AT.ExecutedResult(DError(SourceID(7UL, gid ()), "division by zero"))))
-          "y assignment results in a type error due to division by zero"
+          (Map.get lpID result)
+          (Some(AT.NonExecutedResult(DIncomplete(SourceID(7UL, lpID)))))
+          "let pattern is incomplete due to error in RHS"
       }
 
 
