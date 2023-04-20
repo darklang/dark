@@ -60,7 +60,6 @@ module FQTypeName =
   /// A type written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
   type UserTypeName =
-    /// A type defined by a user
     { [<MessagePack.Key 0>]
       modules : List<string>
       [<MessagePack.Key 1>]
@@ -76,7 +75,7 @@ module FQTypeName =
       [<MessagePack.Key 1>]
       package : string
       [<MessagePack.Key 2>]
-      modules : Prelude.NonEmptyList<string>
+      modules : List<string>
       [<MessagePack.Key 3>]
       typ : string
       [<MessagePack.Key 4>]
@@ -121,7 +120,7 @@ module FQFnName =
       [<MessagePack.Key 1>]
       package : string
       [<MessagePack.Key 2>]
-      modules : Prelude.NonEmptyList<string>
+      modules : List<string>
       [<MessagePack.Key 3>]
       function_ : string
       [<MessagePack.Key 4>]

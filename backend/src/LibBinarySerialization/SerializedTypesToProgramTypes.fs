@@ -22,7 +22,7 @@ module FQTypeName =
     let toPT (p : ST.FQTypeName.PackageTypeName) : PT.FQTypeName.PackageTypeName =
       { owner = p.owner
         package = p.package
-        modules = p.modules
+        modules = NonEmptyList.ofList p.modules
         typ = p.typ
         version = p.version }
 
@@ -39,7 +39,7 @@ module FQFnName =
     let toPT (name : ST.FQFnName.PackageFnName) : PT.FQFnName.PackageFnName =
       { owner = name.owner
         package = name.package
-        modules = name.modules
+        modules = NonEmptyList.ofList name.modules
         function_ = name.function_
         version = name.version }
 
