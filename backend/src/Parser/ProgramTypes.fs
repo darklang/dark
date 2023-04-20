@@ -157,12 +157,19 @@ module Expr =
         "Bad format in function name. If you intended this to be an Enum, you need to fully-qualify it, eg Maybe.Yeah"
         [ "fnName", fnName ]
 
-  let private parseEnum (enumName : string) : string * int =
+  let private parseEnum (enumName : string) : string =
+    // No version on the Enum case, that's on the type
     match enumName with
-    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
-    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name
     | _ ->
       Exception.raiseInternal "Bad format in enum names" [ "enumName", enumName ]
+
+  let private parseTypeName (typeName : string) : string * int =
+    match typeName with
+    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
+    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+    | _ -> Exception.raiseInternal "Bad format in type name" [ "typeName", typeName ]
+
 
 
 
@@ -339,9 +346,23 @@ module Expr =
         |> fun i -> i.idText
 
       if System.Char.IsUpper(name[0]) then
-        let name, version = parseEnum name
-        // TYPESCLEANUP use FQTypeName with a version
-        PT.EConstructor(gid (), None, name, [])
+        let enumName = parseEnum name
+        let typename =
+          List.last modules |> Exception.unwrapOptionInternal "empty list" []
+        let (typ, version) = parseTypeName typename
+        let modules = List.initial modules |> Option.unwrap []
+        // TYPESCLEANUP might not be a usertype
+        PT.EConstructor(
+          gid (),
+          Some(
+            PT.FQTypeName.User
+              { PT.FQTypeName.UserTypeName.modules = modules
+                typ = typ
+                version = version } : PT.FQTypeName.T
+          ),
+          enumName,
+          []
+        )
       else
         let name, version = parseFn name
         PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
