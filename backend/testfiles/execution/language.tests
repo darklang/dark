@@ -696,7 +696,7 @@ module Packages =
 
   module Invalid =
     Test.Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected to see a value of type String but found a Int"
-    Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test/test/Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    Test.Test.Test.stringFn "str1" "str2" = Test.typeError "test.test.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     Test.Test.Test.derrorFn "test" = Test.typeError "test"
 
     (let _ = Test.setExpectedExceptionCount 1 in
