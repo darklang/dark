@@ -63,29 +63,32 @@ module UserEnums =
   type EnumOfMixedCases =
     | W | X of String | Y of i: Int | Z of c: String * i: Int
 
-  (W == (Y 1)) = false
-  (Y 1 == Y 1) = true
+  (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1)) = false
+  (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
-  (let values = [W; X "testX"; Y(5); Z("testZ", 2)]
+  (let values = [EnumOfMixedCases.W;
+                 EnumOfMixedCases.X "testX";
+                 EnumOfMixedCases.Y(5);
+                 EnumOfMixedCases.Z("testZ", 2)]
    match List.getAt_v1 values 3 with
    | Just z -> Ok z
-   | Nothing -> Error "Failure") = Ok (Z ("testZ", 2))
+   | Nothing -> Error "Failure") = Ok (EnumOfMixedCases.Z ("testZ", 2))
 
-  ([W; X "testX"; Y(5); Z("testZ", 2)]
+  ([EnumOfMixedCases.W; EnumOfMixedCases.X "testX"; EnumOfMixedCases.Y(5); EnumOfMixedCases.Z("testZ", 2)]
    |> List.map_v0(fun v ->
     match v with
-    | X s -> "X " ++ s
-    | Z (s, _i) -> "Z " ++ s
-    | Y y -> "Y " ++ (Int.toString_v0 y)
-    | W -> "a simple W")
+    | EnumOfMixedCases.X s -> "X " ++ s
+    | EnumOfMixedCases.Z (s, _i) -> "Z " ++ s
+    | EnumOfMixedCases.Y y -> "Y " ++ (Int.toString_v0 y)
+    | EnumOfMixedCases.W -> "a simple W")
   ) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
 
 
   // You can define enums based on previously-defined enums
   type CorD = | C of Int | D of AorB
 
-  (C != D(B)) = true
-  (D(A) == D(A)) = true
+  (CorD.C != CorD.D(AorB.B)) = true
+  (CorD.D(AorB.A) == CorD.D(AorB.A)) = true
 
 
   // TODO: The typechecker has been adjusted to handle this,
