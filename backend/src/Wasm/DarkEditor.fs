@@ -14,7 +14,6 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-
 type DarkEditor() =
   // TODO: ideally, this functionality lives in LibAnalysis,
   // but since we don't exactly know what's going to happen with

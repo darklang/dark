@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="LibDarkTypes.fs" />
     <Compile Include="LibExperiments.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>

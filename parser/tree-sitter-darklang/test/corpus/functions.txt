@@ -1,0 +1,34 @@
+==================
+Simple add function
+(not sure why it fails near the end)
+==================
+
+let add (a: Int) (b: Int): Int =
+  let sum = a + b
+  sum
+
+---
+
+(source_file
+  (fn_def
+    name: (identifier)
+    params: (fn_params_def
+      (fn_param_def
+        (identifier)
+        (type))
+      (fn_param_def
+        (identifier)
+        (type)))
+    return_type: (type)
+    body: (expression_list
+      (expression
+        (let_expression
+          (identifier)
+          (expression
+            (binary_expression
+              (expression
+                (identifier))
+              (expression
+                (identifier))))))
+      (expression
+        (identifier)))))

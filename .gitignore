@@ -31,3 +31,7 @@ backend/static/dark_wasm/
 ###############
 
 deploy-lock-manual-deploy
+
+
+# JS
+node_modules

@@ -1,0 +1,32 @@
+{
+  "name": "tree-sitter-darklang",
+  "version": "0.0.1",
+  "description": "A tree-sitter parser to parse Darklang source code",
+  "main": "bindings/node",
+  "scripts": {
+    "build": "tree-sitter generate && node-gyp configure && node-gyp build && tree-sitter build-wasm . && mv ./tree-sitter-darklang.wasm ./bindings",
+    "test": "tree-sitter test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darklang/dark.git"
+  },
+  "author": "",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "bugs": {
+    "url": "https://github.com/darklang/dark/issues"
+  },
+  "homepage": "https://github.com/darklang/dark#readme",
+  "dependencies": {
+    "nan": "^2.17.0"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.20.8",
+    "tree-sitter-javascript": "^0.19.0"
+  },
+  "tree-sitter": {
+    "file-types": [
+      ".dark"
+    ]
+  }
+}
