@@ -595,7 +595,8 @@ let toProgram (c : T) : RT.ProgramContext =
   let userFns =
     c.userFunctions
     |> Map.values
-    |> List.map (fun f -> (PT2RT.FQFnName.UserFnName.toRT f.name, PT2RT.UserFunction.toRT f))
+    |> List.map (fun f ->
+      (PT2RT.FQFnName.UserFnName.toRT f.name, PT2RT.UserFunction.toRT f))
     |> Map.ofList
 
   let userTypes =

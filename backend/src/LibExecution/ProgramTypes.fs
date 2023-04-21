@@ -148,10 +148,18 @@ module FQFnName =
       (version >= 0)
     { modules = modules; function_ = function_; version = version }
 
-  let stdlibFqName (modules : List<string>) (function_ : string) (version : int) : T =
+  let stdlibFqName
+    (modules : List<string>)
+    (function_ : string)
+    (version : int)
+    : T =
     Stdlib(stdlibFnName modules function_ version)
 
-  let userFnName (modules : List<string>) (function_ : string) (version : int) : UserFnName =
+  let userFnName
+    (modules : List<string>)
+    (function_ : string)
+    (version : int)
+    : UserFnName =
     List.iter (Prelude.assertRe "modName name must match" modNamePat) modules
     Prelude.assertRe "user function name must match" userFnNamePat function_
     Prelude.assert_

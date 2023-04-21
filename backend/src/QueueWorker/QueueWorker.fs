@@ -314,9 +314,9 @@ let initSerializers () =
   // for Pusher.com payloads
   Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
   Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
-  // Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
-  // Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
-  // Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+// Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+// Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+// Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 
 [<EntryPoint>]

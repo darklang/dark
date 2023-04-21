@@ -86,17 +86,17 @@ module FQFnName =
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =
     match name with
-    | PT.ArithmeticPlus -> (["Int"], "add", 0)
-    | PT.ArithmeticMinus -> (["Int"], "subtract", 0)
-    | PT.ArithmeticMultiply -> (["Int"], "multiply", 0)
-    | PT.ArithmeticDivide -> (["Float"], "divide", 0)
-    | PT.ArithmeticModulo -> (["Int"], "mod", 0)
-    | PT.ArithmeticPower -> (["Int"], "power", 0)
-    | PT.ComparisonGreaterThan -> (["Int"], "greaterThan", 0)
-    | PT.ComparisonGreaterThanOrEqual -> (["Int"], "greaterThanOrEqualTo", 0)
-    | PT.ComparisonLessThan -> (["Int"], "lessThan", 0)
-    | PT.ComparisonLessThanOrEqual -> (["Int"], "lessThanOrEqualTo", 0)
-    | PT.StringConcat -> (["String"], "append", 1)
+    | PT.ArithmeticPlus -> ([ "Int" ], "add", 0)
+    | PT.ArithmeticMinus -> ([ "Int" ], "subtract", 0)
+    | PT.ArithmeticMultiply -> ([ "Int" ], "multiply", 0)
+    | PT.ArithmeticDivide -> ([ "Float" ], "divide", 0)
+    | PT.ArithmeticModulo -> ([ "Int" ], "mod", 0)
+    | PT.ArithmeticPower -> ([ "Int" ], "power", 0)
+    | PT.ComparisonGreaterThan -> ([ "Int" ], "greaterThan", 0)
+    | PT.ComparisonGreaterThanOrEqual -> ([ "Int" ], "greaterThanOrEqualTo", 0)
+    | PT.ComparisonLessThan -> ([ "Int" ], "lessThan", 0)
+    | PT.ComparisonLessThanOrEqual -> ([ "Int" ], "lessThanOrEqualTo", 0)
+    | PT.StringConcat -> ([ "String" ], "append", 1)
     | PT.ComparisonEquals -> ([], "equals", 0)
     | PT.ComparisonNotEquals -> ([], "notEquals", 0)
 

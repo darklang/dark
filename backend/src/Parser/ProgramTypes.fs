@@ -376,7 +376,8 @@ module Expr =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
 
-      let name, version = parseFn name.idText |> Exception.unwrapOptionInternal "invalid fn name" []
+      let name, version =
+        parseFn name.idText |> Exception.unwrapOptionInternal "invalid fn name" []
       PT.EFnCall(gid (), PT.FQFnName.userFqName [] name version, typeArgs, [])
 
     | SynExpr.TypeApp (SynExpr.LongIdent (_,
@@ -390,7 +391,8 @@ module Expr =
                        _,
                        _) ->
       let modules = [ modName.idText ]
-      let name, version = parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
+      let name, version =
+        parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
@@ -616,7 +618,8 @@ module Expr =
       | PT.EPipe (id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
-        let (name, version) = parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
+        let (name, version) =
+          parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
         if Set.contains name PT.FQFnName.oneWordFunctions then
           PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [ c arg ])
         else
@@ -753,7 +756,8 @@ module UserFunction =
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature pat
       let returnType = parseReturnInfo returnInfo
-      let (name, version) = Expr.parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
+      let (name, version) =
+        Expr.parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
       { tlid = gid ()
         name = PT.FQFnName.userFnName [] name version
         typeParams = typeParams
