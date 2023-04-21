@@ -155,11 +155,11 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
               { m with packageFns = m.packageFns @ newPackageFns }
 
             | None ->
-              let newUserFns = List.map (PTP.UserFunction.fromSynBinding) bindings
+              let newUserFns = List.map PTP.UserFunction.fromSynBinding bindings
               { m with fns = m.fns @ newUserFns }
 
           | SynModuleDecl.Types (defns, _) ->
-            let (dbs, types) = List.map (parseTypeDecl) defns |> List.unzip
+            let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
             { m with
                 types = m.types @ List.concat types
                 dbs = m.dbs @ List.concat dbs }
@@ -184,7 +184,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
             { m with modules = m.modules @ [ (name.idText, nested) ] }
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
         decls
-    let fnNames = m.fns |> List.filter (fun fn -> fn.name.modules = []) |> List.map (fun fn -> fn.name.function_) |> Set
+    let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
     let fixup = ProgramTypes.Expr.fixupPass fnNames
     { m with
         packageFns =

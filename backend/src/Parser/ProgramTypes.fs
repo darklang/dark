@@ -148,29 +148,25 @@ module Expr =
   // CLEANUP - blanks here aren't allowed
   let private nameOrBlank (v : string) : string = if v = "___" then "" else v
 
-  let private parseFn (fnName : string) : string * int =
+  let parseFn (fnName : string) : Option<string * int> =
     match fnName with
-    | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
-    | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> name, 0
-    | _ ->
-      Exception.raiseInternal
-        "Bad format in function name. If you intended this to be an Enum, you need to fully-qualify it, eg Maybe.Yeah"
-        [ "fnName", fnName ]
+    | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
+      Some(name, (int version))
+    | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> Some(name, 0)
+    | _ -> None
 
-  let private parseEnum (enumName : string) : string =
+  let parseEnum (enumName : string) : string =
     // No version on the Enum case, that's on the type
     match enumName with
     | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name
     | _ ->
       Exception.raiseInternal "Bad format in enum names" [ "enumName", enumName ]
 
-  let private parseTypeName (typeName : string) : string * int =
+  let parseTypeName (typeName : string) : string * int =
     match typeName with
     | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
     | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
     | _ -> Exception.raiseInternal "Bad format in type name" [ "typeName", typeName ]
-
-
 
 
   let private ops =
@@ -273,8 +269,10 @@ module Expr =
 
     // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
-      let name, version = parseFn ident.idText
-      PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [])
+      match parseFn ident.idText with
+      | Some (name, version) ->
+        PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [])
+      | None -> PT.EVariable(id, ident.idText)
 
     // List literals
     | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
@@ -345,7 +343,10 @@ module Expr =
         |> Exception.unwrapOptionInternal "empty list" []
         |> fun i -> i.idText
 
-      if System.Char.IsUpper(name[0]) then
+      match parseFn name with
+      | Some (name, version) ->
+        PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
+      | None ->
         let enumName = parseEnum name
         let typename =
           List.last modules |> Exception.unwrapOptionInternal "empty list" []
@@ -363,10 +364,6 @@ module Expr =
           enumName,
           []
         )
-      else
-        let name, version = parseFn name
-        PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
-
 
     // Variable constructors - Ok, Error, Nothing, and Just are handled elsewhere,
     // and Enums are expected to be fully qualified
@@ -378,7 +375,9 @@ module Expr =
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-      PT.EFnCall(gid (), PT.FQFnName.userFqName [] name.idText 0, typeArgs, [])
+
+      let name, version = parseFn name.idText |> Exception.unwrapOptionInternal "invalid fn name" []
+      PT.EFnCall(gid (), PT.FQFnName.userFqName [] name version, typeArgs, [])
 
     | SynExpr.TypeApp (SynExpr.LongIdent (_,
                                           SynLongIdent ([ modName; fnName ], _, _),
@@ -391,7 +390,7 @@ module Expr =
                        _,
                        _) ->
       let modules = [ modName.idText ]
-      let name, version = parseFn fnName.idText
+      let name, version = parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
@@ -617,7 +616,7 @@ module Expr =
       | PT.EPipe (id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
-        let (name, version) = parseFn name
+        let (name, version) = parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
         if Set.contains name PT.FQFnName.oneWordFunctions then
           PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [ c arg ])
         else
@@ -650,20 +649,27 @@ module Expr =
   // Second pass of parsing, fixing the thing it's impossible to get right on the
   // first pass, such as function names. Parse the whole program once, and then run
   // this on any expressions.
-  let fixupPass (functions : Set<string>) (e : PT.Expr) : PT.Expr =
+  let fixupPass (functions : Set<PT.FQFnName.UserFnName>) (e : PT.Expr) : PT.Expr =
     e
     |> LibExecution.ProgramTypesAst.preTraversal (fun e ->
       match e with
       | PT.EVariable (id, name) ->
-        if Set.contains name functions then
-          PT.EFnCall(
-            id,
-            PT.FQFnName.User(PT.FQFnName.userFnName [] name 0),
-            [],
-            [ PT.Expr.EPipeTarget(gid ()) ]
-          )
-        else
-          e
+        match parseFn name with
+        | Some (name, version) ->
+          let name : PT.FQFnName.UserFnName =
+            { modules = []; function_ = name; version = version }
+          if Set.contains name functions then
+            PT.EFnCall(
+              id,
+              PT.FQFnName.User(name),
+              [],
+              [ PT.Expr.EPipeTarget(gid ()) ]
+            )
+          else
+            e
+        // couldn't be parsed as a function, so leave it alone
+        | None -> e
+
       | _ -> e)
 
 module UserFunction =
@@ -747,9 +753,9 @@ module UserFunction =
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature pat
       let returnType = parseReturnInfo returnInfo
-
+      let (name, version) = Expr.parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
       { tlid = gid ()
-        name = PT.FQFnName.userFnName [] name 0
+        name = PT.FQFnName.userFnName [] name version
         typeParams = typeParams
         parameters = parameters
         returnType = returnType

@@ -174,7 +174,7 @@ let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
     decls
 
 let postProcessModule (m : CanvasModule) : CanvasModule =
-  let fnNames = m.fns |> List.map (fun f -> f.name.function_) |> Set
+  let fnNames = m.fns |> List.map (fun f -> f.name) |> Set
   let fixup = ProgramTypes.Expr.fixupPass fnNames
   { m with
       handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixup expr))
