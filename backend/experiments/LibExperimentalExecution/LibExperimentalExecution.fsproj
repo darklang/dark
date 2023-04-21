@@ -15,7 +15,7 @@
     <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
-    <ProjectReference Include="../LibExperimentalStdLib/LibExperimentalStdLib.fsproj" />
+    <ProjectReference Include="../StdLibExperimental/StdLibExperimental.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />

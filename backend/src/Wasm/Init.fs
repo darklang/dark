@@ -9,5 +9,5 @@ type Init =
   [<JSInvokable>]
   static member InitializeDarkRuntime() : unit =
     Environment.SetEnvironmentVariable("TZ", "UTC")
-    LibAnalysis.initSerializers ()
+    LibAnalysis.Analysis.initSerializers ()
     System.Console.WriteLine("Dark runtime initialized")

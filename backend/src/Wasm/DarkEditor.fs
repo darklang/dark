@@ -30,12 +30,11 @@ type DarkEditor() =
           secrets = [] }
 
       let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-        LibExecutionStdLib.StdLib.types
-        |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
+        StdLibExecution.StdLib.types
         |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
       let stdlibFns =
-        LibExecutionStdLib.StdLib.fns
+        StdLibExecution.StdLib.fns
         |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
       let libraries : RT.Libraries =
@@ -46,7 +45,7 @@ type DarkEditor() =
       let tracing =
         { LibExecution.Execution.noTracing RT.Preview with
             traceDval = traceDvalFn
-            loadFnResult = LibAnalysis.Eval.loadFromTrace functionResults }
+            loadFnResult = LibAnalysis.Analysis.Eval.loadFromTrace functionResults }
 
       let state =
         Exe.createState

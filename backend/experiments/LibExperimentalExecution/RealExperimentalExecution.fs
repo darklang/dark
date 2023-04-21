@@ -20,12 +20,12 @@ open LibBackend
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
   (StdLibExecution.StdLib.types
-   @ StdLibCloudExecution.StdLib.types @ LibExperimentalStdLib.StdLib.types)
+   @ StdLibCloudExecution.StdLib.types @ StdLibExperimental.StdLib.types)
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
   StdLibExecution.StdLib.fns
-  @ StdLibCloudExecution.StdLib.fns @ LibExperimentalStdLib.StdLib.fns
+  @ StdLibCloudExecution.StdLib.fns @ StdLibExperimental.StdLib.fns
   |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 
