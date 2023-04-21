@@ -1,4 +1,4 @@
-module LibExperimentalStdLib.StdLib
+module StdLibExperimental.StdLib
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -12,6 +12,6 @@ let renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName> =
 let types : List<BuiltInType> = [] |> List.concat
 
 let fns : List<BuiltInFn> =
-  [ LibExperiments.fns ]
+  [ Libs.Experiments.fns ]
   |> List.concat
   |> LibExecution.StdLib.renameFunctions renames

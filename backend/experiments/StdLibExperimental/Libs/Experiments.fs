@@ -1,4 +1,4 @@
-module LibExperimentalStdLib.LibExperiments
+module StdLibExperimental.Libs.Experiments
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -7,13 +7,9 @@ open Prelude
 open Tablecloth
 open LibExecution.RuntimeTypes
 
-module Errors = LibExecution.Errors
+open LibExecution.StdLib.Shortcuts
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = Errors.incorrectArgs
-
-/// This makes extra careful that we're only accessing files where we expect to
+// This makes extra careful that we're only accessing files where we expect to
 /// find files, and that we're not checking outside these directories
 ///
 /// Note: none of these are async because System.IO is not async
@@ -123,9 +119,12 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString code ] ->
           uply {
-            let expr = Parser.ProgramTypes.parseExprWithTypes Map.empty code
-            let serializedExpr = Json.Vanilla.serialize expr
-            return serializedExpr |> DString |> Ok |> DResult
+            return
+              Parser.ProgramTypes.parseExprWithTypes Map.empty code
+              |> Json.Vanilla.serialize
+              |> DString
+              |> Ok
+              |> DResult
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

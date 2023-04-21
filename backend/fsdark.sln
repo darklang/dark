@@ -56,7 +56,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "CanvasHack", "experiments\C
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Cli", "experiments\cli\Cli.fsproj", "{DF812CBE-894C-4C90-9EDC-4558983CCDEA}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibExperimentalStdLib", "experiments\LibExperimentalStdLib\LibExperimentalStdLib.fsproj", "{F6061D5F-4CEC-4D0B-BDF6-770CD40A3362}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibExperimental", "experiments\StdLibExperimental\StdLibExperimental.fsproj", "{F6061D5F-4CEC-4D0B-BDF6-770CD40A3362}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BwdDangerServer", "experiments\BwdDangerServer\BwdDangerServer.fsproj", "{1C03DEE5-5ADB-4D2E-969F-5F0C70DF3EC4}"
 EndProject
