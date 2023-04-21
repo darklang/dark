@@ -26,6 +26,13 @@ const prompts = ref<string[]>([]);
 const prompt = ref('');
 const responses = ref<string[]>([]);
 
+const props = defineProps({
+    systemPromptValue: {
+      type: String,
+      default: ''
+    }
+  });
+
 const submitPrompt = async () => {
   prompts.value.push(prompt.value);
 
@@ -36,7 +43,7 @@ const submitPrompt = async () => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: prompt.value
+        prompt: props.systemPromptValue + ' ' + prompt.value
       })
     });
 
