@@ -2,12 +2,8 @@
   <div v-if="prompts.length">
     <div v-for="(prompt, index) in prompts" :key="index">
       <UserChat :promptValue="prompt" />
+      <ResponseChat :response="responses[index]" v-if="responses[index]" />
     </div>
-
-    <div v-for="(response, index) in responses" :key="index">
-      <ResponseChat :response="response" />
-    </div>
-
   </div>
 
   <form @submit.prevent="submitPrompt" class="flex flex-row stretch my-4 mx-auto max-w-2xl">
@@ -55,5 +51,7 @@ const submitPrompt = async () => {
   } catch (error) {
     console.error('Error sending prompt to server:', error);
   }
+
+  prompt.value = '';
 };
 </script>
