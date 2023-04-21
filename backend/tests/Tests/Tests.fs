@@ -10,14 +10,16 @@ open Prelude
 module Telemetry = LibService.Telemetry
 
 module CTPusher = ClientTypes.Pusher
+module CPT = LibAnalysis.ClientProgramTypes
+module CRT = LibAnalysis.ClientRuntimeTypes
 
 let initSerializers () =
   BwdServer.Server.initSerializers ()
 
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
-  Json.Vanilla.allow<ClientTypes.Runtime.Dval.T> "dvalrepr tests"
-  Json.Vanilla.allow<ClientTypes.Program.Handler.T> "canvasClone"
+  Json.Vanilla.allow<CRT.Dval.T> "dvalrepr tests"
+  Json.Vanilla.allow<CPT.Handler.T> "canvasClone"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
 
 
@@ -29,7 +31,7 @@ let main (args : string array) : int =
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
-    LibAnalysis.initSerializers ()
+    LibAnalysis.Analysis.initSerializers ()
     initSerializers ()
 
     let tests =

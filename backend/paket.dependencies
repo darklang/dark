@@ -7,7 +7,7 @@ storage: none
 // Basics
 nuget Tablecloth.FSharp = 0.0.8-alpha1
 nuget Ply = 0.3.1
-nuget FSharpPlus = 1.2.2
+nuget FSharpPlus = 1.4.1
 nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 3.0.0
 nuget FSharp.Core = 7.0.200

@@ -28,9 +28,9 @@ let pusherClient : Lazy<PusherServer.Pusher> =
 type Event =
   | NewTrace of trace : AT.TraceID.T * tlids : List<tlid>
   | New404 of TraceInputs.F404
-  | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1
-  //| AddOpPayloadTooBig of List<tlid> // this is so-far unused.
-  | UpdateWorkerStates of QueueSchedulingRules.WorkerStates.T
+  // | AddOpV1 of Op.AddOpParamsV1 * Op.AddOpResultV1
+  // | AddOpPayloadTooBig of List<tlid> // this is so-far unused.
+  // | UpdateWorkerStates of QueueSchedulingRules.WorkerStates.T
   | CustomEvent of eventName : string * payload : string
 
 type EventNameAndPayload = { EventName : string; Payload : string }
@@ -79,7 +79,6 @@ let push
       if String.length serialized.Payload > 10240 then
         // TODO: this sort of functionality was outlined before, but never actually
         // used. We need to test this and update the client to handle the payloads.
-        // (note: make sure you remove the payload from the 'ignores' list of TestJsonEncoding.res)
 
         // match fallback with
         // | None -> printfn "Uh oh!"

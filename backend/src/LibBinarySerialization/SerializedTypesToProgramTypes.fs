@@ -12,17 +12,17 @@ module PTParser = LibExecution.ProgramTypesParser
 module FQTypeName =
   module UserTypeName =
     let toPT (u : ST.FQTypeName.UserTypeName) : PT.FQTypeName.UserTypeName =
-      { typ = u.typ; version = u.version }
+      { modules = u.modules; typ = u.typ; version = u.version }
 
   module StdlibTypeName =
     let toPT (s : ST.FQTypeName.StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
-      { module_ = s.module_; typ = s.typ; version = s.version }
+      { modules = s.modules; typ = s.typ; version = s.version }
 
   module PackageTypeName =
     let toPT (p : ST.FQTypeName.PackageTypeName) : PT.FQTypeName.PackageTypeName =
       { owner = p.owner
         package = p.package
-        module_ = p.module_
+        modules = NonEmptyList.ofList p.modules
         typ = p.typ
         version = p.version }
 
@@ -39,18 +39,22 @@ module FQFnName =
     let toPT (name : ST.FQFnName.PackageFnName) : PT.FQFnName.PackageFnName =
       { owner = name.owner
         package = name.package
-        module_ = name.module_
+        modules = NonEmptyList.ofList name.modules
         function_ = name.function_
         version = name.version }
 
   module StdlibFnName =
     let toPT (name : ST.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
-      { module_ = name.module_; function_ = name.function_; version = name.version }
+      { modules = name.modules; function_ = name.function_; version = name.version }
+
+  module UserFnName =
+    let toPT (name : ST.FQFnName.UserFnName) : PT.FQFnName.UserFnName =
+      { modules = name.modules; function_ = name.function_; version = name.version }
 
   let toPT (fqfn : ST.FQFnName.T) : PT.FQFnName.T =
     match fqfn with
-    | ST.FQFnName.User u -> PT.FQFnName.User u
     | ST.FQFnName.Stdlib fn -> PT.FQFnName.Stdlib(StdlibFnName.toPT fn)
+    | ST.FQFnName.User fn -> PT.FQFnName.User(UserFnName.toPT fn)
     | ST.FQFnName.Package p -> PT.FQFnName.Package(PackageFnName.toPT p)
 
 module InfixFnName =
@@ -273,7 +277,7 @@ module UserFunction =
 
   let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
     { tlid = f.tlid
-      name = f.name
+      name = FQFnName.UserFnName.toPT f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toPT f.parameters
       returnType = TypeReference.toPT f.returnType

@@ -24,10 +24,7 @@ let empty =
 
 
 module UserDB =
-  let fromSynTypeDefn
-    (availableTypes : AvailableTypes)
-    (typeDef : SynTypeDefn)
-    : PT.DB.T =
+  let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.DB.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
@@ -41,7 +38,7 @@ module UserDB =
       { tlid = gid ()
         name = id.idText
         version = 0
-        typ = PTP.TypeReference.fromSynType availableTypes typ }
+        typ = PTP.TypeReference.fromSynType typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
@@ -51,14 +48,13 @@ module PackageFn =
     ((p1, p2, p3) : string * string * string)
     (binding : SynBinding)
     : PT.Package.Fn =
-    let availableTypes = Map.empty // eventually, we'll likely need package types supported here
-    let userFn = PTP.UserFunction.fromSynBinding availableTypes binding
+    let userFn = PTP.UserFunction.fromSynBinding binding
     { name =
         { owner = p1
           package = p2
-          module_ = p3
-          function_ = userFn.name
-          version = 0 }
+          modules = NonEmptyList.singleton p3
+          function_ = userFn.name.function_
+          version = userFn.name.version }
       typeParams = userFn.typeParams
       parameters =
         userFn.parameters
@@ -74,8 +70,8 @@ module PackageFn =
 
 /// Extracts a test from a SynExpr.
 /// The test must be in the format `expected = actual`, otherwise an exception is raised
-let parseTest (availableTypes : AvailableTypes) (ast : SynExpr) : Test =
-  let convert (x : SynExpr) : PT.Expr = PTP.Expr.fromSynExpr availableTypes x
+let parseTest (ast : SynExpr) : Test =
+  let convert (x : SynExpr) : PT.Expr = PTP.Expr.fromSynExpr x
 
   match ast with
   | SynExpr.App (_,
@@ -97,14 +93,8 @@ let parseTest (availableTypes : AvailableTypes) (ast : SynExpr) : Test =
   | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
 
-let parseFile
-  (stdlibTypes : AvailableTypes)
-  (parsedAsFSharp : ParsedImplFileInput)
-  : T =
-  let parseTypeDecl
-    (availableTypes : AvailableTypes)
-    (typeDefn : SynTypeDefn)
-    : List<PT.DB.T> * List<PT.UserType.T> =
+let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
+  let parseTypeDecl (typeDefn : SynTypeDefn) : List<PT.DB.T> * List<PT.UserType.T> =
     match typeDefn with
     | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
@@ -113,9 +103,9 @@ let parseFile
         |> List.exists (fun attr ->
           longIdentToList attr.TypeName.LongIdent = [ "DB" ])
       if isDB then
-        [ UserDB.fromSynTypeDefn availableTypes typeDefn ], []
+        [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ PTP.UserType.fromSynTypeDefn availableTypes typeDefn ]
+        [], [ PTP.UserType.fromSynTypeDefn typeDefn ]
 
   let getPackage (attrs : SynAttributes) : Option<string * string * string> =
     attrs
@@ -156,14 +146,6 @@ let parseFile
           modules = []
           tests = [] }
         (fun m decl ->
-          let availableTypes =
-            (m.types @ parent.types)
-            |> List.map (fun t ->
-              let typeName = PT.FQTypeName.User t.name
-              PT.FQTypeName.toString typeName, (typeName, t.definition))
-            |> Map
-            |> Map.mergeFavoringRight stdlibTypes
-
           match decl with
           | SynModuleDecl.Let (_, bindings, _) ->
             match package with
@@ -173,19 +155,17 @@ let parseFile
               { m with packageFns = m.packageFns @ newPackageFns }
 
             | None ->
-              let newUserFns =
-                List.map (PTP.UserFunction.fromSynBinding availableTypes) bindings
+              let newUserFns = List.map PTP.UserFunction.fromSynBinding bindings
               { m with fns = m.fns @ newUserFns }
 
           | SynModuleDecl.Types (defns, _) ->
-            let (dbs, types) =
-              List.map (parseTypeDecl availableTypes) defns |> List.unzip
+            let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
             { m with
                 types = m.types @ List.concat types
                 dbs = m.dbs @ List.concat dbs }
 
           | SynModuleDecl.Expr (expr, _) ->
-            { m with tests = m.tests @ [ parseTest availableTypes expr ] }
+            { m with tests = m.tests @ [ parseTest expr ] }
 
           | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
                                                           _,
@@ -237,17 +217,8 @@ let parseFile
 
 
 // Below are the fns that we intend to expose to the rest of the codebase
-let parseTestFile (availableTypes : AvailableTypes) (filename : string) : T =
-  filename
-  |> System.IO.File.ReadAllText
-  |> parseAsFSharpSourceFile
-  |> parseFile availableTypes
+let parseTestFile (filename : string) : T =
+  filename |> System.IO.File.ReadAllText |> parseAsFSharpSourceFile |> parseFile
 
-let parseSingleTestFromFile
-  (availableTypes : AvailableTypes)
-  (testSource : string)
-  : Test =
-  testSource
-  |> parseAsFSharpSourceFile
-  |> singleExprFromImplFile
-  |> parseTest availableTypes
+let parseSingleTestFromFile (testSource : string) : Test =
+  testSource |> parseAsFSharpSourceFile |> singleExprFromImplFile |> parseTest

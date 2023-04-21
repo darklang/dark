@@ -27,7 +27,6 @@ RUNNING=true
 if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
-if [[ $(pgrep Executor -c) -eq 0 ]]; then RUNNING=false; fi
 
 if [[ $(pgrep BwdDangerServer -c) -eq 0 ]]; then RUNNING=false; fi
 # TODO pubsub and tunnel
@@ -43,7 +42,6 @@ if [[ "$PUBLISHED" == "true" ]]; then
   CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish"
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Release/net7.0/linux-x64/publish"
-  EXECUTOR_BINPATH="backend/Build/out/Executor/Release/net7.0/linux-x64/publish"
 
   BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Release/net7.0/linux-x64/publish"
 else
@@ -51,7 +49,6 @@ else
   CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net7.0"
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net7.0"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Debug/net7.0"
-  EXECUTOR_BINPATH="backend/Build/out/Executor/Debug/net7.0"
 
   BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Debug/net7.0"
 fi
@@ -62,7 +59,6 @@ BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
 CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
 QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 PRODEXEC_EXE="${PRODEXEC_BINPATH}/ProdExec"
-EXECUTOR_EXE="${EXECUTOR_BINPATH}/Executor"
 
 BWDDANGERSERVER_EXE="${BWDDANGERSERVER_BINPATH}/BwdDangerServer"
 
@@ -71,11 +67,6 @@ echo "Stopping servers"
 sudo pkill -f "BwdServer" || true
 sudo pkill -f "CronChecker" || true
 sudo pkill -f "QueueWorker" || true
-sudo pkill -f "Executor" || true
-
-# Executor doesn't need all the other stuff
-echo "Running Executor"
-"${EXECUTOR_EXE}" serve --port=3275 --debug > "$LOGS/executor.log" 2>&1 &
 
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator

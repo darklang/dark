@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
     <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>

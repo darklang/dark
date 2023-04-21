@@ -1546,7 +1546,21 @@ module Task =
 // them, you should move these to the files with specific formats and serialize
 // them there.
 
-type pos = { x : int; y : int }
+type NonEmptyList<'a> = FSharpPlus.Data.NonEmptyList<'a>
+
+module NonEmptyList =
+  // Need to list these out explicitly because F# doesn't support opening modules
+  // like this
+  let toList = FSharpPlus.Data.NonEmptyList.toList
+
+  let iter (f : 'a -> unit) (l : NonEmptyList<'a>) : unit =
+    l |> toList |> List.iter f
+
+  let map = FSharpPlus.Data.NonEmptyList.map
+  let ofList = FSharpPlus.Data.NonEmptyList.ofList
+  let ofSeq = FSharpPlus.Data.NonEmptyList.ofSeq
+  let singleton = FSharpPlus.Data.NonEmptyList.singleton
+
 
 type CanvasID = System.Guid
 type UserID = System.Guid

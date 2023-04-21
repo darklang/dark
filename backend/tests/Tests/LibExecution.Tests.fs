@@ -105,7 +105,9 @@ let t
 
       let rtFunctions =
         (functions
-         |> List.map (fun fn -> fn.name, PT2RT.UserFunction.toRT fn)
+         |> List.map (fun fn ->
+           let fn = PT2RT.UserFunction.toRT fn
+           (fn.name, fn))
          |> Map.ofList)
 
       let rtPackageFns =
@@ -201,16 +203,8 @@ let fileTests () : Test =
       testList $"skipped - {testName}" []
     else
       try
-        let stdlibTypes =
-          LibExecutionStdLib.StdLib.types
-          @ BackendOnlyStdLib.StdLib.types @ TestUtils.LibMaybe.types
-          |> List.map (fun typ ->
-            let typeName = PT.FQTypeName.Stdlib typ.name
-            PT.FQTypeName.toString typeName, (typeName, typ.definition))
-          |> Map
-
         (baseDir + filename)
-        |> Parser.TestModule.parseTestFile stdlibTypes
+        |> Parser.TestModule.parseTestFile
         |> moduleToTests testName
       with
       | e ->

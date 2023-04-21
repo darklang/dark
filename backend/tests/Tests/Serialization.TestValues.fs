@@ -23,10 +23,14 @@ let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
   let fqFnNames : List<RT.FQFnName.T> =
-    [ RT.FQFnName.User "user fn"
-      RT.FQFnName.Stdlib { module_ = "a"; function_ = "b"; version = 1 }
+    [ RT.FQFnName.User { modules = [ "X" ]; function_ = "userfn"; version = 0 }
+      RT.FQFnName.Stdlib { modules = [ "A" ]; function_ = "b"; version = 1 }
       RT.FQFnName.Package
-        { owner = "a"; package = "b"; module_ = "c"; function_ = "d"; version = 2 } ]
+        { owner = "a"
+          package = "b"
+          modules = NonEmptyList.singleton "C"
+          function_ = "d"
+          version = 2 } ]
 
   let dtypes : List<RT.TypeReference> =
     [ RT.TInt
@@ -39,16 +43,19 @@ module RuntimeTypes =
       RT.TDict RT.TBool
       RT.THttpResponse RT.TBool
       RT.TDB RT.TBool
-      RT.TCustomType(RT.FQTypeName.User { typ = "User"; version = 0 }, [ RT.TBool ])
       RT.TCustomType(
-        RT.FQTypeName.Stdlib { module_ = "Mod"; typ = "User"; version = 0 },
+        RT.FQTypeName.User { modules = []; typ = "User"; version = 0 },
+        [ RT.TBool ]
+      )
+      RT.TCustomType(
+        RT.FQTypeName.Stdlib { modules = [ "Mod" ]; typ = "User"; version = 0 },
         [ RT.TBool ]
       )
       RT.TCustomType(
         RT.FQTypeName.Package
           { owner = "dark"
             package = "pkg"
-            module_ = "Mod"
+            modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
             typ = "Pack"
             version = 0 },
         [ RT.TBool ]
@@ -108,7 +115,7 @@ module RuntimeTypes =
       )
       RT.EApply(
         128384UL,
-        RT.FnName(RT.FQFnName.User "user fn"),
+        RT.FnName(RT.FQFnName.User { modules = []; function_ = "fn"; version = 0 }),
         [],
         [ RT.EUnit(7756UL) ]
       )
@@ -136,7 +143,7 @@ module RuntimeTypes =
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EConstructor(
         8375723UL,
-        Some(RT.FQTypeName.User { typ = "MyEnum"; version = 0 }),
+        Some(RT.FQTypeName.User { modules = []; typ = "MyEnum"; version = 0 }),
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -162,12 +169,13 @@ module RuntimeTypes =
 
 module ProgramTypes =
   let fqFnNames : List<PT.FQFnName.T> =
-    [ PT.FQFnName.User "test123"
-      PT.FQFnName.Stdlib { module_ = "Int"; function_ = "increment"; version = 1 }
+    [ PT.FQFnName.User { modules = []; function_ = "fn"; version = 0 }
+      PT.FQFnName.Stdlib
+        { modules = [ "Int" ]; function_ = "increment"; version = 1 }
       PT.FQFnName.Package
-        { owner = "Twilio"
+        { owner = "twilio"
           package = "twilio"
-          module_ = "twilio"
+          modules = NonEmptyList.singleton "Twilio"
           function_ = "sms"
           version = 1 } ]
 
@@ -200,16 +208,19 @@ module ProgramTypes =
       PT.TDict PT.TBool
       PT.THttpResponse PT.TBool
       PT.TDB PT.TBool
-      PT.TCustomType(PT.FQTypeName.User { typ = "User"; version = 0 }, [ PT.TBool ])
       PT.TCustomType(
-        PT.FQTypeName.Stdlib { module_ = "Mod"; typ = "User"; version = 0 },
+        PT.FQTypeName.User { modules = [ "Mod" ]; typ = "User"; version = 0 },
+        [ PT.TBool ]
+      )
+      PT.TCustomType(
+        PT.FQTypeName.Stdlib { modules = [ "Mod" ]; typ = "User"; version = 0 },
         [ PT.TBool ]
       )
       PT.TCustomType(
         PT.FQTypeName.Package
           { owner = "dark"
             package = "pkg"
-            module_ = "Mod"
+            modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
             typ = "Pack"
             version = 0 },
         [ PT.TBool ]
@@ -268,7 +279,9 @@ module ProgramTypes =
                         PT.EFnCall(
                           898531080UL,
                           PT.FQFnName.Stdlib
-                            { module_ = "Int"; function_ = "toString"; version = 0 },
+                            { modules = [ "Int" ]
+                              function_ = "toString"
+                              version = 0 },
                           dtypes,
                           [ PT.EInt(160106123UL, 6L) ]
                         ),
@@ -311,7 +324,9 @@ module ProgramTypes =
                             PT.EFnCall(
                               173079901UL,
                               PT.FQFnName.Stdlib
-                                { module_ = "Int"; function_ = "add"; version = 0 },
+                                { modules = [ "Int" ]
+                                  function_ = "add"
+                                  version = 0 },
                               [],
                               [ PT.EInt(250221144UL, 6L); PT.EInt(298149318UL, 2L) ]
                             )
@@ -373,7 +388,7 @@ module ProgramTypes =
                             PT.EFnCall(
                               203239466UL,
                               PT.FQFnName.Stdlib
-                                { module_ = "Mod"
+                                { modules = [ "Mod" ]
                                   function_ = "function"
                                   version = 2 },
                               [],
@@ -492,7 +507,10 @@ module ProgramTypes =
         PT.TPassword
         PT.TUuid
         PT.TOption(PT.TInt)
-        PT.TCustomType(PT.FQTypeName.User { typ = "name"; version = 0 }, [])
+        PT.TCustomType(
+          PT.FQTypeName.User { modules = [ "Mod" ]; typ = "name"; version = 0 },
+          []
+        )
         PT.TBytes
         PT.TResult(PT.TInt, PT.TString)
         PT.TVariable "v"
@@ -553,11 +571,15 @@ module ProgramTypes =
     { tlid = 0UL
       name = "User"
       version = 0
-      typ = PT.TCustomType(PT.FQTypeName.User { typ = "User"; version = 0 }, []) }
+      typ =
+        PT.TCustomType(
+          PT.FQTypeName.User { modules = []; typ = "User"; version = 0 },
+          []
+        ) }
 
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
-      name = "myFunc"
+      name = { modules = []; function_ = "User"; version = 0 }
       typeParams = [ "a" ]
       parameters =
         [ { id = 23824935UL; name = "myparam1"; typ = dtype; description = "param1" } ]
@@ -570,7 +592,7 @@ module ProgramTypes =
 
   let userRecordType : PT.UserType.T =
     { tlid = 0UL
-      name = { typ = "User"; version = 0 }
+      name = { modules = []; typ = "User"; version = 0 }
       definition =
         let firstField : PT.CustomType.RecordField =
           { id = 0698978UL; name = "prop1"; typ = dtype }
@@ -578,7 +600,7 @@ module ProgramTypes =
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
-      name = { typ = "User"; version = 0 }
+      name = { modules = []; typ = "User"; version = 0 }
       definition =
         PT.CustomType.Enum(
           { id = 0698978UL; name = "caseA"; fields = [] },
@@ -597,7 +619,7 @@ module ProgramTypes =
     { name =
         { owner = "dark"
           package = "stdlib"
-          module_ = "Int"
+          modules = NonEmptyList.ofList [ "Int"; "Int64" ]
           function_ = "mod"
           version = 0 }
       body = expr

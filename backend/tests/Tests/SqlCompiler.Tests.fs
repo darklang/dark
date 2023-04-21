@@ -23,7 +23,8 @@ let compile
   task {
     let canvasID = System.Guid.NewGuid()
 
-    let typeName : FQTypeName.UserTypeName = { typ = "MyType"; version = 0 }
+    let typeName : FQTypeName.UserTypeName =
+      { modules = []; typ = "MyType"; version = 0 }
     let field : CustomType.RecordField =
       { id = gid (); name = rowName; typ = rowType }
     let userType : UserType.T =
@@ -81,7 +82,7 @@ let compileTests =
 
         let expr =
           S.eFn
-            ""
+            []
             "equals"
             0
             []

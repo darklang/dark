@@ -13,13 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="ClientRuntimeTypes.fs" />
-    <Compile Include="ClientProgramTypes.fs" />
-    <Compile Include="ClientAnalysisTypes.fs" />
-    <Compile Include="ClientWorkerTypes.fs" />
-    <Compile Include="ClientTraceTypes.fs" />
-    <Compile Include="ClientOpsTypes.fs" />
-    <Compile Include="ClientSecretTypes.fs" />
     <Compile Include="ClientPusherTypes.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

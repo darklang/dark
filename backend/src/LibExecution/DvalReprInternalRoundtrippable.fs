@@ -27,45 +27,45 @@ module FormatV0 =
   module FQTypeName =
 
     module StdlibTypeName =
-      type T = { module_ : string; typ : string; version : int }
+      type T = { modules : List<string>; typ : string; version : int }
 
       let fromRT (t : RT.FQTypeName.StdlibTypeName) : T =
-        { module_ = t.module_; typ = t.typ; version = t.version }
+        { modules = t.modules; typ = t.typ; version = t.version }
 
       let toRT (t : T) : RT.FQTypeName.StdlibTypeName =
-        { module_ = t.module_; typ = t.typ; version = t.version }
+        { modules = t.modules; typ = t.typ; version = t.version }
 
 
     /// A type written by a Developer in their canvas
     module UserTypeName =
-      type T = { typ : string; version : int }
+      type T = { modules : List<string>; typ : string; version : int }
 
       let fromRT (u : RT.FQTypeName.UserTypeName) : T =
-        { typ = u.typ; version = u.version }
+        { modules = u.modules; typ = u.typ; version = u.version }
 
       let toRT (u : T) : RT.FQTypeName.UserTypeName =
-        { typ = u.typ; version = u.version }
+        { modules = u.modules; typ = u.typ; version = u.version }
 
     /// The name of a type in the package manager
     module PackageTypeName =
       type T =
         { owner : string
           package : string
-          module_ : string
+          modules : NonEmptyList<string>
           typ : string
           version : int }
 
       let fromRT (p : RT.FQTypeName.PackageTypeName) : T =
         { owner = p.owner
           package = p.package
-          module_ = p.module_
+          modules = p.modules
           typ = p.typ
           version = p.version }
 
       let toRT (p : T) : RT.FQTypeName.PackageTypeName =
         { owner = p.owner
           package = p.package
-          module_ = p.module_
+          modules = p.modules
           typ = p.typ
           version = p.version }
 

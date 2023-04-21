@@ -51,11 +51,9 @@ module FQTypeName =
   [<MessagePack.MessagePackObject>]
   type StdlibTypeName =
     { [<MessagePack.Key 0>]
-      module_ : string
-
+      modules : List<string>
       [<MessagePack.Key 1>]
       typ : string
-
       [<MessagePack.Key 2>]
       version : int }
 
@@ -63,9 +61,10 @@ module FQTypeName =
   [<MessagePack.MessagePackObject>]
   type UserTypeName =
     { [<MessagePack.Key 0>]
-      typ : string
-
+      modules : List<string>
       [<MessagePack.Key 1>]
+      typ : string
+      [<MessagePack.Key 2>]
       version : int }
 
   /// The name of a type in the package manager
@@ -73,16 +72,12 @@ module FQTypeName =
   type PackageTypeName =
     { [<MessagePack.Key 0>]
       owner : string
-
       [<MessagePack.Key 1>]
       package : string
-
       [<MessagePack.Key 2>]
-      module_ : string
-
+      modules : List<string>
       [<MessagePack.Key 3>]
       typ : string
-
       [<MessagePack.Key 4>]
       version : int }
 
@@ -100,7 +95,7 @@ module FQFnName =
   [<MessagePack.MessagePackObject>]
   type StdlibFnName =
     { [<MessagePack.Key 0>]
-      module_ : string
+      modules : List<string>
       [<MessagePack.Key 1>]
       function_ : string
       [<MessagePack.Key 2>]
@@ -108,7 +103,14 @@ module FQFnName =
 
   /// A UserFunction is a function written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
-  type UserFnName = string
+  type UserFnName =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      function_ : string
+      [<MessagePack.Key 2>]
+      version : int }
+
 
   /// The name of a function in the package manager
   [<MessagePack.MessagePackObject>]
@@ -118,7 +120,7 @@ module FQFnName =
       [<MessagePack.Key 1>]
       package : string
       [<MessagePack.Key 2>]
-      module_ : string
+      modules : List<string>
       [<MessagePack.Key 3>]
       function_ : string
       [<MessagePack.Key 4>]
@@ -294,10 +296,8 @@ module Handler =
   type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
-
       [<MessagePack.Key 1>]
       ast : Expr
-
       [<MessagePack.Key 2>]
       spec : Spec }
 
@@ -343,7 +343,7 @@ module UserFunction =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : string
+      name : FQFnName.UserFnName
       [<MessagePack.Key 2>]
       typeParams : List<string>
       [<MessagePack.Key 3>]

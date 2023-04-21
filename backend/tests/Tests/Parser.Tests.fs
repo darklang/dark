@@ -32,7 +32,7 @@ let parserTests =
             PT.EVariable(id, "x"),
             PT.EFnCall(
               id,
-              PT.FQFnName.stdlibFqName "List" "map" 0,
+              PT.FQFnName.stdlibFqName [ "List" ] "map" 0,
               [],
               [ (PT.EPipeTarget id); PT.EInt(id, 5) ]
             ),

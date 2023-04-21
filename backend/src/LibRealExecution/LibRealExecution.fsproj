@@ -12,9 +12,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibExecutionStdLib/LibExecutionStdLib.fsproj" />
+    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../BackendOnlyStdLib/BackendOnlyStdLib.fsproj" />
+    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />

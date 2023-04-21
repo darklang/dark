@@ -29,7 +29,7 @@ open System.Reflection
 let info () =
   let buildAttributes =
     Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // This reads values created during the build in Executor.fsproj
+  // This reads values created during the build in Cli.fsproj
   // It doesn't feel like this is how it's supposed to be used, but it works. But
   // what if we wanted more than two parameters?
   let buildDate = buildAttributes.Key
@@ -42,12 +42,11 @@ let info () =
 // ---------------------
 
 let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-  LibExecutionStdLib.StdLib.types
-  |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
+  StdLibExecution.StdLib.types
   |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
 
 let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  LibExecutionStdLib.StdLib.fns @ StdLibCli.fns
+  StdLibExecution.StdLib.fns @ StdLibCli.fns
   |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
 
 
@@ -98,14 +97,14 @@ let execute
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
-let initSerializers () = Json.Vanilla.allow<pos> "Prelude"
+let initSerializers () = ()
 
 [<EntryPoint>]
 let main (args : string []) =
   try
     initSerializers ()
     let mainFile = "/home/dark/app/backend/experiments/cli/program.dark"
-    let mod' = Parser.CanvasV2.parseFromFile Map.empty mainFile
+    let mod' = Parser.CanvasV2.parseFromFile mainFile
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
     let result = execute mod' (Map [ "args", args ])
     NonBlockingConsole.wait ()

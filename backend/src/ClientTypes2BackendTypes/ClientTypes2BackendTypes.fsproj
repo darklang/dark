@@ -11,13 +11,10 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
-    <ProjectReference Include="../ClientTypes2ExecutionTypes/ClientTypes2ExecutionTypes.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Ops.fs" />
-    <Compile Include="Worker.fs" />
     <Compile Include="Pusher.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

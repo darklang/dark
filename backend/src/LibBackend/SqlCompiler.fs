@@ -159,13 +159,13 @@ let escapeFieldname (str : string) : string =
 //  Inline `let` statements directly into where they are used. Replaces
 //
 //    let y = 10
-//    DB::query Person \value ->
+//    DB.query Person \value ->
 //      let x = 5
 //      value.age < x
 //
 //   with
 //    let y = 10
-//    DB::query Person \value ->
+//    DB.query Person \value ->
 //      value.age < 5
 //
 //  The main purpose of inlining is to get `value.fieldname` inlined. Other
@@ -179,13 +179,13 @@ let escapeFieldname (str : string) : string =
 //  It's possible that we over-inline here, and introduce duplicate code that
 //  has slightly different behaviour. For example, converting
 //
-//   DB::query Person \value ->
+//   DB.query Person \value ->
 //     let x = launch_the_missiles ()
 //     value.person < x + x
 //
 //  into
 //
-//   DB::query Person \value ->
+//   DB.query Person \value ->
 //     value.person < launch_the_missiles () + launch_the_missiles ()
 //
 //  As a first attempt, this is fine, as it's hard to avoid without making a
@@ -220,7 +220,7 @@ let rec inline'
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
   | EApply (_, FnName (FQFnName.Stdlib std), [], args) when
-    std.module_ = mName && std.function_ = fName && std.version = v
+    std.modules = [ mName ] && std.function_ = fName && std.version = v
     ->
     Some args
   | _ -> None
@@ -491,13 +491,13 @@ let rec lambdaToSql
 //  The purpose of this step is as a convenience to the user. We could force
 //  them to rewrite:
 //
-//   Db::query Person \value ->
-//     value.age < Int::sqrt (String::length (String::append a b))
+//   Db.query Person \value ->
+//     value.age < Int.sqrt (String.length (String.append a b))
 //
 //  into
 //
-//   let myAge = Int::sqrt (String::length (String::append a b))
-//   Db::query Person \value ->
+//   let myAge = Int.sqrt (String.length (String::append a b))
+//   Db.query Person \value ->
 //     value.age < myAge
 //
 //  This is simply a convenience function to do that. Since users don't have a

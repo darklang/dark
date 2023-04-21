@@ -28,12 +28,9 @@ module TypeReference =
 
 
   let rec fromNameAndTypeArgs
-    (availableTypes : AvailableTypes)
     (name : string)
     (typeArgs : List<SynType>)
     : PT.TypeReference =
-    let fromSynType = fromSynType availableTypes
-
     match parseTypeRef name, typeArgs with
     // no type args
     | ("Bool", 0), [] -> PT.TBool
@@ -57,20 +54,12 @@ module TypeReference =
     | ("Tuple", 0), first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | (name, version), args ->
-      // Some user- or stdlib- type
-      // Otherwise, assume it's a variable type name (like `'a` in `List<'a>`)
-      let fullName = $"{name}_v{version}"
+      // TYPESCLEANUP - Not sure what we're doing for stdlib types here
+      let tn = PT.FQTypeName.User { modules = []; typ = name; version = version }
+      PT.TCustomType(tn, List.map fromSynType typeArgs)
 
-      match Map.get fullName availableTypes with
-      | None -> Exception.raiseInternal $"No type found named \"{name}\"" []
-      | Some (actualTypeName, matchedType) ->
-        PT.TCustomType(actualTypeName, List.map fromSynType typeArgs)
-
-  and fromSynType
-    (availableTypes : AvailableTypes)
-    (typ : SynType)
-    : PT.TypeReference =
-    let c = fromSynType availableTypes
+  and fromSynType (typ : SynType) : PT.TypeReference =
+    let c = fromSynType
 
     match typ with
     | SynType.Paren (t, _) -> c t
@@ -95,11 +84,11 @@ module TypeReference =
                    _,
                    _,
                    _,
-                   range) -> fromNameAndTypeArgs availableTypes ident.idText typeArgs
+                   range) -> fromNameAndTypeArgs ident.idText typeArgs
 
     | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
       let typeArgs = []
-      fromNameAndTypeArgs availableTypes ident.idText typeArgs
+      fromNameAndTypeArgs ident.idText typeArgs
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
@@ -140,13 +129,14 @@ module MatchPattern =
       let sign, whole, fraction = readFloat d
       PT.MPFloat(id, sign, whole, fraction)
     | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
-    | SynPat.LongIdent (SynLongIdent ([ constructorName ], _, _),
-                        _,
-                        _,
-                        SynArgPats.Pats args,
-                        _,
-                        _) ->
+    | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let args = List.map r args
+      let constructorName =
+        List.last names
+        |> Exception.unwrapOptionInternal "missing constructor name" []
+      let modules =
+        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
+      // CLEANUPTYPES use modules
       PT.MPConstructor(id, constructorName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
@@ -158,14 +148,26 @@ module Expr =
   // CLEANUP - blanks here aren't allowed
   let private nameOrBlank (v : string) : string = if v = "___" then "" else v
 
-  let private parseFn (fnName : string) : string * int =
+  let parseFn (fnName : string) : Option<string * int> =
     match fnName with
-    | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
-    | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+    | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
+      Some(name, (int version))
+    | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> Some(name, 0)
+    | _ -> None
+
+  let parseEnum (enumName : string) : string =
+    // No version on the Enum case, that's on the type
+    match enumName with
+    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name
     | _ ->
-      Exception.raiseInternal
-        "Bad format in one word function name"
-        [ "fnName", fnName ]
+      Exception.raiseInternal "Bad format in enum names" [ "enumName", enumName ]
+
+  let parseTypeName (typeName : string) : string * int =
+    match typeName with
+    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
+    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+    | _ -> Exception.raiseInternal "Bad format in type name" [ "typeName", typeName ]
+
 
   let private ops =
     Map.ofList [ ("op_Addition", PT.ArithmeticPlus)
@@ -182,8 +184,8 @@ module Expr =
                  ("op_BangEquals", PT.ComparisonNotEquals)
                  ("op_PlusPlus", PT.StringConcat) ]
 
-  let rec fromSynExpr (availableTypes : AvailableTypes) (ast : SynExpr) : PT.Expr =
-    let c = fromSynExpr availableTypes
+  let rec fromSynExpr (ast : SynExpr) : PT.Expr =
+    let c = fromSynExpr
 
     let convertLambdaVar (var : SynSimplePat) : string =
       match var with
@@ -261,50 +263,16 @@ module Expr =
     | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
       ident.idText = "op_UnaryNegation"
       ->
-      let name = PT.FQFnName.stdlibFqName "Int" "negate" 0
+      let name = PT.FQFnName.stdlibFqName [ "Int" ] "negate" 0
       PT.EFnCall(id, name, [], [])
 
 
     // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
-      let name, version = parseFn ident.idText
-      PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [], [])
-
-
-    // `Nothing`
-    | SynExpr.Ident ident when ident.idText = "Nothing" ->
-      PT.EConstructor(id, None, "Nothing", [])
-
-
-    // Enum constructors
-    | SynExpr.Ident name ->
-      let matchingEnumCases =
-        availableTypes
-        |> Map.values
-        |> List.choose (fun (typeName, typeDef) ->
-          match typeDef with
-          | PT.CustomType.Enum (firstCase, additionalCases) ->
-            firstCase :: additionalCases
-            |> List.tryFind (fun enumCase -> enumCase.name = name.idText)
-            |> Option.map (fun _ -> typeName)
-
-          | PT.CustomType.Record _ -> None)
-
-      match matchingEnumCases with
-      | [] -> PT.EVariable(id, name.idText)
-      | [ typeName ] ->
-        let fields =
-          // When parsing an enum ctor, we don't know the fields _here_.
-          // They are filled in shortly elsewhere - review this file for other cases
-          // of "EConstructor" to locate such.
-          []
-
-        PT.EConstructor(id, Some typeName, name.idText, fields)
-      | _ ->
-        Exception.raiseInternal
-          "There are more than 1 values that match this name, so the parser isn't sure which one to choose"
-          [ "name", name.idText; "matchingEnumCases", matchingEnumCases ]
-
+      match parseFn ident.idText with
+      | Some (name, version) ->
+        PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [])
+      | None -> PT.EVariable(id, ident.idText)
 
     // List literals
     | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
@@ -327,42 +295,17 @@ module Expr =
     | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
       PT.ETuple(id, c first, c second, List.map c rest)
 
-
-    // Function calls
-    // Long Identifiers like DateTime.now, represented in the form of ["DateTime"; "now"]
-    // (LongIdent = Ident list)
-    | SynExpr.LongIdent (_, SynLongIdent ([ modName; fnName ], _, _), _, _) when
-      System.Char.IsUpper(modName.idText[0])
+    // Enum values (EConstructors)
+    // TODO: remove this explicit handling
+    // when the Option and Result types are defined in StdLib
+    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
+      List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
       ->
-      let module_ = modName.idText
-      let name, version = parseFn fnName.idText
-      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, [], [])
+      PT.EConstructor(id, None, name.idText, [ c arg ])
 
-    // e.g. `Json.serialize<T>`
-    | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
-      let typeArgs =
-        typeArgs
-        |> List.map (fun synType -> TypeReference.fromSynType availableTypes synType)
-
-      PT.EFnCall(gid (), PT.FQFnName.userFqName name.idText, typeArgs, [])
-
-    | SynExpr.TypeApp (SynExpr.LongIdent (_,
-                                          SynLongIdent ([ modName; fnName ], _, _),
-                                          _,
-                                          _),
-                       _,
-                       typeArgs,
-                       _,
-                       _,
-                       _,
-                       _) ->
-      let module_ = modName.idText
-      let name, version = parseFn fnName.idText
-      let typeArgs =
-        typeArgs
-        |> List.map (fun synType -> TypeReference.fromSynType availableTypes synType)
-
-      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName module_ name version, typeArgs, [])
+    // Enum values (EConstructors)
+    | SynExpr.Ident name when name.idText = "Nothing" ->
+      PT.EConstructor(id, None, name.idText, [])
 
 
     // Package manager function calls
@@ -375,11 +318,85 @@ module Expr =
       ->
       PT.EFnCall(
         gid (),
-        PT.FQFnName.packageFqName "test" "test" "Test" fnName.idText 0,
+        PT.FQFnName.packageFqName
+          "test"
+          "test"
+          (NonEmptyList.singleton "Test")
+          fnName.idText
+          0,
         [],
         []
       )
 
+
+    // Constructors/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
+    | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) when
+      (names
+       |> List.initial
+       |> Option.unwrap []
+       |> List.all (fun n -> n.idText <> "" && System.Char.IsUpper(n.idText[0])))
+      ->
+      let modules =
+        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
+      let name =
+        List.last names
+        |> Exception.unwrapOptionInternal "empty list" []
+        |> fun i -> i.idText
+
+      match parseFn name with
+      | Some (name, version) ->
+        PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
+      | None ->
+        let enumName = parseEnum name
+        let typename =
+          List.last modules |> Exception.unwrapOptionInternal "empty list" []
+        let (typ, version) = parseTypeName typename
+        let modules = List.initial modules |> Option.unwrap []
+        // TYPESCLEANUP might not be a usertype
+        PT.EConstructor(
+          gid (),
+          Some(
+            PT.FQTypeName.User
+              { PT.FQTypeName.UserTypeName.modules = modules
+                typ = typ
+                version = version } : PT.FQTypeName.T
+          ),
+          enumName,
+          []
+        )
+
+    // Variable constructors - Ok, Error, Nothing, and Just are handled elsewhere,
+    // and Enums are expected to be fully qualified
+    | SynExpr.Ident name -> PT.EVariable(id, name.idText)
+
+
+    // e.g. `Json.serialize<T>`
+    | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
+      let typeArgs =
+        typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
+
+
+      let name, version =
+        parseFn name.idText |> Exception.unwrapOptionInternal "invalid fn name" []
+      PT.EFnCall(gid (), PT.FQFnName.userFqName [] name version, typeArgs, [])
+
+    | SynExpr.TypeApp (SynExpr.LongIdent (_,
+                                          SynLongIdent ([ modName; fnName ], _, _),
+                                          _,
+                                          _),
+                       _,
+                       typeArgs,
+                       _,
+                       _,
+                       _,
+                       _) ->
+      let modules = [ modName.idText ]
+      let name, version =
+        parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
+      let typeArgs =
+        typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
+
+      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, typeArgs, [])
 
     // Field access: a.b.c.d
     | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
@@ -569,16 +586,6 @@ module Expr =
         PT.ERecord(id, None, fields)
 
 
-    // Enum values (EConstructors)
-    // TODO: remove this explicit handling
-    // when the Option and Result types are defined in StdLib
-    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
-      List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
-      ->
-      PT.EConstructor(id, None, name.idText, [ c arg ])
-
-
-
     // Feature flags
     // We need to handle them now, or th  below `App` case will
     // make itet recognized as a variable referencess
@@ -611,11 +618,12 @@ module Expr =
       | PT.EPipe (id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
+        let (name, version) =
+          parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
         if Set.contains name PT.FQFnName.oneWordFunctions then
-          let (name, version) = parseFn name
-          PT.EFnCall(id, PT.FQFnName.stdlibFqName "" name version, [], [ c arg ])
+          PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [ c arg ])
         else
-          PT.EFnCall(id, PT.FQFnName.User name, [], [ c arg ])
+          PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ])
 
 
       // Enums
@@ -649,23 +657,27 @@ module Expr =
     |> LibExecution.ProgramTypesAst.preTraversal (fun e ->
       match e with
       | PT.EVariable (id, name) ->
-        if Set.contains name functions then
-          PT.EFnCall(
-            id,
-            PT.FQFnName.User(PT.FQFnName.userFnName name),
-            [],
-            [ PT.Expr.EPipeTarget(gid ()) ]
-          )
-        else
-          e
+        match parseFn name with
+        | Some (name, version) ->
+          let name : PT.FQFnName.UserFnName =
+            { modules = []; function_ = name; version = version }
+          if Set.contains name functions then
+            PT.EFnCall(
+              id,
+              PT.FQFnName.User(name),
+              [],
+              [ PT.Expr.EPipeTarget(gid ()) ]
+            )
+          else
+            e
+        // couldn't be parsed as a function, so leave it alone
+        | None -> e
+
       | _ -> e)
 
 module UserFunction =
-  let rec parseArgPat
-    (availableTypes : AvailableTypes)
-    (pat : SynPat)
-    : PT.UserFunction.Parameter =
-    let r = parseArgPat availableTypes
+  let rec parseArgPat (pat : SynPat) : PT.UserFunction.Parameter =
+    let r = parseArgPat
 
     match pat with
     | SynPat.Paren (pat, _) -> r pat
@@ -676,13 +688,12 @@ module UserFunction =
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
       { id = gid ()
         name = id.idText
-        typ = TypeReference.fromSynType availableTypes typ
+        typ = TypeReference.fromSynType typ
         description = "" }
 
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let private parseSignature
-    (availableTypes : AvailableTypes)
     (pat : SynPat)
     : string * List<string> * List<PT.UserFunction.Parameter> =
     match pat with
@@ -722,7 +733,7 @@ module UserFunction =
 
       let parameters =
         match argPats with
-        | SynArgPats.Pats pats -> List.map (parseArgPat availableTypes) pats
+        | SynArgPats.Pats pats -> List.map parseArgPat pats
 
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
@@ -732,62 +743,49 @@ module UserFunction =
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
   let parseReturnInfo
-    (availableTypes : AvailableTypes)
     (returnInfo : Option<SynBindingReturnInfo>)
     : PT.TypeReference =
     match returnInfo with
     | None -> Exception.raiseInternal "Functions must have return types specified" []
     | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
-      TypeReference.fromSynType availableTypes typeName
+      TypeReference.fromSynType typeName
 
 
-  let fromSynBinding
-    (availableTypes : AvailableTypes)
-    (binding : SynBinding)
-    : PT.UserFunction.T =
+  let fromSynBinding (binding : SynBinding) : PT.UserFunction.T =
     match binding with
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
-      let (name, typeParams, parameters) = parseSignature availableTypes pat
-      let returnType = parseReturnInfo availableTypes returnInfo
-
+      let (name, typeParams, parameters) = parseSignature pat
+      let returnType = parseReturnInfo returnInfo
+      let (name, version) =
+        Expr.parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
       { tlid = gid ()
-        name = name
+        name = PT.FQFnName.userFnName [] name version
         typeParams = typeParams
         parameters = parameters
         returnType = returnType
         description = ""
         infix = false
-        body = Expr.fromSynExpr availableTypes expr }
+        body = Expr.fromSynExpr expr }
 
 
 module CustomType =
   module Enum =
-    let private parseField
-      (availableTypes : AvailableTypes)
-      (typ : SynField)
-      : PT.CustomType.EnumField =
+    let private parseField (typ : SynField) : PT.CustomType.EnumField =
       match typ with
       | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
         { id = gid ()
-          typ = TypeReference.fromSynType availableTypes typ
+          typ = TypeReference.fromSynType typ
           label = fieldName |> Option.map (fun id -> id.idText) }
 
-    let private parseCase
-      (availableTypes : AvailableTypes)
-      (case : SynUnionCase)
-      : PT.CustomType.EnumCase =
+    let private parseCase (case : SynUnionCase) : PT.CustomType.EnumCase =
       match case with
       | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
         match typ with
         | SynUnionCaseKind.Fields fields ->
-          { id = gid ()
-            name = id.idText
-            fields = List.map (parseField availableTypes) fields }
+          { id = gid (); name = id.idText; fields = List.map parseField fields }
         | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
-    let fromCases availableTypes typeDef (cases : List<SynUnionCase>) =
-      let parseCase = parseCase availableTypes
-
+    let fromCases typeDef (cases : List<SynUnionCase>) =
       let firstCase, additionalCases =
         match cases with
         | [] ->
@@ -799,25 +797,19 @@ module CustomType =
       PT.CustomType.Enum(parseCase firstCase, List.map parseCase additionalCases)
 
   module Record =
-    let private parseField
-      (availableTypes : AvailableTypes)
-      (field : SynField)
-      : PT.CustomType.RecordField =
+    let private parseField (field : SynField) : PT.CustomType.RecordField =
       match field with
       | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-        { id = gid ()
-          name = id.idText
-          typ = TypeReference.fromSynType availableTypes typ }
+        { id = gid (); name = id.idText; typ = TypeReference.fromSynType typ }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
-    let fromFields availableTypes typeDef (fields : List<SynField>) =
+    let fromFields typeDef (fields : List<SynField>) =
       match fields with
       | [] ->
         Exception.raiseInternal
           $"Unsupported record type with no fields"
           [ "typeDef", typeDef ]
       | firstField :: additionalFields ->
-        let parseField = parseField availableTypes
 
         PT.CustomType.Record(
           parseField firstField,
@@ -825,10 +817,7 @@ module CustomType =
         )
 
 module UserType =
-  let fromSynTypeDefn
-    (availableTypes : AvailableTypes)
-    (typeDef : SynTypeDefn)
-    : PT.UserType.T =
+  let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.UserType.T =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
@@ -838,8 +827,8 @@ module UserType =
                    _,
                    _) ->
       { tlid = gid ()
-        name = { typ = id.idText; version = 0 }
-        definition = CustomType.Record.fromFields availableTypes typeDef fields }
+        name = { modules = []; typ = id.idText; version = 0 }
+        definition = CustomType.Record.fromFields typeDef fields }
 
     | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Union (_, cases, _),
@@ -849,17 +838,17 @@ module UserType =
                    _,
                    _) ->
       { tlid = gid ()
-        name = { typ = id.idText; version = 0 }
-        definition = CustomType.Enum.fromCases availableTypes typeDef cases }
+        name = { modules = []; typ = id.idText; version = 0 }
+        definition = CustomType.Enum.fromCases typeDef cases }
 
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
 
-let parseExprWithTypes (availableTypes : AvailableTypes) (code : string) : PT.Expr =
+let parseExprWithTypes (code : string) : PT.Expr =
   code
   |> Utils.parseAsFSharpSourceFile
   |> Utils.singleExprFromImplFile
-  |> Expr.fromSynExpr availableTypes
+  |> Expr.fromSynExpr
 
-let parseExpr = parseExprWithTypes Map.empty
+let parseExpr = parseExprWithTypes

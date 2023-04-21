@@ -140,7 +140,9 @@
                             [
                               "Stdlib",
                               {
-                                "module_": "Int",
+                                "modules": [
+                                  "Int"
+                                ],
                                 "function_": "toString",
                                 "version": 0
                               }
@@ -204,6 +206,9 @@
                                 [
                                   "User",
                                   {
+                                    "modules": [
+                                      "Mod"
+                                    ],
                                     "typ": "User",
                                     "version": 0
                                   }
@@ -219,7 +224,9 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Mod",
+                                    "modules": [
+                                      "Mod"
+                                    ],
                                     "typ": "User",
                                     "version": 0
                                   }
@@ -237,7 +244,12 @@
                                   {
                                     "owner": "dark",
                                     "package": "pkg",
-                                    "module_": "Mod",
+                                    "modules": {
+                                      "Head": "Mod1",
+                                      "Tail": [
+                                        "Mod2"
+                                      ]
+                                    },
                                     "typ": "Pack",
                                     "version": 0
                                   }
@@ -392,7 +404,9 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Int",
+                                    "modules": [
+                                      "Int"
+                                    ],
                                     "function_": "add",
                                     "version": 0
                                   }
@@ -533,7 +547,9 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Mod",
+                                    "modules": [
+                                      "Mod"
+                                    ],
                                     "function_": "function",
                                     "version": 2
                                   }
@@ -879,7 +895,11 @@
     "SetFunction",
     {
       "tlid": 0,
-      "name": "myFunc",
+      "name": {
+        "modules": [],
+        "function_": "User",
+        "version": 0
+      },
       "typeParams": [
         "a"
       ],
@@ -994,6 +1014,9 @@
                 [
                   "User",
                   {
+                    "modules": [
+                      "Mod"
+                    ],
                     "typ": "name",
                     "version": 0
                   }
@@ -1139,6 +1162,9 @@
             [
               "User",
               {
+                "modules": [
+                  "Mod"
+                ],
                 "typ": "name",
                 "version": 0
               }
@@ -1313,7 +1339,9 @@
                             [
                               "Stdlib",
                               {
-                                "module_": "Int",
+                                "modules": [
+                                  "Int"
+                                ],
                                 "function_": "toString",
                                 "version": 0
                               }
@@ -1377,6 +1405,9 @@
                                 [
                                   "User",
                                   {
+                                    "modules": [
+                                      "Mod"
+                                    ],
                                     "typ": "User",
                                     "version": 0
                                   }
@@ -1392,7 +1423,9 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Mod",
+                                    "modules": [
+                                      "Mod"
+                                    ],
                                     "typ": "User",
                                     "version": 0
                                   }
@@ -1410,7 +1443,12 @@
                                   {
                                     "owner": "dark",
                                     "package": "pkg",
-                                    "module_": "Mod",
+                                    "modules": {
+                                      "Head": "Mod1",
+                                      "Tail": [
+                                        "Mod2"
+                                      ]
+                                    },
                                     "typ": "Pack",
                                     "version": 0
                                   }
@@ -1565,7 +1603,9 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Int",
+                                    "modules": [
+                                      "Int"
+                                    ],
                                     "function_": "add",
                                     "version": 0
                                   }
@@ -1706,7 +1746,9 @@
                                 [
                                   "Stdlib",
                                   {
-                                    "module_": "Mod",
+                                    "modules": [
+                                      "Mod"
+                                    ],
                                     "function_": "function",
                                     "version": 2
                                   }
@@ -2175,7 +2217,9 @@
                           [
                             "Stdlib",
                             {
-                              "module_": "Int",
+                              "modules": [
+                                "Int"
+                              ],
                               "function_": "toString",
                               "version": 0
                             }
@@ -2239,6 +2283,9 @@
                               [
                                 "User",
                                 {
+                                  "modules": [
+                                    "Mod"
+                                  ],
                                   "typ": "User",
                                   "version": 0
                                 }
@@ -2254,7 +2301,9 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Mod",
+                                  "modules": [
+                                    "Mod"
+                                  ],
                                   "typ": "User",
                                   "version": 0
                                 }
@@ -2272,7 +2321,12 @@
                                 {
                                   "owner": "dark",
                                   "package": "pkg",
-                                  "module_": "Mod",
+                                  "modules": {
+                                    "Head": "Mod1",
+                                    "Tail": [
+                                      "Mod2"
+                                    ]
+                                  },
                                   "typ": "Pack",
                                   "version": 0
                                 }
@@ -2427,7 +2481,9 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Int",
+                                  "modules": [
+                                    "Int"
+                                  ],
                                   "function_": "add",
                                   "version": 0
                                 }
@@ -2568,7 +2624,9 @@
                               [
                                 "Stdlib",
                                 {
-                                  "module_": "Mod",
+                                  "modules": [
+                                    "Mod"
+                                  ],
                                   "function_": "function",
                                   "version": 2
                                 }
@@ -2905,6 +2963,7 @@
     {
       "tlid": 0,
       "name": {
+        "modules": [],
         "typ": "User",
         "version": 0
       },
@@ -3020,6 +3079,9 @@
                 [
                   "User",
                   {
+                    "modules": [
+                      "Mod"
+                    ],
                     "typ": "name",
                     "version": 0
                   }

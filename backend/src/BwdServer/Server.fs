@@ -468,7 +468,6 @@ let run () : unit =
 // Generally speaking, this should be the same list as QueueWorker's
 let initSerializers () =
   // universally-serializable types
-  Json.Vanilla.allow<pos> "Prelude"
 
   // one-off types used internally
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
@@ -483,9 +482,9 @@ let initSerializers () =
   // for Pusher.com payloads
   Json.Vanilla.allow<CTPusher.Payload.NewTrace> "Pusher"
   Json.Vanilla.allow<CTPusher.Payload.New404> "Pusher"
-  Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
-  //Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
-  Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
+// Json.Vanilla.allow<CTPusher.Payload.AddOpV1> "Pusher"
+// Json.Vanilla.allow<CTPusher.Payload.AddOpV1PayloadTooBig> "Pusher" // this is so-far unused
+// Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 
 

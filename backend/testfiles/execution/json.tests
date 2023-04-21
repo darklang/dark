@@ -30,7 +30,7 @@ Json.serialize<Bool> 1 = Error "Can't currently serialize this type/value combin
 Json.serialize<Bool> "False" = Error "Can't currently serialize this type/value combination"
 Json.serialize<Bool> "tRUE" = Error "Can't currently serialize this type/value combination"
 
-Json.parse<Bool> 1 = Test.typeError "Json::parse was expected to be called with a `String` in json, but was actually called with 1."
+Json.parse<Bool> 1 = Test.typeError "Json.parse was expected to be called with a `String` in json, but was actually called with 1."
 Json.parse<Bool> "tru" = Error "not JSON"
 Json.parse<Bool> "null" = Error "Can't currently parse this type/value combination"
 Json.parse<Bool> "" = Error "not JSON"
@@ -287,10 +287,10 @@ Json.parse<Result<Int, String>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 // #### Enums
 type PrettyLikely = Yeah | Enh of reason: String * Int
 
-Json.serialize<PrettyLikely> Yeah = Ok "{\"Yeah\":[]}"
-Json.parse<PrettyLikely> "{\"Yeah\":[]}" = Ok Yeah
-Json.serialize<PrettyLikely> (Enh("printer broke", 7)) = Ok "{\"Enh\":[\"printer broke\",7]}"
-Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (Enh("printer broke", 7))
+Json.serialize<PrettyLikely> PrettyLikely.Yeah = Ok "{\"Yeah\":[]}"
+Json.parse<PrettyLikely> "{\"Yeah\":[]}" = Ok PrettyLikely.Yeah
+Json.serialize<PrettyLikely> (PrettyLikely.Enh("printer broke", 7)) = Ok "{\"Enh\":[\"printer broke\",7]}"
+Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (PrettyLikely.Enh("printer broke", 7))
 // TODO: more
 // TODO: more nesting...
 

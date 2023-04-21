@@ -24,7 +24,7 @@
     <ProjectReference Include="../LibExperimentalExecution/LibExperimentalExecution.fsproj" />
     <ProjectReference Include="../../src/HttpMiddleware/HttpMiddleware.fsproj" />
     <ProjectReference Include="../../src/ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
-    <ProjectReference Include="../LibExperimentalStdLib/LibExperimentalStdLib.fsproj" />
+    <ProjectReference Include="../StdLibExperimental/StdLibExperimental.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

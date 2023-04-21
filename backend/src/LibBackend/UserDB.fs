@@ -347,6 +347,17 @@ let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
 // Given a [canvasID], return tlids for all unlocked databases -
 // a database is unlocked if it has no records, and thus its schema can be
 // changed without a migration.
+
+let all (canvasID : CanvasID) : Task<List<tlid>> =
+  Sql.query
+    "SELECT tlid
+       FROM toplevel_oplists_v0
+      WHERE canvas_id = @canvasID
+        AND tipe = 'db'"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
+
 let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be

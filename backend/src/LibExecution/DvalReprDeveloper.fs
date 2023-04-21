@@ -37,12 +37,7 @@ let rec typeName (t : TypeReference) : string =
         |> List.map (fun t -> typeName t)
         |> String.concat ", "
         |> fun betweenBrackets -> "<" + betweenBrackets + ">"
-
-    match t with
-    | FQTypeName.Stdlib t -> t.typ + typeArgsPortion
-    | FQTypeName.User t -> $"{t.typ}_v{t.version}{typeArgsPortion}"
-    | FQTypeName.Package t ->
-      $"{t.owner}/{t.package}/{t.module_}/{t.typ}_v{t.version}{typeArgsPortion}"
+    FQTypeName.toString t + typeArgsPortion
   | TBytes -> "Bytes"
 
 let dvalTypeName (dv : Dval) : string =

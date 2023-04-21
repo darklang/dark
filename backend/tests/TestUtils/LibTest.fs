@@ -24,9 +24,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let types : List<BuiltInType> =
-  [ LibMaybe.types ]
-  |> List.concat
-  |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
+  [] |> List.concat |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
 
 let fns : List<BuiltInFn> =
 
@@ -454,4 +452,3 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
-  @ LibMaybe.fns
