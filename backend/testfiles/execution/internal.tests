@@ -37,14 +37,14 @@ module Infra =
 
 module Domains =
   module Roundtrip =
-    ((DarkInternal.domainsForCanvasID Test.getCanvasID)
+    ((DarkInternal.Canvas.Domain.get Test.getCanvasID)
      |> List.head
      |> Test.unwrap
-     |> DarkInternal.canvasIDForDomain) = Ok Test.getCanvasID
+     |> DarkInternal.Canvas.Domain.toCanvasID) = Ok Test.getCanvasID
 
   module Errors =
-    DarkInternal.domainsForCanvasID ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = []
-    DarkInternal.canvasIDForDomain "not-a-real-domain" = Error "Canvas not found"
+    DarkInternal.Canvas.Domain.get ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = []
+    DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = Error "Canvas not found"
 
 
 

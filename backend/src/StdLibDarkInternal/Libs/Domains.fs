@@ -10,11 +10,18 @@ open LibExecution.StdLib.Shortcuts
 module Canvas = LibBackend.Canvas
 
 
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' [ "DarkInternal"; "Canvas"; "Domain" ] name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' [ "DarkInternal"; "Canvas"; "Domain" ] name version
+
+
+
 let types : List<BuiltInType> = []
 
-
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "domainsForCanvasID" 0
+  [ { name = fn "get" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TString
@@ -32,7 +39,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "canvasIDForDomain" 0
+    { name = fn "toCanvasID" 0
       typeParams = []
       parameters = [ Param.make "domain" TString "" ]
       returnType = TResult(TUuid, TString)
