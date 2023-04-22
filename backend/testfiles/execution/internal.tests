@@ -2,8 +2,17 @@
 // Misc
 // ---------------
 module Documentation =
-  // allFunctions has many functions
-  (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
+  (List.length_v0 DarkInternal.Documentation.list > 100) = true
+
+  (DarkInternal.Documentation.list_v0
+   |> List.map (fun f -> (f.name, f))
+   |> Dict.fromList_v0
+   |> Test.unwrap
+   |> Dict.get_v2 "Int.add"
+   |> Test.unwrap
+   |> (fun f -> f.parameters)) =
+     [ Parameter { name = "a"; ``type`` = "Int" }
+       Parameter { name = "b"; ``type`` = "Int" } ]
 
 
 module Infra =
@@ -93,6 +102,7 @@ module UnlockedDB =
     // one but locked
     (let _ = DB.set_v1 (X { x = "str" }) "test" XDB in
     DarkInternal.Canvas.DB.unlocked Test.getCanvasID) = []
+
 
 
 module Ops =
