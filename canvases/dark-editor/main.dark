@@ -1,4 +1,4 @@
-[<HttpHandler("GET", "/fetch-editor")>]
+[<HttpHandler("GET", "/")>]
 let _handler _req =
   let filePath =  "dark-editor-vue/dist/index.html"
   let file = Experiments.readFromCanvases filePath
@@ -92,7 +92,7 @@ let _handler _req =
     let prompt = request.body |> String.fromBytes
     let serialized =
       { model= "text-davinci-003"
-        max_tokens= 300
+        max_tokens=700
         temperature= 0.7
         prompt= prompt}
       |> Json.serialize<OpenAICompletionRequest>
@@ -114,7 +114,7 @@ let _handler _req =
 
 
 
-[<HttpHandler("GET", "/")>]
+[<HttpHandler("GET", "/fetch-old-editor")>]
 let _handler _req =
   let body =
     """
