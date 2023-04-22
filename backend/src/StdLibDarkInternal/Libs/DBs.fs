@@ -9,11 +9,15 @@ open LibExecution.StdLib.Shortcuts
 
 module UserDB = LibBackend.UserDB
 
+let modul = [ "DarkInternal"; "Canvas"; "DB" ]
+
 let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' [ "DarkInternal"; "Canvas"; "DB" ] name version
+  FQTypeName.stdlibTypeName' modul name version
 
 let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' [ "DarkInternal"; "Canvas"; "DB" ] name version
+  FQFnName.stdlibFnName' modul name version
+
+
 
 let types : List<BuiltInType> = []
 

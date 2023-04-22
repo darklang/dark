@@ -10,9 +10,18 @@ open LibExecution.StdLib.Shortcuts
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
+let modul = [ "DarkInternal"; "Infra" ]
+
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' modul name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' modul name version
+
+
 
 let types : List<BuiltInType> =
-  [ { name = typ "DarkInternal" "TableSize" 0
+  [ { name = typ "TableSize" 0
       typeParams = []
       definition =
         CustomType.Record(
@@ -26,7 +35,7 @@ let types : List<BuiltInType> =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "log" 0
+  [ { name = fn "log" 0
       typeParams = []
       parameters =
         [ Param.make "level" TString ""
@@ -53,7 +62,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getAndLogTableSizes" 0
+    { name = fn "getAndLogTableSizes" 0
       typeParams = []
       parameters = []
       returnType = TDict(stdlibTypeRef "DarkInternal" "TableSize" 0)
@@ -105,7 +114,7 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "raiseInternalException" 0
+    { name = fn "raiseInternalException" 0
       typeParams = []
       parameters = [ Param.make "argument" (TVariable "a") "Added as a tag" ]
       returnType = TUnit
@@ -124,7 +133,7 @@ human-readable data."
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "serverBuildHash" 0
+    { name = fn "serverBuildHash" 0
       typeParams = []
       parameters = []
       returnType = TString

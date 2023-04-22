@@ -18,10 +18,10 @@ module Documentation =
 module Infra =
 
   // correct number of tables
-  Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 16
+  Dict.size_v0 DarkInternal.Infra.getAndLogTableSizes_v0 = 16
 
   // server build hash
-  (match DarkInternal.serverBuildHash_v0 with
+  (match DarkInternal.Infra.serverBuildHash_v0 with
   // in local dev, the value is "dev"
   | "dev" -> true
   // in ci, "circleci"
@@ -29,11 +29,11 @@ module Infra =
   // otherwise it's the first 7 chars of the git hash
   | hash -> (String.length hash) == 7) = true
 
-// Test creating a new canvas - just check it we can call `owner` on it
-(let owner = Test.getCanvasID |> DarkInternal.Canvas.owner
- let newID = DarkInternal.Canvas.create owner "test"
- DarkInternal.Canvas.owner newID == owner) = true
-
+module Canvas =
+  // Test creating a new canvas - just check it we can call `owner` on it
+  (let owner = Test.getCanvasID |> DarkInternal.Canvas.owner
+   let newID = DarkInternal.Canvas.create owner "test"
+   DarkInternal.Canvas.owner newID == owner) = true
 
 module Domains =
   module Roundtrip =
@@ -46,35 +46,33 @@ module Domains =
     DarkInternal.Canvas.Domain.get ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = []
     DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = Error "Canvas not found"
 
-
-
-
 module Secrets =
 
-  // getSecrets empty
-  DarkInternal.getSecrets Test.getCanvasID = []
+  // getAll empty
+  DarkInternal.Canvas.Secret.getAll Test.getCanvasID = []
 
-  // insertSecret
-  (let _ = (DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 0)
-  DarkInternal.getSecrets Test.getCanvasID) = [("SECRET", "VALUE", 0)]
+  // insert
+  (let _ = (DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "VALUE" 0)
+  DarkInternal.Canvas.Secret.getAll Test.getCanvasID) =
+    [DarkInternal.Canvas.Secret.Secret { name = "SECRET"; value = "VALUE"; version = 0 }]
 
-  // insertSecret twice
-  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 1
+  // insert twice
+  (let _ = DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "VALUE" 1
   // Does not work
-  DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE" 1) = Error "Error inserting secret"
+  DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "OTHERVALUE" 1) = Error "Error inserting secret"
 
-  // deleteSecret
-  DarkInternal.deleteSecret Test.getCanvasID "SECRET" 2 = ()
+  // delete
+  DarkInternal.Canvas.Secret.delete Test.getCanvasID "SECRET" 2 = ()
 
-  // deleteSecret
-  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 3
-   let _ = DarkInternal.deleteSecret Test.getCanvasID "SECRET" 3
-   DarkInternal.getSecrets Test.getCanvasID) = []
+  // delete
+  (let _ = DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "VALUE" 3
+   let _ = DarkInternal.Canvas.Secret.delete Test.getCanvasID "SECRET" 3
+   DarkInternal.Canvas.Secret.getAll Test.getCanvasID) = []
 
 
 module F404s =
-  DarkInternal.getRecent404s Test.getCanvasID = []
-  DarkInternal.delete404 Test.getCanvasID "" "" "" = ()
+  DarkInternal.Canvas.F404.recent Test.getCanvasID = []
+  DarkInternal.Canvas.F404.delete Test.getCanvasID "" "" "" = ()
 
 
 module Toplevels =

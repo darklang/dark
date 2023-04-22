@@ -9,12 +9,13 @@ open LibExecution.StdLib.Shortcuts
 
 module Canvas = LibBackend.Canvas
 
+let modul = [ "DarkInternal"; "Canvas"; "Domain" ]
 
 let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' [ "DarkInternal"; "Canvas"; "Domain" ] name version
+  FQTypeName.stdlibTypeName' modul name version
 
 let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' [ "DarkInternal"; "Canvas"; "Domain" ] name version
+  FQFnName.stdlibFnName' modul name version
 
 
 

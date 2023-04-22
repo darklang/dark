@@ -12,11 +12,13 @@ module PT = LibExecution.ProgramTypes
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 
+let modul = [ "DarkInternal"; "Canvas" ]
+
 let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' [ "DarkInternal"; "Canvas" ] name version
+  FQTypeName.stdlibTypeName' modul name version
 
 let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' [ "DarkInternal"; "Canvas" ] name version
+  FQFnName.stdlibFnName' modul name version
 
 
 let types : List<BuiltInType> =

@@ -8,12 +8,13 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
+let modul = [ "DarkInternal"; "Documentation" ]
+
 let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' [ "DarkInternal"; "Documentation" ] name version
+  FQTypeName.stdlibTypeName' modul name version
 
 let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' [ "DarkInternal"; "Documentation" ] name version
-
+  FQFnName.stdlibFnName' modul name version
 
 
 

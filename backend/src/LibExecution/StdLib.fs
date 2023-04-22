@@ -80,8 +80,8 @@ module Shortcuts =
 
 
   let stdlibTypeRef
-    (module' : string)
+    (modul : string)
     (name : string)
     (version : int)
     : TypeReference =
-    TCustomType(FQTypeName.Stdlib(typ module' name version), [])
+    TCustomType(FQTypeName.Stdlib(typ modul name version), [])

@@ -10,8 +10,17 @@ open LibExecution.StdLib.Shortcuts
 module Telemetry = LibService.Telemetry
 module TraceInputs = LibBackend.TraceInputs
 
+let modul = [ "DarkInternal"; "Canvas"; "F404" ]
+
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' modul name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' modul name version
+
+
 let types : List<BuiltInType> =
-  [ { name = typ "DarkInternal" "F404" 0
+  [ { name = typ "F404" 0
       typeParams = []
       definition =
         CustomType.Record(
@@ -26,7 +35,7 @@ let types : List<BuiltInType> =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "delete404" 0
+  [ { name = fn "delete" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
@@ -49,11 +58,10 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getRecent404s" 0
+    { name = fn "recent" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType =
-        TList(TCustomType(FQTypeName.Stdlib(typ "DarkInternal" "F404" 0), []))
+      returnType = TList(TCustomType(FQTypeName.Stdlib(typ "F404" 0), []))
       description = "Fetch a list of recent 404s"
       fn =
         (function
