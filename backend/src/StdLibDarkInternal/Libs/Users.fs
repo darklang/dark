@@ -9,11 +9,17 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' [ "DarkInternal"; "User" ] name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' [ "DarkInternal"; "User" ] name version
+
 // only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "createUser" 0
+  [ { name = fn "create" 0
       typeParams = []
       parameters = []
       returnType = TUuid

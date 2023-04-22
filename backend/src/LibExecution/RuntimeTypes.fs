@@ -60,15 +60,22 @@ module FQTypeName =
 
   let typeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
+  let stdlibTypeName'
+    (modules : List<string>)
+    (typ : string)
+    (version : int)
+    : StdlibTypeName =
+    List.iter (assertRe "modName name must match" modNamePat) modules
+    assertRe "stdlib function name must match" typeNamePat typ
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { modules = modules; typ = typ; version = version }
+
   let stdlibTypeName
     (modul : string)
     (typ : string)
     (version : int)
     : StdlibTypeName =
-    if modul <> "" then assertRe "modName name must match" modNamePat modul
-    assertRe "stdlib function name must match" typeNamePat typ
-    assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { modules = [ modul ]; typ = typ; version = version }
+    stdlibTypeName' [ modul ] typ version
 
   let toString (fqtn : T) : string =
     match fqtn with

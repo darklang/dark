@@ -9,11 +9,16 @@ open LibExecution.StdLib.Shortcuts
 
 module UserDB = LibBackend.UserDB
 
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' [ "DarkInternal"; "Canvas"; "DB" ] name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' [ "DarkInternal"; "Canvas"; "DB" ] name version
 
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "dbs" 0
+  [ { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TInt
@@ -31,7 +36,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "unlockedDBs" 0
+    { name = fn "unlocked" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TInt
