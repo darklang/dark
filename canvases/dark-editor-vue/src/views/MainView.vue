@@ -13,8 +13,8 @@
       <!-- <Test/> -->
 
     </div>
-    <div class="absolute bottom-0 left-0 w-full pt-2">
-      <Prompt :systemPromptValue="systemPromptValue"  />
+    <div>
+      <Prompt :systemPromptValue="systemPromptValue" />
     </div>
   </main>
 </template>

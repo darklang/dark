@@ -1,8 +1,8 @@
 <template>
-  <ChatView />
+  <MainView />
 </template>
 <script setup lang="ts">
-import ChatView from './views/ChatView.vue';
+import MainView from './views/MainView.vue';
 </script>
 
 
