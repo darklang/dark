@@ -623,15 +623,13 @@ let testLetPreview : Test =
   let createLetPattern
     (patternMatch : LetPattern)
     (expr : Expr)
-    (finalExpr : Expr)
+    (body : Expr)
     : Task<Map<id, AT.ExecutionResult>> =
     task {
-      let ast = ELet(letID, patternMatch, expr, finalExpr)
+      let ast = ELet(letID, patternMatch, expr, body)
 
       let! results = execSaveDvals "let-preview" [] [] [] ast
-      let stuff = results |> Dictionary.toList |> Map
-
-      return stuff
+      return results |> Dictionary.toList |> Map
     }
 
   testList
@@ -687,7 +685,7 @@ let testLetPreview : Test =
         let divisionExpr =
           EApply(
             divID,
-            PT.FQFnName.stdlibFqName "Int" "divide" 0
+            PT.FQFnName.stdlibFqName [ "Int" ] "divide" 0
             |> PT2RT.FQFnName.toRT
             |> FnName,
             [],
