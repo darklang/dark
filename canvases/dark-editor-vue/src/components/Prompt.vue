@@ -1,11 +1,12 @@
 <template>
-  <div v-if="prompts.length">
+  <div class="h-[542px] overflow-y-scroll" v-if="prompts.length">
     <div v-for="(prompt, index) in prompts" :key="index">
       <UserChat :promptValue="prompt" />
       <ResponseChat :response="responses[index]" v-if="responses[index]" />
     </div>
   </div>
 
+  <div class="absolute bottom-0 left-0 w-full pt-2">
   <form @submit.prevent="submitPrompt" class="flex flex-row stretch my-4 mx-auto max-w-2xl">
     <div class="relative flex h-full flex-1">
       <div class="w-full relative flex flex-col flex-grow py-3 pl-4 border border-white/10 rounded-md shadow-black/10">
@@ -14,6 +15,7 @@
       </div>
     </div>
   </form>
+</div>
 
 </template>
 
@@ -33,7 +35,7 @@ const props = defineProps({
     }
   });
 
-const submitPrompt = async () => {
+  const submitPrompt = async () => {
   prompts.value.push(prompt.value);
 
   try {
