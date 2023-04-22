@@ -6,13 +6,14 @@ open System.Threading.Tasks
 open Prelude
 
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 
 
-let fn = FQFnName.stdlibFnName
+
 let typ = FQTypeName.stdlibTypeName
 
 let incorrectArgs = LibExecution.Errors.incorrectArgs
@@ -22,7 +23,8 @@ let types : List<BuiltInType> =
   [ { name = typ "Canvas" "Meta" 0
       typeParams = []
       definition = CustomType.Record({ id = 1UL; name = "id"; typ = TUuid }, [])
-      description = "Metadata about a canvas" }
+      description = "Metadata about a canvas"
+      deprecated = NotDeprecated }
     { name = typ "Canvas" "DB" 0
       typeParams = []
       definition =
@@ -30,6 +32,7 @@ let types : List<BuiltInType> =
           { id = 2UL; name = "name"; typ = TString },
           [ { id = 3UL; name = "tlid"; typ = TString } ]
         )
+      deprecated = NotDeprecated
       description = "A database on a canvas" }
     { name = typ "Canvas" "HttpHandler" 0
       typeParams = []
@@ -39,6 +42,7 @@ let types : List<BuiltInType> =
           [ { id = 3UL; name = "route"; typ = TString }
             { id = 4UL; name = "tlid"; typ = TString } ]
         )
+      deprecated = NotDeprecated
       description = "An HTTP handler on a canvas" }
     { name = typ "Canvas" "Program" 0
       typeParams = []
@@ -55,6 +59,7 @@ let types : List<BuiltInType> =
                   TCustomType(FQTypeName.Stdlib(typ "Canvas" "HttpHandler" 0), [])
                 ) } ]
         )
+      deprecated = NotDeprecated
       description = "A program on a canvas" } ]
 
 
@@ -237,3 +242,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

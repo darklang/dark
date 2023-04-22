@@ -1,15 +1,14 @@
-module StdLibExecution.LibBytes
+module StdLibExecution.Libs.Bytes
 
 open LibExecution.RuntimeTypes
 open Prelude
 open System
 open System.Text
+open LibExecution.StdLib.Shortcuts
 
 open System.Text.RegularExpressions
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bytes" "empty" 0
@@ -131,3 +130,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

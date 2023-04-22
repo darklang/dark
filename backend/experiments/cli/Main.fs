@@ -41,17 +41,15 @@ let info () =
 // Execution
 // ---------------------
 
-let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-  StdLibExecution.StdLib.types
-  |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-
-let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  StdLibExecution.StdLib.fns @ StdLibCli.fns
-  |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+let (stdlibFns, stdlibTypes) =
+  LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
 
 
 let libraries : RT.Libraries =
-  { stdlibTypes = stdlibTypes; stdlibFns = stdlibFns; packageFns = Map.empty }
+  { stdlibTypes =
+      stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+    stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+    packageFns = Map.empty }
 
 
 let execute

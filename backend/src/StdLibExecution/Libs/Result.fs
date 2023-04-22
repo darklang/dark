@@ -1,27 +1,24 @@
-module StdLibExecution.LibResult
+module StdLibExecution.Libs.Result
 
 open System.Threading.Tasks
-open System.Numerics
 open FSharp.Control.Tasks
 
+open System.Numerics
+
+open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
-open Prelude
-
 module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = Errors.incorrectArgs
 
 let varOk = TVariable "ok"
 let varErr = TVariable "err"
 let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Result" "map" 1
@@ -201,3 +198,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

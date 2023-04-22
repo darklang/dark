@@ -1,4 +1,4 @@
-module StdLibExecution.LibUuid
+module StdLibExecution.Libs.Uuid
 
 open System.Threading.Tasks
 open System.Numerics
@@ -6,17 +6,9 @@ open FSharp.Control.Tasks
 
 open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.StdLib.Shortcuts
 
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
-
-let varA = TVariable "a"
-let varB = TVariable "b"
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Uuid" "generate" 0
@@ -73,3 +65,5 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     ]
+
+let contents = (fns, types)

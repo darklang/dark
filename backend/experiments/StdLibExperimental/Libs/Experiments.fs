@@ -68,6 +68,8 @@ module RestrictedFileIO =
       None
 
 
+let types : List<BuiltInType> = []
+
 let fns : List<BuiltInFn> =
   [ { name = fn "Experiments" "parseAndExecuteExpr" 0
       typeParams = []
@@ -155,3 +157,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents : LibExecution.StdLib.Contents = (fns, types)

@@ -5,15 +5,12 @@ open System.Threading.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module SchedulingRules = LibBackend.QueueSchedulingRules
 module Pusher = LibBackend.Pusher
 module Queue = LibBackend.Queue
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   (function
@@ -52,6 +49,7 @@ let types : List<BuiltInType> =
             { id = 1UL; name = "eventSpace"; typ = TString }
             { id = 1UL; name = "createdAt"; typ = TDateTime } ]
         )
+      deprecated = NotDeprecated
       description = "A scheduling rule for a worker" } ]
 
 let schedulingRule =
@@ -138,3 +136,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

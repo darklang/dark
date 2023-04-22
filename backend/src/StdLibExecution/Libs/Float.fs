@@ -1,14 +1,14 @@
-module StdLibExecution.LibFloat
+module StdLibExecution.Libs.Float
 
-open LibExecution.RuntimeTypes
-open Prelude
 open System
+
+open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Float" "ceiling" 0
@@ -433,3 +433,5 @@ let fns : List<BuiltInFn> =
 
 
     ]
+
+let contents = (fns, types)

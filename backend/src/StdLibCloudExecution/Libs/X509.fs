@@ -4,19 +4,14 @@ module StdLibCloudExecution.Libs.X509
 open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates
 
-open LibExecution.RuntimeTypes
 open Prelude
-
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 let varA = TVariable "a"
 let varB = TVariable "b"
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "X509" "pemCertificatePublicKey" 0
@@ -58,3 +53,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

@@ -1,18 +1,15 @@
-module StdLibExecution.LibChar
+module StdLibExecution.Libs.Char
 
 open System.Threading.Tasks
 open System.Numerics
 open FSharp.Control.Tasks
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = Errors.incorrectArgs
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Char" "toUppercase" 1
@@ -170,3 +167,5 @@ let fns : List<BuiltInFn> =
 
 
     ]
+
+let contents = (fns, types)

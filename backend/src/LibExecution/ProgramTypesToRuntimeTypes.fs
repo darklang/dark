@@ -351,10 +351,3 @@ module Package =
       returnType = TypeReference.toRT f.returnType
       description = f.description
       deprecated = f.deprecated }
-
-module BuiltInType =
-  let toRT (t : PT.BuiltInType) : RT.BuiltInType =
-    { name = FQTypeName.StdlibTypeName.toRT t.name
-      typeParams = t.typeParams
-      definition = CustomType.toRT t.definition
-      description = t.description }

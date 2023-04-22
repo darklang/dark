@@ -21,6 +21,7 @@ let types : List<BuiltInType> =
             { id = 3UL; name = "diskHuman"; typ = TString }
             { id = 4UL; name = "rowsHuman"; typ = TString } ]
         )
+      deprecated = NotDeprecated
       description = "Size info for Postgres tables" } ]
 
 
@@ -135,3 +136,5 @@ human-readable data."
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

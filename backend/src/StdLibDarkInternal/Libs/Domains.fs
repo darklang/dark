@@ -5,13 +5,10 @@ open System.Threading.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Canvas = LibBackend.Canvas
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let types : List<BuiltInType> = []
 
@@ -53,3 +50,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

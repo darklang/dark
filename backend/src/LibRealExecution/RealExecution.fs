@@ -18,16 +18,16 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-  (StdLibExecution.StdLib.types
-   @ StdLibCloudExecution.StdLib.types @ StdLibDarkInternal.StdLib.types)
-  |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-
-let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  StdLibExecution.StdLib.fns
-  @ StdLibCloudExecution.StdLib.fns @ StdLibDarkInternal.StdLib.fns
-  |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-
+let (stdlibFns, stdlibTypes) =
+  LibExecution.StdLib.combine
+    [ StdLibExecution.StdLib.contents
+      StdLibCloudExecution.StdLib.contents
+      StdLibDarkInternal.StdLib.contents ]
+    []
+    []
+  |> (fun (fns, types) ->
+    (fns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name),
+     types |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)))
 
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
   lazy

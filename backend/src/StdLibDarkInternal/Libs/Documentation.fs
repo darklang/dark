@@ -6,14 +6,12 @@ open System.Threading.Tasks
 open Prelude
 
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let types : List<BuiltInType> =
+  // TYPESCLEANUP this is wrong
   [ { name = typ "DarkInternal" "DocFunction" 0
       typeParams = []
       definition =
@@ -24,6 +22,7 @@ let types : List<BuiltInType> =
             { id = 5UL; name = "timestamp"; typ = TDateTime }
             { id = 6UL; name = "traceID"; typ = TUuid } ]
         )
+      deprecated = NotDeprecated
       description = "A 404 trace" } ]
 
 
@@ -62,3 +61,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

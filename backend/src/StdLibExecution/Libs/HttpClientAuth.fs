@@ -1,16 +1,14 @@
 /// StdLib HttpClient Auth functions
-module StdLibExecution.LibHttpClientAuth
+module StdLibExecution.Libs.HttpClientAuth
 
 open FSharpPlus
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
 
-module Errors = LibExecution.Errors
+open LibExecution.StdLib.Shortcuts
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = Errors.incorrectArgs
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "basicAuth" 1
@@ -38,3 +36,5 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       sqlSpec = NotQueryable
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

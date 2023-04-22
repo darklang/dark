@@ -1,17 +1,12 @@
-module StdLibExecution.LibList
+module StdLibExecution.Libs.List
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-module Interpreter = LibExecution.Interpreter
 module Errors = LibExecution.Errors
+module Interpreter = LibExecution.Interpreter
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = Errors.incorrectArgs
-
-let err (str : string) = Ply(Dval.errStr str)
 
 module DvalComparator =
   let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
@@ -225,12 +220,11 @@ module Sort =
   let sort (comparer : Comparer) (arrayToSort : Array) : Ply<unit> =
     sequentialSort arrayToSort 0 arrayToSort.Length comparer
 
-
-
-
 let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "List" "singleton" 0
@@ -1522,3 +1516,5 @@ let fns : List<BuiltInFn> =
 
 
     ]
+
+let contents = (fns, types)

@@ -6,13 +6,8 @@ open System.Threading.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-open LibBackend
-
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 // only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
 let types : List<BuiltInType> = []
@@ -27,10 +22,12 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [] ->
           uply {
-            let! canvasID = Account.createUser ()
+            let! canvasID = LibBackend.Account.createUser ()
             return DUuid canvasID
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

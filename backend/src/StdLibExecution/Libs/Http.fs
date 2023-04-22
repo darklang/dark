@@ -1,4 +1,4 @@
-module StdLibExecution.LibHttp
+module StdLibExecution.Libs.Http
 
 open System.Threading.Tasks
 open System.Numerics
@@ -8,15 +8,15 @@ open System
 open Prelude
 open LibExecution.VendoredTablecloth
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Http" "response" 0
@@ -315,3 +315,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

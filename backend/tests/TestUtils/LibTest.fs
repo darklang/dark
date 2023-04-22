@@ -8,23 +8,21 @@ open FSharp.Control.Tasks
 
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
 
+open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-open Prelude
 
-let fn = FQFnName.stdlibFnName
+open LibBackend.Db
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let types : List<BuiltInType> =
-  [] |> List.concat |> List.map (fun typ -> PT2RT.BuiltInType.toRT typ)
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
 
@@ -436,6 +434,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
     { name = fn "Test" "setExpectedExceptionCount" 0
       typeParams = []
       parameters = [ Param.make "count" TInt "" ]
@@ -452,3 +451,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

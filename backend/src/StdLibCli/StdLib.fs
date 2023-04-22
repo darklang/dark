@@ -3,13 +3,17 @@ module StdLibCli.StdLib
 open Prelude
 open LibExecution.RuntimeTypes
 
+module StdLib = LibExecution.StdLib
 
-let renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName> =
+
+let fnRenames : StdLib.FnRenames =
   // old names, new names
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let types : List<BuiltInType> = [ Cli.types ] |> List.concat
+let typeRenames : StdLib.TypeRenames =
+  // old names, new names
+  // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
+  []
 
-let fns : List<BuiltInFn> =
-  [ Cli.fns ] |> List.concat |> LibExecution.StdLib.renameFunctions renames
+let contents = StdLib.combine [ Cli.contents ] fnRenames typeRenames

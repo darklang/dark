@@ -3,39 +3,41 @@ module StdLibExecution.StdLib
 open Prelude
 open LibExecution.RuntimeTypes
 
+module StdLib = LibExecution.StdLib
 
-module PT = LibExecution.ProgramTypes
-
-
-let renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName> =
+let fnRenames =
   // old names, new names
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let types : List<BuiltInType> = [] |> List.concat
+let typeRenames =
+  // old names, new names
+  // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
+  []
 
-let fns : List<BuiltInFn> =
-  [ LibBool.fns
-    LibBytes.fns
-    LibChar.fns
-    LibDateTime.fns
-    LibDict.fns
-    LibFloat.fns
-    LibHttp.fns
-    LibHttpClient.fns
-    LibHttpClientAuth.fns
-    LibJson.fns
-    LibMath.fns
-    LibUuid.fns
-    LibInt.fns
-    LibList.fns
-    // LibMiddleware.fns
-    LibNoModule.fns
-    LibOption.fns
-    LibResult.fns
-    LibCrypto.fns
-    LibString.fns
-    LibTuple2.fns
-    LibTuple3.fns ]
-  |> List.concat
-  |> LibExecution.StdLib.renameFunctions renames
+let contents : StdLib.Contents =
+  StdLib.combine
+    [ Libs.Bool.contents
+      Libs.Bytes.contents
+      Libs.Char.contents
+      Libs.DateTime.contents
+      Libs.Dict.contents
+      Libs.Float.contents
+      Libs.Http.contents
+      Libs.HttpClient.contents
+      Libs.HttpClientAuth.contents
+      Libs.Json.contents
+      Libs.Math.contents
+      Libs.Uuid.contents
+      Libs.Int.contents
+      Libs.List.contents
+      // Libs.Middleware.contents
+      Libs.NoModule.contents
+      Libs.Option.contents
+      Libs.Result.contents
+      Libs.Crypto.contents
+      Libs.String.contents
+      Libs.Tuple2.contents
+      Libs.Tuple3.contents ]
+    fnRenames
+    typeRenames

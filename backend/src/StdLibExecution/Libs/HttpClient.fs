@@ -2,23 +2,20 @@
 /// The HttpClient module is shared between this file and several LibHttpV_.fs
 /// files in StdLibCloudExecution, where the impure fns live.
 /// </remarks>
-module StdLibExecution.LibHttpClient
+module StdLibExecution.Libs.HttpClient
 
 open System.Threading.Tasks
-open System.Numerics
 open FSharp.Control.Tasks
 
-open LibExecution.RuntimeTypes
+open System.Numerics
+
 open Prelude
+open LibExecution.RuntimeTypes
 
-module Errors = LibExecution.Errors
+open LibExecution.StdLib.Shortcuts
 
-let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
@@ -117,3 +114,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

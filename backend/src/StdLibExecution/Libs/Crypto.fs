@@ -4,20 +4,16 @@
 /// Computes hashes such as sha256, md5, etc.
 /// </summary>
 
-module StdLibExecution.LibCrypto
+module StdLibExecution.Libs.Crypto
 
 open System
 open System.Security.Cryptography
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = Errors.incorrectArgs
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Crypto" "sha256" 0
@@ -97,3 +93,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

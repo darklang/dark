@@ -21,6 +21,7 @@ let types : List<BuiltInType> =
             { id = 4UL; name = "timestamp"; typ = TDateTime }
             { id = 5UL; name = "traceID"; typ = TUuid } ]
         )
+      deprecated = NotDeprecated
       description = "404 record" } ]
 
 
@@ -75,3 +76,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

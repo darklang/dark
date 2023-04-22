@@ -4,17 +4,14 @@ module StdLibDarkInternal.Libs.Secrets
 open System.Threading.Tasks
 
 open Prelude
-
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Secret = LibBackend.Secret
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let types : List<BuiltInType> = []
+
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DarkInternal" "getSecrets" 0
@@ -83,3 +80,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

@@ -1,14 +1,10 @@
-module StdLibExecution.LibDateTime
-
-open LibExecution.RuntimeTypes
-open Prelude
+module StdLibExecution.Libs.DateTime
 
 type Instant = NodaTime.Instant
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
-
+open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"
 
@@ -33,6 +29,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
   | _ -> Error()
 
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DateTime" "parse" 2
@@ -401,3 +398,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

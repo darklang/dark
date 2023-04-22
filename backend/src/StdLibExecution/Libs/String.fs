@@ -1,27 +1,22 @@
-module StdLibExecution.LibString
+module StdLibExecution.Libs.String
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 open System.Globalization
 open System.Security.Cryptography
 open System
 open System.Text
-
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open System.Text.RegularExpressions
 
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
+open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = Errors.incorrectArgs
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "String" "isEmpty" 0
@@ -980,3 +975,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)
