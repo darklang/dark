@@ -45,6 +45,13 @@ type Sign = Prelude.Sign
 // - change the type of a field in a record
 // - removing a field from a variant (eg remove b to X(a,b))
 
+[<MessagePack.MessagePackObject>]
+type NonEmptyList<'a> =
+  { [<MessagePack.Key 0>]
+    head : 'a
+    [<MessagePack.Key 1>]
+    tail : List<'a> }
+
 
 /// Used to reference a type defined by a User, Standard Library module, or Package
 module FQTypeName =
@@ -75,7 +82,7 @@ module FQTypeName =
       [<MessagePack.Key 1>]
       package : string
       [<MessagePack.Key 2>]
-      modules : List<string>
+      modules : NonEmptyList<string>
       [<MessagePack.Key 3>]
       typ : string
       [<MessagePack.Key 4>]
@@ -120,7 +127,7 @@ module FQFnName =
       [<MessagePack.Key 1>]
       package : string
       [<MessagePack.Key 2>]
-      modules : List<string>
+      modules : NonEmptyList<string>
       [<MessagePack.Key 3>]
       function_ : string
       [<MessagePack.Key 4>]
