@@ -51,8 +51,7 @@ module Handler =
       match s with
       | PT.Handler.HTTP (_route, method) -> method
       | PT.Handler.Worker _name -> "_"
-      | PT.Handler.Cron (_name, interval) ->
-        interval |> Option.map CronInterval.toString |> Option.defaultValue ""
+      | PT.Handler.Cron (_name, interval) -> CronInterval.toString interval
       | PT.Handler.REPL _name -> "_"
 
     let toModule (s : PT.Handler.Spec) =
@@ -68,7 +67,6 @@ module Handler =
       | PT.Handler.HTTP (_, "") -> false
       | PT.Handler.Worker "" -> false
       | PT.Handler.Cron ("", _) -> false
-      | PT.Handler.Cron (_, None) -> false
       | PT.Handler.REPL "" -> false
       | _ -> true
 

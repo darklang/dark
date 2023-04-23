@@ -348,7 +348,7 @@ module Handler =
   type Spec =
     | HTTP of route : string * method : string
     | Worker of name : string
-    | Cron of name : string * interval : Option<CronInterval>
+    | Cron of name : string * interval : CronInterval
     | REPL of name : string
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }

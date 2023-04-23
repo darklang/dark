@@ -284,7 +284,7 @@ module Handler =
   [<MessagePack.MessagePackObject>]
   type Spec =
     | Worker of name : string
-    | Cron of name : string * interval : Option<CronInterval>
+    | Cron of name : string * interval : CronInterval
     | REPL of name : string
     | HTTP of route : string * method : string
 

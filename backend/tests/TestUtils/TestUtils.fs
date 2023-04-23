@@ -72,7 +72,7 @@ let testCron
   (ast : PT.Expr)
   : PT.Handler.T =
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, Some interval) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 

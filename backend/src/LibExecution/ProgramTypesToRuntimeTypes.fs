@@ -291,7 +291,7 @@ module Handler =
       | PT.Handler.HTTP (route, method) -> RT.Handler.HTTP(route, method)
       | PT.Handler.Worker name -> RT.Handler.Worker name
       | PT.Handler.Cron (name, interval) ->
-        RT.Handler.Cron(name, interval |> Option.map CronInterval.toRT)
+        RT.Handler.Cron(name, CronInterval.toRT interval)
       | PT.Handler.REPL name -> RT.Handler.REPL name
 
   let toRT (h : PT.Handler.T) : RT.Handler.T =

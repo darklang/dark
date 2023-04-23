@@ -590,7 +590,7 @@ module Handler =
   type Spec =
     | HTTP of route : string * method : string
     | Worker of name : string
-    | Cron of name : string * interval : Option<CronInterval>
+    | Cron of name : string * interval : CronInterval
     | REPL of name : string
 
   module Spec =
@@ -599,7 +599,7 @@ module Handler =
       | Spec.HTTP (route, method) -> PT.Handler.HTTP(route, method)
       | Spec.Worker name -> PT.Handler.Worker name
       | Spec.Cron (name, interval) ->
-        PT.Handler.Cron(name, Option.map CronInterval.fromCT interval)
+        PT.Handler.Cron(name, CronInterval.fromCT interval)
       | Spec.REPL name -> PT.Handler.REPL name
 
     let toCT (spec : PT.Handler.Spec) : Spec =
@@ -607,7 +607,7 @@ module Handler =
       | PT.Handler.HTTP (route, method) -> Spec.HTTP(route, method)
       | PT.Handler.Worker name -> Spec.Worker name
       | PT.Handler.Cron (name, interval) ->
-        Spec.Cron(name, Option.map CronInterval.toCT interval)
+        Spec.Cron(name, CronInterval.toCT interval)
       | PT.Handler.REPL name -> Spec.REPL name
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }

@@ -659,7 +659,7 @@ module Handler =
   type Spec =
     | HTTP of path : string * method : string
     | Worker of name : string
-    | Cron of name : string * interval : Option<CronInterval>
+    | Cron of name : string * interval : CronInterval
     | REPL of name : string
 
   module Spec =
@@ -667,16 +667,14 @@ module Handler =
       match spec with
       | HTTP (path, method) -> RT.Handler.HTTP(path, method)
       | Worker name -> RT.Handler.Worker name
-      | Cron (name, interval) ->
-        RT.Handler.Cron(name, Option.map CronInterval.fromCT interval)
+      | Cron (name, interval) -> RT.Handler.Cron(name, CronInterval.fromCT interval)
       | REPL name -> RT.Handler.REPL name
 
     let toCT (spec : RT.Handler.Spec) : Spec =
       match spec with
       | RT.Handler.HTTP (path, method) -> HTTP(path, method)
       | RT.Handler.Worker name -> Worker name
-      | RT.Handler.Cron (name, interval) ->
-        Cron(name, Option.map CronInterval.toCT interval)
+      | RT.Handler.Cron (name, interval) -> Cron(name, CronInterval.toCT interval)
       | RT.Handler.REPL name -> REPL name
 
   type T = { tlid : tlid; ast : Expr.T; spec : Spec }
