@@ -250,15 +250,15 @@ module Expr =
 module CustomType =
   module RecordField =
     let toRT (f : PT.CustomType.RecordField) : RT.CustomType.RecordField =
-      { id = f.id; name = f.name; typ = TypeReference.toRT f.typ }
+      { name = f.name; typ = TypeReference.toRT f.typ }
 
   module EnumField =
     let toRT (f : PT.CustomType.EnumField) : RT.CustomType.EnumField =
-      { id = f.id; typ = TypeReference.toRT f.typ; label = f.label }
+      { typ = TypeReference.toRT f.typ; label = f.label }
 
   module EnumCase =
     let toRT (c : PT.CustomType.EnumCase) : RT.CustomType.EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.toRT c.fields }
+      { name = c.name; fields = List.map EnumField.toRT c.fields }
 
   let toRT (d : PT.CustomType.T) : RT.CustomType.T =
     match d with
@@ -288,11 +288,11 @@ module Handler =
   module Spec =
     let toRT (s : PT.Handler.Spec) : RT.Handler.Spec =
       match s with
-      | PT.Handler.HTTP (route, method, _ids) -> RT.Handler.HTTP(route, method)
-      | PT.Handler.Worker (name, _ids) -> RT.Handler.Worker(name)
-      | PT.Handler.Cron (name, interval, _ids) ->
+      | PT.Handler.HTTP (route, method) -> RT.Handler.HTTP(route, method)
+      | PT.Handler.Worker name -> RT.Handler.Worker name
+      | PT.Handler.Cron (name, interval) ->
         RT.Handler.Cron(name, interval |> Option.map CronInterval.toRT)
-      | PT.Handler.REPL (name, _ids) -> RT.Handler.REPL(name)
+      | PT.Handler.REPL name -> RT.Handler.REPL name
 
   let toRT (h : PT.Handler.T) : RT.Handler.T =
     { tlid = h.tlid; ast = Expr.toRT h.ast; spec = Spec.toRT h.spec }

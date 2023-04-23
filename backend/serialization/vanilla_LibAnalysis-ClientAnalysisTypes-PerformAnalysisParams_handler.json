@@ -907,12 +907,7 @@
       "spec": [
         "HTTP",
         "/path-bytes",
-        "GET",
-        {
-          "moduleID": 129952,
-          "nameID": 33052,
-          "modifierID": 10038562
-        }
+        "GET"
       ]
     },
     "traceID": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
@@ -8763,7 +8758,6 @@
         "definition": [
           "Record",
           {
-            "id": 698978,
             "name": "prop1",
             "typ": [
               "TTuple",
@@ -8924,17 +8918,14 @@
         "definition": [
           "Enum",
           {
-            "id": 698978,
             "name": "caseA",
             "fields": []
           },
           [
             {
-              "id": 698978,
               "name": "caseB",
               "fields": [
                 {
-                  "id": 178567123,
                   "typ": [
                     "TTuple",
                     [

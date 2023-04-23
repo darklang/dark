@@ -18,15 +18,17 @@ let fn (name : string) (version : int) : FQFnName.StdlibFnName =
 
 
 
+
+
 let types : List<BuiltInType> =
   [ { name = typ "Function" 0
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 1UL; name = "name"; typ = TString },
-          [ { id = 2UL; name = "description"; typ = TString }
-            { id = 3UL; name = "parameters"; typ = TList(TString) }
-            { id = 4UL; name = "returnType"; typ = TString } ]
+          { name = "name"; typ = TString },
+          [ { name = "description"; typ = TString }
+            { name = "parameters"; typ = TList(TString) }
+            { name = "returnType"; typ = TString } ]
         )
       deprecated = NotDeprecated
       description = "A Darklang stdlib function" }
@@ -34,8 +36,8 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 1UL; name = "name"; typ = TString },
-          [ { id = 2UL; name = "type"; typ = TString } ]
+          { name = "name"; typ = TString },
+          [ { name = "type"; typ = TString } ]
         )
       deprecated = NotDeprecated
       description = "A function parameter" } ]

@@ -42,18 +42,18 @@ module Handler =
 
     let toName (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP (route, _method, _ids) -> route
-      | PT.Handler.Worker (name, _ids) -> name
-      | PT.Handler.Cron (name, _interval, _ids) -> name
-      | PT.Handler.REPL (name, _ids) -> name
+      | PT.Handler.HTTP (route, _method) -> route
+      | PT.Handler.Worker name -> name
+      | PT.Handler.Cron (name, _interval) -> name
+      | PT.Handler.REPL name -> name
 
     let toModifier (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP (_route, method, _ids) -> method
-      | PT.Handler.Worker (_name, _ids) -> "_"
-      | PT.Handler.Cron (_name, interval, _ids) ->
+      | PT.Handler.HTTP (_route, method) -> method
+      | PT.Handler.Worker _name -> "_"
+      | PT.Handler.Cron (_name, interval) ->
         interval |> Option.map CronInterval.toString |> Option.defaultValue ""
-      | PT.Handler.REPL (_name, _ids) -> "_"
+      | PT.Handler.REPL _name -> "_"
 
     let toModule (s : PT.Handler.Spec) =
       match s with
@@ -64,12 +64,12 @@ module Handler =
 
     let isComplete (s : PT.Handler.Spec) : bool =
       match s with
-      | PT.Handler.HTTP ("", _, _) -> false
-      | PT.Handler.HTTP (_, "", _) -> false
-      | PT.Handler.Worker ("", _) -> false
-      | PT.Handler.Cron ("", _, _) -> false
-      | PT.Handler.Cron (_, None, _) -> false
-      | PT.Handler.REPL ("", _) -> false
+      | PT.Handler.HTTP ("", _) -> false
+      | PT.Handler.HTTP (_, "") -> false
+      | PT.Handler.Worker "" -> false
+      | PT.Handler.Cron ("", _) -> false
+      | PT.Handler.Cron (_, None) -> false
+      | PT.Handler.REPL "" -> false
       | _ -> true
 
     // Same as a TraceInput.EventDesc

@@ -196,17 +196,9 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
 
         let gid = Prelude.gid
 
-        let ids : PT.Handler.ids =
-          { moduleID = gid (); nameID = gid (); modifierID = gid () }
-
         let spec =
           match handler.Version with
-          | Http ->
-            PT.Handler.HTTP(
-              route = handler.Route,
-              method = handler.Method,
-              ids = ids
-            )
+          | Http -> PT.Handler.HTTP(route = handler.Route, method = handler.Method)
 
         let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 

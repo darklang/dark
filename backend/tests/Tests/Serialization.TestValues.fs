@@ -534,18 +534,14 @@ module ProgramTypes =
         PT.Handler.EveryHour
         PT.Handler.EveryMinute ]
 
-    let ids : PT.Handler.ids =
-      { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
-
     module Spec =
-      let http = PT.Handler.HTTP("/path-bytes", "GET", ids)
-      let worker = PT.Handler.Worker("name", ids)
-      let cronWithoutInterval = PT.Handler.Cron("name", None, ids)
+      let http = PT.Handler.HTTP("/path-bytes", "GET")
+      let worker = PT.Handler.Worker("name")
+      let cronWithoutInterval = PT.Handler.Cron("name", None)
 
-      let cronWithInterval =
-        PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
+      let cronWithInterval = PT.Handler.Cron("name", Some PT.Handler.Every12Hours)
 
-      let repl = PT.Handler.REPL("name", ids)
+      let repl = PT.Handler.REPL("name")
 
     let specs : List<PT.Handler.Spec> =
       [ Spec.http
@@ -602,8 +598,7 @@ module ProgramTypes =
     { tlid = 0UL
       name = { modules = []; typ = "User"; version = 0 }
       definition =
-        let firstField : PT.CustomType.RecordField =
-          { id = 0698978UL; name = "prop1"; typ = dtype }
+        let firstField : PT.CustomType.RecordField = { name = "prop1"; typ = dtype }
         PT.CustomType.Record(firstField, []) }
 
   let userEnumType : PT.UserType.T =
@@ -611,10 +606,8 @@ module ProgramTypes =
       name = { modules = []; typ = "User"; version = 0 }
       definition =
         PT.CustomType.Enum(
-          { id = 0698978UL; name = "caseA"; fields = [] },
-          [ { id = 0698978UL
-              name = "caseB"
-              fields = [ { id = 178567123UL; typ = dtype; label = Some "i" } ] } ]
+          { name = "caseA"; fields = [] },
+          [ { name = "caseB"; fields = [ { typ = dtype; label = Some "i" } ] } ]
         ) }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]

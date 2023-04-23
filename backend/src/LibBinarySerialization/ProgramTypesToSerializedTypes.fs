@@ -200,15 +200,15 @@ module Expr =
 module CustomType =
   module RecordField =
     let toST (f : PT.CustomType.RecordField) : ST.CustomType.RecordField =
-      { id = f.id; name = f.name; typ = TypeReference.toST f.typ }
+      { name = f.name; typ = TypeReference.toST f.typ }
 
   module EnumField =
     let toST (f : PT.CustomType.EnumField) : ST.CustomType.EnumField =
-      { id = f.id; typ = TypeReference.toST f.typ; label = f.label }
+      { typ = TypeReference.toST f.typ; label = f.label }
 
   module EnumCase =
     let toST (c : PT.CustomType.EnumCase) : ST.CustomType.EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.toST c.fields }
+      { name = c.name; fields = List.map EnumField.toST c.fields }
 
   let toST (d : PT.CustomType.T) : ST.CustomType.T =
     match d with
@@ -225,10 +225,6 @@ module CustomType =
 
 
 module Handler =
-  module IDs =
-    let toST (ids : PT.Handler.ids) : ST.Handler.ids =
-      { moduleID = ids.moduleID; nameID = ids.nameID; modifierID = ids.modifierID }
-
   module CronInterval =
     let toST (ci : PT.Handler.CronInterval) : ST.Handler.CronInterval =
       match ci with
@@ -242,12 +238,11 @@ module Handler =
   module Spec =
     let toST (s : PT.Handler.Spec) : ST.Handler.Spec =
       match s with
-      | PT.Handler.HTTP (route, method, ids) ->
-        ST.Handler.HTTP(route, method, IDs.toST ids)
-      | PT.Handler.Worker (name, ids) -> ST.Handler.Worker(name, IDs.toST ids)
-      | PT.Handler.Cron (name, interval, ids) ->
-        ST.Handler.Cron(name, interval |> Option.map CronInterval.toST, IDs.toST ids)
-      | PT.Handler.REPL (name, ids) -> ST.Handler.REPL(name, IDs.toST ids)
+      | PT.Handler.HTTP (route, method) -> ST.Handler.HTTP(route, method)
+      | PT.Handler.Worker name -> ST.Handler.Worker name
+      | PT.Handler.Cron (name, interval) ->
+        ST.Handler.Cron(name, interval |> Option.map CronInterval.toST)
+      | PT.Handler.REPL name -> ST.Handler.REPL name
 
   let toST (h : PT.Handler.T) : ST.Handler.T =
     { tlid = h.tlid; ast = Expr.toST h.ast; spec = Spec.toST h.spec }

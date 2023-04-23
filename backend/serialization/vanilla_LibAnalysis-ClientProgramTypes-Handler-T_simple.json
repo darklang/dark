@@ -902,11 +902,6 @@
   "spec": [
     "HTTP",
     "/path-bytes",
-    "GET",
-    {
-      "moduleID": 129952,
-      "nameID": 33052,
-      "modifierID": 10038562
-    }
+    "GET"
   ]
 }

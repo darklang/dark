@@ -247,28 +247,22 @@ module CustomType =
   [<MessagePack.MessagePackObject>]
   type RecordField =
     { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
       name : string
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       typ : TypeReference }
 
   [<MessagePack.MessagePackObject>]
   type EnumField =
     { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
       typ : TypeReference
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       label : Option<string> }
 
   [<MessagePack.MessagePackObject>]
   type EnumCase =
     { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
       name : string
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       fields : List<EnumField> }
 
   [<MessagePack.MessagePackObject>]
@@ -287,22 +281,12 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
-  // We need to keep the IDs around until we get rid of them on the client
-  [<MessagePack.MessagePackObject>]
-  type ids =
-    { [<MessagePack.Key 0>]
-      moduleID : id
-      [<MessagePack.Key 1>]
-      nameID : id
-      [<MessagePack.Key 2>]
-      modifierID : id }
-
   [<MessagePack.MessagePackObject>]
   type Spec =
-    | Worker of name : string * ids : ids
-    | Cron of name : string * interval : Option<CronInterval> * ids : ids
-    | REPL of name : string * ids : ids
-    | HTTP of route : string * method : string * ids : ids
+    | Worker of name : string
+    | Cron of name : string * interval : Option<CronInterval>
+    | REPL of name : string
+    | HTTP of route : string * method : string
 
   [<MessagePack.MessagePackObject>]
   type T =

@@ -112,7 +112,7 @@ let customTypeRecord (fields : List<string * TypeReference>) : CustomType.T =
   let fields =
     fields
     |> List.map (fun (name, typ) ->
-      { id = gid (); name = name; typ = typ } : CustomType.RecordField)
+      { name = name; typ = typ } : CustomType.RecordField)
   match fields with
   | [] -> Exception.raiseInternal "userRecord must have at least one field" []
   | hd :: rest -> CustomType.Record(hd, rest)

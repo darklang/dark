@@ -9060,7 +9060,6 @@
         "definition": [
           "Record",
           {
-            "id": 698978,
             "name": "prop1",
             "typ": [
               "TTuple",
@@ -9221,17 +9220,14 @@
         "definition": [
           "Enum",
           {
-            "id": 698978,
             "name": "caseA",
             "fields": []
           },
           [
             {
-              "id": 698978,
               "name": "caseB",
               "fields": [
                 {
-                  "id": 178567123,
                   "typ": [
                     "TTuple",
                     [

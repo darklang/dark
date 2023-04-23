@@ -281,32 +281,32 @@ module MatchPattern =
 
 module CustomType =
   // TYPESCLEANUP support type parameters
-  type RecordField = { id : id; name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference }
 
   module RecordField =
     let fromCT (f : RecordField) : RT.CustomType.RecordField =
-      { id = f.id; name = f.name; typ = TypeReference.fromCT f.typ }
+      { name = f.name; typ = TypeReference.fromCT f.typ }
 
     let toCT (f : RT.CustomType.RecordField) : RecordField =
-      { id = f.id; name = f.name; typ = TypeReference.toCT f.typ }
+      { name = f.name; typ = TypeReference.toCT f.typ }
 
-  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
+  type EnumField = { typ : TypeReference; label : Option<string> }
 
   module EnumField =
     let fromCT (f : EnumField) : RT.CustomType.EnumField =
-      { id = f.id; typ = TypeReference.fromCT f.typ; label = f.label }
+      { typ = TypeReference.fromCT f.typ; label = f.label }
 
     let toCT (f : RT.CustomType.EnumField) : EnumField =
-      { id = f.id; typ = TypeReference.toCT f.typ; label = f.label }
+      { typ = TypeReference.toCT f.typ; label = f.label }
 
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+  type EnumCase = { name : string; fields : List<EnumField> }
 
   module EnumCase =
     let fromCT (c : EnumCase) : RT.CustomType.EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.fromCT c.fields }
+      { name = c.name; fields = List.map EnumField.fromCT c.fields }
 
     let toCT (c : RT.CustomType.EnumCase) : EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.toCT c.fields }
+      { name = c.name; fields = List.map EnumField.toCT c.fields }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>

@@ -63,26 +63,20 @@ let testHttpRouteHandler
   (method : string)
   (ast : PT.Expr)
   : PT.Handler.T =
-  let ids : PT.Handler.ids =
-    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
 
 let testCron
   (name : string)
   (interval : PT.Handler.CronInterval)
   (ast : PT.Expr)
   : PT.Handler.T =
-  let ids : PT.Handler.ids =
-    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, Some interval, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, Some interval) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-  let ids : PT.Handler.ids =
-    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.Worker(name, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testUserFn
   (name : string)
@@ -109,8 +103,7 @@ let testUserRecordType
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
-  let mapField (name, typ) : PT.CustomType.RecordField =
-    { id = gid (); name = name; typ = typ }
+  let mapField (name, typ) : PT.CustomType.RecordField = { name = name; typ = typ }
 
   { tlid = gid ()
     name = name
