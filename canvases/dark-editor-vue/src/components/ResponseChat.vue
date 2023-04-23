@@ -20,7 +20,7 @@
       </div>
 
       <div class="ml-3 w-full p-5 border-l border-[#333333]">
-        <AutoSizeTextarea :value="response" ref="resp"></AutoSizeTextarea>
+        <AutoSizeTextarea :value="response"></AutoSizeTextarea>
       </div>
       </div>
     </div>
@@ -83,6 +83,7 @@ const variables = ref<string[]>([]);
 const variableValues = ref<string[]>([]);
 
 let resp = props.response
+console.log(resp);
 const matchResult = resp.match(/variables:\n([\s\S]*)/);
 const responseVariables = matchResult ? matchResult[1].trim().split('\n').filter(Boolean) : [];
 console.log(responseVariables);
