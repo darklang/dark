@@ -172,7 +172,13 @@ module FQFnName =
     User(userFnName modules function_ version)
 
 
-type LetPattern = LPVariable of id * name : string
+type LetPattern =
+  | LPVariable of id * name : string
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 /// Used for pattern matching in a match statement
 type MatchPattern =

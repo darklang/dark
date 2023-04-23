@@ -212,16 +212,26 @@ module TypeReference =
 
 
 
-type LetPattern = LPVariable of id * name : string
+type LetPattern =
+  | LPVariable of id * name : string
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
 
 module LetPattern =
   let rec fromCT (p : LetPattern) : RT.LetPattern =
     match p with
     | LPVariable (id, str) -> RT.LPVariable(id, str)
+    | LPTuple (id, first, second, theRest) ->
+      RT.LPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (p : RT.LetPattern) : LetPattern =
     match p with
     | RT.LPVariable (id, str) -> LPVariable(id, str)
+    | RT.LPTuple (id, first, second, theRest) ->
+      LPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 
 type MatchPattern =

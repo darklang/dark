@@ -410,14 +410,17 @@ let testMatchPreview : Test =
   let pBoolId, boolRhsId = gid (), gid ()
   let pStrId, strRhsId = gid (), gid ()
   let pUnitId, unitRhsId = gid (), gid ()
+  let pTupleId, tupleRhsId = gid (), gid ()
 
   let (pOkVarOkId,
        pOkVarVarId,
        okVarRhsId,
        binopFnValId,
        okVarRhsVarId,
-       okVarRhsStrId) =
-    gid (), gid (), gid (), gid (), gid (), gid ()
+       okVarRhsStrId,
+       pTupleIdX,
+       pTupleIdY) =
+    gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
 
   let pNothingId, nothingRhsId = gid (), gid ()
   let pVarId, varRhsId = gid (), gid ()
@@ -437,6 +440,10 @@ let testMatchPreview : Test =
 
       // | () -> "unit"
       (MPUnit(pUnitId), EString(unitRhsId, [ StringText "unit" ]))
+
+      // | (2, y) -> "tuple"
+      (MPTuple(pTupleId, MPInt(pTupleIdX, 2L), MPVariable(pTupleIdY, "y"), []),
+       EString(tupleRhsId, [ StringText "tuple" ]))
 
       // | Ok x -> "ok: " ++ x
       (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
@@ -590,6 +597,15 @@ let testMatchPreview : Test =
           (okVarRhsStrId, "str", er (DString "ok: ")) ]
 
       t
+        "tuple match"
+        (eTuple (eInt 2) (eStr "sample") [])
+        [ (pTupleId, "matching pat", er (DTuple(DInt 2L, DString "sample", [])))
+          (tupleRhsId, "matching rhs", er (DString "tuple"))
+
+          (pVarId, "2nd matching pat", ner (DTuple(DInt 2L, DString "sample", [])))
+          (varRhsId, "2nd matching rhs", ner (DTuple(DInt 2L, DString "sample", []))) ]
+
+      t
         "nothing"
         (eConstructor None "Nothing" [])
         [ (pNothingId, "ok pat", er (DOption None))
@@ -599,6 +615,162 @@ let testMatchPreview : Test =
       // TODO: constructor around a variable
       // TODO: constructor around a constructor around a value
       ]
+
+
+let testLetPreview : Test =
+  let letID = gid ()
+
+  let createLetPattern
+    (patternMatch : LetPattern)
+    (expr : Expr)
+    (body : Expr)
+    : Task<Map<id, AT.ExecutionResult>> =
+    task {
+      let ast = ELet(letID, patternMatch, expr, body)
+
+      let! results = execSaveDvals "let-preview" [] [] [] ast
+      return results |> Dictionary.toList |> Map
+    }
+
+  testList
+    "test let preview"
+    [ testTask "let hello = 1 in hello" {
+        let lpID = gid ()
+
+        let letPattern = LPVariable(lpID, "hello")
+        let assignExpr = eInt 1
+        let retExpr = eVar "hello"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+        Expect.equal
+          (Map.get lpID result)
+          (Some(AT.ExecutedResult(DInt 1L)))
+          "hello assigned correctly"
+      }
+
+      testTask "let (x, y) = (1, 2) in y" {
+        let lpID = gid ()
+        let xID = gid ()
+        let yID = gid ()
+
+        let letPattern =
+          LPTuple(lpID, LPVariable(xID, "x"), LPVariable(yID, "y"), [])
+        let assignExpr = eTuple (eInt 1) (eInt 2) []
+        let retExpr = eVar "y"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+        Expect.equal
+          (Map.get xID result)
+          (Some(AT.ExecutedResult(DInt 1L)))
+          "x assigned correctly"
+
+        Expect.equal
+          (Map.get yID result)
+          (Some(AT.ExecutedResult(DInt 2L)))
+          "y assigned correctly"
+      }
+
+      testTask "let (x, y) = (1, 1/0) in y" {
+        let lpID = gid ()
+        let xID = gid ()
+        let yID = gid ()
+        let divID = gid ()
+
+        let letPattern =
+          LPTuple(lpID, LPVariable(xID, "x"), LPVariable(yID, "y"), [])
+
+        // Should result in type error
+        let divisionExpr =
+          EApply(
+            divID,
+            PT.FQFnName.stdlibFqName [ "Int" ] "divide" 0
+            |> PT2RT.FQFnName.toRT
+            |> FnName,
+            [],
+            [ eInt 1; eInt 0 ]
+          )
+
+        let assignExpr = eTuple (eInt 1) divisionExpr []
+        let retExpr = eVar "y"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+
+        Expect.equal
+          (Map.get (Expr.toID assignExpr) result)
+          (Some(AT.ExecutedResult(DError(SourceNone, "Division by zero"))))
+          "the whole tuple is a type error due to division by zero in y"
+
+        Expect.equal
+          (Map.get lpID result)
+          (Some(AT.NonExecutedResult(DIncomplete(SourceID(7UL, lpID)))))
+          "let pattern is incomplete due to error in RHS"
+      }
+
+
+      testTask "let (a, b, ((c, d), e)) = (1, 2, ((3, 4), 5)) in c" {
+        let lpID = gid ()
+        let aID = gid ()
+        let bID = gid ()
+        let cID = gid ()
+        let dID = gid ()
+        let eID = gid ()
+        let innerTupleID = gid ()
+        let outerTupleID = gid ()
+
+        let letPattern =
+          LPTuple(
+            lpID,
+            LPVariable(aID, "a"),
+            LPVariable(bID, "b"),
+            [ LPTuple(
+                outerTupleID,
+                LPTuple(innerTupleID, LPVariable(cID, "c"), LPVariable(dID, "d"), []),
+                LPVariable(eID, "e"),
+                []
+              ) ]
+          )
+
+        let assignExpr =
+          eTuple
+            (eInt 1)
+            (eInt 2)
+            [ eTuple (eTuple (eInt 3) (eInt 4) []) (eInt 5) [] ]
+        let retExpr = eVar "c"
+
+        let! result = createLetPattern letPattern assignExpr retExpr
+
+        Expect.equal
+          (Map.get aID result)
+          (Some(AT.ExecutedResult(DInt 1L)))
+          "a assigned correctly"
+
+        Expect.equal
+          (Map.get bID result)
+          (Some(AT.ExecutedResult(DInt 2L)))
+          "b assigned correctly"
+
+        Expect.equal
+          (Map.get cID result)
+          (Some(AT.ExecutedResult(DInt 3L)))
+          "c assigned correctly"
+
+        Expect.equal
+          (Map.get dID result)
+          (Some(AT.ExecutedResult(DInt 4L)))
+          "d assigned correctly"
+
+        Expect.equal
+          (Map.get eID result)
+          (Some(AT.ExecutedResult(DInt 5L)))
+          "e assigned correctly"
+      } ]
+
+
+
+
 
 let tests =
   testList
@@ -610,4 +782,5 @@ let tests =
       testLambdaPreview
       testFeatureFlagPreview
       testMatchPreview
-      testExecFunctionTLIDs ]
+      testExecFunctionTLIDs
+      testLetPreview ]

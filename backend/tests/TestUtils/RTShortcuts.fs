@@ -98,6 +98,9 @@ let userTypeName
   : FQTypeName.T =
   FQTypeName.User { modules = modules; typ = name; version = version }
 
+let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
+  ETuple(gid (), first, second, theRest)
+
 let userTypeReference
   (modules : List<string>)
   (name : string)

@@ -86,22 +86,75 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EChar (_id, s) -> return DChar s
 
     | ELet (id, pattern, rhs, body) ->
-      match pattern with
-      | LPVariable (_id, lhs) ->
-        if lhs = "" then
-          let! _ = preview st rhs
-          return DError(sourceID id, "Variable name in `let` is empty")
+      /// Returns `incomplete` traces for subpatterns of an unmatched pattern
+      let traceIncompleteWithArgs id argPatterns =
+        let argTraces =
+          argPatterns
+          |> List.map LetPattern.toID
+          |> List.map (fun pId -> (pId, incomplete pId))
+
+        (id, incomplete id) :: argTraces
+
+      /// Does the dval 'match' the given pattern?
+      ///
+      /// Returns:
+      /// - whether or not the expr 'matches' the pattern
+      /// - new vars (name * value)
+      /// - traces
+      let rec checkPattern
+        (dv : Dval)
+        (pattern : LetPattern)
+        : bool * List<string * Dval> * List<id * Dval> =
+        match pattern with
+
+        | LPVariable (id, varName) ->
+          not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
+
+        | LPTuple (id, firstPat, secondPat, theRestPat) ->
+          let allPatterns = firstPat :: secondPat :: theRestPat
+
+          match dv with
+          | DTuple (first, second, theRest) ->
+            let allVals = first :: second :: theRest
+
+            if List.length allVals = List.length allPatterns then
+              let (passResults, newVarResults, traceResults) =
+                List.zip allVals allPatterns
+                |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                |> List.unzip3
+
+              let allPass = passResults |> List.forall identity
+              let allVars = newVarResults |> List.collect identity
+              let allSubTraces = traceResults |> List.collect identity
+
+              if allPass then
+                true, allVars, (id, dv) :: allSubTraces
+              else
+                false, allVars, traceIncompleteWithArgs id allPatterns @ allSubTraces
+            else
+              false, [], traceIncompleteWithArgs id allPatterns
+          | _ -> false, [], traceIncompleteWithArgs id allPatterns
+
+      let! rhs = eval state st rhs
+      let passes, newDefs, traces = checkPattern rhs pattern
+      let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
+
+      let traceDval onExecutionPath (id, dv) =
+        state.tracing.traceDval onExecutionPath id dv
+
+      match rhs with
+      | DError _
+      | DIncomplete _ ->
+        List.iter (traceDval false) traces
+        return rhs
+      | _ ->
+        if passes then
+          List.iter (traceDval state.onExecutionPath) traces
         else
-          let! rhs = eval state st rhs
-          match rhs with
-          | DError _
-          | DIncomplete _ ->
-            let st = Map.add lhs rhs st
-            do! preview st body
-            return rhs
-          | _ ->
-            let st = Map.add lhs rhs st
-            return! eval state st body
+          List.iter (traceDval false) traces
+
+        let! r = eval state newSymtable body
+        return r
 
     | EList (_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state st) exprs

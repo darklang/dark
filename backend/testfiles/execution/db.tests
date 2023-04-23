@@ -481,6 +481,10 @@ module PartialEvaluation =
   (friends (fun p -> let x = Y { y = Z { z = A { a = [1;2;3;4;5] }}}
                      (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
+  // tuple destructuring inside query
+  (friends (fun p -> let (a0, a1, a2, a3, ((b, c), d)) = (0, 1, 2, 3, ((5, "aa"), 'a'))
+                     b < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+
 
 module QueryOneWithKey =
   // multiple

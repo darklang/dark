@@ -237,7 +237,22 @@ module ProgramTypes =
     let e = PT.EInt(34545UL, 5)
     PT.ELet(
       14219007199254740992UL,
-      PT.LPVariable(189271UL, "x1"),
+      PT.LPTuple(
+        189271UL,
+        PT.LPVariable(18274132UL, "x0"),
+        PT.LPTuple(
+          189272UL,
+          PT.LPVariable(18274133UL, "x1"),
+          PT.LPVariable(27838183UL, "x2"),
+          []
+        ),
+        [ PT.LPTuple(
+            189273UL,
+            PT.LPVariable(18274134UL, "x3"),
+            PT.LPVariable(27838184UL, "x4"),
+            []
+          ) ]
+      ),
       PT.EInt(929452387UL, 5L),
       PT.ELet(
         620028536UL,

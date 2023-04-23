@@ -199,13 +199,35 @@ let rec inline'
   : Expr =
   RuntimeTypesAst.postTraversal
     (fun expr ->
-      match expr with
-      | ELet (_, pat, expr, body) ->
-        let varName =
-          match pat with
-          | LPVariable (_id, name) -> name
 
-        inline' paramName (Map.add varName expr symtable) body
+      let rec mapLetPattern
+        (symtable : Map<string, Expr>)
+        (currentExpr : Expr, letPattern : LetPattern)
+        : Map<string, Expr> =
+        match letPattern with
+        | LPVariable (_id, name) -> Map.add name currentExpr symtable
+        | LPTuple (_id, first, second, theRest) ->
+          match currentExpr with
+          | ETuple (_, firstExpr, secondExpr, restExpr) ->
+            let exprList = firstExpr :: secondExpr :: restExpr
+            let patternList = first :: second :: theRest
+
+            if List.length exprList <> List.length patternList then
+              error "Tuple length mismatch"
+
+            let zipped = List.zip exprList patternList
+
+            List.fold symtable mapLetPattern zipped
+
+          | _ -> error "Expected a tuple"
+
+
+
+      match expr with
+      | ELet (_, lpVariable, expr, body) ->
+        let newMap = mapLetPattern symtable (expr, lpVariable)
+
+        inline' paramName newMap body
 
       | EVariable (_, name) as expr when name <> paramName ->
         (match Map.get name symtable with
