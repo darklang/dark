@@ -6,7 +6,7 @@
         <span class="font-semibold text-xl">System prompt</span>
       </template>
       <template v-slot:accordion-body>
-        <textarea class="bg-transparent outline-0 resize-none w-full" ref="prompt" v-model="systemPromptValue"></textarea>
+        <textarea class="bg-transparent outline-0 p-4 w-full" ref="prompt" v-model="systemPromptValue"></textarea>
       </template>
     </Accordion>
     <div id="chat_container">
