@@ -1,4 +1,4 @@
-module StdLibExecution.LibNoModule
+module StdLibExecution.Libs.NoModule
 
 open Prelude
 open System
@@ -257,6 +257,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
 
 let varA = TVariable "a"
 
+let types : List<BuiltInType> = []
+
 let fns : List<BuiltInFn> =
   [ { name = fnNoMod "equals" 0
       typeParams = []
@@ -358,3 +360,5 @@ let fns : List<BuiltInFn> =
     //   previewable = Pure
     //   deprecated = NotDeprecated }
     ]
+
+let contents = (fns, types)

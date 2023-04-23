@@ -53,19 +53,18 @@ module Eval =
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
           secrets = request.secrets }
 
-      let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-        StdLibExecution.StdLib.types
-        |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-
-      let stdlibFns =
-        StdLibExecution.StdLib.fns
-        |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+      let (stdlibFns, stdlibTypes) =
+        LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
 
       let packageFns =
         request.packageFns |> Map.fromListBy (fun fn -> RT.FQFnName.Package fn.name)
 
       let libraries : RT.Libraries =
-        { stdlibTypes = stdlibTypes; stdlibFns = stdlibFns; packageFns = packageFns }
+        { stdlibTypes =
+            stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+          stdlibFns =
+            stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+          packageFns = packageFns }
       let results, traceDvalFn = Exe.traceDvals ()
       let functionResults = request.traceData.functionResults
 

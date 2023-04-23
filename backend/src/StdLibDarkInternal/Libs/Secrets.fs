@@ -4,24 +4,42 @@ module StdLibDarkInternal.Libs.Secrets
 open System.Threading.Tasks
 
 open Prelude
-
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Secret = LibBackend.Secret
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let modul = [ "DarkInternal"; "Canvas"; "Secret" ]
 
-let types : List<BuiltInType> = []
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' modul name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' modul name version
+
+
+let types : List<BuiltInType> =
+  [ { name = typ "Secret" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 1UL; name = "name"; typ = TString },
+          [ { id = 2UL; name = "value"; typ = TString }
+            { id = 3UL; name = "version"; typ = TInt } ]
+        )
+      description = "A secret"
+      deprecated = NotDeprecated }
+
+    ]
+
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "getSecrets" 0
+  [ { name = fn "getAll" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TDict TString
-      description = "Get list of secrets in the canvas"
+      returnType = TList(TCustomType(FQTypeName.Stdlib(typ "Secret" 0), []))
+      description = "Get all secrets in the canvas"
       fn =
         (function
         | _, _, [ DUuid canvasID ] ->
@@ -30,7 +48,11 @@ let fns : List<BuiltInFn> =
             return
               secrets
               |> List.map (fun s ->
-                DTuple(DString s.name, DString s.value, [ DInt s.version ]))
+                DRecord(
+                  Map [ "name", DString s.name
+                        "value", DString s.value
+                        "version", DInt s.version ]
+                ))
               |> DList
           }
         | _ -> incorrectArgs ())
@@ -39,7 +61,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "deleteSecret" 0
+    { name = fn "delete" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
@@ -60,7 +82,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "insertSecret" 0
+    { name = fn "insert" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""
@@ -83,3 +105,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

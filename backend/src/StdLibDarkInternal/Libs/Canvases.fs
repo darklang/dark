@@ -6,32 +6,37 @@ open System.Threading.Tasks
 open Prelude
 
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 
+let modul = [ "DarkInternal"; "Canvas" ]
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' modul name version
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' modul name version
 
 
 let types : List<BuiltInType> =
-  [ { name = typ "Canvas" "Meta" 0
+  [ { name = typ "Meta" 0
       typeParams = []
       definition = CustomType.Record({ id = 1UL; name = "id"; typ = TUuid }, [])
-      description = "Metadata about a canvas" }
-    { name = typ "Canvas" "DB" 0
+      description = "Metadata about a canvas"
+      deprecated = NotDeprecated }
+    { name = typ "DB" 0
       typeParams = []
       definition =
         CustomType.Record(
           { id = 2UL; name = "name"; typ = TString },
           [ { id = 3UL; name = "tlid"; typ = TString } ]
         )
+      deprecated = NotDeprecated
       description = "A database on a canvas" }
-    { name = typ "Canvas" "HttpHandler" 0
+    { name = typ "HttpHandler" 0
       typeParams = []
       definition =
         CustomType.Record(
@@ -39,27 +44,26 @@ let types : List<BuiltInType> =
           [ { id = 3UL; name = "route"; typ = TString }
             { id = 4UL; name = "tlid"; typ = TString } ]
         )
+      deprecated = NotDeprecated
       description = "An HTTP handler on a canvas" }
-    { name = typ "Canvas" "Program" 0
+    { name = typ "Program" 0
       typeParams = []
       definition =
         CustomType.Record(
           { id = 1UL; name = "id"; typ = TUuid },
           [ { id = 2UL
               name = "dbs"
-              typ = TList(TCustomType(FQTypeName.Stdlib(typ "Canvas" "DB" 0), [])) }
+              typ = TList(TCustomType(FQTypeName.Stdlib(typ "DB" 0), [])) }
             { id = 3UL
               name = "httpHandlers"
-              typ =
-                TList(
-                  TCustomType(FQTypeName.Stdlib(typ "Canvas" "HttpHandler" 0), [])
-                ) } ]
+              typ = TList(TCustomType(FQTypeName.Stdlib(typ "HttpHandler" 0), [])) } ]
         )
+      deprecated = NotDeprecated
       description = "A program on a canvas" } ]
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "getAllCanvasIDs" 0
+  [ { name = fn "list" 0
       typeParams = []
       parameters = []
       returnType = TList TUuid
@@ -77,7 +81,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "createCanvas" 0
+    { name = fn "create" 0
       typeParams = []
       parameters = [ Param.make "owner" TUuid ""; Param.make "name" TString "" ]
       returnType = TUuid
@@ -95,7 +99,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getOwner" 0
+    { name = fn "owner" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TString
@@ -116,7 +120,7 @@ let fns : List<BuiltInFn> =
     // ---------------------
     // Toplevels
     // ---------------------
-    { name = fn "DarkInternal" "deleteToplevelForever" 0
+    { name = fn "deleteToplevelForever" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
       returnType = TBool
@@ -146,7 +150,7 @@ let fns : List<BuiltInFn> =
     // ---------------------
     // Programs
     // ---------------------
-    { name = fn "DarkInternal" "getOpsForToplevel" 0
+    { name = fn "getOpsForToplevel" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
       returnType = TList TString
@@ -170,17 +174,14 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "darkEditorCanvas" 0
+    { name = fn "darkEditorCanvasID" 0
       typeParams = []
       parameters = []
-      returnType = TCustomType(FQTypeName.Stdlib(typ "Canvas" "Meta" 0), [])
-      description = "Returns basic details of the dark-editor canvas"
+      returnType = TCustomType(FQTypeName.Stdlib(typ "Meta" 0), [])
+      description = "Returns the ID of the special dark-editor canvas"
       fn =
         (function
-        | state, _, [] ->
-          uply {
-            return [ "id", DUuid state.program.canvasID ] |> Map |> DDict // TODO: DRecord
-          }
+        | state, _, [] -> uply { return DUuid state.program.canvasID }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -188,14 +189,11 @@ let fns : List<BuiltInFn> =
 
 
     // TODO: this name is bad?
-    { name = fn "DarkInternal" "canvasProgram" 0
+    { name = fn "canvasProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
-        TResult(
-          TCustomType(FQTypeName.Stdlib(typ "Canvas" "Program" 0), []),
-          TString
-        )
+        TResult(TCustomType(FQTypeName.Stdlib(typ "Program" 0), []), TString)
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
@@ -237,3 +235,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

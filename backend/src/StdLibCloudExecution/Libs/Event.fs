@@ -12,6 +12,8 @@ open LibExecution.StdLib.Shortcuts
 
 let varA = TVariable "a"
 
+let types : List<BuiltInType> = []
+
 let fns : List<BuiltInFn> =
   [ { name = fnNoMod "emit" 1
       typeParams = []
@@ -35,3 +37,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

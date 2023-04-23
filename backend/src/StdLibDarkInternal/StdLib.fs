@@ -6,13 +6,23 @@ module StdLibDarkInternal.StdLib
 open System.Threading.Tasks
 
 open Prelude
+open LibExecution.RuntimeTypes
 
-module RT = LibExecution.RuntimeTypes
+module StdLib = LibExecution.StdLib
 
-let renames = []
+
+let fnRenames : StdLib.FnRenames =
+  // old names, new names
+  // eg: fn "Http" "respond" 0, fn "Http" "response" 0
+  []
+
+let typeRenames : StdLib.TypeRenames =
+  // old names, new names
+  // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
+  []
 
 // only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
-let internalFn (f : RT.BuiltInFnSig) : RT.BuiltInFnSig =
+let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, typeArgs, args) ->
     uply {
       if state.program.internalFnsAllowed then
@@ -25,28 +35,18 @@ let internalFn (f : RT.BuiltInFnSig) : RT.BuiltInFnSig =
     })
 
 
-let types : List<RT.BuiltInType> =
-  [ Libs.Canvases.types
-    Libs.DBs.types
-    Libs.Documentation.types
-    Libs.Domains.types
-    Libs.F404.types
-    Libs.Infra.types
-    Libs.Secrets.types
-    Libs.Users.types
-    Libs.Workers.types ]
-  |> List.concat
-
-let fns : List<RT.BuiltInFn> =
-  [ Libs.Canvases.fns
-    Libs.DBs.fns
-    Libs.Documentation.fns
-    Libs.Domains.fns
-    Libs.F404.fns
-    Libs.Infra.fns
-    Libs.Secrets.fns
-    Libs.Users.fns
-    Libs.Workers.fns ]
-  |> List.concat
-  |> List.map (fun f -> { f with fn = internalFn f.fn })
-  |> LibExecution.StdLib.renameFunctions renames
+let contents =
+  StdLib.combine
+    [ Libs.Canvases.contents
+      Libs.DBs.contents
+      Libs.Documentation.contents
+      Libs.Domains.contents
+      Libs.F404.contents
+      Libs.Infra.contents
+      Libs.Secrets.contents
+      Libs.Users.contents
+      Libs.Workers.contents ]
+    fnRenames
+    typeRenames
+  |> (fun (fns, types) ->
+    (fns |> List.map (fun f -> { f with fn = internalFn f.fn }), types))

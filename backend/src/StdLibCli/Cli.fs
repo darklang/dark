@@ -7,7 +7,8 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
-open LibExecution.StdLib.Shortcuts
+module StdLib = LibExecution.StdLib
+open StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
 
@@ -153,3 +154,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+
+let contents : StdLib.Contents = (fns, types)

@@ -18,15 +18,13 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let stdlibTypes : Map<RT.FQTypeName.T, RT.BuiltInType> =
-  (StdLibExecution.StdLib.types
-   @ StdLibCloudExecution.StdLib.types @ StdLibExperimental.StdLib.types)
-  |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-
-let stdlibFns : Map<RT.FQFnName.T, RT.BuiltInFn> =
-  StdLibExecution.StdLib.fns
-  @ StdLibCloudExecution.StdLib.fns @ StdLibExperimental.StdLib.fns
-  |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+let (stdlibFns, stdlibTypes) =
+  LibExecution.StdLib.combine
+    [ StdLibExecution.StdLib.contents
+      StdLibCloudExecution.StdLib.contents
+      StdLibExperimental.StdLib.contents ]
+    []
+    []
 
 
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
@@ -50,7 +48,11 @@ let libraries : Lazy<Task<RT.Libraries>> =
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
       return
-        { stdlibTypes = stdlibTypes; stdlibFns = stdlibFns; packageFns = packageFns }
+        { stdlibTypes =
+            stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+          stdlibFns =
+            stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+          packageFns = packageFns }
     })
 
 let createState

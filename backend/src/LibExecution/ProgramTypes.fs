@@ -447,11 +447,3 @@ module Package =
       author : string
       deprecated : bool
       tlid : tlid }
-
-
-/// A built-in standard library type
-type BuiltInType =
-  { name : FQTypeName.StdlibTypeName
-    typeParams : List<string>
-    definition : CustomType.T
-    description : string }

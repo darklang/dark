@@ -1,4 +1,4 @@
-module StdLibExecution.LibBool
+module StdLibExecution.Libs.Bool
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -7,6 +7,8 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 let varA = TVariable "a"
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Bool" "not" 0
@@ -85,3 +87,5 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
     ]
+
+let contents = (fns, types)

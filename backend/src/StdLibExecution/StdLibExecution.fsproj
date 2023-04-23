@@ -10,27 +10,27 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Bool.fs" />
-    <Compile Include="Bytes.fs" />
-    <Compile Include="Char.fs" />
-    <Compile Include="Crypto.fs" />
-    <Compile Include="DateTime.fs" />
-    <Compile Include="Dict.fs" />
-    <Compile Include="Float.fs" />
-    <Compile Include="Http.fs" />
-    <Compile Include="HttpClient.fs" />
-    <Compile Include="Int.fs" />
-    <Compile Include="Json.fs" />
-    <Compile Include="List.fs" />
-    <Compile Include="Math.fs" />
-    <Compile Include="NoModule.fs" />
-    <Compile Include="Option.fs" />
-    <Compile Include="Result.fs" />
-    <Compile Include="String.fs" />
-    <Compile Include="Tuple2.fs" />
-    <Compile Include="Tuple3.fs" />
-    <Compile Include="Uuid.fs" />
-    <Compile Include="HttpClientAuth.fs" />
+    <Compile Include="Libs/Bool.fs" />
+    <Compile Include="Libs/Bytes.fs" />
+    <Compile Include="Libs/Char.fs" />
+    <Compile Include="Libs/Crypto.fs" />
+    <Compile Include="Libs/DateTime.fs" />
+    <Compile Include="Libs/Dict.fs" />
+    <Compile Include="Libs/Float.fs" />
+    <Compile Include="Libs/Http.fs" />
+    <Compile Include="Libs/HttpClient.fs" />
+    <Compile Include="Libs/Int.fs" />
+    <Compile Include="Libs/Json.fs" />
+    <Compile Include="Libs/List.fs" />
+    <Compile Include="Libs/Math.fs" />
+    <Compile Include="Libs/NoModule.fs" />
+    <Compile Include="Libs/Option.fs" />
+    <Compile Include="Libs/Result.fs" />
+    <Compile Include="Libs/String.fs" />
+    <Compile Include="Libs/Tuple2.fs" />
+    <Compile Include="Libs/Tuple3.fs" />
+    <Compile Include="Libs/Uuid.fs" />
+    <Compile Include="Libs/HttpClientAuth.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <ItemGroup>

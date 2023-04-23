@@ -1,20 +1,17 @@
-module StdLibExecution.LibInt
+module StdLibExecution.Libs.Int
 
-open System.Threading.Tasks
-open System.Numerics
 open FSharp.Control.Tasks
+open System.Threading.Tasks
 
-open LibExecution.RuntimeTypes
+open System.Numerics
+
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = Errors.incorrectArgs
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Int" "mod" 0
@@ -32,9 +29,8 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt m as mdv ] ->
           if m <= 0L then
-            err (Errors.argumentWasnt "positive" "b" mdv)
+            Ply(Dval.errStr (Errors.argumentWasnt "positive" "b" mdv))
           else
-            // dotnet returns negative mods, but OCaml did positive ones
             let result = v % m
             let result = if result < 0L then m + result else result
             Ply(DInt(result))
@@ -201,7 +197,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt a; DInt b ] ->
-          if b = 0L then err "Division by zero" else Ply(DInt(a / b))
+          if b = 0L then Ply(Dval.errStr "Division by zero") else Ply(DInt(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -465,3 +461,5 @@ let fns : List<BuiltInFn> =
 
 
     ]
+
+let contents = (fns, types)

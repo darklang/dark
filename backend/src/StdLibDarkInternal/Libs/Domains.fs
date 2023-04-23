@@ -5,19 +5,24 @@ open System.Threading.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Canvas = LibBackend.Canvas
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
+let modul = [ "DarkInternal"; "Canvas"; "Domain" ]
 
-let incorrectArgs = LibExecution.Errors.incorrectArgs
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' modul name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' modul name version
+
+
 
 let types : List<BuiltInType> = []
 
-
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "domainsForCanvasID" 0
+  [ { name = fn "get" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList TString
@@ -35,7 +40,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "canvasIDForDomain" 0
+    { name = fn "toCanvasID" 0
       typeParams = []
       parameters = [ Param.make "domain" TString "" ]
       returnType = TResult(TUuid, TString)
@@ -53,3 +58,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

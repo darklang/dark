@@ -60,15 +60,22 @@ module FQTypeName =
 
   let typeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
+  let stdlibTypeName'
+    (modules : List<string>)
+    (typ : string)
+    (version : int)
+    : StdlibTypeName =
+    List.iter (assertRe "modName name must match" modNamePat) modules
+    assertRe "stdlib function name must match" typeNamePat typ
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { modules = modules; typ = typ; version = version }
+
   let stdlibTypeName
     (modul : string)
     (typ : string)
     (version : int)
     : StdlibTypeName =
-    if modul <> "" then assertRe "modName name must match" modNamePat modul
-    assertRe "stdlib function name must match" typeNamePat typ
-    assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { modules = [ modul ]; typ = typ; version = version }
+    stdlibTypeName' [ modul ] typ version
 
   let toString (fqtn : T) : string =
     match fqtn with
@@ -821,16 +828,16 @@ type Previewable =
   // We should save the results.
   | Impure
 
-// Used to mark whether a function has been deprecated, and if so,
+// Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
-type Deprecation =
+type Deprecation<'name> =
   | NotDeprecated
 
-  // The exact same function is available under a new, preferred name
-  | RenamedTo of FQFnName.StdlibFnName
+  // The exact same thing is available under a new, preferred name
+  | RenamedTo of 'name
 
   /// This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of FQFnName.StdlibFnName
+  | ReplacedBy of 'name
 
   /// This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of string
@@ -880,13 +887,13 @@ type SqlSpec =
     | SqlFunctionWithSuffixArgs _
     | SqlCallback2 _ -> true
 
-
 // A built-in standard library type
 type BuiltInType =
   { name : FQTypeName.StdlibTypeName
     typeParams : List<string>
     definition : CustomType.T
-    description : string }
+    description : string
+    deprecated : Deprecation<FQTypeName.StdlibTypeName> }
 
 // A built-in standard library function
 type BuiltInFn =
@@ -896,7 +903,7 @@ type BuiltInFn =
     returnType : TypeReference
     description : string
     previewable : Previewable
-    deprecated : Deprecation
+    deprecated : Deprecation<FQFnName.StdlibFnName>
     sqlSpec : SqlSpec
     fn : BuiltInFnSig }
 

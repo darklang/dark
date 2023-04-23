@@ -1,16 +1,27 @@
 // ---------------
 // Misc
 // ---------------
-module Misc =
+module Documentation =
+  (List.length_v0 DarkInternal.Documentation.list > 100) = true
+
+  (DarkInternal.Documentation.list_v0
+   |> List.map (fun f -> (f.name, f))
+   |> Dict.fromList_v0
+   |> Test.unwrap
+   |> Dict.get_v2 "Int.add"
+   |> Test.unwrap
+   |> (fun f -> f.parameters)) =
+     [ Parameter { name = "a"; ``type`` = "Int" }
+       Parameter { name = "b"; ``type`` = "Int" } ]
+
+
+module Infra =
 
   // correct number of tables
-  Dict.size_v0 DarkInternal.getAndLogTableSizes_v0 = 16
-
-  // allFunctions has many functions
-  (List.length_v0 DarkInternal.allFunctions_v0 > 290) = true
+  Dict.size_v0 DarkInternal.Infra.getAndLogTableSizes_v0 = 16
 
   // server build hash
-  (match DarkInternal.serverBuildHash_v0 with
+  (match DarkInternal.Infra.serverBuildHash_v0 with
   // in local dev, the value is "dev"
   | "dev" -> true
   // in ci, "circleci"
@@ -18,82 +29,90 @@ module Misc =
   // otherwise it's the first 7 chars of the git hash
   | hash -> (String.length hash) == 7) = true
 
+module Canvas =
+  // Test creating a new canvas - just check it we can call `owner` on it
+  (let owner = Test.getCanvasID |> DarkInternal.Canvas.owner
+   let newID = DarkInternal.Canvas.create owner "test"
+   DarkInternal.Canvas.owner newID == owner) = true
 
-// ---------------
-// canvasID
-// ---------------
 module Domains =
   module Roundtrip =
-    ((DarkInternal.domainsForCanvasID Test.getCanvasID)
-    |> List.head
-    |> Test.unwrap
-    |> DarkInternal.canvasIDForDomain) = Ok Test.getCanvasID
+    ((DarkInternal.Canvas.Domain.get Test.getCanvasID)
+     |> List.head
+     |> Test.unwrap
+     |> DarkInternal.Canvas.Domain.toCanvasID) = Ok Test.getCanvasID
 
   module Errors =
-    DarkInternal.domainsForCanvasID ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = []
-    DarkInternal.canvasIDForDomain "not-a-real-domain" = Error "Canvas not found"
-
-
-
+    DarkInternal.Canvas.Domain.get ((Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap) = []
+    DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = Error "Canvas not found"
 
 module Secrets =
 
-  // getSecrets empty
-  DarkInternal.getSecrets Test.getCanvasID = []
+  // getAll empty
+  DarkInternal.Canvas.Secret.getAll Test.getCanvasID = []
 
-  // insertSecret
-  (let _ = (DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 0)
-  DarkInternal.getSecrets Test.getCanvasID) = [("SECRET", "VALUE", 0)]
+  // insert
+  (let _ = (DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "VALUE" 0)
+  DarkInternal.Canvas.Secret.getAll Test.getCanvasID) =
+    [DarkInternal.Canvas.Secret.Secret { name = "SECRET"; value = "VALUE"; version = 0 }]
 
-  // insertSecret twice
-  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 1
+  // insert twice
+  (let _ = DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "VALUE" 1
   // Does not work
-  DarkInternal.insertSecret Test.getCanvasID "SECRET" "OTHERVALUE" 1) = Error "Error inserting secret"
+  DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "OTHERVALUE" 1) = Error "Error inserting secret"
 
-  // deleteSecret
-  DarkInternal.deleteSecret Test.getCanvasID "SECRET" 2 = ()
+  // delete
+  DarkInternal.Canvas.Secret.delete Test.getCanvasID "SECRET" 2 = ()
 
-  // deleteSecret
-  (let _ = DarkInternal.insertSecret Test.getCanvasID "SECRET" "VALUE" 3
-   let _ = DarkInternal.deleteSecret Test.getCanvasID "SECRET" 3
-   DarkInternal.getSecrets Test.getCanvasID) = []
+  // delete
+  (let _ = DarkInternal.Canvas.Secret.insert Test.getCanvasID "SECRET" "VALUE" 3
+   let _ = DarkInternal.Canvas.Secret.delete Test.getCanvasID "SECRET" 3
+   DarkInternal.Canvas.Secret.getAll Test.getCanvasID) = []
 
 
-// ---------------
-// 404s
-// ---------------
 module F404s =
-  DarkInternal.getRecent404s Test.getCanvasID = []
-  DarkInternal.delete404 Test.getCanvasID "" "" "" = ()
+  DarkInternal.Canvas.F404.recent Test.getCanvasID = []
+  DarkInternal.Canvas.F404.delete Test.getCanvasID "" "" "" = ()
 
 
 module Toplevels =
   module WithDB =
     type X = { x : String }
     [<DB>] type XDB = X
-    (DarkInternal.dbs Test.getCanvasID) |> List.length = 1
+    (DarkInternal.Canvas.DB.list Test.getCanvasID) |> List.length = 1
 
   module NoDB =
-    DarkInternal.dbs Test.getCanvasID = []
+    DarkInternal.Canvas.DB.list Test.getCanvasID = []
 
-    DarkInternal.deleteToplevelForever Test.getCanvasID 1 = false
+    DarkInternal.Canvas.deleteToplevelForever Test.getCanvasID 1 = false
 
 
 module UnlockedDB =
   // none
-  DarkInternal.unlockedDBs Test.getCanvasID = []
+  DarkInternal.Canvas.DB.unlocked Test.getCanvasID = []
 
   module WithDB =
     type X = { x : String }
     [<DB>] type XDB = X
     // one
-    (DarkInternal.unlockedDBs Test.getCanvasID) |> List.length = 1
+    (DarkInternal.Canvas.DB.unlocked Test.getCanvasID) |> List.length = 1
 
     // one but locked
     (let _ = DB.set_v1 (X { x = "str" }) "test" XDB in
-     DarkInternal.unlockedDBs Test.getCanvasID) = []
+    DarkInternal.Canvas.DB.unlocked Test.getCanvasID) = []
+
+module Queue =
+  // TODO: DarkInternal.Canvas.Queue.count
+  // TODO: DarkInternal.Canvas.Queue.SchedulingRule.list
+  // TODO: DarkInternal.Infra.SchedulingRule.Block.insert
+  // TODO: DarkInternal.Infra.SchedulingRule.Block.delete
+  // TODO: DarkInternal.Infra.SchedulingRule.list
+  [] = []
+
+
+
 
 
 module Ops =
   // getOpsForToplevel returns empty list for nonexistant TL
-  DarkInternal.getOpsForToplevel_v0 Test.getCanvasID 0 = []
+  DarkInternal.Canvas.getOpsForToplevel_v0 Test.getCanvasID 0 = []

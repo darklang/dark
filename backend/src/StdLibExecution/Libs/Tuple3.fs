@@ -1,19 +1,16 @@
 /// StdLib functions to create and utilize tuples with 3 elements
-module StdLibExecution.LibTuple3
+module StdLibExecution.Libs.Tuple3
 
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
+open LibExecution.StdLib.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
 
-module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibFnName
 
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = Errors.incorrectArgs
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple3" "create" 0
@@ -216,3 +213,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

@@ -1,27 +1,25 @@
-module StdLibExecution.LibOption
+module StdLibExecution.Libs.Option
 
 open System.Threading.Tasks
-open System.Numerics
 open FSharp.Control.Tasks
 
-open LibExecution.RuntimeTypes
+open System.Numerics
 
-module Interpreter = LibExecution.Interpreter
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = Errors.incorrectArgs
+module Interpreter = LibExecution.Interpreter
 
 let varA = TVariable "a"
 let varB = TVariable "b"
 let varC = TVariable "c"
 let optionA = Param.make "option" (TOption varA) ""
 let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Option" "map" 1
@@ -132,3 +130,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

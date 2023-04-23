@@ -10,6 +10,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
+
 open LibBackend
 open VendoredTablecloth
 
@@ -209,19 +210,13 @@ module HttpClient =
     }
 
 
-module Errors = LibExecution.Errors
-
-let incorrectArgs = Errors.incorrectArgs
-
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
 let headersType = TList(TTuple(TString, TString, []))
 
 type HeaderError =
   | BadInput of string
   | TypeMismatch of string
 
+open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> =
   [ { name = typ "HttpClient" "Response" 0
@@ -233,7 +228,8 @@ let types : List<BuiltInType> =
           [ { id = 94787524UL; name = "headers"; typ = headersType }
             { id = 94787525UL; name = "body"; typ = TBytes } ]
         )
-      description = "The response from a HTTP request" } ]
+      description = "The response from a HTTP request"
+      deprecated = NotDeprecated } ]
 
 
 let fns : List<BuiltInFn> =
@@ -339,3 +335,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

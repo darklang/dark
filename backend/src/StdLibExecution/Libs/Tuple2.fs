@@ -1,19 +1,15 @@
 /// StdLib functions to create and utilize tuples with 2 elements
-module StdLibExecution.LibTuple2
+module StdLibExecution.Libs.Tuple2
 
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.VendoredTablecloth
+open LibExecution.StdLib.Shortcuts
 
 module Interpreter = LibExecution.Interpreter
+module StdLib = LibExecution.StdLib
 
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let err (str : string) = Ply(Dval.errStr str)
-
-let incorrectArgs = Errors.incorrectArgs
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple2" "create" 0
@@ -157,3 +153,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

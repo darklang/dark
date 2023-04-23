@@ -1,15 +1,11 @@
 /// StdLib functions to hash and compare Passwords of Dark users
 module StdLibCloudExecution.Libs.Password
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = Errors.incorrectArgs
-
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Password" "hash" 0
@@ -64,3 +60,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

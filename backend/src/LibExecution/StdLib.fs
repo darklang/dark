@@ -5,6 +5,12 @@ open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
+type TypeRenames = List<FQTypeName.StdlibTypeName * FQTypeName.StdlibTypeName>
+type FnRenames = List<FQFnName.StdlibFnName * FQFnName.StdlibFnName>
+
+/// All Libs should expose `contents`, which is a list of all the types and functions it provides
+type Contents = List<BuiltInFn> * List<BuiltInType>
+
 
 // To cut down on the amount of code, when we rename a function and make no other
 // changes, we don't duplicate it. Instead, we rename it and add the rename to this
@@ -14,7 +20,7 @@ open RuntimeTypes
 // codebase, the old one should not. If a function is renamed multiple times, add the
 // latest rename first.
 let renameFunctions
-  (renames : List<FQFnName.StdlibFnName * FQFnName.StdlibFnName>)
+  (renames : FnRenames)
   (existing : List<BuiltInFn>)
   : List<BuiltInFn> =
   let existingMap = existing |> List.map (fun fn -> fn.name, fn) |> Map
@@ -33,6 +39,38 @@ let renameFunctions
     |> Map.values
   existing @ newFns
 
+let renameTypes
+  (renames : TypeRenames)
+  (existing : List<BuiltInType>)
+  : List<BuiltInType> =
+  let existingMap = existing |> List.map (fun typ -> typ.name, typ) |> Map
+  let newTypes =
+    renames
+    |> List.fold Map.empty (fun renamedTypes (oldName, newName) ->
+      let newType =
+        Map.tryFind newName (Map.mergeFavoringLeft renamedTypes existingMap)
+        |> Exception.unwrapOptionInternal
+             $"all types should exist {oldName} -> {newName}"
+             [ "oldName", oldName; "newName", newName ]
+      Map.add
+        oldName
+        { newType with name = oldName; deprecated = RenamedTo newName }
+        renamedTypes)
+    |> Map.values
+  existing @ newTypes
+
+/// Provided a list of library contents, combine them (handling renames)
+let combine
+  (libs : List<Contents>)
+  (fnRenames : FnRenames)
+  (typeRenames : TypeRenames)
+  : Contents =
+  let (fns, types) = List.unzip libs
+  (fns |> List.concat |> renameFunctions fnRenames,
+   types |> List.concat |> renameTypes typeRenames)
+
+
+
 module Shortcuts =
   let fn = FQFnName.stdlibFnName
   let fnNoMod = FQFnName.stdlibFnName' []
@@ -42,8 +80,8 @@ module Shortcuts =
 
 
   let stdlibTypeRef
-    (module' : string)
+    (modul : string)
     (name : string)
     (version : int)
     : TypeReference =
-    TCustomType(FQTypeName.Stdlib(typ module' name version), [])
+    TCustomType(FQTypeName.Stdlib(typ modul name version), [])

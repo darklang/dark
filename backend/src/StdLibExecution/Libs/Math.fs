@@ -1,19 +1,18 @@
-module StdLibExecution.LibMath
+module StdLibExecution.Libs.Math
 
 open System.Threading.Tasks
-open System.Numerics
 open FSharp.Control.Tasks
 
-open LibExecution.RuntimeTypes
+open System.Numerics
+
 open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
 
-module Errors = LibExecution.Errors
-
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Math" "pi" 0
@@ -293,3 +292,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

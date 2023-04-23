@@ -6,35 +6,48 @@ open System.Threading.Tasks
 open Prelude
 
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
+
+let modul = [ "DarkInternal"; "Documentation" ]
+
+let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' modul name version
+
+let fn (name : string) (version : int) : FQFnName.StdlibFnName =
+  FQFnName.stdlibFnName' modul name version
 
 
-let fn = FQFnName.stdlibFnName
-let typ = FQTypeName.stdlibTypeName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let types : List<BuiltInType> =
-  [ { name = typ "DarkInternal" "DocFunction" 0
+  [ { name = typ "Function" 0
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 1UL; name = "space"; typ = TString },
-          [ { id = 3UL; name = "path"; typ = TString }
-            { id = 4UL; name = "modifier"; typ = TString }
-            { id = 5UL; name = "timestamp"; typ = TDateTime }
-            { id = 6UL; name = "traceID"; typ = TUuid } ]
+          { id = 1UL; name = "name"; typ = TString },
+          [ { id = 2UL; name = "description"; typ = TString }
+            { id = 3UL; name = "parameters"; typ = TList(TString) }
+            { id = 4UL; name = "returnType"; typ = TString } ]
         )
-      description = "A 404 trace" } ]
+      deprecated = NotDeprecated
+      description = "A Darklang stdlib function" }
+    { name = typ "Parameter" 0
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { id = 1UL; name = "name"; typ = TString },
+          [ { id = 2UL; name = "type"; typ = TString } ]
+        )
+      deprecated = NotDeprecated
+      description = "A function parameter" } ]
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "allFunctions" 0
+  [ { name = fn "list" 0
       typeParams = []
       parameters = []
-      returnType =
-        TList(TCustomType(FQTypeName.Stdlib(typ "DarkInternal" "DocFunction" 0), []))
+      returnType = TList(TCustomType(FQTypeName.Stdlib(typ "Function" 0), []))
       description =
-        "Returns a list of DocFunction records, representing the functions available in the standard library. Does not return DarkInternal functions"
+        "Returns a list of Function records, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =
         (function
         | state, _, [] ->
@@ -62,3 +75,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

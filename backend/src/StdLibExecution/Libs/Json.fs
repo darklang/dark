@@ -1,17 +1,12 @@
-module StdLibExecution.LibJson
+module StdLibExecution.Libs.Json
 
 open System.Text.Json
 
-open LibExecution.RuntimeTypes
 open Prelude
+open LibExecution.RuntimeTypes
 
-module PT = LibExecution.ProgramTypes
-module Errors = LibExecution.Errors
+open LibExecution.StdLib.Shortcuts
 
-let fn = FQFnName.stdlibFnName
-let tp = PT.FQTypeName.stdlibTypeName
-
-let incorrectArgs = Errors.incorrectArgs
 
 
 // parsing
@@ -490,6 +485,8 @@ let parse
     | ex -> Error ex.Message
 
 
+let types : List<BuiltInType> = []
+
 let fns : List<BuiltInFn> =
   [ { name = fn "Json" "serialize" 0
       typeParams = [ "a" ]
@@ -530,3 +527,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)

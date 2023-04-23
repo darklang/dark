@@ -3,16 +3,17 @@ module StdLibCloudExecution.Libs.DB
 
 open Prelude
 open LibExecution.RuntimeTypes
+open LibExecution.StdLib.Shortcuts
+
+module Errors = LibExecution.Errors
 
 module UserDB = LibBackend.UserDB
-module Errors = LibExecution.Errors
+
 module Db = LibBackend.Db
 
-let fn = FQFnName.stdlibFnName
-
-let incorrectArgs = LibExecution.Errors.incorrectArgs
 
 let varA = TVariable "a"
+
 let dbType = TDB varA
 
 let valType = varA
@@ -36,6 +37,8 @@ let handleUnexpectedExceptionDuringQuery
       [ "dbName", dbname; "lambda", query; "db", state.program.dbs[dbname] ]
       e
     LibBackend.SqlCompiler.error "An error occurred while querying the Datastore"
+
+let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "DB" "set" 1
@@ -414,3 +417,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = QueryFunction
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+let contents = (fns, types)
