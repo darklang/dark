@@ -381,7 +381,6 @@ type Expr =
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
-  | EFeatureFlag of id * string * Expr * Expr * Expr
 
 and StringSegment =
   | StringText of string
@@ -431,8 +430,6 @@ module Expr =
         cases |> List.map (fun (pat, expr) -> (MatchPattern.fromCT pat, fromCT expr))
       )
     | EPipeTarget (id) -> PT.EPipeTarget(id)
-    | EFeatureFlag (id, name, cond, caseA, caseB) ->
-      PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
     | EConstructor (id, typeName, caseName, fields) ->
       PT.Expr.EConstructor(
         id,
@@ -499,8 +496,6 @@ module Expr =
         cases |> List.map (fun (pat, expr) -> (MatchPattern.toCT pat, toCT expr))
       )
     | PT.EPipeTarget (id) -> EPipeTarget(id)
-    | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
-      EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
     | PT.EDict (id, fields) ->
       EDict(id, fields |> List.map (fun (key, value) -> (key, toCT value)))
 

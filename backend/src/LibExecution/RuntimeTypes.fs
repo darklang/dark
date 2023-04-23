@@ -302,7 +302,6 @@ type Expr =
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
-  | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
@@ -495,7 +494,6 @@ module Expr =
     | ERecord (id, _, _)
     | EDict (id, _)
     | EConstructor (id, _, _, _)
-    | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _)
     | EAnd (id, _, _)
     | EOr (id, _, _) -> id

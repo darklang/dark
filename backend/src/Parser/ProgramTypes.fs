@@ -596,17 +596,6 @@ module Expr =
         PT.ERecord(id, None, fields)
 
 
-    // Feature flags
-    // We need to handle them now, or th  below `App` case will
-    // make itet recognized as a variable referencess
-    | SynExpr.App (_,
-                   _,
-                   SynExpr.Ident name,
-                   SynExpr.Const (SynConst.String (label, _, _), _),
-                   _) when name.idText = "flag" ->
-      PT.EFeatureFlag(gid (), label, placeholder, placeholder, placeholder)
-
-
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
@@ -614,13 +603,6 @@ module Expr =
         PT.EFnCall(id, name, typeArgs, args @ [ c arg ])
       | PT.EInfix (id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
       | PT.EInfix (id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
-      // Fill in the feature flag fields (back to front)
-      | PT.EFeatureFlag (id, label, Placeholder, oldexpr, newexpr) ->
-        PT.EFeatureFlag(id, label, c arg, oldexpr, newexpr)
-      | PT.EFeatureFlag (id, label, condexpr, Placeholder, newexpr) ->
-        PT.EFeatureFlag(id, label, condexpr, c arg, newexpr)
-      | PT.EFeatureFlag (id, label, condexpr, oldexpr, Placeholder) ->
-        PT.EFeatureFlag(id, label, condexpr, oldexpr, c arg)
       // A pipe with one entry
       | PT.EPipe (id, arg1, Placeholder, []) ->
         PT.EPipe(id, arg1, cPlusPipeTarget arg, [])

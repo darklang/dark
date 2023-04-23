@@ -234,7 +234,6 @@ type Expr =
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
-  | EFeatureFlag of id * string * Expr * Expr * Expr
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>

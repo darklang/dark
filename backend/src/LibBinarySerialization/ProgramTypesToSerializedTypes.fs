@@ -188,8 +188,6 @@ module Expr =
         List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
     | PT.EPipeTarget id -> ST.EPipeTarget id
-    | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
-      ST.EFeatureFlag(id, name, toST cond, toST caseA, toST caseB)
     | PT.EDict (id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =

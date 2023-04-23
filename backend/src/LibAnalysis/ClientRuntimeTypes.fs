@@ -358,7 +358,6 @@ module Expr =
       caseName : string *
       fields : List<T>
     | EMatch of id * T * List<MatchPattern * T>
-    | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
 
@@ -416,8 +415,6 @@ module Expr =
         r mexpr,
         List.map (Tuple2.mapFirst MatchPattern.fromCT << Tuple2.mapSecond r) pairs
       )
-    | EFeatureFlag (id, cond, caseA, caseB) ->
-      RT.EFeatureFlag(id, r cond, r caseA, r caseB)
     | EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | EOr (id, left, right) -> RT.EOr(id, r left, r right)
     | EDict (id, pairs) -> RT.EDict(id, List.map (Tuple2.mapSecond r) pairs)
@@ -479,8 +476,6 @@ module Expr =
         r mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toCT << Tuple2.mapSecond r) pairs
       )
-    | RT.EFeatureFlag (id, cond, caseA, caseB) ->
-      EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> EOr(id, r left, r right)
     | RT.EDict (id, pairs) -> EDict(id, List.map (Tuple2.mapSecond r) pairs)

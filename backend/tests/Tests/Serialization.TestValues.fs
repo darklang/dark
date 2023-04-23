@@ -133,12 +133,6 @@ module RuntimeTypes =
         RT.EInt(712373UL, 123),
         [ RT.MPVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
       )
-      RT.EFeatureFlag(
-        1823UL,
-        RT.EBool(81273UL, false),
-        RT.EString(1283UL, [ RT.StringText "true" ]),
-        RT.EString(18329472UL, [ RT.StringText "false" ])
-      )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EConstructor(
@@ -454,9 +448,8 @@ module ProgramTypes =
                           PT.ELet(
                             927055617UL,
                             PT.LPVariable(1782674UL, "f"),
-                            PT.EFeatureFlag(
+                            PT.EIf(
                               882488977UL,
-                              "test",
                               PT.EBool(349352147UL, true),
                               PT.EInt(578528886UL, 5L),
                               PT.EInt(562930224UL, 6L)

@@ -314,15 +314,6 @@ type Expr =
   // some point
   | EPipeTarget of id
 
-  /// Like an if statement, but with a label
-  /// TODO: continue describing
-  | EFeatureFlag of
-    id *
-    flagName : string *
-    cond : Expr *
-    caseA : Expr *
-    caseB : Expr
-
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr

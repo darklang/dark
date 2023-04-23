@@ -262,43 +262,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             )
 
 
-
-    | EFeatureFlag (_id, cond, oldcode, newcode) ->
-      // Unlike If statements that check their condition for 'truthiness,'
-      // (considering the condition true if it evaluates to anything other
-      // than false/null,) Feature Flags require that the condition evaluates
-      // to exactly `True`.
-      //
-      // If statements are built as you build you code, with no existing users.
-      // But feature flags are created when you have users and don't want to
-      // break your code. As a result, anything that isn't an explicitly
-      // signalling to use the new code, should use the old code:
-      // - errors should be ignored: use old code
-      // - incompletes should be ignored: use old code
-      // - values which are "truthy" in if statements are not truthy here
-      //
-      // Imagine you are writing the FF cond and you get a list or object,
-      // and you're about to do some other work on it. Should we immediately
-      // start serving the new code to all your traffic? No. So only `true`
-      // gets new code.
-
-      let! conditionResult =
-        // under no circumstances should this cause code to fail
-        uply {
-          try
-            return! eval state st cond
-          with
-          | _ -> return DBool false
-        }
-
-      if conditionResult = DBool true then
-        do! preview st oldcode
-        return! eval state st newcode
-      else
-        do! preview st newcode
-        return! eval state st oldcode
-
-
     | ELambda (_id, parameters, body) ->
       if state.tracing.realOrPreview = Preview then
         // In case this never gets executed, add default analysis results

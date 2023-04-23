@@ -189,8 +189,6 @@ module Expr =
         List.map (Tuple2.mapFirst MatchPattern.toPT << Tuple2.mapSecond toPT) pairs
       )
     | ST.EPipeTarget id -> PT.EPipeTarget id
-    | ST.EFeatureFlag (id, name, cond, caseA, caseB) ->
-      PT.EFeatureFlag(id, name, toPT cond, toPT caseA, toPT caseB)
     | ST.EInfix (id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict (id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)

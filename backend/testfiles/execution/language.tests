@@ -200,22 +200,6 @@ module Or =
   (false |> (||) false) = false
 
 
-module FeatureFlag =
-  flag "test" true "old" "new" = "new"
-  // everything else is old
-  flag "test" false "old" "new" = "old"
-  flag "" [true] "old" "new" = "old"
-  flag "test" () "old" "new" = "old"
-  flag "test" 5 "old" "new" = "old"
-  flag "test" (Test.typeError_v0 "test") "old" "new" = "old"
-  flag "test" (List.head []) "old" "new" = "old"
-  flag "test" [true] "old" "new" = "old"
-  flag "test" (Test.negativeInfinity "extra arg") "old" "new" = "old"
-
-  (let _ = Test.setExpectedExceptionCount 1 in
-   flag "test" (Test.raiseException "message") "old" "new") = "old"
-
-
 module Lambdas =
   List.push_v0 [] (fun x -> -4.611686018e+18) = [(fun x -> -4.611686018e+18)]
   (let y = (fun x ___ -> x + 1) in List.map_v0 [1;2;3;4] y) = [ 2; 3; 4; 5 ]

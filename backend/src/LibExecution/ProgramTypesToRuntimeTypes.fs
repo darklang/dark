@@ -230,8 +230,6 @@ module Expr =
       )
     | PT.EPipeTarget id ->
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
-    | PT.EFeatureFlag (id, _name, cond, caseA, caseB) ->
-      RT.EFeatureFlag(id, toRT cond, toRT caseA, toRT caseB)
     | PT.EConstructor (id, typeName, caseName, fields) ->
       RT.EConstructor(
         id,

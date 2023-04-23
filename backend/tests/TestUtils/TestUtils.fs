@@ -601,11 +601,6 @@ module Expect =
       eq (f :: path) e e'
       check path f f'
 
-    | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
-      eq ("flagCond" :: path) cond cond'
-      eq ("flagOld" :: path) old old'
-      eq ("flagNew" :: path) knew knew'
-
     | EConstructor (_, typeName, caseName, fields),
       EConstructor (_, typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
@@ -649,7 +644,6 @@ module Expect =
     | ERecord _, _
     | EDict _, _
     | EFieldAccess _, _
-    | EFeatureFlag _, _
     | EConstructor _, _
     | ELambda _, _
     | EMatch _, _
