@@ -1,4 +1,5 @@
 /// StdLib functions for building Dark functionality for Workers
+/// Also has infra functions for managing workers - TODO: separate these
 module StdLibDarkInternal.Libs.Workers
 
 open System.Threading.Tasks
@@ -35,28 +36,31 @@ let ruleToDval (r : SchedulingRules.SchedulingRule.T) : Dval =
                 ("event_space", Dval.DString r.eventSpace)
                 ("created_at", Dval.DDateTime(DarkDateTime.fromInstant r.createdAt)) ]
 
+let typ = FQTypeName.stdlibTypeName'
+let fn = FQFnName.stdlibFnName'
 
 let types : List<BuiltInType> =
-  [ { name = typ "DarkInternal" "SchedulingRule" 0
+  [ { name = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
       typeParams = []
       definition =
         CustomType.Record(
           { id = 1UL; name = "id"; typ = TInt },
-          [ { id = 1UL; name = "ruleType"; typ = TString }
-            { id = 1UL; name = "canvasID"; typ = TUuid }
-            { id = 1UL; name = "handlerName"; typ = TString }
-            // CLEANUP no event space needed, right?
-            { id = 1UL; name = "eventSpace"; typ = TString }
-            { id = 1UL; name = "createdAt"; typ = TDateTime } ]
+          [ { id = 2UL; name = "ruleType"; typ = TString }
+            { id = 3UL; name = "canvasID"; typ = TUuid }
+            { id = 4UL; name = "handlerName"; typ = TString }
+            { id = 5UL; name = "createdAt"; typ = TDateTime } ]
         )
       deprecated = NotDeprecated
       description = "A scheduling rule for a worker" } ]
 
 let schedulingRule =
-  TCustomType(FQTypeName.Stdlib(typ "DarkInternal" "SchedulingRule" 0), [])
+  TCustomType(
+    FQTypeName.Stdlib(typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0),
+    []
+  )
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DarkInternal" "getQueueCount" 0
+  [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
       returnType = TList TInt
@@ -75,7 +79,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getSchedulingRulesForCanvas" 0
+    { name = fn [ "DarkInternal"; "Canvas"; "Queue"; "SchedulingRule" ] "list" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType = TList schedulingRule
@@ -94,7 +98,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "addWorkerSchedulingBlock" 0
+    { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule"; "Block" ] "insert" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TString "" ]
@@ -107,20 +111,20 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "removeWorkerSchedulingBlock" 0
+    { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule"; "Block" ] "delete" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid ""; Param.make "handlerName" TString "" ]
       returnType = TUnit
       description =
-        "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
+        "Removes the worker scheduling block, if one exists, for the given canvas and handler"
       fn = modifySchedule Queue.unblockWorker
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
 
-    { name = fn "DarkInternal" "getAllSchedulingRules" 0
+    { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule" ] "list" 0
       typeParams = []
       parameters = []
       returnType = TList schedulingRule
