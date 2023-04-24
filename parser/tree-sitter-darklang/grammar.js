@@ -38,7 +38,7 @@ module.exports = grammar({
     // Expressions
     expression: $ => choice(
       $.let_expression,
-      //$.function_call,
+      //$.function_call, TODO: fix this (generator doesn't work when included)
       $.infix_operation,
       $.identifier,
       $.string_literal,

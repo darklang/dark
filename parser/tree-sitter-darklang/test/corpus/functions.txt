@@ -1,6 +1,5 @@
 ==================
 Simple add function
-(not sure why it fails near the end)
 ==================
 
 let add (a: Int) (b: Int): Int =

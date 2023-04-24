@@ -2,7 +2,6 @@
 
 In-progress / experimental `tree-sitter` parser for Darklang.
 
-
 - https://tree-sitter.github.io
 
 ## Grammar and Parser
@@ -35,3 +34,21 @@ Note: `export PATH=$PATH:./node_modules/.bin` may be needed at some point? I for
 bindings must be created to interface with the parser in a particular language.
 
 Bindings may be used to provide syntax highlighting, code folding, or to turn the syntax tree into an AST (semantic analysis).
+
+At this point, we have bindings for JS/WASM - later, we may need bindings for F# or something else.
+
+### JS/WASM bindings
+
+To build the JS/WASM bindings:
+
+- compile to WASM with `tree-sitter build-wasm . && mv ./tree-sitter-darklang.wasm ./bindings`
+- copy the bindings to `backend/static/tree-sitter`
+- see `canvases/dark-tree-sitter-demo/README.md` for a JS/WASM usage demo
+
+Relevant documentation
+
+- https://github.com/tree-sitter/tree-sitter/tree/master/lib/binding_web
+  in particular, review the README.md and the .d.ts file
+- the `tree-sitter.js` and `tree-sitter.wasm` files were pulled from the releases of `tree-sitter`.
+  The .js file is a wrapper around the .wasm file, and the .wasm file is the actual parser which calls upon language-specific parsers (like `tree-sitter-darklang.wasm`) after loading them.
+  https://github.com/tree-sitter/tree-sitter/releases/tag/v0.20.8 is the release these files were pulled from.

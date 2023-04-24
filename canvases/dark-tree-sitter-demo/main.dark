@@ -1,0 +1,133 @@
+[<HttpHandler("GET", "/static/:path")>]
+let _handler _req =
+  let body =
+    (Experiments.readFromStaticDir path)
+    |> Result.withDefault Bytes.empty
+
+  let contentType =
+    match (String.split_v1 path ".") |> List.last_v2 |> Option.withDefault "" with
+    | "wasm" -> "application/wasm"
+    | "js" -> "text/javascript"
+    | "dll" -> "application/octet-stream"
+    | "dat" -> "application/octet-stream"
+    | "blat" -> "application/octet-stream"
+    | "json" -> "application/json"
+    | _ -> "text/plain"
+
+  let incomingHost =
+    request.headers
+    |> List.findFirst_v2 (fun t -> Tuple2.first t == "origin")
+    |> Option.map_v1 (fun t -> Tuple2.second t)
+    |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
+
+  let headers =
+    Dict.fromListOverwritingDuplicates
+      [
+        ("Access-Control-Allow-Origin", incomingHost)
+        ("Access-Control-Allow-Credentials", "true")
+        ("Content-type", contentType)
+        ("Accept-Ranges", "bytes")
+      ]
+
+  Http.responseWithHeaders body headers 200
+
+[<HttpHandler("GET", "/")>]
+let _indexHandler _req =
+  // TODO: HTML of a basic webpage, that references WASM stuff
+  let body =
+    """
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dark Tree-Sitter WASM demo</title>
+    <style>
+      * {font-size: 24px;}
+      body, html { height: 100%; margin: 0; font-family: Arial, sans-serif }
+      .container { display: flex; height: 100%; }
+      .left-side, .middle, .right-side { flex: 1; padding: 10px; }
+      .textarea { width: 100%; height: 100%; resize: none; }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="left-side">
+        <label>Source code:</label>
+        <textarea id="input-textarea" class="textarea">let add (a: Int) (b: Int): Int =
+  let sum = a + b
+  sum</textarea>
+      </div>
+
+      <div class="middle">
+        <label>Syntax tree</label>
+        <textarea id="syntax-textarea" class="textarea" disabled></textarea>
+      </div>
+
+      <div class="right-side">
+        <label>Expr</label>
+        <textarea id="right-textarea" class="textarea" disabled></textarea>
+      </div>
+    </div>
+    <script src="/static/tree-sitter/tree-sitter.js" />
+    <script>console.log('NOT SURE WHY I NEED THIS')</script>
+    <script>
+      function toSimpleTree(getFieldName, node) {
+        // I seem to be having some trouble extracting the field names,
+        // but suspect I can get by without them for now.
+        // TODO: either remove this code, or pursue extracting field names further.
+
+        console.log(node);
+        console.log(JSON.stringify(node));
+        console.log("f", node.fields);
+        // const fieldId = node.walk().currentFieldId();
+        // const fieldName = node.walk().currentFieldName();
+        // console.log('f', fieldId, fieldName);
+
+        const response =
+          { typ: node.type,
+            text: node.text,
+            children: node.children.map(n => toSimpleTree(getFieldName, n)) }
+
+        return response;
+      }
+
+      const Parser = window.TreeSitter;
+
+      Parser.init().then(async () => {
+        const parser = new Parser;
+
+        const inputTextarea = document.getElementById("input-textarea");
+
+        const Darklang = await Parser.Language.load("/static/tree-sitter/tree-sitter-darklang.wasm");
+        parser.setLanguage(Darklang);
+
+        console.log(Darklang.fieldCount);
+
+        function parseAndUpdateOutput () {
+          const darkSourceCode = document.getElementById("input-textarea").value;
+          const darkTree = parser.parse(darkSourceCode);
+          window.tree = darkTree;
+
+          let getFieldName = (id) => Darklang.fieldNameForId(id);
+          let simpleTree = toSimpleTree(getFieldName, darkTree.rootNode);
+          // TODO: send _this_ to (in-WASM) Dark, to be mapped into an Expr
+
+          document.getElementById("syntax-textarea").value = JSON.stringify(simpleTree, null, 2);
+        }
+
+        inputTextarea.addEventListener("input", () => {
+          parseAndUpdateOutput();
+        });
+
+        parseAndUpdateOutput();
+      });
+    </script>
+  </body>
+</html>
+  """
+
+  Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
+
+
