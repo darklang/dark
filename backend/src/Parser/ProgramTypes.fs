@@ -142,8 +142,7 @@ module MatchPattern =
     | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let args = List.map r args
       let enumName =
-        List.last names
-        |> Exception.unwrapOptionInternal "missing enum name" []
+        List.last names |> Exception.unwrapOptionInternal "missing enum name" []
       let modules =
         List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
       // CLEANUPTYPES use modules
