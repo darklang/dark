@@ -63,7 +63,7 @@ let dvalTypeName (dv : Dval) : string =
   | DOption _ -> "Option"
   | DResult _ -> "Result"
   | DTuple _ -> "Tuple"
-  | DConstructor _ -> "Constructor"
+  | DEnum _ -> "Enum"
   | DBytes _ -> "Bytes"
 
 
@@ -158,7 +158,7 @@ let toRepr (dv : Dval) : string =
     | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
     | DResult (Error dv) -> "Error " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
-    | DConstructor (typeName, caseName, fields) ->
+    | DEnum (typeName, caseName, fields) ->
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 

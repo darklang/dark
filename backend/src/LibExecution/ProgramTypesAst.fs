@@ -33,8 +33,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     EMatch(id, f mexpr, List.map (fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, typeName, fields) ->
     ERecord(id, typeName, List.map (fun (name, expr) -> (name, f expr)) fields)
-  | EConstructor (id, typeName, caseName, fields) ->
-    EConstructor(id, typeName, caseName, List.map f fields)
+  | EEnum (id, typeName, caseName, fields) ->
+    EEnum(id, typeName, caseName, List.map f fields)
 
 
 
@@ -63,8 +63,8 @@ let rec matchPatternPreTraversal
   | MPString _
   | MPUnit _
   | MPFloat _ -> pattern
-  | MPConstructor (patternID, caseName, fieldPats) ->
-    MPConstructor(patternID, caseName, List.map (fun p -> r p) fieldPats)
+  | MPEnum (patternID, caseName, fieldPats) ->
+    MPEnum(patternID, caseName, List.map (fun p -> r p) fieldPats)
   | MPTuple (patternID, first, second, theRest) ->
     MPTuple(patternID, r first, r second, List.map r theRest)
   | MPList (patternID, pats) -> MPList(patternID, List.map r pats)
@@ -84,8 +84,8 @@ let rec matchPatternPostTraversal
     | MPString _
     | MPUnit _
     | MPFloat _ -> pattern
-    | MPConstructor (patternID, caseName, fieldPats) ->
-      MPConstructor(patternID, caseName, List.map r fieldPats)
+    | MPEnum (patternID, caseName, fieldPats) ->
+      MPEnum(patternID, caseName, List.map r fieldPats)
     | MPTuple (patternID, first, second, theRest) ->
       MPTuple(patternID, r first, r second, List.map r theRest)
     | MPList (patternID, pats) -> MPList(patternID, List.map r pats)

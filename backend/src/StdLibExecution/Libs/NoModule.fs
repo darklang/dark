@@ -58,7 +58,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDB a, DDB b -> a = b
   | DHttpResponse (code1, headers1, body1), DHttpResponse (code2, headers2, body2) ->
     code1 = code2 && headers1 = headers2 && equals body1 body2
-  | DConstructor (a1, a2, a3), DConstructor (b1, b2, b3) ->
+  | DEnum (a1, a2, a3), DEnum (b1, b2, b3) ->
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
   // exhaustivenss check
   | DInt _, _
@@ -80,7 +80,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DBytes _, _
   | DDB _, _
   | DHttpResponse _, _
-  | DConstructor _, _
+  | DEnum _, _
   | DError _, _
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
@@ -141,8 +141,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
            name1 = name2 && equalsExpr expr1 expr2)
          fields1
          fields2
-  | EConstructor (_, typeName, caseName, fields),
-    EConstructor (_, typeName', caseName', fields') ->
+  | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
     typeName = typeName'
     && caseName = caseName'
     && fields.Length = fields'.Length
@@ -181,12 +180,12 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EList _, _
   | ETuple _, _
   | ERecord _, _
-  | EConstructor _, _
+  | EEnum _, _
   | EMatch _, _
   | EAnd _, _
   | EOr _, _
   | EDict _, _
-  | EConstructor _, _ -> false
+  | EEnum _, _ -> false
 
 
 and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =
@@ -222,7 +221,7 @@ and equalsStringSegment
 and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : bool =
   match pattern1, pattern2 with
   | MPVariable (_, name1), MPVariable (_, name2) -> name1 = name2
-  | MPConstructor (_, tag1, args1), MPConstructor (_, tag2, args2) ->
+  | MPEnum (_, tag1, args1), MPEnum (_, tag2, args2) ->
     tag1 = tag2
     && args1.Length = args2.Length
     && List.forall2 equalsMatchPattern args1 args2
@@ -241,7 +240,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     elems1.Length = elems2.Length && List.forall2 equalsMatchPattern elems1 elems2
   // exhaustiveness check
   | MPVariable _, _
-  | MPConstructor _, _
+  | MPEnum _, _
   | MPInt _, _
   | MPBool _, _
   | MPChar _, _

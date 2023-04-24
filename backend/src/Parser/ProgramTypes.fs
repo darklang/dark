@@ -141,13 +141,12 @@ module MatchPattern =
     | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
     | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let args = List.map r args
-      let constructorName =
-        List.last names
-        |> Exception.unwrapOptionInternal "missing constructor name" []
+      let enumName =
+        List.last names |> Exception.unwrapOptionInternal "missing enum name" []
       let modules =
         List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
       // CLEANUPTYPES use modules
-      PT.MPConstructor(id, constructorName.idText, args)
+      PT.MPEnum(id, enumName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
     | SynPat.ArrayOrList (_, pats, _) -> PT.MPList(id, List.map r pats)
@@ -305,17 +304,17 @@ module Expr =
     | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
       PT.ETuple(id, c first, c second, List.map c rest)
 
-    // Enum values (EConstructors)
+    // Enum values (EEnums)
     // TODO: remove this explicit handling
     // when the Option and Result types are defined in StdLib
     | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
       ->
-      PT.EConstructor(id, None, name.idText, [ c arg ])
+      PT.EEnum(id, None, name.idText, [ c arg ])
 
-    // Enum values (EConstructors)
+    // Enum values (EEnums)
     | SynExpr.Ident name when name.idText = "Nothing" ->
-      PT.EConstructor(id, None, name.idText, [])
+      PT.EEnum(id, None, name.idText, [])
 
 
     // Package manager function calls
@@ -339,7 +338,7 @@ module Expr =
       )
 
 
-    // Constructors/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
+    // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
     | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) when
       (names
        |> List.initial
@@ -363,7 +362,7 @@ module Expr =
         let (typ, version) = parseTypeName typename
         let modules = List.initial modules |> Option.unwrap []
         // TYPESCLEANUP might not be a usertype
-        PT.EConstructor(
+        PT.EEnum(
           gid (),
           Some(
             PT.FQTypeName.User
@@ -375,7 +374,7 @@ module Expr =
           []
         )
 
-    // Variable constructors - Ok, Error, Nothing, and Just are handled elsewhere,
+    // Variable enums - Ok, Error, Nothing, and Just are handled elsewhere,
     // and Enums are expected to be fully qualified
     | SynExpr.Ident name -> PT.EVariable(id, name.idText)
 
@@ -619,13 +618,13 @@ module Expr =
 
 
       // Enums
-      | PT.EConstructor (id, typeName, caseName, _fields) ->
+      | PT.EEnum (id, typeName, caseName, _fields) ->
         let fields =
           match c arg with
           | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
           | other -> [ other ]
 
-        PT.EConstructor(id, typeName, caseName, fields)
+        PT.EEnum(id, typeName, caseName, fields)
 
       | e ->
         Exception.raiseInternal

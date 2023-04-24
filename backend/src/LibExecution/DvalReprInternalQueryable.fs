@@ -122,7 +122,7 @@ let rec private toJsonV0
           w.WritePropertyName f.name
           let dval = Map.find f.name dm
           writeDval f.typ dval))
-    | Some (CustomType.Enum _), DConstructor _ ->
+    | Some (CustomType.Enum _), DEnum _ ->
       Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
     | Some typ, dv ->
       Exception.raiseInternal
@@ -291,8 +291,7 @@ module Test =
     | DUuid _ -> true
     | DList dvals -> List.all isQueryableDval dvals
     | DDict map -> map |> Map.values |> List.all isQueryableDval
-    | DConstructor (_typeName, _caseName, fields) ->
-      fields |> List.all isQueryableDval
+    | DEnum (_typeName, _caseName, fields) -> fields |> List.all isQueryableDval
     | DTuple (d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
     // TODO support

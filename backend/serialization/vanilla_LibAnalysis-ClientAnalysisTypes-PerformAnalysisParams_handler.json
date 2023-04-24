@@ -533,27 +533,27 @@
                                 ]
                               ],
                               [
-                                "constructor",
+                                "enum",
                                 [
-                                  "EConstructor",
+                                  "EEnum",
                                   567764301,
                                   null,
                                   "Ok",
                                   [
                                     [
-                                      "EConstructor",
+                                      "EEnum",
                                       646107057,
                                       null,
                                       "Error",
                                       [
                                         [
-                                          "EConstructor",
+                                          "EEnum",
                                           689802831,
                                           null,
                                           "Just",
                                           [
                                             [
-                                              "EConstructor",
+                                              "EEnum",
                                               957916875,
                                               null,
                                               "Nothing",
@@ -598,7 +598,7 @@
                               [
                                 [
                                   [
-                                    "MPConstructor",
+                                    "MPEnum",
                                     1015986188,
                                     "Ok",
                                     [
@@ -8374,27 +8374,27 @@
                                   ]
                                 ],
                                 [
-                                  "constructor",
+                                  "enum",
                                   [
-                                    "EConstructor",
+                                    "EEnum",
                                     567764301,
                                     null,
                                     "Ok",
                                     [
                                       [
-                                        "EConstructor",
+                                        "EEnum",
                                         646107057,
                                         null,
                                         "Error",
                                         [
                                           [
-                                            "EConstructor",
+                                            "EEnum",
                                             689802831,
                                             null,
                                             "Just",
                                             [
                                               [
-                                                "EConstructor",
+                                                "EEnum",
                                                 957916875,
                                                 null,
                                                 "Nothing",
@@ -8439,7 +8439,7 @@
                                 [
                                   [
                                     [
-                                      "MPConstructor",
+                                      "MPEnum",
                                       1015986188,
                                       "Ok",
                                       [
@@ -9621,27 +9621,27 @@
                                   ]
                                 ],
                                 [
-                                  "constructor",
+                                  "enum",
                                   [
-                                    "EConstructor",
+                                    "EEnum",
                                     567764301,
                                     null,
                                     "Ok",
                                     [
                                       [
-                                        "EConstructor",
+                                        "EEnum",
                                         646107057,
                                         null,
                                         "Error",
                                         [
                                           [
-                                            "EConstructor",
+                                            "EEnum",
                                             689802831,
                                             null,
                                             "Just",
                                             [
                                               [
-                                                "EConstructor",
+                                                "EEnum",
                                                 957916875,
                                                 null,
                                                 "Nothing",
@@ -9686,7 +9686,7 @@
                                 [
                                   [
                                     [
-                                      "MPConstructor",
+                                      "MPEnum",
                                       1015986188,
                                       "Ok",
                                       [

@@ -236,7 +236,7 @@ module LetPattern =
 
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
+  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInt of id * int64
   | MPBool of id * bool
   | MPChar of id * string
@@ -251,8 +251,8 @@ module MatchPattern =
     let r = fromCT
     match p with
     | MPVariable (id, str) -> RT.MPVariable(id, str)
-    | MPConstructor (id, caseName, fieldPats) ->
-      RT.MPConstructor(id, caseName, List.map r fieldPats)
+    | MPEnum (id, caseName, fieldPats) ->
+      RT.MPEnum(id, caseName, List.map r fieldPats)
     | MPInt (id, i) -> RT.MPInt(id, i)
     | MPBool (id, b) -> RT.MPBool(id, b)
     | MPChar (id, c) -> RT.MPChar(id, c)
@@ -267,8 +267,8 @@ module MatchPattern =
     let r = toCT
     match p with
     | RT.MPVariable (id, str) -> MPVariable(id, str)
-    | RT.MPConstructor (id, caseName, fieldPats) ->
-      MPConstructor(id, caseName, List.map r fieldPats)
+    | RT.MPEnum (id, caseName, fieldPats) ->
+      MPEnum(id, caseName, List.map r fieldPats)
     | RT.MPInt (id, i) -> MPInt(id, i)
     | RT.MPBool (id, b) -> MPBool(id, b)
     | RT.MPChar (id, c) -> MPChar(id, c)
@@ -352,7 +352,7 @@ module Expr =
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
     | EDict of id * List<string * T>
-    | EConstructor of
+    | EEnum of
       id *
       typeName : Option<FQTypeName.T> *
       caseName : string *
@@ -402,8 +402,8 @@ module Expr =
         Option.map FQTypeName.fromCT typeName,
         List.map (Tuple2.mapSecond r) fields
       )
-    | EConstructor (id, typeName, caseName, fields) ->
-      RT.EConstructor(
+    | EEnum (id, typeName, caseName, fields) ->
+      RT.EEnum(
         id,
         Option.map FQTypeName.fromCT typeName,
         caseName,
@@ -463,13 +463,8 @@ module Expr =
         Option.map FQTypeName.toCT typeName,
         List.map (Tuple2.mapSecond r) fields
       )
-    | RT.EConstructor (id, typeName, caseName, fields) ->
-      EConstructor(
-        id,
-        Option.map FQTypeName.toCT typeName,
-        caseName,
-        List.map r fields
-      )
+    | RT.EEnum (id, typeName, caseName, fields) ->
+      EEnum(id, Option.map FQTypeName.toCT typeName, caseName, List.map r fields)
     | RT.EMatch (id, mexpr, pairs) ->
       EMatch(
         id,
@@ -541,10 +536,7 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DConstructor of
-      typeName : Option<FQTypeName.T> *
-      caseName : string *
-      fields : List<T>
+    | DEnum of typeName : Option<FQTypeName.T> * caseName : string * fields : List<T>
 
   let rec fromCT (dv : T) : RT.Dval =
     let r = fromCT
@@ -581,12 +573,8 @@ module Dval =
     | DResult (Ok dv) -> RT.DResult(Ok(r dv))
     | DResult (Error dv) -> RT.DResult(Error(r dv))
     | DBytes bytes -> RT.DBytes bytes
-    | DConstructor (typeName, caseName, fields) ->
-      RT.DConstructor(
-        Option.map FQTypeName.fromCT typeName,
-        caseName,
-        List.map r fields
-      )
+    | DEnum (typeName, caseName, fields) ->
+      RT.DEnum(Option.map FQTypeName.fromCT typeName, caseName, List.map r fields)
 
   and toCT (dv : RT.Dval) : T =
     let r = toCT
@@ -624,7 +612,7 @@ module Dval =
     | RT.DResult (Ok dv) -> DResult(Ok(r dv))
     | RT.DResult (Error dv) -> DResult(Error(r dv))
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DConstructor (typeName, caseName, fields) -> DUnit // todo
+    | RT.DEnum (typeName, caseName, fields) -> DUnit // todo
 
 
 module Handler =

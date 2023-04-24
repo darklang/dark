@@ -322,7 +322,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPVariable (id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-        | MPConstructor (id, caseName, fieldPats) ->
+        | MPEnum (id, caseName, fieldPats) ->
           match (caseName, fieldPats, dv) with
           | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
@@ -344,7 +344,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let (_, newVars, traces) = checkPattern (incomplete pID) p
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
-          | caseName, fieldPats, DConstructor (_dTypeName, dCaseName, dFields) ->
+          | caseName, fieldPats, DEnum (_dTypeName, dCaseName, dFields) ->
             let fieldPats =
               match fieldPats with
               | [ MPTuple (_, first, second, theRest) ] -> first :: second :: theRest
@@ -513,7 +513,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return DError(sourceID id, "&& only supports Booleans")
 
 
-    | EConstructor (id, typeName, caseName, fields) ->
+    | EEnum (id, typeName, caseName, fields) ->
       match typeName with
       | None ->
         match (caseName, fields) with
@@ -528,15 +528,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           let! dv = eval state st arg
           return Dval.resultError dv
         | name, _ ->
-          return Dval.errSStr (sourceID id) $"Invalid name for constructor {name}"
+          return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
       | Some typeName ->
-        // EConstructorTODO: handle analysis/preview
+        // EEnumTODO: handle analysis/preview
         let! fields = Ply.List.mapSequentially (eval state st) fields
 
-        // EConstructorTODO: reconsider (stole this from DList)
+        // EEnumTODO: reconsider (stole this from DList)
         match List.tryFind Dval.isFake fields with
         | Some fakeDval -> return fakeDval
-        | None -> return DConstructor(Some typeName, caseName, fields)
+        | None -> return DEnum(Some typeName, caseName, fields)
   }
 
 /// Interprets an expression and reduces to a Dark value

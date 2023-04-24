@@ -56,7 +56,7 @@ let rec dvalToSql
   | _, DOption _ // CLEANUP allow
   | _, DResult _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
-  | _, DConstructor _ // TODO: revisit
+  | _, DEnum _ // TODO: revisit
   | _, DRecord _
   | _, DTuple _ ->
     error2 "This value is not yet supported" (DvalReprDeveloper.toRepr dval)
@@ -609,7 +609,7 @@ let partiallyEvaluate
         | ETuple _
         | ERecord _
         | EDict _
-        | EConstructor _
+        | EEnum _
         | EMatch _
         | EAnd _
         | EOr _ -> return expr
@@ -691,9 +691,9 @@ let partiallyEvaluate
                   fields
 
               return EDict(id, fields)
-            | EConstructor (id, typeName, caseName, fields) ->
+            | EEnum (id, typeName, caseName, fields) ->
               let! fields = Ply.List.mapSequentially r fields
-              return EConstructor(id, typeName, caseName, fields)
+              return EEnum(id, typeName, caseName, fields)
             | EAnd (id, left, right) ->
               let! left = r left
               let! right = r right

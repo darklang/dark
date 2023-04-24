@@ -115,7 +115,7 @@ module FormatV0 =
     | DOption of Option<Dval>
     | DResult of Result<Dval, Dval>
     | DBytes of byte array
-    | DConstructor of
+    | DEnum of
       typeName : Option<FQTypeName.T> *
       caseName : string *
       fields : List<Dval>
@@ -151,12 +151,8 @@ module FormatV0 =
     | DResult (Ok dv) -> RT.DResult(Ok(toRT dv))
     | DResult (Error dv) -> RT.DResult(Error(toRT dv))
     | DBytes bytes -> RT.DBytes bytes
-    | DConstructor (typeName, caseName, fields) ->
-      RT.DConstructor(
-        Option.map FQTypeName.toRT typeName,
-        caseName,
-        List.map toRT fields
-      )
+    | DEnum (typeName, caseName, fields) ->
+      RT.DEnum(Option.map FQTypeName.toRT typeName, caseName, List.map toRT fields)
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
@@ -188,12 +184,8 @@ module FormatV0 =
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DConstructor (typeName, caseName, fields) ->
-      DConstructor(
-        Option.map FQTypeName.fromRT typeName,
-        caseName,
-        List.map fromRT fields
-      )
+    | RT.DEnum (typeName, caseName, fields) ->
+      DEnum(Option.map FQTypeName.fromRT typeName, caseName, List.map fromRT fields)
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -227,8 +219,7 @@ module Test =
     | RT.DDateTime _
     | RT.DOption None
     | RT.DPassword _ -> true
-    | RT.DConstructor (_typeName, _caseName, fields) ->
-      List.all isRoundtrippableDval fields
+    | RT.DEnum (_typeName, _caseName, fields) -> List.all isRoundtrippableDval fields
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DRecord map -> map |> Map.values |> List.all isRoundtrippableDval

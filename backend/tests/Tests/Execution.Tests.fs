@@ -394,7 +394,7 @@ let testMatchPreview : Test =
        EString(tupleRhsId, [ StringText "tuple" ]))
 
       // | Ok x -> "ok: " ++ x
-      (MPConstructor(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
+      (MPEnum(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
          PT.FQFnName.stdlibFqName [ "String" ] "append" 1
@@ -405,9 +405,9 @@ let testMatchPreview : Test =
            EVariable(okVarRhsVarId, "x") ]
        ))
 
-      // | None -> "constructor nothing"
-      (MPConstructor(pNothingId, "Nothing", []),
-       EString(nothingRhsId, [ StringText "constructor nothing" ]))
+      // | None -> "enum nothing"
+      (MPEnum(pNothingId, "Nothing", []),
+       EString(nothingRhsId, [ StringText "enum nothing" ]))
 
       // | name -> name
       // (everything should match this, except for 'fake' dvals such as errors)
@@ -513,7 +513,7 @@ let testMatchPreview : Test =
           (okVarRhsStrId, "ok var rhs str", ner (DString "ok: "))
 
           (pNothingId, "nothing pat", ner (DOption None))
-          (nothingRhsId, "nothing pat rhs", ner (DString "constructor nothing"))
+          (nothingRhsId, "nothing pat rhs", ner (DString "enum nothing"))
 
           (pVarId, "catch all pat", er (DInt 6L))
           (varRhsId, "catch all rhs", er (DInt 6L)) ]
@@ -537,7 +537,7 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (eConstructor None "Ok" [ eStr "y" ])
+        (EEnum None "Ok" [ eStr "y" ])
         [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DString "y"))))
           (pOkVarVarId, "var pat", er (DString "y"))
           (okVarRhsId, "rhs", er (DString "ok: y"))
@@ -555,13 +555,13 @@ let testMatchPreview : Test =
 
       t
         "nothing"
-        (eConstructor None "Nothing" [])
+        (EEnum None "Nothing" [])
         [ (pNothingId, "ok pat", er (DOption None))
-          (nothingRhsId, "rhs", er (DString "constructor nothing")) ]
+          (nothingRhsId, "rhs", er (DString "enum nothing")) ]
 
-      // TODO: test constructor around a literal
-      // TODO: constructor around a variable
-      // TODO: constructor around a constructor around a value
+      // TODO: test enum around a literal
+      // TODO: enum around a variable
+      // TODO: enum around a enum around a value
       ]
 
 

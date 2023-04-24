@@ -34,8 +34,8 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
   | EAnd (id, left, right) -> EAnd(id, r left, r right)
   | EOr (id, left, right) -> EOr(id, r left, r right)
-  | EConstructor (id, typeName, caseName, fields) ->
-    EConstructor(id, typeName, caseName, List.map r fields)
+  | EEnum (id, typeName, caseName, fields) ->
+    EEnum(id, typeName, caseName, List.map r fields)
   | EDict (id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
@@ -64,8 +64,8 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
       ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
     | EAnd (id, left, right) -> EAnd(id, r left, r right)
     | EOr (id, left, right) -> EOr(id, r left, r right)
-    | EConstructor (id, typeName, caseName, fields) ->
-      EConstructor(id, typeName, caseName, List.map r fields)
+    | EEnum (id, typeName, caseName, fields) ->
+      EEnum(id, typeName, caseName, List.map r fields)
     | EDict (id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
 
 

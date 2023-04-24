@@ -69,7 +69,7 @@ module RuntimeTypes =
 
   let matchPatterns : List<RT.MatchPattern> =
     [ RT.MPVariable(123UL, "test")
-      RT.MPConstructor(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
+      RT.MPEnum(1234UL, "Just", [ RT.MPVariable(746385UL, "var") ])
       RT.MPInt(756385UL, 7857395)
       RT.MPBool(8759375UL, true)
       RT.MPChar(4875843UL, "8jgkdjsfg")
@@ -127,7 +127,7 @@ module RuntimeTypes =
         [ RT.EUnit(7167384UL) ]
       )
       RT.ERecord(8167384UL, None, [ "a9df8", RT.EUnit(71631UL) ])
-      RT.EConstructor(64617UL, None, "Just", [ RT.EUnit(8173UL) ])
+      RT.EEnum(64617UL, None, "Just", [ RT.EUnit(8173UL) ])
       RT.EMatch(
         712743UL,
         RT.EInt(712373UL, 123),
@@ -135,7 +135,7 @@ module RuntimeTypes =
       )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
-      RT.EConstructor(
+      RT.EEnum(
         8375723UL,
         Some(RT.FQTypeName.User { modules = []; typ = "MyEnum"; version = 0 }),
         "A",
@@ -177,7 +177,7 @@ module ProgramTypes =
 
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
-      PT.MPConstructor(7471263UL, "Nothing", [])
+      PT.MPEnum(7471263UL, "Nothing", [])
       PT.MPInt(74816UL, 84871728)
       PT.MPBool(66453UL, false)
       PT.MPChar(83749178UL, "w")
@@ -366,25 +366,20 @@ module ProgramTypes =
                                ),
                                []
                              ))
-                            ("constructor",
-                             PT.EConstructor(
+                            ("enum",
+                             PT.EEnum(
                                567764301UL,
                                None,
                                "Ok",
-                               [ PT.EConstructor(
+                               [ PT.EEnum(
                                    646107057UL,
                                    None,
                                    "Error",
-                                   [ PT.EConstructor(
+                                   [ PT.EEnum(
                                        689802831UL,
                                        None,
                                        "Just",
-                                       [ PT.EConstructor(
-                                           957916875UL,
-                                           None,
-                                           "Nothing",
-                                           []
-                                         ) ]
+                                       [ PT.EEnum(957916875UL, None, "Nothing", []) ]
                                      ) ]
                                  ) ]
                              )) ]
@@ -403,7 +398,7 @@ module ProgramTypes =
                               [],
                               []
                             ),
-                            [ (PT.MPConstructor(
+                            [ (PT.MPEnum(
                                 1015986188UL,
                                 "Ok",
                                 [ PT.MPVariable(334386852UL, "x") ]

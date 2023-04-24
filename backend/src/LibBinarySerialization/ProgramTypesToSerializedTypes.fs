@@ -120,8 +120,8 @@ module MatchPattern =
   let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
     | PT.MPVariable (id, str) -> ST.MPVariable(id, str)
-    | PT.MPConstructor (id, caseName, fieldPats) ->
-      ST.MPConstructor(id, caseName, List.map toST fieldPats)
+    | PT.MPEnum (id, caseName, fieldPats) ->
+      ST.MPEnum(id, caseName, List.map toST fieldPats)
     | PT.MPInt (id, i) -> ST.MPInt(id, i)
     | PT.MPBool (id, b) -> ST.MPBool(id, b)
     | PT.MPChar (id, c) -> ST.MPChar(id, c)
@@ -174,8 +174,8 @@ module Expr =
       )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, toST expr2, List.map toST rest)
-    | PT.EConstructor (id, typeName, caseName, fields) ->
-      ST.EConstructor(
+    | PT.EEnum (id, typeName, caseName, fields) ->
+      ST.EEnum(
         id,
         Option.map FQTypeName.toST typeName,
         caseName,

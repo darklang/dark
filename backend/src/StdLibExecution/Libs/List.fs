@@ -52,7 +52,7 @@ module DvalComparator =
       | Ok _, Error _ -> -1
       | Error _, Ok _ -> 1
       | Error e1, Error e2 -> compareDval e1 e2
-    | DConstructor (tn1, c1, f1), DConstructor (tn2, c2, f2) ->
+    | DEnum (tn1, c1, f1), DEnum (tn2, c2, f2) ->
       let c = compare tn1 tn2
       if c = 0 then
         let c = compare c1 c2
@@ -81,7 +81,7 @@ module DvalComparator =
     | DRecord _, _
     | DOption _, _
     | DResult _, _
-    | DConstructor _, _ ->
+    | DEnum _, _ ->
       Exception.raiseCode "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
 
   and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =

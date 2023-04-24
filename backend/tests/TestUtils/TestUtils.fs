@@ -376,7 +376,7 @@ module Expect =
     | DRecord vs -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DConstructor (_typeName, _caseName, fields) ->
+    | DEnum (_typeName, _caseName, fields) ->
       // TODO: revisit - I'm not sure what to do here.
       fields |> List.all check
 
@@ -454,8 +454,7 @@ module Expect =
 
     match actual, expected with
     | MPVariable (_, name), MPVariable (_, name') -> check path name name'
-    | (MPConstructor (_, caseName, fieldPats),
-       MPConstructor (_, caseName', fieldPats')) ->
+    | (MPEnum (_, caseName, fieldPats), MPEnum (_, caseName', fieldPats')) ->
       check path caseName caseName'
       eqList (caseName :: path) fieldPats fieldPats'
     | MPString (_, str), MPString (_, str') -> check path str str'
@@ -469,7 +468,7 @@ module Expect =
     | MPList (_, pats), MPList (_, pats') -> eqList path pats pats'
     // exhaustiveness check
     | MPVariable _, _
-    | MPConstructor _, _
+    | MPEnum _, _
     | MPString _, _
     | MPInt _, _
     | MPFloat _, _
@@ -594,8 +593,7 @@ module Expect =
       eq (f :: path) e e'
       check path f f'
 
-    | EConstructor (_, typeName, caseName, fields),
-      EConstructor (_, typeName', caseName', fields') ->
+    | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check path caseName caseName'
       eqList path fields fields'
@@ -637,7 +635,7 @@ module Expect =
     | ERecord _, _
     | EDict _, _
     | EFieldAccess _, _
-    | EConstructor _, _
+    | EEnum _, _
     | ELambda _, _
     | EMatch _, _
     | EAnd _, _
@@ -727,8 +725,7 @@ module Expect =
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
 
-    | DConstructor (typeName, caseName, fields),
-      DConstructor (typeName', caseName', fields') ->
+    | DEnum (typeName, caseName, fields), DEnum (typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
 
       check ("caseName" :: path) caseName caseName'
@@ -754,7 +751,7 @@ module Expect =
     | DHttpResponse _, _
     | DDict _, _
     | DRecord _, _
-    | DConstructor _, _
+    | DEnum _, _
     | DList _, _
     | DTuple _, _
     | DResult _, _
@@ -817,7 +814,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DRecord map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DConstructor (_typeName, _caseName, fields) ->
+    | DEnum (_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->
