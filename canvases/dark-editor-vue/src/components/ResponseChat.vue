@@ -36,30 +36,10 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, defineProps } from 'vue';
 import AutoSizeTextarea from './AutoSizeTextarea.vue';
-
-const blazorScript = document.createElement("script");
-  blazorScript.setAttribute(
-    "src",
-    "http://dark-serve-blazor-assets.dlio.localhost:11003/blazor.webassembly.js",
-  );
-  blazorScript.setAttribute("autostart", "false");
-  blazorScript.addEventListener('load', async () => {
-  await Blazor.start({
-    loadBootResource: function (type, name, defaultUri, integrity) {
-  return `http://dark-serve-blazor-assets.dlio.localhost:11003/${name}`;
-        }
-      }).then(() => {
-        DotNet.invokeMethod("Wasm", "InitializeDarkRuntime");
-      });
-    });
-    document.head.appendChild(blazorScript);
-    window.handleDarkResult = function (message) {
-    console.log("handleDarkResult", message);
-};
-
+import "../global.d.ts";
 
 const props = defineProps({
   response: {
@@ -69,8 +49,7 @@ const props = defineProps({
 });
 
 const executeCode = async() =>{
-  let code = document.querySelector('.responseTextarea').value
-  console.log(code)
+  let code: string = (document.querySelector('.responseTextarea') as HTMLInputElement).value;
       try {
         const response = await fetch("/get-expr-json", {
           method: "POST",
@@ -90,7 +69,7 @@ const executeCode = async() =>{
     }
 
 const copyCode = () =>{
-  let code = document.querySelector('.responseTextarea').value
+  let code: string = (document.querySelector('.responseTextarea') as HTMLInputElement).value;
   navigator.clipboard.writeText(code).then(() => {
   console.log("Text copied to clipboard");
   }).catch((error) => {
@@ -98,8 +77,8 @@ const copyCode = () =>{
   });
 }
 
-const variables = ref([]);
-const variableValues = ref([]);
+const variables = ref<string[]>([]);
+const variableValues = ref<string[]>([]);
 
 let resp = props.response
 console.log(resp);
@@ -110,5 +89,9 @@ variables.value.push(...responseVariables);
 
 const submitForm = () => {
   console.log(variableValues.value);
+};
+// @ts-ignore
+window.handleDarkResult = function (message) {
+console.log("handleDarkResult", message);
 };
 </script>
