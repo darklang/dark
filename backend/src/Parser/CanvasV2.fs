@@ -58,9 +58,6 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
 
     let attrs = attrs |> List.collect (fun l -> l.Attributes)
 
-    let randomIds () : PT.Handler.ids =
-      { moduleID = gid (); nameID = gid (); modifierID = gid () }
-
     match attrs with
     | [] ->
       let newFn = ProgramTypes.UserFunction.fromSynBinding letBinding
@@ -69,7 +66,7 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
     | [ attr ] ->
       match attr with
       | SimpleAttribute ("HttpHandler", [ method; route ]) ->
-        let newHttpHanlder = PT.Handler.Spec.HTTP(route, method, randomIds ())
+        let newHttpHanlder = PT.Handler.Spec.HTTP(route, method)
         { m with handlers = (newHttpHanlder, expr) :: m.handlers }
 
       | SimpleAttribute ("REPL", [ name ]) ->

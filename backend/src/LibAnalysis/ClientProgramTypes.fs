@@ -381,7 +381,6 @@ type Expr =
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
-  | EFeatureFlag of id * string * Expr * Expr * Expr
 
 and StringSegment =
   | StringText of string
@@ -431,8 +430,6 @@ module Expr =
         cases |> List.map (fun (pat, expr) -> (MatchPattern.fromCT pat, fromCT expr))
       )
     | EPipeTarget (id) -> PT.EPipeTarget(id)
-    | EFeatureFlag (id, name, cond, caseA, caseB) ->
-      PT.EFeatureFlag(id, name, fromCT cond, fromCT caseA, fromCT caseB)
     | EConstructor (id, typeName, caseName, fields) ->
       PT.Expr.EConstructor(
         id,
@@ -499,8 +496,6 @@ module Expr =
         cases |> List.map (fun (pat, expr) -> (MatchPattern.toCT pat, toCT expr))
       )
     | PT.EPipeTarget (id) -> EPipeTarget(id)
-    | PT.EFeatureFlag (id, name, cond, caseA, caseB) ->
-      EFeatureFlag(id, name, toCT cond, toCT caseA, toCT caseB)
     | PT.EDict (id, fields) ->
       EDict(id, fields |> List.map (fun (key, value) -> (key, toCT value)))
 
@@ -512,32 +507,32 @@ module Expr =
 
 
 module CustomType =
-  type RecordField = { id : id; name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference }
 
   module RecordField =
     let fromCT (rf : RecordField) : PT.CustomType.RecordField =
-      { id = rf.id; name = rf.name; typ = TypeReference.fromCT rf.typ }
+      { name = rf.name; typ = TypeReference.fromCT rf.typ }
 
     let toCT (rf : PT.CustomType.RecordField) : RecordField =
-      { id = rf.id; name = rf.name; typ = TypeReference.toCT rf.typ }
+      { name = rf.name; typ = TypeReference.toCT rf.typ }
 
-  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
+  type EnumField = { typ : TypeReference; label : Option<string> }
 
   module EnumField =
     let fromCT (ef : EnumField) : PT.CustomType.EnumField =
-      { id = ef.id; typ = TypeReference.fromCT ef.typ; label = ef.label }
+      { typ = TypeReference.fromCT ef.typ; label = ef.label }
 
     let toCT (ef : PT.CustomType.EnumField) : EnumField =
-      { id = ef.id; typ = TypeReference.toCT ef.typ; label = ef.label }
+      { typ = TypeReference.toCT ef.typ; label = ef.label }
 
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+  type EnumCase = { name : string; fields : List<EnumField> }
 
   module EnumCase =
     let fromCT (ec : EnumCase) : PT.CustomType.EnumCase =
-      { id = ec.id; name = ec.name; fields = List.map EnumField.fromCT ec.fields }
+      { name = ec.name; fields = List.map EnumField.fromCT ec.fields }
 
     let toCT (ec : PT.CustomType.EnumCase) : EnumCase =
-      { id = ec.id; name = ec.name; fields = List.map EnumField.toCT ec.fields }
+      { name = ec.name; fields = List.map EnumField.toCT ec.fields }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
@@ -592,38 +587,28 @@ module Handler =
       | PT.Handler.Every12Hours -> CronInterval.Every12Hours
       | PT.Handler.EveryMinute -> CronInterval.EveryMinute
 
-  type ids = { moduleID : id; nameID : id; modifierID : id }
-
-  module ids =
-    let fromCT (ids : ids) : PT.Handler.ids =
-      { moduleID = ids.moduleID; nameID = ids.nameID; modifierID = ids.modifierID }
-
-    let toCT (ids : PT.Handler.ids) : ids =
-      { moduleID = ids.moduleID; nameID = ids.nameID; modifierID = ids.modifierID }
-
-
   type Spec =
-    | HTTP of route : string * method : string * ids : ids
-    | Worker of name : string * ids : ids
-    | Cron of name : string * interval : Option<CronInterval> * ids : ids
-    | REPL of name : string * ids : ids
+    | HTTP of route : string * method : string
+    | Worker of name : string
+    | Cron of name : string * interval : CronInterval
+    | REPL of name : string
 
   module Spec =
     let fromCT (spec : Spec) : PT.Handler.Spec =
       match spec with
-      | Spec.HTTP (route, method, i) -> PT.Handler.HTTP(route, method, ids.fromCT i)
-      | Spec.Worker (name, i) -> PT.Handler.Worker(name, ids.fromCT i)
-      | Spec.Cron (name, interval, i) ->
-        PT.Handler.Cron(name, Option.map CronInterval.fromCT interval, ids.fromCT i)
-      | Spec.REPL (name, i) -> PT.Handler.REPL(name, ids.fromCT i)
+      | Spec.HTTP (route, method) -> PT.Handler.HTTP(route, method)
+      | Spec.Worker name -> PT.Handler.Worker name
+      | Spec.Cron (name, interval) ->
+        PT.Handler.Cron(name, CronInterval.fromCT interval)
+      | Spec.REPL name -> PT.Handler.REPL name
 
     let toCT (spec : PT.Handler.Spec) : Spec =
       match spec with
-      | PT.Handler.HTTP (route, method, i) -> Spec.HTTP(route, method, ids.toCT i)
-      | PT.Handler.Worker (name, i) -> Spec.Worker(name, ids.toCT i)
-      | PT.Handler.Cron (name, interval, i) ->
-        Spec.Cron(name, Option.map CronInterval.toCT interval, ids.toCT i)
-      | PT.Handler.REPL (name, i) -> Spec.REPL(name, ids.toCT i)
+      | PT.Handler.HTTP (route, method) -> Spec.HTTP(route, method)
+      | PT.Handler.Worker name -> Spec.Worker name
+      | PT.Handler.Cron (name, interval) ->
+        Spec.Cron(name, CronInterval.toCT interval)
+      | PT.Handler.REPL name -> Spec.REPL name
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
@@ -650,8 +635,7 @@ module DB =
       typ = TypeReference.toCT db.typ }
 
 module UserType =
-  type Definition = CustomType.T
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
 
   let fromCT (ut : T) : PT.UserType.T =
     { tlid = ut.tlid

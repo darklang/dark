@@ -1103,9 +1103,8 @@
                                 "f"
                               ],
                               [
-                                "EFeatureFlag",
+                                "EIf",
                                 882488977,
-                                "test",
                                 [
                                   "EBool",
                                   349352147,
@@ -8940,9 +8939,8 @@
                                   "f"
                                 ],
                                 [
-                                  "EFeatureFlag",
+                                  "EIf",
                                   882488977,
-                                  "test",
                                   [
                                     "EBool",
                                     349352147,
@@ -9062,7 +9060,6 @@
         "definition": [
           "Record",
           {
-            "id": 698978,
             "name": "prop1",
             "typ": [
               "TTuple",
@@ -9223,17 +9220,14 @@
         "definition": [
           "Enum",
           {
-            "id": 698978,
             "name": "caseA",
             "fields": []
           },
           [
             {
-              "id": 698978,
               "name": "caseB",
               "fields": [
                 {
-                  "id": 178567123,
                   "typ": [
                     "TTuple",
                     [
@@ -10192,9 +10186,8 @@
                                   "f"
                                 ],
                                 [
-                                  "EFeatureFlag",
+                                  "EIf",
                                   882488977,
-                                  "test",
                                   [
                                     "EBool",
                                     349352147,

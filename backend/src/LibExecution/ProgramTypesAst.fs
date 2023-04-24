@@ -33,8 +33,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     EMatch(id, f mexpr, List.map (fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, typeName, fields) ->
     ERecord(id, typeName, List.map (fun (name, expr) -> (name, f expr)) fields)
-  | EFeatureFlag (id, name, cond, casea, caseb) ->
-    EFeatureFlag(id, name, f cond, f casea, f caseb)
   | EConstructor (id, typeName, caseName, fields) ->
     EConstructor(id, typeName, caseName, List.map f fields)
 

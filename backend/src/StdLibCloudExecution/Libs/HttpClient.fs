@@ -223,10 +223,9 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          // CLEANUP: remove ids
-          { id = 94787523UL; name = "statusCode"; typ = TInt },
-          [ { id = 94787524UL; name = "headers"; typ = headersType }
-            { id = 94787525UL; name = "body"; typ = TBytes } ]
+          { name = "statusCode"; typ = TInt },
+          [ { name = "headers"; typ = headersType }
+            { name = "body"; typ = TBytes } ]
         )
       description = "The response from a HTTP request"
       deprecated = NotDeprecated } ]

@@ -154,8 +154,6 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
          (fun (p1, e1) (p2, e2) -> equalsMatchPattern p1 p2 && equalsExpr e1 e2)
          cases1
          cases2
-  | EFeatureFlag (_, flag1, on1, off1), EFeatureFlag (_, flag2, on2, off2) ->
-    equalsExpr flag1 flag2 && equalsExpr on1 on2 && equalsExpr off1 off2
   | EAnd (_, lhs1, rhs1), EAnd (_, lhs2, rhs2) ->
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
   | EOr (_, lhs1, rhs1), EOr (_, lhs2, rhs2) ->
@@ -185,7 +183,6 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | ERecord _, _
   | EConstructor _, _
   | EMatch _, _
-  | EFeatureFlag _, _
   | EAnd _, _
   | EOr _, _
   | EDict _, _

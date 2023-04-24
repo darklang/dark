@@ -189,8 +189,6 @@ module Expr =
         List.map (Tuple2.mapFirst MatchPattern.toPT << Tuple2.mapSecond toPT) pairs
       )
     | ST.EPipeTarget id -> PT.EPipeTarget id
-    | ST.EFeatureFlag (id, name, cond, caseA, caseB) ->
-      PT.EFeatureFlag(id, name, toPT cond, toPT caseA, toPT caseB)
     | ST.EInfix (id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict (id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
@@ -204,15 +202,15 @@ module Expr =
 module CustomType =
   module EnumField =
     let toPT (f : ST.CustomType.EnumField) : PT.CustomType.EnumField =
-      { id = f.id; typ = TypeReference.toPT f.typ; label = f.label }
+      { typ = TypeReference.toPT f.typ; label = f.label }
 
   module EnumCase =
     let toPT (c : ST.CustomType.EnumCase) : PT.CustomType.EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.toPT c.fields }
+      { name = c.name; fields = List.map EnumField.toPT c.fields }
 
   module RecordField =
     let toPT (f : ST.CustomType.RecordField) : PT.CustomType.RecordField =
-      { id = f.id; name = f.name; typ = TypeReference.toPT f.typ }
+      { name = f.name; typ = TypeReference.toPT f.typ }
 
   let toPT (d : ST.CustomType.T) : PT.CustomType.T =
     match d with
@@ -229,9 +227,6 @@ module CustomType =
 
 
 module Handler =
-  module IDs =
-    let toPT (ids : ST.Handler.ids) : PT.Handler.ids =
-      { moduleID = ids.moduleID; nameID = ids.nameID; modifierID = ids.modifierID }
 
   module CronInterval =
     let toPT (ci : ST.Handler.CronInterval) : PT.Handler.CronInterval =
@@ -246,12 +241,11 @@ module Handler =
   module Spec =
     let toPT (s : ST.Handler.Spec) : PT.Handler.Spec =
       match s with
-      | ST.Handler.HTTP (route, method, ids) ->
-        PT.Handler.HTTP(route, method, IDs.toPT ids)
-      | ST.Handler.Worker (name, ids) -> PT.Handler.Worker(name, IDs.toPT ids)
-      | ST.Handler.Cron (name, interval, ids) ->
-        PT.Handler.Cron(name, interval |> Option.map CronInterval.toPT, IDs.toPT ids)
-      | ST.Handler.REPL (name, ids) -> PT.Handler.REPL(name, IDs.toPT ids)
+      | ST.Handler.HTTP (route, method) -> PT.Handler.HTTP(route, method)
+      | ST.Handler.Worker name -> PT.Handler.Worker name
+      | ST.Handler.Cron (name, interval) ->
+        PT.Handler.Cron(name, CronInterval.toPT interval)
+      | ST.Handler.REPL name -> PT.Handler.REPL name
 
   let toPT (h : ST.Handler.T) : PT.Handler.T =
     { tlid = h.tlid; ast = Expr.toPT h.ast; spec = Spec.toPT h.spec }

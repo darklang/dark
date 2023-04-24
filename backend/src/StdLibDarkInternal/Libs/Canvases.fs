@@ -24,15 +24,15 @@ let fn (name : string) (version : int) : FQFnName.StdlibFnName =
 let types : List<BuiltInType> =
   [ { name = typ "Meta" 0
       typeParams = []
-      definition = CustomType.Record({ id = 1UL; name = "id"; typ = TUuid }, [])
+      definition = CustomType.Record({ name = "id"; typ = TUuid }, [])
       description = "Metadata about a canvas"
       deprecated = NotDeprecated }
     { name = typ "DB" 0
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 2UL; name = "name"; typ = TString },
-          [ { id = 3UL; name = "tlid"; typ = TString } ]
+          { name = "name"; typ = TString },
+          [ { name = "tlid"; typ = TString } ]
         )
       deprecated = NotDeprecated
       description = "A database on a canvas" }
@@ -40,9 +40,8 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 2UL; name = "method"; typ = TString },
-          [ { id = 3UL; name = "route"; typ = TString }
-            { id = 4UL; name = "tlid"; typ = TString } ]
+          { name = "method"; typ = TString },
+          [ { name = "route"; typ = TString }; { name = "tlid"; typ = TString } ]
         )
       deprecated = NotDeprecated
       description = "An HTTP handler on a canvas" }
@@ -50,12 +49,10 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 1UL; name = "id"; typ = TUuid },
-          [ { id = 2UL
-              name = "dbs"
+          { name = "id"; typ = TUuid },
+          [ { name = "dbs"
               typ = TList(TCustomType(FQTypeName.Stdlib(typ "DB" 0), [])) }
-            { id = 3UL
-              name = "httpHandlers"
+            { name = "httpHandlers"
               typ = TList(TCustomType(FQTypeName.Stdlib(typ "HttpHandler" 0), [])) } ]
         )
       deprecated = NotDeprecated
@@ -219,7 +216,7 @@ let fns : List<BuiltInFn> =
                 | PT.Handler.Worker _
                 | PT.Handler.Cron _
                 | PT.Handler.REPL _ -> None
-                | PT.Handler.HTTP (route, method, _ids) ->
+                | PT.Handler.HTTP (route, method) ->
                   [ "tlid", DString(handler.tlid.ToString())
                     "method", DString method
                     "route", DString route ]

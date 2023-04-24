@@ -281,32 +281,32 @@ module MatchPattern =
 
 module CustomType =
   // TYPESCLEANUP support type parameters
-  type RecordField = { id : id; name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference }
 
   module RecordField =
     let fromCT (f : RecordField) : RT.CustomType.RecordField =
-      { id = f.id; name = f.name; typ = TypeReference.fromCT f.typ }
+      { name = f.name; typ = TypeReference.fromCT f.typ }
 
     let toCT (f : RT.CustomType.RecordField) : RecordField =
-      { id = f.id; name = f.name; typ = TypeReference.toCT f.typ }
+      { name = f.name; typ = TypeReference.toCT f.typ }
 
-  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
+  type EnumField = { typ : TypeReference; label : Option<string> }
 
   module EnumField =
     let fromCT (f : EnumField) : RT.CustomType.EnumField =
-      { id = f.id; typ = TypeReference.fromCT f.typ; label = f.label }
+      { typ = TypeReference.fromCT f.typ; label = f.label }
 
     let toCT (f : RT.CustomType.EnumField) : EnumField =
-      { id = f.id; typ = TypeReference.toCT f.typ; label = f.label }
+      { typ = TypeReference.toCT f.typ; label = f.label }
 
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+  type EnumCase = { name : string; fields : List<EnumField> }
 
   module EnumCase =
     let fromCT (c : EnumCase) : RT.CustomType.EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.fromCT c.fields }
+      { name = c.name; fields = List.map EnumField.fromCT c.fields }
 
     let toCT (c : RT.CustomType.EnumCase) : EnumCase =
-      { id = c.id; name = c.name; fields = List.map EnumField.toCT c.fields }
+      { name = c.name; fields = List.map EnumField.toCT c.fields }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
@@ -358,7 +358,6 @@ module Expr =
       caseName : string *
       fields : List<T>
     | EMatch of id * T * List<MatchPattern * T>
-    | EFeatureFlag of id * T * T * T
     | EAnd of id * T * T
     | EOr of id * T * T
 
@@ -416,8 +415,6 @@ module Expr =
         r mexpr,
         List.map (Tuple2.mapFirst MatchPattern.fromCT << Tuple2.mapSecond r) pairs
       )
-    | EFeatureFlag (id, cond, caseA, caseB) ->
-      RT.EFeatureFlag(id, r cond, r caseA, r caseB)
     | EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
     | EOr (id, left, right) -> RT.EOr(id, r left, r right)
     | EDict (id, pairs) -> RT.EDict(id, List.map (Tuple2.mapSecond r) pairs)
@@ -479,8 +476,6 @@ module Expr =
         r mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toCT << Tuple2.mapSecond r) pairs
       )
-    | RT.EFeatureFlag (id, cond, caseA, caseB) ->
-      EFeatureFlag(id, r cond, r caseA, r caseB)
     | RT.EAnd (id, left, right) -> EAnd(id, r left, r right)
     | RT.EOr (id, left, right) -> EOr(id, r left, r right)
     | RT.EDict (id, pairs) -> EDict(id, List.map (Tuple2.mapSecond r) pairs)
@@ -664,7 +659,7 @@ module Handler =
   type Spec =
     | HTTP of path : string * method : string
     | Worker of name : string
-    | Cron of name : string * interval : Option<CronInterval>
+    | Cron of name : string * interval : CronInterval
     | REPL of name : string
 
   module Spec =
@@ -672,16 +667,14 @@ module Handler =
       match spec with
       | HTTP (path, method) -> RT.Handler.HTTP(path, method)
       | Worker name -> RT.Handler.Worker name
-      | Cron (name, interval) ->
-        RT.Handler.Cron(name, Option.map CronInterval.fromCT interval)
+      | Cron (name, interval) -> RT.Handler.Cron(name, CronInterval.fromCT interval)
       | REPL name -> RT.Handler.REPL name
 
     let toCT (spec : RT.Handler.Spec) : Spec =
       match spec with
       | RT.Handler.HTTP (path, method) -> HTTP(path, method)
       | RT.Handler.Worker name -> Worker name
-      | RT.Handler.Cron (name, interval) ->
-        Cron(name, Option.map CronInterval.toCT interval)
+      | RT.Handler.Cron (name, interval) -> Cron(name, CronInterval.toCT interval)
       | RT.Handler.REPL name -> REPL name
 
   type T = { tlid : tlid; ast : Expr.T; spec : Spec }

@@ -25,10 +25,10 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 1UL; name = "disk"; typ = TFloat },
-          [ { id = 2UL; name = "rows"; typ = TFloat }
-            { id = 3UL; name = "diskHuman"; typ = TString }
-            { id = 4UL; name = "rowsHuman"; typ = TString } ]
+          { name = "disk"; typ = TFloat },
+          [ { name = "rows"; typ = TFloat }
+            { name = "diskHuman"; typ = TString }
+            { name = "rowsHuman"; typ = TString } ]
         )
       deprecated = NotDeprecated
       description = "Size info for Postgres tables" } ]

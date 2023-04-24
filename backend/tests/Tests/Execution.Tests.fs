@@ -315,58 +315,6 @@ let testAndPreview : Test =
         AT.ExecutedResult(DError(SourceID(7UL, andID), "&& only supports Booleans")))) ]
 
 
-
-let testFeatureFlagPreview : Test =
-  let f cond =
-    task {
-      let ffID = gid ()
-      let oldID = gid ()
-      let newID = gid ()
-      let ast =
-        EFeatureFlag(
-          ffID,
-          cond,
-          EString(oldID, [ StringText "old" ]),
-          EString(newID, [ StringText "new" ])
-        )
-      let! results = execSaveDvals "ff-preview" [] [] [] ast
-
-      return
-        (Dictionary.get ffID results
-         |> Exception.unwrapOptionInternal "missing ffID" [ "ffid", ffID ],
-         Dictionary.get oldID results
-         |> Exception.unwrapOptionInternal "missing oldID" [ "oldID", oldID ],
-         Dictionary.get newID results
-         |> Exception.unwrapOptionInternal "missing newID" [ "newID", newID ])
-    }
-
-  // see notes in above `testIfPreview` regarding how these tests work
-
-  testManyTask
-    "feature flag expression previews correctly"
-    f
-    [ (eBool true,
-       (AT.ExecutedResult(DString "new"),
-        AT.NonExecutedResult(DString "old"),
-        AT.ExecutedResult(DString "new")))
-      // everything else should be old
-      (eBool false,
-       (AT.ExecutedResult(DString "old"),
-        AT.ExecutedResult(DString "old"),
-        AT.NonExecutedResult(DString "new")))
-      (eInt 5,
-       (AT.ExecutedResult(DString "old"),
-        AT.ExecutedResult(DString "old"),
-        AT.NonExecutedResult(DString "new")))
-      (eStr "test",
-       (AT.ExecutedResult(DString "old"),
-        AT.ExecutedResult(DString "old"),
-        AT.NonExecutedResult(DString "new")))
-      (eUnit (),
-       (AT.ExecutedResult(DString "old"),
-        AT.ExecutedResult(DString "old"),
-        AT.NonExecutedResult(DString "new"))) ]
-
 let testLambdaPreview : Test =
   let lID = gid ()
   let p1ID = gid ()
@@ -780,7 +728,6 @@ let tests =
       testOrPreview
       testAndPreview
       testLambdaPreview
-      testFeatureFlagPreview
       testMatchPreview
       testExecFunctionTLIDs
       testLetPreview ]

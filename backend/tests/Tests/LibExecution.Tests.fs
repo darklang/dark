@@ -38,11 +38,7 @@ let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
         PT.SetHandler(
           { tlid = tlid
             ast = PT.Expr.EUnit(gid ())
-            spec =
-              PT.Handler.Worker(
-                worker,
-                { moduleID = gid (); nameID = gid (); modifierID = gid () }
-              ) }
+            spec = PT.Handler.Worker(worker) }
         ))
 
     let c = Canvas.empty canvasID |> Canvas.addOps ops []

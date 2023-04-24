@@ -44,11 +44,11 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { id = 1UL; name = "id"; typ = TInt },
-          [ { id = 2UL; name = "ruleType"; typ = TString }
-            { id = 3UL; name = "canvasID"; typ = TUuid }
-            { id = 4UL; name = "handlerName"; typ = TString }
-            { id = 5UL; name = "createdAt"; typ = TDateTime } ]
+          { name = "id"; typ = TInt },
+          [ { name = "ruleType"; typ = TString }
+            { name = "canvasID"; typ = TUuid }
+            { name = "handlerName"; typ = TString }
+            { name = "createdAt"; typ = TDateTime } ]
         )
       deprecated = NotDeprecated
       description = "A scheduling rule for a worker" } ]

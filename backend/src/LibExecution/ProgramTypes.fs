@@ -314,15 +314,6 @@ type Expr =
   // some point
   | EPipeTarget of id
 
-  /// Like an if statement, but with a label
-  /// TODO: continue describing
-  | EFeatureFlag of
-    id *
-    flagName : string *
-    cond : Expr *
-    caseA : Expr *
-    caseB : Expr
-
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
@@ -331,10 +322,10 @@ and StringSegment =
 
 /// A type defined by a standard library module, a canvas/user, or a package
 module CustomType =
-  type RecordField = { id : id; name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference }
 
-  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+  type EnumField = { typ : TypeReference; label : Option<string> }
+  type EnumCase = { name : string; fields : List<EnumField> }
 
   type T =
     // TODO: //| Abbreviation/Alias of TypeReference
@@ -354,14 +345,11 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
-  // We need to keep the IDs around until we get rid of them on the client
-  type ids = { moduleID : id; nameID : id; modifierID : id }
-
   type Spec =
-    | HTTP of route : string * method : string * ids : ids
-    | Worker of name : string * ids : ids
-    | Cron of name : string * interval : Option<CronInterval> * ids : ids
-    | REPL of name : string * ids : ids
+    | HTTP of route : string * method : string
+    | Worker of name : string
+    | Cron of name : string * interval : CronInterval
+    | REPL of name : string
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
@@ -370,9 +358,7 @@ module DB =
   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
 module UserType =
-  // TODO: consider flattening this (just type UserType = { ... }, without the module level)
-  type Definition = CustomType.T
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : Definition }
+  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
 
 module UserFunction =
   type Parameter =

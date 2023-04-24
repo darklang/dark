@@ -302,7 +302,6 @@ type Expr =
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
-  | EFeatureFlag of id * Expr * Expr * Expr
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
@@ -465,10 +464,10 @@ and Param =
 
 module CustomType =
   // TYPESCLEANUP support type parameters
-  type RecordField = { id : id; name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference }
 
-  type EnumField = { id : id; typ : TypeReference; label : Option<string> }
-  type EnumCase = { id : id; name : string; fields : List<EnumField> }
+  type EnumField = { typ : TypeReference; label : Option<string> }
+  type EnumCase = { name : string; fields : List<EnumField> }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
@@ -495,7 +494,6 @@ module Expr =
     | ERecord (id, _, _)
     | EDict (id, _)
     | EConstructor (id, _, _, _)
-    | EFeatureFlag (id, _, _, _)
     | EMatch (id, _, _)
     | EAnd (id, _, _)
     | EOr (id, _, _) -> id
@@ -745,7 +743,7 @@ module Handler =
   type Spec =
     | HTTP of path : string * method : string
     | Worker of name : string
-    | Cron of name : string * interval : Option<CronInterval>
+    | Cron of name : string * interval : CronInterval
     | REPL of name : string
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }

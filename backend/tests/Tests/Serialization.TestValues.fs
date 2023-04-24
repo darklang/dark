@@ -133,12 +133,6 @@ module RuntimeTypes =
         RT.EInt(712373UL, 123),
         [ RT.MPVariable(12738UL, "i"), RT.EVariable(1482374UL, "i") ]
       )
-      RT.EFeatureFlag(
-        1823UL,
-        RT.EBool(81273UL, false),
-        RT.EString(1283UL, [ RT.StringText "true" ]),
-        RT.EString(18329472UL, [ RT.StringText "false" ])
-      )
       RT.EAnd(9375723UL, RT.EBool(83645924UL, true), RT.EBool(385812673UL, false))
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EConstructor(
@@ -454,9 +448,8 @@ module ProgramTypes =
                           PT.ELet(
                             927055617UL,
                             PT.LPVariable(1782674UL, "f"),
-                            PT.EFeatureFlag(
+                            PT.EIf(
                               882488977UL,
-                              "test",
                               PT.EBool(349352147UL, true),
                               PT.EInt(578528886UL, 5L),
                               PT.EInt(562930224UL, 6L)
@@ -541,25 +534,16 @@ module ProgramTypes =
         PT.Handler.EveryHour
         PT.Handler.EveryMinute ]
 
-    let ids : PT.Handler.ids =
-      { moduleID = 129952UL; nameID = 33052UL; modifierID = 10038562UL }
-
     module Spec =
-      let http = PT.Handler.HTTP("/path-bytes", "GET", ids)
-      let worker = PT.Handler.Worker("name", ids)
-      let cronWithoutInterval = PT.Handler.Cron("name", None, ids)
+      let http = PT.Handler.HTTP("/path-bytes", "GET")
+      let worker = PT.Handler.Worker("name")
 
-      let cronWithInterval =
-        PT.Handler.Cron("name", Some PT.Handler.Every12Hours, ids)
+      let cron = PT.Handler.Cron("name", PT.Handler.Every12Hours)
 
-      let repl = PT.Handler.REPL("name", ids)
+      let repl = PT.Handler.REPL("name")
 
     let specs : List<PT.Handler.Spec> =
-      [ Spec.http
-        Spec.worker
-        Spec.cronWithoutInterval
-        Spec.cronWithInterval
-        Spec.repl ]
+      [ Spec.http; Spec.worker; Spec.cron; Spec.repl ]
 
     let http : PT.Handler.T = { spec = Spec.http; tlid = 42280663UL; ast = expr }
 
@@ -567,18 +551,10 @@ module ProgramTypes =
 
     let repl : PT.Handler.T = { spec = Spec.repl; tlid = 10395769302UL; ast = expr }
 
-    let cronWithoutInterval : PT.Handler.T =
-      { spec = Spec.cronWithoutInterval; tlid = 294906673UL; ast = expr }
-
-    let cronWithInterval : PT.Handler.T =
-      { spec = Spec.cronWithInterval; tlid = 199385766UL; ast = expr }
+    let cron : PT.Handler.T = { spec = Spec.cron; tlid = 199385766UL; ast = expr }
 
     let handlersWithName : List<string * PT.Handler.T> =
-      [ "Worker", worker
-        "Cron1", cronWithoutInterval
-        "Cron2", cronWithInterval
-        "REPL", repl
-        "Http", http ]
+      [ "Worker", worker; "Cron", cron; "REPL", repl; "Http", http ]
 
     let handlers = List.map snd handlersWithName
 
@@ -609,8 +585,7 @@ module ProgramTypes =
     { tlid = 0UL
       name = { modules = []; typ = "User"; version = 0 }
       definition =
-        let firstField : PT.CustomType.RecordField =
-          { id = 0698978UL; name = "prop1"; typ = dtype }
+        let firstField : PT.CustomType.RecordField = { name = "prop1"; typ = dtype }
         PT.CustomType.Record(firstField, []) }
 
   let userEnumType : PT.UserType.T =
@@ -618,10 +593,8 @@ module ProgramTypes =
       name = { modules = []; typ = "User"; version = 0 }
       definition =
         PT.CustomType.Enum(
-          { id = 0698978UL; name = "caseA"; fields = [] },
-          [ { id = 0698978UL
-              name = "caseB"
-              fields = [ { id = 178567123UL; typ = dtype; label = Some "i" } ] } ]
+          { name = "caseA"; fields = [] },
+          [ { name = "caseB"; fields = [ { typ = dtype; label = Some "i" } ] } ]
         ) }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]

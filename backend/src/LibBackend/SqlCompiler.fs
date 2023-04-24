@@ -611,7 +611,6 @@ let partiallyEvaluate
         | EDict _
         | EConstructor _
         | EMatch _
-        | EFeatureFlag _
         | EAnd _
         | EOr _ -> return expr
       }
@@ -695,11 +694,6 @@ let partiallyEvaluate
             | EConstructor (id, typeName, caseName, fields) ->
               let! fields = Ply.List.mapSequentially r fields
               return EConstructor(id, typeName, caseName, fields)
-            | EFeatureFlag (id, cond, casea, caseb) ->
-              let! cond = r cond
-              let! casea = r casea
-              let! caseb = r caseb
-              return EFeatureFlag(id, cond, casea, caseb)
             | EAnd (id, left, right) ->
               let! left = r left
               let! right = r right

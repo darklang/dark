@@ -63,26 +63,20 @@ let testHttpRouteHandler
   (method : string)
   (ast : PT.Expr)
   : PT.Handler.T =
-  let ids : PT.Handler.ids =
-    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
 
 let testCron
   (name : string)
   (interval : PT.Handler.CronInterval)
   (ast : PT.Expr)
   : PT.Handler.T =
-  let ids : PT.Handler.ids =
-    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, Some interval, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-  let ids : PT.Handler.ids =
-    { moduleID = gid (); nameID = gid (); modifierID = gid () }
 
-  { tlid = gid (); ast = ast; spec = PT.Handler.Worker(name, ids) }
+  { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testUserFn
   (name : string)
@@ -109,8 +103,7 @@ let testUserRecordType
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
-  let mapField (name, typ) : PT.CustomType.RecordField =
-    { id = gid (); name = name; typ = typ }
+  let mapField (name, typ) : PT.CustomType.RecordField = { name = name; typ = typ }
 
   { tlid = gid ()
     name = name
@@ -601,11 +594,6 @@ module Expect =
       eq (f :: path) e e'
       check path f f'
 
-    | EFeatureFlag (_, cond, old, knew), EFeatureFlag (_, cond', old', knew') ->
-      eq ("flagCond" :: path) cond cond'
-      eq ("flagOld" :: path) old old'
-      eq ("flagNew" :: path) knew knew'
-
     | EConstructor (_, typeName, caseName, fields),
       EConstructor (_, typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
@@ -649,7 +637,6 @@ module Expect =
     | ERecord _, _
     | EDict _, _
     | EFieldAccess _, _
-    | EFeatureFlag _, _
     | EConstructor _, _
     | ELambda _, _
     | EMatch _, _

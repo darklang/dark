@@ -794,9 +794,8 @@
                                 "f"
                               ],
                               [
-                                "EFeatureFlag",
+                                "EIf",
                                 882488977,
-                                "test",
                                 [
                                   "EBool",
                                   349352147,
@@ -906,12 +905,7 @@
       "spec": [
         "HTTP",
         "/path-bytes",
-        "GET",
-        {
-          "moduleID": 129952,
-          "nameID": 33052,
-          "modifierID": 10038562
-        }
+        "GET"
       ]
     }
   ],
@@ -2029,9 +2023,8 @@
                                 "f"
                               ],
                               [
-                                "EFeatureFlag",
+                                "EIf",
                                 882488977,
-                                "test",
                                 [
                                   "EBool",
                                   349352147,
@@ -2943,9 +2936,8 @@
                               "f"
                             ],
                             [
-                              "EFeatureFlag",
+                              "EIf",
                               882488977,
-                              "test",
                               [
                                 "EBool",
                                 349352147,
@@ -3078,7 +3070,6 @@
       "definition": [
         "Record",
         {
-          "id": 698978,
           "name": "prop1",
           "typ": [
             "TTuple",
