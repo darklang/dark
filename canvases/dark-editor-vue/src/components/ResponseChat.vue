@@ -20,7 +20,7 @@
       </div>
 
       <div class="ml-3 w-full p-5 border-l border-[#333333]">
-        <AutoSizeTextarea :value="response"></AutoSizeTextarea>
+        <AutoSizeTextarea :value="response" class="responseTextarea"></AutoSizeTextarea>
       </div>
       </div>
     </div>
@@ -31,14 +31,35 @@
       </div>
       <button type="submit" class="bg-[#C56AE4] text-white m-2 px-2 py-1 rounded">Submit</button>
     </form>
-  </div>
-  <div>
+   </div>
+   <div>
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, defineProps } from 'vue';
 import AutoSizeTextarea from './AutoSizeTextarea.vue';
+
+const blazorScript = document.createElement("script");
+  blazorScript.setAttribute(
+    "src",
+    "http://dark-serve-blazor-assets.dlio.localhost:11003/blazor.webassembly.js",
+  );
+  blazorScript.setAttribute("autostart", "false");
+  blazorScript.addEventListener('load', async () => {
+  await Blazor.start({
+    loadBootResource: function (type, name, defaultUri, integrity) {
+  return `http://dark-serve-blazor-assets.dlio.localhost:11003/${name}`;
+        }
+      }).then(() => {
+        DotNet.invokeMethod("Wasm", "InitializeDarkRuntime");
+      });
+    });
+    document.head.appendChild(blazorScript);
+    window.handleDarkResult = function (message) {
+    console.log("handleDarkResult", message);
+};
+
 
 const props = defineProps({
   response: {
@@ -48,39 +69,37 @@ const props = defineProps({
 });
 
 const executeCode = async() =>{
-  console.log("not actually using user code because it's probably invalid");
-  let userCode = `HttpClient.request "GET" "https://example.com" [] Bytes.empty`;
-  try {
-    const response = await fetch("/execute-code", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        userCode: userCode,
-        userInput: {},
-       })
-    });
-
-    if (response.ok) {
-      const evalResponse = await response.text();
-       console.log(evalResponse);
+  let code = document.querySelector('.responseTextarea').value
+  console.log(code)
+      try {
+        const response = await fetch("/get-expr-json", {
+          method: "POST",
+          body: code,
+        });
+        if (!response.ok) {
+          throw new Error(
+            "Error in parsing the expr and serializing it as JSON"
+          );
+        }
+        const exprJson = await response.text();
+        DotNet.invokeMethod("Wasm", "LoadExpr", exprJson);
+        DotNet.invokeMethod("Wasm", "EvalExpr");
+      } catch (error) {
+        console.error("Error:", error);
+      }
     }
-  } catch (error) {
-    console.error(error);  }
-}
 
 const copyCode = () =>{
-  navigator.clipboard.writeText(props.response).then(() => {
+  let code = document.querySelector('.responseTextarea').value
+  navigator.clipboard.writeText(code).then(() => {
   console.log("Text copied to clipboard");
   }).catch((error) => {
     console.error('Error copying text to clipboard:', error);
   });
 }
 
-
-const variables = ref<string[]>([]);
-const variableValues = ref<string[]>([]);
+const variables = ref([]);
+const variableValues = ref([]);
 
 let resp = props.response
 console.log(resp);
