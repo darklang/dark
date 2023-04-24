@@ -177,6 +177,13 @@ module Expr =
     | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
     | _ -> Exception.raiseInternal "Bad format in type name" [ "typeName", typeName ]
 
+  let parseNames (e : SynExpr) : List<string> =
+    match e with
+    | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) ->
+      names |> List.map (fun i -> i.idText)
+    | SynExpr.Ident name -> [ name.idText ]
+    | _ -> Exception.raiseInternal "Bad format in names" [ "e", e ]
+
 
   let private ops =
     Map.ofList [ ("op_Addition", PT.ArithmeticPlus)
@@ -193,8 +200,8 @@ module Expr =
                  ("op_BangEquals", PT.ComparisonNotEquals)
                  ("op_PlusPlus", PT.StringConcat) ]
 
-  let rec fromSynExpr (ast : SynExpr) : PT.Expr =
-    let c = fromSynExpr
+  let rec fromSynExpr' (ast : SynExpr) : PT.Expr =
+    let c = fromSynExpr'
 
     let convertLambdaVar (var : SynSimplePat) : string =
       match var with
@@ -386,7 +393,10 @@ module Expr =
 
 
       let name, version =
-        parseFn name.idText |> Exception.unwrapOptionInternal "invalid fn name" []
+        parseFn name.idText
+        |> Exception.unwrapOptionInternal
+             "invalid fn name"
+             [ "name", name.idText; "ast", ast ]
       PT.EFnCall(gid (), PT.FQFnName.userFqName [] name version, typeArgs, [])
 
     | SynExpr.TypeApp (SynExpr.LongIdent (_,
@@ -559,12 +569,12 @@ module Expr =
       // the very bottom on the pipe chain, this is just the first expression
       PT.EPipe(id, c expr, placeholder, [])
 
-    // Records
-    | SynExpr.App (_,
-                   _,
-                   SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _),
-                   SynExpr.Record (_, _, fields, _),
-                   _) when List.all (fun n -> String.isCapitalized (string n)) names ->
+
+    // Records: MyRecord { x = 5 } or Dict { x = 5 }
+    | SynExpr.App (_, _, name, SynExpr.Record (_, _, fields, _), _) when
+      List.all (fun n -> String.isCapitalized n) (parseNames name)
+      ->
+      let typeName = parseNames name
       let fields =
         fields
         |> List.map (fun field ->
@@ -574,24 +584,9 @@ module Expr =
           | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
       // TYPESCLEANUP: use typename
-      PT.ERecord(id, None, fields)
-
-    // More records: MyRecord { x = 5 } or Dict { x = 5 }
-    | SynExpr.App (_, _, SynExpr.Ident name, SynExpr.Record (_, _, fields, _), _) when
-      String.isCapitalized (string name)
-      ->
-      let fields =
-        fields
-        |> List.map (fun field ->
-          match field with
-          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
-            (nameOrBlank name.idText, c expr)
-          | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
-
-      if string name = "Dict" then
+      if typeName = [ "Dict" ] then
         PT.EDict(id, fields)
       else
-        // TYPESCLEANUP: use typename
         PT.ERecord(id, None, fields)
 
 
@@ -609,8 +604,12 @@ module Expr =
       | PT.EPipe (id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
       | PT.EVariable (id, name) ->
+        // TODO: this could be an Enum too
         let (name, version) =
-          parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
+          parseFn name
+          |> Exception.unwrapOptionInternal
+               "invalid fn name"
+               [ "name", name; "ast", ast ]
         if Set.contains name PT.FQFnName.oneWordFunctions then
           PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [ c arg ])
         else
@@ -639,6 +638,12 @@ module Expr =
       Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
     | expr ->
       Exception.raiseInternal "Unsupported expression" [ "ast", ast; "expr", expr ]
+
+  let fromSynExpr (ast : SynExpr) : PT.Expr =
+    try
+      fromSynExpr' ast
+    with
+    | e -> Exception.raiseInternal "Error converting from SynExpr" [ "ast", ast ] e
 
   // Second pass of parsing, fixing the thing it's impossible to get right on the
   // first pass, such as function names. Parse the whole program once, and then run
@@ -748,7 +753,10 @@ module UserFunction =
       let (name, typeParams, parameters) = parseSignature pat
       let returnType = parseReturnInfo returnInfo
       let (name, version) =
-        Expr.parseFn name |> Exception.unwrapOptionInternal "invalid fn name" []
+        Expr.parseFn name
+        |> Exception.unwrapOptionInternal
+             "invalid fn name"
+             [ "name", name; "binding", binding ]
       { tlid = gid ()
         name = PT.FQFnName.userFnName [] name version
         typeParams = typeParams
