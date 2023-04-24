@@ -169,7 +169,7 @@ let rec serialize
 
 
 
-  | TCustomType (tTypeName, _typeArgs), DConstructor (dTypeName, caseName, fields) ->
+  | TCustomType (tTypeName, _typeArgs), DEnum (dTypeName, caseName, fields) ->
     // TODO: ensure that the type names are the same
     // TODO: _something_ with the type args
     //   (or maybe we just need to revisit once TypeDefinition is present)
@@ -404,7 +404,7 @@ let parse
           let mapped =
             List.zip matchingCase.fields j
             |> List.map (fun (typ, j) -> convert typ.typ j)
-          DConstructor(Some typeName, caseName, mapped)
+          DEnum(Some typeName, caseName, mapped)
 
         | _ -> Exception.raiseInternal "TODO" []
 

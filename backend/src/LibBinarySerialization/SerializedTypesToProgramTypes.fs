@@ -126,8 +126,8 @@ module MatchPattern =
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
     match p with
     | ST.MPVariable (id, str) -> PT.MPVariable(id, str)
-    | ST.MPConstructor (id, caseName, fieldPats) ->
-      PT.MPConstructor(id, caseName, List.map toPT fieldPats)
+    | ST.MPEnum (id, caseName, fieldPats) ->
+      PT.MPEnum(id, caseName, List.map toPT fieldPats)
     | ST.MPInt (id, i) -> PT.MPInt(id, i)
     | ST.MPBool (id, b) -> PT.MPBool(id, b)
     | ST.MPChar (id, c) -> PT.MPChar(id, c)
@@ -175,8 +175,8 @@ module Expr =
       )
     | ST.EPipe (pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, toPT expr2, List.map toPT rest)
-    | ST.EConstructor (id, typeName, caseName, exprs) ->
-      PT.EConstructor(
+    | ST.EEnum (id, typeName, caseName, exprs) ->
+      PT.EEnum(
         id,
         Option.map FQTypeName.toPT typeName,
         caseName,

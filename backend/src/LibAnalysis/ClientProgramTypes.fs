@@ -281,7 +281,7 @@ module LetPattern =
 
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
+  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInt of id * int64
   | MPBool of id * bool
   | MPChar of id * string
@@ -295,8 +295,8 @@ module MatchPattern =
   let rec fromCT (pat : MatchPattern) : PT.MatchPattern =
     match pat with
     | MPVariable (id, str) -> PT.MPVariable(id, str)
-    | MPConstructor (id, caseName, fieldPats) ->
-      PT.MPConstructor(id, caseName, List.map fromCT fieldPats)
+    | MPEnum (id, caseName, fieldPats) ->
+      PT.MPEnum(id, caseName, List.map fromCT fieldPats)
     | MPInt (id, i) -> PT.MPInt(id, i)
     | MPBool (id, b) -> PT.MPBool(id, b)
     | MPChar (id, str) -> PT.MPChar(id, str)
@@ -310,8 +310,8 @@ module MatchPattern =
   let rec toCT (pat : PT.MatchPattern) : MatchPattern =
     match pat with
     | PT.MPVariable (id, str) -> MPVariable(id, str)
-    | PT.MPConstructor (id, caseName, fieldPats) ->
-      MPConstructor(id, caseName, List.map toCT fieldPats)
+    | PT.MPEnum (id, caseName, fieldPats) ->
+      MPEnum(id, caseName, List.map toCT fieldPats)
     | PT.MPInt (id, i) -> MPInt(id, i)
     | PT.MPBool (id, b) -> MPBool(id, b)
     | PT.MPChar (id, str) -> MPChar(id, str)
@@ -374,7 +374,7 @@ type Expr =
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
   | EDict of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EConstructor of
+  | EEnum of
     id *
     typeName : Option<FQTypeName.T> *
     caseName : string *
@@ -430,8 +430,8 @@ module Expr =
         cases |> List.map (fun (pat, expr) -> (MatchPattern.fromCT pat, fromCT expr))
       )
     | EPipeTarget (id) -> PT.EPipeTarget(id)
-    | EConstructor (id, typeName, caseName, fields) ->
-      PT.Expr.EConstructor(
+    | EEnum (id, typeName, caseName, fields) ->
+      PT.Expr.EEnum(
         id,
         Option.map FQTypeName.fromCT typeName,
         caseName,
@@ -482,13 +482,8 @@ module Expr =
       )
     | PT.EPipe (id, expr1, expr2, exprs) ->
       EPipe(id, toCT expr1, toCT expr2, List.map toCT exprs)
-    | PT.EConstructor (id, typeName, caseName, fields) ->
-      EConstructor(
-        id,
-        Option.map FQTypeName.toCT typeName,
-        caseName,
-        List.map toCT fields
-      )
+    | PT.EEnum (id, typeName, caseName, fields) ->
+      EEnum(id, Option.map FQTypeName.toCT typeName, caseName, List.map toCT fields)
     | PT.EMatch (id, matchExpr, cases) ->
       EMatch(
         id,

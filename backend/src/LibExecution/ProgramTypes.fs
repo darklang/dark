@@ -183,7 +183,7 @@ type LetPattern =
 /// Used for pattern matching in a match statement
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
+  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInt of id * int64
   | MPBool of id * bool
   | MPChar of id * string
@@ -284,7 +284,7 @@ type Expr =
 
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
 
-  // Constructors include `Just`, `Nothing`, `Error`, `Ok`, as well
+  // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.
   //
   /// Given an Enum type of:
@@ -292,9 +292,9 @@ type Expr =
   /// , this is the expression
   ///   `C (1, "title")`
   /// represented as
-  ///   `EConstructor(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
+  ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
-  | EConstructor of
+  | EEnum of
     id *
     typeName : Option<FQTypeName.T> *
     caseName : string *

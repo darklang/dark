@@ -296,11 +296,7 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
   | EDict of id * List<string * Expr>
-  | EConstructor of
-    id *
-    Option<FQTypeName.T> *
-    caseName : string *
-    fields : List<Expr>
+  | EEnum of id * Option<FQTypeName.T> * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
@@ -323,7 +319,7 @@ and FnTarget =
 
 and MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * caseName : string * fieldPatterns : List<MatchPattern>
+  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
   | MPInt of id * int64
   | MPBool of id * bool
   | MPChar of id * string
@@ -411,13 +407,13 @@ and [<NoComparison>] Dval =
   | DRecord (* FQTypeName.T * *)  of DvalMap
   | DDict of DvalMap
 
-  // TODO: merge DOption and DResult into DConstructor once the Option and Result types
+  // TODO: merge DOption and DResult into DEnum once the Option and Result types
   // are defined in the Option and Result modules of the standard library
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
 
   // TODO: consider renaming - this is a _value_ so it's already been "Constructed"
-  | DConstructor of
+  | DEnum of
     typeName : Option<FQTypeName.T> *
     caseName : string *
     fields : List<Dval>
@@ -493,7 +489,7 @@ module Expr =
     | ETuple (id, _, _, _)
     | ERecord (id, _, _)
     | EDict (id, _)
-    | EConstructor (id, _, _, _)
+    | EEnum (id, _, _, _)
     | EMatch (id, _, _)
     | EAnd (id, _, _)
     | EOr (id, _, _) -> id
@@ -517,7 +513,7 @@ module MatchPattern =
     | MPFloat (id, _)
     | MPVariable (id, _)
     | MPTuple (id, _, _, _)
-    | MPConstructor (id, _, _)
+    | MPEnum (id, _, _)
     | MPList (id, _) -> id
 
 // Functions for working with Dark runtime values
@@ -612,7 +608,7 @@ module Dval =
       //    ...
       false
 
-    | DConstructor _, TCustomType _ ->
+    | DEnum _, TCustomType _ ->
       // UserTypeTODO revisit
       // 1. get Definition of UserType
       //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
@@ -647,7 +643,7 @@ module Dval =
     | DOption _, _
     | DResult _, _
     | DHttpResponse _, _
-    | DConstructor _, _ -> false
+    | DEnum _, _ -> false
 
 
   let int (i : int) = DInt(int64 i)

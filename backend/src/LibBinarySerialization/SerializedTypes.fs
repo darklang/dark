@@ -190,7 +190,7 @@ type LetPattern =
 [<MessagePack.MessagePackObject>]
 type MatchPattern =
   | MPVariable of id * string
-  | MPConstructor of id * caseName : string * fieldPats : List<MatchPattern>
+  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
   | MPInt of id * int64
   | MPBool of id * bool
   | MPChar of id * string
@@ -227,7 +227,7 @@ type Expr =
   | EList of id * List<Expr>
   | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EConstructor of
+  | EEnum of
     id *
     typeName : Option<FQTypeName.T> *
     caseName : string *

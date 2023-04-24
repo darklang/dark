@@ -84,12 +84,12 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 let eLambda (varNames : string list) (body : Expr) : Expr =
   ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
 
-let eConstructor
+let EEnum
   (typeName : Option<FQTypeName.T>)
   (name : string)
   (args : Expr list)
   : Expr =
-  EConstructor(gid (), typeName, name, args)
+  EEnum(gid (), typeName, name, args)
 
 let userTypeName
   (modules : List<string>)

@@ -125,7 +125,7 @@ let rec unify
       | CustomType.Record (firstField, additionalFields), DRecord dmap ->
         unifyRecordFields availableTypes (firstField :: additionalFields) dmap
       | CustomType.Enum (firstCase, additionalCases),
-        DConstructor (typeName, caseName, valFields) ->
+        DEnum (typeName, caseName, valFields) ->
         let matchingCase : Option<CustomType.EnumCase> =
           firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
 
