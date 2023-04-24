@@ -29,7 +29,7 @@
         <label :for="'input-' + index" class="text-white ml-2">{{ variable }}</label>
         <input :id="'input-' + index" type="text" v-model="variableValues[index]" class="text-white bg-transparent my-2 ml-4 border-b border-white outline-none" />
       </div>
-      <button type="submit" class="bg-[#C56AE4] text-white m-2 px-2 py-1 rounded">Submit</button>
+      <button v-if="variables  && variables.length > 0" type="submit" class="bg-[#C56AE4] text-white m-2 px-2 py-1 rounded">Submit</button>
     </form>
    </div>
    <div>
