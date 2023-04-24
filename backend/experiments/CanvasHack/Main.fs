@@ -95,7 +95,9 @@ let seedCanvasV2 (canvasName : string) =
     do! C.saveTLIDs canvasID oplists
 
     print
-      $"Success saved canvas - endpoints available at {host} (bwdserver) and {experimentalHost} (bwd-danger-server)"
+      $"Success saved canvas - endpoints available
+       at {host} (bwdserver)
+      and {experimentalHost} (bwd-danger-server)"
   }
 
 [<EntryPoint>]
@@ -112,6 +114,8 @@ let main (args : string []) =
             `canvas-hack {CommandNames.export}' to save dark-editor to disk"
 
       | [| CommandNames.import; canvasName |] ->
+        print $"Loading canvas {canvasName} from disk"
+
         let config =
           parseYamlExn<CanvasHackConfig.JustVersion>
             $"{baseDir}/{canvasName}/config.yml"
