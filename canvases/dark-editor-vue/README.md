@@ -10,6 +10,7 @@ Build the vue app
 
 Editor
 
+- In canvases/dark-editor/main.dark `/api/gpt4` handler add an openai api key
 - `./scripts/run-canvas-hack load-from-disk dark-serve-blazor-assets`
 - `./scripts/run-canvas-hack load-from-disk dark-editor`
 - Go to http://dark-editor.dlio.localhost:11003/
