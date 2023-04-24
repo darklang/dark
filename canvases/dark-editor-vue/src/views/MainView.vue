@@ -28,6 +28,23 @@
   import { onMounted } from '@vue/runtime-core';
   const systemPromptValue= ref("");
   onMounted(() => {
+const blazorScript: HTMLScriptElement = document.createElement("script");
+blazorScript.setAttribute(
+  "src",
+  "http://dark-serve-blazor-assets.dlio.localhost:11003/blazor.webassembly.js",
+);
+blazorScript.setAttribute("autostart", "false");
+blazorScript.addEventListener('load', async () => {
+  await Blazor.start({
+    loadBootResource: function (type: string, name: string, defaultUri: string, integrity?: string) {
+      return `http://dark-serve-blazor-assets.dlio.localhost:11003/${name}`;
+    }
+  }).then(() => {
+    DotNet.invokeMethod("Wasm", "InitializeDarkRuntime");
+  });
+});
+document.head.appendChild(blazorScript);
+
   fetch('/get-prompt')
   .then(response => response.text())
   .then(data => systemPromptValue.value = data);
