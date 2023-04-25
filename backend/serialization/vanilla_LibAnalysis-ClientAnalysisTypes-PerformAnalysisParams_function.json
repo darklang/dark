@@ -805,7 +805,17 @@
                           [
                             "ERecord",
                             109539183,
-                            null,
+                            [
+                              "User",
+                              {
+                                "modules": [
+                                  "dark",
+                                  "stdlib"
+                                ],
+                                "typ": "NonEmptyList",
+                                "version": 0
+                              }
+                            ],
                             [
                               [
                                 "field",
@@ -8641,7 +8651,17 @@
                             [
                               "ERecord",
                               109539183,
-                              null,
+                              [
+                                "User",
+                                {
+                                  "modules": [
+                                    "dark",
+                                    "stdlib"
+                                  ],
+                                  "typ": "NonEmptyList",
+                                  "version": 0
+                                }
+                              ],
                               [
                                 [
                                   "field",
@@ -9888,7 +9908,17 @@
                             [
                               "ERecord",
                               109539183,
-                              null,
+                              [
+                                "User",
+                                {
+                                  "modules": [
+                                    "dark",
+                                    "stdlib"
+                                  ],
+                                  "typ": "NonEmptyList",
+                                  "version": 0
+                                }
+                              ],
                               [
                                 [
                                   "field",

@@ -282,7 +282,7 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * Expr * List<Expr>
 
-  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | ERecord of id * FQTypeName.T * List<string * Expr>
 
   // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.

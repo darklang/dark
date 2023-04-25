@@ -416,21 +416,17 @@ module Expect =
 
   let rec userTypeNameEqualityBaseFn
     (path : Path)
-    (actual : Option<FQTypeName.T>)
-    (expected : Option<FQTypeName.T>)
+    (actual : FQTypeName.T)
+    (expected : FQTypeName.T)
     (errorFn : Path -> string -> string -> unit)
     : unit =
     let err () = errorFn path (string actual) (string expected)
 
     match actual, expected with
-    | None, None -> ()
-    | Some a, Some e ->
-      match a, e with
-      | FQTypeName.Stdlib a, FQTypeName.Stdlib e -> if a.typ <> e.typ then err ()
-      | FQTypeName.User a, FQTypeName.User e ->
-        if a.typ <> e.typ then err ()
-        if a.version <> e.version then err ()
-      | _ -> err ()
+    | FQTypeName.Stdlib a, FQTypeName.Stdlib e -> if a.typ <> e.typ then err ()
+    | FQTypeName.User a, FQTypeName.User e ->
+      if a.typ <> e.typ then err ()
+      if a.version <> e.version then err ()
     | _ -> err ()
 
   let rec matchPatternEqualityBaseFn
@@ -594,7 +590,11 @@ module Expect =
       check path f f'
 
     | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      match typeName, typeName' with
+      | Some typeName, Some typeName' ->
+        userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      | None, None -> ()
+      | _ -> errorFn path (string actual) (string expected)
       check path caseName caseName'
       eqList path fields fields'
       ()
@@ -726,7 +726,11 @@ module Expect =
 
 
     | DEnum (typeName, caseName, fields), DEnum (typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      match typeName, typeName' with
+      | Some typeName, Some typeName' ->
+        userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      | None, None -> ()
+      | _ -> errorFn path (string actual) (string expected)
 
       check ("caseName" :: path) caseName caseName'
 

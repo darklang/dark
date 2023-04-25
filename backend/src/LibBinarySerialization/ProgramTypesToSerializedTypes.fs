@@ -169,7 +169,7 @@ module Expr =
     | PT.ERecord (id, typeName, fields) ->
       ST.ERecord(
         id,
-        Option.map FQTypeName.toST typeName,
+        FQTypeName.toST typeName,
         List.map (Tuple2.mapSecond toST) fields
       )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->

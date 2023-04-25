@@ -350,7 +350,7 @@ module Expr =
     | EApply of id * FnTarget * List<TypeReference> * List<T>
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
-    | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
+    | ERecord of id * typeName : FQTypeName.T * fields : List<string * T>
     | EDict of id * List<string * T>
     | EEnum of
       id *
@@ -399,7 +399,7 @@ module Expr =
     | ERecord (id, typeName, fields) ->
       RT.ERecord(
         id,
-        Option.map FQTypeName.fromCT typeName,
+        FQTypeName.fromCT typeName,
         List.map (Tuple2.mapSecond r) fields
       )
     | EEnum (id, typeName, caseName, fields) ->
@@ -458,11 +458,7 @@ module Expr =
     | RT.ETuple (id, first, second, theRest) ->
       ETuple(id, r first, r second, List.map r theRest)
     | RT.ERecord (id, typeName, fields) ->
-      ERecord(
-        id,
-        Option.map FQTypeName.toCT typeName,
-        List.map (Tuple2.mapSecond r) fields
-      )
+      ERecord(id, FQTypeName.toCT typeName, List.map (Tuple2.mapSecond r) fields)
     | RT.EEnum (id, typeName, caseName, fields) ->
       EEnum(id, Option.map FQTypeName.toCT typeName, caseName, List.map r fields)
     | RT.EMatch (id, mexpr, pairs) ->

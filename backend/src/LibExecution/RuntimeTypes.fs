@@ -294,7 +294,7 @@ type Expr =
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | ERecord of id * FQTypeName.T * List<string * Expr>
   | EDict of id * List<string * Expr>
   | EEnum of id * Option<FQTypeName.T> * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>

@@ -594,9 +594,9 @@ module Expr =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
       match c expr with
-      | PT.ERecord (id, None, fields) ->
+      | PT.ERecord (id, typeName, fields) ->
         // TYPESCLEANUP: insert typeArgs
-        PT.ERecord(id, None, fields)
+        PT.ERecord(id, typeName, fields)
       | PT.EDict (id, fields) ->
         // TYPESCLEANUP: insert typeArgs
         PT.EDict(id, fields)
@@ -607,7 +607,12 @@ module Expr =
     | SynExpr.App (_, _, name, SynExpr.Record (_, _, fields, _), _) when
       List.all (fun n -> String.isCapitalized n) (parseNames name)
       ->
-      let typeName = parseNames name
+      let names = parseNames name
+      let typename =
+        List.last names |> Exception.unwrapOptionInternal "empty list" []
+      let (typ, version) = parseTypeName typename
+      let modules = List.initial names |> Option.unwrap []
+
       let fields =
         fields
         |> List.map (fun field ->
@@ -616,11 +621,14 @@ module Expr =
             (nameOrBlank name.idText, c expr)
           | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
-      // TYPESCLEANUP: use typename
-      if typeName = [ "Dict" ] then
+      if names = [ "Dict" ] then
         PT.EDict(id, fields)
       else
-        PT.ERecord(id, None, fields)
+        // We use a user name here, and we'll resolve it in the post pass when we
+        // have the types available
+        let typeName =
+          PT.FQTypeName.User({ modules = modules; typ = typ; version = version })
+        PT.ERecord(id, typeName, fields)
 
 
     // Callers with multiple args are encoded as apps wrapping other apps.

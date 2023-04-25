@@ -371,7 +371,7 @@ type Expr =
   | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | ERecord of id * FQTypeName.T * List<string * Expr>
   | EDict of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
   | EEnum of
@@ -418,7 +418,7 @@ module Expr =
     | ERecord (id, typeName, fields) ->
       PT.ERecord(
         id,
-        Option.map FQTypeName.fromCT typeName,
+        FQTypeName.fromCT typeName,
         fields |> List.map (fun (name, expr) -> (name, fromCT expr))
       )
     | EPipe (id, expr1, expr2, exprs) ->
@@ -477,7 +477,7 @@ module Expr =
     | PT.ERecord (id, typeName, fields) ->
       ERecord(
         id,
-        Option.map FQTypeName.toCT typeName,
+        FQTypeName.toCT typeName,
         fields |> List.map (fun (name, expr) -> (name, toCT expr))
       )
     | PT.EPipe (id, expr1, expr2, exprs) ->
