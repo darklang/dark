@@ -61,7 +61,7 @@ module Records =
 
   // Invalid column contents
   Cols2 { col1 = 2 ; ___ = 3 } = Test.typeError "Unexpected field `` in Cols2_v0"
-  Cols2 { col1 = 2 } = Test.typeError "Missing key `col2`"
+  Cols2 { col1 = 2 } = Test.typeError "Missing key `col2` in Cols2_v0"
   Cols2 { col1 = 2; other = 3 } = Test.typeError "Unexpected field `other` in Cols2_v0"
   Cols2 { col1 = 2; col2 = 3; col3 = 4 } = Test.typeError "Unexpected field `col3` in Cols2_v0"
   Cols1 { col1 = "" } = Test.typeError "Expected a value of type `Int` but got a `String`"

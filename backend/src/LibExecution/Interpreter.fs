@@ -192,7 +192,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | Some (CustomType.Record (expected1, expectedRest)) ->
         let expectedFields =
           (expected1 :: expectedRest) |> List.map (fun f -> f.name, f.typ) |> Map
-        return!
+        let! result =
           Ply.List.foldSequentially
             (fun r (k, expr) ->
               uply {
@@ -216,6 +216,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               })
             (DRecord Map.empty)
             fields
+        match result with
+        | DRecord fields ->
+          if Map.count fields = Map.count expectedFields then
+            return result
+          else
+            let expectedKeys = Map.keys expectedFields
+            let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
+            return err id $"Missing key `{key}` in {typeStr}"
+        | _ -> return result
 
 
     | EDict (id, fields) ->
