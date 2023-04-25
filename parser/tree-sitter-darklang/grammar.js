@@ -1,7 +1,6 @@
 module.exports = grammar({
   name: 'darklang',
 
-  // Annoyingly, it seems to be best to write these 'top-most first'
   rules: {
     source_file: $ => repeat($.fn_def),
 
