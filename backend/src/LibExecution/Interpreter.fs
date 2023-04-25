@@ -187,6 +187,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | ERecord (id, typeName, fields) ->
+      // TYPESCLEANUP typecheck fields against the type
       return!
         Ply.List.foldSequentially
           (fun r (k, expr) ->
@@ -537,6 +538,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         // EEnumTODO: handle analysis/preview
         let! fields = Ply.List.mapSequentially (eval state st) fields
 
+        // TYPESCLEANUP typecheck fields against the type
         match List.tryFind Dval.isFake fields with
         | Some fakeDval -> return fakeDval
         | None -> return DEnum(typeName, caseName, fields)
