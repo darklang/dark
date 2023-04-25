@@ -19,7 +19,7 @@ let rec typeName (t : TypeReference) : string =
     let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
     $"({nested})"
   | TDict nested -> $"Dict<{typeName nested}>"
-  | TFn _ -> "Block"
+  | TFn _ -> "Function"
   | TVariable varname -> $"'{varname}"
   | THttpResponse _ -> "Response"
   | TDB _ -> "Datastore"
@@ -52,9 +52,7 @@ let dvalTypeName (dv : Dval) : string =
   | DString _ -> "String"
   | DList _ -> "List"
   | DDict _ -> "Dict"
-  // TYPESCLEANUP - use the name
-  | DRecord _ -> "Record"
-  | DFnVal _ -> "Block"
+  | DFnVal (Lambda _) -> "Lambda"
   | DHttpResponse _ -> "HttpResponse"
   | DDB _ -> "Datastore"
   | DDateTime _ -> "DateTime"
@@ -63,8 +61,10 @@ let dvalTypeName (dv : Dval) : string =
   | DOption _ -> "Option"
   | DResult _ -> "Result"
   | DTuple _ -> "Tuple"
-  | DEnum _ -> "Enum"
   | DBytes _ -> "Bytes"
+  // TYPESCLEANUP - use the name
+  | DRecord _ -> "Record"
+  | DEnum _ -> "Enum"
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
