@@ -75,7 +75,6 @@ const executeCode = async(index: number) =>{
 const copyCode = (index: number) =>{
   let code: string = (document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement).value;
   navigator.clipboard.writeText(code).then(() => {
-  console.log("Text copied to clipboard");
   }).catch((error) => {
     console.error('Error copying text to clipboard:', error);
   });
@@ -85,10 +84,8 @@ const variables = ref<string[]>([]);
 const variableValues = ref<string[]>([]);
 
 let resp = props.response
-console.log(resp);
 const matchResult = resp.match(/variables:\n([\s\S]*)/);
 const responseVariables = matchResult ? matchResult[1].trim().split('\n').filter(Boolean) : [];
-console.log(responseVariables);
 variables.value.push(...responseVariables);
 
 const submitForm = () => {

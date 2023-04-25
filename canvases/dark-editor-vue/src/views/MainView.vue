@@ -9,10 +9,7 @@
         <textarea class="bg-transparent outline-0 p-4 w-full" ref="prompt" v-model="systemPromptValue"></textarea>
       </template>
     </Accordion>
-    <div id="chat_container">
-      <!-- <Test/> -->
 
-    </div>
     <div>
       <Prompt :systemPromptValue="systemPromptValue" />
     </div>
@@ -23,7 +20,6 @@
   import Header from "../components/Header.vue";
   import Accordion from "../components/Accordion.vue";
   import Prompt from "../components/Prompt.vue";
-  // import Test from "../components/Test.vue";
   import { ref } from 'vue';
   import { onMounted } from '@vue/runtime-core';
   const systemPromptValue= ref("");

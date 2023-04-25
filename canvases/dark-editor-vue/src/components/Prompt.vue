@@ -64,7 +64,6 @@ const props = defineProps({
     }
 
     const data = await response.json();
-    console.log(data.choices[0].text);
     responses.value.push(data.choices[0].text);
   } catch (error) {
     console.error('Error sending prompt to server:', error);
