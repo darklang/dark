@@ -197,8 +197,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             (fun r (k, expr) ->
               uply {
                 if Dval.isFake r then
+                  do! preview st expr
                   return r
                 else if not (Map.containsKey k expectedFields) then
+                  do! preview st expr
                   return err id $"Unexpected field `{k}` in {typeStr}"
                 else
                   let! v = eval state st expr
@@ -580,6 +582,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   (fun r ((enumField : CustomType.EnumField), expr) ->
                     uply {
                       if Dval.isFake r then
+                        do! preview st expr
                         return r
                       else
                         let! v = eval state st expr
