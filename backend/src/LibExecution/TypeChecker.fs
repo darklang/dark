@@ -46,7 +46,7 @@ module Error =
     | TypeUnificationFailure uf ->
       let expected = DvalReprDeveloper.typeName uf.expectedType
       let actual = DvalReprDeveloper.dvalTypeName uf.actualValue
-      $"Expected to see a value of type {expected} but found a {actual}"
+      $"Expected a value of type `{expected}` but got a `{actual}`"
 
     | MismatchedRecordFields mrf ->
       let expected = mrf.expectedFields
