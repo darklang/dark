@@ -330,13 +330,25 @@ module Expr =
     // TODO: remove this explicit handling
     // when the Option and Result types are defined in StdLib
     | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
-      List.contains name.idText [ "Ok"; "Nothing"; "Just"; "Error" ]
+      List.contains name.idText [ "Ok"; "Error" ]
       ->
-      PT.EEnum(id, None, name.idText, [ c arg ])
+      let typeName =
+        PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
+      PT.EEnum(id, typeName, name.idText, [ c arg ])
+
+    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
+      List.contains name.idText [ "Nothing"; "Just" ]
+      ->
+      let typeName =
+        PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
+
+      PT.EEnum(id, typeName, name.idText, [ c arg ])
 
     // Enum values (EEnums)
     | SynExpr.Ident name when name.idText = "Nothing" ->
-      PT.EEnum(id, None, name.idText, [])
+      let typeName =
+        PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
+      PT.EEnum(id, typeName, name.idText, [])
 
 
     // Package manager function calls
@@ -386,12 +398,10 @@ module Expr =
         // TYPESCLEANUP might not be a usertype
         PT.EEnum(
           gid (),
-          Some(
-            PT.FQTypeName.User
-              { PT.FQTypeName.UserTypeName.modules = modules
-                typ = typ
-                version = version } : PT.FQTypeName.T
-          ),
+          PT.FQTypeName.User
+            { PT.FQTypeName.UserTypeName.modules = modules
+              typ = typ
+              version = version },
           enumName,
           []
         )

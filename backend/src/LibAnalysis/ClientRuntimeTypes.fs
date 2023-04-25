@@ -352,11 +352,7 @@ module Expr =
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : FQTypeName.T * fields : List<string * T>
     | EDict of id * List<string * T>
-    | EEnum of
-      id *
-      typeName : Option<FQTypeName.T> *
-      caseName : string *
-      fields : List<T>
+    | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EAnd of id * T * T
     | EOr of id * T * T
@@ -403,12 +399,7 @@ module Expr =
         List.map (Tuple2.mapSecond r) fields
       )
     | EEnum (id, typeName, caseName, fields) ->
-      RT.EEnum(
-        id,
-        Option.map FQTypeName.fromCT typeName,
-        caseName,
-        List.map r fields
-      )
+      RT.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map r fields)
     | EMatch (id, mexpr, pairs) ->
       RT.EMatch(
         id,
@@ -460,7 +451,7 @@ module Expr =
     | RT.ERecord (id, typeName, fields) ->
       ERecord(id, FQTypeName.toCT typeName, List.map (Tuple2.mapSecond r) fields)
     | RT.EEnum (id, typeName, caseName, fields) ->
-      EEnum(id, Option.map FQTypeName.toCT typeName, caseName, List.map r fields)
+      EEnum(id, FQTypeName.toCT typeName, caseName, List.map r fields)
     | RT.EMatch (id, mexpr, pairs) ->
       EMatch(
         id,
@@ -532,7 +523,7 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DEnum of typeName : Option<FQTypeName.T> * caseName : string * fields : List<T>
+    | DEnum of typeName : FQTypeName.T * caseName : string * fields : List<T>
 
   let rec fromCT (dv : T) : RT.Dval =
     let r = fromCT
@@ -570,7 +561,7 @@ module Dval =
     | DResult (Error dv) -> RT.DResult(Error(r dv))
     | DBytes bytes -> RT.DBytes bytes
     | DEnum (typeName, caseName, fields) ->
-      RT.DEnum(Option.map FQTypeName.fromCT typeName, caseName, List.map r fields)
+      RT.DEnum(FQTypeName.fromCT typeName, caseName, List.map r fields)
 
   and toCT (dv : RT.Dval) : T =
     let r = toCT

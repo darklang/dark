@@ -374,11 +374,7 @@ type Expr =
   | ERecord of id * FQTypeName.T * List<string * Expr>
   | EDict of id * List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EEnum of
-    id *
-    typeName : Option<FQTypeName.T> *
-    caseName : string *
-    fields : List<Expr>
+  | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
 
@@ -431,12 +427,7 @@ module Expr =
       )
     | EPipeTarget (id) -> PT.EPipeTarget(id)
     | EEnum (id, typeName, caseName, fields) ->
-      PT.Expr.EEnum(
-        id,
-        Option.map FQTypeName.fromCT typeName,
-        caseName,
-        List.map fromCT fields
-      )
+      PT.Expr.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map fromCT fields)
     | EDict (id, fields) ->
       PT.Expr.EDict(id, fields |> List.map (fun (key, value) -> (key, fromCT value)))
 
@@ -483,7 +474,7 @@ module Expr =
     | PT.EPipe (id, expr1, expr2, exprs) ->
       EPipe(id, toCT expr1, toCT expr2, List.map toCT exprs)
     | PT.EEnum (id, typeName, caseName, fields) ->
-      EEnum(id, Option.map FQTypeName.toCT typeName, caseName, List.map toCT fields)
+      EEnum(id, FQTypeName.toCT typeName, caseName, List.map toCT fields)
     | PT.EMatch (id, matchExpr, cases) ->
       EMatch(
         id,

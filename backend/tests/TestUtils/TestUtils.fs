@@ -590,11 +590,7 @@ module Expect =
       check path f f'
 
     | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
-      match typeName, typeName' with
-      | Some typeName, Some typeName' ->
-        userTypeNameEqualityBaseFn path typeName typeName' errorFn
-      | None, None -> ()
-      | _ -> errorFn path (string actual) (string expected)
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check path caseName caseName'
       eqList path fields fields'
       ()
@@ -726,12 +722,7 @@ module Expect =
 
 
     | DEnum (typeName, caseName, fields), DEnum (typeName', caseName', fields') ->
-      match typeName, typeName' with
-      | Some typeName, Some typeName' ->
-        userTypeNameEqualityBaseFn path typeName typeName' errorFn
-      | None, None -> ()
-      | _ -> errorFn path (string actual) (string expected)
-
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
       check ("fields.Length" :: path) (List.length fields) (List.length fields)

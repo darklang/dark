@@ -515,12 +515,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | EEnum (id, typeName, caseName, fields) ->
       match typeName with
-      | None ->
+      | FQTypeName.Stdlib ({ modules = []; typ = "Option"; version = 0 }) ->
         match (caseName, fields) with
         | "Nothing", [] -> return DOption None
         | "Just", [ arg ] ->
           let! dv = (eval state st arg)
           return Dval.optionJust dv
+        | name, _ ->
+          return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
+      | FQTypeName.Stdlib ({ modules = []; typ = "Result"; version = 0 }) ->
+        match (caseName, fields) with
         | "Ok", [ arg ] ->
           let! dv = eval state st arg
           return Dval.resultOk dv
@@ -529,14 +533,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return Dval.resultError dv
         | name, _ ->
           return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
-      | Some typeName ->
+      | typeName ->
         // EEnumTODO: handle analysis/preview
         let! fields = Ply.List.mapSequentially (eval state st) fields
 
         // EEnumTODO: reconsider (stole this from DList)
         match List.tryFind Dval.isFake fields with
         | Some fakeDval -> return fakeDval
-        | None -> return DEnum(Some typeName, caseName, fields)
+        | None -> return DEnum(typeName, caseName, fields)
   }
 
 /// Interprets an expression and reduces to a Dark value

@@ -294,11 +294,7 @@ type Expr =
   /// represented as
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
-  | EEnum of
-    id *
-    typeName : Option<FQTypeName.T> *
-    caseName : string *
-    fields : List<Expr>
+  | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
 
   /// Supports `match` expressions
   /// ```fsharp
