@@ -519,9 +519,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | FQTypeName.Stdlib ({ modules = []; typ = "Option"; version = 0 }) ->
         match (caseName, fields) with
         | "Nothing", [] -> return DOption None
+        | "Nothing", _ ->
+          return
+            Dval.errSStr
+              (sourceID id)
+              $"Option.Nothing expects no fields but got {fields.Length}"
         | "Just", [ arg ] ->
           let! dv = (eval state st arg)
           return Dval.optionJust dv
+        | "Just", _ ->
+          return
+            Dval.errSStr
+              (sourceID id)
+              $"Option.Just expects one field but got {fields.Length}"
         | name, _ ->
           return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
       | FQTypeName.Stdlib ({ modules = []; typ = "Result"; version = 0 }) ->
@@ -529,9 +539,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | "Ok", [ arg ] ->
           let! dv = eval state st arg
           return Dval.resultOk dv
+        | "Ok", _ ->
+          return
+            Dval.errSStr
+              (sourceID id)
+              $"Result.Ok expects one field but got {fields.Length}"
         | "Error", [ arg ] ->
           let! dv = eval state st arg
           return Dval.resultError dv
+        | "Error", _ ->
+          return
+            Dval.errSStr
+              (sourceID id)
+              $"Result.Error expects one field but got {fields.Length}"
         | name, _ ->
           return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
       | typeName ->
