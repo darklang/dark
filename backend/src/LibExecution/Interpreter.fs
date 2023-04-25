@@ -557,13 +557,46 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return err id $"Result.Error expects 1 argument but got {fields.Length}"
         | name, _ -> return err id $"Invalid name for enum {name}"
       | typeName ->
-        // EEnumTODO: handle analysis/preview
-        let! fields = Ply.List.mapSequentially (eval state st) fields
-
-        // TYPESCLEANUP typecheck fields against the type
-        match List.tryFind Dval.isFake fields with
-        | Some fakeDval -> return fakeDval
-        | None -> return DEnum(typeName, caseName, fields)
+        let availableTypes = ExecutionState.availableTypes state
+        let typ = Map.tryFind typeName availableTypes
+        let typeStr = FQTypeName.toString typeName
+        match typ with
+        | None -> return err id $"There is no type named `{typeStr}`"
+        | Some (CustomType.Record _) ->
+          return err id $"Expected an enum but {typeStr} is a record"
+        | Some (CustomType.Enum (case, cases)) ->
+          let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
+          match case with
+          | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
+          | Some case ->
+            if case.fields.Length <> fields.Length then
+              let msg =
+                $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
+              return err id msg
+            else
+              let fields = List.zip case.fields fields
+              return!
+                Ply.List.foldSequentially
+                  (fun r ((enumField : CustomType.EnumField), expr) ->
+                    uply {
+                      if Dval.isFake r then
+                        return r
+                      else
+                        let! v = eval state st expr
+                        if Dval.isFake v then
+                          return v
+                        else
+                          match TypeChecker.unify availableTypes enumField.typ v with
+                          | Ok () ->
+                            match r with
+                            | DEnum (typeName, caseName, existing) ->
+                              return
+                                DEnum(typeName, caseName, List.append existing [ v ])
+                            | _ -> return err id "Expected an enum"
+                          | Error e -> return err id (TypeChecker.Error.toString e)
+                    })
+                  (DEnum(typeName, caseName, []))
+                  fields
   }
 
 /// Interprets an expression and reduces to a Dark value
