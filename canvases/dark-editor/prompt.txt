@@ -25,8 +25,7 @@ Dark is statically typed, and supports type definitions. Types are good and shou
 
 ## HTTP handlers
 
-HTTP handlers are expressions, with each handler stored in a .dark file, and HTTP
-metadata stored in config.yml.
+HTTP handlers are expressions, with each handler stored in a .dark file.
 
 A request has a `request` variable available:
 `{ url: String; headers: List<String*String>; body: Bytes }`
@@ -34,32 +33,20 @@ A request has a `request` variable available:
 The expression should return a response with this type:
 `{ statusCode: int; headers: List<String*String>; body: byte[] }`
 
+With each response display a list a variables that needs to be filled by the user
+
 For example:
 
 hello.dark
 ```
-(
-  let requestSize = request.body |> Bytes.length |> Int.toString
-  let body = "hello " ++ user ++ "\n" ++ "Request size: " ++ requestSize
-  HttpClient.Response
-    {
-      statusCode = 200
-      headers = []
-      body = String.toBytes body
-    }
-)
+[<HttpHandler("GET", "/hello/:user")>]
+let _handler _req =
+  let body = ("hello " ++ user )|> String.toBytes
+  Http.response body 200
 ```
-
-config.yml:
-```
-http-handlers:
-  hello:
-    method: GET
-    path: /hello/:user
-```
-
 variables:
 user
+
 
 ## Standard library
 
@@ -125,7 +112,7 @@ need to call any functions.
 
 ---
 
-Your job is to assist in building an application in Dark. When you reply, only provide the code and config.yml with no explanation.
+Your job is to assist in building an application in Dark. When you reply, only provide the code and variables if needed with no explanation.
 
 Wait for the user to provide a prompt.
 
