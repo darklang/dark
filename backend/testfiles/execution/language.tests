@@ -61,8 +61,8 @@ module Records =
 
   module Polymorphism =
     type MyRecord<'a> = { col1 : 'a; col2 : Int }
-    MyRecord<Unit> { col1 = (); col2 = 1 } = MyRecord<Unit> { col1 = (); col2 = 1 }
-    MyRecord<Option<Result<Int, String>>> { col1 = Just(Ok(1)); col2 = 1 } = MyRecord<Option<Result<Int, String>>> { col1 = Just(Ok(1)); col2 = 1 }
+    (MyRecord { col1 = (); col2 = 1 }).col2 = 1
+    (MyRecord { col1 = Just(Ok 1); col2 = 1 }).col1 = Just(Ok 1)
 
 
 module Enums =
