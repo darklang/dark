@@ -334,7 +334,12 @@ module Expr =
       ->
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
-      PT.EEnum(id, typeName, name.idText, [ c arg ])
+
+      let fields =
+        match c arg with
+        | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
+        | other -> [ other ]
+      PT.EEnum(id, typeName, name.idText, fields)
 
     | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Nothing"; "Just" ]
@@ -342,7 +347,12 @@ module Expr =
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
 
-      PT.EEnum(id, typeName, name.idText, [ c arg ])
+      let fields =
+        match c arg with
+        | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
+        | other -> [ other ]
+
+      PT.EEnum(id, typeName, name.idText, fields)
 
     // Enum values (EEnums)
     | SynExpr.Ident name when name.idText = "Nothing" ->
