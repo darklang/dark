@@ -2,7 +2,7 @@
   <div class="h-[542px] overflow-y-scroll pb-16" v-if="prompts.length">
     <div v-for="(prompt, index) in prompts" :key="index">
       <UserChat :promptValue="prompt" />
-      <ResponseChat :response="responses[index]" v-if="responses[index]" />
+      <ResponseChat :response="responses[index]" :responseIndex="index" v-if="responses[index]" />
     </div>
   </div>
 
