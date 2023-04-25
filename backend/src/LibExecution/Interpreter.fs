@@ -584,6 +584,7 @@ and applyFn
     // Unwrap
     match fn with
     | DFnVal fnVal -> return! applyFnVal state fnVal args
+    | other when Dval.isFake other -> return other
     | other ->
       return
         Dval.errSStr

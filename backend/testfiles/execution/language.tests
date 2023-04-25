@@ -303,7 +303,7 @@ module Lambdas =
   (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
   // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
   (let y = (fun a b -> a * b) in List.fold_v0 [1; 2; 3; 4] 1 y) = 24
-  (List.fold_v0 [4] 1 5) = Test.typeError_v0 "5"
+  (List.fold_v0 [4] 1 5) = Test.typeError_v0 "List.fold was expected to be called with a `Function` in fn, but was actually called with 5."
   (List.fold_v0 [4] 1 (Test.typeError "test")) = Test.typeError "test"
 
   (let x = 5 in
