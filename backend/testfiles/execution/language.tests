@@ -64,6 +64,12 @@ module Records =
     (MyRecord { col1 = (); col2 = 1 }).col2 = 1
     (MyRecord { col1 = Just(Ok 1); col2 = 1 }).col1 = Just(Ok 1)
 
+  module Nested =
+    type NestedRecordA = { col1 : Int }
+    type NestedRecordB = { col1 : NestedRecordA }
+    (NestedRecordB { col1 = NestedRecordA { col1 = 1 } }).col1.col1 = 1
+
+
 
 module Enums =
   module Simple =
