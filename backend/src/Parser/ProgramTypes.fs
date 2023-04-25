@@ -68,6 +68,20 @@ module TypeReference =
     // e.g. `'a` in `'a -> bool`
     | SynType.Var (SynTypar (id, _, _), _) -> PT.TVariable(id.idText)
 
+    | SynType.Tuple (_, args, _) ->
+      let args =
+        args
+        |> List.filterMap (fun arg ->
+          match arg with
+          | SynTupleTypeSegment.Type t -> Some t
+          | SynTupleTypeSegment.Star _ -> None
+          | SynTupleTypeSegment.Slash _ -> None)
+      match args with
+      | [] -> Exception.raiseInternal "Tuple type with no args" [ "type", typ ]
+      | [ _ ] ->
+        Exception.raiseInternal "Tuple type with only one arg" [ "type", typ ]
+      | first :: second :: theRest ->
+        PT.TTuple(c first, c second, List.map c theRest)
 
     // Function types
     // e.g. `'a -> bool` in `let friends (lambda: ('a -> bool)) = ...`
@@ -159,9 +173,9 @@ module Expr =
 
   let parseFn (fnName : string) : Option<string * int> =
     match fnName with
-    | Regex "^([a-z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] ->
+    | Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Some(name, (int version))
-    | Regex "^([a-z][a-z0-9A-Z]*)$" [ name ] -> Some(name, 0)
+    | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Some(name, 0)
     | _ -> None
 
   let parseEnum (enumName : string) : string =
@@ -173,8 +187,9 @@ module Expr =
 
   let parseTypeName (typeName : string) : string * int =
     match typeName with
-    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
-    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
+    | Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
+      name, (int version)
+    | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> name, 0
     | _ -> Exception.raiseInternal "Bad format in type name" [ "typeName", typeName ]
 
   let parseNames (e : SynExpr) : List<string> =
@@ -569,6 +584,24 @@ module Expr =
       // the very bottom on the pipe chain, this is just the first expression
       PT.EPipe(id, c expr, placeholder, [])
 
+    // e.g. MyMod.MyRecord<Int>
+    | SynExpr.App (_,
+                   _,
+                   SynExpr.TypeApp (name, _, typeArgs, _, _, _, _),
+                   (SynExpr.Record _ as expr),
+                   _) ->
+      let typeArgs =
+        typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
+
+      match c expr with
+      | PT.ERecord (id, None, fields) ->
+        // TYPESCLEANUP: insert typeArgs
+        PT.ERecord(id, None, fields)
+      | PT.EDict (id, fields) ->
+        // TYPESCLEANUP: insert typeArgs
+        PT.EDict(id, fields)
+      | _ -> Exception.raiseInternal "Not an expected record" [ "expr", expr ]
+
 
     // Records: MyRecord { x = 5 } or Dict { x = 5 }
     | SynExpr.App (_, _, name, SynExpr.Record (_, _, fields, _), _) when
@@ -643,7 +676,10 @@ module Expr =
     try
       fromSynExpr' ast
     with
-    | e -> Exception.raiseInternal "Error converting from SynExpr" [ "ast", ast ] e
+    | e ->
+      print e.Message
+      print (string ast)
+      reraise ()
 
   // Second pass of parsing, fixing the thing it's impossible to get right on the
   // first pass, such as function names. Parse the whole program once, and then run
@@ -686,6 +722,23 @@ module UserFunction =
         name = id.idText
         typ = TypeReference.fromSynType typ
         description = "" }
+
+    | SynPat.Typed (SynPat.Typed _ as nested,
+                    SynType.App (SynType.LongIdent (SynLongIdent ([ name ], _, _)),
+                                 _,
+                                 args,
+                                 _,
+                                 _,
+                                 _,
+                                 _),
+                    _) ->
+      let nested = r nested
+      { id = nested.id
+        name = nested.name
+        typ = TypeReference.fromNameAndTypeArgs name.idText args
+        description = nested.description }
+
+
 
     | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
@@ -742,9 +795,12 @@ module UserFunction =
     (returnInfo : Option<SynBindingReturnInfo>)
     : PT.TypeReference =
     match returnInfo with
-    | None -> Exception.raiseInternal "Functions must have return types specified" []
     | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
       TypeReference.fromSynType typeName
+    | None ->
+      Exception.raiseInternal
+        "Functions must have return types specified"
+        [ "returnInfo", returnInfo ]
 
 
   let fromSynBinding (binding : SynBinding) : PT.UserFunction.T =
