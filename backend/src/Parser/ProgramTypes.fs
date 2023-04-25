@@ -443,30 +443,23 @@ module Expr =
       PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, typeArgs, [])
 
     // Field access: a.b.c.d
-    | SynExpr.LongIdent (_, SynLongIdent ([ var; f1; f2; f3 ], _, _), _, _) ->
-      let obj1 =
-        PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank f1.idText)
-      let obj2 = PT.EFieldAccess(id, obj1, nameOrBlank f2.idText)
-      PT.EFieldAccess(id, obj2, nameOrBlank f3.idText)
+    | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) ->
+      match names with
+      | [] -> Exception.raiseInternal "empty list in LongIdent" []
+      | var :: fields ->
+        List.fold
+          (PT.EVariable(gid (), var.idText))
+          (fun acc (field : Ident) ->
+            PT.EFieldAccess(id, acc, nameOrBlank field.idText))
+          fields
 
-    // a.b.c
-    | SynExpr.LongIdent (_, SynLongIdent ([ var; field1; field2 ], _, _), _, _) ->
-      let obj1 =
-        PT.EFieldAccess(
-          id,
-          PT.EVariable(gid (), var.idText),
-          nameOrBlank field1.idText
-        )
-      PT.EFieldAccess(id, obj1, nameOrBlank field2.idText)
-
-    // a.b
-    | SynExpr.LongIdent (_, SynLongIdent ([ var; field ], _, _), _, _) ->
-      PT.EFieldAccess(id, PT.EVariable(gid (), var.idText), nameOrBlank field.idText)
-
-    // a.b
-    | SynExpr.DotGet (expr, _, SynLongIdent ([ field ], _, _), _) ->
-      PT.EFieldAccess(id, c expr, nameOrBlank field.idText)
-
+    // (...).a.b
+    | SynExpr.DotGet (expr, _, SynLongIdent (fields, _, _), _) ->
+      List.fold
+        (c expr)
+        (fun acc (field : Ident) ->
+          PT.EFieldAccess(id, acc, nameOrBlank field.idText))
+        fields
 
     // Lambdas
     | SynExpr.Lambda (_,
