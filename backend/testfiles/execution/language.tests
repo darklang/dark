@@ -68,7 +68,7 @@ module Records =
 
   // Invalid type
   MyNonExistantType { col1 = 2 } = Test.typeError "Unknown type `MyNonExistantType`"
-  AnEnum { col1 = 2 } = Test.typeError "Unknown type `MyNonExistantType`"
+  AnEnum { col1 = 2 } = Test.typeError "Expected a record but AnEnum_v0 is an enum"
 
   module Polymorphism =
     type MyRecord<'a> = { col1 : 'a; col2 : Int }
