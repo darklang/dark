@@ -139,8 +139,6 @@ let _indexHandler _req =
 
           let simpleTree = simplifyTree(darkTree.rootNode.walk());
 
-          // TODO: send _this_ to (in-WASM) Dark, to be mapped into an Expr
-
           document.getElementById("syntax-textarea").value = JSON.stringify(simpleTree, null, 2);
 
           syntaxTreeToUserFunction(simpleTree);
