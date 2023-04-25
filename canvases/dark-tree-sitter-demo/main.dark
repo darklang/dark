@@ -179,18 +179,6 @@ type PTExpr =
 
 
 
-// TODO: deal with indentations
-// TODO: should we require a 'rec' keyword?
-let prettyPrintExpr (expr: PTExpr): String =
-  match expr with
-  | PTExpr.EInt (_, i) -> Int.toString i
-  | PTExpr.ELet (_, identifier, expr, body) ->
-    "let " ++ identifier ++ " = " ++ (prettyPrintExpr expr) ++ "\n" ++ (prettyPrintExpr body)
-  | PTExpr.EVariable (_, name) -> name
-  | PTExpr.EFnCall (_, fnName, args) ->
-    // TODO: wrap results of prettyPrintExpr in () if there would be ambiguity
-    let argsPart = args |> List.map (fun a -> prettyPrintExpr a) |> String.concat " "
-    fnName ++ " " ++ argsPart
 
 
 type PTUserFunctionParameter =
