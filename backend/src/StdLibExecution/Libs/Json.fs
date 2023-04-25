@@ -366,6 +366,7 @@ let parse
       match Map.tryFind "Just" objFields with
       | Some v -> DOption(Some(convert oType v))
       | None -> DOption None
+    | TOption oType, v -> convert oType j |> Some |> DOption
 
     | TResult (okType, errType), JsonValueKind.Object ->
       let objFields =
@@ -410,16 +411,20 @@ let parse
 
       | CustomType.Record (firstField, additionalFields) ->
         let fieldDefs = firstField :: additionalFields
+        let enumerated = j.EnumerateObject() |> Seq.toList
+
         let dvalMap =
-          j.EnumerateObject()
-          |> Seq.map (fun jp ->
-            let correspondingType =
-              fieldDefs
-              // TODO: handle case where field isn't found
-              |> List.find (fun def -> def.name = jp.Name)
-              |> fun def -> def.typ
-            let converted = convert correspondingType jp.Value
-            (jp.Name, converted))
+          fieldDefs
+          |> List.map (fun def ->
+            let correspondingValue =
+              enumerated
+              // TODO: handle case where value isn't found for
+              // and maybe, if it's an Option<>al thing, don't complain
+              |> List.find (fun v -> v.Name = def.name)
+              |> fun field -> field.Value
+
+            let converted = convert def.typ correspondingValue
+            (def.name, converted))
           |> Map.ofSeq
 
         // TYPESCLEANUP add typename
