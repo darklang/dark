@@ -6,7 +6,7 @@
         <span class="font-medium text-white">AI</span>
       </div>
 
-    <div class="flex w-full bg-[#1B1B1B] ml-2 p-1.5 rounded-2xl">
+    <div class="flex w-full bg-[#1B1B1B] ml-3 p-1.5 rounded-2xl">
       <div class="flex flex-col items-center mt-4 px-1">
         <button @click="executeCode(responseIndex)" class="mb-3">
         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="#8f53ff" viewBox="0 0 24 24" id="play"><path d="M8 6.82v10.36c0 .79.87 1.27 1.54.84l8.14-5.18c.62-.39.62-1.29 0-1.69L9.54 5.98C8.87 5.55 8 6.03 8 6.82z"></path></svg>
