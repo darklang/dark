@@ -47,7 +47,7 @@ let _indexHandler _req =
       body, html { height: 100%; margin: 0; font-family: Arial, sans-serif }
       .container { display: flex; height: 100%; }
       .left-side, .middle, .right-side { flex: 1; padding: 10px; }
-      .textarea { width: 100%; height: 100%; resize: none; }
+      .textarea { width: 100%; height: 95%; resize: none; }
     </style>
   </head>
 
@@ -66,7 +66,7 @@ let _indexHandler _req =
       </div>
 
       <div class="right-side">
-        <label>Expr</label>
+        <label>Vanilla-serialized JSON of PT.UserFunction</label>
         <textarea id="right-textarea" class="textarea" disabled></textarea>
       </div>
     </div>
@@ -102,9 +102,37 @@ let _indexHandler _req =
         const Darklang = await Parser.Language.load("/static/tree-sitter/tree-sitter-darklang.wasm");
         parser.setLanguage(Darklang);
 
-        console.log(Darklang.fieldCount);
+        async function syntaxTreeToUserFunction(tree) {
+          try {
+            const response = await fetch("/parse-user-function", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(tree)
+            });
 
-        function parseAndUpdateOutput () {
+            if (!response.ok) {
+              const err = await response.text();
+              throw new Error("TODO", err);
+            }
+
+            const exprJson = await response.text(); // or maybe .json()?
+
+            document.getElementById("right-textarea").value = exprJson;
+
+            // TODO: now what? maybe eval via WASM?
+            // TODO: the WASM part; now that we have a user function,
+            //
+            // - load it into wasm
+            //   DotNet.invokeMethod("Wasm", "LoadExpr", exprJson);
+            //
+            // - run the fn (with some inputs)
+            //   DotNet.invokeMethod("Wasm", "EvalExpr");
+          } catch (error) {
+            console.error("Error:", error);
+          }
+        }
+
+        function sourceCodeToSyntaxTree () {
           const darkSourceCode = document.getElementById("input-textarea").value;
           const darkTree = parser.parse(darkSourceCode);
           window.tree = darkTree;
@@ -114,13 +142,14 @@ let _indexHandler _req =
           // TODO: send _this_ to (in-WASM) Dark, to be mapped into an Expr
 
           document.getElementById("syntax-textarea").value = JSON.stringify(simpleTree, null, 2);
+
+          syntaxTreeToUserFunction(simpleTree);
         }
 
         inputTextarea.addEventListener("input", () => {
-          parseAndUpdateOutput();
+          sourceCodeToSyntaxTree();
         });
-
-        parseAndUpdateOutput();
+        sourceCodeToSyntaxTree();
       });
     </script>
   </body>
@@ -130,3 +159,219 @@ let _indexHandler _req =
   Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
 
 
+let gid (): Int =
+  Int.random_v1 0 9223372036854775807
+
+
+let err (msg: String): Unit =
+  // TODO: maybe something with the msg?
+  let _ = 1.0/0.0
+  ()
+
+
+type PTTypeReference =
+  | TInt
+
+// TODO: the types of the 'id' fields should be something more like `type id = Int`
+type PTExpr =
+  | EInt of id: Int * Int
+  | ELet of id: Int * identifier: String * expr: PTExpr * body: PTExpr
+  | EVariable of id: Int * String
+  | EFnCall of id: Int * fnName: String * args : List<PTExpr>
+
+
+
+// TODO: deal with indentations
+// TODO: should we require a 'rec' keyword?
+let prettyPrintExpr (expr: PTExpr): String =
+  match expr with
+  | PTExpr.EInt (_, i) -> Int.toString i
+  | PTExpr.ELet (_, identifier, expr, body) ->
+    "let " ++ identifier ++ " = " ++ (prettyPrintExpr expr) ++ "\n" ++ (prettyPrintExpr body)
+  | PTExpr.EVariable (_, name) -> name
+  | PTExpr.EFnCall (_, fnName, args) ->
+    // TODO: wrap results of prettyPrintExpr in () if there would be ambiguity
+    let argsPart = args |> List.map (fun a -> prettyPrintExpr a) |> String.concat " "
+    fnName ++ " " ++ argsPart
+
+
+type PTUserFunctionParameter =
+  { id: Int
+    name: String
+    typ: PTTypeReference
+    description: String }
+
+type PTUserFunction =
+  { tlid: Int
+    name: String
+    typeParams: List<Unit> // TODO
+    parameters: List<PTUserFunctionParameter>
+    returnType: PTTypeReference
+    body: PTExpr
+    infix: Bool
+    description: String }
+
+
+/// This is the 'universal' type that represents the output
+/// of the tree-sitter parser.
+type SyntaxTreeNode =
+  { typ: String
+    text: String
+    fieldName: Option<String>
+    children: List<SyntaxTreeNode> }
+
+/// From a node, looks through its children for a single node
+/// whose fieldName matches the one specified
+///
+/// TODO: should return Option<SyntaxTreeNode>
+let getField (node: SyntaxTreeNode) (fieldName: String): SyntaxTreeNode =
+  let children = node.children
+
+  // TOOD: ensure only 1 child of this type exists
+  // (right now this won't error if 2 of the same fieldName exist)
+  let found =
+    children
+    |> List.findFirst_v2 (fun c ->
+      match c.fieldName with
+      | Just fName -> fName == fieldName
+      | Nothing -> false
+    )
+
+  match found with
+  | Just c -> c
+  | Nothing -> err ("Could not 1 field of name" ++ fieldName ++ " in node " ++ node.typ)
+
+let getText (node: SyntaxTreeNode): String =
+  node.text
+
+// TODO: should return Result<PTExpr, String>
+let parseExprCase (node: SyntaxTreeNode): PTExpr =
+  match node.typ with
+  | "identifier" -> PTExpr.EVariable (gid(), getText node)
+
+  | "integer" ->
+    let i = Int.parse (getText node)
+    PTExpr.EInt (gid(), i)
+
+  | "let_expression" ->
+    let identifier = (getField node "identifier") |> getText
+    let expr = (getField node "expr") |> parseExpr
+    let body = (getField node "body") |> parseExpr
+    PTExpr.ELet (gid(), identifier, expr, body)
+
+  | "function_call" ->
+    let fnName = (getField node "fn") |> getText
+
+    let args = getField node "args"
+    let args =
+      args.children
+      |> List.map (fun c -> parseExpr c)
+
+    PTExpr.EFnCall (gid(), fnName, args)
+
+  | "infix_operation" ->
+    let op = (getField node "operator") |> getText
+
+    let id = gid()
+
+    let left = parseExpr (getField node "left")
+    let right = parseExpr (getField node "right")
+
+    match op with
+    | "+" -> PTExpr.EFnCall (id, "Int.add", [left; right])
+    | "-" -> PTExpr.EFnCall (id, "Int.subtract", [left; right])
+
+
+// TODO: should return Result<PTExpr, String>
+let parseExpr (node: SyntaxTreeNode): PTExpr =
+  if node.typ != "expression" then
+    err "bad expr"
+
+  match node.children with
+  | [single] -> single |> parseExprCase
+  | _ -> err "expression has 0 or 2+ children"
+
+
+// TODO: should return Result<PTTypeReference, String>
+let parseTypeReference (node: SyntaxTreeNode): PTTypeReference =
+  // TODO: support additional types
+  PTTypeReference.TInt
+
+
+// TODO: handle unit params
+// e.g. `let doSomething () = ...`
+//
+// TODO: should return Result<PTUserFunctionParameter, String>
+let parseUserFunctionParam (node: SyntaxTreeNode): PTUserFunctionParameter =
+  if node.typ != "fn_param_def" then
+    err "fn param def wrong"
+
+  PTUserFunctionParameter
+    { id = gid()
+      name = (getField node "identifier") |> getText
+      typ = (getField node "typ") |> parseTypeReference
+      description = "TODO" }
+
+
+let parseUserFunctionParams (node: SyntaxTreeNode): List<PTUserFunctionParameter> =
+  if node.typ != "fn_params_def" then
+    err "fn params def wrong"
+
+  // TODO: the grammar is currently kinda bad - fix it and then follow up here
+  let first = getField node "first"
+  let additional = getField node "additional"
+
+  [ first; additional ]
+  |> List.map(fun p -> parseUserFunctionParam p)
+
+
+// TODO: should return Result<PTUserFunction, String>
+let parseUserFunction (node: SyntaxTreeNode): PTUserFunction =
+  if node.typ != "fn_def" then
+    err "fn def wrong"
+
+  let params = (getField node "params") |> parseUserFunctionParams
+
+  PTUserFunction
+    { tlid = gid()
+      name = (getField node "name") |> getText
+      parameters = params
+      typeParams = []
+      returnType = (getField node "return_type") |> parseTypeReference
+      body = (getField node "body") |> parseExpr
+      infix = false
+      description = "TODO" }
+
+
+/// This returns a Json-serialized PT.UserFunction that should be
+/// able to be deserialized in WASM by Json.deserialize<PT.UserFunction>.
+[<HttpHandler("POST", "/parse-user-function")>]
+let _handler _req =
+  // TODO: theoretically, we could even pass in the source code
+  // instead of the serialized syntax tree, and then parse it
+  // somehow in Dark?
+  let reqBody = String.fromBytes_v0 request.body
+  let synTree = Json.parse<SyntaxTreeNode> reqBody
+
+  match synTree with
+  | Ok root ->
+    if root.typ != "source_file" then
+      err "fn def wrong"
+
+    let userFn =
+      match root.children with
+      | [userFunction] -> parseUserFunction userFunction
+
+    match Json.serialize<PTUserFunction> userFn with
+    | Ok serialized ->
+      let respHeaders =
+        Dict.fromListOverwritingDuplicates
+          [ ("content-type", "application/json") ]
+
+      Http.responseWithHeaders (String.toBytes serialized) respHeaders 200
+
+    | Error e ->
+      Http.responseWithHeaders (String.toBytes_v0 e) Dict.empty_v0 500
+
+  | Error e ->
+    Http.responseWithHeaders (String.toBytes_v0 e) Dict.empty_v0 400
