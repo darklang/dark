@@ -227,9 +227,9 @@ module Variable =
   (let x = 5 in x) = 5
 
 module Dict =
-  (Dict { a = 5 } |> Dict.get_v2 "a") = Just 5
-  (Dict { ___ = 5 } |> Dict.get_v2 " ") = Just 5
-  (Dict { a = 5 } |> Dict.get_v2 "b") = Nothing
+  ((Dict { a = 5 }) |> Dict.get_v2 "a") = Just 5
+  ((Dict { ___ = 5 }) |> Dict.get_v2 "") = Just 5
+  ((Dict { a = 5 }) |> Dict.get_v2 "b") = Nothing
 
 
 module InterpolatedString =
