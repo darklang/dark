@@ -523,7 +523,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return
             Dval.errSStr
               (sourceID id)
-              $"Option.Nothing expects no fields but got {fields.Length}"
+              $"Option.Nothing expects 0 arguments but got {fields.Length}"
         | "Just", [ arg ] ->
           let! dv = (eval state st arg)
           return Dval.optionJust dv
@@ -531,7 +531,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return
             Dval.errSStr
               (sourceID id)
-              $"Option.Just expects one field but got {fields.Length}"
+              $"Option.Just expects 1 argument but got {fields.Length}"
         | name, _ ->
           return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
       | FQTypeName.Stdlib ({ modules = []; typ = "Result"; version = 0 }) ->
@@ -543,7 +543,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return
             Dval.errSStr
               (sourceID id)
-              $"Result.Ok expects one field but got {fields.Length}"
+              $"Result.Ok expects 1 argument but got {fields.Length}"
         | "Error", [ arg ] ->
           let! dv = eval state st arg
           return Dval.resultError dv
@@ -551,7 +551,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return
             Dval.errSStr
               (sourceID id)
-              $"Result.Error expects one field but got {fields.Length}"
+              $"Result.Error expects 1 argument but got {fields.Length}"
         | name, _ ->
           return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
       | typeName ->
