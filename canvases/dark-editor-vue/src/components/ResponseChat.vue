@@ -20,7 +20,7 @@
       </div>
 
       <div class="ml-3 w-full p-5 border-l border-[#333333]">
-        <AutoSizeTextarea :value="response" class="responseTextarea"></AutoSizeTextarea>
+        <AutoSizeTextarea :response="response" class="responseTextarea"></AutoSizeTextarea>
       </div>
       </div>
     </div>

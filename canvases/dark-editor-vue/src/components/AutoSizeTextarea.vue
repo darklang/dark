@@ -1,11 +1,31 @@
 <template>
-  <textarea ref="content" class="text-white bg-transparent w-full outline-none">{{ $props.response }}</textarea>
+  <textarea ref="content" class="text-white bg-transparent w-full outline-none">{{ response }}</textarea>
 </template>
 
-<script setup>
-import { ref, onMounted} from "vue";
+<script setup lang="ts">
+import { defineProps, ref, onMounted, watch } from "vue";
 import autosize from "autosize";
 
-const content = ref("");
-onMounted(() => autosize(content.value));
+const props = defineProps({
+  response: {
+    type: String,
+    required: true,
+  },
+});
+
+const content = ref(null);
+
+onMounted(() => {
+  if (content.value) {
+    autosize(content.value);
+  }
+});
+
+// Watch for changes to the response prop and update the textarea size accordingly
+watch(() => props.response, () => {
+  if (content.value) {
+    autosize.update(content.value);
+  }
+});
+
 </script>
