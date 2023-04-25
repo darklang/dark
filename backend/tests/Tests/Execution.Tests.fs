@@ -537,7 +537,9 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (EEnum None "Ok" [ eStr "y" ])
+        (let typeName =
+          FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
+         eEnum typeName "Ok" [ eStr "y" ])
         [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DString "y"))))
           (pOkVarVarId, "var pat", er (DString "y"))
           (okVarRhsId, "rhs", er (DString "ok: y"))
@@ -555,7 +557,9 @@ let testMatchPreview : Test =
 
       t
         "nothing"
-        (EEnum None "Nothing" [])
+        (let typeName =
+          FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
+         eEnum typeName "Nothing" [])
         [ (pNothingId, "ok pat", er (DOption None))
           (nothingRhsId, "rhs", er (DString "enum nothing")) ]
 

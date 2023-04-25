@@ -404,7 +404,7 @@ let parse
           let mapped =
             List.zip matchingCase.fields j
             |> List.map (fun (typ, j) -> convert typ.typ j)
-          DEnum(Some typeName, caseName, mapped)
+          DEnum(typeName, caseName, mapped)
 
         | _ -> Exception.raiseInternal "TODO" []
 

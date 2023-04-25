@@ -126,8 +126,19 @@ module RuntimeTypes =
         RT.EUnit(84718341UL),
         [ RT.EUnit(7167384UL) ]
       )
-      RT.ERecord(8167384UL, None, [ "a9df8", RT.EUnit(71631UL) ])
-      RT.EEnum(64617UL, None, "Just", [ RT.EUnit(8173UL) ])
+      RT.ERecord(
+        8167384UL,
+        RT.FQTypeName.User(
+          { modules = [ "MyModule"; "Name" ]; typ = "NonEmptyList"; version = 0 }
+        ),
+        [ "a9df8", RT.EUnit(71631UL) ]
+      )
+      RT.EEnum(
+        64617UL,
+        RT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 }),
+        "Just",
+        [ RT.EUnit(8173UL) ]
+      )
       RT.EMatch(
         712743UL,
         RT.EInt(712373UL, 123),
@@ -137,7 +148,7 @@ module RuntimeTypes =
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EEnum(
         8375723UL,
-        Some(RT.FQTypeName.User { modules = []; typ = "MyEnum"; version = 0 }),
+        RT.FQTypeName.User { modules = []; typ = "MyEnum"; version = 0 },
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -353,7 +364,11 @@ module ProgramTypes =
                         PT.LPVariable(7567123UL, "r"),
                         PT.ERecord(
                           109539183UL,
-                          None,
+                          PT.FQTypeName.User(
+                            { modules = [ "dark"; "stdlib" ]
+                              typ = "NonEmptyList"
+                              version = 0 }
+                          ),
                           [ ("field",
                              PT.EPipe(
                                786862131UL,
@@ -369,17 +384,34 @@ module ProgramTypes =
                             ("enum",
                              PT.EEnum(
                                567764301UL,
-                               None,
+                               PT.FQTypeName.Stdlib(
+                                 { modules = []; typ = "Result"; version = 0 }
+                               ),
                                "Ok",
                                [ PT.EEnum(
                                    646107057UL,
-                                   None,
+                                   PT.FQTypeName.Stdlib(
+                                     { modules = []; typ = "Result"; version = 0 }
+                                   ),
                                    "Error",
                                    [ PT.EEnum(
                                        689802831UL,
-                                       None,
+                                       PT.FQTypeName.Stdlib(
+                                         { modules = []
+                                           typ = "Option"
+                                           version = 0 }
+                                       ),
                                        "Just",
-                                       [ PT.EEnum(957916875UL, None, "Nothing", []) ]
+                                       [ PT.EEnum(
+                                           957916875UL,
+                                           PT.FQTypeName.Stdlib(
+                                             { modules = []
+                                               typ = "Option"
+                                               version = 0 }
+                                           ),
+                                           "Nothing",
+                                           []
+                                         ) ]
                                      ) ]
                                  ) ]
                              )) ]

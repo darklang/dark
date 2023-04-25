@@ -173,7 +173,7 @@ module Expr =
     | PT.ERecord (id, typeName, fields) ->
       RT.ERecord(
         id,
-        Option.map FQTypeName.toRT typeName,
+        FQTypeName.toRT typeName,
         List.map (Tuple2.mapSecond toRT) fields
       )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
@@ -231,12 +231,7 @@ module Expr =
     | PT.EPipeTarget id ->
       Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EEnum (id, typeName, caseName, fields) ->
-      RT.EEnum(
-        id,
-        Option.map FQTypeName.toRT typeName,
-        caseName,
-        List.map toRT fields
-      )
+      RT.EEnum(id, FQTypeName.toRT typeName, caseName, List.map toRT fields)
     | PT.EDict (id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)
 
 

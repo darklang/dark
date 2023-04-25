@@ -106,7 +106,7 @@ module FQFnName =
   let namePat = @"^[a-z][a-z0-9_]*$"
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let fnnamePat = @"^([a-z][a-z0-9A-Z_]*)$"
-  let userFnNamePat = @"^([a-z][a-z0-9A-Z_]*)$"
+  let userFnNamePat = @"^([a-z][a-z0-9A-Z_]*[']?)$"
 
   let packageFnName
     (owner : string)
@@ -115,11 +115,11 @@ module FQFnName =
     (function_ : string)
     (version : int)
     : PackageFnName =
-    Prelude.assertRe "owner must match" namePat owner
-    Prelude.assertRe "package must match" namePat package
-    NonEmptyList.iter (Prelude.assertRe "modName name must match" modNamePat) modules
-    Prelude.assertRe "package function name must match" fnnamePat function_
-    Prelude.assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    assertRe "owner must match" namePat owner
+    assertRe "package must match" namePat package
+    NonEmptyList.iter (assertRe "modName name must match" modNamePat) modules
+    assertRe "package function name must match" fnnamePat function_
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { owner = owner
       package = package
       modules = modules
@@ -140,9 +140,9 @@ module FQFnName =
     (function_ : string)
     (version : int)
     : StdlibFnName =
-    List.iter (Prelude.assertRe "modName name must match" modNamePat) modules
-    Prelude.assertRe "stdlib function name must match" fnnamePat function_
-    Prelude.assert_
+    List.iter (assertRe "modName name must match" modNamePat) modules
+    assertRe "stdlib function name must match" fnnamePat function_
+    assert_
       "version can't be negative"
       [ "function", function_; "version", version ]
       (version >= 0)
@@ -160,9 +160,9 @@ module FQFnName =
     (function_ : string)
     (version : int)
     : UserFnName =
-    List.iter (Prelude.assertRe "modName name must match" modNamePat) modules
-    Prelude.assertRe "user function name must match" userFnNamePat function_
-    Prelude.assert_
+    List.iter (assertRe "modName name must match" modNamePat) modules
+    assertRe "user function name must match" userFnNamePat function_
+    assert_
       "version can't be negative"
       [ "function", function_; "version", version ]
       (version >= 0)
@@ -282,7 +282,7 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * Expr * List<Expr>
 
-  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | ERecord of id * FQTypeName.T * List<string * Expr>
 
   // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.
@@ -294,11 +294,7 @@ type Expr =
   /// represented as
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
   /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
-  | EEnum of
-    id *
-    typeName : Option<FQTypeName.T> *
-    caseName : string *
-    fields : List<Expr>
+  | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
 
   /// Supports `match` expressions
   /// ```fsharp

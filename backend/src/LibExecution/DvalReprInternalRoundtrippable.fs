@@ -115,10 +115,7 @@ module FormatV0 =
     | DOption of Option<Dval>
     | DResult of Result<Dval, Dval>
     | DBytes of byte array
-    | DEnum of
-      typeName : Option<FQTypeName.T> *
-      caseName : string *
-      fields : List<Dval>
+    | DEnum of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
@@ -152,7 +149,7 @@ module FormatV0 =
     | DResult (Error dv) -> RT.DResult(Error(toRT dv))
     | DBytes bytes -> RT.DBytes bytes
     | DEnum (typeName, caseName, fields) ->
-      RT.DEnum(Option.map FQTypeName.toRT typeName, caseName, List.map toRT fields)
+      RT.DEnum(FQTypeName.toRT typeName, caseName, List.map toRT fields)
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
@@ -185,7 +182,7 @@ module FormatV0 =
     | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
     | RT.DBytes bytes -> DBytes bytes
     | RT.DEnum (typeName, caseName, fields) ->
-      DEnum(Option.map FQTypeName.fromRT typeName, caseName, List.map fromRT fields)
+      DEnum(FQTypeName.fromRT typeName, caseName, List.map fromRT fields)
 
 
 let toJsonV0 (dv : RT.Dval) : string =

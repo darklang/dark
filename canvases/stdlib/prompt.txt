@@ -238,8 +238,8 @@ and [<NoComparison>] Dval =
   | DResult of Result<Dval, Dval>
 
   // TODO: consider renaming - this is a _value_ so it's already been "Constructed"
-  | DConstructor of
-    typeName : Option<FQTypeName.T> *
+  | DEnum of
+    typeName : FQTypeName.T *
     caseName : string *
     fields : List<Dval>
 ```

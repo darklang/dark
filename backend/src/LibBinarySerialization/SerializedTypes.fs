@@ -225,13 +225,9 @@ type Expr =
   | EVariable of id * string
   | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
-  | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * Expr>
+  | ERecord of id * typeName : FQTypeName.T * fields : List<string * Expr>
   | EPipe of id * Expr * Expr * List<Expr>
-  | EEnum of
-    id *
-    typeName : Option<FQTypeName.T> *
-    caseName : string *
-    fields : List<Expr>
+  | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EPipeTarget of id
   | ETuple of id * Expr * Expr * List<Expr>

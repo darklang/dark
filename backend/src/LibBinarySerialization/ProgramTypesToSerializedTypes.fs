@@ -169,18 +169,13 @@ module Expr =
     | PT.ERecord (id, typeName, fields) ->
       ST.ERecord(
         id,
-        Option.map FQTypeName.toST typeName,
+        FQTypeName.toST typeName,
         List.map (Tuple2.mapSecond toST) fields
       )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, toST expr2, List.map toST rest)
     | PT.EEnum (id, typeName, caseName, fields) ->
-      ST.EEnum(
-        id,
-        Option.map FQTypeName.toST typeName,
-        caseName,
-        List.map toST fields
-      )
+      ST.EEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
     | PT.EMatch (id, mexpr, cases) ->
       ST.EMatch(
         id,

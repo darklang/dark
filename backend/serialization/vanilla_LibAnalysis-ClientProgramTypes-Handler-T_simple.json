@@ -493,7 +493,17 @@
                       [
                         "ERecord",
                         109539183,
-                        null,
+                        [
+                          "User",
+                          {
+                            "modules": [
+                              "dark",
+                              "stdlib"
+                            ],
+                            "typ": "NonEmptyList",
+                            "version": 0
+                          }
+                        ],
                         [
                           [
                             "field",
@@ -532,25 +542,53 @@
                             [
                               "EEnum",
                               567764301,
-                              null,
+                              [
+                                "Stdlib",
+                                {
+                                  "modules": [],
+                                  "typ": "Result",
+                                  "version": 0
+                                }
+                              ],
                               "Ok",
                               [
                                 [
                                   "EEnum",
                                   646107057,
-                                  null,
+                                  [
+                                    "Stdlib",
+                                    {
+                                      "modules": [],
+                                      "typ": "Result",
+                                      "version": 0
+                                    }
+                                  ],
                                   "Error",
                                   [
                                     [
                                       "EEnum",
                                       689802831,
-                                      null,
+                                      [
+                                        "Stdlib",
+                                        {
+                                          "modules": [],
+                                          "typ": "Option",
+                                          "version": 0
+                                        }
+                                      ],
                                       "Just",
                                       [
                                         [
                                           "EEnum",
                                           957916875,
-                                          null,
+                                          [
+                                            "Stdlib",
+                                            {
+                                              "modules": [],
+                                              "typ": "Option",
+                                              "version": 0
+                                            }
+                                          ],
                                           "Nothing",
                                           []
                                         ]

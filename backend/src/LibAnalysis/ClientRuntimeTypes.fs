@@ -350,13 +350,9 @@ module Expr =
     | EApply of id * FnTarget * List<TypeReference> * List<T>
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
-    | ERecord of id * typeName : Option<FQTypeName.T> * fields : List<string * T>
+    | ERecord of id * typeName : FQTypeName.T * fields : List<string * T>
     | EDict of id * List<string * T>
-    | EEnum of
-      id *
-      typeName : Option<FQTypeName.T> *
-      caseName : string *
-      fields : List<T>
+    | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<T>
     | EMatch of id * T * List<MatchPattern * T>
     | EAnd of id * T * T
     | EOr of id * T * T
@@ -399,16 +395,11 @@ module Expr =
     | ERecord (id, typeName, fields) ->
       RT.ERecord(
         id,
-        Option.map FQTypeName.fromCT typeName,
+        FQTypeName.fromCT typeName,
         List.map (Tuple2.mapSecond r) fields
       )
     | EEnum (id, typeName, caseName, fields) ->
-      RT.EEnum(
-        id,
-        Option.map FQTypeName.fromCT typeName,
-        caseName,
-        List.map r fields
-      )
+      RT.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map r fields)
     | EMatch (id, mexpr, pairs) ->
       RT.EMatch(
         id,
@@ -458,13 +449,9 @@ module Expr =
     | RT.ETuple (id, first, second, theRest) ->
       ETuple(id, r first, r second, List.map r theRest)
     | RT.ERecord (id, typeName, fields) ->
-      ERecord(
-        id,
-        Option.map FQTypeName.toCT typeName,
-        List.map (Tuple2.mapSecond r) fields
-      )
+      ERecord(id, FQTypeName.toCT typeName, List.map (Tuple2.mapSecond r) fields)
     | RT.EEnum (id, typeName, caseName, fields) ->
-      EEnum(id, Option.map FQTypeName.toCT typeName, caseName, List.map r fields)
+      EEnum(id, FQTypeName.toCT typeName, caseName, List.map r fields)
     | RT.EMatch (id, mexpr, pairs) ->
       EMatch(
         id,
@@ -536,7 +523,7 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DEnum of typeName : Option<FQTypeName.T> * caseName : string * fields : List<T>
+    | DEnum of typeName : FQTypeName.T * caseName : string * fields : List<T>
 
   let rec fromCT (dv : T) : RT.Dval =
     let r = fromCT
@@ -574,7 +561,7 @@ module Dval =
     | DResult (Error dv) -> RT.DResult(Error(r dv))
     | DBytes bytes -> RT.DBytes bytes
     | DEnum (typeName, caseName, fields) ->
-      RT.DEnum(Option.map FQTypeName.fromCT typeName, caseName, List.map r fields)
+      RT.DEnum(FQTypeName.fromCT typeName, caseName, List.map r fields)
 
   and toCT (dv : RT.Dval) : T =
     let r = toCT

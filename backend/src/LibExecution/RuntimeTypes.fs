@@ -294,9 +294,9 @@ type Expr =
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * Option<FQTypeName.T> * List<string * Expr>
+  | ERecord of id * FQTypeName.T * List<string * Expr>
   | EDict of id * List<string * Expr>
-  | EEnum of id * Option<FQTypeName.T> * caseName : string * fields : List<Expr>
+  | EEnum of id * FQTypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
@@ -412,11 +412,7 @@ and [<NoComparison>] Dval =
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
 
-  // TODO: consider renaming - this is a _value_ so it's already been "Constructed"
-  | DEnum of
-    typeName : Option<FQTypeName.T> *
-    caseName : string *
-    fields : List<Dval>
+  | DEnum of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
 
 
 and DvalTask = Ply<Dval>
