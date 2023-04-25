@@ -73,24 +73,23 @@ let _indexHandler _req =
     <script src="/static/tree-sitter/tree-sitter.js" />
     <script>console.log('NOT SURE WHY I NEED THIS')</script>
     <script>
-      function toSimpleTree(getFieldName, node) {
-        // I seem to be having some trouble extracting the field names,
-        // but suspect I can get by without them for now.
-        // TODO: either remove this code, or pursue extracting field names further.
+      function simplifyTree(cursor) {
+        let children = [];
 
-        console.log(node);
-        console.log(JSON.stringify(node));
-        console.log("f", node.fields);
-        // const fieldId = node.walk().currentFieldId();
-        // const fieldName = node.walk().currentFieldName();
-        // console.log('f', fieldId, fieldName);
+        if (cursor.gotoFirstChild()) {
+          do {
+            children.push(simplifyTree(cursor));
+          } while (cursor.gotoNextSibling());
 
-        const response =
-          { typ: node.type,
-            text: node.text,
-            children: node.children.map(n => toSimpleTree(getFieldName, n)) }
+          cursor.gotoParent();
+        }
 
-        return response;
+        return {
+          typ: cursor.nodeType,
+          text: cursor.nodeText,
+          fieldName: cursor.currentFieldName(),
+          children: children,
+        };
       }
 
       const Parser = window.TreeSitter;
@@ -110,8 +109,8 @@ let _indexHandler _req =
           const darkTree = parser.parse(darkSourceCode);
           window.tree = darkTree;
 
-          let getFieldName = (id) => Darklang.fieldNameForId(id);
-          let simpleTree = toSimpleTree(getFieldName, darkTree.rootNode);
+          let simpleTree = simplifyTree(darkTree.rootNode.walk());
+
           // TODO: send _this_ to (in-WASM) Dark, to be mapped into an Expr
 
           document.getElementById("syntax-textarea").value = JSON.stringify(simpleTree, null, 2);
