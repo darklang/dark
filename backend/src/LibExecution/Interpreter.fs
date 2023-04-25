@@ -187,23 +187,45 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | ERecord (id, typeName, fields) ->
-      // TYPESCLEANUP typecheck fields against the type
-      return!
-        Ply.List.foldSequentially
-          (fun r (k, expr) ->
-            uply {
-              let! v = eval state st expr
-              match (r, k, v) with
-              | r, _, _ when Dval.isFake r -> return r
-              | _, _, v when Dval.isFake v -> return v
-              | _, "", _ -> return DError(sourceID id, "Record key is empty")
-              | DRecord m, k, v -> return (DRecord(Map.add k v m))
-              // If we haven't got a DRecord we're propagating an error so let it go
-              | r, _, v -> return r
-            })
-          // TYPESCLEANUP
-          (DRecord Map.empty)
-          fields
+      let availableTypes = ExecutionState.availableTypes state
+      let typ = Map.tryFind typeName availableTypes
+      let typeStr = FQTypeName.toString typeName
+      match typ with
+      | None ->
+        return Dval.errSStr (sourceID id) $"There is no type named: {typeStr}"
+      | Some (CustomType.Enum _) ->
+        return
+          Dval.errSStr (sourceID id) $"Expected a record but {typeStr} is an enum"
+      | Some (CustomType.Record (expected1, expectedRest)) ->
+        let expectedFields =
+          (expected1 :: expectedRest) |> List.map (fun f -> f.name, f.typ) |> Map
+        return!
+          Ply.List.foldSequentially
+            (fun r (k, expr) ->
+              uply {
+                if Dval.isFake r then
+                  return r
+                else if not (Map.containsKey k expectedFields) then
+                  return
+                    Dval.errSStr (sourceID id) $"Unexpected field `{k}` in {typeStr}"
+                else
+                  let! v = eval state st expr
+                  if Dval.isFake v then
+                    return v
+                  else
+                    match
+                      TypeChecker.unify availableTypes (Map.find k expectedFields) v
+                      with
+                    | Ok () ->
+                      match r with
+                      | DRecord m -> return (DRecord(Map.add k v m))
+                      | _ -> return Dval.errSStr (sourceID id) "Expected a record"
+                    | Error e ->
+                      return
+                        Dval.errSStr (sourceID id) (TypeChecker.Error.toString e)
+              })
+            (DRecord Map.empty)
+            fields
 
 
     | EDict (id, fields) ->
