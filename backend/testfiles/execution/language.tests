@@ -124,6 +124,10 @@ module Enums =
     (AorB.A == AorB.B) = false
     List.unique_v0 [AorB.A; AorB.B; AorB.A; AorB.A; AorB.B] = [AorB.A; AorB.B]
 
+    module EnumReference =
+      type CorD = | C of Int | D of AorB
+      (CorD.C != CorD.D(AorB.B)) = true
+      (CorD.D(AorB.A) == CorD.D(AorB.A)) = true
 
   module MixedCases =
     type EnumOfMixedCases =
@@ -154,10 +158,6 @@ module Enums =
     ) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
 
 
-  module EnumReference =
-    type CorD = | C of Int | D of AorB
-    (CorD.C != CorD.D(AorB.B)) = true
-    (CorD.D(AorB.A) == CorD.D(AorB.A)) = true
 
 
   module Recursive =
