@@ -731,10 +731,9 @@ module Expr =
       (fun e ->
         match e with
         // pipes with variables might be fn calls
-        | PT.EPipe (id, name, pipeExpr, exprs) ->
-          let newExprs =
-            exprs
-            |> List.map (fun e ->
+        | PT.EPipe (id, expr, pipeExpr, pipeExprs) ->
+          let fix =
+            (fun e ->
               match e with
               | PT.EVariable (id, name) ->
                 match parseFn name with
@@ -745,7 +744,7 @@ module Expr =
                   | None -> e
                 | None -> e
               | e -> e)
-          PT.EPipe(id, name, pipeExpr, newExprs)
+          PT.EPipe(id, expr, fix pipeExpr, List.map fix pipeExprs)
         | PT.EFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
           match fnNameFor name.modules name.function_ name.version with
           | Some name -> PT.EFnCall(id, name, typeArgs, args)
