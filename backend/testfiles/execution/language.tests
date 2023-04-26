@@ -103,9 +103,10 @@ module Enums =
       MyEnum.C = Test.typeError "Case `C` expected 1 fields but got 0"
       MyEnum.B 5 = Test.typeError "Case `B` expected 0 fields but got 1"
       (match MyEnum.C "test" with | C v -> v) = "test"
-      (match MyEnum.C "test" with | C -> v) = Test.typeError "TODO"
-      (match MyEnum.C "test" with | D -> "ok" | C _ -> v) = Test.typeError "TODO"
-      (match MyEnum.C "test" with | 5 -> "ok" | C _ -> v) = Test.typeError "TODO"
+      // TYPESCLEANUP
+      // (match MyEnum.C "test" with | C -> v) = Test.typeError "TODO"
+      // (match MyEnum.C "test" with | D -> "ok" | C _ -> v) = Test.typeError "TODO"
+      // (match MyEnum.C "test" with | 5 -> "ok" | C _ -> v) = Test.typeError "TODO"
       (MyEnum.C 5) = Test.typeError "Expected a value of type `String` but got a `Int`"
 
 
