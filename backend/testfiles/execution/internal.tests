@@ -11,8 +11,8 @@ module Documentation =
    |> Dict.get_v2 "Int.add"
    |> Test.unwrap
    |> (fun f -> f.parameters)) =
-     [ Parameter { name = "a"; ``type`` = "Int" }
-       Parameter { name = "b"; ``type`` = "Int" } ]
+     [ DarkInternal.Documentation.Parameter { name = "a"; ``type`` = "Int" }
+       DarkInternal.Documentation.Parameter { name = "b"; ``type`` = "Int" } ]
 
 
 module Infra =
