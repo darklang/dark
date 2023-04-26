@@ -711,8 +711,10 @@ module Expr =
         { modules = modules; function_ = function_; version = version }
       if Set.contains userName userFunctions then
         Some(PT.FQFnName.User(userName))
-      else
+      else if modules <> [] || Set.contains function_ PT.FQFnName.oneWordFunctions then
         Some(PT.FQFnName.Stdlib(stdlibName))
+      else
+        None
 
     let typeNameFor modules typ version =
       let userName : PT.FQTypeName.UserTypeName =
