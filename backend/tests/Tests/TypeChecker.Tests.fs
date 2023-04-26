@@ -81,7 +81,7 @@ let testArguments : Test =
     [ (("myBadFn", RT.TString, S.eInt 7),
        RT.DError(
          RT.SourceNone,
-         "Type error(s) in return type: Expected to see a value of type String but found a Int"
+         "Type error(s) in return type: Expected a value of type `String` but got a `Int`"
        ))
       (("myGoodFn", RT.TString, S.eStr "test"), RT.DString "test")
       (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]
