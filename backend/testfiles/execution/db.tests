@@ -401,7 +401,8 @@ module FindAll =
   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
-  (friends (fun p -> let obj = Person { x = 42 } in p.height > obj.x )) =
+  type X = { x : Int }
+  (friends (fun p -> let obj = X { x = 42 } in p.height > obj.x )) =
     [" Chandler "; "Rachel"; "Ross" ]
 
   // nested fieldaccess
