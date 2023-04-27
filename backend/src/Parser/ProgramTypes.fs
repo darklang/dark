@@ -359,7 +359,7 @@ module Expr =
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
 
-      PT.EEnum(id, typeName, name.idText, [ c arg ])
+      PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     // Enum values (EEnums)
     | SynExpr.Ident name when name.idText = "Nothing" ->
