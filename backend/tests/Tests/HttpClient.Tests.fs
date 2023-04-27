@@ -156,11 +156,15 @@ let makeTest versionName filename =
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> Parser.TestModule.parseSingleTestFromFile
+      let code =
+        test.actual
+        |> Parser.ProgramTypes.Expr.fixupPass Set.empty Set.empty
+        |> PT2RT.Expr.toRT
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT test.actual)
+      let! actual = Exe.executeExpr state Map.empty code
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]

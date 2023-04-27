@@ -192,7 +192,9 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
     let oplists =
       test.handlers
       |> List.map (fun handler ->
-        let (source : PT.Expr) = Parser.ProgramTypes.parseExpr handler.Code
+        let (source : PT.Expr) =
+          Parser.ProgramTypes.parseExpr handler.Code
+          |> Parser.ProgramTypes.Expr.fixupPass Set.empty Set.empty
 
         let gid = Prelude.gid
 
