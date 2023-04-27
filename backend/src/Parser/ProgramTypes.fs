@@ -718,7 +718,7 @@ module Expr =
   // whole program once, and then run this on any expressions, passing in User types
   // and functions. It converts user types that are not in the list to Stdlib types.
   // TODO: we need some sort of unambiguous way to refer to user types
-  let fixupPass
+  let completeParse
     (userFunctions : Set<PT.FQFnName.UserFnName>)
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (e : PT.Expr)
@@ -975,10 +975,26 @@ module UserType =
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
 
-let parseExprWithTypes (code : string) : PT.Expr =
+/// Returns an incomplete parse of a PT expression. Requires calling
+/// Expr.completeParse before using
+// TODO it's hard to use the type system here since there's a lot of places we stash
+// PT.Expr, but that's even more reason to try and prevent partial parses.
+let initialParse (code : string) : PT.Expr =
   code
   |> Utils.parseAsFSharpSourceFile
   |> Utils.singleExprFromImplFile
   |> Expr.fromSynExpr
 
-let parseExpr = parseExprWithTypes
+// Shortcut function for tests that ignore user functions and types
+let parseIgnoringUser (code : string) : PT.Expr =
+  code |> initialParse |> Expr.completeParse Set.empty Set.empty
+
+let parseRTExpr
+  (fns : Set<PT.FQFnName.UserFnName>)
+  (types : Set<PT.FQTypeName.UserTypeName>)
+  (code : string)
+  : LibExecution.RuntimeTypes.Expr =
+  code
+  |> initialParse
+  |> Expr.completeParse fns types
+  |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT

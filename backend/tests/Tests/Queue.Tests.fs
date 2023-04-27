@@ -27,7 +27,7 @@ module SR = LibBackend.QueueSchedulingRules
 module TI = LibBackend.TraceInputs
 module TCS = LibBackend.TraceCloudStorage
 
-let p (code : string) = Parser.ProgramTypes.parseExpr code
+let p (code : string) = Parser.ProgramTypes.parseIgnoringUser code
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 

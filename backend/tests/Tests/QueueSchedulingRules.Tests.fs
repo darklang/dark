@@ -19,7 +19,7 @@ module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
 
-let p (code : string) = Parser.ProgramTypes.parseExpr code
+let p (code : string) = Parser.ProgramTypes.parseIgnoringUser code
 
 
 let testGetWorkerSchedulesForCanvas =

@@ -97,7 +97,8 @@ let fns : List<BuiltInFn> =
         | state, _, [ DString code; DDict userInputs ] ->
           uply {
             // TODO: return an appropriate error if this fails
-            let expr = Parser.RuntimeTypes.parseExprWithTypes code
+            // CLEANUP: the parser won't work with user fns or types
+            let expr = Parser.ProgramTypes.parseRTExpr Set.empty Set.empty code
 
             let symtable = LibExecution.Interpreter.withGlobals state userInputs
 
@@ -126,7 +127,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString code ] ->
           uply {
             return
-              Parser.ProgramTypes.parseExprWithTypes code
+              Parser.ProgramTypes.parseIgnoringUser code
               |> Json.Vanilla.serialize
               |> DString
               |> Ok

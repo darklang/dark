@@ -31,10 +31,10 @@ open TestUtils.TestUtils
 type HandlerVersion = | Http
 
 type TestHandler =
-  { Version : HandlerVersion
-    Route : string
-    Method : string
-    Code : string }
+  { version : HandlerVersion
+    route : string
+    method : string
+    code : string }
 
 type TestSecret = string * string * int
 
@@ -113,7 +113,7 @@ module ParseTest =
           (InHttpHandler,
            { result with
                handlers =
-                 { Version = Http; Route = route; Method = method; Code = "" }
+                 { version = Http; route = route; method = method; code = "" }
                  :: result.handlers })
 
         | Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
@@ -151,7 +151,7 @@ module ParseTest =
                   []
               | handler :: other ->
                 let updatedHandler =
-                  { handler with Code = handler.Code + asString + "\n" }
+                  { handler with code = handler.code + asString + "\n" }
 
                 updatedHandler :: other
             InHttpHandler, { result with handlers = handlersWithUpdate }
@@ -193,14 +193,14 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
       test.handlers
       |> List.map (fun handler ->
         let (source : PT.Expr) =
-          Parser.ProgramTypes.parseExpr handler.Code
-          |> Parser.ProgramTypes.Expr.fixupPass Set.empty Set.empty
+          Parser.ProgramTypes.initialParse handler.code
+          |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
 
         let gid = Prelude.gid
 
         let spec =
-          match handler.Version with
-          | Http -> PT.Handler.HTTP(route = handler.Route, method = handler.Method)
+          match handler.version with
+          | Http -> PT.Handler.HTTP(route = handler.route, method = handler.method)
 
         let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 

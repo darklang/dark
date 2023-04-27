@@ -19,7 +19,7 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Account = LibBackend.Account
 
-let parse = Parser.ProgramTypes.parseExpr
+let parse = Parser.ProgramTypes.parseIgnoringUser
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {

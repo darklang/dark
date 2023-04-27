@@ -158,7 +158,7 @@ let makeTest versionName filename =
         |> Parser.TestModule.parseSingleTestFromFile
       let code =
         test.actual
-        |> Parser.ProgramTypes.Expr.fixupPass Set.empty Set.empty
+        |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
         |> PT2RT.Expr.toRT
 
       // Run the handler (call the HTTP client)

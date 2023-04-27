@@ -14,6 +14,8 @@ module C = LibBackend.SqlCompiler
 module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
+let p = Parser.ProgramTypes.parseRTExpr Set.empty Set.empty
+
 let compile
   (symtable : DvalMap)
   (paramName : string)
@@ -61,8 +63,6 @@ let matchSql
     "compare sql"
 
 let compileTests =
-
-  let p code = Parser.RuntimeTypes.parseExpr code
 
   testList
     "compile tests"
@@ -122,21 +122,21 @@ let compileTests =
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
     let expr =
-      Parser.RuntimeTypes.parseExpr
+      Parser.ProgramTypes.parseRTExpr
+        Set.empty
+        Set.empty
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
-    let expected = Parser.RuntimeTypes.parseExpr "3 + 5"
+    let expected = p "3 + 5"
     let result = C.inline' "value" Map.empty expr
     Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithNested =
   test "inlineWorksWithNested" {
-    let expr =
-      Parser.RuntimeTypes.parseExpr
-        "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
+    let expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
-    let expected = Parser.RuntimeTypes.parseExpr "3 + 7"
+    let expected = p "3 + 7"
     let result = C.inline' "value" Map.empty expr
     Expect.equalExprIgnoringIDs result expected
   }
@@ -148,7 +148,7 @@ let partialEvaluation =
       task {
         let canvasID = System.Guid.NewGuid()
         let! state = executionStateFor canvasID false Map.empty Map.empty Map.empty
-        let expr = Parser.RuntimeTypes.parseExpr expr
+        let expr = p expr
         let result = C.partiallyEvaluate state "x" (Map vars) expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
