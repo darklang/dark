@@ -68,6 +68,5 @@ type DarkEditor() =
     task {
       let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
       let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
-      //let result = LibExecution.DvalReprDeveloper.toRepr evalResult
       ()
     }
