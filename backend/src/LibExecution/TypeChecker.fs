@@ -124,23 +124,33 @@ let rec unify
         )
 
       match ut, value with
-      | CustomType.Record (firstField, additionalFields), DRecord dmap ->
-        unifyRecordFields availableTypes (firstField :: additionalFields) dmap
-      | CustomType.Enum (firstCase, additionalCases),
-        DEnum (typeName, caseName, valFields) ->
-        let matchingCase : Option<CustomType.EnumCase> =
-          firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
+      | CustomType.Record (firstField, additionalFields), DRecord (tn, dmap) ->
+        if tn <> typeName then
+          Error(
+            TypeUnificationFailure { expectedType = expected; actualValue = value }
+          )
+        else
+          unifyRecordFields availableTypes (firstField :: additionalFields) dmap
 
-        match matchingCase with
-        | None -> err
-        | Some case ->
-          if List.length case.fields = List.length valFields then
-            List.zip case.fields valFields
-            |> List.map (fun (expected, actual) ->
-              unify availableTypes expected.typ actual)
-            |> combineErrorsUnit
-          else
-            err
+      | CustomType.Enum (firstCase, additionalCases), DEnum (tn, caseName, valFields) ->
+        if tn <> typeName then
+          Error(
+            TypeUnificationFailure { expectedType = expected; actualValue = value }
+          )
+        else
+          let matchingCase : Option<CustomType.EnumCase> =
+            firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
+
+          match matchingCase with
+          | None -> err
+          | Some case ->
+            if List.length case.fields = List.length valFields then
+              List.zip case.fields valFields
+              |> List.map (fun (expected, actual) ->
+                unify availableTypes expected.typ actual)
+              |> combineErrorsUnit
+            else
+              err
       | _, _ -> err
 
   // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695

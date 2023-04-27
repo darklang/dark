@@ -12,6 +12,10 @@ module SchedulingRules = LibBackend.QueueSchedulingRules
 module Pusher = LibBackend.Pusher
 module Queue = LibBackend.Queue
 
+let typ = FQTypeName.stdlibTypeName'
+let fn = FQFnName.stdlibFnName'
+
+
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   (function
@@ -28,19 +32,24 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
     }
   | _ -> incorrectArgs ())
 
-let ruleToDval (r : SchedulingRules.SchedulingRule.T) : Dval =
-  Dval.record [ ("id", Dval.int r.id)
-                ("rule_type", r.ruleType.ToString() |> Dval.DString)
-                ("canvas_id", Dval.DUuid r.canvasID)
-                ("handler_name", Dval.DString r.handlerName)
-                ("event_space", Dval.DString r.eventSpace)
-                ("created_at", Dval.DDateTime(DarkDateTime.fromInstant r.createdAt)) ]
+let schedulingRuleTypeName = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
 
-let typ = FQTypeName.stdlibTypeName'
-let fn = FQFnName.stdlibFnName'
+let schedulingRuleTypeRef =
+  TCustomType(FQTypeName.Stdlib(schedulingRuleTypeName), [])
+
+let ruleToDval (r : SchedulingRules.SchedulingRule.T) : Dval =
+  let typeName = FQTypeName.Stdlib schedulingRuleTypeName
+  Dval.record
+    typeName
+    [ ("id", Dval.int r.id)
+      ("rule_type", r.ruleType.ToString() |> DString)
+      ("canvas_id", DUuid r.canvasID)
+      ("handler_name", DString r.handlerName)
+      ("event_space", DString r.eventSpace)
+      ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ]
 
 let types : List<BuiltInType> =
-  [ { name = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
+  [ { name = schedulingRuleTypeName
       typeParams = []
       definition =
         CustomType.Record(
@@ -53,11 +62,6 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated
       description = "A scheduling rule for a worker" } ]
 
-let schedulingRule =
-  TCustomType(
-    FQTypeName.Stdlib(typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0),
-    []
-  )
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "DarkInternal"; "Canvas"; "Queue" ] "count" 0
@@ -82,7 +86,7 @@ let fns : List<BuiltInFn> =
     { name = fn [ "DarkInternal"; "Canvas"; "Queue"; "SchedulingRule" ] "list" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList schedulingRule
+      returnType = TList schedulingRuleTypeRef
       description =
         "Returns a list of all queue scheduling rules for the specified canvasID"
       fn =
@@ -127,7 +131,7 @@ let fns : List<BuiltInFn> =
     { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule" ] "list" 0
       typeParams = []
       parameters = []
-      returnType = TList schedulingRule
+      returnType = TList schedulingRuleTypeRef
       description = "Returns a list of all queue scheduling rules"
       fn =
         (function

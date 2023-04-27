@@ -145,7 +145,7 @@ let rec serialize
 
           r matchingTypeReference dval))
 
-  | TCustomType (typeName, _typeArgs), DRecord dvalMap ->
+  | TCustomType (typeName, _typeArgs), DRecord (_, dvalMap) ->
     // TODO: try find exactly one matching type
     let matchingType = availableTypes[typeName]
 
@@ -422,8 +422,7 @@ let parse
             (jp.Name, converted))
           |> Map.ofSeq
 
-        // TYPESCLEANUP add typename
-        DRecord(dvalMap)
+        DRecord(typeName, dvalMap)
 
 
     // Explicitly not supported

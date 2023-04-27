@@ -230,7 +230,7 @@ module FieldAccess =
 
   (let x = MyRecord { col1 = 1 } in x.col1) = 1
   (let x = MyRecord { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
-  (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in record"
+  (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in MyRecord_v0 record"
   (Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
   (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
 
@@ -815,3 +815,30 @@ module Packages =
     fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+
+module TypeChecking =
+  module PolymorphicEnums =
+    type X<'a> = | A of Int | B of 'a
+    let polyFn (a:X<'a>) : X<'a> =
+      a
+    let strFn (a:X<String>) : X<String> =
+      a
+    let definedPolyFn<'a> (a:X<'a>) : X<'a> =
+      a
+
+    polyFn (A.A 5) = A.A 5
+    polyFn (A.B "str") = A.B "str"
+
+    strFn (A.A 5) = strFn (A.A 5)
+    strFn (A.B "str") = A.B "str"
+
+    // TYPESCLEANUP - support userFn declaration with type arguments
+    // definedPolyFn<String>(A.A 5) = definedPolyFn (A.A 5)
+    // definedPolyFn<String>(A.B "str") = definedPolyFn (A.B "str")
+
+
+  1 = 1
+
+  module PolymorphicRecords =
+    // TYPESCLEANUP
+    1 = 1

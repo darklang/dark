@@ -307,12 +307,13 @@ let rec debugDval (v : Dval) : string =
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord obj ->
-    obj
+  | DRecord (tn, o) ->
+    let typeStr = FQTypeName.toString tn
+    o
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
     |> String.concat ",\n  "
-    |> fun contents -> $"DRecord {{\n  {contents}}}"
+    |> fun contents -> $"DRecord {typeStr} {{\n  {contents}}}"
   | DDict obj ->
     obj
     |> Map.toList
@@ -373,12 +374,10 @@ module Expect =
     | DList vs -> List.all check vs
     | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
-    | DRecord vs -> vs |> Map.values |> List.all check
+    | DRecord (_, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DEnum (_typeName, _caseName, fields) ->
-      // TODO: revisit - I'm not sure what to do here.
-      fields |> List.all check
+    | DEnum (_typeName, _caseName, fields) -> fields |> List.all check
 
   type Path = string list
 
@@ -703,7 +702,8 @@ module Expect =
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord ls, DRecord rs ->
+    | DRecord (ltn, ls), DRecord (rtn, rs) ->
+      userTypeNameEqualityBaseFn path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
         (fun key v1 ->
@@ -808,7 +808,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord map -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DRecord (_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
     | DEnum (_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
@@ -924,6 +924,7 @@ let naughtyStrings : List<string * string> =
   |> List.filterWithIndex (fun i (_, str) ->
     i <> 139 && not (String.startsWith "#" str))
 
+
 let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
   [ ("float", DFloat 7.2, TFloat)
     ("float2", DFloat -7.2, TFloat)
@@ -946,23 +947,35 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DList [ Dval.int 3; DError(SourceNone, "some error string"); Dval.int 4 ],
      TList TInt)
     ("record",
-     DRecord(Map.ofList [ "foo", Dval.int 5 ]),
+     DRecord(
+       S.userTypeName [ "Two"; "Modules" ] "Foo" 0,
+       Map.ofList [ "foo", Dval.int 5 ]
+     ),
      TCustomType(S.userTypeName [ "Two"; "Modules" ] "Foo" 0, []))
     ("record2",
-     DRecord(Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]),
+     DRecord(
+       S.userTypeName [] "Foo" 0,
+       Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
+     ),
      TCustomType(S.userTypeName [] "Foo" 0, []))
     ("record3",
-     DRecord(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
+     DRecord(
+       S.userTypeName [] "Foo" 0,
+       Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
+     ),
      TCustomType(S.userTypeName [] "Foo" 0, []))
     // More Json.NET tests
     ("record4",
-     DRecord(Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
+     DRecord(S.userTypeName [] "Foo" 0, Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
      TCustomType(S.userTypeName [] "Foo" 0, []))
     ("record5",
-     DRecord(Map.ofList [ "$type", Dval.int 5 ]),
+     DRecord(S.userTypeName [] "Foo" 0, Map.ofList [ "$type", Dval.int 5 ]),
      TCustomType(S.userTypeName [] "Foo" 0, []))
     ("record with error",
-     DRecord(Map.ofList [ "v", DError(SourceNone, "some error string") ]),
+     DRecord(
+       S.userTypeName [] "Foo" 0,
+       Map.ofList [ "v", DError(SourceNone, "some error string") ]
+     ),
      TCustomType(S.userTypeName [] "Foo" 0, []))
     ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]), TDict TInt)
     ("dict3",

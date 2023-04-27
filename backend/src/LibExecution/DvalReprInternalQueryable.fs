@@ -114,7 +114,8 @@ let rec private toJsonV0
   | TCustomType (typeName, args), dv ->
     match Map.tryFind typeName availableTypes, dv with
     | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-    | Some (CustomType.Record (f1, fs)), DRecord dm ->
+    | Some (CustomType.Record (f1, fs)), DRecord (_, dm) ->
+      // TYPESCLEANUP: shouldn't we be using `args` here?
       let fields = f1 :: fs
       w.writeObject (fun () ->
         fields
@@ -240,7 +241,7 @@ let parseJsonV0
               | None -> Exception.raiseInternal "Missing field" [ "field", f.name ]
             f.name, dval)
           |> Map
-          |> DRecord
+          |> fun map -> DRecord(typeName, map)
         else
           Exception.raiseInternal
             "Record has incorrect field count"

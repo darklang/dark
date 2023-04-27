@@ -14,6 +14,9 @@ let lowercaseHeaderKeys (headers : HttpHeaders.T) =
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
+
+  let typ = RT.FQTypeName.Stdlib(RT.FQTypeName.stdlibTypeName "Http" "Request" 0)
+
   let fromRequest
     (uri : string)
     (headers : HttpHeaders.T)
@@ -26,7 +29,7 @@ module Request =
       |> RT.DList
 
     [ "body", RT.DBytes body; "headers", headers; "url", RT.DString uri ]
-    |> RT.Dval.record
+    |> RT.Dval.record typ
 
 
 module Response =

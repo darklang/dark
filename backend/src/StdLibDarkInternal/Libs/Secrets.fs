@@ -44,14 +44,15 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
+            let typeName = FQTypeName.Stdlib(typ "Secret" 0)
             return
               secrets
               |> List.map (fun s ->
-                DRecord(
-                  Map [ "name", DString s.name
-                        "value", DString s.value
-                        "version", DInt s.version ]
-                ))
+                Dval.record
+                  typeName
+                  [ "name", DString s.name
+                    "value", DString s.value
+                    "version", DInt s.version ])
               |> DList
           }
         | _ -> incorrectArgs ())

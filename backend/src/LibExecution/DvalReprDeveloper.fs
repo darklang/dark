@@ -66,9 +66,8 @@ let rec dvalTypeName (dv : Dval) : string =
   | DTuple (t1, t2, trest) ->
     "(" + (t1 :: t2 :: trest |> List.map dvalTypeName |> String.concat ", ") + ")"
   | DBytes _ -> "Bytes"
-  // TYPESCLEANUP - use the name
-  | DRecord _ -> "Record"
-  | DEnum _ -> "Enum"
+  | DRecord (typeName, _) -> FQTypeName.toString typeName
+  | DEnum (typeName, _, _) -> FQTypeName.toString typeName
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
@@ -135,17 +134,15 @@ let toRepr (dv : Dval) : string =
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
       $"({inl}{elems}{nl})"
-    | DRecord o ->
-      if Map.isEmpty o then
-        "{}"
-      else
-        let strs =
-          o
-          |> Map.toList
-          |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
+    | DRecord (typeName, o) ->
+      let strs =
+        o
+        |> Map.toList
+        |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
 
-        let elems = String.concat $",{inl}" strs
-        "{" + $"{inl}{elems}{nl}" + "}"
+      let elems = String.concat $",{inl}" strs
+      let typeStr = FQTypeName.toString typeName
+      $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
     | DDict o ->
       if Map.isEmpty o then
         "{}"
@@ -166,7 +163,8 @@ let toRepr (dv : Dval) : string =
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 
-      $"{typeName}.{caseName}({fieldStr})"
+      let typeStr = FQTypeName.toString typeName
+      $"{typeStr}.{caseName}({fieldStr})"
 
 
   toRepr_ 0 dv
