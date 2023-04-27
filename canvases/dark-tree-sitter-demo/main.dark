@@ -71,7 +71,6 @@ let _indexHandler _req =
       </div>
     </div>
     <script src="/static/tree-sitter/tree-sitter.js"></script>
-    <script src="http://dark-serve-static.dlio.localhost:11003/darklang.js"></script>
     <script>
       function simplifyTree(cursor) {
         let children = [];
@@ -92,17 +91,16 @@ let _indexHandler _req =
         };
       }
 
-      const darklang = await Darklang.init(wasmDark);
+      (async () => {
+        const Parser = window.TreeSitter;
+        await Parser.init();
 
-      const Parser = window.TreeSitter;
-
-      Parser.init().then(async () => {
         const parser = new Parser;
 
         const inputTextarea = document.getElementById("input-textarea");
 
-        const Darklang = await Parser.Language.load("/static/tree-sitter/tree-sitter-darklang.wasm");
-        parser.setLanguage(Darklang);
+        const DarklangParser = await Parser.Language.load("/static/tree-sitter/tree-sitter-darklang.wasm");
+        parser.setLanguage(DarklangParser);
 
         async function syntaxTreeToUserFunction(tree) {
           try {
@@ -114,15 +112,12 @@ let _indexHandler _req =
 
             if (!response.ok) {
               const err = await response.text();
-              throw new Error("TODO", err);
+              throw new Error("TODO" + err);
             }
 
             const exprJson = await response.text(); // or maybe .json()?
 
             document.getElementById("right-textarea").value = exprJson;
-
-            //TODO: continue here, eval-ing in WASM runtime
-            //darklang.evalExpr(exprJson);
           } catch (error) {
             console.error("Error:", error);
           }
@@ -144,7 +139,7 @@ let _indexHandler _req =
           sourceCodeToSyntaxTree();
         });
         sourceCodeToSyntaxTree();
-      });
+      })();
     </script>
   </body>
 </html>
@@ -153,6 +148,9 @@ let _indexHandler _req =
   Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
 
 
+// TODO: this currently just returns 0, and I'm not sure why.
+//
+// I tried appending the big int with an L, but the parser seems to fail.
 let gid (): Int =
   Int.random_v1 0 9223372036854775807
 
@@ -166,15 +164,13 @@ let err (msg: String): Unit =
 type PTTypeReference =
   | TInt
 
+
 // TODO: the types of the 'id' fields should be something more like `type id = Int`
 type PTExpr =
   | EInt of id: Int * Int
   | ELet of id: Int * identifier: String * expr: PTExpr * body: PTExpr
   | EVariable of id: Int * String
   | EFnCall of id: Int * fnName: String * args : List<PTExpr>
-
-
-
 
 
 type PTUserFunctionParameter =

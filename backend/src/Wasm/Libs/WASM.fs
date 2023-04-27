@@ -27,7 +27,8 @@ let fns : List<BuiltInFn> =
           // where `type SimpleJSON = | JNull | JBool | JList ...`
           Param.make "serializedArgs" (TList TString) "" ]
       returnType = TResult(TUnit, TString)
-      description = "TODO"
+      description =
+        "Calls a function exposed in JS host, i.e. `console.log`, or a user-defined function globally available"
       fn =
         (function
         | _, _, [ DString functionName; DList args ] ->
