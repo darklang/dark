@@ -212,14 +212,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                       with
                     | Ok () ->
                       match r with
-                      | DRecord m -> return (DRecord(Map.add k v m))
+                      | DRecord (typeName, m) ->
+                        return DRecord(typeName, Map.add k v m)
                       | _ -> return err id "Expected a record"
                     | Error e -> return err id (TypeChecker.Error.toString e)
               })
-            (DRecord Map.empty)
+            (DRecord(typeName, Map.empty))
             fields
         match result with
-        | DRecord fields ->
+        | DRecord (_, fields) ->
           if Map.count fields = Map.count expectedFields then
             return result
           else
@@ -264,10 +265,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return err id "Field name is empty"
       else
         match obj with
-        | DRecord o ->
+        | DRecord (typeName, o) ->
           match Map.tryFind field o with
           | Some v -> return v
-          | None -> return err id $"No field named {field} in record"
+          | None ->
+            let typeStr = FQTypeName.toString typeName
+            return err id $"No field named {field} in {typeStr} record"
         | DDB _ ->
           let msg =
             $"Attempting to access a field of something that isn't a record or dict, "

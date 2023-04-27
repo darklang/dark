@@ -558,18 +558,6 @@ module Expr =
       PT.EMatch(id, c cond, List.map convertCase cases)
 
 
-    // Dicts: `{ A = 2; B = "yellow" }`
-    | SynExpr.Record (_, _, fields, _) ->
-      let fields =
-        fields
-        |> List.map (fun field ->
-          match field with
-          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
-            (nameOrBlank name.idText, c expr)
-          | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
-
-      PT.EDict(id, fields)
-
     // Parens (eg `(5)`)
     | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
 

@@ -88,5 +88,6 @@ let testArguments : Test =
 
 
 // TODO: add tests around type args
+// TYPESCLEANUP: add test for TestUtils.sampleDvals
 
 let tests = testList "typeChecker" [ testBasicTypecheckWorks; testArguments ]

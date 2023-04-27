@@ -166,11 +166,11 @@ module RuntimeTypes =
     |> List.map (fun (name, (dv, t)) -> dv)
 
   let dval : RT.Dval =
+    let typeName = RT.FQTypeName.User { modules = []; typ = "MyType"; version = 0 }
     sampleDvals
     |> List.filter (fun (name, _dv) -> name <> "password")
     |> List.map (fun (name, (dv, t)) -> name, dv)
-    |> Map
-    |> RT.DRecord
+    |> RT.Dval.record typeName
 
 module ProgramTypes =
   let fqFnNames : List<PT.FQFnName.T> =

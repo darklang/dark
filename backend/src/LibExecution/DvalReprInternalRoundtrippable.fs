@@ -104,7 +104,6 @@ module FormatV0 =
     | DTuple of Dval * Dval * List<Dval>
     | DLambda // See docs/dblock-serialization.md
     | DDict of DvalMap
-    | DRecord of DvalMap
     | DError of DvalSource * string
     | DIncomplete of DvalSource
     | DHttpResponse of int64 * List<string * string> * Dval
@@ -115,7 +114,8 @@ module FormatV0 =
     | DOption of Option<Dval>
     | DResult of Result<Dval, Dval>
     | DBytes of byte array
-    | DEnum of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
+    | DRecord of FQTypeName.T * DvalMap
+    | DEnum of FQTypeName.T * caseName : string * List<Dval>
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
@@ -142,7 +142,7 @@ module FormatV0 =
     | DTuple (first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DDict o -> RT.DDict(Map.map toRT o)
-    | DRecord o -> RT.DRecord(Map.map toRT o)
+    | DRecord (typeName, o) -> RT.DRecord(FQTypeName.toRT typeName, Map.map toRT o)
     | DOption None -> RT.DOption None
     | DOption (Some dv) -> RT.DOption(Some(toRT dv))
     | DResult (Ok dv) -> RT.DResult(Ok(toRT dv))
@@ -175,7 +175,8 @@ module FormatV0 =
     | RT.DTuple (first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DDict o -> DDict(Map.map fromRT o)
-    | RT.DRecord o -> DRecord(Map.map fromRT o)
+    | RT.DRecord (typeName, o) ->
+      DRecord(FQTypeName.fromRT typeName, Map.map fromRT o)
     | RT.DOption None -> DOption None
     | RT.DOption (Some dv) -> DOption(Some(fromRT dv))
     | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
@@ -219,7 +220,7 @@ module Test =
     | RT.DEnum (_typeName, _caseName, fields) -> List.all isRoundtrippableDval fields
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
-    | RT.DRecord map -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DRecord (_, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
     | RT.DTuple (v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
     | RT.DOption (Some v)

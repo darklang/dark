@@ -30,8 +30,9 @@ let rec equals (a : Dval) (b : Dval) : bool =
          (fun k v ->
            Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
          a
-  | DRecord a, DRecord b ->
-    Map.count a = Map.count b
+  | DRecord (tn1, a), DRecord (tn2, b) ->
+    tn1 = tn2
+    && Map.count a = Map.count b
     && Map.forall
          (fun k v ->
            Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)

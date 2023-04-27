@@ -77,6 +77,19 @@ module FQTypeName =
     : StdlibTypeName =
     stdlibTypeName' [ modul ] typ version
 
+  let userTypeName'
+    (modules : List<string>)
+    (typ : string)
+    (version : int)
+    : UserTypeName =
+    List.iter (assertRe "modName name must match" modNamePat) modules
+    assertRe "stdlib function name must match" typeNamePat typ
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { modules = modules; typ = typ; version = version }
+
+  let userTypeName (modul : string) (typ : string) (version : int) : UserTypeName =
+    userTypeName' [ modul ] typ version
+
   let toString (fqtn : T) : string =
     match fqtn with
     | Stdlib s ->
@@ -404,7 +417,6 @@ and [<NoComparison>] Dval =
     headers : List<string * string> *
     responseBody : Dval
 
-  | DRecord (* FQTypeName.T * *)  of DvalMap
   | DDict of DvalMap
 
   // TODO: merge DOption and DResult into DEnum once the Option and Result types
@@ -412,7 +424,8 @@ and [<NoComparison>] Dval =
   | DOption of Option<Dval>
   | DResult of Result<Dval, Dval>
 
-  | DEnum of typeName : FQTypeName.T * caseName : string * fields : List<Dval>
+  | DRecord of FQTypeName.T * DvalMap
+  | DEnum of FQTypeName.T * caseName : string * List<Dval>
 
 
 and DvalTask = Ply<Dval>
@@ -579,42 +592,17 @@ module Dval =
     | DResult (Error v), TResult (_, t) -> typeMatches t v
     | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
-    | DRecord m, TCustomType _ ->
-      // TYPECLEANUP: should load type by name
-      // | DRecord m, TRecord pairs ->
-      // let actual = Map.toList m |> List.sortBy Tuple2.first
-      // let expected = pairs |> List.sortBy Tuple2.first
+    | DRecord (typeName, fields), TCustomType (typeName', typeArgs) ->
+      // TYPESCLEANUP: should load type by name
+      // TYPESCLEANUP: are we handling type arguments here?
+      // TYPESCLEANUP: do we need to check fields?
+      typeName = typeName'
 
-      // if List.length actual <> List.length expected then
-      //   false
-      // else
-      //   List.zip actual expected
-      //   |> List.all (fun ((aField, aVal), (eField, eType)) ->
-      //     aField = eField && typeMatches eType aVal)
-
-
-      // UserTypeTODO revisit
-      // 1. get Definition of UserType
-      //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
-      //
-      // 2. match against that
-      //  match def with
-      //  | Enum _ -> false
-      //  | Record (...) ->
-      //    ...
-      false
-
-    | DEnum _, TCustomType _ ->
-      // UserTypeTODO revisit
-      // 1. get Definition of UserType
-      //   we likely need a `(userTypeMap: Map<FQTypeName.T, UserType.Definition>)` passed in
-      //
-      // 2. match against that
-      //  match def with
-      //  | Record _ -> false
-      //  | Enum (...) ->
-      //    ...
-      false
+    | DEnum (typeName, casename, fields), TCustomType (typeName', typeArgs) ->
+      // TYPESCLEANUP: should load type by name
+      // TYPESCLEANUP: are we handling type arguments here?
+      // TYPESCLEANUP: do we need to check fields?
+      typeName = typeName'
 
     // Dont match these fakevals, functions do not have these types
     | DError _, _
@@ -655,10 +643,10 @@ module Dval =
     List.find (fun (dv : Dval) -> isFake dv) list
     |> Option.defaultValue (DList list)
 
-  let record (fields : List<string * Dval>) : Dval =
+  let record (typeName : FQTypeName.T) (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
     List.fold
-      (DRecord(Map.empty))
+      (DRecord(typeName, Map.empty))
       (fun m (k, v) ->
         match m, k, v with
         // TYPESCLEANUP: remove hacks
@@ -669,10 +657,10 @@ module Dval =
         // Skip empty rows
         | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
         // Error if the key appears twice
-        | DRecord m, k, _v when Map.containsKey k m ->
+        | DRecord (_, m), k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
-        | DRecord m, k, v -> DRecord(Map.add k v m)
+        | DRecord (tn, m), k, v -> DRecord(tn, Map.add k v m)
         // If we haven't got a DDict we're propagating an error so let it go
         | m, _, _ -> m)
       fields

@@ -512,7 +512,6 @@ module Dval =
     | DTuple of T * T * List<T>
     | DFnVal of FnValImpl // See docs/dblock-serialization.md
     | DDict of Map<string, T>
-    | DRecord of Map<string, T>
     | DError of DvalSource * string
     | DIncomplete of DvalSource
     | DHttpResponse of int64 * List<string * string> * T
@@ -523,7 +522,8 @@ module Dval =
     | DOption of Option<T>
     | DResult of Result<T, T>
     | DBytes of byte array
-    | DEnum of typeName : FQTypeName.T * caseName : string * fields : List<T>
+    | DRecord of FQTypeName.T * Map<string, T>
+    | DEnum of FQTypeName.T * caseName : string * List<T>
 
   let rec fromCT (dv : T) : RT.Dval =
     let r = fromCT
@@ -554,7 +554,7 @@ module Dval =
     | DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
     | DDict o -> RT.DDict(Map.map r o)
-    | DRecord o -> RT.DRecord(Map.map r o)
+    | DRecord (typeName, o) -> RT.DRecord(FQTypeName.fromCT typeName, Map.map r o)
     | DOption None -> RT.DOption None
     | DOption (Some dv) -> RT.DOption(Some(r dv))
     | DResult (Ok dv) -> RT.DResult(Ok(r dv))
@@ -593,7 +593,7 @@ module Dval =
     | RT.DTuple (first, second, theRest) ->
       DTuple(r first, r second, List.map r theRest)
     | RT.DDict o -> DDict(Map.map r o)
-    | RT.DRecord o -> DRecord(Map.map r o)
+    | RT.DRecord (typeName, o) -> DRecord(FQTypeName.toCT typeName, Map.map r o)
     | RT.DOption None -> DOption None
     | RT.DOption (Some dv) -> DOption(Some(r dv))
     | RT.DResult (Ok dv) -> DResult(Ok(r dv))

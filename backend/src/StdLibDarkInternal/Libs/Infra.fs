@@ -95,6 +95,7 @@ human-readable data."
                   ("rows", ts.rows)
                   ("disk_human", ts.diskHuman)
                   ("rows_human", ts.rowsHuman) ])
+            let typeName = FQTypeName.Stdlib(typ "TableSize" 0)
             return
               tableStats
               |> List.map (fun ts ->
@@ -103,8 +104,7 @@ human-readable data."
                    ("rows", DInt(ts.rows))
                    ("disk_human", DString ts.diskHuman)
                    ("rows_human", DString ts.rowsHuman) ]
-                 |> Map
-                 |> DRecord))
+                 |> Dval.record typeName))
               |> Map
               |> DDict
           }

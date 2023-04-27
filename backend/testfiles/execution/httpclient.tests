@@ -4,22 +4,22 @@
 // Tests that don't use the internet
 // -----------------------
 
-HttpClient.formContentType_v0 = {``Content-Type`` = "application/x-www-form-urlencoded"}
+HttpClient.formContentType_v0 = Dict {``Content-Type`` = "application/x-www-form-urlencoded"}
 
-HttpClient.jsonContentType_v0 = {``Content-Type`` = "application/json; charset=utf-8"}
+HttpClient.jsonContentType_v0 = Dict {``Content-Type`` = "application/json; charset=utf-8"}
 
-HttpClient.plainTextContentType_v0 = {``Content-Type`` = "text/plain; charset=utf-8"}
+HttpClient.plainTextContentType_v0 = Dict {``Content-Type`` = "text/plain; charset=utf-8"}
 
-HttpClient.htmlContentType_v0 = {``Content-Type`` = "text/html; charset=utf-8" }
+HttpClient.htmlContentType_v0 = Dict {``Content-Type`` = "text/html; charset=utf-8" }
 
-HttpClient.bearerToken_v1 "YWxhZGRpbjpvcGVuc2VzYW1l" = { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
+HttpClient.bearerToken_v1 "YWxhZGRpbjpvcGVuc2VzYW1l" = Dict { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
 
-HttpClient.basicAuth_v1 "username" "password" = { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
-HttpClient.basicAuth_v1 "" "" = { Authorization = "Basic Og==" }
+HttpClient.basicAuth_v1 "username" "password" = Dict { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
+HttpClient.basicAuth_v1 "" "" = Dict { Authorization = "Basic Og==" }
 HttpClient.basicAuth_v1 "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
-HttpClient.basicAuth_v1 "" "-" = { Authorization = "Basic Oi0=" }
-HttpClient.basicAuth_v1 ":" "" = { Authorization = "Basic Ojo=" }
-HttpClient.basicAuth_v1 "" ":" = { Authorization = "Basic Ojo=" }
+HttpClient.basicAuth_v1 "" "-" = Dict { Authorization = "Basic Oi0=" }
+HttpClient.basicAuth_v1 ":" "" = Dict { Authorization = "Basic Ojo=" }
+HttpClient.basicAuth_v1 "" ":" = Dict { Authorization = "Basic Ojo=" }
 
 
 // Tests that try to make requests to the internet
@@ -60,7 +60,6 @@ HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error
 (let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h != "date")
  Record.set_v0 response "headers" respHeaders) =
-   // TYPESCLEANUP - add type to stdlib
    HttpClient.Response
     { statusCode = 200
       headers =

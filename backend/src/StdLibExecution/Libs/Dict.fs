@@ -412,7 +412,8 @@ let fns : List<BuiltInFn> =
         "Returns a copy of <param record> with the <param key> set to <param val>"
       fn =
         (function
-        | _, _, [ DRecord o; DString k; v ] -> Ply(DRecord(Map.add k v o))
+        | _, _, [ DRecord (typeName, o); DString k; v ] ->
+          Ply(DRecord(typeName, Map.add k v o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

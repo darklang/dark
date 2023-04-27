@@ -53,24 +53,28 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [] ->
-          let typeName = LibExecution.DvalReprDeveloper.typeName
+          let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
           state.libraries.stdlibFns
           |> Map.toList
           |> List.filter (fun (key, data) ->
             (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)
           |> List.map (fun (key, data) ->
+            let typeName = FQTypeName.Stdlib(typ "Function" 0)
             let alist =
-              let returnType = typeName data.returnType
+              let returnType = typeNameToStr data.returnType
+              let paramTypeName = FQTypeName.Stdlib(typ "Parameter" 0)
               let parameters =
                 data.parameters
                 |> List.map (fun p ->
-                  Dval.record [ ("name", DString p.name)
-                                ("type", DString(typeName p.typ)) ])
+                  Dval.record
+                    paramTypeName
+                    [ ("name", DString p.name)
+                      ("type", DString(typeNameToStr p.typ)) ])
               [ ("name", DString(FQFnName.toString key))
                 ("documentation", DString data.description)
                 ("parameters", DList parameters)
                 ("returnType", DString returnType) ]
-            Dval.record alist)
+            Dval.record typeName alist)
           |> DList
           |> Ply
         | _ -> incorrectArgs ())

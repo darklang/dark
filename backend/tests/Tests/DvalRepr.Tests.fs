@@ -31,8 +31,9 @@ let queryableRoundtripsSuccessfullyInRecord
     dv : RT.Dval,
     fieldTyp : RT.TypeReference
   ) : bool =
-  let record = RT.DRecord(Map.ofList [ "field", dv ])
+
   let typeName = S.userTypeName [] "MyType" 0
+  let record = RT.DRecord(typeName, Map.ofList [ "field", dv ])
   let typeRef = S.userTypeReference [] "MyType" 0
 
   let availableTypes = Map [ typeName, S.customTypeRecord [ "field", fieldTyp ] ]
@@ -222,9 +223,10 @@ module Password =
   let testSerialization2 =
     test "serialization in object" {
       let bytes = UTF8.toBytes "encryptedbytes"
-      let password = RT.DRecord(Map.ofList [ "x", RT.DPassword(Password bytes) ])
-
       let typeName = S.userTypeName [] "MyType" 0
+      let password =
+        RT.DRecord(typeName, Map.ofList [ "x", RT.DPassword(Password bytes) ])
+
       let typeRef = S.userTypeReference [] "MyType" 0
 
       let availableTypes = Map [ typeName, S.customTypeRecord [ "x", RT.TPassword ] ]

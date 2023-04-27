@@ -297,11 +297,16 @@ let fns : List<BuiltInFn> =
                     ))
                   |> DList
 
+                let typ =
+                  FQTypeName.Stdlib(
+                    FQTypeName.stdlibTypeName "HttpClient" "Response" 0
+                  )
+
                 return
                   [ ("statusCode", DInt(int64 response.statusCode))
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
-                  |> Dval.record
+                  |> Dval.record typ
                   |> Ok
                   |> DResult
 

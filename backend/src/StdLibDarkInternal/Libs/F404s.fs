@@ -68,6 +68,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! f404s = TraceInputs.getRecent404s canvasID
+            let typeName = FQTypeName.Stdlib(typ "F404" 0)
             return
               f404s
               |> List.map (fun (space, path, modifier, instant, traceID) ->
@@ -76,8 +77,7 @@ let fns : List<BuiltInFn> =
                   "modifier", DString modifier
                   "timestamp", DDateTime(DarkDateTime.fromInstant instant)
                   "traceID", DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
-                |> Map
-                |> DRecord)
+                |> Dval.record typeName)
               |> DList
           }
         | _ -> incorrectArgs ())
