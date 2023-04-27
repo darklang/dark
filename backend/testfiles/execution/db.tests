@@ -183,7 +183,7 @@ module Roundtrip =
 
 
 module ValueMissingColumnGivesGoodError =
-  (DB.set_v1 (X { x = "x"; col = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [col]"
+  (DB.set_v1 (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [y]"
 
 
 module SetDoesUpsert =
