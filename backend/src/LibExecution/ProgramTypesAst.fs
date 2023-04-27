@@ -36,12 +36,97 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EEnum (id, typeName, caseName, fields) ->
     EEnum(id, typeName, caseName, List.map f fields)
 
+let rec preTraversal
+  (exprFn : Expr -> Expr)
+  (typeRefFn : TypeReference -> TypeReference)
+  (fqtnFn : FQTypeName.T -> FQTypeName.T)
+  (letPatternFn : LetPattern -> LetPattern)
+  (matchPatternFn : MatchPattern -> MatchPattern)
+  (expr : Expr)
+  : Expr =
 
+  let rec preTraversalLetPattern (pat : LetPattern) : LetPattern =
+    let f = preTraversalLetPattern
+    match letPatternFn pat with
+    | LPVariable _ -> letPatternFn pat
+    | LPTuple (id, p1, p2, pats) -> LPTuple(id, f p1, f p2, List.map f pats)
 
-let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
-  let r = preTraversal f in
-  let expr = f expr in
-  traverse r expr
+  let rec preTraverseMatchPattern (pat : MatchPattern) : MatchPattern =
+    let f = preTraverseMatchPattern
+    match matchPatternFn pat with
+    | MPVariable _
+    | MPInt _
+    | MPBool _
+    | MPString _
+    | MPChar _
+    | MPFloat _
+    | MPUnit _ -> pat
+    | MPList (id, pats) -> MPList(id, List.map f pats)
+    | MPTuple (id, p1, p2, pats) -> MPTuple(id, f p1, f p2, List.map f pats)
+    | MPEnum (id, name, pats) -> MPEnum(id, name, List.map f pats)
+
+  let rec preTraversalTypeRef (typeRef : TypeReference) : TypeReference =
+    let f = preTraversalTypeRef
+    match typeRefFn typeRef with
+    | TInt
+    | TBool
+    | TUnit
+    | TFloat
+    | TChar
+    | TUuid
+    | TDateTime
+    | TBytes
+    | TPassword
+    | TVariable _
+    | TString -> typeRef
+    | TList tr -> TList(f tr)
+    | TTuple (tr1, tr2, trs) -> TTuple(f tr1, f tr2, List.map f trs)
+    | TDB tr -> TDB(f tr)
+    | TCustomType (name, trs) -> TCustomType(fqtnFn name, List.map f trs)
+    | TDict (tr) -> TDict(f tr)
+    | TOption tr -> TOption(f tr)
+    | TResult (tr1, tr2) -> TResult(f tr1, f tr2)
+    | THttpResponse tr -> THttpResponse(f tr)
+    | TFn (trs, tr) -> TFn(List.map f trs, f tr)
+
+  let f = preTraversal exprFn typeRefFn fqtnFn letPatternFn matchPatternFn
+  match exprFn expr with
+  | EInt _
+  | EBool _
+  | EString _
+  | EChar _
+  | EUnit _
+  | EVariable _
+  | EPipeTarget _
+  | EFloat _ -> expr
+  | ELet (id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
+  | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
+  | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
+  | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
+  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
+  | EFnCall (id, name, typeArgs, exprs) ->
+    EFnCall(id, name, List.map preTraversalTypeRef typeArgs, List.map f exprs)
+  | ELambda (id, names, expr) -> ELambda(id, names, f expr)
+  | EList (id, exprs) -> EList(id, List.map f exprs)
+  | EDict (id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)
+  | ETuple (id, first, second, theRest) ->
+    ETuple(id, f first, f second, List.map f theRest)
+  | EEnum (id, typeName, caseName, fields) ->
+    EEnum(id, fqtnFn typeName, caseName, List.map f fields)
+  | EMatch (id, mexpr, pairs) ->
+    EMatch(
+      id,
+      f mexpr,
+      List.map
+        (fun (pattern, expr) -> (preTraverseMatchPattern pattern, f expr))
+        pairs
+    )
+  | ERecord (id, typeName, fields) ->
+    ERecord(
+      id,
+      fqtnFn typeName,
+      List.map (fun (name, expr) -> (name, f expr)) fields
+    )
 
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =

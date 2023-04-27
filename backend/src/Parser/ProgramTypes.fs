@@ -54,7 +54,6 @@ module TypeReference =
     | ("Tuple", 0), first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | (name, version), args ->
-      // TYPESCLEANUP - Not sure what we're doing for stdlib types here
       let tn = PT.FQTypeName.User { modules = []; typ = name; version = version }
       PT.TCustomType(tn, List.map fromSynType typeArgs)
 
@@ -136,6 +135,19 @@ module MatchPattern =
     let id = gid ()
     let r = fromSynPat
 
+    let convertEnumArg (ast : SynPat) : List<PT.MatchPattern> =
+      // if the arg is a tuple with one paren around it, it's just arguments to the
+      // enum. But if it has two parens around it, it's a single tuple.
+      // eg: (Foo(1, 2)) vs (Foo((1, 2)))
+      match ast with
+      | SynPat.Paren (SynPat.Paren (SynPat.Tuple (_, t1 :: t2 :: trest, _), _), _) ->
+        [ PT.MPTuple(gid (), r t1, r t2, List.map r trest) ]
+      | SynPat.Paren (SynPat.Tuple (_, args, _), _) -> List.map r args
+      | SynPat.Tuple (_, args, _) -> List.map r args
+      | e -> [ r e ]
+
+
+
     match pat with
     | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
@@ -154,12 +166,15 @@ module MatchPattern =
       PT.MPFloat(id, sign, whole, fraction)
     | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
     | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
-      let args = List.map r args
+      let args = List.map convertEnumArg args |> List.concat
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
       let modules =
         List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
-      // CLEANUPTYPES use modules
+      if modules <> [] then
+        Exception.raiseInternal
+          "Module in enum pattern casename. Only use the casename in Enum patterns"
+          [ "pat", pat ]
       PT.MPEnum(id, enumName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
@@ -217,6 +232,23 @@ module Expr =
 
   let rec fromSynExpr' (ast : SynExpr) : PT.Expr =
     let c = fromSynExpr'
+
+    let convertEnumArg (ast : SynExpr) : List<PT.Expr> =
+      // if the arg is a tuple with one paren around it, it's just arguments to the
+      // enum. But if it has two parens around it, it's a single tuple.
+      // eg: (Foo(1, 2)) vs (Foo((1, 2)))
+      match ast with
+      | SynExpr.Paren (SynExpr.Paren (SynExpr.Tuple (_, t1 :: t2 :: trest, _, _),
+                                      _,
+                                      _,
+                                      _),
+                       _,
+                       _,
+                       _) -> [ PT.ETuple(gid (), c t1, c t2, List.map c trest) ]
+      | SynExpr.Paren (SynExpr.Tuple (_, args, _, _), _, _, _) -> List.map c args
+      | SynExpr.Tuple (_, args, _, _) -> List.map c args
+      | e -> [ c e ]
+
 
     let convertLambdaVar (var : SynSimplePat) : string =
       match var with
@@ -334,7 +366,8 @@ module Expr =
       ->
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
-      PT.EEnum(id, typeName, name.idText, [ c arg ])
+
+      PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Nothing"; "Just" ]
@@ -342,7 +375,7 @@ module Expr =
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
 
-      PT.EEnum(id, typeName, name.idText, [ c arg ])
+      PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     // Enum values (EEnums)
     | SynExpr.Ident name when name.idText = "Nothing" ->
@@ -388,7 +421,7 @@ module Expr =
 
       match parseFn name with
       | Some (name, version) ->
-        PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, [], [])
+        PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, [], [])
       | None ->
         let enumName = parseEnum name
         let typename =
@@ -440,7 +473,7 @@ module Expr =
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-      PT.EFnCall(gid (), PT.FQFnName.stdlibFqName modules name version, typeArgs, [])
+      PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, typeArgs, [])
 
     // Field access: a.b.c.d
     | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) ->
@@ -525,7 +558,7 @@ module Expr =
       PT.EMatch(id, c cond, List.map convertCase cases)
 
 
-    // Dicts: `{ "A" = 2; "B"" = "yellow" }`
+    // Dicts: `{ A = 2; B = "yellow" }`
     | SynExpr.Record (_, _, fields, _) ->
       let fields =
         fields
@@ -587,22 +620,18 @@ module Expr =
       // the very bottom on the pipe chain, this is just the first expression
       PT.EPipe(id, c expr, placeholder, [])
 
-    // e.g. MyMod.MyRecord<Int>
+    // e.g. MyMod.MyRecord
     | SynExpr.App (_,
                    _,
                    SynExpr.TypeApp (name, _, typeArgs, _, _, _, _),
                    (SynExpr.Record _ as expr),
                    _) ->
-      let typeArgs =
-        typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
+      if List.length typeArgs <> 0 then
+        Exception.raiseInternal "Record should not have type args" [ "expr", expr ]
 
       match c expr with
-      | PT.ERecord (id, typeName, fields) ->
-        // TYPESCLEANUP: insert typeArgs
-        PT.ERecord(id, typeName, fields)
-      | PT.EDict (id, fields) ->
-        // TYPESCLEANUP: insert typeArgs
-        PT.EDict(id, fields)
+      | PT.ERecord (id, typeName, fields) -> PT.ERecord(id, typeName, fields)
+      | PT.EDict (id, fields) -> PT.EDict(id, fields)
       | _ -> Exception.raiseInternal "Not an expected record" [ "expr", expr ]
 
 
@@ -654,20 +683,12 @@ module Expr =
           |> Exception.unwrapOptionInternal
                "invalid fn name"
                [ "name", name; "ast", ast ]
-        if Set.contains name PT.FQFnName.oneWordFunctions then
-          PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [ c arg ])
-        else
-          PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ])
+        PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ])
 
 
       // Enums
-      | PT.EEnum (id, typeName, caseName, _fields) ->
-        let fields =
-          match c arg with
-          | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
-          | other -> [ other ]
-
-        PT.EEnum(id, typeName, caseName, fields)
+      | PT.EEnum (id, typeName, caseName, fields) ->
+        PT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)
 
       | e ->
         Exception.raiseInternal
@@ -693,30 +714,74 @@ module Expr =
       reraise ()
 
   // Second pass of parsing, fixing the thing it's impossible to get right on the
-  // first pass, such as function names. Parse the whole program once, and then run
-  // this on any expressions.
-  let fixupPass (functions : Set<PT.FQFnName.UserFnName>) (e : PT.Expr) : PT.Expr =
-    e
-    |> LibExecution.ProgramTypesAst.preTraversal (fun e ->
-      match e with
-      | PT.EVariable (id, name) ->
-        match parseFn name with
-        | Some (name, version) ->
-          let name : PT.FQFnName.UserFnName =
-            { modules = []; function_ = name; version = version }
-          if Set.contains name functions then
-            PT.EFnCall(
-              id,
-              PT.FQFnName.User(name),
-              [],
-              [ PT.Expr.EPipeTarget(gid ()) ]
-            )
-          else
-            e
-        // couldn't be parsed as a function, so leave it alone
-        | None -> e
+  // first pass, such as whether function names are user or stdlib names. Parse the
+  // whole program once, and then run this on any expressions, passing in User types
+  // and functions. It converts user types that are not in the list to Stdlib types.
+  // TODO: we need some sort of unambiguous way to refer to user types
+  let completeParse
+    (userFunctions : Set<PT.FQFnName.UserFnName>)
+    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (e : PT.Expr)
+    : PT.Expr =
+    let fnNameFor modules function_ version =
+      let userName : PT.FQFnName.UserFnName =
+        { modules = modules; function_ = function_; version = version }
+      let stdlibName : PT.FQFnName.StdlibFnName =
+        { modules = modules; function_ = function_; version = version }
+      if Set.contains userName userFunctions then
+        Some(PT.FQFnName.User(userName))
+      else if modules <> [] || Set.contains function_ PT.FQFnName.oneWordFunctions then
+        Some(PT.FQFnName.Stdlib(stdlibName))
+      else
+        None
 
-      | _ -> e)
+    let typeNameFor modules typ version =
+      let userName : PT.FQTypeName.UserTypeName =
+        { modules = modules; typ = typ; version = version }
+      let stdlibName : PT.FQTypeName.StdlibTypeName =
+        { modules = modules; typ = typ; version = version }
+      if Set.contains userName userTypes then
+        PT.FQTypeName.User(userName)
+      else
+        PT.FQTypeName.Stdlib(stdlibName)
+
+
+    let fixupExpr =
+      (fun e ->
+        match e with
+        // pipes with variables might be fn calls
+        | PT.EPipe (id, expr, pipeExpr, pipeExprs) ->
+          let fix =
+            (fun e ->
+              match e with
+              | PT.EVariable (id, name) ->
+                match parseFn name with
+                | Some (name, version) ->
+                  match fnNameFor [] name version with
+                  | Some name ->
+                    PT.EFnCall(id, name, [], [ PT.Expr.EPipeTarget(gid ()) ])
+                  | None -> e
+                | None -> e
+              | e -> e)
+          PT.EPipe(id, expr, fix pipeExpr, List.map fix pipeExprs)
+        | PT.EFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
+          match fnNameFor name.modules name.function_ name.version with
+          | Some name -> PT.EFnCall(id, name, typeArgs, args)
+          | None -> e
+        | _ -> e)
+    let fixupTypeName =
+      (fun t ->
+        match t with
+        | PT.FQTypeName.User name -> typeNameFor name.modules name.typ name.version
+        | _ -> t)
+
+    LibExecution.ProgramTypesAst.preTraversal
+      fixupExpr
+      identity
+      fixupTypeName
+      identity
+      identity
+      e
 
 module UserFunction =
   let rec parseArgPat (pat : SynPat) : PT.UserFunction.Parameter =
@@ -910,10 +975,26 @@ module UserType =
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
 
-let parseExprWithTypes (code : string) : PT.Expr =
+/// Returns an incomplete parse of a PT expression. Requires calling
+/// Expr.completeParse before using
+// TODO it's hard to use the type system here since there's a lot of places we stash
+// PT.Expr, but that's even more reason to try and prevent partial parses.
+let initialParse (code : string) : PT.Expr =
   code
   |> Utils.parseAsFSharpSourceFile
   |> Utils.singleExprFromImplFile
   |> Expr.fromSynExpr
 
-let parseExpr = parseExprWithTypes
+// Shortcut function for tests that ignore user functions and types
+let parseIgnoringUser (code : string) : PT.Expr =
+  code |> initialParse |> Expr.completeParse Set.empty Set.empty
+
+let parseRTExpr
+  (fns : Set<PT.FQFnName.UserFnName>)
+  (types : Set<PT.FQTypeName.UserTypeName>)
+  (code : string)
+  : LibExecution.RuntimeTypes.Expr =
+  code
+  |> initialParse
+  |> Expr.completeParse fns types
+  |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT

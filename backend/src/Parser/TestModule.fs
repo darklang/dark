@@ -185,7 +185,8 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
         decls
     let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
-    let fixup = ProgramTypes.Expr.fixupPass fnNames
+    let typeNames = m.types |> List.map (fun t -> t.name) |> Set
+    let fixup = ProgramTypes.Expr.completeParse fnNames typeNames
     { m with
         packageFns =
           m.packageFns |> List.map (fun fn -> { fn with body = fixup fn.body })

@@ -46,7 +46,7 @@ module Error =
     | TypeUnificationFailure uf ->
       let expected = DvalReprDeveloper.typeName uf.expectedType
       let actual = DvalReprDeveloper.dvalTypeName uf.actualValue
-      $"Expected to see a value of type {expected} but found a {actual}"
+      $"Expected a value of type `{expected}` but got a `{actual}`"
 
     | MismatchedRecordFields mrf ->
       let expected = mrf.expectedFields
@@ -96,6 +96,7 @@ let rec unify
   | TBool, DBool _ -> Ok()
   | TUnit, DUnit -> Ok()
   | TString, DString _ -> Ok()
+  // TYPESCLEANUP unify nested types too
   | TList _, DList _ -> Ok()
   | TDateTime, DDateTime _ -> Ok()
   | TDict _, DDict _ -> Ok()
@@ -106,6 +107,7 @@ let rec unify
   | TDB _, DDB _ -> Ok()
   | THttpResponse _, DHttpResponse _ -> Ok()
   | TBytes, DBytes _ -> Ok()
+  | TTuple _, DTuple _ -> Ok()
 
   // TYPESCLEANUP - fold these cases all into TCustomType
   | TOption _, DOption _ -> Ok()
@@ -141,7 +143,6 @@ let rec unify
             err
       | _, _ -> err
 
-  // TODO: support Tuple type-checking.
   // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
   // TODO: exhaustiveness check
   | TTuple _, _

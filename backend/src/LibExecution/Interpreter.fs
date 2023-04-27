@@ -38,6 +38,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   // TODO remove link from code or avail document - it is either gone or hidden behind login
   let sourceID id = SourceID(state.tlid, id)
   let incomplete id = DIncomplete(SourceID(state.tlid, id))
+  let err id msg = Dval.errSStr (sourceID id) msg
 
   /// This function ensures any value not on the execution path is evaluated.
   let preview st expr : Ply<unit> =
@@ -66,13 +67,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                    | DIncomplete _
                    | DError _ -> return Error(result)
                    | dv ->
-                     return
-                       Error(
-                         DError(
-                           sourceID id,
-                           "Expected string, got " + DvalReprDeveloper.toRepr dv
-                         )
-                       )
+                     let msg = "Expected string, got " + DvalReprDeveloper.toRepr dv
+                     return Error(err id msg)
                  | Error dv, _ -> return Error dv
                })
              (Ok "")
@@ -181,29 +177,56 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | EVariable (id, name) ->
       match st.TryFind name with
-      | None ->
-        return Dval.errSStr (sourceID id) $"There is no variable named: {name}"
+      | None -> return err id $"There is no variable named: {name}"
       | Some other -> return other
 
 
     | ERecord (id, typeName, fields) ->
-      // TYPESCLEANUP typecheck fields against the type
-      return!
-        Ply.List.foldSequentially
-          (fun r (k, expr) ->
-            uply {
-              let! v = eval state st expr
-              match (r, k, v) with
-              | r, _, _ when Dval.isFake r -> return r
-              | _, _, v when Dval.isFake v -> return v
-              | _, "", _ -> return DError(sourceID id, "Record key is empty")
-              | DRecord m, k, v -> return (DRecord(Map.add k v m))
-              // If we haven't got a DRecord we're propagating an error so let it go
-              | r, _, v -> return r
-            })
-          // TYPESCLEANUP
-          (DRecord Map.empty)
-          fields
+      let availableTypes = ExecutionState.availableTypes state
+      let typ = Map.tryFind typeName availableTypes
+      let typeStr = FQTypeName.toString typeName
+      match typ with
+      | None -> return err id $"There is no type named `{typeStr}`"
+      | Some (CustomType.Enum _) ->
+        return err id $"Expected a record but {typeStr} is an enum"
+      | Some (CustomType.Record (expected1, expectedRest)) ->
+        let expectedFields =
+          (expected1 :: expectedRest) |> List.map (fun f -> f.name, f.typ) |> Map
+        let! result =
+          Ply.List.foldSequentially
+            (fun r (k, expr) ->
+              uply {
+                if Dval.isFake r then
+                  do! preview st expr
+                  return r
+                else if not (Map.containsKey k expectedFields) then
+                  do! preview st expr
+                  return err id $"Unexpected field `{k}` in {typeStr}"
+                else
+                  let! v = eval state st expr
+                  if Dval.isFake v then
+                    return v
+                  else
+                    match
+                      TypeChecker.unify availableTypes (Map.find k expectedFields) v
+                      with
+                    | Ok () ->
+                      match r with
+                      | DRecord m -> return (DRecord(Map.add k v m))
+                      | _ -> return err id "Expected a record"
+                    | Error e -> return err id (TypeChecker.Error.toString e)
+              })
+            (DRecord Map.empty)
+            fields
+        match result with
+        | DRecord fields ->
+          if Map.count fields = Map.count expectedFields then
+            return result
+          else
+            let expectedKeys = Map.keys expectedFields
+            let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
+            return err id $"Missing key `{key}` in {typeStr}"
+        | _ -> return result
 
 
     | EDict (id, fields) ->
@@ -215,7 +238,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               match (r, k, v) with
               | r, _, _ when Dval.isFake r -> return r
               | _, _, v when Dval.isFake v -> return v
-              | _, "", _ -> return DError(sourceID id, "Dict key is empty")
               | DDict m, k, v -> return (DDict(Map.add k v m))
               // If we haven't got a DDict we're propagating an error so let it go
               | r, _, v -> return r
@@ -239,28 +261,24 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let! obj = eval state st e
 
       if field = "" then
-        return DError(sourceID id, "Field name is empty")
+        return err id "Field name is empty"
       else
         match obj with
         | DRecord o ->
           match Map.tryFind field o with
           | Some v -> return v
-          | None -> return DError(sourceID id, $"No field named {field} in record")
+          | None -> return err id $"No field named {field} in record"
         | DDB _ ->
-          return
-            DError(
-              sourceID id,
-              $"Attempting to access a field of something that isn't a record or dict, "
-              + "(it's a Datastore. Use DB. standard library functions to interact with Datastores)."
-            )
+          let msg =
+            $"Attempting to access a field of something that isn't a record or dict, "
+            + "(it's a Datastore. Use DB. standard library functions to interact with Datastores)."
+          return err id msg
         | _ when Dval.isFake obj -> return obj
         | _ ->
-          return
-            DError(
-              sourceID id,
-              $"Attempting to access a field of something that isn't a record or dict, "
-              + $"(it's a {DvalReprDeveloper.dvalTypeName obj})."
-            )
+          let msg =
+            $"Attempting to access a field of something that isn't a record or dict, "
+            + $"(it's a {DvalReprDeveloper.dvalTypeName obj})."
+          return err id msg
 
 
     | ELambda (_id, parameters, body) ->
@@ -346,10 +364,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
           | caseName, fieldPats, DEnum (_dTypeName, dCaseName, dFields) ->
-            let fieldPats =
-              match fieldPats with
-              | [ MPTuple (_, first, second, theRest) ] -> first :: second :: theRest
-              | pats -> pats
 
             if List.length dFields = List.length fieldPats && caseName = dCaseName then
               let (passResults, newVarResults, traceResults) =
@@ -429,7 +443,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let mutable hasMatched = false
       let mutable matchResult =
         // Even though we know it's fakeval, we still run through each pattern for analysis
-        if Dval.isFake matchVal then matchVal else DError(sourceID id, "No match")
+        if Dval.isFake matchVal then matchVal else err id "No match"
 
       for (pattern, rhsExpr) in cases do
         if hasMatched && isRealExecution then
@@ -473,7 +487,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | _ ->
         do! preview st thenbody
         do! preview st elsebody
-        return DError(sourceID id, "If only supports Booleans")
+        return err id "If only supports Booleans"
 
 
     | EOr (id, left, right) ->
@@ -486,13 +500,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | DBool true -> return DBool true
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
-        | _ -> return DError(sourceID id, "|| only supports Booleans")
+        | _ -> return err id "|| only supports Booleans"
       | left when Dval.isFake left ->
         do! preview st right
         return left
       | _ ->
         do! preview st right
-        return DError(sourceID id, "|| only supports Booleans")
+        return err id "|| only supports Booleans"
 
 
     | EAnd (id, left, right) ->
@@ -505,13 +519,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | DBool true -> return DBool true
         | DBool false -> return DBool false
         | right when Dval.isFake right -> return right
-        | _ -> return DError(sourceID id, "&& only supports Booleans")
+        | _ -> return err id "&& only supports Booleans"
       | left when Dval.isFake left ->
         do! preview st right
         return left
       | _ ->
         do! preview st right
-        return DError(sourceID id, "&& only supports Booleans")
+        return err id "&& only supports Booleans"
 
 
     | EEnum (id, typeName, caseName, fields) ->
@@ -519,29 +533,69 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | FQTypeName.Stdlib ({ modules = []; typ = "Option"; version = 0 }) ->
         match (caseName, fields) with
         | "Nothing", [] -> return DOption None
+        | "Nothing", _ ->
+          return err id $"Option.Nothing expects 0 arguments but got {fields.Length}"
         | "Just", [ arg ] ->
           let! dv = (eval state st arg)
           return Dval.optionJust dv
-        | name, _ ->
-          return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
+        | "Just", _ ->
+          return err id $"Option.Just expects 1 argument but got {fields.Length}"
+        | name, _ -> return err id $"Invalid name for enum {name}"
       | FQTypeName.Stdlib ({ modules = []; typ = "Result"; version = 0 }) ->
         match (caseName, fields) with
         | "Ok", [ arg ] ->
           let! dv = eval state st arg
           return Dval.resultOk dv
+        | "Ok", _ ->
+          return err id $"Result.Ok expects 1 argument but got {fields.Length}"
         | "Error", [ arg ] ->
           let! dv = eval state st arg
           return Dval.resultError dv
-        | name, _ ->
-          return Dval.errSStr (sourceID id) $"Invalid name for enum {name}"
+        | "Error", _ ->
+          return err id $"Result.Error expects 1 argument but got {fields.Length}"
+        | name, _ -> return err id $"Invalid name for enum {name}"
       | typeName ->
-        // EEnumTODO: handle analysis/preview
-        let! fields = Ply.List.mapSequentially (eval state st) fields
-
-        // TYPESCLEANUP typecheck fields against the type
-        match List.tryFind Dval.isFake fields with
-        | Some fakeDval -> return fakeDval
-        | None -> return DEnum(typeName, caseName, fields)
+        let availableTypes = ExecutionState.availableTypes state
+        let typ = Map.tryFind typeName availableTypes
+        let typeStr = FQTypeName.toString typeName
+        match typ with
+        | None -> return err id $"There is no type named `{typeStr}`"
+        | Some (CustomType.Record _) ->
+          return err id $"Expected an enum but {typeStr} is a record"
+        | Some (CustomType.Enum (case, cases)) ->
+          let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
+          match case with
+          | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
+          | Some case ->
+            if case.fields.Length <> fields.Length then
+              let msg =
+                $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
+              return err id msg
+            else
+              let fields = List.zip case.fields fields
+              return!
+                Ply.List.foldSequentially
+                  (fun r ((enumField : CustomType.EnumField), expr) ->
+                    uply {
+                      if Dval.isFake r then
+                        do! preview st expr
+                        return r
+                      else
+                        let! v = eval state st expr
+                        if Dval.isFake v then
+                          return v
+                        else
+                          match TypeChecker.unify availableTypes enumField.typ v with
+                          | Ok () ->
+                            match r with
+                            | DEnum (typeName, caseName, existing) ->
+                              return
+                                DEnum(typeName, caseName, List.append existing [ v ])
+                            | _ -> return err id "Expected an enum"
+                          | Error e -> return err id (TypeChecker.Error.toString e)
+                    })
+                  (DEnum(typeName, caseName, []))
+                  fields
   }
 
 /// Interprets an expression and reduces to a Dark value
@@ -564,6 +618,7 @@ and applyFn
     // Unwrap
     match fn with
     | DFnVal fnVal -> return! applyFnVal state fnVal args
+    | other when Dval.isFake other -> return other
     | other ->
       return
         Dval.errSStr

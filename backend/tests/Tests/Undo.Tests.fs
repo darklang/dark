@@ -15,7 +15,8 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-let handler code = testHttpRouteHandler "" "GET" (Parser.ProgramTypes.parseExpr code)
+let handler code =
+  testHttpRouteHandler "" "GET" (Parser.ProgramTypes.parseIgnoringUser code)
 
 let testUndoCount : Test =
   // Creates several save points, (at least as many undos as we will do),

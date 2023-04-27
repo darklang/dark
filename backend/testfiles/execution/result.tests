@@ -8,7 +8,7 @@ Result.andThen_v1 (Ok 5) (fun x -> true) = Test.typeError_v0 "Expected `fn` to r
 Result.fromOption_v2 (Just 6) "test" = Ok 6
 Result.fromOption_v2 Nothing "test" = Error "test"
 Result.fromOption_v2 (Just (Error "test")) "test" = Ok (Error "test")
-Result.fromOption_v2 Nothing (1,2,3) = Error (1,2,3)
+Result.fromOption_v2 Nothing (1,2,3) = Error ((1,2,3))
 Result.fromOption_v2 Nothing Nothing = Error Nothing
 
 

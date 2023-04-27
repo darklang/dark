@@ -19,7 +19,7 @@ let rec typeName (t : TypeReference) : string =
     let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
     $"({nested})"
   | TDict nested -> $"Dict<{typeName nested}>"
-  | TFn _ -> "Block"
+  | TFn _ -> "Function"
   | TVariable varname -> $"'{varname}"
   | THttpResponse _ -> "Response"
   | TDB _ -> "Datastore"
@@ -40,7 +40,7 @@ let rec typeName (t : TypeReference) : string =
     FQTypeName.toString t + typeArgsPortion
   | TBytes -> "Bytes"
 
-let dvalTypeName (dv : Dval) : string =
+let rec dvalTypeName (dv : Dval) : string =
   match dv with
   | DIncomplete _ -> "Incomplete"
   | DError _ -> "Error"
@@ -50,21 +50,25 @@ let dvalTypeName (dv : Dval) : string =
   | DUnit -> "Unit"
   | DChar _ -> "Char"
   | DString _ -> "String"
-  | DList _ -> "List"
+  | DList [] -> "List<'a>"
+  | DList (v :: _) -> "List<" + dvalTypeName v + ">"
   | DDict _ -> "Dict"
-  // TYPESCLEANUP - use the name
-  | DRecord _ -> "Record"
-  | DFnVal _ -> "Block"
+  | DFnVal (Lambda _) -> "Lambda"
   | DHttpResponse _ -> "HttpResponse"
   | DDB _ -> "Datastore"
   | DDateTime _ -> "DateTime"
   | DPassword _ -> "Password"
   | DUuid _ -> "Uuid"
-  | DOption _ -> "Option"
-  | DResult _ -> "Result"
-  | DTuple _ -> "Tuple"
-  | DEnum _ -> "Enum"
+  | DOption (Some v) -> "Option<" + dvalTypeName v + ">"
+  | DOption None -> "Option<'a>"
+  | DResult (Ok v) -> "Result<" + dvalTypeName v + ", 'err>"
+  | DResult (Error v) -> "Result<'ok, " + dvalTypeName v + ">"
+  | DTuple (t1, t2, trest) ->
+    "(" + (t1 :: t2 :: trest |> List.map dvalTypeName |> String.concat ", ") + ")"
   | DBytes _ -> "Bytes"
+  // TYPESCLEANUP - use the name
+  | DRecord _ -> "Record"
+  | DEnum _ -> "Enum"
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr

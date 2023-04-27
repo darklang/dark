@@ -342,6 +342,15 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
   list
 
+let debuGMap (msg : string) (map : Map<'k, 'v>) : unit =
+  NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {Map.count map}, ["
+  map |> Map.iter (fun k v -> NonBlockingConsole.WriteLine $"  {k} -> {v}")
+  NonBlockingConsole.WriteLine $"])"
+
+let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
+  debuGMap msg map
+  map
+
 
 let debugBy (msg : string) (f : 'a -> 'b) (v : 'a) : 'a =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} {f v}"

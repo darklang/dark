@@ -183,7 +183,7 @@ module Roundtrip =
 
 
 module ValueMissingColumnGivesGoodError =
-  (DB.set_v1 (X { x = "x"; col = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [col]"
+  (DB.set_v1 (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [y]"
 
 
 module SetDoesUpsert =
@@ -330,7 +330,7 @@ type Person = {
 
 let addFriend (key: String) (name: String) (height: Int) (human: Bool) (dob: String) (income: Float) : Person =
   let dob = (DateTime.parse_v2 dob) |> Test.unwrap in
-  let obj = PersonDB { height = height; name = name; human = human; dob = dob; income = income } in
+  let obj = Person { height = height; name = name; human = human; dob = dob; income = income } in
   DB.set_v1 obj key PersonDB
 
 let prepFriends () : Unit =
@@ -401,7 +401,8 @@ module FindAll =
   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
-  (friends (fun p -> let obj = Person { x = 42 } in p.height > obj.x )) =
+  type X = { x : Int }
+  (friends (fun p -> let obj = X { x = 42 } in p.height > obj.x )) =
     [" Chandler "; "Rachel"; "Ross" ]
 
   // nested fieldaccess
@@ -466,6 +467,9 @@ module PartialEvaluation =
   type A = { a : Int }
   type Z = { z : A }
   type Y = { y : Z }
+  type AL = { a : List<Int> }
+  type ZL = { z : AL }
+  type YL = { y : ZL }
   // fieldAccesses outside query
   (let _ = prepFriends ()
    let x = Y { y = Z { z = A { a = 5 }}}
@@ -478,7 +482,7 @@ module PartialEvaluation =
                      x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = Y { y = Z { z = A { a = [1;2;3;4;5] }}}
+  (friends (fun p -> let x = YL { y = ZL { z = AL { a = [1;2;3;4;5] }}}
                      (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // tuple destructuring inside query
