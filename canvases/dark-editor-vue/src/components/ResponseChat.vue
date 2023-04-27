@@ -82,15 +82,11 @@
         Submit
       </button>
     </form>
-
-    <div v-if="result" class="text-white">
-      <p>{{ result }}</p>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps } from 'vue'
+import { ref, defineProps, defineEmits } from 'vue'
 import AutoSizeTextarea from './AutoSizeTextarea.vue'
 import '../global.d.ts'
 
@@ -138,7 +134,7 @@ const copyCode = (index: number) => {
 
 const variables = ref<string[]>([])
 const variableValues = ref<string[]>([])
-const result = ref('')
+const emits = defineEmits(['message'])
 
 let resp = props.response
 const matchResult = resp.match(/variables:\n([\s\S]*)/)
@@ -153,6 +149,6 @@ const submitForm = () => {
 // @ts-ignore
 window.handleDarkResult = (message) => {
   console.log('handleDarkResult', message)
-  result.value = message
+  emits('message', message)
 }
 </script>

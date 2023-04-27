@@ -4,11 +4,13 @@
       <div v-for="(prompt, index) in prompts" :key="index">
         <UserChat :promptValue="prompt" />
         <ResponseChat
+          @message="handleMessage"
           :response="responses[index]"
           :responseIndex="index"
           v-if="responses[index]"
         />
       </div>
+      <Result :message="message" />
     </div>
 
     <div class="absolute bottom-0 left-0 w-full pt-2 bg-[#151515]">
@@ -47,10 +49,12 @@ import { ref, onMounted } from 'vue'
 import UserChat from './UserChat.vue'
 import ResponseChat from './ResponseChat.vue'
 import autosize from 'autosize'
+import Result from './Result.vue'
 
 const prompts = ref<string[]>([])
 const prompt = ref('')
 const responses = ref<string[]>([])
+const message = ref('')
 
 const textarea = document.querySelector('textarea')
 if (textarea !== null) {
@@ -65,6 +69,10 @@ const props = defineProps({
     default: '',
   },
 })
+
+const handleMessage = (value: string) => {
+  message.value = value
+}
 
 const submitPrompt = async () => {
   prompts.value.push(prompt.value)
