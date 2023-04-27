@@ -146,8 +146,6 @@ let makeTest versionName filename =
       let canvasID = System.Guid.NewGuid()
       let! state = executionStateFor canvasID false Map.empty Map.empty Map.empty
 
-      let userTypes = Map.empty
-
       // Parse the Dark code
       let test =
         darkCode
@@ -156,7 +154,7 @@ let makeTest versionName filename =
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> Parser.TestModule.parseSingleTestFromFile
-      let code =
+      let actualCode =
         test.actual
         |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
         |> PT2RT.Expr.toRT
@@ -164,7 +162,7 @@ let makeTest versionName filename =
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state Map.empty code
+      let! actual = Exe.executeExpr state Map.empty actualCode
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]
@@ -179,7 +177,11 @@ let makeTest versionName filename =
       // Second check: expected result (Dval) matches actual result (Dval)
       let actual = normalizeDvalResult actual
 
-      let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT test.expected)
+      let expectedCode =
+        test.expected
+        |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
+        |> PT2RT.Expr.toRT
+      let! expected = Exe.executeExpr state Map.empty expectedCode
       return Expect.equalDval actual expected $"Responses don't match"
   }
 
