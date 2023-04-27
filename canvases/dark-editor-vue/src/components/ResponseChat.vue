@@ -65,8 +65,7 @@ const executeCode = async(index: number) =>{
           );
         }
         const exprJson = await response.text();
-        DotNet.invokeMethod("Wasm", "LoadExpr", exprJson);
-        DotNet.invokeMethod("Wasm", "EvalExpr");
+        window.darklang.evalExpr(exprJson); // not sure if this is the best way to do this in Vue..
       } catch (error) {
         console.error("Error:", error);
       }

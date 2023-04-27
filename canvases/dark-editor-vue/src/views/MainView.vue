@@ -6,7 +6,11 @@
         <span class="font-semibold text-xl">System prompt</span>
       </template>
       <template v-slot:accordion-body>
-        <textarea class="bg-transparent outline-0 p-4 w-full" ref="prompt" v-model="systemPromptValue"></textarea>
+        <textarea
+          class="bg-transparent outline-0 p-4 w-full"
+          ref="prompt"
+          v-model="systemPromptValue"
+        ></textarea>
       </template>
     </Accordion>
 
@@ -17,32 +21,30 @@
 </template>
 
 <script setup lang="ts">
-  import Header from "../components/Header.vue";
-  import Accordion from "../components/Accordion.vue";
-  import Prompt from "../components/Prompt.vue";
-  import { ref } from 'vue';
-  import { onMounted } from '@vue/runtime-core';
-  const systemPromptValue= ref("");
-  const blazorScript: HTMLScriptElement = document.createElement("script");
-  blazorScript.setAttribute(
-    "src",
-    "http://dark-serve-blazor-assets.dlio.localhost:11003/blazor.webassembly.js",
-  );
-  blazorScript.setAttribute("autostart", "false");
-  blazorScript.setAttribute("defer", "");
-  blazorScript.addEventListener('load', async () => {
-    await Blazor.start({
-      loadBootResource: function (type: string, name: string, defaultUri: string, integrity?: string) {
-        return `http://dark-serve-blazor-assets.dlio.localhost:11003/${name}`;
-      }
-    }).then(() => {
-      DotNet.invokeMethod("Wasm", "InitializeDarkRuntime");
-    });
-  });
-document.head.appendChild(blazorScript);
-  onMounted(() => {
-  fetch('/get-prompt')
-  .then(response => response.text())
-  .then(data => systemPromptValue.value = data);
+import { ref } from "vue";
+import { onMounted } from "@vue/runtime-core";
+
+import Header from "../components/Header.vue";
+import Accordion from "../components/Accordion.vue";
+import Prompt from "../components/Prompt.vue";
+
+const systemPromptValue = ref("");
+
+const darklangJSScript: HTMLScriptElement = document.createElement("script");
+darklangJSScript.setAttribute(
+  "src",
+  "http://dark-serve-static.dlio.localhost:11003/darklang.js",
+);
+darklangJSScript.setAttribute("defer", "");
+darklangJSScript.addEventListener("load", async () => {
+  const darklang = await window.Darklang.init();
+  window.darklang = darklang;
+});
+document.head.appendChild(darklangJSScript);
+
+onMounted(() => {
+  fetch("/get-prompt")
+    .then(response => response.text())
+    .then(data => (systemPromptValue.value = data));
 });
 </script>
