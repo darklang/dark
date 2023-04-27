@@ -70,8 +70,8 @@ let _indexHandler _req =
         <textarea id="right-textarea" class="textarea" disabled></textarea>
       </div>
     </div>
-    <script src="/static/tree-sitter/tree-sitter.js" />
-    <script>console.log('NOT SURE WHY I NEED THIS')</script>
+    <script src="/static/tree-sitter/tree-sitter.js"></script>
+    <script src="http://dark-serve-static.dlio.localhost:11003/darklang.js"></script>
     <script>
       function simplifyTree(cursor) {
         let children = [];
@@ -91,6 +91,8 @@ let _indexHandler _req =
           children: children,
         };
       }
+
+      const darklang = await Darklang.init(wasmDark);
 
       const Parser = window.TreeSitter;
 
@@ -119,14 +121,8 @@ let _indexHandler _req =
 
             document.getElementById("right-textarea").value = exprJson;
 
-            // TODO: now what? maybe eval via WASM?
-            // TODO: the WASM part; now that we have a user function,
-            //
-            // - load it into wasm
-            //   DotNet.invokeMethod("Wasm", "LoadExpr", exprJson);
-            //
-            // - run the fn (with some inputs)
-            //   DotNet.invokeMethod("Wasm", "EvalExpr");
+            //TODO: continue here, eval-ing in WASM runtime
+            //darklang.evalExpr(exprJson);
           } catch (error) {
             console.error("Error:", error);
           }

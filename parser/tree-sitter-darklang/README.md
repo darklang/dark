@@ -15,6 +15,11 @@ To get set up and familiar with the grammar and parser:
 - `npm i` install npm dependencies specific to this project
 - `npm i -g tree-sitter-cli`
   install tree-sitter globally via npm
+
+  Alternatively, depend on the locally-installed copy,
+  and `export PATH=$PATH:./node_modules/.bin`
+  so the following `tree-sitter` comamnds will work
+
 - `tree-sitter init-config`
   this creates a config file at `~/.config/tree-sitter/config.json`
 - `code ~/.config/tree-sitter/config.json`
@@ -25,8 +30,6 @@ To get set up and familiar with the grammar and parser:
 - `tree-sitter generate` to generate parser from grammar
 - `tree-sitter parse ./demo.dark` to parse a hardcoded file
 - `tree-sitter test` to test the parser against a 'corpus' of test cases found in `test/corpus`
-
-Note: `export PATH=$PATH:./node_modules/.bin` may be needed at some point? I forget.
 
 ## Bindings
 
