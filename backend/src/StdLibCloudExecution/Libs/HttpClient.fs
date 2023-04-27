@@ -297,7 +297,10 @@ let fns : List<BuiltInFn> =
                     ))
                   |> DList
 
-                let typ = FQTypeName.Stdlib (FQTypeName.stdlibTypeName "HttpClient" "Response" 0)
+                let typ =
+                  FQTypeName.Stdlib(
+                    FQTypeName.stdlibTypeName "HttpClient" "Response" 0
+                  )
 
                 return
                   [ ("statusCode", DInt(int64 response.statusCode))
