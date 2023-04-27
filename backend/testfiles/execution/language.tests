@@ -152,10 +152,10 @@ module Enums =
     ([EnumOfMixedCases.W; EnumOfMixedCases.X "testX"; EnumOfMixedCases.Y(5); EnumOfMixedCases.Z("testZ", 2)]
      |> List.map_v0(fun v ->
       match v with
-      | EnumOfMixedCases.X s -> "X " ++ s
-      | EnumOfMixedCases.Z (s, _i) -> "Z " ++ s
-      | EnumOfMixedCases.Y y -> "Y " ++ (Int.toString_v0 y)
-      | EnumOfMixedCases.W -> "a simple W")
+      | X s -> "X " ++ s
+      | Z (s, _i) -> "Z " ++ s
+      | Y y -> "Y " ++ (Int.toString_v0 y)
+      | W -> "a simple W")
     ) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
 
   module TuplesVsNonTuples =
@@ -188,8 +188,8 @@ module Enums =
 
     let insert' (tree: RBTree<'a>) (value: 'a) (cmp : ('a * 'a) -> Int) : RBTree<'a> =
       match tree with
-      | RBTree.Empty -> singleton value
-      | RBTree.Node(color, left, v, right) ->
+      | Empty -> singleton value
+      | Node(color, left, v, right) ->
         // CLEANUP we should allow cmp to call two arguments, and not use a weird
         // tuple-pipe thing
         let c = (value, v) |> cmp
@@ -208,8 +208,8 @@ module Enums =
 
     let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =
       match tree with
-      | RBTree.Empty -> acc
-      | RBTree.Node(_, left, value, right) -> toList' left (List.push (toList' right acc) value)
+      | Empty -> acc
+      | Node(_, left, value, right) -> toList' left (List.push (toList' right acc) value)
 
     let toList (tree: RBTree<'a>) : List<'a> =
       toList' tree []

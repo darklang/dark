@@ -158,7 +158,10 @@ module MatchPattern =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
       let modules =
         List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
-      // CLEANUPTYPES use modules
+      if modules <> [] then
+        Exception.raiseInternal
+          "Module in enum pattern casename. Only use the casename in Enum patterns"
+          [ "pat", pat ]
       PT.MPEnum(id, enumName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
