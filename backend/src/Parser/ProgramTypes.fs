@@ -217,6 +217,23 @@ module Expr =
   let rec fromSynExpr' (ast : SynExpr) : PT.Expr =
     let c = fromSynExpr'
 
+    let convertEnumArg (ast : SynExpr) : List<PT.Expr> =
+      // if the arg is a tuple with one paren around it, it's just arguments to the
+      // enum. But if it has two parens around it, it's a single tuple.
+      // eg: (Foo(1, 2)) vs (Foo((1, 2)))
+      match ast with
+      | SynExpr.Paren (SynExpr.Paren (SynExpr.Tuple (_, t1 :: t2 :: trest, _, _),
+                                      _,
+                                      _,
+                                      _),
+                       _,
+                       _,
+                       _) -> [ PT.ETuple(gid (), c t1, c t2, List.map c trest) ]
+      | SynExpr.Paren (SynExpr.Tuple (_, args, _, _), _, _, _) -> List.map c args
+      | SynExpr.Tuple (_, args, _, _) -> List.map c args
+      | e -> [ c e ]
+
+
     let convertLambdaVar (var : SynSimplePat) : string =
       match var with
       | SynSimplePat.Id (name, _, _, _, _, _) -> nameOrBlank name.idText
@@ -334,11 +351,7 @@ module Expr =
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
 
-      let fields =
-        match c arg with
-        | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
-        | other -> [ other ]
-      PT.EEnum(id, typeName, name.idText, fields)
+      PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Nothing"; "Just" ]
@@ -346,12 +359,7 @@ module Expr =
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
 
-      let fields =
-        match c arg with
-        | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
-        | other -> [ other ]
-
-      PT.EEnum(id, typeName, name.idText, fields)
+      PT.EEnum(id, typeName, name.idText, [ c arg ])
 
     // Enum values (EEnums)
     | SynExpr.Ident name when name.idText = "Nothing" ->
@@ -663,13 +671,8 @@ module Expr =
 
 
       // Enums
-      | PT.EEnum (id, typeName, caseName, _fields) ->
-        let fields =
-          match c arg with
-          | PT.ETuple (_, first, second, theRest) -> first :: second :: theRest
-          | other -> [ other ]
-
-        PT.EEnum(id, typeName, caseName, fields)
+      | PT.EEnum (id, typeName, caseName, fields) ->
+        PT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)
 
       | e ->
         Exception.raiseInternal

@@ -158,7 +158,17 @@ module Enums =
       | EnumOfMixedCases.W -> "a simple W")
     ) = ["a simple W"; "X testX"; "Y 5"; "Z testZ"]
 
+  module TuplesVsNonTuples =
+    type Tuples = NotTuple of String * Int | Tuple of (String * Int)
 
+    (match Tuples.NotTuple("printer broke", 7) with
+    | NotTuple(reason, 7) -> reason) = "printer broke"
+    (Tuples.NotTuple(("printer broke", 7))) = Test.typeError "Case `NotTuple` expected 2 fields but got 1"
+
+    (match Tuples.Tuple(("printer broke", 7)) with
+    | Tuple((reason, 7)) -> reason) = "printer broke"
+
+    Tuples.Tuple("printer broke", 7) = Test.typeError "Case `Tuple` expected 1 fields but got 2"
 
 
   module Recursive =

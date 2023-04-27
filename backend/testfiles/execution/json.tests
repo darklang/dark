@@ -237,7 +237,7 @@ Json.parse<List<Int>> "[1, 2, ]" = Error "not JSON"
 
 // Tuples
 Json.serialize<Tuple<Int, String, Int>> (1, "two", 3) = Ok "[1,\"two\",3]"
-Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = Ok (1, "two", 3)
+Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = Ok ((1, "two", 3))
 // TODO: more...
 // TODO: more nesting...
 

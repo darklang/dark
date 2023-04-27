@@ -364,10 +364,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
           | caseName, fieldPats, DEnum (_dTypeName, dCaseName, dFields) ->
-            let fieldPats =
-              match fieldPats with
-              | [ MPTuple (_, first, second, theRest) ] -> first :: second :: theRest
-              | pats -> pats
 
             if List.length dFields = List.length fieldPats && caseName = dCaseName then
               let (passResults, newVarResults, traceResults) =
