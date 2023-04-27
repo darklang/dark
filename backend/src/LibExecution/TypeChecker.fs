@@ -143,7 +143,6 @@ let rec unify
             err
       | _, _ -> err
 
-  // TODO: support Tuple type-checking.
   // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
   // TODO: exhaustiveness check
   | TTuple _, _
