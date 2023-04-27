@@ -135,6 +135,19 @@ module MatchPattern =
     let id = gid ()
     let r = fromSynPat
 
+    let convertEnumArg (ast : SynPat) : List<PT.MatchPattern> =
+      // if the arg is a tuple with one paren around it, it's just arguments to the
+      // enum. But if it has two parens around it, it's a single tuple.
+      // eg: (Foo(1, 2)) vs (Foo((1, 2)))
+      match ast with
+      | SynPat.Paren (SynPat.Paren (SynPat.Tuple (_, t1 :: t2 :: trest, _), _), _) ->
+        [ PT.MPTuple(gid (), r t1, r t2, List.map r trest) ]
+      | SynPat.Paren (SynPat.Tuple (_, args, _), _) -> List.map r args
+      | SynPat.Tuple (_, args, _) -> List.map r args
+      | e -> [ r e ]
+
+
+
     match pat with
     | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
@@ -153,7 +166,7 @@ module MatchPattern =
       PT.MPFloat(id, sign, whole, fraction)
     | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
     | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
-      let args = List.map r args
+      let args = List.map convertEnumArg args |> List.concat
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
       let modules =
