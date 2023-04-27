@@ -467,6 +467,9 @@ module PartialEvaluation =
   type A = { a : Int }
   type Z = { z : A }
   type Y = { y : Z }
+  type AL = { a : List<Int> }
+  type ZL = { z : AL }
+  type YL = { y : ZL }
   // fieldAccesses outside query
   (let _ = prepFriends ()
    let x = Y { y = Z { z = A { a = 5 }}}
@@ -479,7 +482,7 @@ module PartialEvaluation =
                      x.y.z.a < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // fieldAccesses inside query
-  (friends (fun p -> let x = Y { y = Z { z = A { a = [1;2;3;4;5] }}}
+  (friends (fun p -> let x = YL { y = ZL { z = AL { a = [1;2;3;4;5] }}}
                      (x.y.z.a |> List.length_v0) < p.height)) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // tuple destructuring inside query
