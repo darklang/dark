@@ -15,7 +15,7 @@
 Note: as we use experimental functions, this canvas must be run on the experimental BwdServer, at :11003.
 
 ## Demo:
-- `./scripts/run-canvas-hack load-from-disk dark-serve-statc`
+- `./scripts/run-canvas-hack load-from-disk dark-serve-static`
 - `./scripts/run-canvas-hack load-from-disk dark-wasm-demo`
 - go to http://dark-wasm-demo.dlio.localhost:11003
 - hit "submit"
