@@ -72,6 +72,7 @@ let combine
 
 
 module Shortcuts =
+  let fn' = FQFnName.stdlibFnName'
   let fn = FQFnName.stdlibFnName
   let fnNoMod = FQFnName.stdlibFnName' []
   let typ = FQTypeName.stdlibTypeName

@@ -1,11 +1,40 @@
+let listPackageFiles (dir : String) : List<String> =
+  dir
+  |> Directory.list
+  |> List.filter_v2 (fun x -> x |> String.endsWith ".dark")
+
+let parseFile (file : String) : List<Packages.Path * Packages.Expression> =
+  let source = File.read file
+  let tokens = Lexer.lex source
+  let ast = Parser.parse tokens
+  let canvas = CanvasV2.toCanvas ast
+  canvas
+
+let savePackageFn (pkg : String) (fn : CanvasFunction) : Unit =
+  DarkEditor.savePackage pkg fn
+
+let clearPackages () : Unit = LocalExec.Packages.clear()
+
+type CliOptions =
+  | Help
+  | LoadPackages
+
+
+let usage () : String =
+  "Usage: LocalExec [options]
+
+    Options:
+      -h, --help     Show this help message and exit
+      load-packages  Load packages from packages
+  "
+
+
 let main () : Int =
-  let dir = "packages/darklang/stdlib"
-  do
-    dir
-    |> Directory.list
-    |> List.filter_v2 (fun x -> x |> String.endsWith ".dark")
-    |> String.join ", "
-    |> print
+  clearPackages ()
+  let files = listPackageFiles "/home/dark/app/packages"
+  let pkgs = files |> List.map parseFile
+  pkgs |> List.iter (fun pkg -> pkg.fns |> List.iter (savePackageFn pkg.name))
   0
+
 
 main ()
