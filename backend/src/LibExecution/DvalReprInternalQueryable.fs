@@ -144,7 +144,6 @@ let rec private toJsonV0
     w.writeObject (fun () ->
       w.WritePropertyName "Error"
       writeDval errType dv)
-  | THttpResponse _, DHttpResponse _
   | TFn _, DFnVal _
   | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
   // exhaustiveness checking
@@ -164,7 +163,6 @@ let rec private toJsonV0
   | TBytes, _
   | TOption _, _
   | TResult _, _
-  | THttpResponse _, _
   | TVariable _, _ // CLEANUP: pass the map of variable names in
   | TDB _, _
   | TFn _, _ ->
@@ -252,7 +250,6 @@ let parseJsonV0
     | TBytes _, _ -> Exception.raiseInternal "Not supported yet" []
     | TOption _, _ -> Exception.raiseInternal "Not supported yet" []
     | TResult _, _ -> Exception.raiseInternal "Not supported yet" []
-    | THttpResponse _, _ -> Exception.raiseInternal "Not supported yet" []
     | TFn _, _ -> Exception.raiseInternal "Not supported yet" []
     | TDB _, _ -> Exception.raiseInternal "Not supported yet" []
     | TVariable _, _ -> Exception.raiseInternal "Not supported yet" []
@@ -298,7 +295,6 @@ module Test =
     // TODO support
     | DRecord _ // TYPESCLEANUP
     | DBytes _
-    | DHttpResponse _
     | DOption _
     | DResult _
 

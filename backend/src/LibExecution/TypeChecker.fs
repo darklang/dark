@@ -105,7 +105,6 @@ let rec unify
   | TUuid, DUuid _ -> Ok()
   | TChar, DChar _ -> Ok()
   | TDB _, DDB _ -> Ok()
-  | THttpResponse _, DHttpResponse _ -> Ok()
   | TBytes, DBytes _ -> Ok()
   | TTuple _, DTuple _ -> Ok()
 
@@ -171,7 +170,6 @@ let rec unify
   | TUuid, _
   | TChar, _
   | TDB _, _
-  | THttpResponse _, _
   | TBytes, _
   | TOption _, _
   | TResult _, _ ->

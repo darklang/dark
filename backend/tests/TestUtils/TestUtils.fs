@@ -356,17 +356,6 @@ module Expect =
     | DOption None
     | DFloat _ -> true
 
-    | DHttpResponse (_, headers, v) ->
-      // We don't check code as you can actually set it to anything
-      let vOk = check v
-
-      let headersOk =
-        List.all
-          (fun ((k, v) : string * string) -> k.IsNormalized() && v.IsNormalized())
-          headers
-
-      vOk && headersOk
-
     | DResult (Ok v)
     | DResult (Error v)
     | DOption (Some v) -> check v
@@ -491,7 +480,6 @@ module Expect =
     | TList (_), _
     | TTuple (_, _, _), _
     | TDict (_), _
-    | THttpResponse (_), _
     | TDB (_), _
     | TDateTime, _
     | TChar, _
@@ -729,10 +717,6 @@ module Expect =
       List.iteri2 (fun i l r -> de (string i :: path) l r) fields fields'
       ()
 
-    | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
-      check path sc1 sc2
-      check path h1 h2
-      de ("response" :: path) b1 b2
     | DIncomplete _, DIncomplete _ -> ()
     | DError (_, msg1), DError (_, msg2) ->
       check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
@@ -743,7 +727,6 @@ module Expect =
       exprEqualityBaseFn false path l1.body l2.body errorFn
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
-    | DHttpResponse _, _
     | DDict _, _
     | DRecord _, _
     | DEnum _, _
@@ -814,7 +797,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple (first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DHttpResponse (_, _, v)
     | DResult (Error v)
     | DResult (Ok v)
     | DOption (Some v) -> visit v
@@ -1040,9 +1022,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
            parameters = [ (id 5678, "a") ] }
      ),
      TFn([ TInt ], TInt))
-    ("httpresponse",
-     DHttpResponse(200L, [ "content-length", "9" ], DString "success"),
-     THttpResponse TString)
     ("db", DDB "Visitors", TDB TInt)
     ("date",
      DDateTime(

@@ -82,7 +82,6 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar
@@ -107,7 +106,6 @@ module TypeReference =
     | TTuple (first, second, theRest) ->
       PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
     | TDict (t) -> PT.TDict(fromCT t)
-    | THttpResponse (t) -> PT.THttpResponse(fromCT t)
     | TDB (t) -> PT.TDB(fromCT t)
     | TDateTime -> PT.TDateTime
     | TChar -> PT.TChar
@@ -132,7 +130,6 @@ module TypeReference =
     | PT.TTuple (first, second, theRest) ->
       TTuple(toCT first, toCT second, List.map toCT theRest)
     | PT.TDict (t) -> TDict(toCT t)
-    | PT.THttpResponse (t) -> THttpResponse(toCT t)
     | PT.TDB (t) -> TDB(toCT t)
     | PT.TDateTime -> TDateTime
     | PT.TChar -> TChar

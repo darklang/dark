@@ -142,7 +142,6 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar
@@ -169,7 +168,6 @@ module TypeReference =
     | RT.TList t -> TList(r t)
     | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
     | RT.TDict t -> TDict(r t)
-    | RT.THttpResponse t -> THttpResponse(r t)
     | RT.TDB t -> TDB(r t)
     | RT.TDateTime -> TDateTime
     | RT.TChar -> TChar
@@ -196,7 +194,6 @@ module TypeReference =
     | TList t -> RT.TList(r t)
     | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
     | TDict t -> RT.TDict(r t)
-    | THttpResponse t -> RT.THttpResponse(r t)
     | TDB t -> RT.TDB(r t)
     | TDateTime -> RT.TDateTime
     | TChar -> RT.TChar
@@ -514,7 +511,6 @@ module Dval =
     | DDict of Map<string, T>
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DHttpResponse of int64 * List<string * string> * T
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of Password
@@ -549,7 +545,6 @@ module Dval =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(pw)
-    | DHttpResponse (id, pairs, dval) -> RT.DHttpResponse(id, pairs, r dval)
     | DList list -> RT.DList(List.map r list)
     | DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
@@ -587,8 +582,6 @@ module Dval =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword (Password pw) -> DPassword(Password pw)
-    | RT.DHttpResponse (code, headers, dval) ->
-      DHttpResponse(code, headers, toCT dval)
     | RT.DList l -> DList(List.map r l)
     | RT.DTuple (first, second, theRest) ->
       DTuple(r first, r second, List.map r theRest)

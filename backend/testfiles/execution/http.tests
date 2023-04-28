@@ -1,4 +1,6 @@
-// TYPESCLEANUP - re-add all this with proper types
+1 = 1
+
+// TYPESCLEANUP - re-add all this with proper types via the package manager
 // Http.setCookie_v2 "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal" }
 // Http.setCookie_v2 "myCookie" "myVal" { Expires = (DateTime.parse_v2 "2000-07-28T22:42:00Z") |> Test.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
 
@@ -18,46 +20,46 @@
 //   Http.setCookie_v2 "myCookie" "myVal" { Fake = "fake"} = Test.typeError_v0 "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
 
-Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
-Http.badRequest_v0 1 = Test.typeError_v0 "Http.badRequest was expected to be called with a `String` in error, but was actually called with 1."
-Http.notFound_v0 = Http.response_v0 () 404
+// Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
+// Http.badRequest_v0 1 = Test.typeError_v0 "Http.badRequest was expected to be called with a `String` in error, but was actually called with 1."
+// Http.notFound_v0 = Http.response_v0 () 404
 
-Http.unauthorized_v0 = Http.response_v0 () 401
+// Http.unauthorized_v0 = Http.response_v0 () 401
 
-Http.forbidden_v0 = Http.response_v0 () 403
+// Http.forbidden_v0 = Http.response_v0 () 403
 
-Http.success_v0 (Dict { test = "test1" }) = Http.response_v0 (Dict {test = "test1"}) 200
-Http.success_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) = Http.response_v0 (Dict {``Content-Length`` = "0"; Server = "darklang"}) 200
-Http.success_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) =
-  Http.response_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) 200
+// Http.success_v0 (Dict { test = "test1" }) = Http.response_v0 (Dict {test = "test1"}) 200
+// Http.success_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) = Http.response_v0 (Dict {``Content-Length`` = "0"; Server = "darklang"}) 200
+// Http.success_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) =
+//   Http.response_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) 200
 
-Http.responseWithHtml_v0 (Dict { test = "test1"})  200 = Http.responseWithHeaders_v0 (Dict {test = "test1"}) (Dict {``Content-Type`` = "text/html"}) 200
-Http.responseWithHtml_v0 (Dict { ``Content-Length`` = 0; Server = "darklang"}) 200 = Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang")] )) (Dict {``Content-Type`` = "text/html"}) 200
-Http.responseWithHtml_v0 (Dict { ``Content-Length`` = 0; Server = "darklang"}) 4503599627370496I = Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) (Dict {``Content-Type`` = "text/html"}) 4503599627370496I
+// Http.responseWithHtml_v0 (Dict { test = "test1"})  200 = Http.responseWithHeaders_v0 (Dict {test = "test1"}) (Dict {``Content-Type`` = "text/html"}) 200
+// Http.responseWithHtml_v0 (Dict { ``Content-Length`` = 0; Server = "darklang"}) 200 = Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang")] )) (Dict {``Content-Type`` = "text/html"}) 200
+// Http.responseWithHtml_v0 (Dict { ``Content-Length`` = 0; Server = "darklang"}) 4503599627370496I = Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length",0); ("Server","darklang") ])) (Dict {``Content-Type`` = "text/html"}) 4503599627370496I
 
-Http.responseWithText_v0 (Dict { Connection = "Keep-Alive"}) 200 =
-  Http.responseWithHeaders_v0 (Dict {Connection = "Keep-Alive"}) (Dict { ``Content-Type`` = "text/plain"}) 200
-Http.responseWithText_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 200 =
-  Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) (Dict { ``Content-Type`` = "text/plain" }) 200
-Http.responseWithText_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 4503599627370496I =
-  Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang")])) (Dict { ``Content-Type`` = "text/plain" }) 4503599627370496I
+// Http.responseWithText_v0 (Dict { Connection = "Keep-Alive"}) 200 =
+//   Http.responseWithHeaders_v0 (Dict {Connection = "Keep-Alive"}) (Dict { ``Content-Type`` = "text/plain"}) 200
+// Http.responseWithText_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 200 =
+//   Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) (Dict { ``Content-Type`` = "text/plain" }) 200
+// Http.responseWithText_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 4503599627370496I =
+//   Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang")])) (Dict { ``Content-Type`` = "text/plain" }) 4503599627370496I
 
-Http.responseWithJson_v0 (Dict { Connection = "Keep-Alive"})  200 = Http.responseWithHeaders_v0 (Dict {Connection = "Keep-Alive"}) (Dict {``Content-Type`` = "application/json"}) 200
-Http.responseWithJson_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 200 =
-  Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) (Dict {``Content-Type`` = "application/json"}) 200
-Http.responseWithJson_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 4503599627370496I =
-  Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) (Dict {``Content-Type`` = "application/json"}) 4503599627370496I
+// Http.responseWithJson_v0 (Dict { Connection = "Keep-Alive"})  200 = Http.responseWithHeaders_v0 (Dict {Connection = "Keep-Alive"}) (Dict {``Content-Type`` = "application/json"}) 200
+// Http.responseWithJson_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 200 =
+//   Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) (Dict {``Content-Type`` = "application/json"}) 200
+// Http.responseWithJson_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 4503599627370496I =
+//   Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) (Dict {``Content-Type`` = "application/json"}) 4503599627370496I
 
-((Http.response_v0 "" 4503599627370496L) |> Test.httpResponseStatusCode) = 4503599627370496L
+// ((Http.response_v0 "" 4503599627370496L) |> Test.httpResponseStatusCode) = 4503599627370496L
 
-// TODO: re-enable after HttpRedirect removed
-// (Http.redirectTo_v0 "") = Http.response "" 301
-// (Http.redirectTo_v0 "bad url") = Http.response "bad url" 301
-(Http.redirectTo_v0 "http://someothersite.com") = Http.responseWithHeaders Bytes.empty (Dict { Location = "http://someothersite.com" }) 302
-(Http.redirectTo_v0 "/relativeUrl") = Http.responseWithHeaders Bytes.empty (Dict { Location = "/relativeUrl" }) 302
+// // TODO: re-enable after HttpRedirect removed
+// // (Http.redirectTo_v0 "") = Http.response "" 301
+// // (Http.redirectTo_v0 "bad url") = Http.response "bad url" 301
+// (Http.redirectTo_v0 "http://someothersite.com") = Http.responseWithHeaders Bytes.empty (Dict { Location = "http://someothersite.com" }) 302
+// (Http.redirectTo_v0 "/relativeUrl") = Http.responseWithHeaders Bytes.empty (Dict { Location = "/relativeUrl" }) 302
 
-Http.responseWithHeaders_v0 () Dict.empty 200 = Http.response_v0 () 200
-Http.responseWithHeaders_v0 "" Dict.empty 200 = Http.response_v0 "" 200
-Http.responseWithHeaders_v0 "value" Dict.empty 201 = Http.response_v0 "value" 201
-(Http.responseWithHeaders_v0 "value" (Dict { ``Server`` = "darklang" }) 201) |> Test.httpResponseHeaders = [ ("Server", "darklang")]
-(Http.responseWithHeaders_v0 4503599627370496I (Dict { ``Server`` = "darklang"; ``X-Secret-Key`` = "p@ssw0rd" }) 200) |> Test.httpResponseHeaders = [ ("Server","darklang") ;("X-Secret-Key", "p@ssw0rd") ]
+// Http.responseWithHeaders_v0 () Dict.empty 200 = Http.response_v0 () 200
+// Http.responseWithHeaders_v0 "" Dict.empty 200 = Http.response_v0 "" 200
+// Http.responseWithHeaders_v0 "value" Dict.empty 201 = Http.response_v0 "value" 201
+// (Http.responseWithHeaders_v0 "value" (Dict { ``Server`` = "darklang" }) 201) |> Test.httpResponseHeaders = [ ("Server", "darklang")]
+// (Http.responseWithHeaders_v0 4503599627370496I (Dict { ``Server`` = "darklang"; ``X-Secret-Key`` = "p@ssw0rd" }) 200) |> Test.httpResponseHeaders = [ ("Server","darklang") ;("X-Secret-Key", "p@ssw0rd") ]

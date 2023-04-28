@@ -223,12 +223,6 @@
                             ]
                           ],
                           [
-                            "THttpResponse",
-                            [
-                              "TBool"
-                            ]
-                          ],
-                          [
                             "TDB",
                             [
                               "TBool"

@@ -106,7 +106,6 @@ module FormatV0 =
     | DDict of DvalMap
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DHttpResponse of int64 * List<string * string> * Dval
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
@@ -137,7 +136,6 @@ module FormatV0 =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DHttpResponse (code, headers, hdv) -> RT.DHttpResponse(code, headers, toRT hdv)
     | DList l -> RT.DList(List.map toRT l)
     | DTuple (first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
@@ -169,8 +167,6 @@ module FormatV0 =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword (Password pw) -> DPassword pw
-    | RT.DHttpResponse (code, headers, hdv) ->
-      DHttpResponse(code, headers, fromRT hdv)
     | RT.DList l -> DList(List.map fromRT l)
     | RT.DTuple (first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
@@ -224,7 +220,6 @@ module Test =
     | RT.DUuid _ -> true
     | RT.DTuple (v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
     | RT.DOption (Some v)
-    | RT.DHttpResponse (_, _, v)
     | RT.DResult (Error v)
     | RT.DResult (Ok v) -> isRoundtrippableDval v
     | RT.DDB _

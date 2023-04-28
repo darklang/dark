@@ -204,9 +204,6 @@ let rec serialize
 
   | TDB _, DDB _ -> Exception.raiseInternal "Cannot serialize DB references" []
 
-  | THttpResponse _, _ ->
-    Exception.raiseInternal "Not worth supporting - about to be deleted" []
-
 
   // Exhaust the types
   | TUnit, _
@@ -437,11 +434,6 @@ let parse
 
     | TDB _, _ -> Exception.raiseInternal "Cannot serialize DB references" []
 
-    | THttpResponse _, _ ->
-      Exception.raiseInternal
-        "Can't currently parse this type/value combination"
-        [ "type", typ; "value", j ]
-
 
     // exhaust TypeReferences
     | TUnit, _
@@ -462,8 +454,7 @@ let parse
     | TCustomType _, _
     | TOption _, _
     | TResult _, _
-    | TDict _, _
-    | THttpResponse _, _ ->
+    | TDict _, _ ->
       Exception.raiseInternal
         "Can't currently parse this type/value combination"
         [ "type", typ; "value", j ]
