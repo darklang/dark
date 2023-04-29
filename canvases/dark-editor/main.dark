@@ -69,7 +69,7 @@ let _handler _req =
 let _handler _req =
   let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
   let contents =  request.body
-  let result = File.write filePath contents
+  let result = File.write contents filePath
 
   match result with
   | Ok r ->   Http.response r 200

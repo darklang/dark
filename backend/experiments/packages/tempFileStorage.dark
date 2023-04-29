@@ -8,8 +8,8 @@ type PathToFile = | JustFileName of String
 let uploadFile (data: Bytes): Result<PathToFile, String> =
   let fileName = String.random 10
 
-  match File.write fileName data with
-  | Ok _ -> JustFileName fileName
+  match File.write data fileName with
+  | Ok () -> JustFileName fileName
   | Error err -> err
 
 let getFileContents (file: PathToFile): Result<Bytes, String> =

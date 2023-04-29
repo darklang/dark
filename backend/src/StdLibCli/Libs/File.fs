@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "File" "write" 0
       typeParams = []
-      parameters = [ Param.make "path" TString ""; Param.make "contents" TBytes "" ]
+      parameters = [ Param.make "contents" TBytes ""; Param.make "path" TString "" ]
       returnType = TResult(TUnit, TString)
       description =
         "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"
