@@ -16,4 +16,11 @@ let typeRenames : StdLib.TypeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents = StdLib.combine [ Cli.contents ] fnRenames typeRenames
+let contents =
+  StdLib.combine
+    [ Libs.Directory.contents
+      Libs.Environment.contents
+      Libs.File.contents
+      Libs.Output.contents ]
+    fnRenames
+    typeRenames
