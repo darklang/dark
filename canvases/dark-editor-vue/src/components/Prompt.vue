@@ -10,7 +10,7 @@
           v-if="responses[index]"
         />
       </div>
-      <Result :message="message" />
+      <Result :message="message" v-if="message" />
     </div>
 
     <div class="absolute bottom-0 left-0 w-full pt-2 bg-[#151515]">
@@ -34,8 +34,27 @@
             <button
               type="submit"
               class="absolute bottom-2 right-2 py-1 px-2 mx-2 rounded-md text-white bg-[#C56AE4] hover:bg-[#9f56b8]"
+              :class="{ 'opacity-50 cursor-not-allowed': isLoading }"
+              :disabled="isLoading"
             >
-              send
+              <span v-if="!isLoading">send</span>
+              <span v-else class="flex">
+                <svg class="animate-spin w-6 p-1" viewBox="0 0 24 24">
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.353 5.801 3.501 7.663l2.498-2.372zM20 12a8 8 0 01-8 8v4c6.627 0 12-5.373 12-12h-4zm-2-5.291A7.962 7.962 0 0120 12h4c0-3.042-1.353-5.801-3.501-7.663l-2.498 2.372z"
+                  ></path>
+                </svg>
+              </span>
             </button>
           </div>
         </div>
@@ -55,6 +74,7 @@ const prompts = ref<string[]>([])
 const prompt = ref('')
 const responses = ref<string[]>([])
 const message = ref('')
+const isLoading = ref(false)
 
 const textarea = document.querySelector('textarea')
 if (textarea !== null) {
@@ -78,6 +98,7 @@ const submitPrompt = async () => {
   prompts.value.push(prompt.value)
 
   try {
+    isLoading.value = true
     const response = await fetch('/api/gpt4', {
       method: 'POST',
       headers: {
@@ -93,13 +114,17 @@ const submitPrompt = async () => {
       return
     }
 
+    // test ui without using tokens
+    // const data = '(let a = 1 \n a)'
+    // responses.value.push(data)
+
+    prompt.value = ''
     const data = await response.json()
     responses.value.push(data.choices[0].text)
   } catch (error) {
     console.error('Error sending prompt to server:', error)
   }
-
-  prompt.value = ''
+  isLoading.value = false
   //reset prompt textarea size
   autosize.destroy(content.value)
   autosize(content.value)
