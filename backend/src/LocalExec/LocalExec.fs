@@ -105,4 +105,5 @@ let main (args : string []) : int =
     // Don't reraise or report as LocalExec is only run interactively
     printException "Exception" [] e
     // LibService.Init.shutdown name
+    NonBlockingConsole.wait ()
     1
