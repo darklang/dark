@@ -1,0 +1,8 @@
+module Write =
+  let testContents () : String = "Test conrents"
+
+  (let filename = (File.createTemp ()) |> Test.unwrap
+   do (testContents ())
+      |> String.toBytes
+      |> (File.write filename)
+   File.read filename) = Ok ((testContents ()) |> String.toBytes)

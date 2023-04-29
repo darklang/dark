@@ -120,18 +120,18 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 /// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<RT.Libraries> =
   lazy
-    (let testTypes =
-      LibTest.types
-      |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibTypes
+    (let (fns, types) =
+      LibExecution.StdLib.combine
+        [ LibTest.contents
+          LibRealExecution.RealExecution.contents
+          StdLibCli.StdLib.contents ]
+        []
+        []
 
-     let testFns =
-       LibTest.fns
-       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
-
-
-     { stdlibTypes = testTypes; stdlibFns = testFns; packageFns = Map.empty })
+     { stdlibTypes =
+         types |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+       stdlibFns = fns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+       packageFns = Map.empty })
 
 let executionStateFor
   (canvasID : CanvasID)

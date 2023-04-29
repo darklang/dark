@@ -41,7 +41,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString path ] ->
           uply {
             // TODO make async
-            let contents = System.IO.Directory.EnumerateFiles path |> Seq.toList
+            let contents =
+              System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
             return List.map DString contents |> DList
           }
         | _ -> incorrectArgs ())
