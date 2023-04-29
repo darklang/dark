@@ -33,6 +33,25 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+    { name = fn "Debug" "inspect" 0
+      typeParams = []
+      parameters =
+        [ Param.make "var" (TVariable "value") ""; Param.make "msg" TString "" ]
+      returnType = TVariable "value"
+      description =
+        "Prints the value into stdout, and returns the value. The output format is not stable and should not be relied upon"
+      fn =
+        (function
+        | _, _, [ v; DString msg ] ->
+          print $"{msg}: {LibExecution.DvalReprDeveloper.toRepr v}"
+          Ply v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+
     ]
 
 let contents : LibExecution.StdLib.Contents = (fns, types)
