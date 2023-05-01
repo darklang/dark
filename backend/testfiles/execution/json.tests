@@ -252,6 +252,8 @@ Json.serialize<Option<Int>> Nothing = Ok "{\"Nothing\":null}"
 Json.parse<Option<Int>> "{\"Nothing\":null}" = Ok Nothing
 Json.serialize<Option<Int>> (Just 1) = Ok "{\"Just\":1}"
 Json.parse<Option<Int>> "{\"Just\":1}" = Ok (Just 1)
+Json.parse<Option<Int>> "null" = Ok Nothing
+Json.parse<Option<Int>> "1" = Ok (Just 1)
 // TODO: more...
 
 
@@ -303,6 +305,9 @@ Json.serialize<Person> (Person { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Na
 Json.parse<Person> """{ "Name": "Bob", "Age": 42 }""" = Ok (Person { Name = "Bob"; Age = 42 })
 Json.serialize<People> (People { GroupName = "Two Georges"; People = [Person { Name = "George A"; Age = 27 }; Person { Name = "George B"; Age = 42 }] }) = Ok """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}"""
 Json.parse<People> """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""" = Ok (People { GroupName = "Two Georges"; People = [Person { Name = "George A"; Age = 27 }; Person { Name = "George B"; Age = 42 }] })
+
+// can parse even if the JSON has _extra_ fields
+Json.parse<Person> """{ "Name": "Bob", "Age": 42, "Height": "6 ft" }""" = Ok (Person { Name = "Bob"; Age = 42 })
 
 (let personMaybe = Json.parse<Person> """{ "Name": "Bob", "Age": 42 }"""
  match personMaybe with

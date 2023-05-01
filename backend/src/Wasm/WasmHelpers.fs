@@ -25,8 +25,14 @@ let getJsRuntimeThis () : IJSInProcessRuntime =
 
   jsRuntimeTypeInstance.GetValue(null) :?> IJSInProcessRuntime
 
-/// Call a function exposed in JS land
-let postMessage (functionToCall : string) (message : string) : unit =
+/// Call a function exposed in JS host
+///
+/// TODO: consider requiring the input of this to be SimpleJSON or something,
+/// where `type SimpleJSON = JNull | JBool of bool | ...`
+/// and then serialize within this bit here.
+/// (we could just avail an _additional_ fn where we avail this option)
+let callJSFunction (functionToCall : string) (args : List<string>) : unit =
   let jsRuntimeThis = getJsRuntimeThis ()
-  let response = jsRuntimeThis.Invoke(functionToCall, message)
+  let args = args |> List.toArray |> Array.map box
+  let response = jsRuntimeThis.Invoke(functionToCall, args)
   ()

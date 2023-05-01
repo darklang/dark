@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-./scripts/run-canvas-hack load-from-disk dark-serve-blazor-assets
+./scripts/run-canvas-hack load-from-disk dark-serve-static
 
 ./scripts/run-canvas-hack load-from-disk dark-editor

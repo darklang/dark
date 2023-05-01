@@ -2,7 +2,6 @@ namespace Wasm
 
 open System
 open System.Threading.Tasks
-open System.Reflection
 
 open Microsoft.JSInterop
 
@@ -30,7 +29,10 @@ type DarkEditor() =
           secrets = [] }
 
       let (stdlibFns, stdlibTypes) =
-        LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
+        LibExecution.StdLib.combine
+          [ StdLibExecution.StdLib.contents; LibWASM.contents ]
+          []
+          []
 
       let libraries : RT.Libraries =
         { stdlibTypes =
@@ -42,7 +44,7 @@ type DarkEditor() =
       let functionResults = []
 
       let tracing =
-        { LibExecution.Execution.noTracing RT.Preview with
+        { LibExecution.Execution.noTracing RT.Real with
             traceDval = traceDvalFn
             loadFnResult = LibAnalysis.Analysis.Eval.loadFromTrace functionResults }
 
@@ -61,28 +63,22 @@ type DarkEditor() =
       return result
     }
 
-
-  static let callbackFnName = "handleDarkResult"
-
-  // Here's one idea for how we could manage the state of the editor
-  //static let mutable state: RT.Dval = RT.DUnit
-
-  static let mutable expr : PT.Expr =
-    PT.EString(gid (), [ PT.StringText "expr not loaded yet" ])
-
-  [<JSInvokable>]
-  static member LoadExpr(exprJSON : string) : Task<unit> =
+  [<JSInvokable("EvalExpr")>]
+  static member EvalExpr(exprJSON : string) : Task<unit> =
     task {
-      let parsed = Json.Vanilla.deserialize<PT.Expr> exprJSON
-      expr <- parsed
-      WasmHelpers.postMessage callbackFnName "loaded expr"
+      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
+      let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
+      ()
     }
 
-  [<JSInvokable("EvalExpr")>]
-  // TODO: add ability to pass in user input
-  static member EvalExpr() : Task<unit> =
+  // It's just like EvalExpr, but you don't have to explicitly call WASM.callJSFunction with the results
+  // (TODO: maybe this should be deprecated)
+  [<JSInvokable("EvalExprAndReturnResult")>]
+  static member EvalExprAndReturnResult(exprJSON : string) : Task<unit> =
     task {
+      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
       let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
       let result = LibExecution.DvalReprDeveloper.toRepr evalResult
-      WasmHelpers.postMessage callbackFnName result
+      WasmHelpers.callJSFunction "handleDarkResult" [ result ]
+      ()
     }
