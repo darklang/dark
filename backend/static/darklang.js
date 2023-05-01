@@ -25,7 +25,10 @@ const Darklang = {
     return {
       evalExpr: async function(serializedExpr) {
         return await DotNet.invokeMethodAsync("Wasm", "EvalExpr", serializedExpr);
-      }
+      },
+      evalExprAndReturnResult: async function(serializedExpr) {
+        return await DotNet.invokeMethodAsync("Wasm", "EvalExprAndReturnResult", serializedExpr);
+      },
     };
   }
 };

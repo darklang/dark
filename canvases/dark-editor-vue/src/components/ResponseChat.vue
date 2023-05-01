@@ -65,7 +65,7 @@ const executeCode = async(index: number) =>{
           );
         }
         const exprJson = await response.text();
-        window.darklang.evalExpr(exprJson); // not sure if this is the best way to do this in Vue..
+        window.darklang.evalExprAndReturnResult(exprJson);
       } catch (error) {
         console.error("Error:", error);
       }

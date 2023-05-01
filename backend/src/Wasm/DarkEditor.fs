@@ -70,3 +70,15 @@ type DarkEditor() =
       let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
       ()
     }
+
+  // It's just like EvalExpr, but you don't have to explicitly call WASM.callJSFunction with the results
+  // (TODO: maybe this should be deprecated)
+  [<JSInvokable("EvalExprAndReturnResult")>]
+  static member EvalExprAndReturnResult(exprJSON : string) : Task<unit> =
+    task {
+      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
+      let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
+      let result = LibExecution.DvalReprDeveloper.toRepr evalResult
+      WasmHelpers.callJSFunction "handleDarkResult" [ result ]
+      ()
+    }
