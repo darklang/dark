@@ -280,7 +280,7 @@ type Expr =
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | EPipe of id * Expr * Expr * List<Expr>
+  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
 
   | ERecord of id * FQTypeName.T * List<string * Expr>
 
@@ -306,14 +306,25 @@ type Expr =
   /// ```
   | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
 
-  // Placeholder that indicates the target of the Thread. May be movable at
-  // some point
-  | EPipeTarget of id
-
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
+and PipeExpr =
+  | EPipeVariable of id * string
+  | EPipeFieldAccess of id * Expr * string
+  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeInfix of id * Infix * Expr
+  | EPipeFnCall of
+    id *
+    FQFnName.T *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : FQTypeName.T *
+    caseName : string *
+    fields : List<Expr>
 
 
 /// A type defined by a standard library module, a canvas/user, or a package

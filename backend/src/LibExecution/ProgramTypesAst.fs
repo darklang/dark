@@ -8,6 +8,7 @@ open ProgramTypes
 
 // Traverse is really only meant to be used by preTraversal and postTraversal
 let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
+
   match expr with
   | EInt _
   | EBool _
@@ -15,13 +16,12 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EChar _
   | EUnit _
   | EVariable _
-  | EPipeTarget _
   | EFloat _ -> expr
   | ELet (id, pat, rhs, next) -> ELet(id, pat, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
-  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
+  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, expr2, exprs)
   | EFnCall (id, name, typeArgs, exprs) ->
     EFnCall(id, name, typeArgs, List.map f exprs)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)
@@ -97,13 +97,12 @@ let rec preTraversal
   | EChar _
   | EUnit _
   | EVariable _
-  | EPipeTarget _
   | EFloat _ -> expr
   | ELet (id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
-  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
+  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, expr2, exprs)
   | EFnCall (id, name, typeArgs, exprs) ->
     EFnCall(id, name, List.map preTraversalTypeRef typeArgs, List.map f exprs)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)

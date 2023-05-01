@@ -373,14 +373,29 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * FQTypeName.T * List<string * Expr>
   | EDict of id * List<string * Expr>
-  | EPipe of id * Expr * Expr * List<Expr>
+  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
   | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
-  | EPipeTarget of id
 
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
+
+and PipeExpr =
+  | EPipeVariable of id * string
+  | EPipeFieldAccess of id * Expr * string
+  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeInfix of id * Infix * Expr
+  | EPipeFnCall of
+    id *
+    FQFnName.T *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : FQTypeName.T *
+    caseName : string *
+    fields : List<Expr>
 
 module Expr =
   let rec fromCT (expr : Expr) : PT.Expr =
@@ -418,14 +433,18 @@ module Expr =
         fields |> List.map (fun (name, expr) -> (name, fromCT expr))
       )
     | EPipe (id, expr1, expr2, exprs) ->
-      PT.EPipe(id, fromCT expr1, fromCT expr2, List.map fromCT exprs)
+      PT.EPipe(
+        id,
+        fromCT expr1,
+        pipeExprFromCTPT expr2,
+        List.map pipeExprFromCTPT exprs
+      )
     | EMatch (id, matchExpr, cases) ->
       PT.EMatch(
         id,
         fromCT matchExpr,
         cases |> List.map (fun (pat, expr) -> (MatchPattern.fromCT pat, fromCT expr))
       )
-    | EPipeTarget (id) -> PT.EPipeTarget(id)
     | EEnum (id, typeName, caseName, fields) ->
       PT.Expr.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map fromCT fields)
     | EDict (id, fields) ->
@@ -435,6 +454,23 @@ module Expr =
     match segment with
     | StringText text -> PT.StringText text
     | StringInterpolation expr -> PT.StringInterpolation(fromCT expr)
+
+  and pipeExprFromCTPT (pipeExpr : PipeExpr) : PT.PipeExpr =
+    match pipeExpr with
+    | EPipeVariable (id, name) -> PT.EPipeVariable(id, name)
+    | EPipeFieldAccess (id, expr, name) -> PT.EPipeFieldAccess(id, fromCT expr, name)
+    | EPipeLambda (id, args, body) -> PT.EPipeLambda(id, args, fromCT body)
+    | EPipeInfix (id, infix, first) ->
+      PT.EPipeInfix(id, Infix.fromCT (infix), fromCT first)
+    | EPipeFnCall (id, fnName, typeArgs, args) ->
+      PT.EPipeFnCall(
+        id,
+        FQFnName.fromCT fnName,
+        List.map TypeReference.fromCT typeArgs,
+        List.map fromCT args
+      )
+    | EPipeEnum (id, typeName, caseName, fields) ->
+      PT.EPipeEnum(id, FQTypeName.fromCT typeName, caseName, List.map fromCT fields)
 
   let rec toCT (expr : PT.Expr) : Expr =
     match expr with
@@ -472,7 +508,7 @@ module Expr =
         fields |> List.map (fun (name, expr) -> (name, toCT expr))
       )
     | PT.EPipe (id, expr1, expr2, exprs) ->
-      EPipe(id, toCT expr1, toCT expr2, List.map toCT exprs)
+      EPipe(id, toCT expr1, pipeExprToCT expr2, List.map pipeExprToCT exprs)
     | PT.EEnum (id, typeName, caseName, fields) ->
       EEnum(id, FQTypeName.toCT typeName, caseName, List.map toCT fields)
     | PT.EMatch (id, matchExpr, cases) ->
@@ -481,7 +517,6 @@ module Expr =
         toCT matchExpr,
         cases |> List.map (fun (pat, expr) -> (MatchPattern.toCT pat, toCT expr))
       )
-    | PT.EPipeTarget (id) -> EPipeTarget(id)
     | PT.EDict (id, fields) ->
       EDict(id, fields |> List.map (fun (key, value) -> (key, toCT value)))
 
@@ -491,6 +526,24 @@ module Expr =
     | PT.StringText text -> StringText text
     | PT.StringInterpolation expr -> StringInterpolation(toCT expr)
 
+  and pipeExprToCT (pipeExpr : PT.PipeExpr) : PipeExpr =
+    match pipeExpr with
+    | PT.EPipeVariable (id, name) -> EPipeVariable(id, name)
+    | PT.EPipeFieldAccess (id, expr, name) -> EPipeFieldAccess(id, toCT expr, name)
+    | PT.EPipeLambda (id, args, body) -> EPipeLambda(id, args, toCT body)
+    | PT.EPipeInfix (id, PT.InfixFnCall (name), first) ->
+      EPipeInfix(id, InfixFnCall(InfixFnName.toCT name), toCT first)
+    | PT.EPipeInfix (id, PT.BinOp op, first) ->
+      EPipeInfix(id, BinOp(BinaryOperation.toCT op), toCT first)
+    | PT.EPipeFnCall (id, fnName, typeArgs, args) ->
+      EPipeFnCall(
+        id,
+        FQFnName.toCT fnName,
+        List.map TypeReference.toCT typeArgs,
+        List.map toCT args
+      )
+    | PT.EPipeEnum (id, nameOpt, caseName, fields) ->
+      EPipeEnum(id, FQTypeName.toCT nameOpt, caseName, List.map toCT fields)
 
 module CustomType =
   type RecordField = { name : string; typ : TypeReference }

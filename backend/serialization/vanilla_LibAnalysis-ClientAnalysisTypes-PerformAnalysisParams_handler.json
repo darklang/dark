@@ -521,17 +521,13 @@
                                     5
                                   ],
                                   [
-                                    "EInfix",
+                                    "EPipeInfix",
                                     1021880969,
                                     [
                                       "InfixFnCall",
                                       [
                                         "ArithmeticPlus"
                                       ]
-                                    ],
-                                    [
-                                      "EPipeTarget",
-                                      936577032
                                     ],
                                     [
                                       "EInt",
@@ -1812,17 +1808,13 @@
                                       5
                                     ],
                                     [
-                                      "EInfix",
+                                      "EPipeInfix",
                                       1021880969,
                                       [
                                         "InfixFnCall",
                                         [
                                           "ArithmeticPlus"
                                         ]
-                                      ],
-                                      [
-                                        "EPipeTarget",
-                                        936577032
                                       ],
                                       [
                                         "EInt",
@@ -3097,17 +3089,13 @@
                                       5
                                     ],
                                     [
-                                      "EInfix",
+                                      "EPipeInfix",
                                       1021880969,
                                       [
                                         "InfixFnCall",
                                         [
                                           "ArithmeticPlus"
                                         ]
-                                      ],
-                                      [
-                                        "EPipeTarget",
-                                        936577032
                                       ],
                                       [
                                         "EInt",

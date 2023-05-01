@@ -226,10 +226,9 @@ type Expr =
   | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ERecord of id * typeName : FQTypeName.T * fields : List<string * Expr>
-  | EPipe of id * Expr * Expr * List<Expr>
+  | EPipe of id * Expr * PipeExpr * List<PipeExpr>
   | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
-  | EPipeTarget of id
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
@@ -238,6 +237,21 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
+and [<MessagePack.MessagePackObject>] PipeExpr =
+  | EPipeVariable of id * string
+  | EPipeFieldAccess of id * Expr * string
+  | EPipeLambda of id * List<id * string> * Expr
+  | EPipeInfix of id * Infix * Expr
+  | EPipeFnCall of
+    id *
+    FQFnName.T *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : FQTypeName.T *
+    caseName : string *
+    fields : List<Expr>
 
 module CustomType =
   [<MessagePack.MessagePackObject>]

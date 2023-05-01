@@ -179,48 +179,43 @@ module Expr =
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       // Convert v |> fn1 a |> fn2 |> fn3 b c
       // into fn3 (fn2 (fn1 v a)) b c
-      // This conversion should correspond to ast.ml:inject_param_and_execute
-      // from the OCaml interpreter
-      let inner = toRT expr1
+      let folder (prev : RT.Expr) (next : PT.PipeExpr) : RT.Expr =
 
-      List.fold
-        inner
-        (fun prev next ->
-          let rec convert thisExpr =
-            match thisExpr with
-            // TODO: support currying
+        let applyFn (expr : RT.Expr) =
+          let typeArgs = []
+          RT.EApply(pipeID, RT.FnTargetExpr(expr), typeArgs, [ prev ])
 
-            | PT.EFnCall (id, fnName, typeArgs, PT.EPipeTarget ptID :: exprs) ->
-              RT.EApply(
-                id,
-                RT.FnName(FQFnName.toRT fnName),
-                List.map TypeReference.toRT typeArgs,
-                prev :: List.map toRT exprs
-              )
-            | PT.EInfix (id, PT.InfixFnCall fnName, PT.EPipeTarget ptID, expr2) ->
-              let (modules, fn, version) = InfixFnName.toFnName fnName
-              let name =
-                PT.FQFnName.Stdlib(
-                  { modules = modules; function_ = fn; version = version }
-                )
-              let typeArgs = []
-              RT.EApply(
-                id,
-                RT.FnName(FQFnName.toRT name),
-                typeArgs,
-                [ prev; toRT expr2 ]
-              )
-            // Binops work pretty naturally here
-            | PT.EInfix (id, PT.BinOp op, PT.EPipeTarget _, expr2) ->
-              match op with
-              | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr2)
-              | PT.BinOpOr -> RT.EOr(id, prev, toRT expr2)
-            | other ->
-              let typeArgs = [] // TODO: review
-              RT.EApply(pipeID, RT.FnTargetExpr(toRT other), typeArgs, [ prev ])
-          convert next)
+        match next with
+        | PT.EPipeFnCall (id, fnName, typeArgs, exprs) ->
+          RT.EApply(
+            id,
+            RT.FnName(FQFnName.toRT fnName),
+            List.map TypeReference.toRT typeArgs,
+            prev :: List.map toRT exprs
+          )
+        | PT.EPipeInfix (id, PT.InfixFnCall fnName, expr) ->
+          let (modules, fn, version) = InfixFnName.toFnName fnName
+          let name =
+            PT.FQFnName.Stdlib(
+              { modules = modules; function_ = fn; version = version }
+            )
+          let typeArgs = []
+          RT.EApply(id, RT.FnName(FQFnName.toRT name), typeArgs, [ prev; toRT expr ])
+        // Binops work pretty naturally here
+        | PT.EPipeInfix (id, PT.BinOp op, expr) ->
+          match op with
+          | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr)
+          | PT.BinOpOr -> RT.EOr(id, prev, toRT expr)
+        | PT.EPipeEnum (id, typeName, caseName, _) ->
+          RT.EEnum(id, FQTypeName.toRT typeName, caseName, [ prev ])
+        | PT.EPipeVariable (id, name) -> RT.EVariable(id, name) |> applyFn
+        | PT.EPipeFieldAccess (id, obj, fieldname) ->
+          RT.EFieldAccess(id, toRT obj, fieldname) |> applyFn
+        | PT.EPipeLambda (id, vars, body) ->
+          RT.ELambda(id, vars, toRT body) |> applyFn
 
-        (expr2 :: rest)
+      let init = toRT expr1
+      List.fold init folder (expr2 :: rest)
 
     | PT.EMatch (id, mexpr, pairs) ->
       RT.EMatch(
@@ -228,8 +223,6 @@ module Expr =
         toRT mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toRT << Tuple2.mapSecond toRT) pairs
       )
-    | PT.EPipeTarget id ->
-      Exception.raiseInternal "No EPipeTargets should remain" [ "id", id ]
     | PT.EEnum (id, typeName, caseName, fields) ->
       RT.EEnum(id, FQTypeName.toRT typeName, caseName, List.map toRT fields)
     | PT.EDict (id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)

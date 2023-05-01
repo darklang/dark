@@ -173,7 +173,7 @@ module Expr =
         List.map (Tuple2.mapSecond toST) fields
       )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
-      ST.EPipe(pipeID, toST expr1, toST expr2, List.map toST rest)
+      ST.EPipe(pipeID, toST expr1, pipeExprToST expr2, List.map pipeExprToST rest)
     | PT.EEnum (id, typeName, caseName, fields) ->
       ST.EEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
     | PT.EMatch (id, mexpr, cases) ->
@@ -182,13 +182,32 @@ module Expr =
         toST mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
-    | PT.EPipeTarget id -> ST.EPipeTarget id
     | PT.EDict (id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
     | PT.StringText text -> ST.StringText text
     | PT.StringInterpolation expr -> ST.StringInterpolation(toST expr)
+
+  and pipeExprToST (pipeExpr : PT.PipeExpr) : ST.PipeExpr =
+    match pipeExpr with
+    | PT.EPipeVariable (id, name) -> ST.EPipeVariable(id, name)
+    | PT.EPipeFieldAccess (id, expr, name) ->
+      ST.EPipeFieldAccess(id, toST expr, name)
+    | PT.EPipeLambda (id, args, body) -> ST.EPipeLambda(id, args, toST body)
+    | PT.EPipeInfix (id, PT.InfixFnCall name, first) ->
+      ST.EPipeInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST first)
+    | PT.EPipeInfix (id, PT.BinOp (op), first) ->
+      ST.EPipeInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST first)
+    | PT.EPipeFnCall (id, fnName, typeArgs, args) ->
+      ST.EPipeFnCall(
+        id,
+        FQFnName.toST fnName,
+        List.map TypeReference.toST typeArgs,
+        List.map toST args
+      )
+    | PT.EPipeEnum (id, typeName, caseName, fields) ->
+      ST.EPipeEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
 
 
 
