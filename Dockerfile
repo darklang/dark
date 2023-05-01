@@ -134,6 +134,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libstdc++6 \
       zlib1g \
       # end .NET dependencies
+      # parser (tree-sitter) dependencies
+      build-essential \
+      # end parser dependencies
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -413,6 +416,16 @@ EOF
 # formatting
 RUN dotnet tool install fantomas-tool --version 4.7.9 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
+
+#############
+# Emscripten,
+# for compiling the tree-sitter parser to wasm
+#############
+RUN git clone https://github.com/emscripten-core/emsdk.git \
+  && cd emsdk \
+  && ./emsdk install 3.1.37 \
+  && ./emsdk activate 3.1.37
+ENV PATH "$PATH:/home/dark/emsdk/upstream/emscripten"
 
 #############
 # tunnel user
