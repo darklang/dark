@@ -1,4 +1,3 @@
-src
-bindings
-build
 node_modules
+build
+bindings

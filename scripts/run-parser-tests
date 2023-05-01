@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+cd parser/tree-sitter-darklang
+npm run test
+cd ../..

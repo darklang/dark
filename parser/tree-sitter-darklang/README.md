@@ -4,32 +4,21 @@ In-progress / experimental `tree-sitter` parser for Darklang.
 
 - https://tree-sitter.github.io
 
+## Getting started
+
+Run `./scripts/build/build-parser` to build the parser and JS/WASM bindings.
+
+Alternatively, run the scripts included in the package.json file:
+
+- `npm run build-parser` to build the parser from the grammar.js file
+- `npm run build-wasm-bindings`
+- `npm run test` to run the tests in `test/corpus`
+
 ## Grammar and Parser
 
 The grammar of Darklang is defined in `grammar.js`.
 This is a `tree-sitter`-specific file, which is used to generate a parser in C code.
 The resultant parser is used to tokenize and parse Darklang code into a syntax tree.
-
-To get set up and familiar with the grammar and parser:
-
-- `npm i` install npm dependencies specific to this project
-- `npm i -g tree-sitter-cli`
-  install tree-sitter globally via npm
-
-  Alternatively, depend on the locally-installed copy,
-  and `export PATH=$PATH:./node_modules/.bin`
-  so the following `tree-sitter` comamnds will work
-
-- `tree-sitter init-config`
-  this creates a config file at `~/.config/tree-sitter/config.json`
-- `code ~/.config/tree-sitter/config.json`
-  edit the config; add the path of `dark/parser` to the `parser-directories` array
-  for example, I keep my `dark` repo in `~/code/dark`,
-  so I added "/home/stachu/code/dark/parser" there.
-- `tree-sitter dump-languages` to make sure you see `darklang` there somewhere
-- `tree-sitter generate` to generate parser from grammar
-- `tree-sitter parse ./demo.dark` to parse a hardcoded file
-- `tree-sitter test` to test the parser against a 'corpus' of test cases found in `test/corpus`
 
 ## Bindings
 
@@ -42,16 +31,12 @@ At this point, we have bindings for JS/WASM - later, we may need bindings for F#
 
 ### JS/WASM bindings
 
-To build the JS/WASM bindings:
+See `canvases/dark-tree-sitter-demo/README.md` for a JS/WASM usage demo.
 
-- compile to WASM with `tree-sitter build-wasm . && mv ./tree-sitter-darklang.wasm ./bindings`
-- copy the bindings to `backend/static/tree-sitter`
-- see `canvases/dark-tree-sitter-demo/README.md` for a JS/WASM usage demo
+Bindings are built with the `./scripts/build/build-parser` script, and the output is
+placed in the `backend/scripts/tree-sitter` directory. `tree-sitter.js` and
+`tree-sitter.wasm` are pulled from the `web-tree-sitter` package. The `.js` file is
+a wrapper around the `.wasm` file, and the `.wasm` file calls upon language-specific
+parsers (like `tree-sitter-darklang.wasm`) after loading them.
 
-Relevant documentation
-
-- https://github.com/tree-sitter/tree-sitter/tree/master/lib/binding_web
-  in particular, review the README.md and the .d.ts file
-- the `tree-sitter.js` and `tree-sitter.wasm` files were pulled from the releases of `tree-sitter`.
-  The .js file is a wrapper around the .wasm file, and the .wasm file is the actual parser which calls upon language-specific parsers (like `tree-sitter-darklang.wasm`) after loading them.
-  https://github.com/tree-sitter/tree-sitter/releases/tag/v0.20.8 is the release these files were pulled from.
+Relevant documentation: https://github.com/tree-sitter/tree-sitter/tree/master/lib/binding_web
