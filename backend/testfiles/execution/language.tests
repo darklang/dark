@@ -344,6 +344,8 @@ module Pipes =
   ([] |> List.push_v0 (Test.typeError_v0 "err")) = Test.typeError_v0 "err"
 
   // general
+  (4 |> (-) 3 ) = 1
+
   ([5]
    |> List.head
    |> Test.unwrap
@@ -368,7 +370,7 @@ module Pipes =
    |> x
    |> x
    |> (+) 3)) = Test.typeError_v0 "Expected a function value, got something else: 1"
- 
+
   // dict
   type Z = { a : List<Int> }
   type Y = { z : Z }
@@ -384,9 +386,9 @@ module Pipes =
   type MyEnum = A of Int * Int
   (33 |> MyEnum.A 21) = MyEnum.A 21 33
 
-  (3 |> Ok()) = Ok 3
-  (4 |> (+) 3 |> Just()) = Just 7
-  (Nothing |> Just()) = Just Nothing
+  (3 |> Ok) = Ok 3
+  (4 |> (+) 3 |> Just) = Just 7
+  (Nothing |> Just) = Just Nothing
 
 
   (let x = Just 3
@@ -421,11 +423,11 @@ module Pipes =
 
   (let x = fun x -> Option.andThen_v0 x (fun x -> Just (1 + x)) in
    3
-   |> Just()
+   |> Just
    |> x) = Just 4
 
   (3
-   |> Just()
+   |> Just
    |> Result.fromOption_v2 "test") = Ok 3
 
   (Nothing

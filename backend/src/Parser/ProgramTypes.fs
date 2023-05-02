@@ -390,11 +390,17 @@ module Expr =
       PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     // Enum values (EEnums)
-    | SynExpr.Ident name when name.idText = "Nothing" ->
+    | SynExpr.Ident name when
+      List.contains name.idText [ "Nothing"; "Just" ] ->
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
       PT.EEnum(id, typeName, name.idText, [])
 
+    | SynExpr.Ident name when
+      List.contains name.idText [ "Ok"; "Error" ] ->
+      let typeName =
+        PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
+      PT.EEnum(id, typeName, name.idText, [])
 
     // Package manager function calls
     // (preliminary support)
