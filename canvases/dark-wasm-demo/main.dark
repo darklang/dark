@@ -8,6 +8,10 @@ let _handler _req =
   | Err err -> Http.response (String.toBytes err) 500
 
 
+[<HttpHandler("GET", "/hello")>]
+let _handler _req =
+ Http.response (String.toBytes "test") 200
+
 [<HttpHandler("GET", "/")>]
 let _handler _req =
   let body =
@@ -69,7 +73,7 @@ let _handler _req =
             }
 
             const exprJson = await response.text();
-            darklang.evalExpr(exprJson);
+            darklang.evalExprAndReturnResult(exprJson);
           } catch (error) {
             setOutput("Error" + error);
             console.error("Error:", error);
