@@ -383,7 +383,6 @@ and StringSegment =
 
 and PipeExpr =
   | EPipeVariable of id * string
-  | EPipeFieldAccess of id * Expr * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
@@ -458,7 +457,6 @@ module Expr =
   and pipeExprFromCTPT (pipeExpr : PipeExpr) : PT.PipeExpr =
     match pipeExpr with
     | EPipeVariable (id, name) -> PT.EPipeVariable(id, name)
-    | EPipeFieldAccess (id, expr, name) -> PT.EPipeFieldAccess(id, fromCT expr, name)
     | EPipeLambda (id, args, body) -> PT.EPipeLambda(id, args, fromCT body)
     | EPipeInfix (id, infix, first) ->
       PT.EPipeInfix(id, Infix.fromCT (infix), fromCT first)
@@ -529,7 +527,6 @@ module Expr =
   and pipeExprToCT (pipeExpr : PT.PipeExpr) : PipeExpr =
     match pipeExpr with
     | PT.EPipeVariable (id, name) -> EPipeVariable(id, name)
-    | PT.EPipeFieldAccess (id, expr, name) -> EPipeFieldAccess(id, toCT expr, name)
     | PT.EPipeLambda (id, args, body) -> EPipeLambda(id, args, toCT body)
     | PT.EPipeInfix (id, PT.InfixFnCall (name), first) ->
       EPipeInfix(id, InfixFnCall(InfixFnName.toCT name), toCT first)

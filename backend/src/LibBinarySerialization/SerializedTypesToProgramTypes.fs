@@ -195,8 +195,6 @@ module Expr =
   and pipeExprToPT (pipeExpr : ST.PipeExpr) : PT.PipeExpr =
     match pipeExpr with
     | ST.EPipeVariable (id, name) -> PT.EPipeVariable(id, name)
-    | ST.EPipeFieldAccess (id, expr, name) ->
-      PT.EPipeFieldAccess(id, toPT expr, name)
     | ST.EPipeLambda (id, args, body) -> PT.EPipeLambda(id, args, toPT body)
     | ST.EPipeInfix (id, infix, first) ->
       PT.EPipeInfix(id, Infix.toPT infix, toPT first)

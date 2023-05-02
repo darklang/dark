@@ -206,11 +206,16 @@ module Expr =
           match op with
           | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr)
           | PT.BinOpOr -> RT.EOr(id, prev, toRT expr)
-        | PT.EPipeEnum (id, typeName, caseName, _) ->
-          RT.EEnum(id, FQTypeName.toRT typeName, caseName, [ prev ])
+        | PT.EPipeEnum (id, typeName, caseName, fields) ->
+          let fields' =
+            fields
+            // CLEANUP: We probably shouldn't put an EUnit type argument into EEnum at the parser level.
+            |> List.filter (function
+              | PT.EUnit _ -> false
+              | _ -> true)
+            |> List.map toRT
+          RT.EEnum(id, FQTypeName.toRT typeName, caseName, fields' @ [ prev ])
         | PT.EPipeVariable (id, name) -> RT.EVariable(id, name) |> applyFn
-        | PT.EPipeFieldAccess (id, obj, fieldname) ->
-          RT.EFieldAccess(id, toRT obj, fieldname) |> applyFn
         | PT.EPipeLambda (id, vars, body) ->
           RT.ELambda(id, vars, toRT body) |> applyFn
 

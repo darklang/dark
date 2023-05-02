@@ -269,8 +269,6 @@ module Expr =
       | PT.EEnum (id, typeName, caseName, fields) ->
         PT.EPipeEnum(id, typeName, caseName, fields)
       | PT.EVariable (id, name) -> PT.EPipeVariable(id, name)
-      | PT.EFieldAccess (id, obj, fieldname) ->
-        PT.EPipeFieldAccess(id, obj, fieldname)
       | PT.EEnum (id, typeName, caseName, fields) ->
         PT.EPipeEnum(id, typeName, caseName, fields)
       | PT.ELambda (id, vars, body) -> PT.EPipeLambda(id, vars, body)
@@ -614,7 +612,6 @@ module Expr =
           [ "arg", arg ]
 
     // the very bottom on the pipe chain, this is the first and second expressions
-    // PT.EPipe(id, other, synToPipeExpr arg, [])
     | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _)
     | SynExpr.App (_,
                    _,
@@ -722,13 +719,12 @@ module Expr =
   // whole program once, and then run this on any expressions, passing in User types
   // and functions. It converts user types that are not in the list to Stdlib types.
   // TODO: we need some sort of unambiguous way to refer to user types
-  let rec completeParse
+  let completeParse
     (userFunctions : Set<PT.FQFnName.UserFnName>)
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (e : PT.Expr)
     : PT.Expr =
 
-    let c = completeParse userFunctions userTypes
     let fnNameFor modules function_ version =
       let userName : PT.FQFnName.UserFnName =
         { modules = modules; function_ = function_; version = version }
@@ -755,35 +751,29 @@ module Expr =
     let fixupExpr =
       (fun e ->
         match e with
-        // pipes with variables might be fn calls
-        | PT.EPipe (id, expr, pipeExpr, pipeExprs) ->
-          let fix =
-            (fun e ->
-              match e with
-              | PT.EPipeVariable (id, name) ->
-                match parseFn name with
-                | Some (name, version) ->
-                  match fnNameFor [] name version with
-                  | Some name -> PT.EPipeFnCall(id, name, [], [])
-                  | None -> e
-                | None -> e
-              | PT.EPipeFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
-                match fnNameFor name.modules name.function_ name.version with
-                | Some name -> PT.EPipeFnCall(id, name, typeArgs, List.map c args)
-                | None -> e
-              | PT.EPipeInfix (id, name, first) -> PT.EPipeInfix(id, name, c first)
-              | PT.EPipeLambda (id, vars, body) -> PT.EPipeLambda(id, vars, c body)
-              | PT.EPipeFieldAccess (id, obj, fileds) ->
-                PT.EPipeFieldAccess(id, c obj, fileds)
-              | PT.EPipeEnum (id, typeName, caseName, fields) ->
-                PT.EPipeEnum(id, typeName, caseName, List.map c fields)
-              | e -> e)
-          PT.EPipe(id, expr, fix pipeExpr, List.map fix pipeExprs)
         | PT.EFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
           match fnNameFor name.modules name.function_ name.version with
           | Some name -> PT.EFnCall(id, name, typeArgs, args)
           | None -> e
         | _ -> e)
+
+    let fixupPipeExpr =
+      (fun e ->
+        match e with
+        | PT.EPipeFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
+          match fnNameFor name.modules name.function_ name.version with
+          | Some name -> PT.EPipeFnCall(id, name, typeArgs, args)
+          | None -> e
+        // pipes with variables might be fn calls
+        | PT.EPipeVariable (id, name) ->
+          match parseFn name with
+          | Some (name, version) ->
+            match fnNameFor [] name version with
+            | Some name -> PT.EPipeFnCall(id, name, [], [])
+            | None -> e
+          | None -> e
+        | _ -> e)
+
     let fixupTypeName =
       (fun t ->
         match t with
@@ -792,6 +782,7 @@ module Expr =
 
     LibExecution.ProgramTypesAst.preTraversal
       fixupExpr
+      fixupPipeExpr
       identity
       fixupTypeName
       identity

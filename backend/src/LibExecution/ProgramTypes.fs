@@ -312,7 +312,6 @@ and StringSegment =
 
 and PipeExpr =
   | EPipeVariable of id * string
-  | EPipeFieldAccess of id * Expr * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
