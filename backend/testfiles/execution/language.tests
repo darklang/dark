@@ -379,10 +379,6 @@ module Pipes =
    (x.y.z.a
    |> List.length_v0)) = 5
 
-  // Enum
-  // CLEANUP - the parens after the Ok are a bug in the parser, they don't mean
-  // anything here and should be removed
-
   type MyEnum = A of Int * Int * Int
   (33 |> MyEnum.A 21 42) = MyEnum.A 33 21 42
 
