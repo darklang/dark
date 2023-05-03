@@ -383,8 +383,8 @@ module Pipes =
   // CLEANUP - the parens after the Ok are a bug in the parser, they don't mean
   // anything here and should be removed
 
-  type MyEnum = A of Int * Int
-  (33 |> MyEnum.A 21) = MyEnum.A 21 33
+  type MyEnum = A of Int * Int * Int
+  (33 |> MyEnum.A 21 42) = MyEnum.A 33 21 42
 
   (3 |> Ok) = Ok 3
   (4 |> (+) 3 |> Just) = Just 7

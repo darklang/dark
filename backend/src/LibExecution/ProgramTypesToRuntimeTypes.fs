@@ -207,7 +207,7 @@ module Expr =
           | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr)
           | PT.BinOpOr -> RT.EOr(id, prev, toRT expr)
         | PT.EPipeEnum (id, typeName, caseName, fields) ->
-          let fields' = List.map toRT fields @ [ prev ]
+          let fields' = prev :: List.map toRT fields
           RT.EEnum(id, FQTypeName.toRT typeName, caseName, fields')
         | PT.EPipeVariable (id, name) -> RT.EVariable(id, name) |> applyFn
         | PT.EPipeLambda (id, vars, body) ->
