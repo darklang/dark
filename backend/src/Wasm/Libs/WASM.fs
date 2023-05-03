@@ -182,7 +182,7 @@ type HeaderError =
   | TypeMismatch of string
 
 let types : List<BuiltInType> =
-  [ { name = typ "WASM" "Response" 0
+  [ { name = typ "HttpClient" "Response" 0
       typeParams = []
       definition =
         CustomType.Record(
