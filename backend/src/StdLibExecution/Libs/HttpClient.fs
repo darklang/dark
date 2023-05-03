@@ -40,6 +40,7 @@ module HttpClient =
 
   // forked from Elm's HttpError type
   // https://package.elm-lang.org/packages/elm/http/latest/Http#Error
+
   type HttpRequestError =
     | BadUrl of details : string
     | Timeout
@@ -61,34 +62,35 @@ module HttpClient =
   // Note that the number of sockets was verified manually, with:
   // `sudo netstat -apn | grep _WAIT`
   // TODO: I don't see where "the number of sockets" is actually configured?
+
   // let private socketHandler : HttpMessageHandler =
-  //   new SocketsHttpHandler(
-  //     // Avoid DNS problems
-  //     PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
-  //     PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
+    // new SocketsHttpHandler(
+      // Avoid DNS problems
+      // PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
+      // PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
 
-  //     // HttpClientTODO avail functions to compress/decompress with common
-  //     // compression algorithms (gzip, brottli, deflate)
-  //     //
-  //     // HttpClientTODO consider: is there any reason to think that ASP.NET
-  //     // does something fancy such that automatic .net httpclient -level
-  //     // decompression would be notably more efficient than doing so 'manually'
-  //     // via some function? There will certainly be more bytes passed around -
-  //     // probably not a big deal?
-  //     AutomaticDecompression = System.Net.DecompressionMethods.None,
+      // HttpClientTODO avail functions to compress/decompress with common
+      // compression algorithms (gzip, brottli, deflate)
+      //
+      // HttpClientTODO consider: is there any reason to think that ASP.NET
+      // does something fancy such that automatic .net httpclient -level
+      // decompression would be notably more efficient than doing so 'manually'
+      // via some function? There will certainly be more bytes passed around -
+      // probably not a big deal?
+      // AutomaticDecompression = System.Net.DecompressionMethods.None,
 
-  //     // HttpClientTODO avail function that handles redirect behaviour
-  //     AllowAutoRedirect = false,
+      // HttpClientTODO avail function that handles redirect behaviour
+      // AllowAutoRedirect = false,
 
-  //     // UseProxy = true,
-  //     // Proxy = System.Net.WebProxy(Config.httpclientProxyUrl, false),
+      // UseProxy = true,
+      // Proxy = System.Net.WebProxy(Config.httpclientProxyUrl, false),
 
-  //     // Don't add a RequestId header for opentelemetry
-  //     ActivityHeadersPropagator = null,
+      // Don't add a RequestId header for opentelemetry
+      // ActivityHeadersPropagator = null,
 
-  //     // Users share the HttpClient, don't let them share cookies!
-  //     UseCookies = false
-  //   )
+      // Users share the HttpClient, don't let them share cookies!
+      // UseCookies = false
+    // )
 
   let private httpClient : HttpClient =
     new HttpClient(
@@ -124,34 +126,38 @@ module HttpClient =
           use req =
             new HttpRequestMessage(
               httpRequest.method,
-              reqUri
-            // Content = new ByteArrayContent(httpRequest.body)
+              reqUri,
+              // ===========
+              //TypeError: Failed to execute 'fetch' on 'Window': Request with GET/HEAD method cannot have body. TypeError: Failed to execute 'fetch' on 'Window': Request with GET/HEAD method cannot have body.
+              //=============
+
+              // Content = new ByteArrayContent(httpRequest.body),
 
             // Support both Http 2.0 and 3.0
             // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
             // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
-            // Version = System.Net.HttpVersion.Version30,
-            // VersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
+              Version = System.Net.HttpVersion.Version30,
+              VersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
             )
 
           // headers
-          // httpRequest.headers
-          // |> List.iter (fun (k, v) ->
-          //   // .NET handles "content headers" separately from other headers.
-          //   // They're put into `req.Content.Headers` rather than `req.Headers`
-          //   // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
-          //   if String.equalsCaseInsensitive k "content-type" then
-          //     try
-          //       req.Content.Headers.ContentType <-
-          //         Headers.MediaTypeHeaderValue.Parse(v)
-          //     with
-          //     | :? System.FormatException ->
-          //       Exception.raiseCode "Invalid content-type header"
-          //   else
-          //     let added = req.Headers.TryAddWithoutValidation(k, v)
+          httpRequest.headers
+          |> List.iter (fun (k, v) ->
+            // .NET handles "content headers" separately from other headers.
+            // They're put into `req.Content.Headers` rather than `req.Headers`
+            // https://docs.microsoft.com/en-us/dotnet/api/system.net.http.headers.httpcontentheaders?view=net-6.0
+            if String.equalsCaseInsensitive k "content-type" then
+              try
+                req.Content.Headers.ContentType <-
+                  Headers.MediaTypeHeaderValue.Parse(v)
+              with
+              | :? System.FormatException ->
+                Exception.raiseCode "Invalid content-type header"
+            else
+              let added = req.Headers.TryAddWithoutValidation(k, v)
 
-          //     // Headers are split between req.Headers and req.Content.Headers so just try both
-          //     if not added then req.Content.Headers.Add(k, v))
+              // Headers are split between req.Headers and req.Content.Headers so just try both
+              if not added then req.Content.Headers.Add(k, v))
 
           // send request
           // Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
