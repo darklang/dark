@@ -32,34 +32,40 @@ module TypeReference =
     | _ -> Exception.raiseInternal "Bad format in typeRef" [ "name", name ]
 
 
-  let rec fromNameAndTypeArgs
-    (name : string)
+  let rec fromNamesAndTypeArgs
+    (names : List<Ident>)
     (typeArgs : List<SynType>)
     : PT.TypeReference =
-    match parseTypeRef name, typeArgs with
+    let modules =
+      List.initial names
+      |> Option.defaultValue []
+      |> List.map (fun name -> name.idText)
+    let name = List.last names |> Exception.unwrapOptionInternal "typeName" []
+    match modules, parseTypeRef name.idText, typeArgs with
     // no type args
-    | ("Bool", 0), [] -> PT.TBool
-    | ("Bytes", 0), [] -> PT.TBytes
-    | ("Int", 0), [] -> PT.TInt
-    | ("String", 0), [] -> PT.TString
-    | ("Char", 0), [] -> PT.TChar
-    | ("Float", 0), [] -> PT.TFloat
-    | ("DateTime", 0), [] -> PT.TDateTime
-    | ("Uuid", 0), [] -> PT.TUuid
-    | ("Unit", 0), [] -> PT.TUnit
-    | ("Password", 0), [] -> PT.TPassword
+    | [], ("Bool", 0), [] -> PT.TBool
+    | [], ("Bytes", 0), [] -> PT.TBytes
+    | [], ("Int", 0), [] -> PT.TInt
+    | [], ("String", 0), [] -> PT.TString
+    | [], ("Char", 0), [] -> PT.TChar
+    | [], ("Float", 0), [] -> PT.TFloat
+    | [], ("DateTime", 0), [] -> PT.TDateTime
+    | [], ("Uuid", 0), [] -> PT.TUuid
+    | [], ("Unit", 0), [] -> PT.TUnit
+    | [], ("Password", 0), [] -> PT.TPassword
 
     // with type args
-    | ("List", 0), [ arg ] -> PT.TList(fromSynType arg)
-    | ("Option", 0), [ arg ] -> PT.TOption(fromSynType arg)
-    | ("Result", 0), [ okArg; errorArg ] ->
+    | [], ("List", 0), [ arg ] -> PT.TList(fromSynType arg)
+    | [], ("Option", 0), [ arg ] -> PT.TOption(fromSynType arg)
+    | [], ("Result", 0), [ okArg; errorArg ] ->
       PT.TResult(fromSynType okArg, fromSynType errorArg)
-    | ("Dict", 0), [ valArg ] -> PT.TDict(fromSynType valArg)
+    | [], ("Dict", 0), [ valArg ] -> PT.TDict(fromSynType valArg)
     // TYPESCLEANUP - don't use word Tuple here
-    | ("Tuple", 0), first :: second :: theRest ->
+    | [], ("Tuple", 0), first :: second :: theRest ->
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-    | (name, version), args ->
-      let tn = PT.FQTypeName.User { modules = []; typ = name; version = version }
+    | modules, (name, version), args ->
+      let tn =
+        PT.FQTypeName.User { modules = modules; typ = name; version = version }
       PT.TCustomType(tn, List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : PT.TypeReference =
@@ -96,17 +102,15 @@ module TypeReference =
     // - built-in F# types like `bool`
     // - Stdlib-defined types
     // - User-defined types
-    | SynType.App (SynType.LongIdent (SynLongIdent ([ ident ], _, _)),
+    | SynType.App (SynType.LongIdent (SynLongIdent (names, _, _)),
                    _,
                    typeArgs,
                    _,
                    _,
                    _,
-                   range) -> fromNameAndTypeArgs ident.idText typeArgs
+                   range) -> fromNamesAndTypeArgs names typeArgs
 
-    | SynType.LongIdent (SynLongIdent ([ ident ], _, _)) ->
-      let typeArgs = []
-      fromNameAndTypeArgs ident.idText typeArgs
+    | SynType.LongIdent (SynLongIdent (names, _, _)) -> fromNamesAndTypeArgs names []
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
@@ -402,16 +406,12 @@ module Expr =
 
     // Package manager function calls
     // (preliminary support)
-    | SynExpr.LongIdent (_,
-                         SynLongIdent ([ owner; package; modName; fnName ], _, _),
-                         _,
-                         _) when
-      owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
+    | SynExpr.LongIdent (_, SynLongIdent ([ owner; modName; fnName ], _, _), _, _) when
+      owner.idText = "Test" && modName.idText = "Test"
       ->
       PT.EFnCall(
         gid (),
         PT.FQFnName.packageFqName
-          "test"
           "test"
           (NonEmptyList.singleton "Test")
           fnName.idText
@@ -793,24 +793,31 @@ module Expr =
       identity
       e
 
-module UserFunction =
-  let rec parseArgPat (pat : SynPat) : PT.UserFunction.Parameter =
-    let r = parseArgPat
+module Function =
+  type Parameter = { name : string; typ : PT.TypeReference }
+
+  type T =
+    { name : string
+      version : int
+      parameters : List<Parameter>
+      typeParams : List<string>
+      returnType : PT.TypeReference
+      body : PT.Expr }
+
+
+  let rec parseParamPattern (pat : SynPat) : Parameter =
+    let r = parseParamPattern
 
     match pat with
     | SynPat.Paren (pat, _) -> r pat
 
-    | SynPat.Const (SynConst.Unit, _) ->
-      { id = gid (); name = "unit"; typ = PT.TUnit; description = "" }
+    | SynPat.Const (SynConst.Unit, _) -> { name = "unit"; typ = PT.TUnit }
 
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
-      { id = gid ()
-        name = id.idText
-        typ = TypeReference.fromSynType typ
-        description = "" }
+      { name = id.idText; typ = TypeReference.fromSynType typ }
 
     | SynPat.Typed (SynPat.Typed _ as nested,
-                    SynType.App (SynType.LongIdent (SynLongIdent ([ name ], _, _)),
+                    SynType.App (SynType.LongIdent (SynLongIdent (names, _, _)),
                                  _,
                                  args,
                                  _,
@@ -819,18 +826,25 @@ module UserFunction =
                                  _),
                     _) ->
       let nested = r nested
-      { id = nested.id
-        name = nested.name
-        typ = TypeReference.fromNameAndTypeArgs name.idText args
-        description = nested.description }
+      { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs names args }
 
+    | _ -> Exception.raiseInternal "Unsupported paramPattern" [ "pat", pat ]
 
+  let parseReturnInfo
+    (returnInfo : Option<SynBindingReturnInfo>)
+    : PT.TypeReference =
+    match returnInfo with
+    | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
+      TypeReference.fromSynType typeName
+    | None ->
+      Exception.raiseInternal
+        "Functions must have return types specified"
+        [ "returnInfo", returnInfo ]
 
-    | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let private parseSignature
     (pat : SynPat)
-    : string * List<string> * List<PT.UserFunction.Parameter> =
+    : string * List<string> * List<Parameter> =
     match pat with
     | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, typeArgPats, argPats, _, _) ->
       let typeParams =
@@ -868,7 +882,7 @@ module UserFunction =
 
       let parameters =
         match argPats with
-        | SynArgPats.Pats pats -> List.map parseArgPat pats
+        | SynArgPats.Pats pats -> List.map parseParamPattern pats
 
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
@@ -877,19 +891,8 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
-  let parseReturnInfo
-    (returnInfo : Option<SynBindingReturnInfo>)
-    : PT.TypeReference =
-    match returnInfo with
-    | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
-      TypeReference.fromSynType typeName
-    | None ->
-      Exception.raiseInternal
-        "Functions must have return types specified"
-        [ "returnInfo", returnInfo ]
 
-
-  let fromSynBinding (binding : SynBinding) : PT.UserFunction.T =
+  let fromSynBinding (binding : SynBinding) : T =
     match binding with
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature pat
@@ -899,14 +902,46 @@ module UserFunction =
         |> Exception.unwrapOptionInternal
              "invalid fn name"
              [ "name", name; "binding", binding ]
-      { tlid = gid ()
-        name = PT.FQFnName.userFnName [] name version
+      { name = name
+        version = version
         typeParams = typeParams
         parameters = parameters
         returnType = returnType
-        description = ""
-        infix = false
         body = Expr.fromSynExpr expr }
+
+module UserFunction =
+  let fromSynBinding (b : SynBinding) : PT.UserFunction.T =
+    let f = Function.fromSynBinding b
+    { tlid = gid ()
+      name = { modules = []; function_ = f.name; version = f.version }
+      typeParams = f.typeParams
+      parameters =
+        f.parameters
+        |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
+      returnType = f.returnType
+      description = ""
+      deprecated = PT.NotDeprecated
+      body = f.body }
+
+module PackageFn =
+  let fromSynBinding
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (b : SynBinding)
+    : PT.Package.Fn =
+    let f = Function.fromSynBinding b
+    { tlid = gid ()
+      id = System.Guid.NewGuid()
+      name =
+        { owner = owner; modules = modules; function_ = f.name; version = f.version }
+      typeParams = f.typeParams
+      parameters =
+        f.parameters
+        |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
+      returnType = f.returnType
+      description = ""
+      deprecated = PT.NotDeprecated
+      body = f.body }
 
 
 module CustomType =

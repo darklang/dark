@@ -279,7 +279,6 @@
                                   "Package",
                                   {
                                     "owner": "dark",
-                                    "package": "pkg",
                                     "modules": {
                                       "Head": "Mod1",
                                       "Tail": [
@@ -969,7 +968,6 @@
       ],
       "parameters": [
         {
-          "id": 23824935,
           "name": "myparam1",
           "typ": [
             "TTuple",
@@ -1265,7 +1263,10 @@
         ]
       ],
       "description": "function description",
-      "infix": false,
+      "deprecated": [
+        "DeprecatedBecause",
+        "some reason"
+      ],
       "body": [
         "ELet",
         "14219007199254740992",
@@ -1542,7 +1543,6 @@
                                   "Package",
                                   {
                                     "owner": "dark",
-                                    "package": "pkg",
                                     "modules": {
                                       "Head": "Mod1",
                                       "Tail": [
@@ -2489,7 +2489,6 @@
                                 "Package",
                                 {
                                   "owner": "dark",
-                                  "package": "pkg",
                                   "modules": {
                                     "Head": "Mod1",
                                     "Tail": [

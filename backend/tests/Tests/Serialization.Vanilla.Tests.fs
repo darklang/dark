@@ -99,12 +99,6 @@ module PersistedSerializations =
           "simple"
           { id = V.uuid; canvasID = V.uuid }
 
-        v<LibBackend.PackageManager.ParametersDBFormat>
-          "all"
-          [ { name = "int"; typ = PT.TInt; description = "" }
-            { name = "string"; typ = PT.TString; description = "" }
-            { name = "List"; typ = PT.TList PT.TInt; description = "" } ]
-
         v<LibBackend.TraceCloudStorage.CloudStorageFormat>
           "simple"
           { storageFormatVersion = 0

@@ -21,7 +21,6 @@ module FQTypeName =
   module PackageTypeName =
     let toST (p : PT.FQTypeName.PackageTypeName) : ST.FQTypeName.PackageTypeName =
       { owner = p.owner
-        package = p.package
         modules = { head = p.modules.Head; tail = p.modules.Tail }
         typ = p.typ
         version = p.version }
@@ -38,7 +37,6 @@ module FQFnName =
   module PackageFnName =
     let toST (name : PT.FQFnName.PackageFnName) : ST.FQFnName.PackageFnName =
       { owner = name.owner
-        package = name.package
         modules = { head = name.modules.Head; tail = name.modules.Tail }
         function_ = name.function_
         version = name.version }
@@ -207,6 +205,22 @@ module Expr =
     | PT.EPipeEnum (id, typeName, caseName, fields) ->
       ST.EPipeEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
 
+module Deprecation =
+  type Deprecation<'name> =
+    | NotDeprecated
+    | RenamedTo of 'name
+    | ReplacedBy of 'name
+    | DeprecatedBecause of string
+
+  let toST
+    (f : 'name1 -> 'name2)
+    (d : PT.Deprecation<'name1>)
+    : ST.Deprecation<'name2> =
+    match d with
+    | PT.DeprecatedBecause str -> ST.DeprecatedBecause str
+    | PT.RenamedTo name -> ST.RenamedTo(f name)
+    | PT.ReplacedBy name -> ST.ReplacedBy(f name)
+    | PT.NotDeprecated -> ST.NotDeprecated
 
 
 module CustomType =
@@ -276,10 +290,7 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toST (p : PT.UserFunction.Parameter) : ST.UserFunction.Parameter =
-      { id = p.id
-        name = p.name
-        typ = TypeReference.toST p.typ
-        description = p.description }
+      { name = p.name; typ = TypeReference.toST p.typ; description = p.description }
 
   let toST (f : PT.UserFunction.T) : ST.UserFunction.T =
     { tlid = f.tlid
@@ -288,7 +299,7 @@ module UserFunction =
       parameters = List.map Parameter.toST f.parameters
       returnType = TypeReference.toST f.returnType
       description = f.description
-      infix = f.infix
+      deprecated = Deprecation.toST FQFnName.toST f.deprecated
       body = Expr.toST f.body }
 
 
@@ -316,3 +327,20 @@ module Op =
     | PT.RenameDB (tlid, string) -> ST.RenameDB(tlid, string)
     | PT.SetType tipe -> ST.SetType(UserType.toST tipe)
     | PT.DeleteType tlid -> ST.DeleteType tlid
+
+module Package =
+  module Parameter =
+    let toST (p : PT.Package.Parameter) : ST.Package.Parameter =
+      { name = p.name; typ = TypeReference.toST p.typ; description = p.description }
+
+  module Fn =
+    let toST (fn : PT.Package.Fn) : ST.Package.Fn =
+      { name = FQFnName.PackageFnName.toST fn.name
+        parameters = List.map Parameter.toST fn.parameters
+        returnType = TypeReference.toST fn.returnType
+        description = fn.description
+        deprecated = Deprecation.toST FQFnName.toST fn.deprecated
+        body = Expr.toST fn.body
+        typeParams = fn.typeParams
+        id = fn.id
+        tlid = fn.tlid }

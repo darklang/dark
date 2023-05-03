@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# install dependencies
+cd parser/tree-sitter-darklang
+npm i
+
+# build the parser and generate the bindings
+npm run build-parser
+npm run build-wasm-bindings
+
+# copy JS/WASM bindings to backend/static/tree-sitter
+cd ../..
+mkdir -p backend/static/tree-sitter
+cp parser/tree-sitter-darklang/bindings/tree-sitter-darklang.wasm backend/static/tree-sitter/
+cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.js backend/static/tree-sitter/
+cp parser/tree-sitter-darklang/node_modules/web-tree-sitter/tree-sitter.wasm backend/static/tree-sitter/

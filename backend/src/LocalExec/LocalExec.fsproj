@@ -13,6 +13,8 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Libs/Packages.fs" />
+    <Compile Include="StdLib.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
   <ItemGroup>

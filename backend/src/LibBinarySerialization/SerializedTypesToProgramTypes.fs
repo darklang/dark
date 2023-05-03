@@ -21,7 +21,6 @@ module FQTypeName =
   module PackageTypeName =
     let toPT (p : ST.FQTypeName.PackageTypeName) : PT.FQTypeName.PackageTypeName =
       { owner = p.owner
-        package = p.package
         modules = { Head = p.modules.head; Tail = p.modules.tail }
         typ = p.typ
         version = p.version }
@@ -38,7 +37,6 @@ module FQFnName =
   module PackageFnName =
     let toPT (name : ST.FQFnName.PackageFnName) : PT.FQFnName.PackageFnName =
       { owner = name.owner
-        package = name.package
         modules = { Head = name.modules.head; Tail = name.modules.tail }
         function_ = name.function_
         version = name.version }
@@ -234,6 +232,16 @@ module CustomType =
         List.map EnumCase.toPT additionalCases
       )
 
+module Deprecation =
+  let toPT
+    (f : 'name1 -> 'name2)
+    (d : ST.Deprecation<'name1>)
+    : PT.Deprecation<'name2> =
+    match d with
+    | ST.NotDeprecated -> PT.NotDeprecated
+    | ST.RenamedTo name -> PT.RenamedTo(f name)
+    | ST.ReplacedBy name -> PT.ReplacedBy(f name)
+    | ST.DeprecatedBecause reason -> PT.DeprecatedBecause reason
 
 module Handler =
 
@@ -275,10 +283,7 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toPT (p : ST.UserFunction.Parameter) : PT.UserFunction.Parameter =
-      { id = p.id
-        name = p.name
-        typ = TypeReference.toPT p.typ
-        description = p.description }
+      { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
   let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
     { tlid = f.tlid
@@ -287,7 +292,7 @@ module UserFunction =
       parameters = List.map Parameter.toPT f.parameters
       returnType = TypeReference.toPT f.returnType
       description = f.description
-      infix = f.infix
+      deprecated = Deprecation.toPT FQFnName.toPT f.deprecated
       body = Expr.toPT f.body }
 
 module Toplevel =
@@ -314,3 +319,21 @@ module Op =
     | ST.RenameDB (tlid, string) -> Some(PT.RenameDB(tlid, string))
     | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
     | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
+
+module Package =
+  module Parameter =
+    let toPT (p : ST.Package.Parameter) : PT.Package.Parameter =
+      { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
+
+  module Fn =
+
+    let toPT (fn : ST.Package.Fn) : PT.Package.Fn =
+      { name = FQFnName.PackageFnName.toPT fn.name
+        parameters = List.map Parameter.toPT fn.parameters
+        returnType = TypeReference.toPT fn.returnType
+        description = fn.description
+        deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
+        body = Expr.toPT fn.body
+        typeParams = fn.typeParams
+        id = fn.id
+        tlid = fn.tlid }

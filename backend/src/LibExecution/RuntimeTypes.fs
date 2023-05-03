@@ -23,7 +23,6 @@ module LibExecution.RuntimeTypes
 // These formats should never be serialized/deserialized, that defeats the
 // purpose. If you need to save data of this format, create a set of new
 // types and convert this type into them. (even if they are identical).
-// CLEANUP: we serialize Dvals though :(
 //
 // This format is lossy, relative to the serialized types. Use IDs to refer
 // back.
@@ -46,7 +45,6 @@ module FQTypeName =
   /// The name of a type in the package manager
   type PackageTypeName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       typ : string
       version : int }
@@ -100,7 +98,7 @@ module FQTypeName =
       $"{fqName}_v{u.version}"
     | Package p ->
       let mn = p.modules |> Prelude.NonEmptyList.toList |> String.concat "."
-      $"{p.owner}.{p.package}.{mn}.{p.typ}_v{p.version}"
+      $"{p.owner}.{mn}.{p.typ}_v{p.version}"
 
 
 
@@ -115,7 +113,6 @@ module FQFnName =
   /// The name of a function in the package manager
   type PackageFnName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       function_ : string
       version : int }
@@ -161,7 +158,7 @@ module FQFnName =
   module PackageFnName =
     let toString (pkg : PackageFnName) : string =
       let mn = pkg.modules |> Prelude.NonEmptyList.toList |> String.concat "."
-      let name = $"{pkg.owner}.{pkg.package}.{mn}.{pkg.function_}"
+      let name = $"{pkg.owner}.{mn}.{pkg.function_}"
       if pkg.version = 0 then name else $"{name}_v{pkg.version}"
 
   let toString (fqfnName : T) : string =
@@ -175,9 +172,7 @@ module FQFnName =
   let isDBQueryFn (fqfnName : T) : bool =
     match fqfnName with
     | Stdlib std when
-      std.modules = [ "DB" ]
-      && String.startsWith "query" std.function_
-      && not (String.includes "ExactFields" std.function_)
+      std.modules = [ "DB" ] && String.startsWith "query" std.function_
       ->
       true
     | _ -> false
@@ -444,7 +439,7 @@ and DvalSource =
   // Caused by an expression of `id` within the given `tlid`
   | SourceID of tlid * id
 
-and Param =
+and BuiltInParam =
   { name : string
     typ : TypeReference
     blockArgs : List<string>
@@ -454,7 +449,7 @@ and Param =
     (name : string)
     (typ : TypeReference)
     (description : string)
-    : Param =
+    : BuiltInParam =
     assert_ "make called on TFn" [ "name", name ] (not (typ.isFn ()))
     { name = name; typ = typ; description = description; blockArgs = [] }
 
@@ -463,9 +458,12 @@ and Param =
     (typ : TypeReference)
     (description : string)
     (blockArgs : List<string>)
-    : Param =
+    : BuiltInParam =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
+
+and Param = { name : string; typ : TypeReference }
+
 
 module CustomType =
   // TYPESCLEANUP support type parameters
@@ -735,7 +733,7 @@ module UserType =
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
 
 module UserFunction =
-  type Parameter = { name : string; typ : TypeReference; description : string }
+  type Parameter = { name : string; typ : TypeReference }
 
   type T =
     { tlid : tlid
@@ -743,8 +741,6 @@ module UserFunction =
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
-      description : string
-      infix : bool
       body : Expr }
 
 module Toplevel =
@@ -770,16 +766,14 @@ module Secret =
 // ------------
 
 module Package =
-  type Parameter = { name : string; typ : TypeReference; description : string }
+  type Parameter = { name : string; typ : TypeReference }
 
   type Fn =
     { name : FQFnName.PackageFnName
-      body : Expr
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
-      description : string
-      deprecated : bool }
+      body : Expr }
 
 
 // <summary>
@@ -877,7 +871,7 @@ type BuiltInType =
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
     typeParams : List<string>
-    parameters : List<Param>
+    parameters : List<BuiltInParam>
     returnType : TypeReference
     description : string
     previewable : Previewable
@@ -1034,18 +1028,19 @@ let consoleNotifier : Notifier =
   fun _state msg tags ->
     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
 
+let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
+
 let builtInFnToFn (fn : BuiltInFn) : Fn =
   { name = FQFnName.Stdlib fn.name
     typeParams = fn.typeParams
-    parameters = fn.parameters
+    parameters = List.map builtInParamToParam fn.parameters
     returnType = fn.returnType
     previewable = fn.previewable
     sqlSpec = fn.sqlSpec
     fn = StdLib fn.fn }
 
 let userFnToFn (fn : UserFunction.T) : Fn =
-  let toParam (p : UserFunction.Parameter) : Param =
-    { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+  let toParam (p : UserFunction.Parameter) : Param = { name = p.name; typ = p.typ }
 
   { name = FQFnName.User fn.name
     typeParams = fn.typeParams
@@ -1056,8 +1051,7 @@ let userFnToFn (fn : UserFunction.T) : Fn =
     fn = UserFunction(fn.tlid, fn.body) }
 
 let packageFnToFn (fn : Package.Fn) : Fn =
-  let toParam (p : Package.Parameter) : Param =
-    { name = p.name; typ = p.typ; description = p.description; blockArgs = [] }
+  let toParam (p : Package.Parameter) : Param = { name = p.name; typ = p.typ }
 
   { name = FQFnName.Package fn.name
     typeParams = fn.typeParams

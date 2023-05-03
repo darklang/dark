@@ -15,6 +15,7 @@
     <Compile Include="Utils.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="TestModule.fs" />
+    <Compile Include="Package.fs" />
     <Compile Include="CanvasV2.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

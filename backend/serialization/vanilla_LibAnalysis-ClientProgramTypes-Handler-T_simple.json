@@ -276,7 +276,6 @@
                               "Package",
                               {
                                 "owner": "dark",
-                                "package": "pkg",
                                 "modules": {
                                   "Head": "Mod1",
                                   "Tail": [

@@ -34,25 +34,16 @@ module FQTypeName =
 
   type PackageTypeName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       typ : string
       version : int }
 
   module PackageTypeName =
     let fromCT (t : PackageTypeName) : PT.FQTypeName.PackageTypeName =
-      { owner = t.owner
-        package = t.package
-        modules = t.modules
-        typ = t.typ
-        version = t.version }
+      { owner = t.owner; modules = t.modules; typ = t.typ; version = t.version }
 
     let toCT (t : PT.FQTypeName.PackageTypeName) : PackageTypeName =
-      { owner = t.owner
-        package = t.package
-        modules = t.modules
-        typ = t.typ
-        version = t.version }
+      { owner = t.owner; modules = t.modules; typ = t.typ; version = t.version }
 
 
   type T =
@@ -170,7 +161,6 @@ module FQFnName =
 
   type PackageFnName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       function_ : string
       version : int }
@@ -178,14 +168,12 @@ module FQFnName =
   module PackageFnName =
     let fromCT (name : PackageFnName) : PT.FQFnName.PackageFnName =
       { owner = name.owner
-        package = name.package
         modules = name.modules
         function_ = name.function_
         version = name.version }
 
     let toCT (name : PT.FQFnName.PackageFnName) : PackageFnName =
       { owner = name.owner
-        package = name.package
         modules = name.modules
         function_ = name.function_
         version = name.version }
@@ -595,6 +583,35 @@ module CustomType =
       Enum(EnumCase.toCT firstCase, List.map EnumCase.toCT additionalCases)
 
 
+type Deprecation<'name> =
+  | NotDeprecated
+  | RenamedTo of 'name
+  | ReplacedBy of 'name
+  | DeprecatedBecause of string
+
+module Deprecation =
+  let fromCT
+    (f : 'name1 -> 'name2)
+    (d : Deprecation<'name1>)
+    : PT.Deprecation<'name2> =
+    match d with
+    | NotDeprecated -> PT.NotDeprecated
+    | RenamedTo name -> PT.RenamedTo(f name)
+    | ReplacedBy name -> PT.ReplacedBy(f name)
+    | DeprecatedBecause reason -> PT.DeprecatedBecause reason
+
+  let toCT
+    (f : 'name1 -> 'name2)
+    (d : PT.Deprecation<'name1>)
+    : Deprecation<'name2> =
+    match d with
+    | PT.NotDeprecated -> NotDeprecated
+    | PT.RenamedTo name -> RenamedTo(f name)
+    | PT.ReplacedBy name -> ReplacedBy(f name)
+    | PT.DeprecatedBecause reason -> DeprecatedBecause reason
+
+
+
 module Handler =
   type CronInterval =
     | EveryDay
@@ -685,33 +702,25 @@ module UserType =
 
 
 module UserFunction =
-  type Parameter =
-    { id : id
-      name : string
-      typ : TypeReference
-      description : string }
+  type Parameter = { name : string; typ : TypeReference; description : string }
 
   module Parameter =
     let fromCT (p : Parameter) : PT.UserFunction.Parameter =
-      { id = p.id
-        name = p.name
+      { name = p.name
         typ = TypeReference.fromCT p.typ
         description = p.description }
 
     let toCT (p : PT.UserFunction.Parameter) : Parameter =
-      { id = p.id
-        name = p.name
-        typ = TypeReference.toCT p.typ
-        description = p.description }
+      { name = p.name; typ = TypeReference.toCT p.typ; description = p.description }
 
   type T =
     { tlid : tlid
       name : FQFnName.UserFnName
-      returnType : TypeReference
       typeParams : List<string>
       parameters : List<Parameter>
+      returnType : TypeReference
       description : string
-      infix : bool
+      deprecated : Deprecation<FQFnName.T>
       body : Expr }
 
   let fromCT (uf : T) : PT.UserFunction.T =
@@ -721,7 +730,7 @@ module UserFunction =
       parameters = List.map Parameter.fromCT uf.parameters
       returnType = TypeReference.fromCT uf.returnType
       description = uf.description
-      infix = uf.infix
+      deprecated = Deprecation.fromCT FQFnName.fromCT uf.deprecated
       body = Expr.fromCT uf.body }
 
   let toCT (uf : PT.UserFunction.T) : T =
@@ -731,7 +740,7 @@ module UserFunction =
       parameters = List.map Parameter.toCT uf.parameters
       returnType = TypeReference.toCT uf.returnType
       description = uf.description
-      infix = uf.infix
+      deprecated = Deprecation.toCT FQFnName.toCT uf.deprecated
       body = Expr.toCT uf.body }
 
 
@@ -781,34 +790,34 @@ module Package =
 
   type Fn =
     { name : FQFnName.PackageFnName
+      id : System.Guid
       body : Expr
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
       description : string
-      author : string
-      deprecated : bool
+      deprecated : Deprecation<FQFnName.T>
       tlid : tlid }
 
   module Fn =
     let fromCT (fn : Fn) : PT.Package.Fn =
       { name = FQFnName.PackageFnName.fromCT fn.name
+        id = fn.id
         body = Expr.fromCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.fromCT fn.parameters
         returnType = TypeReference.fromCT fn.returnType
         description = fn.description
-        author = fn.author
-        deprecated = fn.deprecated
+        deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
         tlid = fn.tlid }
 
     let toCT (fn : PT.Package.Fn) : Fn =
       { name = FQFnName.PackageFnName.toCT fn.name
+        id = fn.id
         body = Expr.toCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.toCT fn.parameters
         returnType = TypeReference.toCT fn.returnType
         description = fn.description
-        author = fn.author
-        deprecated = fn.deprecated
+        deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
         tlid = fn.tlid }

@@ -72,11 +72,14 @@ let combine
 
 
 module Shortcuts =
+  let fn' = FQFnName.stdlibFnName'
   let fn = FQFnName.stdlibFnName
   let fnNoMod = FQFnName.stdlibFnName' []
   let typ = FQTypeName.stdlibTypeName
 
   let incorrectArgs = Errors.incorrectArgs
+
+  type Param = BuiltInParam
 
 
   let stdlibTypeRef

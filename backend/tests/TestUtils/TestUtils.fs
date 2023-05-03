@@ -63,7 +63,6 @@ let testHttpRouteHandler
   (method : string)
   (ast : PT.Expr)
   : PT.Handler.T =
-
   { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
 
 let testCron
@@ -71,11 +70,9 @@ let testCron
   (interval : PT.Handler.CronInterval)
   (ast : PT.Expr)
   : PT.Handler.T =
-
   { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-
   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testUserFn
@@ -88,13 +85,12 @@ let testUserFn
   { tlid = gid ()
     body = body
     description = ""
-    infix = false
     name = PT.FQFnName.userFnName [] name 0
     typeParams = typeParams
+    deprecated = PT.NotDeprecated
     parameters =
       List.map
-        (fun (p : string) ->
-          { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
+        (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
     returnType = returnType }
 
@@ -120,18 +116,18 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 /// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<RT.Libraries> =
   lazy
-    (let testTypes =
-      LibTest.types
-      |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-      |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibTypes
+    (let (fns, types) =
+      LibExecution.StdLib.combine
+        [ LibTest.contents
+          LibRealExecution.RealExecution.contents
+          StdLibCli.StdLib.contents ]
+        []
+        []
 
-     let testFns =
-       LibTest.fns
-       |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-       |> Map.mergeFavoringLeft LibRealExecution.RealExecution.stdlibFns
-
-
-     { stdlibTypes = testTypes; stdlibFns = testFns; packageFns = Map.empty })
+     { stdlibTypes =
+         types |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+       stdlibFns = fns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+       packageFns = Map.empty })
 
 let executionStateFor
   (canvasID : CanvasID)

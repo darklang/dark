@@ -18,16 +18,13 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let (stdlibFns, stdlibTypes) =
+let contents : LibExecution.StdLib.Contents =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
       StdLibDarkInternal.StdLib.contents ]
     []
     []
-  |> (fun (fns, types) ->
-    (fns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name),
-     types |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)))
 
 let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
   lazy
@@ -46,11 +43,19 @@ let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     (task {
       let! packageFns = Lazy.force packageFns
+      let fns =
+        contents
+        |> Tuple2.first
+        |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+      let types =
+        contents
+        |> Tuple2.second
+        |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
+
       // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
-      return
-        { stdlibTypes = stdlibTypes; stdlibFns = stdlibFns; packageFns = packageFns }
+      return { stdlibTypes = types; stdlibFns = fns; packageFns = packageFns }
     })
 
 let createState

@@ -282,7 +282,7 @@ let rec lambdaToSql
             // as have the types for the correct Npgsql wrapper for lists and other
             // polymorphic values
             List.fold2
-              (fun (actualTypes, prevSqls, prevVars) argExpr param ->
+              (fun (actualTypes, prevSqls, prevVars) argExpr (param : BuiltInParam) ->
                 let sql, vars, argActualType = lts param.typ argExpr
                 let newActuals =
                   match param.typ with

@@ -19,11 +19,7 @@ module FQTypeName =
 
   module PackageTypeName =
     let toRT (p : PT.FQTypeName.PackageTypeName) : RT.FQTypeName.PackageTypeName =
-      { owner = p.owner
-        package = p.package
-        modules = p.modules
-        typ = p.typ
-        version = p.version }
+      { owner = p.owner; modules = p.modules; typ = p.typ; version = p.version }
 
   let toRT (t : PT.FQTypeName.T) : RT.FQTypeName.T =
     match t with
@@ -64,7 +60,6 @@ module FQFnName =
   module PackageFnName =
     let toRT (name : PT.FQFnName.PackageFnName) : RT.FQFnName.PackageFnName =
       { owner = name.owner
-        package = name.package
         modules = name.modules
         function_ = name.function_
         version = name.version }
@@ -300,7 +295,7 @@ module UserType =
 module UserFunction =
   module Parameter =
     let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name; typ = TypeReference.toRT p.typ; description = p.description }
+      { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
     { tlid = f.tlid
@@ -308,8 +303,6 @@ module UserFunction =
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
       returnType = TypeReference.toRT f.returnType
-      description = f.description
-      infix = f.infix
       body = Expr.toRT f.body }
 
 module Toplevel =
@@ -326,13 +319,11 @@ module Secret =
 module Package =
   module Parameter =
     let toRT (p : PT.Package.Parameter) : RT.Package.Parameter =
-      { name = p.name; typ = TypeReference.toRT p.typ; description = p.description }
+      { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.Package.Fn) : RT.Package.Fn =
     { name = FQFnName.PackageFnName.toRT f.name
       body = Expr.toRT f.body
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
-      returnType = TypeReference.toRT f.returnType
-      description = f.description
-      deprecated = f.deprecated }
+      returnType = TypeReference.toRT f.returnType }
