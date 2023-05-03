@@ -27,8 +27,7 @@ module RuntimeTypes =
       RT.FQFnName.Stdlib { modules = [ "A" ]; function_ = "b"; version = 1 }
       RT.FQFnName.Package
         { owner = "a"
-          package = "b"
-          modules = NonEmptyList.singleton "C"
+          modules = NonEmptyList.ofList [ "b"; "C" ]
           function_ = "d"
           version = 2 } ]
 
@@ -54,7 +53,6 @@ module RuntimeTypes =
       RT.TCustomType(
         RT.FQTypeName.Package
           { owner = "dark"
-            package = "pkg"
             modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
             typ = "Pack"
             version = 0 },
@@ -179,7 +177,6 @@ module ProgramTypes =
         { modules = [ "Int" ]; function_ = "increment"; version = 1 }
       PT.FQFnName.Package
         { owner = "twilio"
-          package = "twilio"
           modules = NonEmptyList.singleton "Twilio"
           function_ = "sms"
           version = 1 } ]
@@ -224,7 +221,6 @@ module ProgramTypes =
       PT.TCustomType(
         PT.FQTypeName.Package
           { owner = "dark"
-            package = "pkg"
             modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
             typ = "Pack"
             version = 0 },
@@ -599,11 +595,10 @@ module ProgramTypes =
     { tlid = 0UL
       name = { modules = []; function_ = "User"; version = 0 }
       typeParams = [ "a" ]
-      parameters =
-        [ { id = 23824935UL; name = "myparam1"; typ = dtype; description = "param1" } ]
+      parameters = [ { name = "myparam1"; typ = dtype; description = "param1" } ]
       returnType = dtype
       description = "function description"
-      infix = false
+      deprecated = PT.DeprecatedBecause "some reason"
       body = expr }
 
   let userFunctions : List<PT.UserFunction.T> = [ userFunction ]
@@ -633,8 +628,7 @@ module ProgramTypes =
   let packageFn : PT.Package.Fn =
     { name =
         { owner = "dark"
-          package = "stdlib"
-          modules = NonEmptyList.ofList [ "Int"; "Int64" ]
+          modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
           function_ = "mod"
           version = 0 }
       body = expr
@@ -642,8 +636,8 @@ module ProgramTypes =
       parameters = [ { name = "param"; typ = dtype; description = "desc" } ]
       returnType = dtype
       description = "test"
-      author = "test"
-      deprecated = false
+      deprecated = PT.NotDeprecated
+      id = uuid
       tlid = tlid }
 
   let toplevels : List<PT.Toplevel.T> =

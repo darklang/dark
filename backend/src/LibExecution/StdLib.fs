@@ -79,6 +79,8 @@ module Shortcuts =
 
   let incorrectArgs = Errors.incorrectArgs
 
+  type Param = BuiltInParam
+
 
   let stdlibTypeRef
     (modul : string)

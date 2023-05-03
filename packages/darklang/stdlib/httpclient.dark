@@ -1,0 +1,25 @@
+module Darklang =
+  module Stdlib =
+    module HttpClient =
+      /// Returns a <type Response> that can be returned from an HTTP handler to
+      /// respond with HTTP status <param code> and <param response> body.
+      let response (body : Bytes) (statusCode : Int) : Http.Response =
+        Http.Response
+          {
+            statusCode = statusCode
+            headers = []
+            body = body
+          }
+
+
+      /// Returns a header <type (String*String))> with {{'Authorization'}} created using HTTP basic auth
+      let basicAuth (username : String) (password : String) : Result<String * String, String> =
+        if String.contains "-" username
+        then Error "Username cannot contain a hyphen"
+        else
+          let encoded = Base64.encode (String.toBytes $"{username}:{password}")
+          $"Basic {encoded}"
+
+
+
+

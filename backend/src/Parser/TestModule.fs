@@ -45,14 +45,13 @@ module UserDB =
 
 module PackageFn =
   let fromSynBinding
-    ((p1, p2, p3) : string * string * string)
+    ((p1, p2) : string * string)
     (binding : SynBinding)
     : PT.Package.Fn =
     let userFn = PTP.UserFunction.fromSynBinding binding
     { name =
         { owner = p1
-          package = p2
-          modules = NonEmptyList.singleton p3
+          modules = NonEmptyList.ofList [ p2 ]
           function_ = userFn.name.function_
           version = userFn.name.version }
       typeParams = userFn.typeParams
@@ -62,9 +61,9 @@ module PackageFn =
           { name = p.name; typ = p.typ; description = "" })
       returnType = userFn.returnType
       description = userFn.description
-      deprecated = false
-      author = ""
+      deprecated = PT.NotDeprecated
       tlid = userFn.tlid
+      id = System.Guid.NewGuid()
       body = userFn.body }
 
 
@@ -107,7 +106,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
       else
         [], [ PTP.UserType.fromSynTypeDefn typeDefn ]
 
-  let getPackage (attrs : SynAttributes) : Option<string * string * string> =
+  let getPackage (attrs : SynAttributes) : Option<string * string> =
     attrs
     |> List.map (fun attr -> attr.Attributes)
     |> List.concat
@@ -118,15 +117,13 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
                                         [ SynExpr.Const (SynConst.String (p1, _, _),
                                                          _)
                                           SynExpr.Const (SynConst.String (p2, _, _),
-                                                         _)
-                                          SynExpr.Const (SynConst.String (p3, _, _),
                                                          _) ],
                                         _,
                                         _),
                          _,
                          _,
-                         _) -> Some(p1, p2, p3)
-        | _ -> None
+                         _) -> Some(p1, p2)
+        | _ -> Exception.raiseInternal "Invalid package attribute" [ "attr", attr ]
       else
         None)
     |> List.tryHead

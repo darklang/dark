@@ -25,13 +25,30 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DUnit ] ->
           uply {
-            do! Sql.query "DELETE FROM packages_v0" |> Sql.executeStatementAsync
+            do!
+              Sql.query "DELETE FROM package_functions_v0"
+              |> Sql.executeStatementAsync
             return DUnit
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
+
+    { name = fn' [ "LocalExec"; "Packages" ] "parse" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "The path of the package" ]
+      returnType = TUnit
+      description = "Parse a package file"
+      fn =
+        function
+        | _, _, [ DString path ] -> uply { return DUnit }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
 
     { name = fn "Debug" "inspect" 0
       typeParams = []

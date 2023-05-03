@@ -27,7 +27,7 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM secrets_v0 WHERE canvas_id = '$cid';";
 done
 
-SCRIPT+="DELETE FROM packages_v0 WHERE author_id IN (SELECT id FROM accounts_v0
+SCRIPT+="DELETE FROM package_functions_v0 WHERE author_id IN (SELECT id FROM accounts_v0
 WHERE username = 'test_admin');";
 
 run_sql "$SCRIPT";

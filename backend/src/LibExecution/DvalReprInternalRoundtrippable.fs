@@ -50,24 +50,15 @@ module FormatV0 =
     module PackageTypeName =
       type T =
         { owner : string
-          package : string
           modules : NonEmptyList<string>
           typ : string
           version : int }
 
       let fromRT (p : RT.FQTypeName.PackageTypeName) : T =
-        { owner = p.owner
-          package = p.package
-          modules = p.modules
-          typ = p.typ
-          version = p.version }
+        { owner = p.owner; modules = p.modules; typ = p.typ; version = p.version }
 
       let toRT (p : T) : RT.FQTypeName.PackageTypeName =
-        { owner = p.owner
-          package = p.package
-          modules = p.modules
-          typ = p.typ
-          version = p.version }
+        { owner = p.owner; modules = p.modules; typ = p.typ; version = p.version }
 
     type T =
       | Stdlib of StdlibTypeName.T

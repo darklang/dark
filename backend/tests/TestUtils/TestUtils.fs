@@ -63,7 +63,6 @@ let testHttpRouteHandler
   (method : string)
   (ast : PT.Expr)
   : PT.Handler.T =
-
   { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
 
 let testCron
@@ -71,11 +70,9 @@ let testCron
   (interval : PT.Handler.CronInterval)
   (ast : PT.Expr)
   : PT.Handler.T =
-
   { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-
   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testUserFn
@@ -88,13 +85,12 @@ let testUserFn
   { tlid = gid ()
     body = body
     description = ""
-    infix = false
     name = PT.FQFnName.userFnName [] name 0
     typeParams = typeParams
+    deprecated = PT.NotDeprecated
     parameters =
       List.map
-        (fun (p : string) ->
-          { id = gid (); name = p; typ = PT.TVariable "b"; description = "test" })
+        (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
         parameters
     returnType = returnType }
 

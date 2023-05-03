@@ -80,12 +80,10 @@ module FQTypeName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      package : string
-      [<MessagePack.Key 2>]
       modules : NonEmptyList<string>
-      [<MessagePack.Key 3>]
+      [<MessagePack.Key 2>]
       typ : string
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       version : int }
 
   [<MessagePack.MessagePackObject>]
@@ -125,12 +123,10 @@ module FQFnName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      package : string
-      [<MessagePack.Key 2>]
       modules : NonEmptyList<string>
-      [<MessagePack.Key 3>]
+      [<MessagePack.Key 2>]
       function_ : string
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       version : int }
 
   [<MessagePack.MessagePackObject>]
@@ -239,6 +235,14 @@ and StringSegment =
   | StringInterpolation of Expr
 
 
+[<MessagePack.MessagePackObject>]
+type Deprecation<'name> =
+  | NotDeprecated
+  | RenamedTo of 'name
+  | ReplacedBy of 'name
+  | DeprecatedBecause of string
+
+
 module CustomType =
   [<MessagePack.MessagePackObject>]
   type RecordField =
@@ -322,12 +326,10 @@ module UserFunction =
   [<MessagePack.MessagePackObject>]
   type Parameter =
     { [<MessagePack.Key 0>]
-      id : id
-      [<MessagePack.Key 1>]
       name : string
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       typ : TypeReference
-      [<MessagePack.Key 3>]
+      [<MessagePack.Key 2>]
       description : string }
 
   [<MessagePack.MessagePackObject>]
@@ -345,9 +347,44 @@ module UserFunction =
       [<MessagePack.Key 5>]
       description : string
       [<MessagePack.Key 6>]
-      infix : bool
+      deprecated : Deprecation<FQFnName.T>
       [<MessagePack.Key 7>]
       body : Expr }
+
+module Package =
+  [<MessagePack.MessagePackObject>]
+  type Parameter =
+    { [<MessagePack.Key 0>]
+      name : string
+      [<MessagePack.Key 1>]
+      typ : TypeReference
+      [<MessagePack.Key 2>]
+      description : string }
+
+  [<MessagePack.MessagePackObject>]
+  type Fn =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      id : System.Guid
+      [<MessagePack.Key 2>]
+      name : FQFnName.PackageFnName
+      [<MessagePack.Key 3>]
+      body : Expr
+      [<MessagePack.Key 4>]
+      typeParams : List<string>
+      [<MessagePack.Key 5>]
+      parameters : List<Parameter>
+      [<MessagePack.Key 6>]
+      returnType : TypeReference
+      [<MessagePack.Key 7>]
+      description : string
+      [<MessagePack.Key 8>]
+      deprecated : Deprecation<FQFnName.T> }
+
+
+
+
 
 module Toplevel =
   [<MessagePack.MessagePackObject>]

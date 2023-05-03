@@ -15,7 +15,6 @@ module FQTypeName =
   /// The name of a type in the package manager
   type PackageTypeName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       typ : string
       version : int }
@@ -40,11 +39,7 @@ module FQTypeName =
     | Package p ->
       RuntimeTypes.FQTypeName.toString (
         RuntimeTypes.FQTypeName.Package
-          { owner = p.owner
-            package = p.package
-            modules = p.modules
-            typ = p.typ
-            version = p.version }
+          { owner = p.owner; modules = p.modules; typ = p.typ; version = p.version }
       )
 
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
@@ -82,7 +77,6 @@ module FQFnName =
   /// The name of a function in the package manager
   type PackageFnName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       function_ : string
       version : int }
@@ -110,30 +104,23 @@ module FQFnName =
 
   let packageFnName
     (owner : string)
-    (package : string)
     (modules : NonEmptyList<string>)
     (function_ : string)
     (version : int)
     : PackageFnName =
     assertRe "owner must match" namePat owner
-    assertRe "package must match" namePat package
     NonEmptyList.iter (assertRe "modName name must match" modNamePat) modules
     assertRe "package function name must match" fnnamePat function_
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { owner = owner
-      package = package
-      modules = modules
-      function_ = function_
-      version = version }
+    { owner = owner; modules = modules; function_ = function_; version = version }
 
   let packageFqName
     (owner : string)
-    (package : string)
     (modules : NonEmptyList<string>)
     (function_ : string)
     (version : int)
     : T =
-    Package(packageFnName owner package modules function_ version)
+    Package(packageFnName owner modules function_ version)
 
   let stdlibFnName
     (modules : List<string>)
@@ -314,6 +301,19 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
+// Used to mark whether a function/type has been deprecated, and if so,
+// details about possible replacements/alternatives, and reasoning
+type Deprecation<'name> =
+  | NotDeprecated
+
+  // The exact same thing is available under a new, preferred name
+  | RenamedTo of 'name
+
+  /// This has been deprecated and has a replacement we can suggest
+  | ReplacedBy of 'name
+
+  /// This has been deprecated and not replaced, provide a message for the user
+  | DeprecatedBecause of string
 
 
 /// A type defined by a standard library module, a canvas/user, or a package
@@ -354,14 +354,11 @@ module DB =
   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
 module UserType =
+  // CLEANUP: needs type arguments
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
 
 module UserFunction =
-  type Parameter =
-    { id : id
-      name : string
-      typ : TypeReference
-      description : string }
+  type Parameter = { name : string; typ : TypeReference; description : string }
 
   type T =
     { tlid : tlid
@@ -370,7 +367,7 @@ module UserFunction =
       parameters : List<Parameter>
       returnType : TypeReference
       description : string
-      infix : bool
+      deprecated : Deprecation<FQFnName.T>
       body : Expr }
 
 module Toplevel =
@@ -420,12 +417,12 @@ module Package =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type Fn =
-    { name : FQFnName.PackageFnName
+    { tlid : tlid
+      id : System.Guid
+      name : FQFnName.PackageFnName
       body : Expr
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
       description : string
-      author : string
-      deprecated : bool
-      tlid : tlid }
+      deprecated : Deprecation<FQFnName.T> }

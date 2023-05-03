@@ -34,25 +34,16 @@ module FQTypeName =
 
   type PackageTypeName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       typ : string
       version : int }
 
   module PackageTypeName =
     let fromCT (p : PackageTypeName) : RT.FQTypeName.PackageTypeName =
-      { owner = p.owner
-        package = p.package
-        modules = p.modules
-        typ = p.typ
-        version = p.version }
+      { owner = p.owner; modules = p.modules; typ = p.typ; version = p.version }
 
     let toCT (p : RT.FQTypeName.PackageTypeName) : PackageTypeName =
-      { owner = p.owner
-        package = p.package
-        modules = p.modules
-        typ = p.typ
-        version = p.version }
+      { owner = p.owner; modules = p.modules; typ = p.typ; version = p.version }
 
   type T =
     | Stdlib of StdlibTypeName
@@ -84,7 +75,6 @@ module FQFnName =
 
   type PackageFnName =
     { owner : string
-      package : string
       modules : NonEmptyList<string>
       function_ : string
       version : int }
@@ -92,14 +82,12 @@ module FQFnName =
   module PackageFnName =
     let fromCT (name : PackageFnName) : RT.FQFnName.PackageFnName =
       { owner = name.owner
-        package = name.package
         modules = name.modules
         function_ = name.function_
         version = name.version }
 
     let toCT (name : RT.FQFnName.PackageFnName) : PackageFnName =
       { owner = name.owner
-        package = name.package
         modules = name.modules
         function_ = name.function_
         version = name.version }
@@ -693,18 +681,14 @@ module UserType =
       definition = CustomType.toCT userType.definition }
 
 module UserFunction =
-  type Parameter = { name : string; typ : TypeReference; description : string }
+  type Parameter = { name : string; typ : TypeReference }
 
   module Parameter =
     let fromCT (param : Parameter) : RT.UserFunction.Parameter =
-      { name = param.name
-        typ = TypeReference.fromCT param.typ
-        description = param.description }
+      { name = param.name; typ = TypeReference.fromCT param.typ }
 
     let toCT (param : RT.UserFunction.Parameter) : Parameter =
-      { name = param.name
-        typ = TypeReference.toCT param.typ
-        description = param.description }
+      { name = param.name; typ = TypeReference.toCT param.typ }
 
   type T =
     { tlid : tlid
@@ -712,8 +696,6 @@ module UserFunction =
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
-      description : string
-      infix : bool
       body : Expr.T }
 
   let fromCT (userFn : T) : RT.UserFunction.T =
@@ -722,8 +704,6 @@ module UserFunction =
       typeParams = userFn.typeParams
       parameters = List.map Parameter.fromCT userFn.parameters
       returnType = TypeReference.fromCT userFn.returnType
-      description = userFn.description
-      infix = userFn.infix
       body = Expr.fromCT userFn.body }
 
   let toCT (userFn : RT.UserFunction.T) : T =
@@ -732,8 +712,6 @@ module UserFunction =
       typeParams = userFn.typeParams
       parameters = List.map Parameter.toCT userFn.parameters
       returnType = TypeReference.toCT userFn.returnType
-      description = userFn.description
-      infix = userFn.infix
       body = Expr.toCT userFn.body }
 
 
@@ -746,25 +724,21 @@ module Secret =
 
 
 module Package =
-  type Parameter = { name : string; typ : TypeReference; description : string }
+  type Parameter = { name : string; typ : TypeReference }
 
   module Parameter =
     let fromCT (p : Parameter) : RT.Package.Parameter =
-      { name = p.name
-        typ = TypeReference.fromCT p.typ
-        description = p.description }
+      { name = p.name; typ = TypeReference.fromCT p.typ }
 
     let toCT (p : RT.Package.Parameter) : Parameter =
-      { name = p.name; typ = TypeReference.toCT p.typ; description = p.description }
+      { name = p.name; typ = TypeReference.toCT p.typ }
 
   type Fn =
     { name : FQFnName.PackageFnName
       body : Expr.T
       typeParams : List<string>
       parameters : List<Parameter>
-      returnType : TypeReference
-      description : string
-      deprecated : bool }
+      returnType : TypeReference }
 
   module Fn =
     let fromCT (fn : Fn) : RT.Package.Fn =
@@ -772,15 +746,11 @@ module Package =
         body = Expr.fromCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.fromCT fn.parameters
-        returnType = TypeReference.fromCT fn.returnType
-        description = fn.description
-        deprecated = fn.deprecated }
+        returnType = TypeReference.fromCT fn.returnType }
 
     let toCT (fn : RT.Package.Fn) : Fn =
       { name = FQFnName.PackageFnName.toCT fn.name
         body = Expr.toCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.toCT fn.parameters
-        returnType = TypeReference.toCT fn.returnType
-        description = fn.description
-        deprecated = fn.deprecated }
+        returnType = TypeReference.toCT fn.returnType }

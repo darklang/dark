@@ -64,8 +64,6 @@ let testArguments : Test =
           typeParams = []
           parameters = []
           returnType = returnType
-          description = ""
-          infix = false
           body = body }
 
       let expr = S.eUserFn name [] []

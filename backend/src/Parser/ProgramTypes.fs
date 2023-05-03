@@ -390,16 +390,12 @@ module Expr =
 
     // Package manager function calls
     // (preliminary support)
-    | SynExpr.LongIdent (_,
-                         SynLongIdent ([ owner; package; modName; fnName ], _, _),
-                         _,
-                         _) when
-      owner.idText = "Test" && package.idText = "Test" && modName.idText = "Test"
+    | SynExpr.LongIdent (_, SynLongIdent ([ owner; modName; fnName ], _, _), _, _) when
+      owner.idText = "Test" && modName.idText = "Test"
       ->
       PT.EFnCall(
         gid (),
         PT.FQFnName.packageFqName
-          "test"
           "test"
           (NonEmptyList.singleton "Test")
           fnName.idText
@@ -775,21 +771,28 @@ module Expr =
       identity
       e
 
-module UserFunction =
-  let rec parseArgPat (pat : SynPat) : PT.UserFunction.Parameter =
-    let r = parseArgPat
+module Function =
+  type Parameter = { name : string; typ : PT.TypeReference }
+
+  type T =
+    { name : string
+      version : int
+      parameters : List<Parameter>
+      typeParams : List<string>
+      returnType : PT.TypeReference
+      body : PT.Expr }
+
+
+  let rec parseParamPattern (pat : SynPat) : Parameter =
+    let r = parseParamPattern
 
     match pat with
     | SynPat.Paren (pat, _) -> r pat
 
-    | SynPat.Const (SynConst.Unit, _) ->
-      { id = gid (); name = "unit"; typ = PT.TUnit; description = "" }
+    | SynPat.Const (SynConst.Unit, _) -> { name = "unit"; typ = PT.TUnit }
 
     | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
-      { id = gid ()
-        name = id.idText
-        typ = TypeReference.fromSynType typ
-        description = "" }
+      { name = id.idText; typ = TypeReference.fromSynType typ }
 
     | SynPat.Typed (SynPat.Typed _ as nested,
                     SynType.App (SynType.LongIdent (SynLongIdent (names, _, _)),
@@ -801,18 +804,25 @@ module UserFunction =
                                  _),
                     _) ->
       let nested = r nested
-      { id = nested.id
-        name = nested.name
-        typ = TypeReference.fromNamesAndTypeArgs names args
-        description = nested.description }
+      { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs names args }
 
+    | _ -> Exception.raiseInternal "Unsupported paramPattern" [ "pat", pat ]
 
+  let parseReturnInfo
+    (returnInfo : Option<SynBindingReturnInfo>)
+    : PT.TypeReference =
+    match returnInfo with
+    | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
+      TypeReference.fromSynType typeName
+    | None ->
+      Exception.raiseInternal
+        "Functions must have return types specified"
+        [ "returnInfo", returnInfo ]
 
-    | _ -> Exception.raiseInternal "Unsupported argPat" [ "pat", pat ]
 
   let private parseSignature
     (pat : SynPat)
-    : string * List<string> * List<PT.UserFunction.Parameter> =
+    : string * List<string> * List<Parameter> =
     match pat with
     | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, typeArgPats, argPats, _, _) ->
       let typeParams =
@@ -850,7 +860,7 @@ module UserFunction =
 
       let parameters =
         match argPats with
-        | SynArgPats.Pats pats -> List.map parseArgPat pats
+        | SynArgPats.Pats pats -> List.map parseParamPattern pats
 
         | SynArgPats.NamePatPairs _ ->
           Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
@@ -859,19 +869,8 @@ module UserFunction =
 
     | _ -> Exception.raiseInternal "Unsupported pattern" [ "pat", pat ]
 
-  let parseReturnInfo
-    (returnInfo : Option<SynBindingReturnInfo>)
-    : PT.TypeReference =
-    match returnInfo with
-    | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
-      TypeReference.fromSynType typeName
-    | None ->
-      Exception.raiseInternal
-        "Functions must have return types specified"
-        [ "returnInfo", returnInfo ]
 
-
-  let fromSynBinding (binding : SynBinding) : PT.UserFunction.T =
+  let fromSynBinding (binding : SynBinding) : T =
     match binding with
     | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature pat
@@ -881,14 +880,46 @@ module UserFunction =
         |> Exception.unwrapOptionInternal
              "invalid fn name"
              [ "name", name; "binding", binding ]
-      { tlid = gid ()
-        name = PT.FQFnName.userFnName [] name version
+      { name = name
+        version = version
         typeParams = typeParams
         parameters = parameters
         returnType = returnType
-        description = ""
-        infix = false
         body = Expr.fromSynExpr expr }
+
+module UserFunction =
+  let fromSynBinding (b : SynBinding) : PT.UserFunction.T =
+    let f = Function.fromSynBinding b
+    { tlid = gid ()
+      name = { modules = []; function_ = f.name; version = f.version }
+      typeParams = f.typeParams
+      parameters =
+        f.parameters
+        |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
+      returnType = f.returnType
+      description = ""
+      deprecated = PT.NotDeprecated
+      body = f.body }
+
+module PackageFn =
+  let fromSynBinding
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (b : SynBinding)
+    : PT.Package.Fn =
+    let f = Function.fromSynBinding b
+    { tlid = gid ()
+      id = System.Guid.NewGuid()
+      name =
+        { owner = owner; modules = modules; function_ = f.name; version = f.version }
+      typeParams = f.typeParams
+      parameters =
+        f.parameters
+        |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
+      returnType = f.returnType
+      description = ""
+      deprecated = PT.NotDeprecated
+      body = f.body }
 
 
 module CustomType =

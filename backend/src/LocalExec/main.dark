@@ -1,24 +1,22 @@
+let listDirectoryRecursive (dir : String) : List<String> =
+  let contents = Directory.list dir
+  let (files, dirs) = contents |> List.partition (fun x -> File.isNormal x)
+  let nested = dirs |> List.map (fun d -> listDirectoryRecursive d) |> List.flatten
+  dirs |> List.append files |> List.append nested
+
 let listPackageFiles (dir : String) : List<String> =
   dir
-  |> Directory.list
+  |> listDirectoryRecursive
   |> List.filter_v2 (fun x -> x |> String.endsWith ".dark")
 
-let parseFile (file : String) : List<Packages.Path * Packages.Expression> =
-  let source = File.read file
-  let tokens = Lexer.lex source
-  let ast = Parser.parse tokens
-  let canvas = CanvasV2.toCanvas ast
-  canvas
-
-let savePackageFn (pkg : String) (fn : CanvasFunction) : Unit =
-  DarkEditor.savePackage pkg fn
-
-let clearPackages () : Unit = LocalExec.Packages.clear()
+let parseFile (file : String) : List<PackageType> * List<PackageFn> =
+  file
+  |> File.read
+  |> LocalExec.Packages.parse
 
 type CliOptions =
   | Help
   | LoadPackages
-
 
 let usage () : String =
   "Usage: LocalExec [options]
@@ -30,11 +28,15 @@ let usage () : String =
 
 
 let main () : Int =
-  clearPackages ()
+  LocalExec.Packages.clear()
   let files = listPackageFiles "/home/dark/app/packages"
-  let pkgs = files |> List.map parseFile
-  pkgs |> List.iter (fun pkg -> pkg.fns |> List.iter (savePackageFn pkg.name))
+  do files
+     |> List.map (fun f -> parseFile f)
+     |> List.flatten
+     |> List.iter
+          (fun pkg ->
+             do pkg.types |> List.iter (fun typ -> LocalExec.addPackageType typ)
+             do pkg.fns |> List.iter (fun fn -> LocalExec.addPackageFn fn))
   0
-
 
 main ()

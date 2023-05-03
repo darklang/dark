@@ -473,7 +473,6 @@ let initSerializers () =
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibBackend.PackageManager.ParametersDBFormat> "PackageManager"
   Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
