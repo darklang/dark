@@ -1,11 +1,42 @@
+let listDirectoryRecursive (dir : String) : List<String> =
+  let contents = Directory.list dir
+  let (files, dirs) = contents |> List.partition (fun x -> File.isNormal x)
+  let nested = dirs |> List.map (fun d -> listDirectoryRecursive d) |> List.flatten
+  dirs |> List.append files |> List.append nested
+
+let listPackageFiles (dir : String) : List<String> =
+  dir
+  |> listDirectoryRecursive
+  |> List.filter_v2 (fun x -> x |> String.endsWith ".dark")
+
+let parseFile (file : String) : List<PackageType> * List<PackageFn> =
+  file
+  |> File.read
+  |> LocalExec.Packages.parse
+
+type CliOptions =
+  | Help
+  | LoadPackages
+
+let usage () : String =
+  "Usage: LocalExec [options]
+
+    Options:
+      -h, --help     Show this help message and exit
+      load-packages  Load packages from packages
+  "
+
+
 let main () : Int =
-  let dir = "packages/darklang/stdlib"
-  do
-    dir
-    |> Directory.list
-    |> List.filter_v2 (fun x -> x |> String.endsWith ".dark")
-    |> String.join ", "
-    |> print
+  LocalExec.Packages.clear()
+  let files = listPackageFiles "/home/dark/app/packages"
+  do files
+     |> List.map (fun f -> parseFile f)
+     |> List.flatten
+     |> List.iter
+          (fun pkg ->
+             do pkg.types |> List.iter (fun typ -> LocalExec.addPackageType typ)
+             do pkg.fns |> List.iter (fun fn -> LocalExec.addPackageFn fn))
   0
 
 main ()

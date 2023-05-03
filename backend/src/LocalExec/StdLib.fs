@@ -1,10 +1,8 @@
-module StdLibCli.StdLib
+/// Include libraries here that we would not want to even be possible from other environments
+module LocalExec.StdLib
 
 open Prelude
-open LibExecution.RuntimeTypes
-
 module StdLib = LibExecution.StdLib
-
 
 let fnRenames : StdLib.FnRenames =
   // old names, new names
@@ -16,11 +14,6 @@ let typeRenames : StdLib.TypeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents =
-  StdLib.combine
-    [ Libs.Directory.contents
-      Libs.Environment.contents
-      Libs.File.contents
-      Libs.Output.contents ]
-    fnRenames
-    typeRenames
+let contents : StdLib.Contents =
+  StdLib.combine [ Libs.Packages.contents ] fnRenames typeRenames
+

@@ -1,5 +1,5 @@
 /// Run scripts locally using some builtin F#/dotnet libraries
-module LocalExec
+module LocalExec.LocalExec
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -15,7 +15,7 @@ module StdLibCli = StdLibCli.StdLib
 
 let (stdlibFns, stdlibTypes) =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
     []
     []
 
@@ -102,7 +102,8 @@ let main (args : string []) : int =
       1
   with
   | e ->
-    // Don't reraise or report as ProdExec is only run interactively
-    printException "" [] e
+    // Don't reraise or report as LocalExec is only run interactively
+    printException "Exception" [] e
     // LibService.Init.shutdown name
+    NonBlockingConsole.wait ()
     1

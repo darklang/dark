@@ -281,7 +281,6 @@
                                   "Package",
                                   {
                                     "owner": "dark",
-                                    "package": "pkg",
                                     "modules": {
                                       "Head": "Mod1",
                                       "Tail": [
@@ -994,157 +993,11 @@
           "function_": "User",
           "version": 0
         },
-        "returnType": [
-          "TTuple",
-          [
-            "TList",
-            [
-              "TDict",
-              [
-                "TDB",
-                [
-                  "THttpResponse",
-                  [
-                    "TOption",
-                    [
-                      "TResult",
-                      [
-                        "TInt"
-                      ],
-                      [
-                        "TFn",
-                        [
-                          [
-                            "TFloat"
-                          ]
-                        ],
-                        [
-                          "TUnit"
-                        ]
-                      ]
-                    ]
-                  ]
-                ]
-              ]
-            ]
-          ],
-          [
-            "TInt"
-          ],
-          [
-            [
-              "TFloat"
-            ],
-            [
-              "TBool"
-            ],
-            [
-              "TUnit"
-            ],
-            [
-              "TString"
-            ],
-            [
-              "TList",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "TTuple",
-              [
-                "TInt"
-              ],
-              [
-                "TString"
-              ],
-              []
-            ],
-            [
-              "TDict",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "THttpResponse",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "TDB",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "TDateTime"
-            ],
-            [
-              "TChar"
-            ],
-            [
-              "TPassword"
-            ],
-            [
-              "TUuid"
-            ],
-            [
-              "TOption",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "TCustomType",
-              [
-                "User",
-                {
-                  "modules": [
-                    "Mod"
-                  ],
-                  "typ": "name",
-                  "version": 0
-                }
-              ],
-              []
-            ],
-            [
-              "TBytes"
-            ],
-            [
-              "TResult",
-              [
-                "TInt"
-              ],
-              [
-                "TString"
-              ]
-            ],
-            [
-              "TVariable",
-              "v"
-            ],
-            [
-              "TFn",
-              [
-                [
-                  "TInt"
-                ]
-              ],
-              [
-                "TInt"
-              ]
-            ]
-          ]
-        ],
         "typeParams": [
           "a"
         ],
         "parameters": [
           {
-            "id": 23824935,
             "name": "myparam1",
             "typ": [
               "TTuple",
@@ -1294,8 +1147,156 @@
             "description": "param1"
           }
         ],
+        "returnType": [
+          "TTuple",
+          [
+            "TList",
+            [
+              "TDict",
+              [
+                "TDB",
+                [
+                  "THttpResponse",
+                  [
+                    "TOption",
+                    [
+                      "TResult",
+                      [
+                        "TInt"
+                      ],
+                      [
+                        "TFn",
+                        [
+                          [
+                            "TFloat"
+                          ]
+                        ],
+                        [
+                          "TUnit"
+                        ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "TInt"
+          ],
+          [
+            [
+              "TFloat"
+            ],
+            [
+              "TBool"
+            ],
+            [
+              "TUnit"
+            ],
+            [
+              "TString"
+            ],
+            [
+              "TList",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TTuple",
+              [
+                "TInt"
+              ],
+              [
+                "TString"
+              ],
+              []
+            ],
+            [
+              "TDict",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "THttpResponse",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TDB",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TDateTime"
+            ],
+            [
+              "TChar"
+            ],
+            [
+              "TPassword"
+            ],
+            [
+              "TUuid"
+            ],
+            [
+              "TOption",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TCustomType",
+              [
+                "User",
+                {
+                  "modules": [
+                    "Mod"
+                  ],
+                  "typ": "name",
+                  "version": 0
+                }
+              ],
+              []
+            ],
+            [
+              "TBytes"
+            ],
+            [
+              "TResult",
+              [
+                "TInt"
+              ],
+              [
+                "TString"
+              ]
+            ],
+            [
+              "TVariable",
+              "v"
+            ],
+            [
+              "TFn",
+              [
+                [
+                  "TInt"
+                ]
+              ],
+              [
+                "TInt"
+              ]
+            ]
+          ]
+        ],
         "description": "function description",
-        "infix": false,
+        "deprecated": [
+          "DeprecatedBecause",
+          "some reason"
+        ],
         "body": [
           "ELet",
           "14219007199254740992",
@@ -1572,7 +1573,6 @@
                                     "Package",
                                     {
                                       "owner": "dark",
-                                      "package": "pkg",
                                       "modules": {
                                         "Head": "Mod1",
                                         "Tail": [
@@ -2571,16 +2571,17 @@
       {
         "name": {
           "owner": "dark",
-          "package": "stdlib",
           "modules": {
-            "Head": "Int",
+            "Head": "stdlib",
             "Tail": [
+              "Int",
               "Int64"
             ]
           },
           "function_": "mod",
           "version": 0
         },
+        "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
         "body": [
           "ELet",
           "14219007199254740992",
@@ -2857,7 +2858,6 @@
                                     "Package",
                                     {
                                       "owner": "dark",
-                                      "package": "pkg",
                                       "modules": {
                                         "Head": "Mod1",
                                         "Tail": [
@@ -3818,8 +3818,9 @@
           ]
         ],
         "description": "test",
-        "author": "test",
-        "deprecated": false,
+        "deprecated": [
+          "NotDeprecated"
+        ],
         "tlid": 7
       }
     ],
