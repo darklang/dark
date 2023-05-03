@@ -64,40 +64,40 @@ module HttpClient =
   // TODO: I don't see where "the number of sockets" is actually configured?
 
   // let private socketHandler : HttpMessageHandler =
-    // new SocketsHttpHandler(
-      // Avoid DNS problems
-      // PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
-      // PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
+  // new SocketsHttpHandler(
+  // Avoid DNS problems
+  // PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
+  // PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
 
-      // HttpClientTODO avail functions to compress/decompress with common
-      // compression algorithms (gzip, brottli, deflate)
-      //
-      // HttpClientTODO consider: is there any reason to think that ASP.NET
-      // does something fancy such that automatic .net httpclient -level
-      // decompression would be notably more efficient than doing so 'manually'
-      // via some function? There will certainly be more bytes passed around -
-      // probably not a big deal?
-      // AutomaticDecompression = System.Net.DecompressionMethods.None,
+  // HttpClientTODO avail functions to compress/decompress with common
+  // compression algorithms (gzip, brottli, deflate)
+  //
+  // HttpClientTODO consider: is there any reason to think that ASP.NET
+  // does something fancy such that automatic .net httpclient -level
+  // decompression would be notably more efficient than doing so 'manually'
+  // via some function? There will certainly be more bytes passed around -
+  // probably not a big deal?
+  // AutomaticDecompression = System.Net.DecompressionMethods.None,
 
-      // HttpClientTODO avail function that handles redirect behaviour
-      // AllowAutoRedirect = false,
+  // HttpClientTODO avail function that handles redirect behaviour
+  // AllowAutoRedirect = false,
 
-      // UseProxy = true,
-      // Proxy = System.Net.WebProxy(Config.httpclientProxyUrl, false),
+  // UseProxy = true,
+  // Proxy = System.Net.WebProxy(Config.httpclientProxyUrl, false),
 
-      // Don't add a RequestId header for opentelemetry
-      // ActivityHeadersPropagator = null,
+  // Don't add a RequestId header for opentelemetry
+  // ActivityHeadersPropagator = null,
 
-      // Users share the HttpClient, don't let them share cookies!
-      // UseCookies = false
-    // )
+  // Users share the HttpClient, don't let them share cookies!
+  // UseCookies = false
+  // )
 
   let private httpClient : HttpClient =
     new HttpClient(
-    // new SocketsHttpHandler()
-    // disposeHandler = false,
-    // Timeout = System.TimeSpan.FromSeconds 30.0,
-    // MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
+      new HttpClientHandler(AllowAutoRedirect = false),
+      disposeHandler = false,
+      Timeout = System.TimeSpan.FromSeconds 30.0,
+      MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
 
   let request (httpRequest : HttpRequest) : Task<HttpRequestResult> =
@@ -133,9 +133,9 @@ module HttpClient =
 
               // Content = new ByteArrayContent(httpRequest.body),
 
-            // Support both Http 2.0 and 3.0
-            // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
-            // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
+              // Support both Http 2.0 and 3.0
+              // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
+              // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
               Version = System.Net.HttpVersion.Version30,
               VersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
             )
