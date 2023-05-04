@@ -32,15 +32,15 @@ const systemPromptValue = ref('')
 
 const darklangJSScript: HTMLScriptElement = document.createElement('script')
 darklangJSScript.setAttribute(
-  'src',
-  'http://dark-serve-static.dlio.localhost:11003/darklang.js'
-)
-darklangJSScript.setAttribute('defer', '')
-darklangJSScript.addEventListener('load', async () => {
-  const darklang = await window.Darklang.init()
-  window.darklang = darklang
-})
-document.head.appendChild(darklangJSScript)
+  "src",
+  "http://dark-serve-static.dlio.localhost:11003/darklang-wasm.js",
+);
+darklangJSScript.setAttribute("defer", "");
+darklangJSScript.addEventListener("load", async () => {
+  const darklang = await window.Darklang.init();
+  window.darklang = darklang;
+});
+document.head.appendChild(darklangJSScript);
 
 onMounted(() => {
   fetch('/get-prompt')
