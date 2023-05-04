@@ -11,74 +11,77 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module Exe = LibExecution.Execution
 
 
 type DarkEditor() =
-  // TODO: ideally, this functionality lives in LibAnalysis,
-  // but since we don't exactly know what's going to happen with
-  // this project, leaving it here as an annoyance feels useful.
-  static let simpleEval (expr : RT.Expr) : Task<RT.Dval> =
+
+  static let debug args = WasmHelpers.callJSFunction "console.log" args
+
+  static let stdlib =
+    LibExecution.StdLib.combine
+      [ StdLibExecution.StdLib.contents; LibWASM.contents ]
+      []
+      []
+
+
+  [<JSInvokable>]
+  static member LoadProgram
+    (
+      serializedTypes : string,
+      serializedFns : string,
+      stateType : string,
+      serializedInitialState : string
+    ) : Task<unit> =
     task {
-      let program : RT.ProgramContext =
-        { canvasID = System.Guid.NewGuid()
-          internalFnsAllowed = false
-          userFns = Map.empty
-          userTypes = Map.empty
-          dbs = Map.empty
-          secrets = [] }
+      let types = Json.Vanilla.deserialize<List<PT.UserType.T>> serializedTypes
 
-      let (stdlibFns, stdlibTypes) =
-        LibExecution.StdLib.combine
-          [ StdLibExecution.StdLib.contents; LibWASM.contents ]
-          []
-          []
+      let fns = Json.Vanilla.deserialize<List<PT.UserFunction.T>> serializedFns
 
-      let libraries : RT.Libraries =
-        { stdlibTypes =
-            stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-          stdlibFns =
-            stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-          packageFns = Map.empty }
-      let results, traceDvalFn = Exe.traceDvals ()
-      let functionResults = []
+      let stateType = Json.Vanilla.deserialize<RT.TypeReference> stateType
 
-      let tracing =
-        { LibExecution.Execution.noTracing RT.Real with
-            traceDval = traceDvalFn
-            loadFnResult = LibAnalysis.Analysis.Eval.loadFromTrace functionResults }
+      let initialState =
+        let availableTypes =
+          types
+          |> List.map PT2RT.UserType.toRT
+          |> List.map (fun typ -> (RT.FQTypeName.User typ.name, typ.definition))
+          |> Map
 
-      let state =
-        Exe.createState
-          libraries
-          tracing
-          RT.consoleReporter
-          RT.consoleNotifier
-          (gid ())
-          program
+        StdLibExecution.Libs.Json.parse
+          availableTypes
+          stateType
+          serializedInitialState
+        |> Result.unwrap_unsafe
 
-      let inputVars = Map.empty
-      let! (result : RT.Dval) = Exe.executeExpr state inputVars expr
-      // TODO: use traces in `results`
+      // TODO: ensure initialState matches the type provided in typeParams
+
+      LibWASM.program <-
+        { UserTypes = types
+          UserFunctions = fns
+          StateType = stateType
+          CurrentState = initialState }
+
+      return ()
+    }
+
+
+  [<JSInvokable>]
+  static member EvalExpr(exprJSON : string) : Task<string> =
+    task {
+      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
+      let! evalResult = Eval.simpleEval stdlib [] [] (PT2RT.Expr.toRT expr)
+      let result = LibExecution.DvalReprDeveloper.toRepr evalResult
       return result
     }
 
-  [<JSInvokable("EvalExpr")>]
-  static member EvalExpr(exprJSON : string) : Task<unit> =
-    task {
-      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
-      let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
-      ()
-    }
 
   // It's just like EvalExpr, but you don't have to explicitly call WASM.callJSFunction with the results
   // (TODO: maybe this should be deprecated)
-  [<JSInvokable("EvalExprAndReturnResult")>]
-  static member EvalExprAndReturnResult(exprJSON : string) : Task<unit> =
+  [<JSInvokable>]
+  static member EvalExprAndReturnResult(exprJSON : string) : Task<string> =
     task {
       let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
-      let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
+      let! evalResult = Eval.simpleEval stdlib [] [] (PT2RT.Expr.toRT expr)
       let result = LibExecution.DvalReprDeveloper.toRepr evalResult
       WasmHelpers.callJSFunction "handleDarkResult" [ result ]
-      ()
+      return result
     }

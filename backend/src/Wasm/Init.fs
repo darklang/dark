@@ -10,4 +10,5 @@ type Init =
   static member InitializeDarkRuntime() : unit =
     Environment.SetEnvironmentVariable("TZ", "UTC")
     LibAnalysis.Analysis.initSerializers ()
+    Json.Vanilla.allow<Wasm.LibWASM.Program> "Analysis"
     System.Console.WriteLine("Dark runtime initialized")
