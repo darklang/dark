@@ -179,10 +179,8 @@ let postProcessModule (m : CanvasModule) : CanvasModule =
       exprs = m.exprs |> List.map fixup
       fns = m.fns |> List.map (fun f -> { f with body = fixup f.body }) }
 
-
-let parseFromFile (filename : string) : CanvasModule =
-  let parsedAsFSharp =
-    filename |> System.IO.File.ReadAllText |> parseAsFSharpSourceFile
+let parse (source : string) : CanvasModule =
+  let parsedAsFSharp = parseAsFSharpSourceFile source
 
   let decls =
     match parsedAsFSharp with
@@ -201,3 +199,7 @@ let parseFromFile (filename : string) : CanvasModule =
         [ "parsedAsFsharp", parsedAsFSharp ]
 
   decls |> parseDecls |> postProcessModule
+
+
+let parseFromFile (filename : string) : CanvasModule =
+  filename |> System.IO.File.ReadAllText |> parse
