@@ -32,10 +32,10 @@ let _handler _req =
     <div class="container">
       <div class="left-side">
         <textarea id="input-textarea" class="textarea">(
-  let result = WASM.callJSFunction "handleDarkResult" ["yolo1"; "yolo2"]
-  result
-)
-</textarea>
+  let three = 1 + 2
+
+  WASM.callJSFunction "setOutput" [Int.toString three]
+)</textarea>
         <button id="submit-button" class="submit-button">Submit</button>
       </div>
       <div class="right-side">
@@ -43,15 +43,10 @@ let _handler _req =
       </div>
     </div>
 
-    <script src="http://dark-serve-static.dlio.localhost:11003/darklang.js"></script>
+    <script src="http://dark-serve-static.dlio.localhost:11003/darklang-wasm.js"></script>
     <script>
       function setOutput (message) {
         document.getElementById("output-textarea").value = message;
-      }
-
-      // fns exposed for use by WASM'd Dark (Wasm.fsproj)
-      function handleDarkResult (arg1, arg2) {
-        setOutput(JSON.stringify({ arg1, arg2 }));
       }
 
       (async () => {
@@ -65,11 +60,14 @@ let _handler _req =
             });
 
             if (!response.ok) {
-              throw new Error("Error in parsing the expr and serializing it as JSON");
+              const errorText = await response.text();
+              throw new Error("Error in parsing the expr and serializing it as JSON" + errorText);
             }
 
             const exprJson = await response.text();
-            darklang.evalExpr(exprJson);
+            const result = await darklang.evalExprAndReturnResult(exprJson);
+            // Note: we could use this result from here and update the UI,
+            // rather than rely on code to call up on the exposed `setOutput` fn.
           } catch (error) {
             setOutput("Error" + error);
             console.error("Error:", error);
