@@ -84,8 +84,6 @@ type DarkEditor() =
                })
              (getState source.types source.fns, DUnit)
 
-      debug (LibExecution.DvalReprDeveloper.toRepr initialState)
-
       LibWASM.editor <-
         { Types = source.types; Functions = source.fns; CurrentState = initialState }
 
