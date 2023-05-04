@@ -57,12 +57,12 @@ let _handler _req =
       (async () => {
         const darklang = await Darklang.init();
 
-        document.getElementById("submit-button").addEventListener("click", async () => {
-          try {
-            const response = await fetch("/get-expr-json", {
-              method: "POST",
-              body: document.getElementById("input-textarea").value,
-            });
+      document.getElementById("input-textarea").addEventListener("input", async () => {
+        try {
+          const response = await fetch("/get-expr-json", {
+            method: "POST",
+            body: document.getElementById("input-textarea").value,
+          });
 
             if (!response.ok) {
               throw new Error("Error in parsing the expr and serializing it as JSON");
