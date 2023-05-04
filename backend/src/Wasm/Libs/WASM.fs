@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn' [ "WASM" ] "callJSFunction" 0
+    { name = fn "WASM" "callJSFunction" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
