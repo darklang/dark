@@ -1,3 +1,41 @@
+[<HttpHandler("GET", "/static/:path")>]
+let _handler _req =
+  let body =
+
+    (Experiments.readFromStaticDir $"{path}")
+    |> Result.withDefault Bytes.empty
+
+  let contentType =
+    match (String.split_v1 path ".") |> List.last_v2 |> Option.withDefault "" with
+    | "wasm" -> "application/wasm"
+    | "js" -> "text/javascript"
+    | "dll" -> "application/octet-stream"
+    | "dat" -> "application/octet-stream"
+    | "blat" -> "application/octet-stream"
+    | "json" -> "application/json"
+    | _ -> "text/plain"
+
+  let incomingHost =
+    request.headers
+    |> List.findFirst_v2 (fun t -> Tuple2.first t == "origin")
+    |> Option.map_v1 (fun t -> Tuple2.second t)
+    |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
+
+  let headers =
+    Dict.fromListOverwritingDuplicates
+      [
+        ("Access-Control-Allow-Origin", incomingHost)
+        ("Access-Control-Allow-Credentials", "true")
+        ("Content-type", contentType)
+        ("Accept-Ranges", "bytes")
+        // ("Cross-Origin-Embedder-Policy", "require-corp")
+        // ("Cross-Origin-Opener-Policy", "same-origin")
+      ]
+
+  Http.responseWithHeaders body headers 200
+
+
+
 [<HttpHandler("POST", "/get-expr-json")>]
 let _handler _req =
   let requestCode = String.fromBytes request.body
@@ -78,7 +116,7 @@ let _handler _req =
     </section>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
-  <script src="http://dark-serve-static.dlio.localhost:11003/darklang-wasm.js"></script>
+  <script src="/static/darklang-wasm.js"></script>
   <script>
     async function getWasmDark() {
       try {
@@ -124,6 +162,8 @@ let _handler _req =
 
     (async () => {
       const darklang = await Darklang.init();
+
+      await darklang.multiThreadingTest();
 
       // load the types and fns from `wasm.dark` into the WASM runtime
       const wasmDarkProgramJsonSerialized = await getWasmDark();
@@ -187,4 +227,13 @@ let _handler _req =
 </html>
   """
 
-  Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
+  Http.responseWithHeaders
+    (String.toBytes body)
+    (Dict.fromListOverwritingDuplicates
+      [
+        ("Content-Type", "text/html")
+        ("Cross-Origin-Embedder-Policy", "require-corp")
+        ("Cross-Origin-Opener-Policy", "same-origin")
+      ]
+    )
+    200

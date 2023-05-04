@@ -417,6 +417,9 @@ EOF
 RUN dotnet tool install fantomas-tool --version 4.7.9 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
+# wasm-experimental
+RUN dotnet workload install wasm-experimental
+
 #############
 # Emscripten,
 # for compiling the tree-sitter parser to wasm

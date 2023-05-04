@@ -2,7 +2,7 @@ const Darklang = {
   _loadBlazorScript: async function () {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'http://dark-serve-static.dlio.localhost:11003/dark_wasm/_framework/blazor.webassembly.js';
+      script.src = '/static/dark_wasm/_framework/blazor.webassembly.js';
       script.setAttribute('autostart', 'false');
       script.addEventListener('load', resolve);
       script.addEventListener('error', reject);
@@ -15,7 +15,7 @@ const Darklang = {
 
     await Blazor.start({
       loadBootResource: function(_type, name, _defaultUri, _integrity) {
-        return `http://dark-serve-static.dlio.localhost:11003/dark_wasm/_framework/${name}`;
+        return `/static/dark_wasm/_framework/${name}`;
       }
     });
 
@@ -31,6 +31,9 @@ const Darklang = {
       },
       loadProgram: async function(types, fns, stateType, initialState) {
         return await DotNet.invokeMethodAsync("Wasm", "LoadProgram", types, fns, stateType, initialState);
+      },
+      multiThreadingTest: async function() {
+        return await DotNet.invokeMethodAsync("Wasm", "MultiThreadingTest");
       }
     };
   }

@@ -235,6 +235,7 @@ NUGET
     Microsoft.NET.StringTools (17.4)
       System.Memory (>= 4.5.5)
       System.Runtime.CompilerServices.Unsafe (>= 6.0)
+    Microsoft.NET.WebAssembly.Threading (7.0)
     Microsoft.NETCore.Platforms (5.0.4)
     Microsoft.Win32.SystemEvents (5.0)
       Microsoft.NETCore.Platforms (>= 5.0)

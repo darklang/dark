@@ -21,6 +21,8 @@
     <!-- <RuntimeIdentifier>browser-wasm</RuntimeIdentifier> -->
     <!-- should optimize the download slightly -->
     <!-- <BlazorEnableTimeZoneSupport>false</BlazorEnableTimeZoneSupport> -->
+
+    <WasmEnableThreads>true</WasmEnableThreads>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />

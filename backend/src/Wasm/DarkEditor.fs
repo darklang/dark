@@ -1,3 +1,4 @@
+//[<assembly:SupportedOSPlatform("browser")>]
 namespace Wasm
 
 open System
@@ -11,6 +12,13 @@ open Tablecloth
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+
+
+open System
+open System.Threading
+open System.Runtime.Versioning
+open System.Runtime.InteropServices.JavaScript
+
 
 
 type DarkEditor() =
@@ -84,4 +92,25 @@ type DarkEditor() =
       let result = LibExecution.DvalReprDeveloper.toRepr evalResult
       WasmHelpers.callJSFunction "handleDarkResult" [ result ]
       return result
+    }
+
+
+
+  static member SecondThread(): unit =
+    Console.WriteLine ($"Hello from Thread {Thread.CurrentThread.ManagedThreadId}")
+
+
+  [<JSInvokable>]
+  static member MultiThreadingTest() : Task<unit> =
+    task {
+      Console.WriteLine ($"Hello from main thread: {Thread.CurrentThread.ManagedThreadId}")
+
+      let t = new Thread(fun () ->
+        Console.WriteLine ($"Hello from other thread {Thread.CurrentThread.ManagedThreadId}")
+      )
+      t.Start()
+
+      Console.WriteLine "Main thread completed"
+
+      return ()
     }

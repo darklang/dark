@@ -67,3 +67,4 @@ nuget Legivel = 0.4.6
 
 // Wasm
 nuget Microsoft.AspNetCore.Components.WebAssembly = 7.0.2
+nuget Microsoft.NET.WebAssembly.Threading = 7.0.0
