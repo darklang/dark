@@ -8,6 +8,17 @@ open ProgramTypes
 
 // Traverse is really only meant to be used by preTraversal and postTraversal
 let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
+
+  let traversePipeExpr (expr : PipeExpr) : PipeExpr =
+    match expr with
+    | EPipeFnCall (id, name, typeArgs, args) ->
+      EPipeFnCall(id, name, typeArgs, List.map f args)
+    | EPipeInfix (id, name, first) -> EPipeInfix(id, name, f first)
+    | EPipeLambda (id, vars, body) -> EPipeLambda(id, vars, f body)
+    | EPipeEnum (id, typeName, caseName, fields) ->
+      EPipeEnum(id, typeName, caseName, List.map f fields)
+    | EPipeVariable (id, name) -> EPipeVariable(id, name)
+
   match expr with
   | EInt _
   | EBool _
@@ -15,13 +26,13 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EChar _
   | EUnit _
   | EVariable _
-  | EPipeTarget _
   | EFloat _ -> expr
   | ELet (id, pat, rhs, next) -> ELet(id, pat, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
-  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
+  | EPipe (id, expr1, expr2, exprs) ->
+    EPipe(id, f expr1, traversePipeExpr expr2, List.map traversePipeExpr exprs)
   | EFnCall (id, name, typeArgs, exprs) ->
     EFnCall(id, name, typeArgs, List.map f exprs)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)
@@ -38,6 +49,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
 
 let rec preTraversal
   (exprFn : Expr -> Expr)
+  (exprPipeFn : PipeExpr -> PipeExpr)
   (typeRefFn : TypeReference -> TypeReference)
   (fqtnFn : FQTypeName.T -> FQTypeName.T)
   (letPatternFn : LetPattern -> LetPattern)
@@ -89,7 +101,18 @@ let rec preTraversal
     | THttpResponse tr -> THttpResponse(f tr)
     | TFn (trs, tr) -> TFn(List.map f trs, f tr)
 
-  let f = preTraversal exprFn typeRefFn fqtnFn letPatternFn matchPatternFn
+  let f = preTraversal exprFn exprPipeFn typeRefFn fqtnFn letPatternFn matchPatternFn
+
+  let rec preTraversalPipeExpr (expr : PipeExpr) : PipeExpr =
+    match exprPipeFn expr with
+    | EPipeFnCall (id, name, typeArgs, args) ->
+      EPipeFnCall(id, name, List.map preTraversalTypeRef typeArgs, List.map f args)
+    | EPipeInfix (id, name, first) -> EPipeInfix(id, name, f first)
+    | EPipeLambda (id, vars, body) -> EPipeLambda(id, vars, f body)
+    | EPipeEnum (id, typeName, caseName, fields) ->
+      EPipeEnum(id, typeName, caseName, List.map f fields)
+    | EPipeVariable (id, name) -> EPipeVariable(id, name)
+
   match exprFn expr with
   | EInt _
   | EBool _
@@ -97,15 +120,20 @@ let rec preTraversal
   | EChar _
   | EUnit _
   | EVariable _
-  | EPipeTarget _
   | EFloat _ -> expr
   | ELet (id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
-  | EPipe (id, expr1, expr2, exprs) -> EPipe(id, f expr1, f expr2, List.map f exprs)
-  | EFnCall (id, name, typeArgs, exprs) ->
-    EFnCall(id, name, List.map preTraversalTypeRef typeArgs, List.map f exprs)
+  | EPipe (id, expr1, expr2, exprs) ->
+    EPipe(
+      id,
+      f expr1,
+      preTraversalPipeExpr expr2,
+      List.map preTraversalPipeExpr exprs
+    )
+  | EFnCall (id, name, typeArgs, args) ->
+    EFnCall(id, name, List.map preTraversalTypeRef typeArgs, List.map f args)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)
   | EList (id, exprs) -> EList(id, List.map f exprs)
   | EDict (id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)

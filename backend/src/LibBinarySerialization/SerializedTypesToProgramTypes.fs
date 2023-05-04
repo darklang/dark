@@ -172,7 +172,7 @@ module Expr =
         List.map (Tuple2.mapSecond toPT) fields
       )
     | ST.EPipe (pipeID, expr1, expr2, rest) ->
-      PT.EPipe(pipeID, toPT expr1, toPT expr2, List.map toPT rest)
+      PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
     | ST.EEnum (id, typeName, caseName, exprs) ->
       PT.EEnum(id, FQTypeName.toPT typeName, caseName, List.map toPT exprs)
     | ST.EMatch (id, mexpr, pairs) ->
@@ -181,7 +181,6 @@ module Expr =
         toPT mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toPT << Tuple2.mapSecond toPT) pairs
       )
-    | ST.EPipeTarget id -> PT.EPipeTarget id
     | ST.EInfix (id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict (id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
@@ -191,6 +190,21 @@ module Expr =
     | ST.StringText text -> PT.StringText text
     | ST.StringInterpolation expr -> PT.StringInterpolation(toPT expr)
 
+  and pipeExprToPT (pipeExpr : ST.PipeExpr) : PT.PipeExpr =
+    match pipeExpr with
+    | ST.EPipeVariable (id, name) -> PT.EPipeVariable(id, name)
+    | ST.EPipeLambda (id, args, body) -> PT.EPipeLambda(id, args, toPT body)
+    | ST.EPipeInfix (id, infix, first) ->
+      PT.EPipeInfix(id, Infix.toPT infix, toPT first)
+    | ST.EPipeFnCall (id, fnName, typeArgs, args) ->
+      PT.EPipeFnCall(
+        id,
+        FQFnName.toPT fnName,
+        List.map TypeReference.toPT typeArgs,
+        List.map toPT args
+      )
+    | ST.EPipeEnum (id, typeName, caseName, fields) ->
+      PT.EPipeEnum(id, FQTypeName.toPT typeName, caseName, List.map toPT fields)
 
 module CustomType =
   module EnumField =

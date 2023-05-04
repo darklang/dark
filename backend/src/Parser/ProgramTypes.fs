@@ -13,10 +13,15 @@ open Utils
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = PT.EString(12345678UL, [ PT.StringText "PLACEHOLDER VALUE" ])
+let pipePlaceholder = PT.EPipeVariable(12345678UL, "PIPE PLACEHOLDER VALUE")
 
 // This is a "Partial active pattern" that you can use as a Pattern to match a Placeholder value
 let (|Placeholder|_|) (input : PT.Expr) =
   if input = placeholder then Some() else None
+
+let (|PipePlaceholder|_|) (input : PT.PipeExpr) =
+  if input = pipePlaceholder then Some() else None
+
 
 module TypeReference =
 
@@ -259,16 +264,23 @@ module Expr =
       | SynSimplePat.Id (name, _, _, _, _, _) -> nameOrBlank name.idText
       | _ -> Exception.raiseInternal "unsupported lambdaVar" [ "var", var ]
 
-    // Add a pipetarget after creating it
-    let cPlusPipeTarget (e : SynExpr) : PT.Expr =
+    let synToPipeExpr (e : SynExpr) : PT.PipeExpr =
       match c e with
       | PT.EFnCall (id, name, typeArgs, args) ->
-        PT.EFnCall(id, name, typeArgs, PT.EPipeTarget(gid ()) :: args)
-      | PT.EInfix (id, op, Placeholder, arg2) ->
-        PT.EInfix(id, op, PT.EPipeTarget(gid ()), arg2)
-      | PT.EInfix (id, op, arg1, Placeholder) ->
-        PT.EInfix(id, op, PT.EPipeTarget(gid ()), arg1)
-      | other -> other
+        PT.EPipeFnCall(id, name, typeArgs, args)
+      | PT.EInfix (id, op, Placeholder, arg2) -> PT.EPipeInfix(id, op, arg2)
+      | PT.EInfix (id, op, arg1, Placeholder) -> PT.EPipeInfix(id, op, arg1)
+      | PT.EEnum (id, typeName, caseName, fields) ->
+        PT.EPipeEnum(id, typeName, caseName, fields)
+      | PT.EVariable (id, name) -> PT.EPipeVariable(id, name)
+      | PT.EEnum (id, typeName, caseName, fields) ->
+        PT.EPipeEnum(id, typeName, caseName, fields)
+      | PT.ELambda (id, vars, body) -> PT.EPipeLambda(id, vars, body)
+      | other ->
+        Exception.raiseInternal
+          "Expected a function, got something else."
+          [ "expr", other ]
+
 
     let id = gid ()
 
@@ -382,11 +394,15 @@ module Expr =
       PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     // Enum values (EEnums)
-    | SynExpr.Ident name when name.idText = "Nothing" ->
+    | SynExpr.Ident name when List.contains name.idText [ "Nothing"; "Just" ] ->
       let typeName =
         PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
       PT.EEnum(id, typeName, name.idText, [])
 
+    | SynExpr.Ident name when List.contains name.idText [ "Ok"; "Error" ] ->
+      let typeName =
+        PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
+      PT.EEnum(id, typeName, name.idText, [])
 
     // Package manager function calls
     // (preliminary support)
@@ -588,17 +604,18 @@ module Expr =
                    SynExpr.App (_, _, nestedPipes, arg, _),
                    _) when pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
-      | PT.EPipe (id, arg1, Placeholder, []) ->
+      | PT.EPipe (id, arg1, PipePlaceholder, []) ->
         // when we just built the lowest, the second one goes here
-        PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
+        PT.EPipe(id, arg1, synToPipeExpr arg, [])
       | PT.EPipe (id, arg1, arg2, rest) ->
-        PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+        PT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
       // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       | other ->
-        // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
-        // the very bottom on the pipe chain, this is the first and second expressions
-        PT.EPipe(id, other, cPlusPipeTarget arg, [])
+        Exception.raiseInternal
+          $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
+          [ "arg", arg ]
 
+    // the very bottom on the pipe chain, this is the first and second expressions
     | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _)
     | SynExpr.App (_,
                    _,
@@ -606,7 +623,7 @@ module Expr =
                    expr,
                    _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
-      PT.EPipe(id, c expr, placeholder, [])
+      PT.EPipe(id, c expr, pipePlaceholder, [])
 
     // e.g. MyMod.MyRecord
     | SynExpr.App (_,
@@ -659,11 +676,11 @@ module Expr =
       | PT.EInfix (id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
       | PT.EInfix (id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
       // A pipe with one entry
-      | PT.EPipe (id, arg1, Placeholder, []) ->
-        PT.EPipe(id, arg1, cPlusPipeTarget arg, [])
+      | PT.EPipe (id, arg1, PipePlaceholder, []) ->
+        PT.EPipe(id, arg1, synToPipeExpr arg, [])
       // A pipe with more than one entry
       | PT.EPipe (id, arg1, arg2, rest) ->
-        PT.EPipe(id, arg1, arg2, rest @ [ cPlusPipeTarget arg ])
+        PT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
       | PT.EVariable (id, name) ->
         // TODO: this could be an Enum too
         let (name, version) =
@@ -711,6 +728,7 @@ module Expr =
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (e : PT.Expr)
     : PT.Expr =
+
     let fnNameFor modules function_ version =
       let userName : PT.FQFnName.UserFnName =
         { modules = modules; function_ = function_; version = version }
@@ -737,26 +755,29 @@ module Expr =
     let fixupExpr =
       (fun e ->
         match e with
-        // pipes with variables might be fn calls
-        | PT.EPipe (id, expr, pipeExpr, pipeExprs) ->
-          let fix =
-            (fun e ->
-              match e with
-              | PT.EVariable (id, name) ->
-                match parseFn name with
-                | Some (name, version) ->
-                  match fnNameFor [] name version with
-                  | Some name ->
-                    PT.EFnCall(id, name, [], [ PT.Expr.EPipeTarget(gid ()) ])
-                  | None -> e
-                | None -> e
-              | e -> e)
-          PT.EPipe(id, expr, fix pipeExpr, List.map fix pipeExprs)
         | PT.EFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
           match fnNameFor name.modules name.function_ name.version with
           | Some name -> PT.EFnCall(id, name, typeArgs, args)
           | None -> e
         | _ -> e)
+
+    let fixupPipeExpr =
+      (fun e ->
+        match e with
+        | PT.EPipeFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
+          match fnNameFor name.modules name.function_ name.version with
+          | Some name -> PT.EPipeFnCall(id, name, typeArgs, args)
+          | None -> e
+        // pipes with variables might be fn calls
+        | PT.EPipeVariable (id, name) ->
+          match parseFn name with
+          | Some (name, version) ->
+            match fnNameFor [] name version with
+            | Some name -> PT.EPipeFnCall(id, name, [], [])
+            | None -> e
+          | None -> e
+        | _ -> e)
+
     let fixupTypeName =
       (fun t ->
         match t with
@@ -765,6 +786,7 @@ module Expr =
 
     LibExecution.ProgramTypesAst.preTraversal
       fixupExpr
+      fixupPipeExpr
       identity
       fixupTypeName
       identity
