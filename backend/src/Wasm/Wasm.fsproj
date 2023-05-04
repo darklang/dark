@@ -29,7 +29,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="WasmHelpers.fs" />
-    <Compile Include="Eval.fs" />
     <Compile Include="Libs/WASM.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="DarkEditor.fs" />
