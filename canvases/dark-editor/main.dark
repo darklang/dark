@@ -92,10 +92,11 @@ let _handler _req =
     let prompt = request.body |> String.fromBytes
     let serialized =
       (OpenAICompletionRequest
-      { model= "text-davinci-003"
-        max_tokens=700
-        temperature= 0.7
-        prompt= prompt})
+        { model = "text-davinci-003"
+          max_tokens = 700
+          temperature = 0.7
+          prompt = prompt }
+      )
       |> Json.serialize<OpenAICompletionRequest>
     match serialized with
     | Ok r -> r |> String.toBytes
