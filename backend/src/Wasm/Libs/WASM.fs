@@ -249,7 +249,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "WASM" "requestFromWasm" 0
+    { name = fn' ["WASM"; "HttpClient"]  "requestFromWasm" 0
       typeParams = []
       parameters =
         [ Param.make "method" TString ""
