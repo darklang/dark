@@ -114,10 +114,11 @@ const executeCode = async(index: number) =>{
           );
         }
         const exprJson = await response.text();
-        const result = await window.darklang.evalExpr(exprJson);
 
-        // TODO: Hi Ocean - please handle this however you'd like
-        window.handleDarkResult(result);
+        // TODO: Hi Ocean - sorry, this is currently broken.
+        // I promise to follow up here soon and fix it. -Stachu
+        //const result = await window.darklang.evalExpr(exprJson);
+        //window.handleDarkResult(result);
       } catch (error) {
         console.error("Error:", error);
       }
