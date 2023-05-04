@@ -23,14 +23,15 @@ const Darklang = {
 
     // return object to expose as 'darklang'
     return {
-      evalExpr: async function(serializedExpr) {
-        return await DotNet.invokeMethodAsync("Wasm", "EvalExpr", serializedExpr);
+      loadClient: async function(url) {
+        return await DotNet.invokeMethodAsync("Wasm", "LoadClient", url);
       },
-      evalExprAndReturnResult: async function(serializedExpr) {
-        return await DotNet.invokeMethodAsync("Wasm", "EvalExprAndReturnResult", serializedExpr);
+      handleEvent: async function(event) {
+        return await DotNet.invokeMethodAsync("Wasm", "HandleEvent", JSON.stringify(event));
       },
-      loadProgram: async function(types, fns, stateType, initialState) {
-        return await DotNet.invokeMethodAsync("Wasm", "LoadProgram", types, fns, stateType, initialState);
+      // just for debugging purposes
+      exportClient: async function() {
+        return await DotNet.invokeMethodAsync("Wasm", "ExportClient");
       }
     };
   }

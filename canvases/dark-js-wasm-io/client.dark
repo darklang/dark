@@ -1,0 +1,48 @@
+type RawEvent =
+  { eventName: String
+    data: String }
+
+type Event =
+  | Increment
+  | Decrement
+  | Set of Int
+
+let parseEvent (rawEvent: RawEvent): Result<Event, String> =
+  match rawEvent.eventName with
+  | "increment" -> Ok Event.Increment
+  | "decrement" -> Ok Event.Decrement
+  | "reset" -> Ok Event.Reset
+  | "setCounter" ->
+    match Json.parse<Int> rawEvent.data with
+    | Ok i -> Ok (Event.Set i)
+    | Error err -> Error "Couldn't parse new counter value"
+  | _ -> Error "Couldn't parse event name"
+
+let handleEvent (evt: String): Result<Unit, String> =
+  match Json.parse<RawEvent> evt with
+  | Ok rawEvent ->
+    match parseEvent rawEvent with
+    | Ok evt ->
+      match WASM.getState<Int> with
+      | Ok currentState ->
+        let newState =
+          match evt with
+          | Increment -> currentState + 1
+          | Decrement -> currentState - 1
+          | Set i -> i
+
+        // returns result, but let's assume it worked...
+        let _ = WASM.setState<Int> newState
+
+        match Json.serialize<Int> newState with
+        | Ok serialized ->
+          WASM.callJSFunction "window.stateUpdated" [serialized]
+        | Error err -> Error "Couldn't serialize state"
+      | Error err -> Error "Couldn't get state"
+    | Error err -> Error "Couldn't parse event from raw event"
+  | Error err -> Error "Couldn't parse raw event"
+
+
+// exprs are run in order,
+// and the initial state is set to the result of the last expression
+0

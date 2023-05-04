@@ -10,9 +10,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module CAT = LibAnalysis.ClientAnalysisTypes
 module Exe = LibExecution.Execution
 
@@ -198,61 +196,17 @@ let types : List<BuiltInType> =
 let debug args = WasmHelpers.callJSFunction "console.log" args
 
 
-let justStrings args =
-  args
-  |> List.fold (Ok []) (fun agg item ->
-    match agg, item with
-    | (Error err, _) -> Error err
-    | (Ok l, DString arg) -> Ok(arg :: l)
-    | (_, notAString) ->
-      // this should be a DError, not a "normal" error
-      $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
-      |> Error)
-  |> Result.map (fun pairs -> List.rev pairs)
-
-type Program =
-  { UserTypes : List<PT.UserType.T>
-    UserFunctions : List<PT.UserFunction.T>
-    StateType : RT.TypeReference
+type Editor =
+  { Types : List<UserType.T>
+    Functions : List<UserFunction.T>
     CurrentState : Dval }
 
-let mutable program : Program =
-  { UserTypes = []; UserFunctions = []; StateType = TUnit; CurrentState = DUnit }
+// this is editor.dark, loaded and live, along with some current state
+let mutable editor : Editor = { Types = []; Functions = []; CurrentState = DUnit }
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "WASM" "callJSFunction" 0
-      typeParams = []
-      parameters =
-        [ Param.make "functionName" TString ""
-          Param.make "args" (TList TString) "" ]
-      returnType = TResult(TUnit, TString)
-      description = "Calls a globally-accessible JS function with the given args"
-      fn =
-        (function
-        | _, _, [ DString functionName; DList args ] ->
-          match justStrings args with
-          | Ok args ->
-            uply {
-              try
-                do WasmHelpers.callJSFunction functionName args
-                return DResult(Ok DUnit)
-              with
-              | e ->
-                return
-                  $"Error calling {functionName} with provided args: {e.Message}"
-                  |> DString
-                  |> Error
-                  |> DResult
-            }
-          | Error err -> Ply(DResult(Error(DString err)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "WASM" "getState" 0
+  [ { name = fn "WASM" "getState" 0
       typeParams = [ "state" ]
       parameters = []
       returnType = TResult(TVariable "a", TString)
@@ -261,7 +215,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ _typeParam ], [] ->
           uply {
-            let state = program.CurrentState
+            let state = editor.CurrentState
             // TODO: assert that the type matches the given typeParam
             return DResult(Ok state)
           }
@@ -281,7 +235,7 @@ let fns : List<BuiltInFn> =
         | _, [ _typeParam ], [ v ] ->
           uply {
             // TODO: verify that the type matches the given typeParam
-            program <- { program with CurrentState = v }
+            editor <- { editor with CurrentState = v }
             return DResult(Ok DUnit)
           }
         | _ -> incorrectArgs ())
@@ -290,73 +244,43 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "WASM" "exportProgram" 0
-      typeParams = []
-      parameters = []
-      returnType = TString
-      description = "TODO"
-      fn =
-        (function
-        | _, [], [] -> Ply(DString(Json.Vanilla.serialize program))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "WASM" "callUserFunction" 0
+    { name = fn' [ "WASM" ] "callJSFunction" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
-
-          // todo: actual typeArgs, too?
-
-          Param.make "typesOfArgs" (TList(TVariable "")) ""
-          Param.make "args" (TList(TVariable "")) "" ]
+          Param.make "args" (TList TString) "" ]
       returnType = TResult(TUnit, TString)
-      description = ""
+      description = "Calls a globally-accessible JS function with the given args"
       fn =
         (function
-        | state, [], [ DString fnName; DList typesOfArgs; DList args ] ->
-          let state =
-            { state with
-                program =
-                  { state.program with
-                      userTypes =
-                        program.UserTypes
-                        |> List.map PT2RT.UserType.toRT
-                        |> List.map (fun ut -> ut.name, ut)
-                        |> Map
-                      userFns =
-                        program.UserFunctions
-                        |> List.map PT2RT.UserFunction.toRT
-                        |> List.map (fun uf -> uf.name, uf)
-                        |> Map } }
+        | _, _, [ DString functionName; DList args ] ->
+          let args =
+            args
+            |> List.fold (Ok []) (fun agg item ->
+              match agg, item with
+              | (Error err, _) -> Error err
+              | (Ok l, DString arg) -> Ok(arg :: l)
+              | (_, notAString) ->
+                // this should be a DError, not a "normal" error
+                $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
+                |> Error)
+            |> Result.map (fun pairs -> List.rev pairs)
 
-          let availableTypes = ExecutionState.availableTypes state
-
-          match justStrings typesOfArgs, justStrings args with
-          | Ok typesOfArgs, Ok args ->
-            let typesOfArgs =
-              typesOfArgs |> List.map Json.Vanilla.deserialize<RT.TypeReference>
-
-            let args =
-              List.zip typesOfArgs args
-              |> List.map (fun (t, a) ->
-                (t, StdLibExecution.Libs.Json.parse availableTypes t a))
-              |> List.map snd
-              |> List.map Result.unwrap_unsafe
-
+          match args with
+          | Ok args ->
             uply {
-              let fnName =
-                FQFnName.User { modules = []; function_ = fnName; version = 0 }
-
-              let! result =
-                LibExecution.Interpreter.callFn state (gid ()) fnName [] args
-
-              return result
+              try
+                do WasmHelpers.callJSFunction functionName args
+                return DResult(Ok DUnit)
+              with
+              | e ->
+                return
+                  $"Error calling {functionName} with provided args: {e.Message}"
+                  |> DString
+                  |> Error
+                  |> DResult
             }
-          | _ -> Ply(DResult(Error(DString "TODO")))
+          | Error err -> Ply(DResult(Error(DString err)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

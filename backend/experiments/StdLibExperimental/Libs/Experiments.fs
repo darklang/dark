@@ -7,6 +7,8 @@ open Prelude
 open Tablecloth
 open LibExecution.RuntimeTypes
 
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+
 open LibExecution.StdLib.Shortcuts
 
 // This makes extra careful that we're only accessing files where we expect to
@@ -139,20 +141,26 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Experiments" "parseAndSerializeTypesAndFns" 0
+    { name = fn "Experiments" "parseAndSerializeProgram" 0
       typeParams = []
       parameters = [ Param.make "code" TString "" ]
       returnType = TResult(TDict TString, TString)
-      description = "Parses Dark code and serializes the result to JSON."
+      description =
+        "Parses Dark code and serializes the result to JSON. Expects only types, fns, and exprs."
       fn =
         function
         | _, _, [ DString code ] ->
           uply {
             let canvas = Parser.CanvasV2.parse code
 
+            let types = List.map PT2RT.UserType.toRT canvas.types
+            let fns = List.map PT2RT.UserFunction.toRT canvas.fns
+            let exprs = List.map PT2RT.Expr.toRT canvas.exprs
+
             return
-              [ "types", DString(Json.Vanilla.serialize canvas.types)
-                "fns", DString(Json.Vanilla.serialize canvas.fns) ]
+              [ "types", DString(Json.Vanilla.serialize types)
+                "fns", DString(Json.Vanilla.serialize fns)
+                "exprs", DString(Json.Vanilla.serialize exprs) ]
               |> Map.ofList
               |> DDict
               |> Ok
@@ -162,6 +170,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
 
     { name = fn "Experiments" "readFromStaticDir" 0
       typeParams = []

@@ -70,8 +70,7 @@ let _handler _req =
 
             const exprJson = await response.text();
             const result = await darklang.evalExprAndReturnResult(exprJson);
-            // Note: we could use this result from here and update the UI,
-            // rather than rely on code to call up on the exposed `setOutput` fn.
+            setOutput(result);
           } catch (error) {
             setOutput("Error" + error);
             console.error("Error:", error);

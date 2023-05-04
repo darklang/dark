@@ -8,80 +8,108 @@ open Microsoft.JSInterop
 open Prelude
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
-module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+open LibExecution.RuntimeTypes
 
+
+type EditorSource =
+  { types : List<UserType.T>
+    fns : List<UserFunction.T>
+    exprs : List<Expr> }
 
 type DarkEditor() =
+  static let debug arg = WasmHelpers.callJSFunction "console.log" [ arg ]
 
-  static let debug args = WasmHelpers.callJSFunction "console.log" args
+  static let getState types fns =
+    let packageFns = Map.empty // TODO
 
-  static let stdlib =
-    LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents; LibWASM.contents ]
-      []
-      []
+    let libraries : Libraries =
+      let stdlibFns, stdlibTypes =
+        LibExecution.StdLib.combine
+          [ StdLibExecution.StdLib.contents; LibWASM.contents ]
+          []
+          []
+
+      { stdlibTypes =
+          stdlibTypes |> List.map (fun typ -> FQTypeName.Stdlib typ.name, typ) |> Map
+
+        stdlibFns =
+          stdlibFns |> List.map (fun fn -> FQFnName.Stdlib fn.name, fn) |> Map
+
+        packageFns = packageFns }
+
+    let program : ProgramContext =
+      { canvasID = CanvasID.Empty
+        internalFnsAllowed = true
+        dbs = Map.empty
+        userFns = Map.fromListBy (fun fn -> fn.name) fns
+        userTypes = Map.fromListBy (fun typ -> typ.name) types
+        secrets = List.empty }
+
+    { libraries = libraries
+      tracing = LibExecution.Execution.noTracing Real
+      program = program
+      test = LibExecution.Execution.noTestContext
+      reportException = consoleReporter
+      notify = consoleNotifier
+      tlid = gid ()
+      callstack = Set.empty
+      onExecutionPath = true
+      executingFnName = None }
 
 
   [<JSInvokable>]
-  static member LoadProgram
-    (
-      serializedTypes : string,
-      serializedFns : string,
-      stateType : string,
-      serializedInitialState : string
-    ) : Task<unit> =
+  static member LoadClient(urlOfCode : string) : Task<string> =
     task {
-      let types = Json.Vanilla.deserialize<List<PT.UserType.T>> serializedTypes
+      let httpClient = new System.Net.Http.HttpClient()
+      let! response = httpClient.GetAsync urlOfCode |> Async.AwaitTask
+      let! loadedFromEndpoint =
+        response.Content.ReadAsStringAsync() |> Async.AwaitTask
 
-      let fns = Json.Vanilla.deserialize<List<PT.UserFunction.T>> serializedFns
+      let source = Json.Vanilla.deserialize<EditorSource> loadedFromEndpoint
 
-      let stateType = Json.Vanilla.deserialize<RT.TypeReference> stateType
+      let! (_, initialState) =
+        source.exprs
+        |> Task.foldSequentially
+             (fun (state, _lastResult) expr ->
+               task {
+                 let inputVars = Map.empty
 
-      let initialState =
-        let availableTypes =
-          types
-          |> List.map PT2RT.UserType.toRT
-          |> List.map (fun typ -> (RT.FQTypeName.User typ.name, typ.definition))
-          |> Map
+                 let! (result : Dval) =
+                   LibExecution.Execution.executeExpr state inputVars expr
 
-        StdLibExecution.Libs.Json.parse
-          availableTypes
-          stateType
-          serializedInitialState
-        |> Result.unwrap_unsafe
+                 // do I actually need to pass state around so much below?
+                 // if so, do I need to update anything int he state?
+                 // (anything affected by this execution?)
+                 return state, result
+               })
+             (getState source.types source.fns, DUnit)
 
-      // TODO: ensure initialState matches the type provided in typeParams
+      debug (LibExecution.DvalReprDeveloper.toRepr initialState)
 
-      LibWASM.program <-
-        { UserTypes = types
-          UserFunctions = fns
-          StateType = stateType
-          CurrentState = initialState }
+      LibWASM.editor <-
+        { Types = source.types; Functions = source.fns; CurrentState = initialState }
 
-      return ()
+      return Json.Vanilla.serialize initialState
     }
 
 
   [<JSInvokable>]
-  static member EvalExpr(exprJSON : string) : Task<string> =
-    task {
-      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
-      let! evalResult = Eval.simpleEval stdlib [] [] (PT2RT.Expr.toRT expr)
-      let result = LibExecution.DvalReprDeveloper.toRepr evalResult
-      return result
+  static member HandleEvent(serializedEvent : string) : Ply<string> =
+    uply {
+      let state = getState LibWASM.editor.Types LibWASM.editor.Functions
+
+      let! result =
+        LibExecution.Interpreter.callFn
+          state
+          (gid ())
+          (FQFnName.User { modules = []; function_ = "handleEvent"; version = 0 })
+          []
+          [ DString serializedEvent ]
+
+      return LibExecution.DvalReprDeveloper.toRepr result
     }
 
 
-  // It's just like EvalExpr, but you don't have to explicitly call WASM.callJSFunction with the results
-  // (TODO: maybe this should be deprecated)
+  // just for debugging
   [<JSInvokable>]
-  static member EvalExprAndReturnResult(exprJSON : string) : Task<string> =
-    task {
-      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
-      let! evalResult = Eval.simpleEval stdlib [] [] (PT2RT.Expr.toRT expr)
-      let result = LibExecution.DvalReprDeveloper.toRepr evalResult
-      WasmHelpers.callJSFunction "handleDarkResult" [ result ]
-      return result
-    }
+  static member ExportClient() : string = Json.Vanilla.serialize LibWASM.editor
