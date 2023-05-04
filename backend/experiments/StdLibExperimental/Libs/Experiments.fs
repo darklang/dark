@@ -139,6 +139,30 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "Experiments" "parseAndSerializeTypesAndFns" 0
+      typeParams = []
+      parameters = [ Param.make "code" TString "" ]
+      returnType = TResult(TDict TString, TString)
+      description = "Parses Dark code and serializes the result to JSON."
+      fn =
+        function
+        | _, _, [ DString code ] ->
+          uply {
+            let canvas = Parser.CanvasV2.parse code
+
+            return
+              [ "types", DString(Json.Vanilla.serialize canvas.types)
+                "fns", DString(Json.Vanilla.serialize canvas.fns) ]
+              |> Map.ofList
+              |> DDict
+              |> Ok
+              |> DResult
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
     { name = fn "Experiments" "readFromStaticDir" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
