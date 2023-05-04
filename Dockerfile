@@ -423,8 +423,11 @@ ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 #############
 RUN git clone https://github.com/emscripten-core/emsdk.git \
   && cd emsdk \
-  && ./emsdk install 3.1.37 \
-  && ./emsdk activate 3.1.37
+  # TODO pin to a recent stable version (i.e. 3.1.37)
+  # we are using the latest version because Linux arm64 binaries aren't available in all releases.
+  # see: https://github.com/emscripten-core/emscripten/issues/19275
+  && ./emsdk install latest \
+  && ./emsdk activate latest
 ENV PATH "$PATH:/home/dark/emsdk/upstream/emscripten"
 
 #############
