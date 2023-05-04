@@ -1,0 +1,186 @@
+[<HttpHandler("POST", "/get-expr-json")>]
+let _handler _req =
+  let requestCode = String.fromBytes request.body
+  let exprJson = Experiments.parseAndSerializeExpr requestCode
+
+  match exprJson with
+  | Ok exprJson -> Http.response (String.toBytes exprJson) 200
+  | Error err -> Http.response (String.toBytes err) 500
+
+
+[<HttpHandler("GET", "/wasm.dark")>]
+let _handler _req =
+  match Experiments.readFromCanvases "dark-js-wasm-io/wasm.dark" with
+  | Ok sourceInBytes ->
+    let source = String.fromBytes sourceInBytes
+
+    // this is a record containing 'types' and fns'
+    // we want to return ... JSON? that record?
+    let program = Experiments.parseAndSerializeTypesAndFns source
+
+    match program with
+    | Ok program ->
+      let types = Option.withDefault (Dict.get_v2 program "types") "null"
+      let fns = Option.withDefault (Dict.get_v2 program "fns") "null"
+
+      let json = "{ \"types\": " ++ types ++ ", \"fns\": " ++ fns ++ "}"
+
+      Http.responseWithHeaders
+        (String.toBytes json)
+        (Dict.fromListOverwritingDuplicates [ ("content-type","application-json")])
+        200
+
+    | Error err -> Http.response (String.toBytes "couldn't parse the program") 500
+  | Error _err -> Http.response (String.toBytes "Couldn't load wasm.dark") 500
+
+
+[<HttpHandler("GET", "/")>]
+let _handler _req =
+  let body =
+    """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WASM <--> JS Counter App</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+</head>
+
+<body>
+  <div id="app" class="container">
+    <section class="section">
+      <div class="level">
+        <div class="level-item">
+          <div>
+            <p class="title">{{ counter }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="level">
+        <div class="level-item">
+          <div>
+            <button class="button is-primary" @click="eventHappened({ eventName: 'increment', data: '' })">Increment</button>
+            <button class="button is-danger" @click="eventHappened({ eventName: 'decrement', data: '' })">Decrement</button>
+          </div>
+        </div>
+      </div>
+      <div class="level">
+        <div class="level-item">
+          <div>
+            <input class="input" type="number" v-model.number="newCounterValue">
+            <button class="button is-info"
+              @click="eventHappened({ eventName: 'setCounter', data: JSON.stringify(newCounterValue) })">Set
+              Counter</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="http://dark-serve-static.dlio.localhost:11003/darklang-wasm.js"></script>
+  <script>
+    async function getWasmDark() {
+      try {
+        const response = await fetch("/wasm.dark", { method: "GET" });
+
+        if (!response.ok) {
+          throw new Error("Error in parsing the expr and serializing it as JSON");
+        }
+
+        const programJson = await response.text();
+        return programJson;
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    }
+
+    // TODO: can/should we put this in darklang.js?
+    // there's a lot of JSON.stringify noise below...
+    async function getExprJson(exprText) {
+      try {
+        const response = await fetch("/get-expr-json", {
+          method: "POST",
+          body: exprText
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log(exprText);
+          throw new Error("^Error in parsing the expr and serializing it as JSON" + errorText);
+        }
+
+        const exprJson = await response.json();
+        return exprJson;
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    }
+    async function parseAndEval(darklang, exprText) {
+      const exprJson = await getExprJson(exprText);
+      const result = await darklang.evalExpr(JSON.stringify(exprJson));
+      return result;
+    }
+
+    (async () => {
+      const darklang = await Darklang.init();
+
+      // load the types and fns from `wasm.dark` into the WASM runtime
+      const wasmDarkProgramJsonSerialized = await getWasmDark();
+      const wasmDarkProgram = JSON.parse(wasmDarkProgramJsonSerialized);
+      await darklang.loadProgram(
+        JSON.stringify(wasmDarkProgram.types),
+        JSON.stringify(wasmDarkProgram.fns),
+        `["TInt"]`,
+        "0"
+      );
+
+      // verify that the import went OK
+      //const export = await parseAndEval(darklang, `WASM.exportProgram`);
+      //console.log('export', export);
+
+      // the below should just be
+      // darklang.callUserFunction("init", ["TUnit"], ["null"]);
+
+      // call the `init()` fn defined in `wasm.dark`
+      const typeOfArg = JSON.stringify(JSON.stringify(["TUnit"]));
+      const arg = `"null"`;
+      const _initEvalResult = await parseAndEval(darklang, `WASM.callUserFunction "init" [${typeOfArg}] [${arg}]`);
+
+      const app = new Vue({
+        el: '#app',
+        data: {
+          counter: 0,
+          newCounterValue: 0,
+        },
+        methods: {
+          // handle state updated by WASM
+          updateState(newState) {
+            this.counter = newState;
+          },
+
+          // something happened in the UI - tell the WASM'd Dark program!
+          async eventHappened(event) {
+            const typeOfArg =
+              JSON.stringify(
+                JSON.stringify(
+                  [ "TCustomType", [ "User", { "modules": [], "typ": "RawEvent", "version": 0 } ], []]
+                )
+              );
+            const arg = JSON.stringify(JSON.stringify(event));
+            const _handleEventResult = await parseAndEval(darklang, `WASM.callUserFunction "handleEvent" [${typeOfArg}] [${arg}]`);
+          },
+        },
+        mounted() {
+          window.stateUpdated = (newState) => {
+            this.updateState(JSON.parse(newState));
+          };
+        },
+      });
+    })();
+  </script>
+</body>
+</html>
+  """
+
+  Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
