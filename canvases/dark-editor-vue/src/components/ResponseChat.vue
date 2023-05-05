@@ -101,30 +101,26 @@ const props = defineProps({
   },
 })
 
-const executeCode = async(index: number) =>{
+const executeCode = async(index: number) => {
   let code: string = (document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement).value;
-      try {
-        const response = await fetch("/get-expr-json", {
-          method: "POST",
-          body: code,
-        });
-        if (!response.ok) {
-          throw new Error(
-            "Error in parsing the expr and serializing it as JSON"
-          );
-        }
-        const exprJson = await response.text();
 
-        // TODO: Hi Ocean - sorry, this is currently broken.
-        // I promise to follow up here soon and fix it. -Stachu
-        //const result = await window.darklang.evalExpr(exprJson);
-        //window.handleDarkResult(result);
-      } catch (error) {
-        console.error("Error:", error);
-      }
+  try {
+    const response = await fetch("/get-expr-json", {
+      method: "POST",
+      body: code,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        "Error in parsing the expr and serializing it as JSON"
+      );
     }
-    const exprJson = await response.text()
-    window.darklang.evalExprAndReturnResult(exprJson)
+
+    const exprJson = await response.text();
+    
+    const result = await window.darklang.evalExpr(exprJson);
+
+    console.log(result); // TODO: something better than console.log
   } catch (error) {
     console.error('Error:', error)
   }

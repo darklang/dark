@@ -17,9 +17,9 @@ type EditorSource =
     exprs : List<Expr> }
 
 type DarkEditor() =
-  static let debug arg = WasmHelpers.callJSFunction "console.log" [ arg ]
+  static let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 
-  static let getState types fns =
+  static let getState (types : List<UserType.T>) (fns : List<UserFunction.T>) =
     let packageFns = Map.empty // TODO
 
     let libraries : Libraries =
@@ -111,3 +111,14 @@ type DarkEditor() =
   // just for debugging
   [<JSInvokable>]
   static member ExportClient() : string = Json.Vanilla.serialize LibWASM.editor
+
+
+  // just for dark-repl
+  [<JSInvokable>]
+  static member EvalExpr(serializedExpr) : Task<string> =
+    uply {
+      let expr = Json.Vanilla.deserialize<Expr> serializedExpr
+      let! result = LibExecution.Interpreter.eval (getState [] []) Map.empty expr
+      return LibExecution.DvalReprDeveloper.toRepr result
+    }
+    |> Ply.toTask

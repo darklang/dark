@@ -481,7 +481,6 @@ let initSerializers () =
   //Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
   // other
-  Json.Vanilla.allow<PT.Expr> "Parsing with Experiments.parseAndExecuteExpr"
   Json.Vanilla.allow<RT.Expr> "Parsing with Experiments.parseAndSerializeProgram"
   Json.Vanilla.allow<List<RT.UserType.T>>
     "Parsing with Experiments.parseAndSerializeProgram"

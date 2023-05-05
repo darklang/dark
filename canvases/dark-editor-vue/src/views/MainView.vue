@@ -33,7 +33,7 @@ const systemPromptValue = ref('')
 const darklangJSScript: HTMLScriptElement = document.createElement('script')
 darklangJSScript.setAttribute(
   "src",
-  "http://dark-serve-static.dlio.localhost:11003/editor-bootstrap.js",
+  "http://dark-serve-static.dlio.localhost:11003/darklang-wasm.js",
 );
 darklangJSScript.setAttribute("defer", "");
 darklangJSScript.addEventListener("load", async () => {
