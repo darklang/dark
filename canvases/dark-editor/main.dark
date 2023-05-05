@@ -85,7 +85,7 @@ type OpenAICompletionRequest = {
 
 [<HttpHandler("POST", "/api/gpt4")>]
 let _handler _req =
-  let apiKey = "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"
+  let apiKey = OPENAI_API_KEY
 
   let reqBody =
     let prompt = request.body |> String.fromBytes
