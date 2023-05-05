@@ -19,7 +19,7 @@ let _handler _req =
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dark WASM demo</title>
     <style>
-      * { font-family: Courier New, sans-serif; font-size: 26px; }
+      * { font-family: Courier New, sans-serif; font-size: 26px; background-color: black; color: white }
       body, html { height: 100%; margin: 0 }
       .container  { display: flex; height: 100%; }
       .container div { flex: 1; padding: 10px; }
