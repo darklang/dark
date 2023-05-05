@@ -930,7 +930,7 @@ and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instan
 
 and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
-// Every part of a user's program
+/// Every part of a user's program
 and ProgramContext =
   { canvasID : CanvasID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
@@ -939,7 +939,7 @@ and ProgramContext =
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>
     secrets : List<Secret.T> }
 
-// Set of callbacks used to trace the interpreter
+/// Set of callbacks used to trace the interpreter, and other context needed to run code
 and Tracing =
   { traceDval : TraceDval
     traceTLID : TraceTLID

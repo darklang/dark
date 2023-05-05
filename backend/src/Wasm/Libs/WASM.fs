@@ -10,7 +10,8 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module CAT = LibAnalysis.ClientAnalysisTypes
 module Exe = LibExecution.Execution
 
 open System.IO
@@ -193,20 +194,64 @@ let types : List<BuiltInType> =
       description = "The response from a HTTP request"
       deprecated = NotDeprecated } ]
 
+let debug args = WasmHelpers.callJSFunction "console.log" args
+
+
+type Editor =
+  { Types : List<UserType.T>
+    Functions : List<UserFunction.T>
+    CurrentState : Dval }
+
+// this is editor.dark, loaded and live, along with some current state
+let mutable editor : Editor = { Types = []; Functions = []; CurrentState = DUnit }
+
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "WASM" "callJSFunction" 0
+  [ { name = fn "WASM" "getState" 0
+      typeParams = [ "state" ]
+      parameters = []
+      returnType = TResult(TVariable "a", TString)
+      description = "TODO"
+      fn =
+        (function
+        | _, [ _typeParam ], [] ->
+          uply {
+            let state = editor.CurrentState
+            // TODO: assert that the type matches the given typeParam
+            return DResult(Ok state)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "WASM" "setState" 0
+      typeParams = [ "a" ]
+      parameters = [ Param.make "state" (TVariable "a") "" ]
+      returnType = TResult(TUnit, TString)
+      description = "TODO"
+      fn =
+        (function
+        | _, [ _typeParam ], [ v ] ->
+          uply {
+            // TODO: verify that the type matches the given typeParam
+            editor <- { editor with CurrentState = v }
+            return DResult(Ok DUnit)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "WASM" "callJSFunction" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
-
-          // TODO: maybe instead of a `TList TString`,
-          // we require a `TList(TCustomType SimpleJSON)`,
-          // where `type SimpleJSON = | JNull | JBool | JList ...`
-          Param.make "serializedArgs" (TList TString) "" ]
+          Param.make "args" (TList TString) "" ]
       returnType = TResult(TUnit, TString)
-      description =
-        "Calls a function exposed in JS host, i.e. `console.log`, or a user-defined function globally available"
+      description = "Calls a globally-accessible JS function with the given args"
       fn =
         (function
         | _, _, [ DString functionName; DList args ] ->
@@ -215,13 +260,7 @@ let fns : List<BuiltInFn> =
             |> List.fold (Ok []) (fun agg item ->
               match agg, item with
               | (Error err, _) -> Error err
-              | (Ok l, DString arg) ->
-                // Should empty args be allowed?
-                if arg = "" then
-                  "Empty request header key provided" |> Error
-                else
-                  Ok(arg :: l)
-
+              | (Ok l, DString arg) -> Ok(arg :: l)
               | (_, notAString) ->
                 // this should be a DError, not a "normal" error
                 $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
@@ -242,7 +281,7 @@ let fns : List<BuiltInFn> =
                   |> Error
                   |> DResult
             }
-          | Error argsError -> Ply(DResult(Error(DString argsError)))
+          | Error err -> Ply(DResult(Error(DString err)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -101,20 +101,26 @@ const props = defineProps({
   },
 })
 
-const executeCode = async (index: number) => {
-  let code: string = (
-    document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement
-  ).value
+const executeCode = async(index: number) => {
+  let code: string = (document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement).value;
+
   try {
-    const response = await fetch('/get-expr-json', {
-      method: 'POST',
+    const response = await fetch("/get-expr-json", {
+      method: "POST",
       body: code,
-    })
+    });
+
     if (!response.ok) {
-      throw new Error('Error in parsing the expr and serializing it as JSON')
+      throw new Error(
+        "Error in parsing the expr and serializing it as JSON"
+      );
     }
-    const exprJson = await response.text()
-    window.darklang.evalExprAndReturnResult(exprJson)
+
+    const exprJson = await response.text();
+    
+    const result = await window.darklang.evalExpr(exprJson);
+
+    console.log(result); // TODO: something better than console.log
   } catch (error) {
     console.error('Error:', error)
   }
@@ -144,11 +150,6 @@ const responseVariables = matchResult
 variables.value.push(...responseVariables)
 
 const submitForm = () => {
-  console.log(variableValues.value)
-}
-// @ts-ignore
-window.handleDarkResult = (message) => {
-  console.log('handleDarkResult', message)
-  emits('message', message)
-}
+  console.log(variableValues.value);
+};
 </script>

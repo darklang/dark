@@ -7,6 +7,8 @@ open Prelude
 open Tablecloth
 open LibExecution.RuntimeTypes
 
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+
 open LibExecution.StdLib.Shortcuts
 
 // This makes extra careful that we're only accessing files where we expect to
@@ -75,49 +77,7 @@ module RestrictedFileIO =
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Experiments" "parseAndExecuteExpr" 0
-      typeParams = []
-      parameters =
-        [ Param.make "code" TString ""; Param.make "userInputs" (TDict TString) "" ]
-      returnType = TResult(TString, TString)
-      description =
-        "Parses and executes arbitrary Dark code in the context of the current canvas."
-      fn =
-        // I had these tests in internal.tests for a bit, but that test runner
-        // no longer has 'access' to the fn, so removed them. If we move them
-        // out of 'LibExperimentalStdLib' then we can add them back in.
-
-        //module ParseAndExecuteExpr =
-        //  Experiments.parseAndExecuteExpr "1 + 2" Dict.empty_v0 = Ok "3"
-        //  Experiments.parseAndExecuteExpr "a" { a = 3 } = Ok "3"
-        //  Experiments.parseAndExecuteExpr """let a = 3 in a + b""" { b = 2 } = Ok "5"
-        //  //Experiments.parseAndExecuteExpr """(HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Test.unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200
-
-        function
-        | state, _, [ DString code; DDict userInputs ] ->
-          uply {
-            // TODO: return an appropriate error if this fails
-            // CLEANUP: the parser won't work with user fns or types
-            let expr = Parser.ProgramTypes.parseRTExpr Set.empty Set.empty code
-
-            let symtable = LibExecution.Interpreter.withGlobals state userInputs
-
-            // TODO: return an appropriate error if this fails
-            let! evalResult = LibExecution.Interpreter.eval state symtable expr
-
-            return
-              LibExecution.DvalReprDeveloper.toRepr evalResult
-              |> DString
-              |> Ok
-              |> DResult
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Experiments" "parseAndSerializeExpr" 0
+  [ { name = fn "Experiments" "parseAndSerializeExpr" 0
       typeParams = []
       parameters = [ Param.make "code" TString "" ]
       returnType = TResult(TString, TString)
@@ -128,8 +88,40 @@ let fns : List<BuiltInFn> =
           uply {
             return
               Parser.ProgramTypes.parseIgnoringUser code
+              |> PT2RT.Expr.toRT
               |> Json.Vanilla.serialize
               |> DString
+              |> Ok
+              |> DResult
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "Experiments" "parseAndSerializeProgram" 0
+      typeParams = []
+      parameters = [ Param.make "code" TString "" ]
+      returnType = TResult(TDict TString, TString)
+      description =
+        "Parses Dark code and serializes the result to JSON. Expects only types, fns, and exprs."
+      fn =
+        function
+        | _, _, [ DString code ] ->
+          uply {
+            let canvas = Parser.CanvasV2.parse code
+
+            let types = List.map PT2RT.UserType.toRT canvas.types
+            let fns = List.map PT2RT.UserFunction.toRT canvas.fns
+            let exprs = List.map PT2RT.Expr.toRT canvas.exprs
+
+            return
+              [ "types", DString(Json.Vanilla.serialize types)
+                "fns", DString(Json.Vanilla.serialize fns)
+                "exprs", DString(Json.Vanilla.serialize exprs) ]
+              |> Map.ofList
+              |> DDict
               |> Ok
               |> DResult
           }

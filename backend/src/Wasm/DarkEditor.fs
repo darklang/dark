@@ -8,77 +8,117 @@ open Microsoft.JSInterop
 open Prelude
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
-module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module Exe = LibExecution.Execution
+open LibExecution.RuntimeTypes
 
+
+type EditorSource =
+  { types : List<UserType.T>
+    fns : List<UserFunction.T>
+    exprs : List<Expr> }
 
 type DarkEditor() =
-  // TODO: ideally, this functionality lives in LibAnalysis,
-  // but since we don't exactly know what's going to happen with
-  // this project, leaving it here as an annoyance feels useful.
-  static let simpleEval (expr : RT.Expr) : Task<RT.Dval> =
-    task {
-      let program : RT.ProgramContext =
-        { canvasID = System.Guid.NewGuid()
-          internalFnsAllowed = false
-          userFns = Map.empty
-          userTypes = Map.empty
-          dbs = Map.empty
-          secrets = [] }
+  static let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 
-      let (stdlibFns, stdlibTypes) =
+  static let getState (types : List<UserType.T>) (fns : List<UserFunction.T>) =
+    let packageFns = Map.empty // TODO
+
+    let libraries : Libraries =
+      let stdlibFns, stdlibTypes =
         LibExecution.StdLib.combine
           [ StdLibExecution.StdLib.contents; LibWASM.contents ]
           []
           []
 
-      let libraries : RT.Libraries =
-        { stdlibTypes =
-            stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-          stdlibFns =
-            stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
-          packageFns = Map.empty }
-      let results, traceDvalFn = Exe.traceDvals ()
-      let functionResults = []
+      { stdlibTypes =
+          stdlibTypes |> List.map (fun typ -> FQTypeName.Stdlib typ.name, typ) |> Map
 
-      let tracing =
-        { LibExecution.Execution.noTracing RT.Real with
-            traceDval = traceDvalFn
-            loadFnResult = LibAnalysis.Analysis.Eval.loadFromTrace functionResults }
+        stdlibFns =
+          stdlibFns |> List.map (fun fn -> FQFnName.Stdlib fn.name, fn) |> Map
 
-      let state =
-        Exe.createState
-          libraries
-          tracing
-          RT.consoleReporter
-          RT.consoleNotifier
+        packageFns = packageFns }
+
+    let program : ProgramContext =
+      { canvasID = CanvasID.Empty
+        internalFnsAllowed = true
+        dbs = Map.empty
+        userFns = Map.fromListBy (fun fn -> fn.name) fns
+        userTypes = Map.fromListBy (fun typ -> typ.name) types
+        secrets = List.empty }
+
+    { libraries = libraries
+      tracing = LibExecution.Execution.noTracing Real
+      program = program
+      test = LibExecution.Execution.noTestContext
+      reportException = consoleReporter
+      notify = consoleNotifier
+      tlid = gid ()
+      callstack = Set.empty
+      onExecutionPath = true
+      executingFnName = None }
+
+
+  [<JSInvokable>]
+  static member LoadClient(urlOfCode : string) : Task<string> =
+    task {
+      let httpClient = new System.Net.Http.HttpClient()
+      let! response = httpClient.GetAsync urlOfCode |> Async.AwaitTask
+      let! loadedFromEndpoint =
+        response.Content.ReadAsStringAsync() |> Async.AwaitTask
+
+      let source = Json.Vanilla.deserialize<EditorSource> loadedFromEndpoint
+
+      let! (_, initialState) =
+        source.exprs
+        |> Task.foldSequentially
+             (fun (state, _lastResult) expr ->
+               task {
+                 let inputVars = Map.empty
+
+                 let! (result : Dval) =
+                   LibExecution.Execution.executeExpr state inputVars expr
+
+                 // do I actually need to pass state around so much below?
+                 // if so, do I need to update anything int he state?
+                 // (anything affected by this execution?)
+                 return state, result
+               })
+             (getState source.types source.fns, DUnit)
+
+      LibWASM.editor <-
+        { Types = source.types; Functions = source.fns; CurrentState = initialState }
+
+      return Json.Vanilla.serialize initialState
+    }
+
+
+  [<JSInvokable>]
+  static member HandleEvent(serializedEvent : string) : Ply<string> =
+    uply {
+      let state = getState LibWASM.editor.Types LibWASM.editor.Functions
+
+      let! result =
+        LibExecution.Interpreter.callFn
+          state
           (gid ())
-          program
+          (FQFnName.User { modules = []; function_ = "handleEvent"; version = 0 })
+          []
+          [ DString serializedEvent ]
 
-      let inputVars = Map.empty
-      let! (result : RT.Dval) = Exe.executeExpr state inputVars expr
-      // TODO: use traces in `results`
-      return result
+      return LibExecution.DvalReprDeveloper.toRepr result
     }
 
-  [<JSInvokable("EvalExpr")>]
-  static member EvalExpr(exprJSON : string) : Task<unit> =
-    task {
-      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
-      let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
-      ()
-    }
 
-  // It's just like EvalExpr, but you don't have to explicitly call WASM.callJSFunction with the results
-  // (TODO: maybe this should be deprecated)
-  [<JSInvokable("EvalExprAndReturnResult")>]
-  static member EvalExprAndReturnResult(exprJSON : string) : Task<unit> =
-    task {
-      let expr = Json.Vanilla.deserialize<PT.Expr> exprJSON
-      let! evalResult = simpleEval (PT2RT.Expr.toRT expr)
-      let result = LibExecution.DvalReprDeveloper.toRepr evalResult
-      WasmHelpers.callJSFunction "handleDarkResult" [ result ]
-      ()
+  // just for debugging
+  [<JSInvokable>]
+  static member ExportClient() : string = Json.Vanilla.serialize LibWASM.editor
+
+
+  // just for dark-repl
+  [<JSInvokable>]
+  static member EvalExpr(serializedExpr) : Task<string> =
+    uply {
+      let expr = Json.Vanilla.deserialize<Expr> serializedExpr
+      let! result = LibExecution.Interpreter.eval (getState [] []) Map.empty expr
+      return LibExecution.DvalReprDeveloper.toRepr result
     }
+    |> Ply.toTask
