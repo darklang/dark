@@ -25,7 +25,7 @@ type DarkEditor() =
     let libraries : Libraries =
       let stdlibFns, stdlibTypes =
         LibExecution.StdLib.combine
-          [ StdLibExecution.StdLib.contents; LibWASM.contents ]
+          [ StdLibExecution.StdLib.contents; Libs.Editor.contents ]
           []
           []
 
@@ -84,7 +84,7 @@ type DarkEditor() =
                })
              (getState source.types source.fns, DUnit)
 
-      LibWASM.editor <-
+      Libs.Editor.editor <-
         { Types = source.types; Functions = source.fns; CurrentState = initialState }
 
       return Json.Vanilla.serialize initialState
@@ -94,7 +94,7 @@ type DarkEditor() =
   [<JSInvokable>]
   static member HandleEvent(serializedEvent : string) : Ply<string> =
     uply {
-      let state = getState LibWASM.editor.Types LibWASM.editor.Functions
+      let state = getState Libs.Editor.editor.Types Libs.Editor.editor.Functions
 
       let! result =
         LibExecution.Interpreter.callFn
@@ -110,7 +110,7 @@ type DarkEditor() =
 
   // just for debugging
   [<JSInvokable>]
-  static member ExportClient() : string = Json.Vanilla.serialize LibWASM.editor
+  static member ExportClient() : string = Json.Vanilla.serialize Libs.Editor.editor
 
 
   // just for dark-repl

@@ -45,6 +45,7 @@ module FQTypeName =
   let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
   let typeNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
 
+
   let stdlibTypeName
     (modul : string)
     (typ : string)
