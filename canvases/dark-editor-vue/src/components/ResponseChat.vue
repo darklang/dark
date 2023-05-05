@@ -64,8 +64,8 @@
         </div>
       </div>
     </div>
-    <form @submit.prevent="submitForm" class="flex mt-2 justify-center">
-      <div v-if="variables" v-for="(variable, index) in variables" :key="index">
+    <form v-if="variables" @submit.prevent="submitForm" class="flex mt-2 justify-center">
+      <div v-for="(variable, index) in variables" :key="index">
         <label :for="'input-' + index" class="text-white ml-2">{{ variable }}</label>
         <input
           :id="'input-' + index"
@@ -117,7 +117,7 @@ const executeCode = async(index: number) => {
     }
 
     const exprJson = await response.text();
-    
+
     const result = await window.darklang.evalExpr(exprJson);
 
     console.log(result); // TODO: something better than console.log
