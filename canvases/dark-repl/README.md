@@ -16,6 +16,5 @@ Note: as we use experimental functions, this canvas must be run on the experimen
 
 ## Demo:
 - `./scripts/run-canvas-hack load-from-disk dark-serve-static`
-- `./scripts/run-canvas-hack load-from-disk dark-wasm-demo`
-- go to http://dark-wasm-demo.dlio.localhost:11003
-- hit "submit"
+- `./scripts/run-canvas-hack load-from-disk dark-repl`
+- go to http://dark-repl.dlio.localhost:11003
