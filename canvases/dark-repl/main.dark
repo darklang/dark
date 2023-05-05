@@ -48,9 +48,12 @@ let _handler _req =
 
         async function doEval() {
           try {
+            const code = document.getElementById("input-textarea").value;
+            const codeInParens = "(\n" + code + "\n)";
+
             const response = await fetch("/get-expr-json", {
               method: "POST",
-              body: document.getElementById("input-textarea").value,
+              body: codeInParens,
             });
 
             if (!response.ok) {
