@@ -29,7 +29,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="WasmHelpers.fs" />
-    <Compile Include="Libs/WASM.fs" />
+    <Compile Include="Libs/Editor.fs" />
+    <Compile Include="Libs/HttpClient.fs" />
+    <Compile Include="StdLib.fs" />
     <Compile Include="Init.fs" />
     <Compile Include="DarkEditor.fs" />
     <Compile Include="Program.fs" />
