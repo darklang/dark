@@ -1,6 +1,7 @@
-namespace Wasm
+module Wasm.DarkEditor
 
 open System
+open System.Net.Http
 open System.Threading.Tasks
 
 open Microsoft.JSInterop
@@ -10,115 +11,142 @@ open Tablecloth
 
 open LibExecution.RuntimeTypes
 
+let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 
+
+let getStateForEval
+  (types : List<UserType.T>)
+  (fns : List<UserFunction.T>)
+  : ExecutionState =
+  let packageFns = Map.empty // TODO
+
+  let libraries : Libraries =
+    let stdlibFns, stdlibTypes =
+      LibExecution.StdLib.combine
+        [ StdLibExecution.StdLib.contents; Wasm.StdLib.contents ]
+        []
+        []
+
+    { stdlibTypes =
+        stdlibTypes |> List.map (fun typ -> FQTypeName.Stdlib typ.name, typ) |> Map
+
+      stdlibFns =
+        stdlibFns |> List.map (fun fn -> FQFnName.Stdlib fn.name, fn) |> Map
+
+      packageFns = packageFns }
+
+  let program : ProgramContext =
+    { canvasID = CanvasID.Empty
+      internalFnsAllowed = true
+      dbs = Map.empty
+      userFns = Map.fromListBy (fun fn -> fn.name) fns
+      userTypes = Map.fromListBy (fun typ -> typ.name) types
+      secrets = List.empty }
+
+  { libraries = libraries
+    tracing = LibExecution.Execution.noTracing Real
+    program = program
+    test = LibExecution.Execution.noTestContext
+    reportException = consoleReporter
+    notify = consoleNotifier
+    tlid = gid ()
+    callstack = Set.empty
+    onExecutionPath = true
+    executingFnName = None }
+
+
+/// Source of the editor
+/// (types, functions, and exprs to run on start to set the initial value)
 type EditorSource =
   { types : List<UserType.T>
     fns : List<UserFunction.T>
     exprs : List<Expr> }
 
-type DarkEditor() =
-  static let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
+/// Load the Darklang program that manages the state of and interactions with
+/// the JS side of the editor.
+[<JSInvokable>]
+let LoadClient (sourceURL : string) : Task<string> =
+  task {
+    let httpClient = new HttpClient()
+    let! response = httpClient.GetAsync sourceURL |> Async.AwaitTask
+    let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+    let clientSource = Json.Vanilla.deserialize<EditorSource> responseBody
 
-  static let getState (types : List<UserType.T>) (fns : List<UserFunction.T>) =
-    let packageFns = Map.empty // TODO
+    let! (_, initialState) =
+      clientSource.exprs
+      |> Task.foldSequentially
+           (fun (state, _lastResult) expr ->
+             task {
+               let inputVars = Map.empty
 
-    let libraries : Libraries =
-      let stdlibFns, stdlibTypes =
-        LibExecution.StdLib.combine
-          [ StdLibExecution.StdLib.contents; Libs.Editor.contents ]
-          []
-          []
+               let! (result : Dval) =
+                 LibExecution.Execution.executeExpr state inputVars expr
 
-      { stdlibTypes =
-          stdlibTypes |> List.map (fun typ -> FQTypeName.Stdlib typ.name, typ) |> Map
+               // do I actually need to pass state around so much below?
+               // if so, do I need to update anything in the state?
+               // (anything affected by this execution?)
+               return state, result
+             })
+           (getStateForEval clientSource.types clientSource.fns, DUnit)
 
-        stdlibFns =
-          stdlibFns |> List.map (fun fn -> FQFnName.Stdlib fn.name, fn) |> Map
+    Libs.Editor.editor <-
+      { Types = clientSource.types
+        Functions = clientSource.fns
+        CurrentState = initialState }
 
-        packageFns = packageFns }
-
-    let program : ProgramContext =
-      { canvasID = CanvasID.Empty
-        internalFnsAllowed = true
-        dbs = Map.empty
-        userFns = Map.fromListBy (fun fn -> fn.name) fns
-        userTypes = Map.fromListBy (fun typ -> typ.name) types
-        secrets = List.empty }
-
-    { libraries = libraries
-      tracing = LibExecution.Execution.noTracing Real
-      program = program
-      test = LibExecution.Execution.noTestContext
-      reportException = consoleReporter
-      notify = consoleNotifier
-      tlid = gid ()
-      callstack = Set.empty
-      onExecutionPath = true
-      executingFnName = None }
+    return LibExecution.DvalReprDeveloper.toRepr initialState
+  }
 
 
-  [<JSInvokable>]
-  static member LoadClient(urlOfCode : string) : Task<string> =
-    task {
-      let httpClient = new System.Net.Http.HttpClient()
-      let! response = httpClient.GetAsync urlOfCode |> Async.AwaitTask
-      let! loadedFromEndpoint =
-        response.Content.ReadAsStringAsync() |> Async.AwaitTask
+[<JSInvokable>]
+let HandleEvent (serializedEvent : string) : Ply<string> =
+  uply {
+    let state = getStateForEval Libs.Editor.editor.Types Libs.Editor.editor.Functions
 
-      let source = Json.Vanilla.deserialize<EditorSource> loadedFromEndpoint
+    let! result =
+      LibExecution.Interpreter.callFn
+        state
+        (gid ())
+        (FQFnName.User { modules = []; function_ = "handleEvent"; version = 0 })
+        []
+        [ DString serializedEvent ]
 
-      let! (_, initialState) =
-        source.exprs
-        |> Task.foldSequentially
-             (fun (state, _lastResult) expr ->
-               task {
-                 let inputVars = Map.empty
-
-                 let! (result : Dval) =
-                   LibExecution.Execution.executeExpr state inputVars expr
-
-                 // do I actually need to pass state around so much below?
-                 // if so, do I need to update anything int he state?
-                 // (anything affected by this execution?)
-                 return state, result
-               })
-             (getState source.types source.fns, DUnit)
-
-      Libs.Editor.editor <-
-        { Types = source.types; Functions = source.fns; CurrentState = initialState }
-
-      return Json.Vanilla.serialize initialState
-    }
+    return LibExecution.DvalReprDeveloper.toRepr result
+  }
 
 
-  [<JSInvokable>]
-  static member HandleEvent(serializedEvent : string) : Ply<string> =
-    uply {
-      let state = getState Libs.Editor.editor.Types Libs.Editor.editor.Functions
+/// A "user program" that can be executed by the interpreter
+/// (probably generated by AI).
+type UserProgramSource =
+  { types : List<UserType.T>
+    fns : List<UserFunction.T>
+    exprs : List<Expr> }
 
-      let! result =
-        LibExecution.Interpreter.callFn
-          state
-          (gid ())
-          (FQFnName.User { modules = []; function_ = "handleEvent"; version = 0 })
-          []
-          [ DString serializedEvent ]
+/// Eval a user program (probably generated by AI)
+///
+/// Note: Pretty soon, this should be remove-able in favor
+/// of the Darklang WASM runtime directly evaluating based on the state it maintains.
+[<JSInvokable>]
+let EvalUserProgram (sourceJson : string) : Task<string> =
+  task {
+    let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
 
-      return LibExecution.DvalReprDeveloper.toRepr result
-    }
+    let! (_, initialState) =
+      source.exprs
+      |> Task.foldSequentially
+           (fun (state, _lastResult) expr ->
+             task {
+               let inputVars = Map.empty
 
+               let! (result : Dval) =
+                 LibExecution.Execution.executeExpr state inputVars expr
 
-  // just for debugging
-  [<JSInvokable>]
-  static member ExportClient() : string = Json.Vanilla.serialize Libs.Editor.editor
+               // do I actually need to pass state around so much below?
+               // if so, do I need to update anything in the state?
+               // (anything affected by this execution?)
+               return state, result
+             })
+           (getStateForEval source.types source.fns, DUnit)
 
-
-  // just for dark-repl
-  [<JSInvokable>]
-  static member EvalExpr(serializedExpr) : Task<string> =
-    uply {
-      let expr = Json.Vanilla.deserialize<Expr> serializedExpr
-      let! result = LibExecution.Interpreter.eval (getState [] []) Map.empty expr
-      return LibExecution.DvalReprDeveloper.toRepr result
-    }
-    |> Ply.toTask
+    return LibExecution.DvalReprDeveloper.toRepr initialState
+  }

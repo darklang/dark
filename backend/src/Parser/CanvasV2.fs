@@ -60,6 +60,8 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
 
     match attrs with
     | [] ->
+      // TODO: if the fn has no params, it's just a let expr
+      // (probably need a refactor here)
       let newFn = ProgramTypes.UserFunction.fromSynBinding letBinding
       { m with fns = newFn :: m.fns }
 
