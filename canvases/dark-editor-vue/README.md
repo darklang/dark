@@ -1,28 +1,34 @@
 # Dark-Editor: Experiment 1
 
-Build the vue app
+## Build the vue app
 
 - `cd canvases/dark-editor-vue`
 - `npm install`
 - `npm run build`
 
-Editor
+## Load the canvas from disk
 
-- TODO: set up your .secrets
-- `./scripts/prep-experiment1`
-- Go to http://dark-editor.dlio.localhost:11003
-- Write a prompt
-- Edit result to be a valid code example:
+- follow instructions in `template.secrets` to set up secrets
+- run `./scripts/prep-experiment1` to load the canvas from disk
 
-```
-type Person = { name: Text; age: Int }
+## Try it out
 
-let getAge (person: Person): Int =
-  person.age
+- go view the app at http://dark-editor.dlio.localhost:11003
+- write a prompt in the editor
+  (i.e. `model a "Person". write a fn to extract their age. use the function to get the age of each person in a hardcoded list.`)
+- click "Run"
+- edit the result to be parse-able Darklang code
+  e.g.
 
-[Person { name = "Alice"; age = 42 }]
- |> List.map(fun p -> getAge p)
-```
+  ```
+  type Person = { name: Text; age: Int }
 
-- Run the code
-- Check console for result
+  let getAge (person: Person): Int =
+    person.age
+
+  [Person { name = "Alice"; age = 42 }]
+   |> List.map(fun p -> getAge p)
+  ```
+
+- eval the code
+- check console logs for result
