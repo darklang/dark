@@ -11,8 +11,8 @@ open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module ST = SerializedTypes
-module ST2PT = SerializedTypesToProgramTypes
-module PT2ST = ProgramTypesToSerializedTypes
+module ST2PT = ProgramTypesSerializedTypes
+module PT2ST = ProgramTypesSerializedTypes
 
 open MessagePack
 open MessagePack.Resolvers
