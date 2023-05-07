@@ -1,14 +1,14 @@
 <template>
   <div
-    class="text-white rounded-md flex flex-col stretch my-4 mx-auto max-w-2xl border border-[#C56AE4] shadow-lg shadow-black/10"
+    class="text-white flex flex-col stretch my-4 mx-auto max-w-2xl shadow-lg shadow-black/10"
   >
     <div
       @click="toggleAccordion()"
-      class="isOpen p-4 cursor-pointer flex items-center"
+      class="isOpen p-4 cursor-pointer flex items-center justify-between border-2 border-white/10 hover:border-[#C56AE4] rounded-md mb-2"
     >
       <slot name="accordion-header"></slot>
     </div>
-    <div v-show="isOpen">
+    <div v-show="isOpen" class="border-2 rounded-md border-white/10">
       <slot name="accordion-body"></slot>
     </div>
   </div>
