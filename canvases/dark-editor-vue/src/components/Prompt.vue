@@ -86,7 +86,7 @@ const submitPrompt = async () => {
 
   try {
     isLoading.value = true
-    const response = await fetch('/api/gpt4', {
+    const response = await fetch('/api/handle-user-prompt', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

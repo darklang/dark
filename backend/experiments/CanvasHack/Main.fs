@@ -98,7 +98,7 @@ let seedCanvasV2 (canvasName : string) =
     if System.IO.File.Exists secretsFileLocation then
       // read this file
       do!
-        $"{canvasDir}/.secrets"
+        secretsFileLocation
         |> System.IO.File.ReadAllLines
         |> Array.filter (String.startsWith "#" >> not)
         |> Array.filter (String.isEmpty >> not)
