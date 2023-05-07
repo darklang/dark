@@ -150,8 +150,8 @@ const executeCode = async (index: number) => {
   ).value
 
   try {
-    const response = await fetch('/get-expr-json', {
-      method: 'POST',
+    const response = await fetch("/get-program-json", {
+      method: "POST",
       body: code,
     })
 
@@ -159,11 +159,10 @@ const executeCode = async (index: number) => {
       throw new Error('Error in parsing the expr and serializing it as JSON')
     }
 
-    const exprJson = await response.text()
+    const userProgramJson = await response.text();
+    const userProgramResult = await window.darklang.evalUserProgram(userProgramJson);
 
-    const result = await window.darklang.evalExpr(exprJson)
-
-    console.log(result) // TODO: something better than console.log
+    console.log(userProgramResult); // TODO: something better than console.log
   } catch (error) {
     console.error('Error:', error)
   }

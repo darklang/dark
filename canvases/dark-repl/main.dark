@@ -1,11 +1,23 @@
-[<HttpHandler("POST", "/get-expr-json")>]
+[<HttpHandler("POST", "/get-program-json")>]
 let _handler _req =
-  let requestCode = String.fromBytes request.body
-  let exprJson = Experiments.parseAndSerializeExpr requestCode
+  let sourceInBytes = request.body
+  let program =
+    Experiments.parseAndSerializeProgram (String.fromBytes sourceInBytes)
 
-  match exprJson with
-  | Ok exprJson -> Http.response (String.toBytes exprJson) 200
-  | Err err -> Http.response (String.toBytes err) 400
+  match program with
+  | Ok program ->
+    let types = Option.withDefault (Dict.get_v2 program "types") "[]"
+    let fns = Option.withDefault (Dict.get_v2 program "fns") "[]"
+    let exprs = Option.withDefault (Dict.get_v2 program "exprs") "[]"
+
+    let json = "{ \"types\": " ++ types ++ ", \"fns\": " ++ fns ++ ", \"exprs\": " ++ exprs ++ "}"
+
+    Http.responseWithHeaders
+      (String.toBytes json)
+      (Dict.fromListOverwritingDuplicates [ ("content-type","application-json")])
+      200
+
+  | Error _err -> Http.response (String.toBytes "Couldn't parse the program") 400
 
 
 [<HttpHandler("GET", "/")>]
@@ -17,7 +29,7 @@ let _handler _req =
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dark WASM demo</title>
+    <title>Dark REPL</title>
     <style>
       * { font-family: Courier New, sans-serif; font-size: 26px; background-color: black; color: white }
       body, html { height: 100%; margin: 0 }
@@ -30,14 +42,17 @@ let _handler _req =
   <body>
     <div class="container">
       <div>
-        <textarea id="input-textarea" class="textarea">1 + 2</textarea>
+        <textarea id="input-textarea" class="textarea">type Person = {Name: String}
+
+(Person { Name = "Joe" })
+  |> fun p -> String.toLowercase_v1 p.Name</textarea>
       </div>
       <div>
         <textarea id="output-textarea" class="textarea" disabled></textarea>
       </div>
     </div>
 
-    <script src="http://dark-serve-static.dlio.localhost:11003/darklang-wasm.js"></script>
+    <script src="http://dark-serve-static.dlio.localhost:11003/editor-bootstrap.js"></script>
     <script>
       function setOutput (message) {
         document.getElementById("output-textarea").value = message;
@@ -49,11 +64,10 @@ let _handler _req =
         async function doEval() {
           try {
             const code = document.getElementById("input-textarea").value;
-            const codeInParens = "(\n" + code + "\n)";
 
-            const response = await fetch("/get-expr-json", {
+            const response = await fetch("/get-program-json", {
               method: "POST",
-              body: codeInParens,
+              body: code,
             });
 
             if (!response.ok) {
@@ -61,8 +75,9 @@ let _handler _req =
               throw new Error("Error in parsing the expr and serializing it as JSON" + errorText);
             }
 
-            const exprJson = await response.json();
-            const result = await darklang.evalExpr(JSON.stringify(exprJson));
+            const programJson = await response.json();
+            console.log("programJson", programJson)
+            const result = await darklang.evalUserProgram(JSON.stringify(programJson));
             setOutput(result);
           } catch (error) {
             //setOutput("Error" + error);

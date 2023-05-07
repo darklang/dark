@@ -42,9 +42,7 @@ let parseYamlExn<'a> (filename : string) : 'a =
 
   match List.head deserialized with
   | Some (Legivel.Serialization.Success s) -> s.Data
-  | ex ->
-    //Exception.raiseCode "couldn't parse config file for canvas"
-    Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
+  | ex -> Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
 
 let seedCanvasV2 (canvasName : string) =
   task {
@@ -81,7 +79,6 @@ let seedCanvasV2 (canvasName : string) =
 
       [ createSavepoint ] @ types @ dbs @ fns @ handlers
 
-
     let canvasWithTopLevels = C.fromOplist canvasID [] ops
 
     let oplists =
@@ -93,6 +90,28 @@ let seedCanvasV2 (canvasName : string) =
         | None -> None)
 
     do! C.saveTLIDs canvasID oplists
+
+
+    // now that the canvas has been seeded, load any secrets in a .secrets file
+    let secretsFileLocation = $"{canvasDir}/.secrets"
+
+    if System.IO.File.Exists secretsFileLocation then
+      // read this file
+      do!
+        $"{canvasDir}/.secrets"
+        |> System.IO.File.ReadAllLines
+        |> Array.filter (String.startsWith "#" >> not)
+        |> Array.filter (String.isEmpty >> not)
+        |> Array.map (fun line ->
+          match line.Split('=') with
+          | [| key; value |] -> (key, value)
+          | _ -> Exception.raiseInternal "invalid .secrets file" [])
+        |> Array.toList
+        |> Task.iterSequentially (fun (k, v) ->
+          LibBackend.Secret.insert canvasID k v 0)
+    else
+      // we don't have secrets to load - we're done
+      ()
 
     print
       $"Success saved canvas - endpoints available
