@@ -1,6 +1,4 @@
-# Experiment 1
-
-## Demo:
+# Dark-Editor: Experiment 1
 
 Build the vue app
 
@@ -10,17 +8,20 @@ Build the vue app
 
 Editor
 
-- In canvases/dark-editor/main.dark `/api/gpt4` handler add an openai api key
+- TODO: set up your .secrets
 - `./scripts/prep-experiment1`
-- Go to http://dark-editor.dlio.localhost:11003/
+- Go to http://dark-editor.dlio.localhost:11003
 - Write a prompt
 - Edit result to be a valid code example:
 
 ```
-(
-  let a = 1 + 2
-  List.repeat 10 a
-)
+type Person = { name: Text; age: Int }
+
+let getAge (person: Person): Int =
+  person.age
+
+[Person { name = "Alice"; age = 42 }]
+ |> List.map(fun p -> getAge p)
 ```
 
 - Run the code

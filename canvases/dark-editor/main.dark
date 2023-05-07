@@ -37,56 +37,39 @@ let _handler _req =
 
 [<HttpHandler("GET", "/assets/index.css")>]
 let _handler _req =
-    let path =  "dark-editor-vue/dist/assets/index.css"
-    let file = Experiments.readFromCanvases path
-    let headers =
-        Dict.fromListOverwritingDuplicates
-            [
-                ("Content-Type", "text/css")
-            ]
-
-    match file with
-    | Ok f ->  Http.responseWithHeaders f headers 200
-    | Error _ -> Http.response e 400
+  match Experiments.readFromCanvases "dark-editor-vue/dist/assets/index.css" with
+  | Ok fileContents ->
+    Http.responseWithHeaders
+      fileContents
+      (Dict.fromListOverwritingDuplicates [ ("Content-Type", "text/css") ])
+      200
+  | Error _e -> Http.response (String.toBytes "Couldn't load asset") 400
 
 [<HttpHandler("GET", "/assets/index.js")>]
 let _handler _req =
-    let path =  "dark-editor-vue/dist/assets/index.js"
-    let file = Experiments.readFromCanvases path
-    let headers =
-        Dict.fromListOverwritingDuplicates
-            [
-                ("Content-Type", "application/javascript")
-            ]
-
-    match file with
-    | Ok f ->  Http.responseWithHeaders f headers 200
-    | Error _ -> Http.response e 400
+  match Experiments.readFromCanvases "dark-editor-vue/dist/assets/index.js" with
+  | Ok fileContents ->
+    Http.responseWithHeaders
+      fileContents
+      (Dict.fromListOverwritingDuplicates [ ("Content-Type", "application/javascript") ])
+      200
+  | Error _e -> Http.response (String.toBytes "Couldn't load asset") 400
 
 
 [<HttpHandler("GET", "/get-prompt")>]
 let _handler _req =
-  let filePath = "dark-editor/prompt.txt"
-  let prompt = Experiments.readFromCanvases filePath
-
-  let respBody =
-    match prompt with
-    | Ok p ->  p
-    | Error _ -> Bytes.empty
-
-  Http.response respBody 200
-
+  match Experiments.readFromCanvases "dark-editor/prompt.txt" with
+  | Ok prompt ->  Http.response prompt 200
+  | Error _e -> Http.response (String.toBytes "Couldn't load prompt from disk") 500
 
 
 [<HttpHandler("POST", "/save-prompt")>]
 let _handler _req =
-  let filePath = "/home/dark/app/canvases/dark-editor/prompt.txt"
-  let contents =  request.body
-  let result = File.write contents filePath
+  let result = File.write request.body "/home/dark/app/canvases/dark-editor/prompt.txt"
 
   match result with
-  | Ok r ->   Http.response r 200
-  | Error e ->  Http.response e 400
+  | Ok r ->  Http.response r 200
+  | Error e -> Http.response e 400
 
 
 
@@ -97,34 +80,28 @@ type OpenAICompletionRequest = {
   prompt : String
 }
 
-[<HttpHandler("POST", "/api/gpt4")>]
+[<HttpHandler("POST", "/api/handle-user-prompt")>]
 let _handler _req =
-  let apiKey = OPENAI_API_KEY
+  let openAIRequest =
+    OpenAICompletionRequest
+      { model = "text-davinci-003"
+        max_tokens = 700
+        temperature = 0.7
+        prompt = String.fromBytes request.body }
 
-  let reqBody =
-    let prompt = request.body |> String.fromBytes
-    let serialized =
-      (OpenAICompletionRequest
-        { model = "text-davinci-003"
-          max_tokens = 700
-          temperature = 0.7
-          prompt = prompt }
-      )
-      |> Json.serialize<OpenAICompletionRequest>
-    match serialized with
-    | Ok r -> r |> String.toBytes
-    | Error e -> Bytes.empty
+  match Json.serialize<OpenAICompletionRequest> openAIRequest with
+  | Ok reqBody ->
+    let headers =
+      [
+        ("Authorization", "Bearer " ++ OPENAI_API_KEY)
+        ("Content-Type", "application/json")
+      ]
 
-  let headers =
-    [
-      ("Authorization", "Bearer " ++ apiKey)
-      ("Content-Type", "application/json")
-    ]
+    let openAIResponse =
+      HttpClient.request "POST" "https://api.openai.com/v1/completions" headers (String.toBytes reqBody)
 
-  let response = HttpClient.request "POST" "https://api.openai.com/v1/completions" headers reqBody
+    match openAIResponse with
+    | Ok r -> Http.response (r.body) 200
+    | Error e -> Http.response (String.toBytes "OpenAI API request failed") 500
 
-  match response with
-  | Ok r -> Http.response r.body 200
-  | Error e -> Http.response e 400
-
-
+  | Error _e -> Http.response (String.toBytes "Couldn't serialize request") 400
