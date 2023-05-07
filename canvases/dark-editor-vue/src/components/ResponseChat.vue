@@ -7,7 +7,7 @@
         <span class="font-medium text-white">AI</span>
       </div>
 
-      <div class="flex w-full bg-[#1B1B1B] ml-3 p-1.5 rounded-2xl">
+      <div class="flex w-full bg-[#1B1B1B] ml-3 p-1.5 rounded-2xl overflow-auto">
         <div class="flex flex-col items-center mt-4 px-1">
           <button @click="executeCode(responseIndex)" class="mb-3">
             <svg
@@ -57,14 +57,19 @@
         </div>
 
         <div class="ml-3 w-full p-5 border-l border-[#333333]">
-          <AutoSizeTextarea
-            :response="response"
-            class="responseTextarea"
-          ></AutoSizeTextarea>
+          <textarea
+            :value="response"
+            :id="'editor-' + editorId"
+            class="responseTextarea text-white bg-transparent w-full outline-none h-auto"
+          ></textarea>
         </div>
       </div>
     </div>
-    <form v-if="variables" @submit.prevent="submitForm" class="flex mt-2 justify-center">
+    <form
+      v-if="variables"
+      @submit.prevent="submitForm"
+      class="flex mt-2 justify-center"
+    >
       <div v-for="(variable, index) in variables" :key="index">
         <label :for="'input-' + index" class="text-white ml-2">{{ variable }}</label>
         <input
@@ -86,9 +91,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, defineProps, defineEmits } from 'vue'
+import { ref, defineProps, defineEmits, onMounted } from 'vue'
 import AutoSizeTextarea from './AutoSizeTextarea.vue'
 import '../global.d.ts'
+import * as CodeMirror from 'codemirror'
+import 'codemirror/lib/codemirror.css'
+import 'codemirror/theme/yonce.css'
+import 'codemirror/mode/javascript/javascript.js'
+
+const content = ref<string>('')
+const editorId = ref<number>(0)
+
+function updateEditorSize(editor: CodeMirror.Editor) {
+  const lineHeight = editor.defaultTextHeight()
+  const lineCount = editor.lineCount()
+  const newHeight = lineCount * lineHeight + 5
+
+  editor.setSize(null, newHeight)
+}
+
+onMounted(() => {
+  const editorElement = document.getElementById(
+    `editor-${editorId.value}`
+  ) as HTMLTextAreaElement
+
+  if (editorElement) {
+    const editor = CodeMirror.fromTextArea(editorElement, {
+      lineNumbers: true,
+      mode: 'javascript',
+      theme: 'yonce',
+      viewportMargin: Infinity,
+    })
+    updateEditorSize(editor)
+
+    editor.on('change', () => {
+      content.value = editor.getValue()
+      updateEditorSize(editor)
+    })
+
+    editorId.value = Math.floor(Math.random() * 1000) + 1
+  }
+})
 
 const props = defineProps({
   response: {
@@ -101,19 +144,19 @@ const props = defineProps({
   },
 })
 
-const executeCode = async(index: number) => {
-  let code: string = (document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement).value;
+const executeCode = async (index: number) => {
+  let code: string = (
+    document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement
+  ).value
 
   try {
     const response = await fetch("/get-program-json", {
       method: "POST",
       body: code,
-    });
+    })
 
     if (!response.ok) {
-      throw new Error(
-        "Error in parsing the expr and serializing it as JSON"
-      );
+      throw new Error('Error in parsing the expr and serializing it as JSON')
     }
 
     const userProgramJson = await response.text();
@@ -149,6 +192,6 @@ const responseVariables = matchResult
 variables.value.push(...responseVariables)
 
 const submitForm = () => {
-  console.log(variableValues.value);
-};
+  console.log(variableValues.value)
+}
 </script>

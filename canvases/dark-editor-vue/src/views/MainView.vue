@@ -4,10 +4,16 @@
     <Accordion class="mx-auto">
       <template v-slot:accordion-header>
         <span class="font-semibold text-xl">System prompt</span>
+        <svg class="w-6 h-6 ml-2 transform transition-transform" viewBox="0 0 24 24">
+          <path
+            fill="currentColor"
+            d="M12 16.5l6-6-1.5-1.5-4.5 4.5-4.5-4.5-1.5 1.5z"
+          />
+        </svg>
       </template>
       <template v-slot:accordion-body>
         <textarea
-          class="bg-transparent outline-0 p-4 w-full"
+          class="bg-transparent outline-0 p-4 w-full resize-none h-96 max-h-96 overflow-y-auto border-0 text-white"
           ref="prompt"
           v-model="systemPromptValue"
         ></textarea>
