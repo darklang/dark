@@ -66,11 +66,11 @@ let _handler _req =
     </section>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
-  <script src="http://dark-serve-static.dlio.localhost:11003/darklang-wasm.js"></script>
+  <script src="http://dark-serve-static.dlio.localhost:11003/editor-bootstrap.js"></script>
   <script>
     (async () => {
       const darklang = await Darklang.init();
-      await darklang.editor.loadClient("http://dark-js-wasm-io.dlio.localhost:11003/client.dark");
+      await darklang.loadClient("http://dark-js-wasm-io.dlio.localhost:11003/client.dark");
 
       // TODO: use
       const app = new Vue({
@@ -84,7 +84,7 @@ let _handler _req =
 
           // something happened in the UI - tell the WASM'd Dark program!
           async eventHappened(event) {
-            const response = await darklang.editor.handleEvent(event);
+            const response = await darklang.handleEvent(event);
             console.log("response", response)
           },
         },

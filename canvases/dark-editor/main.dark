@@ -12,14 +12,28 @@ let _handler _req =
     (Dict.fromListOverwritingDuplicates [ ("Content-Type", "text/html") ])
     200
 
-[<HttpHandler("POST", "/get-expr-json")>]
-let _handler _req =
-  let requestCode = String.fromBytes request.body
-  let exprJson = Experiments.parseAndSerializeExpr requestCode
 
-  match exprJson with
-  | Ok exprJson -> Http.response (String.toBytes exprJson) 200
-  | Err err -> Http.response (String.toBytes err) 400
+[<HttpHandler("POST", "/get-program-json")>]
+let _handler _req =
+  let sourceInBytes = request.body
+  let program =
+    Experiments.parseAndSerializeProgram (String.fromBytes sourceInBytes)
+
+  match program with
+  | Ok program ->
+    let types = Option.withDefault (Dict.get_v2 program "types") "[]"
+    let fns = Option.withDefault (Dict.get_v2 program "fns") "[]"
+    let exprs = Option.withDefault (Dict.get_v2 program "exprs") "[]"
+
+    let json = "{ \"types\": " ++ types ++ ", \"fns\": " ++ fns ++ ", \"exprs\": " ++ exprs ++ "}"
+
+    Http.responseWithHeaders
+      (String.toBytes json)
+      (Dict.fromListOverwritingDuplicates [ ("content-type","application-json")])
+      200
+
+  | Error err -> Http.response (String.toBytes ("Couldn't parse the program \n" ++ err)) 400
+
 
 [<HttpHandler("GET", "/assets/index.css")>]
 let _handler _req =

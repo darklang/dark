@@ -105,7 +105,7 @@ const executeCode = async(index: number) => {
   let code: string = (document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement).value;
 
   try {
-    const response = await fetch("/get-expr-json", {
+    const response = await fetch("/get-program-json", {
       method: "POST",
       body: code,
     });
@@ -116,9 +116,9 @@ const executeCode = async(index: number) => {
       );
     }
 
-    const exprJson = await response.text();
-    
-    const result = await window.darklang.evalExpr(exprJson);
+    const userProgramJson = await response.text();
+
+    const result = await window.darklang.evalUserProgram(userProgramJson);
 
     console.log(result); // TODO: something better than console.log
   } catch (error) {

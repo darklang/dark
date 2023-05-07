@@ -28,23 +28,26 @@ const Darklang = {
 
     // return object to expose as 'darklang'
     return {
-      editor: {
-        loadClient: async function (url) {
-          return await invoke("LoadClient", url);
-        },
-        handleEvent: async function (event) {
-          return await invoke("HandleEvent", JSON.stringify(event));
-        },
-        // just for debugging purposes
-        exportClient: async function () {
-          return invoke("ExportClient");
-        },
+      /** Load a client Dark code from a URL */
+      loadClient: async function (url) {
+        return await invoke("LoadClient", url);
       },
 
-      // just for dark-repl
-      evalExpr: async function (serializedExpr) {
-        return await invoke("EvalExpr", serializedExpr);
+      /** Handle an event that the JS client has captured
+       * and is forwarding to the WASM runtime */
+      handleEvent: async function (event) {
+        return await invoke("HandleEvent", JSON.stringify(event));
       },
+
+      /** Evaluate a serialized user program,
+       * returning the result of the expr defined last
+       *
+       * Note: Pretty soon, this should be remove-able in favor
+       * of the Darklang WASM runtime directly evaluating based on the state it maintains.
+       * */
+      evalUserProgram: async function (serializedProgram) {
+        return await invoke("EvalUserProgram", serializedProgram);
+      }
     };
   },
 };
