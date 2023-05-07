@@ -14,17 +14,12 @@
   </div>
 </template>
 
-<script lang="ts">
-export default {
-  data() {
-    return {
-      isOpen: false,
-    }
-  },
-  methods: {
-    toggleAccordion() {
-      this.isOpen = !this.isOpen
-    },
-  },
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const isOpen = ref(false)
+
+function toggleAccordion() {
+  isOpen.value = !isOpen.value
 }
 </script>

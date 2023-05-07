@@ -64,8 +64,8 @@
         </div>
       </div>
     </div>
-    <form @submit.prevent="submitForm" class="flex mt-2 justify-center">
-      <div v-if="variables" v-for="(variable, index) in variables" :key="index">
+    <form v-if="variables" @submit.prevent="submitForm" class="flex mt-2 justify-center">
+      <div v-for="(variable, index) in variables" :key="index">
         <label :for="'input-' + index" class="text-white ml-2">{{ variable }}</label>
         <input
           :id="'input-' + index"
@@ -117,10 +117,9 @@ const executeCode = async(index: number) => {
     }
 
     const userProgramJson = await response.text();
+    const userProgramResult = await window.darklang.evalUserProgram(userProgramJson);
 
-    const result = await window.darklang.evalUserProgram(userProgramJson);
-
-    console.log(result); // TODO: something better than console.log
+    console.log(userProgramResult); // TODO: something better than console.log
   } catch (error) {
     console.error('Error:', error)
   }

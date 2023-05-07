@@ -13,13 +13,13 @@
   </div>
 </template>
 
-<script lang="ts">
-export default {
-  props: {
-    promptValue: {
+<script setup lang="ts">
+import { defineProps } from 'vue'
+
+const props = defineProps({
+  promptValue: {
       type: String,
       required: true,
     },
-  },
-}
+})
 </script>
