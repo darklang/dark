@@ -32,3 +32,4 @@ backend/static/tree-sitter/
 ###############
 
 deploy-lock-manual-deploy
+.secrets
