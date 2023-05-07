@@ -7,7 +7,7 @@
         <span class="font-medium text-white">AI</span>
       </div>
 
-      <div class="flex w-full bg-[#1B1B1B] ml-3 p-1.5 rounded-2xl">
+      <div class="flex w-full bg-[#1B1B1B] ml-3 p-1.5 rounded-2xl overflow-auto">
         <div class="flex flex-col items-center mt-4 px-1">
           <button @click="executeCode(responseIndex)" class="mb-3">
             <svg
