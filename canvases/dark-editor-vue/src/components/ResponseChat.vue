@@ -92,7 +92,6 @@
 
 <script setup lang="ts">
 import { ref, defineProps, defineEmits, onMounted } from 'vue'
-import AutoSizeTextarea from './AutoSizeTextarea.vue'
 import '../global.d.ts'
 import * as CodeMirror from 'codemirror'
 import 'codemirror/lib/codemirror.css'
@@ -121,6 +120,7 @@ onMounted(() => {
       mode: 'javascript',
       theme: 'yonce',
       viewportMargin: Infinity,
+      value: props.response,
     })
     updateEditorSize(editor)
 
@@ -145,13 +145,11 @@ const props = defineProps({
 })
 
 const executeCode = async (index: number) => {
-  let code: string = (
-    document.querySelectorAll('.responseTextarea')[index] as HTMLInputElement
-  ).value
+  let code: string = content.value
 
   try {
-    const response = await fetch("/get-program-json", {
-      method: "POST",
+    const response = await fetch('/get-program-json', {
+      method: 'POST',
       body: code,
     })
 
@@ -159,10 +157,10 @@ const executeCode = async (index: number) => {
       throw new Error('Error in parsing the expr and serializing it as JSON')
     }
 
-    const userProgramJson = await response.text();
-    const userProgramResult = await window.darklang.evalUserProgram(userProgramJson);
+    const userProgramJson = await response.text()
+    const userProgramResult = await window.darklang.evalUserProgram(userProgramJson)
 
-    console.log(userProgramResult); // TODO: something better than console.log
+    console.log(userProgramResult) // TODO: something better than console.log
   } catch (error) {
     console.error('Error:', error)
   }

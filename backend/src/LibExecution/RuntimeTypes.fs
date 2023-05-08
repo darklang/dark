@@ -789,7 +789,7 @@ module Package =
 // </remarks>
 type Previewable =
   // The same inputs will always yield the same outputs,
-  // so we don't need to save results. e.g. `DateTime.add`
+  // so we don't need to save results. e.g. `DateTime.addSeconds`
   | Pure
 
   // Output may vary with the same inputs, though we can safely preview.
