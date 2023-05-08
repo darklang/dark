@@ -1025,22 +1025,23 @@ module UserType =
 /// Expr.completeParse before using
 // TODO it's hard to use the type system here since there's a lot of places we stash
 // PT.Expr, but that's even more reason to try and prevent partial parses.
-let initialParse (code : string) : PT.Expr =
+let initialParse (filename : string) (code : string) : PT.Expr =
   code
-  |> Utils.parseAsFSharpSourceFile
+  |> Utils.parseAsFSharpSourceFile filename
   |> Utils.singleExprFromImplFile
   |> Expr.fromSynExpr
 
 // Shortcut function for tests that ignore user functions and types
-let parseIgnoringUser (code : string) : PT.Expr =
-  code |> initialParse |> Expr.completeParse Set.empty Set.empty
+let parseIgnoringUser (filename : string) (code : string) : PT.Expr =
+  code |> initialParse filename |> Expr.completeParse Set.empty Set.empty
 
 let parseRTExpr
   (fns : Set<PT.FQFnName.UserFnName>)
   (types : Set<PT.FQTypeName.UserTypeName>)
+  (filename : string)
   (code : string)
   : LibExecution.RuntimeTypes.Expr =
   code
-  |> initialParse
+  |> initialParse filename
   |> Expr.completeParse fns types
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT

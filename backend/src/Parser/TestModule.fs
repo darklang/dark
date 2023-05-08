@@ -216,7 +216,13 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
 
 // Below are the fns that we intend to expose to the rest of the codebase
 let parseTestFile (filename : string) : T =
-  filename |> System.IO.File.ReadAllText |> parseAsFSharpSourceFile |> parseFile
+  filename
+  |> System.IO.File.ReadAllText
+  |> parseAsFSharpSourceFile filename
+  |> parseFile
 
-let parseSingleTestFromFile (testSource : string) : Test =
-  testSource |> parseAsFSharpSourceFile |> singleExprFromImplFile |> parseTest
+let parseSingleTestFromFile (filename : string) (testSource : string) : Test =
+  testSource
+  |> parseAsFSharpSourceFile filename
+  |> singleExprFromImplFile
+  |> parseTest

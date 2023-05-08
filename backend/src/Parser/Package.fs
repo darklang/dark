@@ -73,11 +73,8 @@ let parseModule (moduleDecl : SynModuleOrNamespace) : PackageModule =
     decls |> parseDecls names
 
 
-let parseFromFile (filename : string) : PackageModule =
-  let parsedAsFSharp =
-    filename |> System.IO.File.ReadAllText |> parseAsFSharpSourceFile
-
-  match parsedAsFSharp with
+let parse (filename : string) (contents : string) : PackageModule =
+  match parseAsFSharpSourceFile filename contents with
   | ParsedImplFileInput (_, _, _, _, _, modules, _, _, _) ->
     let fns =
       modules |> List.map parseModule |> List.map (fun m -> m.fns) |> List.concat

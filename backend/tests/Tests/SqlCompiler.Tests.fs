@@ -14,7 +14,8 @@ module C = LibBackend.SqlCompiler
 module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
-let p = Parser.ProgramTypes.parseRTExpr Set.empty Set.empty
+let p (code : string) : Expr =
+  Parser.ProgramTypes.parseRTExpr Set.empty Set.empty "sqlcompiler.tests.fs" code
 
 let compile
   (symtable : DvalMap)
@@ -126,6 +127,7 @@ let inlineWorksAtRoot =
       Parser.ProgramTypes.parseRTExpr
         Set.empty
         Set.empty
+        "test.fs"
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
     let expected = p "3 + 5"

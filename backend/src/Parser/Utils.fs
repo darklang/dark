@@ -13,16 +13,21 @@ open Tablecloth
 let longIdentToList (li : LongIdent) : List<string> =
   li |> List.map (fun id -> id.idText)
 
-let parseAsFSharpSourceFile (input : string) : ParsedImplFileInput =
-  let file = "test.fs"
+let parseAsFSharpSourceFile
+  (filename : string)
+  (input : string)
+  : ParsedImplFileInput =
   let checker = FSharpChecker.Create()
+
+  let filename = if filename.EndsWith ".fs" then filename else filename + ".fs"
 
   // Throws an exception here if we don't do this:
   // https://github.com/fsharp/FSharp.Compiler.Service/blob/122520fa62edec7be5d00854989b282bf3ce7315/src/fsharp/service/FSharpCheckerResults.fs#L1555
-  let parsingOptions = { FSharpParsingOptions.Default with SourceFiles = [| file |] }
+  let parsingOptions =
+    { FSharpParsingOptions.Default with SourceFiles = [| filename |] }
 
   let results =
-    checker.ParseFile(file, Text.SourceText.ofString input, parsingOptions)
+    checker.ParseFile(filename, Text.SourceText.ofString input, parsingOptions)
     |> Async.RunSynchronously
 
   match results.ParseTree with

@@ -181,11 +181,11 @@ let postProcessModule (m : CanvasModule) : CanvasModule =
       exprs = m.exprs |> List.map fixup
       fns = m.fns |> List.map (fun f -> { f with body = fixup f.body }) }
 
-let parse (source : string) : CanvasModule =
+let parse (filename : string) (source : string) : CanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile source
 
   let decls =
-    match parsedAsFSharp with
+    match parsedAsFSharp filename with
     | ParsedImplFileInput (_,
                            _,
                            _,
@@ -204,4 +204,4 @@ let parse (source : string) : CanvasModule =
 
 
 let parseFromFile (filename : string) : CanvasModule =
-  filename |> System.IO.File.ReadAllText |> parse
+  filename |> System.IO.File.ReadAllText |> parse filename
