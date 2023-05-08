@@ -19,8 +19,6 @@
     <Compile Include="Libs/DB.fs" />
     <Compile Include="Libs/Event.fs" />
     <Compile Include="Libs/HttpClient.fs" />
-    <Compile Include="Libs/Password.fs" />
-    <Compile Include="Libs/X509.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

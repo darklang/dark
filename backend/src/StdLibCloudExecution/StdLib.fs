@@ -20,10 +20,6 @@ let typeRenames : StdLib.TypeRenames =
 
 let contents =
   StdLib.combine
-    [ Libs.DB.contents
-      Libs.Event.contents
-      Libs.HttpClient.contents // move to StdLibExecution
-      Libs.Password.contents // move to StdLibExecution?
-      Libs.X509.contents ] // move to StdLibExecution?
+    [ Libs.DB.contents; Libs.Event.contents; Libs.HttpClient.contents ] // move to StdLibExecution
     fnRenames
     typeRenames

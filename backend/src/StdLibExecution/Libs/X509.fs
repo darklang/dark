@@ -1,5 +1,5 @@
 /// StdLib functions to work with X.509 public keys
-module StdLibCloudExecution.Libs.X509
+module StdLibExecution.Libs.X509
 
 open System.Security.Cryptography
 open System.Security.Cryptography.X509Certificates

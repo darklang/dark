@@ -1,5 +1,5 @@
 /// StdLib functions to hash and compare Passwords of Dark users
-module StdLibCloudExecution.Libs.Password
+module StdLibExecution.Libs.Password
 
 open Prelude
 open LibExecution.RuntimeTypes

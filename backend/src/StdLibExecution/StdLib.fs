@@ -38,6 +38,8 @@ let contents : StdLib.Contents =
       Libs.Crypto.contents
       Libs.String.contents
       Libs.Tuple2.contents
-      Libs.Tuple3.contents ]
+      Libs.Tuple3.contents
+      Libs.X509.contents
+      Libs.Password.contents ]
     fnRenames
     typeRenames
