@@ -19,7 +19,7 @@
     <None Include="paket.references" />
     <Compile Include="SerializedTypes.fs" />
     <!-- TODO: consider merging the below 2 files into one module? -->
-    <Compile Include="ProgramTypesSerializedTypes.fs" />
+    <Compile Include="ProgramTypesToSerializedTypes.fs" />
     <Compile Include="BinarySerialization.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

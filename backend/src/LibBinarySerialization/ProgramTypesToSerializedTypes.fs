@@ -1,5 +1,5 @@
 /// Conversion functions from ProgramTypes to SerializedTypes and back
-module LibBinarySerialization.ProgramTypesSerializedTypes
+module LibBinarySerialization.ProgramTypesToSerializedTypes
 
 open Prelude
 open Tablecloth

@@ -11,8 +11,7 @@ open Prelude.Tablecloth
 
 module PT = LibExecution.ProgramTypes
 module ST = SerializedTypes
-module ST2PT = ProgramTypesSerializedTypes
-module PT2ST = ProgramTypesSerializedTypes
+module PT2ST = ProgramTypesToSerializedTypes
 
 open MessagePack
 open MessagePack.Resolvers
@@ -54,7 +53,7 @@ let serializeExpr (tlid : tlid) (e : PT.Expr) : byte [] =
 let deserializeExpr (tlid : tlid) (data : byte []) : PT.Expr =
   wrapSerializationException (string tlid) (fun () ->
     MessagePack.MessagePackSerializer.Deserialize<ST.Expr>(data, optionsWithoutZip)
-    |> ST2PT.Expr.toPT)
+    |> PT2ST.Expr.toPT)
 
 let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
   wrapSerializationException (PT.Toplevel.toTLID tl |> string) (fun () ->
@@ -64,7 +63,7 @@ let serializeToplevel (tl : PT.Toplevel.T) : byte [] =
 let deserializeToplevel (tlid : tlid) (data : byte []) : PT.Toplevel.T =
   wrapSerializationException (string tlid) (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> ST2PT.Toplevel.toPT)
+    |> PT2ST.Toplevel.toPT)
 
 let serializePackageFn (fn : PT.Package.Fn) : byte [] =
   wrapSerializationException (string fn.id) (fun () ->
@@ -74,7 +73,7 @@ let serializePackageFn (fn : PT.Package.Fn) : byte [] =
 let deserializePackageFn (uuid : System.Guid) (data : byte []) : PT.Package.Fn =
   wrapSerializationException (string uuid) (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> ST2PT.Package.Fn.toPT)
+    |> PT2ST.Package.Fn.toPT)
 
 
 let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte [] =
@@ -86,7 +85,7 @@ let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte [] =
 let deserializeOplist (tlid : tlid) (data : byte []) : PT.Oplist =
   wrapSerializationException (string tlid) (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip)
-    |> List.filterMap ST2PT.Op.toPT)
+    |> List.filterMap PT2ST.Op.toPT)
 
 module Test =
   let serializeOplistToJson (tlid : tlid) (oplist : PT.Oplist) : string =
