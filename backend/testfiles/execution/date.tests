@@ -207,11 +207,11 @@ module Convertsion =
   // DateTime.today_v0 |> DateTime.toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
 
 module AddingSeconds =
-  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
-  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:47Z")
-  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:56Z")
-  DateTime.add_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-12-07T18:24:26Z")
-  DateTime.add_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:36Z")
+  DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")
+  DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1 = (d "2020-11-26T04:37:47Z")
+  DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 10 = (d "2020-11-26T04:37:56Z")
+  DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000 = (d "2020-12-07T18:24:26Z")
+  DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:36Z")
 
 module SubtractingSeconds =
   DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0 = (d "2020-11-26T04:37:46Z")

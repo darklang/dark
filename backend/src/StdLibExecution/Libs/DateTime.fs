@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DateTime" "add" 0
+    { name = fn "DateTime" "addSeconds" 0
       typeParams = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt "" ]
       returnType = TDateTime
