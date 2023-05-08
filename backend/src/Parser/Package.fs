@@ -30,7 +30,7 @@ let parseLetBinding
       [ "modules", modules; "binding", letBinding ]
 
 
-let parseDecls
+let rec parseDecls
   (modules : List<string>)
   (decls : List<SynModuleDecl>)
   : PackageModule =
@@ -42,8 +42,26 @@ let parseDecls
         let fns = List.map (parseLetBinding modules) bindings
         { m with fns = m.fns @ fns }
 
-      // | SynModuleDecl.Types (defns, _) ->
-      //   List.fold m (fun m d -> parseTypeDefn m d) defns
+      | SynModuleDecl.Types (defns, _) -> List.fold m (fun m d -> m) defns
+
+      | SynModuleDecl.NestedModule (SynComponentInfo (_,
+                                                      _,
+                                                      nestedModules,
+                                                      _,
+                                                      _,
+                                                      _,
+                                                      _,
+                                                      _),
+                                    _,
+                                    nested,
+                                    _,
+                                    _,
+                                    _) ->
+
+        let modules = modules @ (nestedModules |> List.map string)
+        let nestedDecls = parseDecls modules nested
+        { m with fns = m.fns @ nestedDecls.fns }
+
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
