@@ -1,3 +1,13 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const isOpen = ref(false)
+
+function toggleAccordion() {
+  isOpen.value = !isOpen.value
+}
+</script>
+
 <template>
   <div
     class="text-white flex flex-col stretch my-4 mx-auto max-w-2xl shadow-lg shadow-black/10"
@@ -13,13 +23,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-
-const isOpen = ref(false)
-
-function toggleAccordion() {
-  isOpen.value = !isOpen.value
-}
-</script>

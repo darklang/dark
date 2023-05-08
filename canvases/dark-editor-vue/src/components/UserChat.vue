@@ -1,3 +1,14 @@
+<script setup lang="ts">
+import { defineProps } from 'vue'
+
+const props = defineProps({
+  promptValue: {
+    type: String,
+    required: true,
+  },
+})
+</script>
+
 <template>
   <div class="my-4 mx-auto max-w-2xl">
     <div class="flex items-start">
@@ -12,14 +23,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { defineProps } from 'vue'
-
-const props = defineProps({
-  promptValue: {
-      type: String,
-      required: true,
-    },
-})
-</script>

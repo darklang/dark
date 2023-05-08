@@ -1,3 +1,14 @@
+<script setup lang="ts">
+import { defineProps } from 'vue'
+
+const props = defineProps({
+  message: {
+    type: String,
+    required: true,
+  },
+})
+</script>
+
 <template>
   <div
     v-if="message"
@@ -9,13 +20,3 @@
     <div class="p-3">{{ message }}</div>
   </div>
 </template>
-<script setup lang="ts">
-import { defineProps } from 'vue'
-
-const props = defineProps({
-  message: {
-    type: String,
-    required: true,
-  },
-})
-</script>

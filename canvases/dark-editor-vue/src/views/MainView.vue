@@ -1,33 +1,10 @@
-<template>
-  <main>
-    <Header />
-    <Accordion class="mx-auto">
-      <template v-slot:accordion-header>
-        <span class="font-semibold text-xl">System prompt</span>
-        <fa icon="fa-angle-down" class="w-4 h-4 ml-2" />
-      </template>
-      <template v-slot:accordion-body>
-        <textarea
-          class="bg-transparent outline-0 p-4 w-full resize-none h-96 max-h-96 overflow-y-auto border-0 text-white"
-          ref="prompt"
-          v-model="systemPromptValue"
-        ></textarea>
-      </template>
-    </Accordion>
-
-    <div>
-      <Prompt :systemPromptValue="systemPromptValue" />
-    </div>
-  </main>
-</template>
-
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onMounted } from '@vue/runtime-core'
 
-import Header from '../components/Header.vue'
-import Accordion from '../components/Accordion.vue'
-import Prompt from '../components/Prompt.vue'
+import PageHeader from '../components/common/PageHeader.vue'
+import Accordion from '../components/common/Accordion.vue'
+import Conversation from '../components/Conversation.vue'
 
 const systemPromptValue = ref('')
 
@@ -49,3 +26,30 @@ onMounted(() => {
     .then((data) => (systemPromptValue.value = data))
 })
 </script>
+
+<template>
+  <main>
+    <!-- Dark logo etc at the top -->
+    <PageHeader />
+
+    <!-- System prompt -->
+    <Accordion class="mx-auto">
+      <template v-slot:accordion-header>
+        <span class="font-semibold text-xl">System prompt</span>
+        <fa icon="fa-angle-down" class="w-4 h-4 ml-2" />
+      </template>
+      <template v-slot:accordion-body>
+        <textarea
+          class="bg-transparent outline-0 p-4 w-full resize-none h-96 max-h-96 overflow-y-auto border-0 text-white"
+          ref="prompt"
+          v-model="systemPromptValue"
+        ></textarea>
+      </template>
+    </Accordion>
+
+    <!-- Conversation -->
+    <div>
+      <Conversation :systemPromptValue="systemPromptValue" />
+    </div>
+  </main>
+</template>
