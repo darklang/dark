@@ -55,20 +55,12 @@ let _handler _req =
   | Error err -> Http.response (String.toBytes ("Couldn't parse the program \n" ++ err)) 400
 
 
-[<HttpHandler("GET", "/get-prompt")>]
+[<HttpHandler("GET", "/system-prompt")>]
 let _handler _req =
-  match Experiments.readFromCanvases "dark-editor/prompt.txt" with
+  match Experiments.readFromCanvases "dark-editor/system-prompt.txt" with
   | Ok prompt ->  Http.response prompt 200
   | Error _e -> Http.response (String.toBytes "Couldn't load prompt from disk") 500
 
-
-[<HttpHandler("POST", "/save-prompt")>]
-let _handler _req =
-  let result = File.write request.body "/home/dark/app/canvases/dark-editor/prompt.txt"
-
-  match result with
-  | Ok r ->  Http.response r 200
-  | Error e -> Http.response e 400
 
 
 

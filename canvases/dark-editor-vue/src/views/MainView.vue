@@ -20,10 +20,10 @@ darklangJSScript.addEventListener('load', async () => {
 })
 document.head.appendChild(darklangJSScript)
 
-onMounted(() => {
-  fetch('/get-prompt')
-    .then((response) => response.text())
-    .then((data) => (systemPromptValue.value = data))
+onMounted(async () => {
+  const response = await fetch('/system-prompt');
+  const responseText = await response.text()
+  systemPromptValue.value = responseText
 })
 </script>
 
