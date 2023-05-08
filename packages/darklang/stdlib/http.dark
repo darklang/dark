@@ -89,7 +89,7 @@ module Darklang =
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{404}} status code.
-      let notFound : Http.Response =
+      let notFound () : Http.Response =
         Http.Response
           {
             statusCode = 404
@@ -134,7 +134,7 @@ module Darklang =
       /// ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}},
       /// and/or {{SameSite}}).
       let cookie (name : String) (value : String) (cookie : Cookie) : Result<(String * String), String> =
-        if not (List.contains (String.toLowercase cookie.sameSite) [ "strict"; "lax"; "none"0 ]) then
+        if not (List.contains (String.toLowercase cookie.sameSite) [ "strict"; "lax"; "none" ]) then
           Error "SameSite must be either \"Strict\" or \"Lax\" or \"None\""
         else
           let expires =
@@ -150,10 +150,10 @@ module Darklang =
               "HttpOnly", cookie.httpOnly |> Bool.toString
               "SameSite", cookie.sameSite
             ]
-            |> List.filterMap (fun (k, v) -> if v = "" then None else Some (k, v))
+            |> List.filterMap (fun (k, v) -> if v == "" then Nothing else Just (k, v))
             |> List.map (fun (k, v) -> k ++ "=" ++ v)
             |> String.join "; "
-          if cookie = "" then
+          if cookie == "" then
             Error "Cookie must have at least one parameter"
           else
             Ok ("Set-Cookie", name ++ "=" ++ value ++ "; " ++ cookie)

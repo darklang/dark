@@ -13,7 +13,7 @@ module Darklang =
 
 
       /// Returns a header <type (String*String))> with {{'Authorization'}} created using HTTP basic auth
-      let basicAuth (username : String) (password : String) : Result<String * String, String> =
+      let basicAuth (username : String) (password : String) : Result<(String * String), String> =
         if String.contains "-" username
         then Error "Username cannot contain a hyphen"
         else
