@@ -92,7 +92,6 @@
 
 <script setup lang="ts">
 import { ref, defineProps, defineEmits, onMounted } from 'vue'
-import AutoSizeTextarea from './AutoSizeTextarea.vue'
 import '../global.d.ts'
 import * as CodeMirror from 'codemirror'
 import 'codemirror/lib/codemirror.css'
@@ -146,7 +145,7 @@ const props = defineProps({
 })
 
 const executeCode = async (index: number) => {
-  let code: string = content.value // Use the content ref instead of the DOM element
+  let code: string = content.value
 
   try {
     const response = await fetch('/get-program-json', {
