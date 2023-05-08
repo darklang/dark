@@ -20,6 +20,3 @@ module Darklang =
           let encoded = Base64.encode (String.toBytes $"{username}:{password}")
           $"Basic {encoded}"
 
-
-
-
