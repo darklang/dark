@@ -531,32 +531,47 @@ module Expr =
       EPipeEnum(id, FQTypeName.toCT nameOpt, caseName, List.map toCT fields)
 
 module CustomType =
-  type RecordField = { name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference; description : string }
 
   module RecordField =
     let fromCT (rf : RecordField) : PT.CustomType.RecordField =
-      { name = rf.name; typ = TypeReference.fromCT rf.typ }
+      { name = rf.name
+        typ = TypeReference.fromCT rf.typ
+        description = rf.description }
 
     let toCT (rf : PT.CustomType.RecordField) : RecordField =
-      { name = rf.name; typ = TypeReference.toCT rf.typ }
+      { name = rf.name
+        typ = TypeReference.toCT rf.typ
+        description = rf.description }
 
-  type EnumField = { typ : TypeReference; label : Option<string> }
+  type EnumField =
+    { typ : TypeReference
+      label : Option<string>
+      description : string }
 
   module EnumField =
     let fromCT (ef : EnumField) : PT.CustomType.EnumField =
-      { typ = TypeReference.fromCT ef.typ; label = ef.label }
+      { typ = TypeReference.fromCT ef.typ
+        label = ef.label
+        description = ef.description }
 
     let toCT (ef : PT.CustomType.EnumField) : EnumField =
-      { typ = TypeReference.toCT ef.typ; label = ef.label }
+      { typ = TypeReference.toCT ef.typ
+        label = ef.label
+        description = ef.description }
 
-  type EnumCase = { name : string; fields : List<EnumField> }
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   module EnumCase =
     let fromCT (ec : EnumCase) : PT.CustomType.EnumCase =
-      { name = ec.name; fields = List.map EnumField.fromCT ec.fields }
+      { name = ec.name
+        fields = List.map EnumField.fromCT ec.fields
+        description = ec.description }
 
     let toCT (ec : PT.CustomType.EnumCase) : EnumCase =
-      { name = ec.name; fields = List.map EnumField.toCT ec.fields }
+      { name = ec.name
+        fields = List.map EnumField.toCT ec.fields
+        description = ec.description }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>

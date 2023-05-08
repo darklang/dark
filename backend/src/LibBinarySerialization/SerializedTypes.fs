@@ -262,21 +262,27 @@ module CustomType =
     { [<MessagePack.Key 0>]
       name : string
       [<MessagePack.Key 1>]
-      typ : TypeReference }
+      typ : TypeReference
+      [<MessagePack.Key 2>]
+      description : string }
 
   [<MessagePack.MessagePackObject>]
   type EnumField =
     { [<MessagePack.Key 0>]
       typ : TypeReference
       [<MessagePack.Key 1>]
-      label : Option<string> }
+      label : Option<string>
+      [<MessagePack.Key 2>]
+      description : string }
 
   [<MessagePack.MessagePackObject>]
   type EnumCase =
     { [<MessagePack.Key 0>]
       name : string
       [<MessagePack.Key 1>]
-      fields : List<EnumField> }
+      fields : List<EnumField>
+      [<MessagePack.Key 2>]
+      description : string }
 
   [<MessagePack.MessagePackObject>]
   type T =

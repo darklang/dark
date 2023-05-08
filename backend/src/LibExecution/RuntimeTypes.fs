@@ -467,10 +467,14 @@ and Param = { name : string; typ : TypeReference }
 
 module CustomType =
   // TYPESCLEANUP support type parameters
-  type RecordField = { name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference; description : string }
 
-  type EnumField = { typ : TypeReference; label : Option<string> }
-  type EnumCase = { name : string; fields : List<EnumField> }
+  type EnumField =
+    { typ : TypeReference
+      label : Option<string>
+      description : string }
+
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>

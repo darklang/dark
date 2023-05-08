@@ -24,8 +24,9 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { name = "name"; typ = TString },
-          [ { name = "value"; typ = TString }; { name = "version"; typ = TInt } ]
+          { name = "name"; typ = TString; description = "" },
+          [ { name = "value"; typ = TString; description = "" }
+            { name = "version"; typ = TInt; description = "" } ]
         )
       description = "A secret"
       deprecated = NotDeprecated }

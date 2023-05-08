@@ -99,7 +99,8 @@ let testUserRecordType
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
-  let mapField (name, typ) : PT.CustomType.RecordField = { name = name; typ = typ }
+  let mapField (name, typ) : PT.CustomType.RecordField =
+    { name = name; typ = typ; description = "" }
 
   { tlid = gid ()
     name = name

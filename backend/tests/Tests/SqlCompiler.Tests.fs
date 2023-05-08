@@ -27,7 +27,8 @@ let compile
 
     let typeName : FQTypeName.UserTypeName =
       { modules = []; typ = "MyType"; version = 0 }
-    let field : CustomType.RecordField = { name = rowName; typ = rowType }
+    let field : CustomType.RecordField =
+      { name = rowName; typ = rowType; description = "" }
     let userType : UserType.T =
       { tlid = gid (); name = typeName; definition = CustomType.Record(field, []) }
     let userTypes = Map [ typeName, userType ]

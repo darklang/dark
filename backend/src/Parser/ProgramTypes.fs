@@ -950,14 +950,15 @@ module CustomType =
       match typ with
       | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
         { typ = TypeReference.fromSynType typ
-          label = fieldName |> Option.map (fun id -> id.idText) }
+          label = fieldName |> Option.map (fun id -> id.idText)
+          description = "" }
 
     let private parseCase (case : SynUnionCase) : PT.CustomType.EnumCase =
       match case with
       | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
         match typ with
         | SynUnionCaseKind.Fields fields ->
-          { name = id.idText; fields = List.map parseField fields }
+          { name = id.idText; fields = List.map parseField fields; description = "" }
         | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
     let fromCases typeDef (cases : List<SynUnionCase>) =
@@ -975,7 +976,7 @@ module CustomType =
     let private parseField (field : SynField) : PT.CustomType.RecordField =
       match field with
       | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-        { name = id.idText; typ = TypeReference.fromSynType typ }
+        { name = id.idText; typ = TypeReference.fromSynType typ; description = "" }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
     let fromFields typeDef (fields : List<SynField>) =

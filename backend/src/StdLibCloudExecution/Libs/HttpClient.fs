@@ -223,9 +223,9 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { name = "statusCode"; typ = TInt },
-          [ { name = "headers"; typ = headersType }
-            { name = "body"; typ = TBytes } ]
+          { name = "statusCode"; typ = TInt; description = "" },
+          [ { name = "headers"; typ = headersType; description = "" }
+            { name = "body"; typ = TBytes; description = "" } ]
         )
       description = "The response from a HTTP request"
       deprecated = NotDeprecated } ]
