@@ -172,6 +172,7 @@ const submitForm = () => {
         </div>
       </div>
     </div>
+    
     <form
       v-if="variables"
       @submit.prevent="submitForm"
