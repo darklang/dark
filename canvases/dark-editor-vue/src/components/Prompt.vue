@@ -114,16 +114,17 @@ const submitPrompt = async () => {
       return
     }
 
-    // test ui without using tokens
-    // const data = '(let a = 1 \n a)'
-    // responses.value.push(data)
-
     prompt.value = ''
     const data = await response.json()
     responses.value.push(data.choices[0].text)
   } catch (error) {
     console.error('Error sending prompt to server:', error)
   }
+
+  // test ui without using tokens
+  // const data = '(let a = 1 \n a)'
+  // responses.value.push(data)
+
   isLoading.value = false
   //reset prompt textarea size
   autosize.destroy(content.value)
