@@ -12,7 +12,27 @@ let _handler _req =
     (Dict.fromListOverwritingDuplicates [ ("Content-Type", "text/html") ])
     200
 
+[<HttpHandler("GET", "/assets/:path")>]
+let _handler _req =
+  match Experiments.readFromCanvases ("dark-editor-vue/dist/assets/" ++ path) with
+  | Ok fileContents ->
+    let contentType =
+      match (String.split_v1 path ".") |> List.last_v2 |> Option.withDefault "" with
+      | "js" -> "application/javascript"
+      | "json" -> "application/json"
+      | "css" -> "text/css"
+      | _ -> "text/plain"
 
+    let headers =
+      Dict.fromListOverwritingDuplicates [ ("content-type", contentType) ]
+
+    Http.responseWithHeaders fileContents headers 200
+
+  | Error _e -> Http.response (String.toBytes "Couldn't load asset") 400
+
+
+
+// TODO: remove once a parser can run in WASM runtime
 [<HttpHandler("POST", "/get-program-json")>]
 let _handler _req =
   let sourceInBytes = request.body
@@ -29,31 +49,10 @@ let _handler _req =
 
     Http.responseWithHeaders
       (String.toBytes json)
-      (Dict.fromListOverwritingDuplicates [ ("content-type","application-json")])
+      (Dict.fromListOverwritingDuplicates [ ("content-type", "application-json")])
       200
 
   | Error err -> Http.response (String.toBytes ("Couldn't parse the program \n" ++ err)) 400
-
-
-[<HttpHandler("GET", "/assets/index.css")>]
-let _handler _req =
-  match Experiments.readFromCanvases "dark-editor-vue/dist/assets/index.css" with
-  | Ok fileContents ->
-    Http.responseWithHeaders
-      fileContents
-      (Dict.fromListOverwritingDuplicates [ ("Content-Type", "text/css") ])
-      200
-  | Error _e -> Http.response (String.toBytes "Couldn't load asset") 400
-
-[<HttpHandler("GET", "/assets/index.js")>]
-let _handler _req =
-  match Experiments.readFromCanvases "dark-editor-vue/dist/assets/index.js" with
-  | Ok fileContents ->
-    Http.responseWithHeaders
-      fileContents
-      (Dict.fromListOverwritingDuplicates [ ("Content-Type", "application/javascript") ])
-      200
-  | Error _e -> Http.response (String.toBytes "Couldn't load asset") 400
 
 
 [<HttpHandler("GET", "/get-prompt")>]
@@ -72,6 +71,8 @@ let _handler _req =
   | Error e -> Http.response e 400
 
 
+
+// TODO: eventually this should all live in client.dark
 
 type OpenAICompletionRequest = {
   model: String
