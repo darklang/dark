@@ -97,7 +97,6 @@ ON trace_old_events_v0
 
 
 
- /* associate it back to the function. */
 CREATE TABLE IF NOT EXISTS
 package_functions_v0
 -- IDs
@@ -109,7 +108,7 @@ package_functions_v0
    * for now store the owner */
 -- allow search by name
 , owner TEXT NOT NULL
-, modules jsonb NOT NULL /* eg "['Twitter', 'Other']"; includes package name, but not owner name */
+, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
 , fnname TEXT NOT NULL /* eg sendText */
 , version INTEGER NOT NULL /* eg 0 */
 -- the actual definition
