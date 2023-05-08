@@ -1,3 +1,5 @@
+<script setup lang="ts"></script>
+
 <template>
   <header class="">
     <a href="/">
@@ -9,5 +11,3 @@
     </a>
   </header>
 </template>
-
-<script setup lang="ts"></script>
