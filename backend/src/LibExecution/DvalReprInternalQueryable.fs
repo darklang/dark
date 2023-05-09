@@ -228,6 +228,8 @@ let parseJsonV0
     | TCustomType (typeName, args), JsonValueKind.Object ->
       match Map.tryFind typeName availableTypes with
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
+      | Some (CustomType.Alias (f1)) ->
+        Exception.raiseInternal "Alias not handled yet" [ "typeName", typeName ]
       | Some (CustomType.Record (f1, fs)) ->
         let fields = f1 :: fs
         let objFields =
