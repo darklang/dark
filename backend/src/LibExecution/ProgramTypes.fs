@@ -374,7 +374,8 @@ module CustomType =
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   type T =
-    // TODO: //| Abbreviation/Alias of TypeReference
+    /// `type MyAlias = Int`
+    | Alias of TypeReference
 
     /// `type MyRecord = { a : int; b : string }`
     | Record of firstField : RecordField * additionalFields : List<RecordField>
