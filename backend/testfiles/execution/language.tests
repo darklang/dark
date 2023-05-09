@@ -50,6 +50,10 @@ module Tuple =
   (1, Test.typeError_v0 "test", 3) = Test.typeError_v0 "test"
   (1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
 
+module Alias =
+  type Id = Int
+  type Something = { ID : Id; Data : String }
+  Something { ID = 1; Data = "test" } = Something { ID = 1; Data = "test" }
 
 module Records =
   type Cols1 = { col1 : Int }
