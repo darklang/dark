@@ -30,6 +30,7 @@
               rows="1"
               placeholder="What are you building today?"
               class="w-full h-6 max-h-44 outline-none m-0 resize-none overflow-y-auto border-0 bg-transparent text-white py-0 pl-2 pr-11"
+              @keydown.enter.exact.prevent="submitPrompt"
             ></textarea>
             <button
               type="submit"
