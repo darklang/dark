@@ -4,10 +4,7 @@
     <Accordion class="mx-auto">
       <template v-slot:accordion-header>
         <span class="font-semibold text-xl">System prompt</span>
-        <fa
-          icon="fa-angle-down"
-          class="w-4 h-4 ml-2 transform transition-transform"
-        />
+        <fa icon="fa-angle-down" class="w-4 h-4 ml-2" />
       </template>
       <template v-slot:accordion-body>
         <textarea
