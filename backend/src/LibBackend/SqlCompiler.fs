@@ -445,6 +445,11 @@ let rec lambdaToSql
         // TYPESCLEANUP use args
         | TCustomType (typeName, args) ->
           match Map.get typeName types with
+          // TODO: Deal with alias of record type
+          | Some (CustomType.Alias _) ->
+            error2
+              "The datastore's type is not a record"
+              (FQTypeName.toString typeName)
           | Some (CustomType.Record (f1, fields)) ->
             let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
             match field with
