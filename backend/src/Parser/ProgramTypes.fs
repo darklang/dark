@@ -187,8 +187,8 @@ module TypeReference =
 
 
 module LetPattern =
-  let rec fromSynPat ast (pat : SynPat) : PT.LetPattern =
-    let mapPat = fromSynPat ast
+  let rec fromSynPat (pat : SynPat) : PT.LetPattern =
+    let mapPat = fromSynPat
 
     match pat with
     | SynPat.Paren (subPat, _) -> mapPat subPat
@@ -205,9 +205,7 @@ module LetPattern =
       )
 
     | _ ->
-      Exception.raiseInternal
-        "Unsupported let or use expr pat type"
-        [ "ast", ast; "pat", pat ]
+      Exception.raiseInternal "Unsupported let or use expr pat type" [ "pat", pat ]
 
 
 module MatchPattern =
@@ -564,6 +562,27 @@ module Expr =
 
       PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, typeArgs, [])
 
+    // TODO: fix this before merging - it's basically a dupe of the above
+    | SynExpr.TypeApp (SynExpr.LongIdent (_,
+                                          SynLongIdent ([ modName; modName2; fnName ],
+                                                        _,
+                                                        _),
+                                          _,
+                                          _),
+                       _,
+                       typeArgs,
+                       _,
+                       _,
+                       _,
+                       _) ->
+      let modules = [ modName.idText; modName2.idText ]
+      let name, version =
+        parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
+      let typeArgs =
+        typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
+
+      PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, typeArgs, [])
+
     // Field access: a.b.c.d
     | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) ->
       match names with
@@ -629,7 +648,7 @@ module Expr =
                         _,
                         _) ->
 
-      PT.ELet(id, LetPattern.fromSynPat ast pat, c rhs, c body)
+      PT.ELet(id, LetPattern.fromSynPat pat, c rhs, c body)
 
 
     // `match` exprs:

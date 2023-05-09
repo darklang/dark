@@ -23,7 +23,7 @@ let mutable editor : Editor = { Types = []; Functions = []; CurrentState = DUnit
 
 // TODO: throw these fns in the "WASM.Editor" module once parsing works
 let fns : List<BuiltInFn> =
-  [ { name = fn' [ "WASM" ] "getState" 0
+  [ { name = fn' [ "WASM"; "Editor" ] "getState" 0
       typeParams = [ "state" ]
       parameters = []
       returnType = TResult(TVariable "a", TString)
@@ -42,10 +42,10 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn' [ "WASM" ] "setState" 0
+    { name = fn' [ "WASM"; "Editor" ] "setState" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "state" (TVariable "a") "" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TResult(TVariable "a", TString)
       description = "TODO"
       fn =
         (function
@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
           uply {
             // TODO: verify that the type matches the given typeParam
             editor <- { editor with CurrentState = v }
-            return DResult(Ok DUnit)
+            return DResult(Ok v)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn' [ "WASM" ] "callJSFunction" 0
+    { name = fn' [ "WASM"; "Editor" ] "callJSFunction" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""

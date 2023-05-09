@@ -19,7 +19,7 @@ let _handler _req =
         200
 
     | Error _err -> Http.response (String.toBytes "Couldn't parse the program") 500
-  | Error _err -> Http.response (String.toBytes "Couldn't load wasm.dark from disk") 500
+  | Error _err -> Http.response (String.toBytes "Couldn't load client.dark from disk") 500
 
 
 [<HttpHandler("GET", "/")>]

@@ -1,73 +1,96 @@
-type Prompt = | Prompt of String
-
-type EditorConversationState =
-  | WaitingForFirstInput
-  | WaitingForUserInput
-  | BotIsThinking
-
-type Author = | User | Bot
+// Model
+type BotResponseItem =
+  | Text of String
+  | Code of String
 
 type ChatHistoryItem =
-  { Author : Author; Prompt : Prompt }
+  | BotResponse of List<BotResponseItem>
+  | UserPrompt of String
 
 type Model =
-  { State : EditorConversationState
-    SystemPrompt: Prompt
+  { SystemPrompt: String
     ChatHistory: List<ChatHistoryItem> }
 
-type Msg =
-  | UserGavePrompt of prompt: Prompt
-  | BotResponded of Prompt
+// Update
+type Msg = | UserGavePrompt of String
 
-let update (model: State) (msg: Msg) : Model =
+let update (model: Model) (msg: Msg) : Model =
   match msg with
   | UserGavePrompt prompt ->
-    { SystemPrompt = model.SystemPrompt
-      State = BotIsThinking
-      ChatHistory =
-        let newItem = { Author = Author.User; Prompt = Prompt prompt }
-        List.append model.ChatHistory [ newItem ] }
+    // I guess, until we have cmds or something,
+    // we have to deal with http calls and such in-line, like here
+    let botResponseItems =
+      let apiResponse = "TODO" // OpenAI.getCompletion prompt
 
-  | BotResponded response ->
-    { SystemPrompt = model.SystemPrompt
-      State = WaitingForUserInput
-      ChatHistory =
-        let newItem = { Author = Author.Bot; Prompt = Prompt response }
-        List.append model.ChatHistory [ newItem ] }
+      // for now, just return one big text item
+      // TODO: later, extract out text and code sections
+      [ BotResponseItem.Text apiResponse ]
+
+    Model
+      { SystemPrompt = model.SystemPrompt
+        ChatHistory =
+          List.append
+            model.ChatHistory
+            [
+              ChatHistoryItem.UserPrompt prompt
+              ChatHistoryItem.BotResponse botResponseItems
+            ] }
+
+/// Single point of communicating to JS host
+///
+/// Let the JS host know that the state has been updated,
+/// so that it can update the UI accordingly.
+let updateStateInJS (newState: Model): Result<Unit, String> =
+  match Json.serialize<Model> newState with
+  | Ok serialized ->
+    let _ = WASM.Editor.callJSFunction "window.stateUpdated" [serialized]
+    Ok ()
+  | Error err ->
+    Error "Couldn't serialize updated state"
 
 
+/// Single point of communication from JS host
+///
+/// Listen for events from the JS host, and update the state accordingly.
+let handleEvent (evt: String): Result<String, String> =
+  match Json.parse<Msg> evt with
+  | Ok rawEvent ->
+    let currentState = WASM.getState<Model>
 
-let init() =
-  setState // TODO: make setState return the state set
-    { SystemPrompt = Prompt "TODO: import blurb about Dark"
-      State = WaitingForFirstInput
-      ChatHistory = [] }
+    let newState = update currentState msg
+
+    // returns result, but let's assume it worked...
+    let _ = setState newState
+
+    updateStateInJS newState
+
+  | Error err -> Error "Couldn't parse raw msg"
 
 
+// Init
+// (things to run on startup, before accepting any events
+//  the initial state is set to the result of the final expr)
+let systemPrompt =
+  WASM.HttpClient.request "get" "http://dark-editor.dlio.localhost:11003/system-prompt" [] Bytes.empty
 
-// Models to interop with JS host
-// (TODO: wrap this in `module JS = `)
+1+2 // useless -- just to prove we can
 
-type ChatHistoryItemJS = { author : string; prompt : String  }
+let initState =
+  match systemPrompt with
+  | Ok response ->
+    Model
+      { SystemPrompt = String.fromBytes response.body
+        ChatHistory = [] }
+  | Error err ->
+    Model
+      { SystemPrompt = String.fromBytes "nope"
+        ChatHistory = [] }
 
-type ModelForJS =
-  // should be 1:1 with Model, but nice and serializeable
-  { systemPrompt : string
-    state : string
-    chatHistory: List<ChatHistoryItemJS> }
+updateStateInJS initState
 
-// TODO: result
-let modelForJS (model: Model) : ModelForJS =
-  { systemPrompt = match model.SystemPrompt with Prompt p -> p
-    state = match model.State with
-            | WaitingForFirstInput -> "WaitingForFirstInput"
-            | WaitingForUserInput -> "WaitingForUserInput"
-            | BotIsThinking -> "BotIsThinking"
-    chatHistory =
-      model.ChatHistory
-      |> List.map (fun item ->
-           { author = match item.Author with User -> "User" | Bot -> "Bot"
-             prompt = item.Text }) }
+initState
+
+
 
 // TODO: result
 let modelFromJS (model: ModelForJS) : Model =
