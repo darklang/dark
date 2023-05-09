@@ -286,6 +286,7 @@ Json.parse<Result<Int, String>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 // ## Custom types
 
 // ### User-defined
+
 // #### Enums
 type PrettyLikely = Yeah | Enh of reason: String * Int
 
@@ -301,6 +302,12 @@ Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (PrettyLikely.En
 type Person = { Name: String; Age: Int }
 type People = { GroupName: String; People: List<Person> }
 
+// TODO: make sure this test doesn't pass
+// type Person1 = { Name: String; Age: Int }
+// type Person2 = { Name: String; Age: Int }
+// Json.serialize<Person1> (Person2 { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Name":"Bob"}"""
+
+
 Json.serialize<Person> (Person { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Name":"Bob"}"""
 Json.parse<Person> """{ "Name": "Bob", "Age": 42 }""" = Ok (Person { Name = "Bob"; Age = 42 })
 Json.serialize<People> (People { GroupName = "Two Georges"; People = [Person { Name = "George A"; Age = 27 }; Person { Name = "George B"; Age = 42 }] }) = Ok """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}"""
@@ -315,6 +322,18 @@ Json.parse<Person> """{ "Name": "Bob", "Age": 42, "Height": "6 ft" }""" = Ok (Pe
  | Error _ -> 0) = 42
 
 
+// #### Aliases
+type MyInt = Int
+
+Json.serialize<MyInt> 42 = Ok "42"
+Json.parse<MyInt> "42" = Ok 42
+
+type MyPerson= Person
+Json.serialize<MyPerson> (Person { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Name":"Bob"}"""
+Json.parse<MyPerson> """{ "Name": "Bob", "Age": 42 }""" = Ok (Person { Name = "Bob"; Age = 42 })
+type MyPrettyLikely = PrettyLikely
+Json.serialize<MyPrettyLikely> (PrettyLikely.Enh("printer broke", 7)) = Ok "{\"Enh\":[\"printer broke\",7]}"
+Json.parse<MyPrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (PrettyLikely.Enh("printer broke", 7))
 
 // ### Package
 
