@@ -7,7 +7,6 @@ open TestUtils.TestUtils
 module ST = LibBinarySerialization.SerializedTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module ST2PT = LibBinarySerialization.SerializedTypesToProgramTypes
 module PT2ST = LibBinarySerialization.ProgramTypesToSerializedTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
