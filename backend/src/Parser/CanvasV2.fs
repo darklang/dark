@@ -53,17 +53,30 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
 /// Depending on the attribute present, this may add a user function, a handler, or a DB
 let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule =
   match letBinding with
-  | SynBinding (_, _, _, _, attrs, _, _, pat, _returnInfo, expr, _, _, _) ->
+  | SynBinding (_, _, _, _, attrs, _, _, pat, returnInfo, expr, _, _, _) ->
     let expr = ProgramTypes.Expr.fromSynExpr expr
 
     let attrs = attrs |> List.collect (fun l -> l.Attributes)
 
     match attrs with
     | [] ->
-      // TODO: if the fn has no params, it's just a let expr
-      // (probably need a refactor here)
-      let newFn = ProgramTypes.UserFunction.fromSynBinding letBinding
-      { m with fns = newFn :: m.fns }
+      // functions require a return type to be defined,
+      // and let exprs don't allow return types to be defined,
+      // so we can use this to distinguish between the two
+      // when mapping from F#
+      match returnInfo with
+      | None ->
+        let newExpr =
+          PT.ELet(
+            gid (),
+            ProgramTypes.LetPattern.fromSynPat pat,
+            expr,
+            PT.EUnit(gid ())
+          )
+        { m with exprs = m.exprs @ [ newExpr ] }
+      | Some _ ->
+        let newFn = ProgramTypes.UserFunction.fromSynBinding letBinding
+        { m with fns = newFn :: m.fns }
 
     | [ attr ] ->
       match attr with

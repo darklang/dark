@@ -53,12 +53,43 @@ let getStateForEval
     executingFnName = None }
 
 
+
+/// Any 'loose' exprs in the source are mapped without context of previous/later exprs
+/// so, a binding set in one 'let' will be unavailable in the next expr if evaluated one by one.
+///
+/// e.g. given these separated exprs:
+///   - `let x = 1`
+///   - `1+1`
+///   - `x+2`
+/// when evaluating `x+2`, `x` wouldn't normally exist in the symtable.
+///
+/// So, this fn reduces the exprs to one expr ensuring bindings are available appropriately
+///   `let x = 1 in (let _ = 1+1 in x+2)`
+///
+/// `1+1` here may just as well be something like
+///   `WASM.callJSFunction "console.log" ["X is " ++ (Int.toString x)])`
+///
+/// (There's no way to read the symtable from `state`, otherwise I'd eval expr by expr, and
+/// update the symtable as I go.)
+let exprsCollapsedIntoOne (exprs : List<Expr>) : Expr =
+  exprs
+  |> List.rev
+  |> List.fold (EUnit(gid ())) (fun agg expr ->
+    match agg with
+    | EUnit (_) -> expr
+    | _ ->
+      match expr with
+      | ELet (id, lp, expr, _) -> ELet(id, lp, expr, agg)
+      | other -> ELet(gid (), LPVariable(gid (), "_"), other, agg))
+
+
 /// Source of the editor
 /// (types, functions, and exprs to run on start to set the initial value)
 type EditorSource =
   { types : List<UserType.T>
     fns : List<UserFunction.T>
     exprs : List<Expr> }
+
 
 /// Load the Darklang program that manages the state of and interactions with
 /// the JS side of the editor.
@@ -70,22 +101,13 @@ let LoadClient (sourceURL : string) : Task<string> =
     let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
     let clientSource = Json.Vanilla.deserialize<EditorSource> responseBody
 
-    let! (_, initialState) =
-      clientSource.exprs
-      |> Task.foldSequentially
-           (fun (state, _lastResult) expr ->
-             task {
-               let inputVars = Map.empty
 
-               let! (result : Dval) =
-                 LibExecution.Execution.executeExpr state inputVars expr
+    let expr = exprsCollapsedIntoOne clientSource.exprs
 
-               // do I actually need to pass state around so much below?
-               // if so, do I need to update anything in the state?
-               // (anything affected by this execution?)
-               return state, result
-             })
-           (getStateForEval clientSource.types clientSource.fns, DUnit)
+    let! initialState =
+      let state = getStateForEval clientSource.types clientSource.fns
+      let inputVars = Map.empty
+      LibExecution.Execution.executeExpr state inputVars expr
 
     Libs.Editor.editor <-
       { Types = clientSource.types
@@ -129,22 +151,11 @@ let EvalUserProgram (sourceJson : string) : Task<string> =
   task {
     let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
 
-    let! (_, initialState) =
-      source.exprs
-      |> Task.foldSequentially
-           (fun (state, _lastResult) expr ->
-             task {
-               let inputVars = Map.empty
-
-               let! (result : Dval) =
-                 LibExecution.Execution.executeExpr state inputVars expr
-
-               // do I actually need to pass state around so much below?
-               // if so, do I need to update anything in the state?
-               // (anything affected by this execution?)
-               return state, result
-             })
-           (getStateForEval source.types source.fns, DUnit)
+    let! initialState =
+      let expr = exprsCollapsedIntoOne source.exprs
+      let state = getStateForEval source.types source.fns
+      let inputVars = Map.empty
+      LibExecution.Execution.executeExpr state inputVars expr
 
     return LibExecution.DvalReprDeveloper.toRepr initialState
   }
