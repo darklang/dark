@@ -186,6 +186,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let typeStr = FQTypeName.toString typeName
       match typ with
       | None -> return err id $"There is no type named `{typeStr}`"
+      | Some (CustomType.Alias _) ->
+        return err id $"Expected a record but {typeStr} is an alias"
       | Some (CustomType.Enum _) ->
         return err id $"Expected a record but {typeStr} is an enum"
       | Some (CustomType.Record (expected1, expectedRest)) ->
@@ -580,6 +582,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let typeStr = FQTypeName.toString typeName
         match typ with
         | None -> return err id $"There is no type named `{typeStr}`"
+        | Some (CustomType.Alias _) ->
+          return err id $"Expected an enum but {typeStr} is an alias"
         | Some (CustomType.Record _) ->
           return err id $"Expected an enum but {typeStr} is a record"
         | Some (CustomType.Enum (case, cases)) ->
