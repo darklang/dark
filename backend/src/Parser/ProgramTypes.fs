@@ -1099,6 +1099,17 @@ module CustomType =
   let fromSynTypeDefn (typeDef : SynTypeDefn) : (List<string> * PT.CustomType.T) =
     match typeDef with
     | SynTypeDefn (SynComponentInfo (_, _params, _, ids, _, _, _, _),
+                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
+                                                                             typ,
+                                                                             _),
+                                           _),
+                   _,
+                   _,
+                   _,
+                   _) ->
+      ids |> List.map string, PT.CustomType.Alias(TypeReference.fromSynType typ)
+
+    | SynTypeDefn (SynComponentInfo (_, _params, _, ids, _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
                                            _),
                    _,
@@ -1131,6 +1142,8 @@ module CustomType =
         RecordField.completeParse userTypes firstField,
         additionalFields |> List.map (RecordField.completeParse userTypes)
       )
+    | PT.CustomType.Alias typ ->
+      PT.CustomType.Alias(TypeReference.completeParse userTypes typ)
 
 
 module UserType =
