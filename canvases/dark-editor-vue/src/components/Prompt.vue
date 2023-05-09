@@ -39,21 +39,7 @@
             >
               <span v-if="!isLoading">send</span>
               <span v-else class="flex">
-                <svg class="animate-spin w-6 p-1" viewBox="0 0 24 24">
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.353 5.801 3.501 7.663l2.498-2.372zM20 12a8 8 0 01-8 8v4c6.627 0 12-5.373 12-12h-4zm-2-5.291A7.962 7.962 0 0120 12h4c0-3.042-1.353-5.801-3.501-7.663l-2.498 2.372z"
-                  ></path>
-                </svg>
+                <fa icon="fa-spinner" class="animate-spin w-6 p-1" />
               </span>
             </button>
           </div>
