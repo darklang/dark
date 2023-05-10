@@ -128,7 +128,8 @@ let fns : List<BuiltInFn> =
 
             with
             | e ->
-              return DString($"Error parsing code: {e.Message}") |> Error |> DResult
+              let error = Exception.getMessages e |> String.concat " "
+              return DString($"Error parsing code: {error}") |> Error |> DResult
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
