@@ -183,8 +183,13 @@ let fns : List<BuiltInFn> =
 
             with
             | e ->
+<<<<<<< HEAD
               return DString($"Error parsing code: {e.Message}") |> Error |> DResult
 >>>>>>> b05d307b5 (Show parser errors)
+=======
+              let error = Exception.getMessages e |> String.concat " "
+              return DString($"Error parsing code: {error}") |> Error |> DResult
+>>>>>>> 50e0b073d (Use getMessage fn instead of e.Message to try to display more errors)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
