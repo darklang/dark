@@ -1,17 +1,32 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import ConversationView from './views/ConversationView.vue'
 
-import MainView from './views/MainView.vue'
-
-const state = ref({
-  SystemPrompt: 'TODO',
-})
-
-/** Listen for state updates from Dark */
-window.stateUpdated = (newState: any) => {
-  state.value = JSON.parse(newState)
+interface ChatHistoryItem {
+  Author: 'User' | 'Bot'
+  IsCode: boolean
+  Text: string
 }
 
+interface Model {
+  SystemPrompt: string
+  ChatHistory: ChatHistoryItem[]
+}
+
+let init: Model = {
+  SystemPrompt: '<system prompt here>!',
+  ChatHistory: [],
+}
+
+// Set initial state; listen for state updates from Dark
+const state = ref(init)
+window.stateUpdated = (newState: any) => {
+  state.value = JSON.parse(newState)
+  console.log(newState)
+}
+
+// Bootstrap and connect the Dark side of the app
+// (running in WebAssembly)
 const darklangJSScript: HTMLScriptElement = document.createElement('script')
 darklangJSScript.setAttribute(
   'src',
@@ -31,9 +46,10 @@ darklangJSScript.addEventListener('load', async () => {
     'http://dark-editor.dlio.localhost:11003/client.dark'
   )
 })
+
 document.head.appendChild(darklangJSScript)
 </script>
 
 <template>
-  <MainView :state="state" />
+  <ConversationView v-bind:state="state" />
 </template>

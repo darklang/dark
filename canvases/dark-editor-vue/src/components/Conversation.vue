@@ -1,135 +1,55 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import autosize from 'autosize'
+import { ref } from 'vue'
+import ConversationStep from './ConversationStep.vue'
+import Prompt from './Prompt.vue'
 
-import UserChat from './UserChat.vue'
-import ResponseChat from './ResponseChat.vue'
-import Result from './Result.vue'
-
-const prompts = ref<string[]>([])
-const prompt = ref('')
-const responses = ref<string[]>([])
-const message = ref('')
-const isLoading = ref(false)
-
-const textarea = document.querySelector('textarea')
-if (textarea !== null) {
-  autosize(textarea)
-}
-const content = ref()
-onMounted(() => autosize(content.value))
-
-const props = defineProps({
-  systemPromptValue: {
-    type: String,
-    default: '',
+defineProps({
+  state: {
+    type: Object, // todo
+    required: true,
   },
 })
 
-const handleMessage = (value: string) => {
-  message.value = value
-}
-
-const submitPrompt = async () => {
-  prompts.value.push(prompt.value)
-
-  try {
-    isLoading.value = true
-    const response = await fetch('/api/handle-user-prompt', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt: props.systemPromptValue + ' ' + prompt.value,
-      }),
-    })
-
-    if (!response.ok) {
-      console.error('Error sending prompt to server')
-      return
-    }
-
-    prompt.value = ''
-    const data = await response.json()
-    responses.value.push(data.choices[0].text)
-  } catch (error) {
-    console.error('Error sending prompt to server:', error)
-  }
-
-  // test ui without using tokens
-  // const data = '(let a = 1 \n a)'
-  // responses.value.push(data)
-
-  isLoading.value = false
-  //reset prompt textarea size
-  autosize.destroy(content.value)
-  autosize(content.value)
-}
+const isPromptVisible = ref(false)
 </script>
 
 <template>
-  <div>
-    <div class="h-[542px] overflow-y-scroll pb-16" v-if="prompts.length">
-      <div v-for="(prompt, index) in prompts" :key="index">
-        <UserChat :promptValue="prompt" />
-        <ResponseChat
-          @message="handleMessage"
-          :response="responses[index]"
-          :responseIndex="index"
-          v-if="responses[index]"
+  <div class="min-h-screen bg-gray-100">
+    <div class="p-4">
+      <!-- system prompt -->
+      <div class="bg-white rounded">
+        <input
+          type="checkbox"
+          id="system-prompt"
+          class="absolute left-0 hidden"
+          v-model="isPromptVisible"
         />
+        <label
+          for="system-prompt"
+          class="block p-2 mb-2 font-bold text-white bg-blue-500 rounded-t cursor-pointer"
+        >
+          System Prompt
+        </label>
+        <div v-show="isPromptVisible" class="p-4">
+          <textarea
+            v-model="state.SystemPrompt"
+            class="w-full p-2 border border-gray-300 rounded"
+            rows="4"
+          ></textarea>
+        </div>
       </div>
 
-      <Result v-if="message" :message="message" />
+      <!-- actual conversation -->
+      <div class="mt-4 space-y-4">
+        <ConversationStep
+          v-for="(chatItem, index) in state.ChatHistory"
+          :key="index"
+          :chatItem="chatItem"
+        />
+      </div>
     </div>
 
-    <div class="absolute bottom-0 left-0 w-full pt-2 bg-[#151515]">
-      <form
-        @submit.prevent="submitPrompt"
-        class="flex flex-row stretch my-4 mx-auto max-w-2xl"
-      >
-        <div class="relative flex h-full flex-1">
-          <div
-            class="w-full relative flex flex-col flex-grow py-3 pl-4 border border-white/10 rounded-md shadow-black/10"
-          >
-            <textarea
-              ref="content"
-              autosize
-              v-model="prompt"
-              aria-multiline="true"
-              rows="1"
-              placeholder="What are you building today?"
-              class="w-full h-6 max-h-44 outline-none m0 resize-none overflow-y-auto border-0 bg-transparent text-white py-0 pl-2 pr-11"
-            ></textarea>
-            <button
-              type="submit"
-              class="absolute bottom-2 right-2 py-1 px-2 mx-2 rounded-md text-white bg-[#C56AE4] hover:bg-[#9f56b8]"
-              :class="{ 'opacity-50 cursor-not-allowed': isLoading }"
-              :disabled="isLoading"
-            >
-              <span v-if="!isLoading">send</span>
-              <span v-else class="flex">
-                <svg class="animate-spin w-6 p-1" viewBox="0 0 24 24">
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.353 5.801 3.501 7.663l2.498-2.372zM20 12a8 8 0 01-8 8v4c6.627 0 12-5.373 12-12h-4zm-2-5.291A7.962 7.962 0 0120 12h4c0-3.042-1.353-5.801-3.501-7.663l-2.498 2.372z"
-                  ></path>
-                </svg>
-              </span>
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
+    <!-- User Prompt Input at the bottom -->
+    <Prompt />
   </div>
 </template>
