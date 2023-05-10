@@ -3,26 +3,26 @@ import { ref } from 'vue'
 import ConversationView from './views/ConversationView.vue'
 
 interface ChatHistoryItem {
-  Author: 'User' | 'Bot'
-  IsCode: boolean
-  Text: string
+  author: 'User' | 'Bot'
+  isCode: boolean
+  text: string
 }
 
 interface Model {
-  SystemPrompt: string
-  ChatHistory: ChatHistoryItem[]
+  systemPrompt: string
+  chatHistory: ChatHistoryItem[]
 }
 
 let init: Model = {
-  SystemPrompt: '<system prompt here>!',
-  ChatHistory: [],
+  systemPrompt: '<system prompt here>!',
+  chatHistory: [],
 }
 
 // Set initial state; listen for state updates from Dark
 const state = ref(init)
 window.stateUpdated = (newState: any) => {
   state.value = JSON.parse(newState)
-  console.log(newState)
+  console.log('newState', newState)
 }
 
 // Bootstrap and connect the Dark side of the app
