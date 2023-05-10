@@ -110,20 +110,25 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString code ] ->
           uply {
-            let canvas = Parser.CanvasV2.parse code
+            try
+              let canvas = Parser.CanvasV2.parse code
 
-            let types = List.map PT2RT.UserType.toRT canvas.types
-            let fns = List.map PT2RT.UserFunction.toRT canvas.fns
-            let exprs = List.map PT2RT.Expr.toRT canvas.exprs
+              let types = List.map PT2RT.UserType.toRT canvas.types
+              let fns = List.map PT2RT.UserFunction.toRT canvas.fns
+              let exprs = List.map PT2RT.Expr.toRT canvas.exprs
 
-            return
-              [ "types", DString(Json.Vanilla.serialize types)
-                "fns", DString(Json.Vanilla.serialize fns)
-                "exprs", DString(Json.Vanilla.serialize exprs) ]
-              |> Map.ofList
-              |> DDict
-              |> Ok
-              |> DResult
+              return
+                [ "types", DString(Json.Vanilla.serialize types)
+                  "fns", DString(Json.Vanilla.serialize fns)
+                  "exprs", DString(Json.Vanilla.serialize exprs) ]
+                |> Map.ofList
+                |> DDict
+                |> Ok
+                |> DResult
+
+            with
+            | e ->
+              return DString($"Error parsing code: {e.Message}") |> Error |> DResult
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
