@@ -8,7 +8,8 @@ const userInput = ref('');
 async function submit() {
   try {
     console.log('emitting prompt to submit');
-    const result = await window.darklang.handleEvent({ Type: "UserGavePrompt", Data: userInput.value });
+    const evt = { typ: "UserGavePrompt", data: userInput.value }
+    const result = await window.darklang.handleEvent(evt);
     console.log('result', result)
   } catch (error) {
     console.error(error);

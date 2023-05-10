@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import ConversationStep from './ConversationStep.vue'
 import Prompt from './Prompt.vue'
 
+// TODO: match `state`
 defineProps({
   state: {
     type: Object, // todo
@@ -32,7 +33,7 @@ const isPromptVisible = ref(false)
         </label>
         <div v-show="isPromptVisible" class="p-4">
           <textarea
-            v-model="state.SystemPrompt"
+            v-model="state.systemPrompt"
             class="w-full p-2 border border-gray-300 rounded"
             rows="4"
           ></textarea>
@@ -42,7 +43,7 @@ const isPromptVisible = ref(false)
       <!-- actual conversation -->
       <div class="mt-4 space-y-4">
         <ConversationStep
-          v-for="(chatItem, index) in state.ChatHistory"
+          v-for="(chatItem, index) in state.chatHistory"
           :key="index"
           :chatItem="chatItem"
         />

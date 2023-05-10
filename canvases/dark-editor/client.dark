@@ -11,23 +11,23 @@ type ChatHistoryItem =
   // | BotResponse of List<BotResponseItem>
   // | UserPrompt of String
   // TODO: use above
-  { Author: String; IsCode: Bool; Text: String }
+  { author: String; isCode: Bool; text: String }
 
 type Model =
-  { SystemPrompt: String
-    ChatHistory: List<ChatHistoryItem> }
+  { systemPrompt: String
+    chatHistory: List<ChatHistoryItem> }
 
 // Update
 type Msg =
   // TODO: use this
   //| UserGavePrompt of String
-  { Type: String // UserGavePrompt
-    Data: String }
+  { typ: String // UserGavePrompt
+    data: String }
 
 
 let update (model: Model) (msg: Msg) : Model =
 
-  match msg.Type with
+  match msg.typ with
   | "UserGavePrompt" ->
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
@@ -39,13 +39,13 @@ let update (model: Model) (msg: Msg) : Model =
       //[ BotResponseItem.Text apiResponse ]
 
     Model
-      { SystemPrompt = model.SystemPrompt
-        ChatHistory =
+      { systemPrompt = model.systemPrompt
+        chatHistory =
           List.append
-            model.ChatHistory
+            model.chatHistory
             [
-              ChatHistoryItem { Author = "User"; IsCode = false; Text = msg.Data }
-              ChatHistoryItem { Author = "Bot"; IsCode = false; Text = apiResponse }
+              ChatHistoryItem { author = "User"; isCode = false; text = msg.Data }
+              ChatHistoryItem { author = "Bot"; isCode = false; text = apiResponse }
             ] }
 
 /// Single point of communicating to JS host
@@ -93,18 +93,19 @@ let initState =
   match systemPrompt with
   | Ok response ->
     Model
-      { SystemPrompt = String.fromBytes response.body
-        ChatHistory =
+      { systemPrompt = String.fromBytes response.body
+        chatHistory =
           [
-            ChatHistoryItem { Author = "Bot"; IsCode = false; Text = "Welcome to the Chat!" }
-            ChatHistoryItem { Author = "User"; IsCode = false; Text = "Hello, give me code!" }
-            ChatHistoryItem { Author = "Bot"; IsCode = false; Text = "Here's some code:" }
-            ChatHistoryItem { Author = "Bot"; IsCode = true; Text = "(let a = 1 \n a)" }
+            ChatHistoryItem { author = "Bot"; isCode = false; text = "Welcome to the Chat!" }
+            ChatHistoryItem { author = "User"; isCode = false; text = "Hello, give me code!" }
+            ChatHistoryItem { author = "Bot"; isCode = false; text = "Here's some code:" }
+            ChatHistoryItem { author = "Bot"; isCode = true; text = "(let a = 1 \n a)" }
           ] }
   | Error err ->
+    log "oh no, couldn't fetch system prompt"
     Model
-      { SystemPrompt = String.fromBytes "nope"
-        ChatHistory = [ ] }
+      { systemPrompt = String.fromBytes "nope"
+        chatHistory = [ ] }
 
 updateStateInJS initState
 
@@ -133,17 +134,17 @@ initState
 //     chatHistory: List<ChatHistoryItemJS> }
 
 // // TODO: result
-// let modelForJS (model: Model) : ModelForJS =
-//   { systemPrompt = match model.SystemPrompt with Prompt p -> p
-//     state = match model.State with
+// let stateForJS (state: Model) : ModelForJS =
+//   { systemPrompt = state.systemPrompt
+//     state = match state.State with
 //             | WaitingForFirstInput -> "WaitingForFirstInput"
 //             | WaitingForUserInput -> "WaitingForUserInput"
 //             | BotIsThinking -> "BotIsThinking"
 //     chatHistory =
-//       model.ChatHistory
+//       state.chatHistory
 //       |> List.map (fun item ->
-//            { author = match item.Author with User -> "User" | Bot -> "Bot"
-//              prompt = item.Text }) }
+//            { author = match item.author with User -> "User" | Bot -> "Bot"
+//              prompt = item.text }) }
 
 // // TODO: result
 // let modelFromJS (model: ModelForJS) : Model =
@@ -202,8 +203,8 @@ initState
 //   | Ok reqBody ->
 //     let headers =
 //       [
-//         ("Authorization", "Bearer " ++ OPENAI_API_KEY)
-//         ("Content-Type", "application/json")
+//         ("authorization", "Bearer " ++ OPENAI_API_KEY)
+//         ("content-type", "application/json")
 //       ]
 
 //     let openAIResponse =
