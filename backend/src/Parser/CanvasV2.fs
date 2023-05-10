@@ -188,10 +188,10 @@ let postProcessModule (m : CanvasModule) : CanvasModule =
         { db with typ = ProgramTypes.TypeReference.completeParse userTypeNames db.typ }) }
 
 let parse (filename : string) (source : string) : CanvasModule =
-  let parsedAsFSharp = parseAsFSharpSourceFile source
+  let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
   let decls =
-    match parsedAsFSharp filename with
+    match parsedAsFSharp with
     | ParsedImplFileInput (_,
                            _,
                            _,
