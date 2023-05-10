@@ -157,7 +157,11 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString code; DString filename ] ->
           uply {
             try
+<<<<<<< HEAD
               let canvas = Parser.CanvasV2.parse filename code
+=======
+              let canvas = Parser.CanvasV2.parse code
+>>>>>>> b05d307b5 (Show parser errors)
 
               let types = List.map PT2RT.UserType.toRT canvas.types
               let fns = List.map PT2RT.UserFunction.toRT canvas.fns
@@ -171,9 +175,16 @@ let fns : List<BuiltInFn> =
                 |> DDict
                 |> Ok
                 |> DResult
+<<<<<<< HEAD
             with
             | e ->
               return DResult(Error(DString($"Error parsing program: {e.Message}")))
+=======
+
+            with
+            | e ->
+              return DString($"Error parsing code: {e.Message}") |> Error |> DResult
+>>>>>>> b05d307b5 (Show parser errors)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

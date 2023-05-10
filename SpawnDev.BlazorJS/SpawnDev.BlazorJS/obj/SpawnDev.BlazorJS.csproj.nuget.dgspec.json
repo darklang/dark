@@ -1,0 +1,72 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/SpawnDev.BlazorJS.csproj": {}
+  },
+  "projects": {
+    "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/SpawnDev.BlazorJS.csproj": {
+      "version": "2.1.13",
+      "restore": {
+        "projectUniqueName": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/SpawnDev.BlazorJS.csproj",
+        "projectName": "SpawnDev.BlazorJS",
+        "projectPath": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/SpawnDev.BlazorJS.csproj",
+        "packagesPath": "/home/dark/.nuget/packages/",
+        "outputPath": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/obj/",
+        "projectStyle": "PackageReference",
+        "crossTargeting": true,
+        "configFilePaths": [
+          "/home/dark/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net7.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net7.0": {
+            "targetAlias": "net7.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net7.0": {
+          "targetAlias": "net7.0",
+          "dependencies": {
+            "Microsoft.AspNetCore.Components.WebAssembly": {
+              "target": "Package",
+              "version": "[7.0.3, )"
+            },
+            "Microsoft.AspNetCore.Components.WebAssembly.DevServer": {
+              "target": "Package",
+              "version": "[7.0.3, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/7.0.201/RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

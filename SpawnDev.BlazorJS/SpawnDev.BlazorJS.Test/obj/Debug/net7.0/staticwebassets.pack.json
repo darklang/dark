@@ -1,0 +1,53 @@
+{
+  "Files": [
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/bin/Debug/net7.0/wwwroot/_framework/blazor.webassembly.js",
+      "PackagePath": "staticwebassets/_framework/blazor.webassembly.js"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/obj/Debug/net7.0/build-gz/jjmfTZdd.gz",
+      "PackagePath": "staticwebassets/_framework/blazor.webassembly.js.gz"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/wwwroot/css/app.css",
+      "PackagePath": "staticwebassets/css/app.css"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/wwwroot/css/bootstrap/bootstrap.min.css",
+      "PackagePath": "staticwebassets/css/bootstrap/bootstrap.min.css"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/wwwroot/css/bootstrap/bootstrap.min.css.map",
+      "PackagePath": "staticwebassets/css/bootstrap/bootstrap.min.css.map"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/wwwroot/favicon.png",
+      "PackagePath": "staticwebassets/favicon.png"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/wwwroot/icon-192.png",
+      "PackagePath": "staticwebassets/icon-192.png"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.Test/wwwroot/index.html",
+      "PackagePath": "staticwebassets/index.html"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.SpawnDev.BlazorJS.Test.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.build.SpawnDev.BlazorJS.Test.props",
+      "PackagePath": "build\\SpawnDev.BlazorJS.Test.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.buildMultiTargeting.SpawnDev.BlazorJS.Test.props",
+      "PackagePath": "buildMultiTargeting\\SpawnDev.BlazorJS.Test.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.buildTransitive.SpawnDev.BlazorJS.Test.props",
+      "PackagePath": "buildTransitive\\SpawnDev.BlazorJS.Test.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

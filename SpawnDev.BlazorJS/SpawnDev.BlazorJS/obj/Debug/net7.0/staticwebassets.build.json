@@ -1,0 +1,54 @@
+{
+  "Version": 1,
+  "Hash": "ksewQildOl+44Kx9D9CvS2Yzk4DHe7YiVS/F2KBMY5Y=",
+  "Source": "SpawnDev.BlazorJS",
+  "BasePath": "_content/SpawnDev.BlazorJS",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [
+    {
+      "Name": "SpawnDev.BlazorJS/wwwroot",
+      "Source": "SpawnDev.BlazorJS",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS",
+      "Pattern": "**"
+    }
+  ],
+  "Assets": [
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/obj/Debug/net7.0/jsmodules/jsmodules.build.manifest.json",
+      "SourceId": "SpawnDev.BlazorJS",
+      "SourceType": "Computed",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/obj/Debug/net7.0/jsmodules/",
+      "BasePath": "_content/SpawnDev.BlazorJS",
+      "RelativePath": "SpawnDev.BlazorJS.modules.json",
+      "AssetKind": "Build",
+      "AssetMode": "CurrentProject",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "JSModule",
+      "AssetTraitValue": "JSModuleManifest",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "obj/Debug/net7.0/jsmodules/jsmodules.build.manifest.json"
+    },
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/wwwroot/SpawnDev.BlazorJS.lib.module.js",
+      "SourceId": "SpawnDev.BlazorJS",
+      "SourceType": "Discovered",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS",
+      "RelativePath": "SpawnDev.BlazorJS.lib.module.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "JSModule",
+      "AssetTraitValue": "JSLibraryModule",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/SpawnDev.BlazorJS.lib.module.js"
+    }
+  ]
+}

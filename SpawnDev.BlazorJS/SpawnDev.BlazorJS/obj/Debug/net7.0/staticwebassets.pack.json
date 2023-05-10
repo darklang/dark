@@ -1,0 +1,25 @@
+{
+  "Files": [
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/wwwroot/SpawnDev.BlazorJS.lib.module.js",
+      "PackagePath": "staticwebassets/SpawnDev.BlazorJS.lib.module.js"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.SpawnDev.BlazorJS.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.build.SpawnDev.BlazorJS.props",
+      "PackagePath": "build\\SpawnDev.BlazorJS.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.buildMultiTargeting.SpawnDev.BlazorJS.props",
+      "PackagePath": "buildMultiTargeting\\SpawnDev.BlazorJS.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.buildTransitive.SpawnDev.BlazorJS.props",
+      "PackagePath": "buildTransitive\\SpawnDev.BlazorJS.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

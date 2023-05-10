@@ -1,0 +1,37 @@
+{
+  "Files": [
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/appsettings.json",
+      "PackagePath": "staticwebassets/appsettings.json"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/index.html",
+      "PackagePath": "staticwebassets/index.html"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/spawndev.blazorjs.webworkers.faux-env.js",
+      "PackagePath": "staticwebassets/spawndev.blazorjs.webworkers.faux-env.js"
+    },
+    {
+      "Id": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/spawndev.blazorjs.webworkers.js",
+      "PackagePath": "staticwebassets/spawndev.blazorjs.webworkers.js"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.SpawnDev.BlazorJS.WebWorkers.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.build.SpawnDev.BlazorJS.WebWorkers.props",
+      "PackagePath": "build\\SpawnDev.BlazorJS.WebWorkers.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.buildMultiTargeting.SpawnDev.BlazorJS.WebWorkers.props",
+      "PackagePath": "buildMultiTargeting\\SpawnDev.BlazorJS.WebWorkers.props"
+    },
+    {
+      "Id": "obj/Debug/net7.0/staticwebassets/msbuild.buildTransitive.SpawnDev.BlazorJS.WebWorkers.props",
+      "PackagePath": "buildTransitive\\SpawnDev.BlazorJS.WebWorkers.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

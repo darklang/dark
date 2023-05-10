@@ -118,7 +118,8 @@ const executeCode = async (index: number) => {
     })
 
     if (!response.ok) {
-      throw new Error('Error in parsing the expr and serializing it as JSON')
+      let error = await response.text()
+      throw new Error(error)
     }
 
     const userProgramJson = await response.text()

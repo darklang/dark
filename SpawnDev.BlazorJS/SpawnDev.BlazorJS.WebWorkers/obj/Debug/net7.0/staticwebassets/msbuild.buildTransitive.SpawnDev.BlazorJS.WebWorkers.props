@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../buildMultiTargeting/SpawnDev.BlazorJS.WebWorkers.props" />
+</Project>

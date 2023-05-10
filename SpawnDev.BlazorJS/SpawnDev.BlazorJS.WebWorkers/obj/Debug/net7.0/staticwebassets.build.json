@@ -1,0 +1,141 @@
+{
+  "Version": 1,
+  "Hash": "l1KI+R+XVU9cRN3yEPtQn5vpOr7uT+gdXn+CP9qXaqE=",
+  "Source": "SpawnDev.BlazorJS.WebWorkers",
+  "BasePath": "_content/SpawnDev.BlazorJS.WebWorkers",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/SpawnDev.BlazorJS.csproj",
+      "Version": 2,
+      "Source": "SpawnDev.BlazorJS",
+      "GetPublishAssetsTargets": "ComputeReferencedStaticWebAssetsPublishManifest;GetCurrentProjectPublishStaticWebAssetItems",
+      "AdditionalPublishProperties": "Configuration=Debug;Platform=AnyCPU;TargetFramework=net7.0",
+      "AdditionalPublishPropertiesToRemove": "RuntimeIdentifier;SelfContained",
+      "GetBuildAssetsTargets": "GetCurrentProjectBuildStaticWebAssetItems",
+      "AdditionalBuildProperties": "Configuration=Debug;Platform=AnyCPU;TargetFramework=net7.0",
+      "AdditionalBuildPropertiesToRemove": "RuntimeIdentifier;SelfContained"
+    }
+  ],
+  "DiscoveryPatterns": [
+    {
+      "Name": "SpawnDev.BlazorJS.WebWorkers/wwwroot",
+      "Source": "SpawnDev.BlazorJS.WebWorkers",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS.WebWorkers",
+      "Pattern": "**"
+    },
+    {
+      "Name": "SpawnDev.BlazorJS/wwwroot",
+      "Source": "SpawnDev.BlazorJS",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS",
+      "Pattern": "**"
+    }
+  ],
+  "Assets": [
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/obj/Debug/net7.0/jsmodules/jsmodules.build.manifest.json",
+      "SourceId": "SpawnDev.BlazorJS.WebWorkers",
+      "SourceType": "Computed",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/obj/Debug/net7.0/jsmodules/",
+      "BasePath": "_content/SpawnDev.BlazorJS.WebWorkers",
+      "RelativePath": "SpawnDev.BlazorJS.WebWorkers.modules.json",
+      "AssetKind": "Build",
+      "AssetMode": "CurrentProject",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "JSModule",
+      "AssetTraitValue": "JSModuleManifest",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "obj/Debug/net7.0/jsmodules/jsmodules.build.manifest.json"
+    },
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/appsettings.json",
+      "SourceId": "SpawnDev.BlazorJS.WebWorkers",
+      "SourceType": "Discovered",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS.WebWorkers",
+      "RelativePath": "appsettings.json",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/appsettings.json"
+    },
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/index.html",
+      "SourceId": "SpawnDev.BlazorJS.WebWorkers",
+      "SourceType": "Discovered",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS.WebWorkers",
+      "RelativePath": "index.html",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/index.html"
+    },
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/spawndev.blazorjs.webworkers.faux-env.js",
+      "SourceId": "SpawnDev.BlazorJS.WebWorkers",
+      "SourceType": "Discovered",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS.WebWorkers",
+      "RelativePath": "spawndev.blazorjs.webworkers.faux-env.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/spawndev.blazorjs.webworkers.faux-env.js"
+    },
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/spawndev.blazorjs.webworkers.js",
+      "SourceId": "SpawnDev.BlazorJS.WebWorkers",
+      "SourceType": "Discovered",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS.WebWorkers/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS.WebWorkers",
+      "RelativePath": "spawndev.blazorjs.webworkers.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/spawndev.blazorjs.webworkers.js"
+    },
+    {
+      "Identity": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/wwwroot/SpawnDev.BlazorJS.lib.module.js",
+      "SourceId": "SpawnDev.BlazorJS",
+      "SourceType": "Project",
+      "ContentRoot": "/home/dark/app/SpawnDev.BlazorJS/SpawnDev.BlazorJS/wwwroot/",
+      "BasePath": "_content/SpawnDev.BlazorJS",
+      "RelativePath": "SpawnDev.BlazorJS.lib.module.js",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "RelatedAsset": "",
+      "AssetTraitName": "JSModule",
+      "AssetTraitValue": "JSLibraryModule",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot/SpawnDev.BlazorJS.lib.module.js"
+    }
+  ]
+}
