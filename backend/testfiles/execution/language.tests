@@ -431,6 +431,31 @@ module Pipes =
 
 
 module Match =
+  // list destruction
+
+  // head tail
+  let headTail (list: List<'a>) : (Option<List<'a>> * List<'a>)  =
+    match list with
+    | head :: tail -> (Just head, tail)
+    | [] -> (Nothing, [])
+
+  (headTail []) = (Nothing, [])
+  (headTail [1]) = (Just 1, [])
+  (headTail [1; 2; 3]) = (Just 1, [2; 3])
+  (headTail ["ab";"cd";"efg"]) = (Just "ab", ["cd";"efg"])
+  
+  // elements
+  let sequence (list : List<Int>) : Option<Tuple<Int,Int,Int>> =
+    match list with
+    | a :: b :: c :: rest -> Just ((a, b, c))
+    | _ -> Nothing
+
+  (sequence []) = Nothing
+  (sequence [1]) = Nothing
+  (sequence [1; 2]) = Nothing
+  (sequence [1; 2; 3]) = Just (1, 2, 3)
+  (sequence [1; 2; 3; 4]) = Just (1, 2, 3)
+
   (match 6 with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = "pass"
   (match "x" with | "y" -> "fail" | "x" -> "pass" | var -> "fail") = "pass"
   (match true with | false -> "fail" | true -> "pass" | var -> "fail") = "pass"
