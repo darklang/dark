@@ -299,14 +299,13 @@ Json.parse<PrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (PrettyLikely.En
 
 
 // #### Records
+type Person1 = { Name: String; Age: Int }
+type Person2 = { Name: String; Age: Int }
+
+Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Error "Incorrect record type"
+
 type Person = { Name: String; Age: Int }
 type People = { GroupName: String; People: List<Person> }
-
-// TODO: make sure this test doesn't pass
-// type Person1 = { Name: String; Age: Int }
-// type Person2 = { Name: String; Age: Int }
-// Json.serialize<Person1> (Person2 { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Name":"Bob"}"""
-
 
 Json.serialize<Person> (Person { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Name":"Bob"}"""
 Json.parse<Person> """{ "Name": "Bob", "Age": 42 }""" = Ok (Person { Name = "Bob"; Age = 42 })
