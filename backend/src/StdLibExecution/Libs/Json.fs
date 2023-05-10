@@ -152,9 +152,7 @@ let rec serialize
 
     | CustomType.Record (firstField, additionalFields) ->
       match dval with
-      | DDict dvalMap
-      | DRecord (_, dvalMap) ->
-        // TODO: check name of DRecord to make sure it is the correct type
+      | DDict dvalMap ->
         let fieldDefs = firstField :: additionalFields
         w.writeObject (fun () ->
           dvalMap
@@ -168,6 +166,21 @@ let rec serialize
               |> fun def -> def.typ
 
             r matchingTypeReference dval))
+      | DRecord (recordTypeName, dvalMap) when recordTypeName = typeName ->
+        let fieldDefs = firstField :: additionalFields
+        w.writeObject (fun () ->
+          dvalMap
+          |> Map.toList
+          |> List.iter (fun (fieldName, dval) ->
+            w.WritePropertyName fieldName
+
+            let matchingTypeReference =
+              fieldDefs
+              |> List.find (fun def -> def.name = fieldName)
+              |> fun def -> def.typ
+
+            r matchingTypeReference dval))
+      | DRecord (_, _) -> Exception.raiseInternal "Incorrect record type" []
       | _ -> Exception.raiseInternal "Fail " []
 
 
