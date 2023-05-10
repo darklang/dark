@@ -55,6 +55,13 @@ module Alias =
   type Something = { ID : Id; Data : String }
   Something { ID = 1; Data = "test" } = Something { ID = 1; Data = "test" }
 
+//TODO: Make this work
+  //type Person = { name: String }
+  //type MyPerson = Person
+  //MyPerson{ name = "test" } = Person{ name = "test" }
+  //let getName(p:MyPerson) : String = p.name
+  //getName(MyPerson{ name = "test" }) = "test"
+
 module Records =
   type Cols1 = { col1 : Int }
   type Cols2 = { col1 : Int; col2 : Int }
