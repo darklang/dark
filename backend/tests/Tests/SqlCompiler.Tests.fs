@@ -14,7 +14,8 @@ module C = LibBackend.SqlCompiler
 module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
-let p = Parser.ProgramTypes.parseRTExpr Set.empty Set.empty
+let p (code : string) : Expr =
+  Parser.ProgramTypes.parseRTExpr Set.empty Set.empty "sqlcompiler.tests.fs" code
 
 let compile
   (symtable : DvalMap)
@@ -27,7 +28,8 @@ let compile
 
     let typeName : FQTypeName.UserTypeName =
       { modules = []; typ = "MyType"; version = 0 }
-    let field : CustomType.RecordField = { name = rowName; typ = rowType }
+    let field : CustomType.RecordField =
+      { name = rowName; typ = rowType; description = "" }
     let userType : UserType.T =
       { tlid = gid (); name = typeName; definition = CustomType.Record(field, []) }
     let userTypes = Map [ typeName, userType ]
@@ -125,6 +127,7 @@ let inlineWorksAtRoot =
       Parser.ProgramTypes.parseRTExpr
         Set.empty
         Set.empty
+        "test.fs"
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
     let expected = p "3 + 5"

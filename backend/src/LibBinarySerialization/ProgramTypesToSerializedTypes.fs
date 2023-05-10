@@ -410,24 +410,32 @@ module Deprecation =
 module CustomType =
   module RecordField =
     let toST (f : PT.CustomType.RecordField) : ST.CustomType.RecordField =
-      { name = f.name; typ = TypeReference.toST f.typ }
+      { name = f.name; typ = TypeReference.toST f.typ; description = f.description }
 
     let toPT (f : ST.CustomType.RecordField) : PT.CustomType.RecordField =
-      { name = f.name; typ = TypeReference.toPT f.typ }
+      { name = f.name; typ = TypeReference.toPT f.typ; description = f.description }
 
   module EnumField =
     let toST (f : PT.CustomType.EnumField) : ST.CustomType.EnumField =
-      { typ = TypeReference.toST f.typ; label = f.label }
+      { typ = TypeReference.toST f.typ
+        label = f.label
+        description = f.description }
 
     let toPT (f : ST.CustomType.EnumField) : PT.CustomType.EnumField =
-      { typ = TypeReference.toPT f.typ; label = f.label }
+      { typ = TypeReference.toPT f.typ
+        label = f.label
+        description = f.description }
 
   module EnumCase =
     let toST (c : PT.CustomType.EnumCase) : ST.CustomType.EnumCase =
-      { name = c.name; fields = List.map EnumField.toST c.fields }
+      { name = c.name
+        fields = List.map EnumField.toST c.fields
+        description = c.description }
 
     let toPT (c : ST.CustomType.EnumCase) : PT.CustomType.EnumCase =
-      { name = c.name; fields = List.map EnumField.toPT c.fields }
+      { name = c.name
+        fields = List.map EnumField.toPT c.fields
+        description = c.description }
 
   let toST (d : PT.CustomType.T) : ST.CustomType.T =
     match d with

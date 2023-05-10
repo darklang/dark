@@ -49,21 +49,21 @@ let execute
 
     let tracing = Exe.noTracing RT.Real
 
-    let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
-      // let metadata = extraMetadata state @ metadata
-      // LibService.Rollbar.notify msg metadata
-      ()
+    let extraMetadata (state : RT.ExecutionState) : Metadata =
+      [ "executing_fn_name", state.executingFnName; "callstack", state.callstack ]
 
-    let sendException
-      (_state : RT.ExecutionState)
-      (_metadata : Metadata)
-      (_exn : exn)
-      =
-      // let metadata = extraMetadata state @ metadata
-      // let person : LibService.Rollbar.Person =
-      //   Some { id = program.accountID; username = Some(username ()) }
-      // LibService.Rollbar.sendException person metadata exn
-      ()
+    let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
+      let metadata = extraMetadata state @ metadata
+      let metadata =
+        metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat ", "
+      print $"Notification: {msg}, {metadata}"
+
+    let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+      let metadata = extraMetadata state @ metadata @ Exception.toMetadata exn
+      let metadata =
+        metadata |> List.map (fun (k, v) -> $"  {k}: {v}") |> String.concat "\n"
+      print
+        $"Exception: {exn.Message}\nMetadata:\n{metadata}\nStacktrace:\n{exn.StackTrace}"
 
     let state = Exe.createState libraries tracing sendException notify 7UL program
 

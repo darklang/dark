@@ -24,11 +24,13 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { name = "space"; typ = TString },
-          [ { name = "path"; typ = TString }
-            { name = "modifier"; typ = TString }
-            { name = "timestamp"; typ = TDateTime }
-            { name = "traceID"; typ = TUuid } ]
+          { name = "space"
+            typ = TString
+            description = "Name of the space (eg WORKER, HTTP, REPL)" },
+          [ { name = "path"; typ = TString; description = "" }
+            { name = "modifier"; typ = TString; description = "" }
+            { name = "timestamp"; typ = TDateTime; description = "" }
+            { name = "traceID"; typ = TUuid; description = "" } ]
         )
       deprecated = NotDeprecated
       description = "404 record" } ]

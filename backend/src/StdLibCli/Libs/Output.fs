@@ -15,13 +15,12 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fnNoMod "print" 0
       typeParams = []
-      parameters = [ Param.make "value" (TVariable "a") "The value to be printed." ]
+      parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
       description = "Prints the given <param value> to the standard output."
       fn =
         (function
-        | _, _, [ value ] ->
-          let str = LibExecution.DvalReprDeveloper.toRepr value
+        | _, _, [ DString str ] ->
           print str
           Ply(DUnit)
         | _ -> incorrectArgs ())
