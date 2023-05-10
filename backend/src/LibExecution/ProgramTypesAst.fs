@@ -52,6 +52,7 @@ let rec preTraversal
   (exprPipeFn : PipeExpr -> PipeExpr)
   (typeRefFn : TypeReference -> TypeReference)
   (fqtnFn : FQTypeName.T -> FQTypeName.T)
+  (fqfnFn : FQFnName.T -> FQFnName.T)
   (letPatternFn : LetPattern -> LetPattern)
   (matchPatternFn : MatchPattern -> MatchPattern)
   (expr : Expr)
@@ -101,12 +102,25 @@ let rec preTraversal
     | THttpResponse tr -> THttpResponse(f tr)
     | TFn (trs, tr) -> TFn(List.map f trs, f tr)
 
-  let f = preTraversal exprFn exprPipeFn typeRefFn fqtnFn letPatternFn matchPatternFn
+  let f =
+    preTraversal
+      exprFn
+      exprPipeFn
+      typeRefFn
+      fqtnFn
+      fqfnFn
+      letPatternFn
+      matchPatternFn
 
   let rec preTraversalPipeExpr (expr : PipeExpr) : PipeExpr =
     match exprPipeFn expr with
     | EPipeFnCall (id, name, typeArgs, args) ->
-      EPipeFnCall(id, name, List.map preTraversalTypeRef typeArgs, List.map f args)
+      EPipeFnCall(
+        id,
+        fqfnFn name,
+        List.map preTraversalTypeRef typeArgs,
+        List.map f args
+      )
     | EPipeInfix (id, name, first) -> EPipeInfix(id, name, f first)
     | EPipeLambda (id, vars, body) -> EPipeLambda(id, vars, f body)
     | EPipeEnum (id, typeName, caseName, fields) ->
@@ -133,7 +147,7 @@ let rec preTraversal
       List.map preTraversalPipeExpr exprs
     )
   | EFnCall (id, name, typeArgs, args) ->
-    EFnCall(id, name, List.map preTraversalTypeRef typeArgs, List.map f args)
+    EFnCall(id, fqfnFn name, List.map preTraversalTypeRef typeArgs, List.map f args)
   | ELambda (id, names, expr) -> ELambda(id, names, f expr)
   | EList (id, exprs) -> EList(id, List.map f exprs)
   | EDict (id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)
