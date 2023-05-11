@@ -767,10 +767,8 @@ and execFn
         match TypeChecker.checkFunctionReturnType [ name ] userTypes fn result with
         | Ok () -> result
         | Error err ->
-          DError(
-            sourceID,
-            $"Type error(s) in return type: {TypeChecker.Error.toString err}"
-          )
+          let msg = $"Type error in return type: {TypeChecker.Error.toString err}"
+          DError(sourceID, msg)
 
     if state.tracing.realOrPreview = Preview
        && not state.onExecutionPath

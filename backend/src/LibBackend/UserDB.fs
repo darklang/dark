@@ -57,7 +57,7 @@ let rec set
 
   let availableTypes = RT.ExecutionState.availableTypes state
 
-  match LibExecution.TypeChecker.unify [ key ] availableTypes db.typ dv with
+  match LibExecution.TypeChecker.unify [ db.name ] availableTypes db.typ dv with
   | Error err ->
     let msg = LibExecution.TypeChecker.Error.toString err
     Exception.raiseCode msg

@@ -64,7 +64,7 @@ module Records =
   Cols2 { col1 = 2 } = Test.typeError "Missing key `col2` in Cols2_v0"
   Cols2 { col1 = 2; other = 3 } = Test.typeError "Unexpected field `other` in Cols2_v0"
   Cols2 { col1 = 2; col2 = 3; col3 = 4 } = Test.typeError "Unexpected field `col3` in Cols2_v0"
-  Cols1 { col1 = "" } = Test.typeError "Expected a value of type `Int` but got a `String`"
+  Cols1 { col1 = "" } = Test.typeError "Expected a value of type `Int` but got a `String` in col1"
 
   // Invalid type
   MyNonExistantType { col1 = 2 } = Test.typeError "There is no type named `MyNonExistantType_v0`"
@@ -107,7 +107,7 @@ module Enums =
       // (match MyEnum.C "test" with | C -> v) = Test.typeError "TODO"
       // (match MyEnum.C "test" with | D -> "ok" | C _ -> v) = Test.typeError "TODO"
       // (match MyEnum.C "test" with | 5 -> "ok" | C _ -> v) = Test.typeError "TODO"
-      (MyEnum.C 5) = Test.typeError "Expected a value of type `String` but got a `Int`"
+      (MyEnum.C 5) = Test.typeError "Expected a value of type `String` but got a `Int` in C"
 
 
   module Simple =
@@ -137,8 +137,8 @@ module Enums =
     (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1)) = false
     (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
-    EnumOfMixedCases.X 1 = Test.typeError "Expected a value of type `String` but got a `Int`"
-    EnumOfMixedCases.Y "test" = Test.typeError "Expected a value of type `Int` but got a `String`"
+    EnumOfMixedCases.X 1 = Test.typeError "Expected a value of type `String` but got a `Int` in X"
+    EnumOfMixedCases.Y "test" = Test.typeError "Expected a value of type `Int` but got a `String` in Y"
     EnumOfMixedCases.Z 1 = Test.typeError "Case `Z` expected 2 fields but got 1"
 
     (let values = [EnumOfMixedCases.W;
@@ -318,7 +318,7 @@ module Lambdas =
   (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
   // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
   (let y = (fun a b -> a * b) in List.fold_v0 [1; 2; 3; 4] 1 y) = 24
-  (List.fold_v0 [4] 1 5) = Test.typeError_v0 "List.fold was expected to be called with a `Function` in fn, but was actually called with 5."
+  (List.fold_v0 [4] 1 5) = Test.typeError_v0 "List.fold was expected to be called with a `Function` in fn, but was actually called with 5"
   (List.fold_v0 [4] 1 (Test.typeError "test")) = Test.typeError "test"
 
   (let x = 5 in
@@ -657,7 +657,7 @@ module Match =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option.map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\"."
+  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option.map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\""
 
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }
@@ -807,7 +807,7 @@ module FunctionCalls =
 
 module InvalidFnCalls =
   functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
-  stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected a value of type `String` but got a `Int`"
+  stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in stringFn->key"
   stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
   fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
@@ -877,7 +877,7 @@ module Packages =
   Test.Test.returnsResultError () = Error false
 
   module Invalid =
-    Test.Test.stringFn 5 = Test.typeError "Type error(s) in function parameters: Expected a value of type `String` but got a `Int`"
+    Test.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in test.Test.stringFn->key"
     Test.Test.stringFn "str1" "str2" = Test.typeError "test.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     Test.Test.derrorFn "test" = Test.typeError "test"
 

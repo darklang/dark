@@ -307,4 +307,4 @@ let checkFunctionReturnType
   (result : Dval)
   : Result<unit, Error.T> =
 
-  unify ("return" :: path) availableTypes fn.returnType result
+  unify ("result" :: path) availableTypes fn.returnType result

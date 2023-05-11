@@ -19,7 +19,7 @@
 
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
-Http.badRequest_v0 1 = Test.typeError_v0 "Http.badRequest was expected to be called with a `String` in error, but was actually called with 1."
+Http.badRequest_v0 1 = Test.typeError_v0 "Http.badRequest was expected to be called with a `String` in error, but was actually called with 1"
 Http.notFound_v0 = Http.response_v0 () 404
 
 Http.unauthorized_v0 = Http.response_v0 () 401

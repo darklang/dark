@@ -52,7 +52,7 @@ let testBasicTypecheckWorks : Test =
         Error(
           TypeChecker.Error.TypeUnificationFailure(
             { expectedType = RT.TInt; actualValue = RT.DBool true },
-            []
+            [ "b" ]
           )
         )) ])
 
@@ -81,7 +81,7 @@ let testArguments : Test =
     [ (("myBadFn", RT.TString, S.eInt 7),
        RT.DError(
          RT.SourceNone,
-         "Type error(s) in return type: Expected a value of type `String` but got a `Int`"
+         "Type error in return type: Expected a value of type `String` but got a `Int` in myBadFn->result"
        ))
       (("myGoodFn", RT.TString, S.eStr "test"), RT.DString "test")
       (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]

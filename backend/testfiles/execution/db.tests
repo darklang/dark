@@ -185,7 +185,7 @@ module Roundtrip =
 module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
   // (DB.set_v1 (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [y]"
-  (DB.set_v1 (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0 "Expected a value of type `X_v0` but got a `XY_v0`"
+  (DB.set_v1 (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0 "Expected a value of type `X_v0` but got a `XY_v0` in XDB"
 
 
 module SetDoesUpsert =

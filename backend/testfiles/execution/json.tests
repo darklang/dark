@@ -30,7 +30,7 @@ Json.serialize<Bool> 1 = Error "Can't currently serialize this type/value combin
 Json.serialize<Bool> "False" = Error "Can't currently serialize this type/value combination"
 Json.serialize<Bool> "tRUE" = Error "Can't currently serialize this type/value combination"
 
-Json.parse<Bool> 1 = Test.typeError "Json.parse was expected to be called with a `String` in json, but was actually called with 1."
+Json.parse<Bool> 1 = Test.typeError "Json.parse was expected to be called with a `String` in json, but was actually called with 1"
 Json.parse<Bool> "tru" = Error "not JSON"
 Json.parse<Bool> "null" = Error "Can't currently parse this type/value combination"
 Json.parse<Bool> "" = Error "not JSON"
