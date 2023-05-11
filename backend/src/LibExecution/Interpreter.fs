@@ -184,13 +184,24 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let availableTypes = ExecutionState.availableTypes state
       let typ = Map.tryFind typeName availableTypes
       let typeStr = FQTypeName.toString typeName
-      match typ with
-      | None -> return err id $"There is no type named `{typeStr}`"
-      | Some (CustomType.Alias _) ->
-        return err id $"Expected a record but {typeStr} is an alias"
-      | Some (CustomType.Enum _) ->
-        return err id $"Expected a record but {typeStr} is an enum"
-      | Some (CustomType.Record (expected1, expectedRest)) ->
+
+      let rec recordMaybe (typeName : FQTypeName.T) =
+        match Map.tryFind typeName availableTypes with
+        | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
+          recordMaybe innerTypeName
+        | Some (CustomType.Record (firstField, otherFields)) ->
+          Some(firstField, otherFields)
+        | Some (CustomType.Enum _) -> None
+        | _ -> None
+
+      match recordMaybe typeName with
+      | None ->
+        match typ with
+        | None -> return err id $"There is no type named `{typeStr}`"
+        | Some (CustomType.Enum _) ->
+          return err id $"Expected a record but {typeStr} is an enum"
+        | _ -> return err id $"Expected a record but {typeStr} is something else"
+      | Some (expected1, expectedRest) ->
         let expectedFields =
           (expected1 :: expectedRest) |> List.map (fun f -> f.name, f.typ) |> Map
         let! result =
