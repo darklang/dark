@@ -774,6 +774,7 @@ module Package =
 
   type Fn =
     { name : FQFnName.PackageFnName
+      tlid : tlid
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
@@ -912,7 +913,7 @@ and BuiltInFnSig =
 and FnImpl =
   | StdLib of BuiltInFnSig
   | UserFunction of tlid * Expr
-  | PackageFunction of Expr
+  | PackageFunction of tlid * Expr
 
 
 // CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
@@ -1063,4 +1064,4 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable
-    fn = PackageFunction fn.body }
+    fn = PackageFunction(fn.tlid, fn.body) }

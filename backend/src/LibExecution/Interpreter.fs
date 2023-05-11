@@ -837,45 +837,7 @@ and execFn
               state.tracing.storeFnResult fnRecord arglist result
 
             return result
-        | PackageFunction body ->
-          let name = [ FQFnName.toString fnDesc ]
-          // This is similar to InProcess but also has elements of UserCreated.
-          match TypeChecker.checkFunctionCall name Map.empty fn typeArgs args with
-          | Ok () ->
-            let! result =
-              match (state.tracing.realOrPreview,
-                     state.tracing.loadFnResult fnRecord arglist)
-                with
-              | Preview, Some (result, _ts) -> Ply(result)
-              | Preview, None when fn.previewable <> Pure ->
-                Ply(DIncomplete sourceID)
-              | _ ->
-                uply {
-                  // It's okay to execute user functions in both Preview and
-                  // Real contexts, But in Preview we might not have all the
-                  // data we need
-
-                  // TODO: We don't munge `state.tlid` like we do in
-                  // UserFunction, which means there might be `id`
-                  // collisions between AST nodes. Munging `state.tlid`
-                  // would not save us from tlid collisions either.
-                  // tl;dr, executing a package function may result in
-                  // trace data being associated with the wrong
-                  // handler/call site.
-                  let! result = eval state argsWithGlobals body
-
-                  state.tracing.storeFnResult fnRecord arglist result
-
-                  return result |> typeErrorOrValue Map.empty
-                }
-            // For now, always store these results
-            state.tracing.storeFnResult fnRecord arglist result
-            return result |> typeErrorOrValue (ExecutionState.availableTypes state)
-
-          | Error err ->
-            let msg =
-              "Type error in function parameters: " + TypeChecker.Error.toString err
-            return DError(sourceID, msg)
+        | PackageFunction (tlid, body)
         | UserFunction (tlid, body) ->
           let name = [ FQFnName.toString fnDesc ]
           let availableTypes = ExecutionState.availableTypes state
@@ -885,7 +847,6 @@ and execFn
             state.tracing.traceTLID tlid
             let state = { state with tlid = tlid }
             let! result = eval state argsWithGlobals body
-            state.tracing.storeFnResult fnRecord arglist result
             return result |> typeErrorOrValue availableTypes
           | Error err ->
             let msg =
