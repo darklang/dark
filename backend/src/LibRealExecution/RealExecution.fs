@@ -34,8 +34,7 @@ let packageFns : Lazy<Task<Map<RT.FQFnName.PackageFnName, RT.Package.Fn>>> =
       return
         packages
         |> List.map (fun (f : PT.Package.Fn) ->
-          (f.name |> PT2RT.FQFnName.PackageFnName.toRT,
-           PT2RT.Package.toRT f))
+          (f.name |> PT2RT.FQFnName.PackageFnName.toRT, PT2RT.Package.toRT f))
         |> Map.ofList
     })
 
@@ -43,14 +42,8 @@ let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     (task {
       let! packageFns = Lazy.force packageFns
-      let fns =
-        contents
-        |> Tuple2.first
-        |> Map.fromListBy (fun fn -> fn.name)
-      let types =
-        contents
-        |> Tuple2.second
-        |> Map.fromListBy (fun typ -> typ.name)
+      let fns = contents |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
+      let types = contents |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
 
       // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
