@@ -85,7 +85,7 @@ let allFunctions () : Task<List<PT.Package.Fn>> =
     let! fns =
       Sql.query "SELECT id, definition FROM package_functions_v0"
       |> Sql.parameters []
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "def"))
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
 
     return
       fns
