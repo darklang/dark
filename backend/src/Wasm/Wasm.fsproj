@@ -29,6 +29,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="WasmHelpers.fs" />
+    <Compile Include="EvalHelpers.fs" />
     <Compile Include="Libs/Editor.fs" />
     <Compile Include="Libs/HttpClient.fs" />
     <Compile Include="StdLib.fs" />
