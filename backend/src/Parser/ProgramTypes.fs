@@ -378,9 +378,11 @@ module Expr =
     | SynExpr.InterpolatedString (parts, _, _) ->
       let parts =
         parts
-        |> List.map (function
-          | SynInterpolatedStringPart.String (s, _) -> PT.StringText s
-          | SynInterpolatedStringPart.FillExpr (e, _) -> PT.StringInterpolation(c e))
+        |> List.filterMap (function
+          | SynInterpolatedStringPart.String ("", _) -> None
+          | SynInterpolatedStringPart.String (s, _) -> Some(PT.StringText s)
+          | SynInterpolatedStringPart.FillExpr (e, _) ->
+            Some(PT.StringInterpolation(c e)))
       PT.EString(id, parts)
 
 
