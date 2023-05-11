@@ -251,6 +251,9 @@ module InterpolatedString =
   (let one = 1 in  $"test {one}") = Test.typeError_v0 "Expected string, got 1"
   (let name = "John" in let age = "30" in $"Name: {name}, Age: {age} years old.") = "Name: John, Age: 30 years old."
   (let two = 2 in "test 1" == $"test {one}") = Test.typeError_v0 "There is no variable named: one"
+  (let one = 1 in $"test {Int.toString one}") = "test 1"
+
+
 
 module FnCall =
   5 + 3 = 8
