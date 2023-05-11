@@ -148,7 +148,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Experiments" "parseAndSerializeProgram" 0
       typeParams = []
-      parameters = [ Param.make "code" TString "" ]
+      parameters = [ Param.make "code" TString ""; Param.make "filename" TString "" ]
       returnType = TResult(TDict TString, TString)
       description =
         "Parses Dark code and serializes the result to JSON. Expects only types, fns, and exprs."
@@ -156,20 +156,24 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString code; DString filename ] ->
           uply {
-            let canvas = Parser.CanvasV2.parse filename code
+            try
+              let canvas = Parser.CanvasV2.parse filename code
 
-            let types = List.map PT2RT.UserType.toRT canvas.types
-            let fns = List.map PT2RT.UserFunction.toRT canvas.fns
-            let exprs = List.map PT2RT.Expr.toRT canvas.exprs
+              let types = List.map PT2RT.UserType.toRT canvas.types
+              let fns = List.map PT2RT.UserFunction.toRT canvas.fns
+              let exprs = List.map PT2RT.Expr.toRT canvas.exprs
 
-            return
-              [ "types", DString(Json.Vanilla.serialize types)
-                "fns", DString(Json.Vanilla.serialize fns)
-                "exprs", DString(Json.Vanilla.serialize exprs) ]
-              |> Map.ofList
-              |> DDict
-              |> Ok
-              |> DResult
+              return
+                [ "types", DString(Json.Vanilla.serialize types)
+                  "fns", DString(Json.Vanilla.serialize fns)
+                  "exprs", DString(Json.Vanilla.serialize exprs) ]
+                |> Map.ofList
+                |> DDict
+                |> Ok
+                |> DResult
+            with
+            | e ->
+              return DResult(Error(DString($"Error parsing program: {e.Message}")))
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
