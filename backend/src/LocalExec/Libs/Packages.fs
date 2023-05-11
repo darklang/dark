@@ -24,7 +24,7 @@ let types : List<BuiltInType> =
             description = "The modules in the package" },
           [ { name = "name"; typ = TString; description = "The name of the package" }
             { name = "version"
-              typ = TString
+              typ = TInt
               description = "The version of the package" } ]
         )
       deprecated = NotDeprecated } ]
@@ -76,7 +76,13 @@ let fns : List<BuiltInFn> =
     { name = fn' [ "LocalExec"; "Packages" ] "list" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TString)
+      returnType =
+        TList(
+          TCustomType(
+            FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Package" 0),
+            []
+          )
+        )
       description = "List all packages"
       fn =
         function
@@ -86,7 +92,6 @@ let fns : List<BuiltInFn> =
               Sql.query "SELECT fnname, modules, version FROM package_functions_v0"
               |> Sql.executeAsync (fun read ->
                 (read.string "fnname", read.string "modules", read.int "version"))
-            debuG "packages" packages
             return
               (DList(
                 packages
