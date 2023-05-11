@@ -1,11 +1,27 @@
-// todo: throw this stuff into an OpenAI module?
+// TODO: let ignore (z: ): Unit
 
-type OpenAICompletionRequest = {
-  model: String
-  max_tokens: Int
-  temperature: Float
-  prompt : String
-}
+let alert (s: String): Unit =
+  let _ = WASM.Editor.callJSFunction "alert" [s]
+  ()
+
+let log (s: String): Unit =
+  let _ = WASM.Editor.callJSFunction "console.log" [s]
+  ()
+
+let rUnwrap (result: Result<'a, 'b>): 'a =
+  match result with
+  | Ok s -> s
+  | Error e ->
+    log e // TODO: this won't work if non-string
+    alert "Expected OK, got Error - see log"
+
+
+// todo: throw this stuff into an OpenAI module?
+type OpenAICompletionRequest =
+  { model: String
+    max_tokens: Int
+    temperature: Float
+    prompt : String }
 
 type OpenAICompletionResponseChoice = { text: String }
 type OpenAICompletionResponse = { choices: List<OpenAICompletionResponseChoice> }
@@ -54,34 +70,27 @@ let openAIcompletion (prompt: String): Result<String, String> =
 // "all code snippets returned must be executable without any other context needed"
 
 // Model
-// type BotResponseItem =
-//   | Text of String
-//   | CodeSnippet of String // TODO: later, extract the snippet
-
-// TODO: let ignore (z: ): Unit
-
-let alert (s: String): Unit =
-  let _ = WASM.Editor.callJSFunction "alert" [s]
-  ()
-
-let log (s: String): Unit =
-  let _ = WASM.Editor.callJSFunction "console.log" [s]
-  ()
+type BotResponseItem =
+  | Text of text: String
+  | CodeSnippet of id: String
 
 type ChatHistoryItem =
-  // | BotResponse of List<BotResponseItem>
-  // | UserPrompt of String
-  // TODO: use above
-  { author: String; isCode: Bool; text: String }
+  | BotResponse of id: String * items: List<BotResponseItem>
+  | UserPrompt of id: String * prompt: String
+
+type CodeSnippet =
+  { id: String; code: String; eval: Option<String> }
 
 type Model =
   { systemPrompt: String
-    chatHistory: List<ChatHistoryItem> }
+    chatHistory: List<ChatHistoryItem>
+    codeSnippets: List<CodeSnippet> }
+
 
 // Update
 type Msg =
   | UserGavePrompt of prompt: String
-  | UserRequestedCodeEval of codeSnippet: String
+  | UserRequestedCodeEval of id: String * codeSnippet: String
 
 
 let update (model: Model) (msg: Msg) : Model =
@@ -93,7 +102,10 @@ let update (model: Model) (msg: Msg) : Model =
 
     match openAIcompletion fullPrompt with
     | Ok apiResponse ->
-      // TODO: later, extract out text and code sections [ BotResponseItem.Text; <-.Code; ... ]
+      let snippetId = rUnwrap(String.random_v2 5)
+
+      let newCodeSnippet =
+        CodeSnippet { id = snippetId; code = apiResponse; eval = Nothing }
 
       Model
         { systemPrompt = model.systemPrompt
@@ -101,19 +113,36 @@ let update (model: Model) (msg: Msg) : Model =
             List.append
               model.chatHistory
               [
-                ChatHistoryItem { author = "User"; isCode = false; text = userPrompt }
-                ChatHistoryItem { author = "Bot"; isCode = true; text = apiResponse }
-              ] }
+                ChatHistoryItem.UserPrompt (rUnwrap(String.random_v2 5)) userPrompt
+                ChatHistoryItem.BotResponse (rUnwrap(String.random_v2 5)) [ BotResponseItem.CodeSnippet snippetId ]
+              ]
+          codeSnippets = List.append model.codeSnippets [newCodeSnippet] }
 
     | Error err -> alert err
 
-  | UserRequestedCodeEval _codeSnippet ->
-    // TODO:
-    // - call the thing that parses
-    // - call the thing that evals
-    //let result = WASM.Editor.evalCodeSnippet codeSnippet
-    //result...
-    model
+  | UserRequestedCodeEval id codeSnippet ->
+    // split this into 2 groups - the one we're updating, and the rest
+    let (snippetToUpdate, otherSnippets) =
+      model.codeSnippets |> List.partition (fun cs -> cs.id == id)
+
+    match List.head snippetToUpdate with
+    | Nothing -> alert "couldn't find snippet"
+    | Just snippetToUpdate ->
+      let eval =
+        // TODO: call the endpoint that parses
+        // TODO: call the thing that evals (WASM.Editor.evalProgram?)
+        "totally 5"
+
+      let updatedCodeSnippets =
+        List.append
+          [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just eval }]
+          otherSnippets
+
+      Model
+        { systemPrompt = model.systemPrompt
+          chatHistory = model.chatHistory
+          codeSnippets = updatedCodeSnippets }
+
 
 /// Single point of communicating to JS host
 ///
@@ -159,17 +188,31 @@ let systemPrompt =
 let initState =
   match systemPrompt with
   | Ok response ->
+    let demoSnippet =
+      CodeSnippet
+        { id = (String.random_v2 5) |> rUnwrap
+          code = "let incr (i: Int): Int = i + 1\n\nincr 5"
+          eval = Nothing }
+
+    let chatHistory = [
+      ChatHistoryItem.UserPrompt
+        (rUnwrap(String.random_v2 5))
+        "Hello, I want a function that increments an integer!"
+
+      ChatHistoryItem.BotResponse
+        (rUnwrap(String.random_v2 5))
+        [
+          BotResponseItem.Text "OK - here's some code:"
+          BotResponseItem.CodeSnippet demoSnippet.id
+        ]
+    ]
+
     Model
       { systemPrompt = String.fromBytes response.body
-        chatHistory =
-          [
-            ChatHistoryItem { author = "Bot"; isCode = false; text = "Welcome to the Chat!" }
-            ChatHistoryItem { author = "User"; isCode = false; text = "Hello, give me code!" }
-            ChatHistoryItem { author = "Bot"; isCode = false; text = "Here's some code:" }
-            ChatHistoryItem { author = "Bot"; isCode = true; text = "let incr (i: Int): Int = i + 1\n\nincr 5" }
-          ] }
+        chatHistory = chatHistory
+        codeSnippets = [demoSnippet] }
+
   | Error err ->
-    log "oh no, couldn't fetch system prompt"
     Model
       { systemPrompt = String.fromBytes "nope"
         chatHistory = [ ] }
@@ -244,7 +287,3 @@ initState
 //   | BotResponded prompt ->
 //     { eventName = "botResponded"
 //       data = match prompt with Prompt p -> p }
-
-
-
-

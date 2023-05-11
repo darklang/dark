@@ -1,22 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const props = defineProps({
-  id: {
-    type: String,
-    default: '',
-  },
-  code: {
-    type: String,
-    default: '',
-  },
-})
+import type { CodeSnippet } from '@/types'
 
-const codeSnippet = ref(props.code)
+const props = defineProps<{
+  snippet: CodeSnippet
+}>()
+
+const codeSnippet = ref(props.snippet.code)
 
 async function runCode() {
   try {
-    const evt = { UserRequestedCodeEval: [codeSnippet] }
+    const evt = { UserRequestedCodeEval: [props.snippet.id, codeSnippet.value] }
     const result = await window.darklang.handleEvent(evt)
     console.log('result', result)
   } catch (error) {
@@ -36,11 +31,12 @@ async function runCode() {
         @click="runCode"
         class="px-4 py-2 text-xs font-bold text-white bg-blue-500 rounded"
       >
-        Play
+        eval
       </button>
-      <pre class="flex-1 p-2 text-xs bg-white rounded">
-        <!-- Render code execution results here -->
-      </pre>
     </div>
+
+    <pre v-if="props.snippet.eval" class="text-xs bg-white rounded">
+      {{ props.snippet.eval }}
+    </pre>
   </div>
 </template>
