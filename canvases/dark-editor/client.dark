@@ -17,14 +17,17 @@ let rUnwrap (result: Result<'a, 'b>): 'a =
 
 
 // todo: throw this stuff into an OpenAI module?
-type OpenAICompletionRequest =
+type OpenAIChatCompletionRequestMessage =
+  { role: String; content: String }
+type OpenAIChatCompletionRequest =
   { model: String
     max_tokens: Int
     temperature: Float
-    prompt : String }
+    messages : List<OpenAIChatCompletionRequestMessage> }
 
-type OpenAICompletionResponseChoice = { text: String }
-type OpenAICompletionResponse = { choices: List<OpenAICompletionResponseChoice> }
+type OpenAIChatCompletionResponseChoiceMessage = { content: String }
+type OpenAIChatCompletionResponseChoice = { message: OpenAIChatCompletionResponseChoiceMessage }
+type OpenAIChatCompletionResponse = { choices: List<OpenAIChatCompletionResponseChoice> }
 
 let openAIcompletion (prompt: String): Result<String, String> =
   let apiKey =
@@ -33,13 +36,13 @@ let openAIcompletion (prompt: String): Result<String, String> =
     | Ok response -> response.body |> String.fromBytes
 
   let openAIRequest =
-    OpenAICompletionRequest
-      { model = "text-davinci-003"
+    OpenAIChatCompletionRequest
+      { model = "gpt-3.5-turbo"
         max_tokens = 700
         temperature = 0.7
-        prompt = prompt }
+        messages = [OpenAIChatCompletionRequestMessage {role = "user"; content = prompt}] }
 
-  match Json.serialize<OpenAICompletionRequest> openAIRequest with
+  match Json.serialize<OpenAIChatCompletionRequest> openAIRequest with
   | Ok reqBody ->
     let headers =
       [
@@ -48,14 +51,14 @@ let openAIcompletion (prompt: String): Result<String, String> =
       ]
 
     let openAIResponse =
-      WASM.HttpClient.request "POST" "https://api.openai.com/v1/completions" headers (String.toBytes reqBody)
+      WASM.HttpClient.request "POST" "https://api.openai.com/v1/chat/completions" headers (String.toBytes reqBody)
 
     match openAIResponse with
     | Ok r ->
-      match Json.parse<OpenAICompletionResponse> (String.fromBytes r.body) with
+      match Json.parse<OpenAIChatCompletionResponse> (String.fromBytes r.body) with
       | Ok r ->
         match List.head r.choices with
-        | Just c -> Ok c.text
+        | Just c -> Ok c.message.content
 
         | Nothing -> Error ("No choices returned")
       | Error err -> Error ("Couldn't parse open ai completino response - " ++ err)
