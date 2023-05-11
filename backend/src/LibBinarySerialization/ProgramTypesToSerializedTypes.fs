@@ -456,6 +456,7 @@ module CustomType =
 
   let toPT (d : ST.CustomType.T) : PT.CustomType.T =
     match d with
+    | ST.CustomType.Alias typ -> PT.CustomType.Alias(TypeReference.toPT typ)
     | ST.CustomType.Record (firstField, additionalFields) ->
       PT.CustomType.Record(
         RecordField.toPT firstField,
