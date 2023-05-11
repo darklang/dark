@@ -1,7 +1,68 @@
+// todo: throw this stuff into an OpenAI module?
+
+type OpenAICompletionRequest = {
+  model: String
+  max_tokens: Int
+  temperature: Float
+  prompt : String
+}
+
+type OpenAICompletionResponseChoice = { text: String }
+type OpenAICompletionResponse = { choices: List<OpenAICompletionResponseChoice> }
+
+let openAIcompletion (prompt: String): Result<String, String> =
+  let apiKey =
+    let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
+    match WASM.HttpClient.request "get" url [] Bytes.empty with
+    | Ok response -> response.body |> String.fromBytes
+
+  let openAIRequest =
+    OpenAICompletionRequest
+      { model = "text-davinci-003"
+        max_tokens = 700
+        temperature = 0.7
+        prompt = prompt }
+
+  match Json.serialize<OpenAICompletionRequest> openAIRequest with
+  | Ok reqBody ->
+    let headers =
+      [
+        ("authorization", "Bearer " ++ apiKey)
+        ("content-type", "application/json")
+      ]
+
+    let openAIResponse =
+      WASM.HttpClient.request "POST" "https://api.openai.com/v1/completions" headers (String.toBytes reqBody)
+
+    match openAIResponse with
+    | Ok r ->
+      match Json.parse<OpenAICompletionResponse> (String.fromBytes r.body) with
+      | Ok r ->
+        match List.head r.choices with
+        | Just c -> Ok c.text
+
+        | Nothing -> Error ("No choices returned")
+      | Error err -> Error ("Couldn't parse open ai completino response - " ++ err)
+    | Error e -> Error ("OpenAI API request failed\n" ++ e)
+  | Error e -> Error ("Couldn't serialize request" ++ e)
+
+
+
+
+
+// TODO: in the prompt, include something like
+// "all code snippets returned must be executable without any other context needed"
+
 // Model
 // type BotResponseItem =
 //   | Text of String
-//   | Code of String
+//   | CodeSnippet of String // TODO: later, extract the snippet
+
+// TODO: let ignore (z: ): Unit
+
+let alert (s: String): Unit =
+  let _ = WASM.Editor.callJSFunction "alert" [s]
+  ()
 
 let log (s: String): Unit =
   let _ = WASM.Editor.callJSFunction "console.log" [s]
@@ -19,34 +80,40 @@ type Model =
 
 // Update
 type Msg =
-  // TODO: use this
-  //| UserGavePrompt of String
-  { typ: String // UserGavePrompt
-    data: String }
+  | UserGavePrompt of prompt: String
+  | UserRequestedCodeEval of codeSnippet: String
 
 
 let update (model: Model) (msg: Msg) : Model =
-
-  match msg.typ with
-  | "UserGavePrompt" ->
+  match msg with
+  | UserGavePrompt userPrompt ->
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
-    //let botResponseItems =
-    let apiResponse = "beep boop" // OpenAI.getCompletion prompt
+    let fullPrompt = model.systemPrompt ++ userPrompt
 
-      // for now, just return one big text item
-      // TODO: later, extract out text and code sections
-      //[ BotResponseItem.Text apiResponse ]
+    match openAIcompletion fullPrompt with
+    | Ok apiResponse ->
+      // TODO: later, extract out text and code sections [ BotResponseItem.Text; <-.Code; ... ]
 
-    Model
-      { systemPrompt = model.systemPrompt
-        chatHistory =
-          List.append
-            model.chatHistory
-            [
-              ChatHistoryItem { author = "User"; isCode = false; text = msg.Data }
-              ChatHistoryItem { author = "Bot"; isCode = false; text = apiResponse }
-            ] }
+      Model
+        { systemPrompt = model.systemPrompt
+          chatHistory =
+            List.append
+              model.chatHistory
+              [
+                ChatHistoryItem { author = "User"; isCode = false; text = userPrompt }
+                ChatHistoryItem { author = "Bot"; isCode = true; text = apiResponse }
+              ] }
+
+    | Error err -> alert err
+
+  | UserRequestedCodeEval _codeSnippet ->
+    // TODO:
+    // - call the thing that parses
+    // - call the thing that evals
+    //let result = WASM.Editor.evalCodeSnippet codeSnippet
+    //result...
+    model
 
 /// Single point of communicating to JS host
 ///
@@ -99,7 +166,7 @@ let initState =
             ChatHistoryItem { author = "Bot"; isCode = false; text = "Welcome to the Chat!" }
             ChatHistoryItem { author = "User"; isCode = false; text = "Hello, give me code!" }
             ChatHistoryItem { author = "Bot"; isCode = false; text = "Here's some code:" }
-            ChatHistoryItem { author = "Bot"; isCode = true; text = "(let a = 1 \n a)" }
+            ChatHistoryItem { author = "Bot"; isCode = true; text = "let incr (i: Int): Int = i + 1\n\nincr 5" }
           ] }
   | Error err ->
     log "oh no, couldn't fetch system prompt"
@@ -181,37 +248,3 @@ initState
 
 
 
-
-// TODO
-// type OpenAICompletionRequest = {
-//   model: String
-//   max_tokens: Int
-//   temperature: Float
-//   prompt : String
-// }
-
-// [<HttpHandler("POST", "/api/handle-user-prompt")>]
-// let _handler _req =
-//   let openAIRequest =
-//     OpenAICompletionRequest
-//       { model = "text-davinci-003"
-//         max_tokens = 700
-//         temperature = 0.7
-//         prompt = String.fromBytes request.body }
-
-//   match Json.serialize<OpenAICompletionRequest> openAIRequest with
-//   | Ok reqBody ->
-//     let headers =
-//       [
-//         ("authorization", "Bearer " ++ OPENAI_API_KEY)
-//         ("content-type", "application/json")
-//       ]
-
-//     let openAIResponse =
-//       HttpClient.request "POST" "https://api.openai.com/v1/completions" headers (String.toBytes reqBody)
-
-//     match openAIResponse with
-//     | Ok r -> Http.response (r.body) 200
-//     | Error e -> Http.response (String.toBytes "OpenAI API request failed") 500
-
-//   | Error _e -> Http.response (String.toBytes "Couldn't serialize request") 400
