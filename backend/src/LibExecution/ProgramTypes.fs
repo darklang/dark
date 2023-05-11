@@ -337,6 +337,15 @@ module Expr =
     | EEnum (id, _, _, _)
     | EMatch (id, _, _) -> id
 
+module PipeExpr =
+  let toID (expr : PipeExpr) : id =
+    match expr with
+    | EPipeVariable (id, _)
+    | EPipeLambda (id, _, _)
+    | EPipeInfix (id, _, _)
+    | EPipeFnCall (id, _, _, _)
+    | EPipeEnum (id, _, _, _) -> id
+
 // Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
 type Deprecation<'name> =

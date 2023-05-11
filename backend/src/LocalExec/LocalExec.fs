@@ -72,11 +72,11 @@ let execute
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
-let astFor
+let sourceOf
   (tlid : tlid)
   (id : id)
   (modul : Parser.CanvasV2.CanvasModule)
-  : Option<PT.Expr> =
+  : string =
   let ast =
     if tlid = defaultTLID then
       Some modul.exprs[0]
@@ -84,14 +84,16 @@ let astFor
       modul.fns
       |> List.find (fun fn -> fn.tlid = tlid)
       |> Option.map (fun fn -> fn.body)
-  let mutable result = None
+  let mutable result = "unknown"
   ast
   |> Option.tap (fun e ->
     LibExecution.ProgramTypesAst.preTraversal
       (fun expr ->
-        if PT.Expr.toID expr = id then result <- Some expr
+        if PT.Expr.toID expr = id then result <- string expr
         expr)
-      identity
+      (fun pipeExpr ->
+        if PT.PipeExpr.toID pipeExpr = id then result <- string pipeExpr
+        pipeExpr)
       identity
       identity
       identity
@@ -124,8 +126,9 @@ let main (args : string []) : int =
     match result.Result with
     | RT.DError (RT.SourceID (tlid, id), msg) ->
       System.Console.WriteLine $"Error: {msg}"
-      System.Console.WriteLine $"ast is: {astFor tlid id modul}"
-      System.Console.WriteLine $"(source {tlid}, {id})"
+      System.Console.WriteLine $"Failure at: {sourceOf tlid id modul}"
+      // System.Console.WriteLine $"module is: {modul}"
+      // System.Console.WriteLine $"(source {tlid}, {id})"
       1
     | RT.DError (RT.SourceNone, msg) ->
       System.Console.WriteLine $"Error: {msg}"
