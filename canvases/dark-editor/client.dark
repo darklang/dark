@@ -63,6 +63,16 @@ let openAIcompletion (prompt: String): Result<String, String> =
   | Error e -> Error ("Couldn't serialize request" ++ e)
 
 
+let parseAndSerializeProgram (userProgram: String): String =
+  let response =
+    WASM.HttpClient.request
+      "POST"
+      "http://dark-editor.dlio.localhost:11003/get-program-json"
+      []
+      (String.toBytes userProgram)
+
+  response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes
+
 
 
 
@@ -128,14 +138,13 @@ let update (model: Model) (msg: Msg) : Model =
     match List.head snippetToUpdate with
     | Nothing -> alert "couldn't find snippet"
     | Just snippetToUpdate ->
-      let eval =
-        // TODO: call the endpoint that parses
-        // TODO: call the thing that evals (WASM.Editor.evalProgram?)
-        "totally 5"
+      let parsedAndSerialized = parseAndSerializeProgram codeSnippet
+
+      let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
 
       let updatedCodeSnippets =
         List.append
-          [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just eval }]
+          [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalResult }]
           otherSnippets
 
       Model
