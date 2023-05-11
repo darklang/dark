@@ -26,6 +26,8 @@ let libraries : RT.Libraries =
     stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
     packageFns = Map.empty }
 
+let defaultTLID = 7UL
+
 
 let execute
   (mod' : Parser.CanvasV2.CanvasModule)
@@ -65,10 +67,40 @@ let execute
       print
         $"Exception: {exn.Message}\nMetadata:\n{metadata}\nStacktrace:\n{exn.StackTrace}"
 
-    let state = Exe.createState libraries tracing sendException notify 7UL program
+    let state =
+      Exe.createState libraries tracing sendException notify defaultTLID program
 
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
+
+let astFor
+  (tlid : tlid)
+  (id : id)
+  (modul : Parser.CanvasV2.CanvasModule)
+  : Option<PT.Expr> =
+  let ast =
+    if tlid = defaultTLID then
+      Some modul.exprs[0]
+    else
+      modul.fns
+      |> List.find (fun fn -> fn.tlid = tlid)
+      |> Option.map (fun fn -> fn.body)
+  let mutable result = None
+  ast
+  |> Option.tap (fun e ->
+    LibExecution.ProgramTypesAst.preTraversal
+      (fun expr ->
+        if PT.Expr.toID expr = id then result <- Some expr
+        expr)
+      identity
+      identity
+      identity
+      identity
+      identity
+      identity
+      e
+    |> ignore<PT.Expr>)
+  result
 
 
 
@@ -86,13 +118,19 @@ let main (args : string []) : int =
       LibService.Telemetry.DontTraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     let mainFile = "/home/dark/app/backend/src/LocalExec/main.dark"
-    let mod' = Parser.CanvasV2.parseFromFile mainFile
+    let modul = Parser.CanvasV2.parseFromFile mainFile
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
-    let result = execute mod' (Map [ "args", args ])
+    let result = execute modul (Map [ "args", args ])
     NonBlockingConsole.wait ()
     match result.Result with
-    | RT.DError (_, msg) ->
+    | RT.DError (RT.SourceID (tlid, id), msg) ->
       System.Console.WriteLine $"Error: {msg}"
+      System.Console.WriteLine $"ast is: {astFor tlid id modul}"
+      System.Console.WriteLine $"(source {tlid}, {id})"
+      1
+    | RT.DError (RT.SourceNone, msg) ->
+      System.Console.WriteLine $"Error: {msg}"
+      System.Console.WriteLine $"(source unknown)"
       1
     | RT.DInt i -> (int i)
     | dval ->
