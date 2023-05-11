@@ -692,12 +692,12 @@ and callFn
 
     let fn =
       match desc with
-      | FQFnName.Stdlib _std ->
+      | FQFnName.Stdlib std ->
         // CLEANUP: do this when the libraries are loaded
-        state.libraries.stdlibFns.TryFind desc |> Option.map builtInFnToFn
+        state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
       | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
-      | FQFnName.Package _pkg ->
-        state.libraries.packageFns.TryFind desc |> Option.map packageFnToFn
+      | FQFnName.Package pkg ->
+        state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
 
     let! result =
       uply {

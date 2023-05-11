@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
                     paramTypeName
                     [ ("name", DString p.name)
                       ("type", DString(typeNameToStr p.typ)) ])
-              [ ("name", DString(FQFnName.toString key))
+              [ ("name", DString(FQFnName.StdlibFnName.toString key))
                 ("documentation", DString data.description)
                 ("parameters", DList parameters)
                 ("returnType", DString returnType) ]

@@ -126,8 +126,8 @@ let libraries : Lazy<RT.Libraries> =
         []
 
      { stdlibTypes =
-         types |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-       stdlibFns = fns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+         types |> Map.fromListBy (fun typ -> typ.name)
+       stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
        packageFns = Map.empty })
 
 let executionStateFor

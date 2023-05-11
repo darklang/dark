@@ -25,7 +25,7 @@ module S = TestUtils.RTShortcuts
 
 let testBasicTypecheckWorks : Test =
   let t
-    ((fn, args) : RT.FQFnName.T * List<string * RT.Dval>)
+    ((fn, args) : RT.FQFnName.StdlibFnName * List<string * RT.Dval>)
     : Result<unit, TypeChecker.Error.T> =
     let args = Map.ofList args
 
@@ -44,8 +44,8 @@ let testBasicTypecheckWorks : Test =
   testMany
     "basic type checking"
     t
-    (let intAdd =
-      RT.FQFnName.Stdlib { modules = [ "Int" ]; function_ = "add"; version = 0 }
+    (let intAdd : RT.FQFnName.StdlibFnName =
+      { modules = [ "Int" ]; function_ = "add"; version = 0 }
 
      [ (intAdd, [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
        ((intAdd, [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),

@@ -110,7 +110,7 @@ let t
         packageFns
         |> List.map (fun v ->
           let fn = PT2RT.Package.toRT v
-          ((RT.FQFnName.Package fn.name), fn))
+          (fn.name, fn))
         |> Map
 
       let! (state : RT.ExecutionState) =

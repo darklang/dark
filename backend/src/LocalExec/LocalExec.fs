@@ -21,9 +21,8 @@ let (stdlibFns, stdlibTypes) =
 
 
 let libraries : RT.Libraries =
-  { stdlibTypes =
-      stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-    stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+  { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
+    stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
     packageFns = Map.empty }
 
 let defaultTLID = 7UL
