@@ -25,7 +25,7 @@ module S = TestUtils.RTShortcuts
 
 let testBasicTypecheckWorks : Test =
   let t
-    ((fn, args) : RT.FQFnName.T * List<string * RT.Dval>)
+    ((fn, args) : RT.FQFnName.StdlibFnName * List<string * RT.Dval>)
     : Result<unit, TypeChecker.Error.T> =
     let args = Map.ofList args
 
@@ -39,19 +39,21 @@ let testBasicTypecheckWorks : Test =
 
     let typeArgs = [] // CLEANUP consider adding this as a param
 
-    TypeChecker.checkFunctionCall Map.empty fn typeArgs args
+    TypeChecker.checkFunctionCall [] Map.empty fn typeArgs args
 
   testMany
     "basic type checking"
     t
-    (let intAdd =
-      RT.FQFnName.Stdlib { modules = [ "Int" ]; function_ = "add"; version = 0 }
+    (let intAdd : RT.FQFnName.StdlibFnName =
+      { modules = [ "Int" ]; function_ = "add"; version = 0 }
 
      [ (intAdd, [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
        ((intAdd, [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
         Error(
-          (TypeChecker.Error.TypeUnificationFailure
-            { expectedType = RT.TInt; actualValue = RT.DBool true })
+          TypeChecker.Error.TypeUnificationFailure(
+            { expectedType = RT.TInt; actualValue = RT.DBool true },
+            [ "b" ]
+          )
         )) ])
 
 let testArguments : Test =
@@ -79,7 +81,7 @@ let testArguments : Test =
     [ (("myBadFn", RT.TString, S.eInt 7),
        RT.DError(
          RT.SourceNone,
-         "Type error(s) in return type: Expected a value of type `String` but got a `Int`"
+         "Type error in return type: Expected a value of type `String` but got a `Int` in myBadFn->result"
        ))
       (("myGoodFn", RT.TString, S.eStr "test"), RT.DString "test")
       (("myAnyFn", RT.TVariable "a", S.eInt 5), RT.DInt 5L) ]

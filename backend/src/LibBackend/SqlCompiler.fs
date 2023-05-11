@@ -146,7 +146,7 @@ let typecheckDval
   (dval : Dval)
   (expectedType : TypeReference)
   =
-  match TypeChecker.unify types expectedType dval with
+  match TypeChecker.unify [ name ] types expectedType dval with
   | Ok () -> ()
   | Error err -> error $"Incorrect type in {name}: {err}"
 
@@ -252,7 +252,7 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 /// Returns the sql snippet for this expression, the variables that need to be
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
-  (fns : Map<FQFnName.T, BuiltInFn>)
+  (fns : Map<FQFnName.StdlibFnName, BuiltInFn>)
   (types : Map<FQTypeName.T, CustomType.T>)
   (symtable : DvalMap)
   (paramName : string)
@@ -265,11 +265,12 @@ let rec lambdaToSql
 
   let (sql, vars, actualType) =
     match expr with
-    | EApply (_, FnName name, [], args) ->
+    | EApply (_, FnName (FQFnName.Stdlib name as fqName), [], args) ->
+      let nameStr = FQFnName.toString fqName
       match Map.get name fns with
       | Some fn ->
         // check the abstract type here. We will check the concrete type later
-        typecheck (FQFnName.toString name) fn.returnType expectedType
+        typecheck nameStr fn.returnType expectedType
 
         let actualTypes, argSqls, sqlVars =
           let paramCount = List.length fn.parameters
@@ -302,7 +303,7 @@ let rec lambdaToSql
               fn.parameters
           else
             error
-              $"{FQFnName.StdlibFnName.toString fn.name} has {paramCount} functions but we have {argCount} arguments"
+              $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
 
         // Check the unified return type (basic on the actual arguments) against the
         // expected type
@@ -318,7 +319,7 @@ let rec lambdaToSql
             | None -> error "Could not find return type"
           | typ -> typ
 
-        typecheck (FQFnName.toString name) returnType expectedType
+        typecheck nameStr returnType expectedType
 
 
         match fn, argSqls with
@@ -337,11 +338,10 @@ let rec lambdaToSql
           $"({fnName} ({argSql}))", sqlVars, returnType
         | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
           $"({fn arg1 arg2})", sqlVars, returnType
-        | _, _ ->
-          error $"This function ({FQFnName.toString name}) is not yet implemented"
+        | _, _ -> error $"This function ({nameStr}) is not yet implemented"
       | None ->
         error
-          $"Only builtin functions can be used in queries right now; {FQFnName.toString name} is not a builtin function"
+          $"Only builtin functions can be used in queries right now; {nameStr} is not a builtin function"
 
     | EAnd (_, left, right) ->
       let leftSql, leftVars, leftActual = lts TBool left

@@ -327,6 +327,7 @@ module Package =
 
   let toRT (f : PT.Package.Fn) : RT.Package.Fn =
     { name = FQFnName.PackageFnName.toRT f.name
+      tlid = f.tlid
       body = Expr.toRT f.body
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters

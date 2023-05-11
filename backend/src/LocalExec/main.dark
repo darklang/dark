@@ -31,6 +31,10 @@ let usage () : String =
       list-packages  List packages
   "
 
+let printPackage (p : LocalExec.Packages.Package) : Unit =
+  let modules = p.modules |> String.join "."
+  print $"Package {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+
 let parseArgs (args : List<String>) : Result<CliOptions, String> =
   match args with
   | [] -> Ok CliOptions.Help
@@ -40,7 +44,6 @@ let parseArgs (args : List<String>) : Result<CliOptions, String> =
   | ["list-packages"]  -> Ok CliOptions.ListPackages
   | _ -> Error "Invalid arguments"
 
-
 let main (args : List<String>) : Int =
   match parseArgs args with
   | Ok Help ->
@@ -49,11 +52,15 @@ let main (args : List<String>) : Int =
   | Ok LoadPackages ->
     LocalExec.Packages.clear()
     let files = listPackageFiles "/home/dark/app/packages"
-    do List.iter files (fun f -> loadFile f)
+    do List.iter files (fun f ->
+      print $"Loading {f}"
+      loadFile f)
+    print "Done loading packages"
     0
   | Ok ListPackages ->
     let packages = LocalExec.Packages.list()
-    packages |> List.iter (fun p -> print p)
+    packages |> List.iter (fun p -> printPackage p)
+    print "Done listing packages"
     0
   | Error msg ->
     print ("Error: " ++ msg)

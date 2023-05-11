@@ -22,12 +22,20 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   match expr with
   | EInt _
   | EBool _
-  | EString _
   | EChar _
   | EUnit _
   | EVariable _
   | EFloat _ -> expr
   | ELet (id, pat, rhs, next) -> ELet(id, pat, f rhs, f next)
+  | EString (id, strs) ->
+    EString(
+      id,
+      strs
+      |> List.map (fun s ->
+        match s with
+        | StringText t -> StringText t
+        | StringInterpolation e -> StringInterpolation(f e))
+    )
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
   | EInfix (id, op, left, right) -> EInfix(id, op, f left, f right)
@@ -130,11 +138,19 @@ let rec preTraversal
   match exprFn expr with
   | EInt _
   | EBool _
-  | EString _
   | EChar _
   | EUnit _
   | EVariable _
   | EFloat _ -> expr
+  | EString (id, strs) ->
+    EString(
+      id,
+      strs
+      |> List.map (fun s ->
+        match s with
+        | StringText t -> StringText t
+        | StringInterpolation e -> StringInterpolation(f e))
+    )
   | ELet (id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
   | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)

@@ -1506,6 +1506,7 @@ let fns : List<BuiltInFn> =
                 uply {
                   match! Interpreter.applyFnVal state b [ e ] with
                   | DUnit -> return ()
+                  | DError _ as dv -> return Errors.foundFakeDval dv
                   | v ->
                     Exception.raiseCode (Errors.expectedLambdaValue "fn" "unit" v)
                 })

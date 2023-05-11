@@ -748,6 +748,7 @@ module Package =
 
   type Fn =
     { name : FQFnName.PackageFnName
+      tlid : tlid
       body : Expr.T
       typeParams : List<string>
       parameters : List<Parameter>
@@ -756,6 +757,7 @@ module Package =
   module Fn =
     let fromCT (fn : Fn) : RT.Package.Fn =
       { name = FQFnName.PackageFnName.fromCT fn.name
+        tlid = fn.tlid
         body = Expr.fromCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.fromCT fn.parameters
@@ -763,6 +765,7 @@ module Package =
 
     let toCT (fn : RT.Package.Fn) : Fn =
       { name = FQFnName.PackageFnName.toCT fn.name
+        tlid = fn.tlid
         body = Expr.toCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.toCT fn.parameters

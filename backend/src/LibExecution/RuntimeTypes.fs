@@ -177,10 +177,8 @@ module FQFnName =
       true
     | _ -> false
 
-  let isInternalFn (fqfnName : T) : bool =
-    match fqfnName with
-    | Stdlib std -> List.tryHead std.modules = Some "DarkInternal"
-    | _ -> false
+  let isInternalFn (name : StdlibFnName) : bool =
+    List.tryHead name.modules = Some "DarkInternal"
 
 
 module DarkDateTime =
@@ -774,6 +772,7 @@ module Package =
 
   type Fn =
     { name : FQFnName.PackageFnName
+      tlid : tlid
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
@@ -912,7 +911,7 @@ and BuiltInFnSig =
 and FnImpl =
   | StdLib of BuiltInFnSig
   | UserFunction of tlid * Expr
-  | PackageFunction of Expr
+  | PackageFunction of tlid * Expr
 
 
 // CLEANUP consider renaming to `ExecutionType`, `EvaluationMode`, etc.
@@ -961,11 +960,11 @@ and TestContext =
 
 // Non-user-specific functionality needed to run code
 and Libraries =
-  { stdlibTypes : Map<FQTypeName.T, BuiltInType>
-    stdlibFns : Map<FQFnName.T, BuiltInFn>
+  { stdlibTypes : Map<FQTypeName.StdlibTypeName, BuiltInType>
+    stdlibFns : Map<FQFnName.StdlibFnName, BuiltInFn>
 
     // TODO: package types
-    packageFns : Map<FQFnName.T, Package.Fn> }
+    packageFns : Map<FQFnName.PackageFnName, Package.Fn> }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1013,7 +1012,8 @@ module ExecutionState =
     let stdlibTypes =
       state.libraries.stdlibTypes
       |> Map.toList
-      |> List.map (fun (name, stdlibType) -> name, stdlibType.definition)
+      |> List.map (fun (name, stdlibType) ->
+        FQTypeName.Stdlib name, stdlibType.definition)
 
     let userTypes =
       state.program.userTypes
@@ -1063,4 +1063,4 @@ let packageFnToFn (fn : Package.Fn) : Fn =
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable
-    fn = PackageFunction fn.body }
+    fn = PackageFunction(fn.tlid, fn.body) }

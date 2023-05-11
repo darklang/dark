@@ -56,14 +56,11 @@ module Eval =
       let (stdlibFns, stdlibTypes) =
         LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
 
-      let packageFns =
-        request.packageFns |> Map.fromListBy (fun fn -> RT.FQFnName.Package fn.name)
+      let packageFns = request.packageFns |> Map.fromListBy (fun fn -> fn.name)
 
       let libraries : RT.Libraries =
-        { stdlibTypes =
-            stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-          stdlibFns =
-            stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+        { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
+          stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
           packageFns = packageFns }
       let results, traceDvalFn = Exe.traceDvals ()
       let functionResults = request.traceData.functionResults
