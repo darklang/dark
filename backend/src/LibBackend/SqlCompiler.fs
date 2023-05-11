@@ -146,7 +146,7 @@ let typecheckDval
   (dval : Dval)
   (expectedType : TypeReference)
   =
-  match TypeChecker.unify types expectedType dval with
+  match TypeChecker.unify [name] types expectedType dval with
   | Ok () -> ()
   | Error err -> error $"Incorrect type in {name}: {err}"
 

@@ -17,6 +17,8 @@ let combineErrorsUnit (l : List<Result<unit, 'err>>) : Result<unit, 'err> =
     l
 
 module Error =
+  type Path = List<string>
+
   type TypeUnificationError = { expectedType : TypeReference; actualValue : Dval }
 
   type IncorrectNumberOfTypeArgsError = { expected : int; actual : int }
@@ -27,28 +29,30 @@ module Error =
 
   type T =
     /// Failed to find a referenced type
-    | TypeLookupFailure of FQTypeName.T
+    | TypeLookupFailure of FQTypeName.T * path : Path
 
-    | IncorrectNumberOfTypeArgs of IncorrectNumberOfTypeArgsError
+    | IncorrectNumberOfTypeArgs of IncorrectNumberOfTypeArgsError * Path
 
     /// An argument didn't match the expected type
-    | TypeUnificationFailure of TypeUnificationError
+    | TypeUnificationFailure of TypeUnificationError * Path
 
-    | MismatchedRecordFields of MismatchedFields
+    | MismatchedRecordFields of MismatchedFields * Path
 
 
   let toString (e : T) : string =
     match e with
-    | TypeLookupFailure typeName ->
+    | TypeLookupFailure (typeName, path) ->
       let lookupString = FQTypeName.toString typeName
-      $"Type {lookupString} could not be found"
+      let path = path |> String.concat "->"
+      $"Type {lookupString} could not be found in {path}"
 
-    | TypeUnificationFailure uf ->
+    | TypeUnificationFailure (uf, path) ->
       let expected = DvalReprDeveloper.typeName uf.expectedType
       let actual = DvalReprDeveloper.dvalTypeName uf.actualValue
-      $"Expected a value of type `{expected}` but got a `{actual}`"
+      let path = path |> String.concat "->"
+      $"Expected a value of type `{expected}` but got a `{actual}` in {path}"
 
-    | MismatchedRecordFields mrf ->
+    | MismatchedRecordFields (mrf, path) ->
       let expected = mrf.expectedFields
       let actual = mrf.actualFields
       // More or less wholesale from User_db's type checker
@@ -65,21 +69,23 @@ module Error =
         + (extraFields |> Set.toList |> String.concat ", ")
         + "]"
 
+      let path = path |> String.concat "->"
       (match (Set.isEmpty missingFields, Set.isEmpty extraFields) with
-       | false, false -> $"{missingMsg} & {extraMsg}"
-       | false, true -> missingMsg
-       | true, false -> extraMsg
+       | false, false -> $"{missingMsg} & {extraMsg} in {path}"
+       | false, true -> $"{missingMsg} in {path}"
+       | true, false -> $"{extraMsg} in {path}"
        | true, true ->
          "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
 
-    | IncorrectNumberOfTypeArgs ita ->
-      $"Expected {ita.expected} type arguments but found {ita.actual}"
+    | IncorrectNumberOfTypeArgs (ita, path) ->
+      $"Expected {ita.expected} type arguments but found {ita.actual} in {path}"
 
 
 
 open Error
 
 let rec unify
+  (path : List<string>)
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (expected : TypeReference)
   (value : Dval)
@@ -116,26 +122,35 @@ let rec unify
   // TYPESCLEANUP: handle typeArgs
   | TCustomType (typeName, typeArgs), value ->
     match Map.tryFind typeName availableTypes with
-    | None -> Error(TypeLookupFailure typeName)
+    | None -> Error(TypeLookupFailure(typeName, List.rev path))
     | Some ut ->
       let err =
         Error(
-          TypeUnificationFailure { expectedType = expected; actualValue = value }
+          TypeUnificationFailure(
+            { expectedType = expected; actualValue = value },
+            List.rev path
+          )
         )
 
       match ut, value with
       | CustomType.Record (firstField, additionalFields), DRecord (tn, dmap) ->
         if tn <> typeName then
           Error(
-            TypeUnificationFailure { expectedType = expected; actualValue = value }
+            TypeUnificationFailure(
+              { expectedType = expected; actualValue = value },
+              List.rev path
+            )
           )
         else
-          unifyRecordFields availableTypes (firstField :: additionalFields) dmap
+          unifyRecordFields path availableTypes (firstField :: additionalFields) dmap
 
       | CustomType.Enum (firstCase, additionalCases), DEnum (tn, caseName, valFields) ->
         if tn <> typeName then
           Error(
-            TypeUnificationFailure { expectedType = expected; actualValue = value }
+            TypeUnificationFailure(
+              { expectedType = expected; actualValue = value },
+              List.rev path
+            )
           )
         else
           let matchingCase : Option<CustomType.EnumCase> =
@@ -147,7 +162,7 @@ let rec unify
             if List.length case.fields = List.length valFields then
               List.zip case.fields valFields
               |> List.map (fun (expected, actual) ->
-                unify availableTypes expected.typ actual)
+                unify (case.name :: path) availableTypes expected.typ actual)
               |> combineErrorsUnit
             else
               err
@@ -175,11 +190,17 @@ let rec unify
   | TBytes, _
   | TOption _, _
   | TResult _, _ ->
-    Error(TypeUnificationFailure { expectedType = expected; actualValue = value })
+    Error(
+      TypeUnificationFailure(
+        { expectedType = expected; actualValue = value },
+        List.rev path
+      )
+    )
 
 
 
 and unifyRecordFields
+  (path : List<string>)
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (defs : List<CustomType.RecordField>)
   (values : DvalMap)
@@ -198,6 +219,7 @@ and unifyRecordFields
     |> Map.toList
     |> List.map (fun (fieldName, fieldValue) ->
       unify
+        (fieldName :: path)
         availableTypes
         (Map.get fieldName completeDefinition
          |> Exception.unwrapOptionInternal
@@ -207,7 +229,10 @@ and unifyRecordFields
     |> combineErrorsUnit
   else
     Error(
-      MismatchedRecordFields { expectedFields = defNames; actualFields = valueNames }
+      MismatchedRecordFields(
+        { expectedFields = defNames; actualFields = valueNames },
+        List.rev path
+      )
     )
 
 
@@ -232,6 +257,7 @@ and unifyRecordFields
 // These will involve updates in both `checkFunctionCall` and `checkFunctionReturnType`.
 
 let checkFunctionCall
+  (path : List<string>)
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
@@ -243,8 +269,10 @@ let checkFunctionCall
 
     if List.length constraints <> List.length typeArgs then
       Error(
-        IncorrectNumberOfTypeArgs
-          { expected = List.length constraints; actual = List.length typeArgs }
+        IncorrectNumberOfTypeArgs(
+          { expected = List.length constraints; actual = List.length typeArgs },
+          List.rev path
+        )
       )
     else
       Ok()
@@ -266,15 +294,17 @@ let checkFunctionCall
         args
 
     withParams
-    |> List.map (fun (param, value) -> unify availableTypes param.typ value)
+    |> List.map (fun (param, value) ->
+      unify (param.name :: path) availableTypes param.typ value)
 
   (typeArgErrors :: argErrors) |> combineErrorsUnit
 
 
 let checkFunctionReturnType
+  (path : List<string>)
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (fn : Fn)
   (result : Dval)
   : Result<unit, Error.T> =
 
-  unify availableTypes fn.returnType result
+  unify ("return" :: path) availableTypes fn.returnType result

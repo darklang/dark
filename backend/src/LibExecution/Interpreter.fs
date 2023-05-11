@@ -207,9 +207,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   if Dval.isFake v then
                     return v
                   else
-                    match
-                      TypeChecker.unify availableTypes (Map.find k expectedFields) v
-                      with
+                    let field = Map.find k expectedFields
+                    match TypeChecker.unify [ k ] availableTypes field v with
                     | Ok () ->
                       match r with
                       | DRecord (typeName, m) ->
@@ -588,7 +587,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                         if Dval.isFake v then
                           return v
                         else
-                          match TypeChecker.unify availableTypes enumField.typ v with
+                          match
+                            TypeChecker.unify
+                              [ case.name ]
+                              availableTypes
+                              enumField.typ
+                              v
+                            with
                           | Ok () ->
                             match r with
                             | DEnum (typeName, caseName, existing) ->
@@ -758,7 +763,8 @@ and execFn
       if Dval.isFake result then
         result
       else
-        match TypeChecker.checkFunctionReturnType userTypes fn result with
+        let name = FQFnName.toString fnDesc
+        match TypeChecker.checkFunctionReturnType [ name ] userTypes fn result with
         | Ok () -> result
         | Error err ->
           DError(
@@ -831,8 +837,9 @@ and execFn
 
             return result
         | PackageFunction body ->
+          let name = [ FQFnName.toString fnDesc ]
           // This is similar to InProcess but also has elements of UserCreated.
-          match TypeChecker.checkFunctionCall Map.empty fn typeArgs args with
+          match TypeChecker.checkFunctionCall name Map.empty fn typeArgs args with
           | Ok () ->
             let! result =
               match (state.tracing.realOrPreview,
@@ -862,42 +869,25 @@ and execFn
                 }
             // For now, always store these results
             state.tracing.storeFnResult fnRecord arglist result
-
             return result |> typeErrorOrValue (ExecutionState.availableTypes state)
 
           | Error err ->
-            return
-              DError(
-                sourceID,
-                ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.toString err)
-              )
+            let msg =
+              "Type error in function parameters: " + TypeChecker.Error.toString err
+            return DError(sourceID, msg)
         | UserFunction (tlid, body) ->
-          match
-            TypeChecker.checkFunctionCall
-              (ExecutionState.availableTypes state)
-              fn
-              typeArgs
-              args
+          let name = [ FQFnName.toString fnDesc ]
+          let availableTypes = ExecutionState.availableTypes state
+          match TypeChecker.checkFunctionCall name availableTypes fn typeArgs args
             with
           | Ok () ->
             state.tracing.traceTLID tlid
-            // Don't execute user functions if it's preview mode and we have a result
-            match (state.tracing.realOrPreview,
-                   state.tracing.loadFnResult fnRecord arglist)
-              with
-            | Preview, Some (result, _ts) -> return result
-            | _ ->
-              let state = { state with tlid = tlid }
-              let! result = eval state argsWithGlobals body
-              state.tracing.storeFnResult fnRecord arglist result
-
-              return result |> typeErrorOrValue (ExecutionState.availableTypes state)
+            let state = { state with tlid = tlid }
+            let! result = eval state argsWithGlobals body
+            state.tracing.storeFnResult fnRecord arglist result
+            return result |> typeErrorOrValue availableTypes
           | Error err ->
-            return
-              DError(
-                sourceID,
-                ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.toString err)
-              )
+            let msg =
+              "Type error in function parameters: " + TypeChecker.Error.toString err
+            return DError(sourceID, msg)
   }

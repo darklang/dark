@@ -39,7 +39,7 @@ let testBasicTypecheckWorks : Test =
 
     let typeArgs = [] // CLEANUP consider adding this as a param
 
-    TypeChecker.checkFunctionCall Map.empty fn typeArgs args
+    TypeChecker.checkFunctionCall [] Map.empty fn typeArgs args
 
   testMany
     "basic type checking"
@@ -50,8 +50,10 @@ let testBasicTypecheckWorks : Test =
      [ (intAdd, [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
        ((intAdd, [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
         Error(
-          (TypeChecker.Error.TypeUnificationFailure
-            { expectedType = RT.TInt; actualValue = RT.DBool true })
+          TypeChecker.Error.TypeUnificationFailure(
+            { expectedType = RT.TInt; actualValue = RT.DBool true },
+            []
+          )
         )) ])
 
 let testArguments : Test =
