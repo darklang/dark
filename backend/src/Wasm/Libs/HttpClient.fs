@@ -91,7 +91,7 @@ module HttpClient =
 
           let strBody = System.Text.Encoding.UTF8.GetString httpRequest.body
 
-          // Note: BodyContent, used by the 'regular' HttpClient,
+          // CLEANUP: BodyContent, used by the 'regular' HttpClient,
           // doesn't seem to work in the Wasm runtime,
           // so we'll have to figure out some other way of supporting
           // non-text bodies in that environment

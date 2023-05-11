@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const emit = defineEmits(['submit'])
-
-const userInput = ref('')
+const userInput = ref('Write a function that divides two numbers')
 
 async function submit() {
   try {

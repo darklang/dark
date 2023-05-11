@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+
+import type { Model } from '../types'
+
 import ConversationStep from './ConversationStep.vue'
 import Prompt from './Prompt.vue'
 
-// TODO: match `state`
-defineProps({
-  state: {
-    type: Object, // todo
-    required: true,
-  },
-})
+defineProps<{ state: Model }>()
 
 const isPromptVisible = ref(false)
 </script>
@@ -43,9 +40,10 @@ const isPromptVisible = ref(false)
       <!-- actual conversation -->
       <div class="mt-4 space-y-4">
         <ConversationStep
-          v-for="(chatItem, index) in state.chatHistory"
-          :key="index"
+          v-for="chatItem in state.chatHistory"
+          :key="chatItem.id"
           :chatItem="chatItem"
+          :codeSnippets="state.codeSnippets"
         />
       </div>
     </div>

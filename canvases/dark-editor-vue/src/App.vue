@@ -1,54 +1,25 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+
+import { fromSerializedDarkModel, type Model } from './types'
 import ConversationView from './views/ConversationView.vue'
-
-
-/*
-interface BotResponseItem_Code  {
-  typ: 'Code'
-  codeSnippet: string
-}
-interface BotResponseItem_Text {
-  typ: 'Text'
-  text: string
-}
-type BotResponseItem = BotResponseItem_Code | BotResponseItem_Text
-
-interface ChatHistoryItem_Bot {
-  typ: 'Bot'
-
-  // todo: extract out other type
-  text: string
-  isCode: boolean
-}
-interface ChatHistoryItem_User {
-  typ: 'User'
-  prompt: string
-}
-type ChatHistoryItem = ChatHistoryItem_Bot | ChatHistoryItem_User
-*/
-
-interface ChatHistoryItem {
-  author: 'User' | 'Bot'
-  isCode: boolean
-  text: string
-}
-
-interface Model {
-  systemPrompt: string
-  chatHistory: ChatHistoryItem[]
-}
 
 let init: Model = {
   systemPrompt: '<system prompt here>!',
   chatHistory: [],
+  codeSnippets: [],
 }
 
 // Set initial state; listen for state updates from Dark
 const state = ref(init)
-window.stateUpdated = (newState: any) => {
-  state.value = JSON.parse(newState)
-  console.log('newState', newState)
+window.stateUpdated = (serializedNewState: string) => {
+  //console.log('stateUpdated', serializedNewState)
+  try {
+    const parsed = fromSerializedDarkModel(serializedNewState)
+    state.value = parsed
+  } catch (e) {
+    console.error("Failed to parse updated state", e)
+  }
 }
 
 // Bootstrap and connect the Dark side of the app
