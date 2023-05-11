@@ -32,8 +32,8 @@ let usage () : String =
   "
 
 let printPackage (p : LocalExec.Packages.Package) : Unit =
-  let modules = p.modules |> List.map (fun m -> m |> String.join ".")
-  print $"Package {modules} {p.name} {Int.toString p.version}"
+  let modules = p.modules |> String.join "."
+  print $"Package {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
 let parseArgs (args : List<String>) : Result<CliOptions, String> =
   match args with

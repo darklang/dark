@@ -19,10 +19,13 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { name = "modules"
-            typ = TList TString
-            description = "The modules in the package" },
-          [ { name = "name"; typ = TString; description = "The name of the package" }
+          { name = "owner"
+            typ = TString
+            description = "The username of the owner of the package" },
+          [ { name = "modules"
+              typ = TList TString
+              description = "The modules in the package" }
+            { name = "name"; typ = TString; description = "The name of the package" }
             { name = "version"
               typ = TInt
               description = "The version of the package" } ]
@@ -89,19 +92,24 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUnit ] ->
           uply {
             let! packages =
-              Sql.query "SELECT fnname, modules, version FROM package_functions_v0"
+              Sql.query
+                "SELECT owner, modules, fnname, version FROM package_functions_v0"
               |> Sql.executeAsync (fun read ->
-                (read.string "fnname", read.string "modules", read.int "version"))
+                (read.string "owner",
+                 read.string "fnname",
+                 read.string "modules",
+                 read.int "version"))
             return
               (DList(
                 packages
-                |> List.map (fun (fnname, modules, version) ->
+                |> List.map (fun (owner, fnname, modules, version) ->
                   DRecord(
                     FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Package" 0),
                     Map(
-                      [ ("name", DString fnname)
+                      [ ("owner", DString owner)
                         ("modules",
                          modules |> String.split "." |> List.map DString |> DList)
+                        ("name", DString fnname)
                         ("version", DInt version) ]
                     )
                   ))
