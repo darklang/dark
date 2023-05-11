@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from 'vue'
 
-const emit = defineEmits(['submit']);
+const emit = defineEmits(['submit'])
 
-const userInput = ref('');
+const userInput = ref('')
 
 async function submit() {
   try {
-    console.log('emitting prompt to submit');
-    const evt = { typ: "UserGavePrompt", data: userInput.value }
-    const result = await window.darklang.handleEvent(evt);
+    console.log('emitting prompt to submit')
+    const evt = { UserGavePrompt: [userInput.value] }
+    const result = await window.darklang.handleEvent(evt)
     console.log('result', result)
   } catch (error) {
-    console.error(error);
+    console.error(error)
   }
 }
 </script>

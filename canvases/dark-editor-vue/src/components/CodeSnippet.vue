@@ -1,22 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from 'vue'
 
 const props = defineProps({
+  id: {
+    type: String,
+    default: '',
+  },
   code: {
     type: String,
     default: '',
   },
-});
+})
 
-const codeSnippet = ref(props.code);
+const codeSnippet = ref(props.code)
 
 async function runCode() {
   try {
-    console.log('emitting code to run');
-    const result = await window.darklang.handleEvent('runCode', codeSnippet.value);
+    const evt = { UserRequestedCodeEval: [codeSnippet] }
+    const result = await window.darklang.handleEvent(evt)
     console.log('result', result)
   } catch (error) {
-    console.error(error);
+    console.error(error)
   }
 }
 </script>

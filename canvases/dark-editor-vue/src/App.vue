@@ -2,6 +2,32 @@
 import { ref } from 'vue'
 import ConversationView from './views/ConversationView.vue'
 
+
+/*
+interface BotResponseItem_Code  {
+  typ: 'Code'
+  codeSnippet: string
+}
+interface BotResponseItem_Text {
+  typ: 'Text'
+  text: string
+}
+type BotResponseItem = BotResponseItem_Code | BotResponseItem_Text
+
+interface ChatHistoryItem_Bot {
+  typ: 'Bot'
+
+  // todo: extract out other type
+  text: string
+  isCode: boolean
+}
+interface ChatHistoryItem_User {
+  typ: 'User'
+  prompt: string
+}
+type ChatHistoryItem = ChatHistoryItem_Bot | ChatHistoryItem_User
+*/
+
 interface ChatHistoryItem {
   author: 'User' | 'Bot'
   isCode: boolean

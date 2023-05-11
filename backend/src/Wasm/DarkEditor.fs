@@ -119,17 +119,19 @@ let LoadClient (sourceURL : string) : Task<string> =
 
 
 [<JSInvokable>]
-let HandleEvent (serializedEvent : string) : Ply<string> =
-  uply {
+let HandleEvent (serializedEvent : string) : Task<string> =
+  task {
     let state = getStateForEval Libs.Editor.editor.Types Libs.Editor.editor.Functions
 
     let! result =
-      LibExecution.Interpreter.callFn
-        state
-        (gid ())
-        (FQFnName.User { modules = []; function_ = "handleEvent"; version = 0 })
-        []
-        [ DString serializedEvent ]
+      Ply.toTask (
+        LibExecution.Interpreter.callFn
+          state
+          (gid ())
+          (FQFnName.User { modules = []; function_ = "handleEvent"; version = 0 })
+          []
+          [ DString serializedEvent ]
+      )
 
     return LibExecution.DvalReprDeveloper.toRepr result
   }
