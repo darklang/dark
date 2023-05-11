@@ -817,6 +817,7 @@ and execFn
                     match e with
                     | Errors.IncorrectArgs ->
                       Errors.incorrectArgsToDError sourceID fn arglist
+                    | Errors.FakeDvalFound dv -> dv
                     | (:? CodeException
                     | :? GrandUserException) as e ->
                       // There errors are created by us, within the libraries, so they are
