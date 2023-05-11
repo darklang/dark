@@ -48,7 +48,6 @@ let rec dvalToSql
   match expectedType, dval with
   | _, DError _
   | _, DIncomplete _ -> Errors.foundFakeDval dval
-  | _, DHttpResponse _
   | _, DFnVal _
   | _, DDB _
   | _, DDict _ // CLEANUP allow

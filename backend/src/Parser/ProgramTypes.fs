@@ -170,7 +170,6 @@ module TypeReference =
     | PT.TList arg -> PT.TList(c arg)
     | PT.TOption arg -> PT.TOption(c arg)
     | PT.TResult (okArg, errorArg) -> PT.TResult(c okArg, c errorArg)
-    | PT.THttpResponse arg -> PT.THttpResponse(c arg)
     | PT.TDict valArg -> PT.TDict(c valArg)
     | PT.TVariable _ -> typ
     | PT.TDB arg -> PT.TDB(c arg)

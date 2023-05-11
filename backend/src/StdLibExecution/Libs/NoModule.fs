@@ -80,8 +80,6 @@ let rec equals
     | Error _, Ok _ -> false
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
-  | DHttpResponse (code1, headers1, body1), DHttpResponse (code2, headers2, body2) ->
-    code1 = code2 && headers1 = headers2 && equals body1 body2
   | DEnum (a1, a2, a3), DEnum (b1, b2, b3) ->
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
   // exhaustivenss check
@@ -103,7 +101,6 @@ let rec equals
   | DResult _, _
   | DBytes _, _
   | DDB _, _
-  | DHttpResponse _, _
   | DEnum _, _
   | DError _, _
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"

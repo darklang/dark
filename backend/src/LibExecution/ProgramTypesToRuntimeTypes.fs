@@ -40,7 +40,6 @@ module TypeReference =
     | PT.TTuple (firstType, secondType, otherTypes) ->
       RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)
     | PT.TDict typ -> RT.TDict(toRT typ)
-    | PT.THttpResponse typ -> RT.THttpResponse(toRT typ)
     | PT.TDB typ -> RT.TDB(toRT typ)
     | PT.TDateTime -> RT.TDateTime
     | PT.TChar -> RT.TChar

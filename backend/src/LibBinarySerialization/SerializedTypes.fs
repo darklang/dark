@@ -144,7 +144,6 @@ type TypeReference =
   | TString
   | TList of TypeReference
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar

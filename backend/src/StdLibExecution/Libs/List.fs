@@ -37,7 +37,6 @@ module DvalComparator =
     | DPassword _, DPassword _ -> 0 // CLEANUP - how do we handle this?
     | DUuid u1, DUuid u2 -> compare u1 u2
     | DBytes b1, DBytes b2 -> compare b1 b2
-    | DHttpResponse _, DHttpResponse _ -> 0 // this is being deleted soon
     | DDict o1, DDict o2 -> compareMaps (Map.toList o1) (Map.toList o2)
     | DRecord (tn1, o1), DRecord (tn2, o2) ->
       let c = compare tn1 tn2
@@ -78,7 +77,6 @@ module DvalComparator =
     | DPassword _, _
     | DUuid _, _
     | DBytes _, _
-    | DHttpResponse _, _
     | DDict _, _
     | DRecord _, _
     | DOption _, _

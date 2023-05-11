@@ -41,9 +41,41 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DHttpResponse (code, headers, RT.DBytes body) ->
+    | RT.DRecord (RT.FQTypeName.Stdlib ({ modules = [ "Http" ]
+                                          typ = "Response"
+                                          version = 0 }),
+                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
-      { statusCode = int code; headers = lowercaseHeaderKeys headers; body = body }
+      let code = Map.get "code" fields
+      let headers = Map.get "headers" fields
+      let body = Map.get "body" fields
+      match code, headers, body with
+      | Some (RT.DInt code), Some (RT.DDict headers), Some (RT.DBytes body) ->
+        let headers =
+          headers
+          |> Map.toList
+          |> List.fold (Ok []) (fun acc (k, v) ->
+            match acc, v with
+            | Ok acc, RT.DString str -> Ok((k, str) :: acc)
+            // Deliberately don't include the header value in the error message as we show it to users
+            | Ok _, _ -> Error $"Header must be a string"
+            | Error _, _ -> acc)
+        match headers with
+        | Ok headers ->
+          { statusCode = int code
+            headers = headers |> lowercaseHeaderKeys
+            body = body }
+        | Error msg ->
+          { statusCode = 500
+            headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+            body = UTF8.toBytes msg }
+      // Error responses
+      | _incorrectFieldTypes ->
+        { statusCode = 500
+          headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+          body =
+            UTF8.toBytes
+              "Application error: expected a Http.Response_v0, but its fields were the wrong type" }
 
     // Error responses
     | uncaughtResult ->

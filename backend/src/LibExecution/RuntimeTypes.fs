@@ -221,7 +221,6 @@ type TypeReference =
   | TOption of TypeReference // CLEANUP remove
   | TResult of TypeReference * TypeReference // CLEANUP remove
   | TDict of TypeReference // CLEANUP add key type
-  | THttpResponse of TypeReference // CLEANUP remove
 
   member this.isFn() : bool =
     match this with
@@ -241,7 +240,6 @@ type TypeReference =
       | TOption t -> isConcrete t
       | TResult (t1, t2) -> isConcrete t1 && isConcrete t2
       | TDict t -> isConcrete t
-      | THttpResponse t -> isConcrete t
       // exhaustiveness
       | TUnit
       | TBool
@@ -403,13 +401,6 @@ and [<NoComparison>] Dval =
   | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
-
-  // TODO: remove DHttpResponse eventually - this should really just be a DRecord
-  // of a type that is defined in the standard library (http module)
-  | DHttpResponse of
-    statusCode : int64 *
-    headers : List<string * string> *
-    responseBody : Dval
 
   | DDict of DvalMap
 
@@ -594,7 +585,6 @@ module Dval =
     | DOption (Some v), TOption t
     | DResult (Ok v), TResult (t, _) -> typeMatches t v
     | DResult (Error v), TResult (_, t) -> typeMatches t v
-    | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
     | DRecord (typeName, fields), TCustomType (typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
@@ -630,7 +620,6 @@ module Dval =
     | DFnVal _, _
     | DOption _, _
     | DResult _, _
-    | DHttpResponse _, _
     | DEnum _, _ -> false
 
 

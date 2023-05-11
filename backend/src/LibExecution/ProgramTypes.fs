@@ -219,7 +219,6 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar

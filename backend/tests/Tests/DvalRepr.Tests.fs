@@ -66,8 +66,7 @@ let testToDeveloperRepr =
     [ testMany
         "toDeveloperRepr string"
         DvalReprDeveloper.toRepr
-        [ RT.DHttpResponse(0L, [], RT.DUnit), "0 {}\nunit"
-          RT.DFloat(-0.0), "-0.0"
+        [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
           RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"

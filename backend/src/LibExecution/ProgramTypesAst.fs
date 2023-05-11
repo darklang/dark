@@ -108,7 +108,6 @@ let rec preTraversal
     | TDict (tr) -> TDict(f tr)
     | TOption tr -> TOption(f tr)
     | TResult (tr1, tr2) -> TResult(f tr1, f tr2)
-    | THttpResponse tr -> THttpResponse(f tr)
     | TFn (trs, tr) -> TFn(List.map f trs, f tr)
 
   let f =
