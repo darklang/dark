@@ -40,7 +40,7 @@ let _handler _req =
   match Experiments.readFromCanvases "dark-editor/client.dark" with
   | Ok sourceInBytes ->
     let program =
-      Experiments.parseAndSerializeProgram (String.fromBytes sourceInBytes)
+      Experiments.parseAndSerializeProgram (String.fromBytes sourceInBytes) "client.dark"
 
     match program with
     | Ok program ->

@@ -17,10 +17,10 @@ let getStateForEval
     let stdlibFns, stdlibTypes = stdlib
 
     { stdlibTypes =
-        stdlibTypes |> List.map (fun typ -> FQTypeName.Stdlib typ.name, typ) |> Map
+        stdlibTypes |> List.map (fun typ -> typ.name, typ) |> Map
 
       stdlibFns =
-        stdlibFns |> List.map (fun fn -> FQFnName.Stdlib fn.name, fn) |> Map
+        stdlibFns |> List.map (fun fn -> fn.name, fn) |> Map
 
       packageFns = packageFns }
 
