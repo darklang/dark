@@ -173,7 +173,8 @@ let fns : List<BuiltInFn> =
                 |> DResult
             with
             | e ->
-              return DResult(Error(DString($"Error parsing program: {e.Message}")))
+              let error = Exception.getMessages e |> String.concat " "
+              return DString($"Error parsing code: {error}") |> Error |> DResult
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
