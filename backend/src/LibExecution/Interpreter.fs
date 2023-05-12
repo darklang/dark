@@ -207,9 +207,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   if Dval.isFake v then
                     return v
                   else
-                    match
-                      TypeChecker.unify availableTypes (Map.find k expectedFields) v
-                      with
+                    let field = Map.find k expectedFields
+                    match TypeChecker.unify [ k ] availableTypes field v with
                     | Ok () ->
                       match r with
                       | DRecord (typeName, m) ->
@@ -588,7 +587,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                         if Dval.isFake v then
                           return v
                         else
-                          match TypeChecker.unify availableTypes enumField.typ v with
+                          match
+                            TypeChecker.unify
+                              [ case.name ]
+                              availableTypes
+                              enumField.typ
+                              v
+                            with
                           | Ok () ->
                             match r with
                             | DEnum (typeName, caseName, existing) ->
@@ -687,12 +692,12 @@ and callFn
 
     let fn =
       match desc with
-      | FQFnName.Stdlib _std ->
+      | FQFnName.Stdlib std ->
         // CLEANUP: do this when the libraries are loaded
-        state.libraries.stdlibFns.TryFind desc |> Option.map builtInFnToFn
+        state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
       | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
-      | FQFnName.Package _pkg ->
-        state.libraries.packageFns.TryFind desc |> Option.map packageFnToFn
+      | FQFnName.Package pkg ->
+        state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
 
     let! result =
       uply {
@@ -758,13 +763,12 @@ and execFn
       if Dval.isFake result then
         result
       else
-        match TypeChecker.checkFunctionReturnType userTypes fn result with
+        let name = FQFnName.toString fnDesc
+        match TypeChecker.checkFunctionReturnType [ name ] userTypes fn result with
         | Ok () -> result
         | Error err ->
-          DError(
-            sourceID,
-            $"Type error(s) in return type: {TypeChecker.Error.toString err}"
-          )
+          let msg = $"Type error in return type: {TypeChecker.Error.toString err}"
+          DError(sourceID, msg)
 
     if state.tracing.realOrPreview = Preview
        && not state.onExecutionPath
@@ -811,6 +815,7 @@ and execFn
                     match e with
                     | Errors.IncorrectArgs ->
                       Errors.incorrectArgsToDError sourceID fn arglist
+                    | Errors.FakeDvalFound dv -> dv
                     | (:? CodeException
                     | :? GrandUserException) as e ->
                       // There errors are created by us, within the libraries, so they are
@@ -830,74 +835,19 @@ and execFn
               state.tracing.storeFnResult fnRecord arglist result
 
             return result
-        | PackageFunction body ->
-          // This is similar to InProcess but also has elements of UserCreated.
-          match TypeChecker.checkFunctionCall Map.empty fn typeArgs args with
-          | Ok () ->
-            let! result =
-              match (state.tracing.realOrPreview,
-                     state.tracing.loadFnResult fnRecord arglist)
-                with
-              | Preview, Some (result, _ts) -> Ply(result)
-              | Preview, None when fn.previewable <> Pure ->
-                Ply(DIncomplete sourceID)
-              | _ ->
-                uply {
-                  // It's okay to execute user functions in both Preview and
-                  // Real contexts, But in Preview we might not have all the
-                  // data we need
-
-                  // TODO: We don't munge `state.tlid` like we do in
-                  // UserFunction, which means there might be `id`
-                  // collisions between AST nodes. Munging `state.tlid`
-                  // would not save us from tlid collisions either.
-                  // tl;dr, executing a package function may result in
-                  // trace data being associated with the wrong
-                  // handler/call site.
-                  let! result = eval state argsWithGlobals body
-
-                  state.tracing.storeFnResult fnRecord arglist result
-
-                  return result |> typeErrorOrValue Map.empty
-                }
-            // For now, always store these results
-            state.tracing.storeFnResult fnRecord arglist result
-
-            return result |> typeErrorOrValue (ExecutionState.availableTypes state)
-
-          | Error err ->
-            return
-              DError(
-                sourceID,
-                ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.toString err)
-              )
+        | PackageFunction (tlid, body)
         | UserFunction (tlid, body) ->
-          match
-            TypeChecker.checkFunctionCall
-              (ExecutionState.availableTypes state)
-              fn
-              typeArgs
-              args
+          let name = [ FQFnName.toString fnDesc ]
+          let availableTypes = ExecutionState.availableTypes state
+          match TypeChecker.checkFunctionCall name availableTypes fn typeArgs args
             with
           | Ok () ->
             state.tracing.traceTLID tlid
-            // Don't execute user functions if it's preview mode and we have a result
-            match (state.tracing.realOrPreview,
-                   state.tracing.loadFnResult fnRecord arglist)
-              with
-            | Preview, Some (result, _ts) -> return result
-            | _ ->
-              let state = { state with tlid = tlid }
-              let! result = eval state argsWithGlobals body
-              state.tracing.storeFnResult fnRecord arglist result
-
-              return result |> typeErrorOrValue (ExecutionState.availableTypes state)
+            let state = { state with tlid = tlid }
+            let! result = eval state argsWithGlobals body
+            return result |> typeErrorOrValue availableTypes
           | Error err ->
-            return
-              DError(
-                sourceID,
-                ("Type error(s) in function parameters: "
-                 + TypeChecker.Error.toString err)
-              )
+            let msg =
+              "Type error in function parameters: " + TypeChecker.Error.toString err
+            return DError(sourceID, msg)
   }

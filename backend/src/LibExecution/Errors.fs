@@ -90,15 +90,16 @@ let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
       ->
       let altfn = { std with modules = [ "Float" ] }
 
-      $" Try using {FQFnName.StdlibFnName.toString altfn}, or use Float.truncate to truncate Floats to Ints."
+      $". Try using {FQFnName.StdlibFnName.toString altfn}, or use Float.truncate to truncate Floats to Ints."
     | TInt, DString _, FQFnName.Stdlib std when
       (std.modules = [ "Int" ] && std.function_ = "add")
       || (std.modules = [] && std.function_ = "+")
       ->
-      " Use ++ to concatenate"
+      ". Use ++ to concatenate"
     | _ -> ""
   $"{FQFnName.toString name} was expected to be called with a `{expectedTypeRepr}`"
-  + $" in {p.name}, but was actually called with {actualRepr}.{conversionMsg}"
+  + $" in {p.name}, but was actually called with {actualRepr}"
+  + conversionMsg
 
 let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>) =
   let paramLength = List.length fn.parameters

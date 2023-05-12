@@ -2383,7 +2383,8 @@
                   ]
                 ]
               ]
-            ]
+            ],
+            "description": "desc1"
           },
           []
         ]
@@ -2399,7 +2400,8 @@
           "Enum",
           {
             "name": "caseA",
-            "fields": []
+            "fields": [],
+            "description": ""
           },
           [
             {
@@ -2551,9 +2553,11 @@
                       ]
                     ]
                   ],
-                  "label": "i"
+                  "label": "i",
+                  "description": ""
                 }
-              ]
+              ],
+              "description": ""
             }
           ]
         ]

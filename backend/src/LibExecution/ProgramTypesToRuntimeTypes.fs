@@ -232,15 +232,19 @@ module Expr =
 module CustomType =
   module RecordField =
     let toRT (f : PT.CustomType.RecordField) : RT.CustomType.RecordField =
-      { name = f.name; typ = TypeReference.toRT f.typ }
+      { name = f.name; typ = TypeReference.toRT f.typ; description = f.description }
 
   module EnumField =
     let toRT (f : PT.CustomType.EnumField) : RT.CustomType.EnumField =
-      { typ = TypeReference.toRT f.typ; label = f.label }
+      { typ = TypeReference.toRT f.typ
+        label = f.label
+        description = f.description }
 
   module EnumCase =
     let toRT (c : PT.CustomType.EnumCase) : RT.CustomType.EnumCase =
-      { name = c.name; fields = List.map EnumField.toRT c.fields }
+      { name = c.name
+        fields = List.map EnumField.toRT c.fields
+        description = c.description }
 
   let toRT (d : PT.CustomType.T) : RT.CustomType.T =
     match d with
@@ -323,6 +327,7 @@ module Package =
 
   let toRT (f : PT.Package.Fn) : RT.Package.Fn =
     { name = FQFnName.PackageFnName.toRT f.name
+      tlid = f.tlid
       body = Expr.toRT f.body
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters

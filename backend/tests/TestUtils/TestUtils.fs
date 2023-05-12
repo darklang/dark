@@ -99,7 +99,8 @@ let testUserRecordType
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
-  let mapField (name, typ) : PT.CustomType.RecordField = { name = name; typ = typ }
+  let mapField (name, typ) : PT.CustomType.RecordField =
+    { name = name; typ = typ; description = "" }
 
   { tlid = gid ()
     name = name
@@ -124,9 +125,8 @@ let libraries : Lazy<RT.Libraries> =
         []
         []
 
-     { stdlibTypes =
-         types |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-       stdlibFns = fns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+     { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
+       stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
        packageFns = Map.empty })
 
 let executionStateFor

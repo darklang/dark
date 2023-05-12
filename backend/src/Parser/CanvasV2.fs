@@ -175,14 +175,20 @@ let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
 let postProcessModule (m : CanvasModule) : CanvasModule =
   let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
   let userTypeNames = m.types |> List.map (fun t -> t.name) |> Set
-  let fixup = ProgramTypes.Expr.completeParse userFnNames userTypeNames
-  { m with
-      handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixup expr))
-      exprs = m.exprs |> List.map fixup
-      fns = m.fns |> List.map (fun f -> { f with body = fixup f.body }) }
+  let fixExpr = ProgramTypes.Expr.completeParse userFnNames userTypeNames
+  { handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixExpr expr))
+    exprs = m.exprs |> List.map fixExpr
+    fns =
+      m.fns
+      |> List.map (ProgramTypes.UserFunction.completeParse userFnNames userTypeNames)
+    types = m.types |> List.map (ProgramTypes.UserType.completeParse userTypeNames)
+    dbs =
+      m.dbs
+      |> List.map (fun db ->
+        { db with typ = ProgramTypes.TypeReference.completeParse userTypeNames db.typ }) }
 
-let parse (source : string) : CanvasModule =
-  let parsedAsFSharp = parseAsFSharpSourceFile source
+let parse (filename : string) (source : string) : CanvasModule =
+  let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
   let decls =
     match parsedAsFSharp with
@@ -204,4 +210,4 @@ let parse (source : string) : CanvasModule =
 
 
 let parseFromFile (filename : string) : CanvasModule =
-  filename |> System.IO.File.ReadAllText |> parse
+  filename |> System.IO.File.ReadAllText |> parse filename

@@ -22,6 +22,48 @@ let (|Placeholder|_|) (input : PT.Expr) =
 let (|PipePlaceholder|_|) (input : PT.PipeExpr) =
   if input = pipePlaceholder then Some() else None
 
+module FQTypeName =
+  let completeParse
+    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (name : PT.FQTypeName.T)
+    : PT.FQTypeName.T =
+    match name with
+    | PT.FQTypeName.Package _ -> name
+    | PT.FQTypeName.User n ->
+      if Set.contains n userTypes then
+        PT.FQTypeName.User n
+      else
+        PT.FQTypeName.Stdlib
+          { typ = n.typ; version = n.version; modules = n.modules }
+    | PT.FQTypeName.Stdlib n ->
+      let userName : PT.FQTypeName.UserTypeName =
+        { modules = n.modules; typ = n.typ; version = n.version }
+      if Set.contains userName userTypes then
+        PT.FQTypeName.User(userName)
+      else
+        PT.FQTypeName.Stdlib(n)
+
+module FQFnName =
+  let completeParse
+    (userFns : Set<PT.FQFnName.UserFnName>)
+    (name : PT.FQFnName.T)
+    : PT.FQFnName.T =
+    match name with
+    | PT.FQFnName.Package _ -> name
+    | PT.FQFnName.User n ->
+      if Set.contains n userFns then
+        PT.FQFnName.User n
+      else
+        PT.FQFnName.Stdlib
+          { function_ = n.function_; version = n.version; modules = n.modules }
+    | PT.FQFnName.Stdlib n ->
+      let userName : PT.FQFnName.UserFnName =
+        { modules = n.modules; function_ = n.function_; version = n.version }
+      if Set.contains userName userFns then
+        PT.FQFnName.User(userName)
+      else
+        PT.FQFnName.Stdlib(n)
+
 
 module TypeReference =
 
@@ -113,6 +155,35 @@ module TypeReference =
     | SynType.LongIdent (SynLongIdent (names, _, _)) -> fromNamesAndTypeArgs names []
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
+
+  let rec completeParse
+    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (typ : PT.TypeReference)
+    : PT.TypeReference =
+    let c = completeParse userTypes
+    match typ with
+    | PT.TCustomType (tn, args) ->
+      PT.TCustomType(FQTypeName.completeParse userTypes tn, List.map c args)
+    | PT.TFn (args, ret) -> PT.TFn(List.map c args, c ret)
+    | PT.TTuple (first, second, theRest) ->
+      PT.TTuple(c first, c second, List.map c theRest)
+    | PT.TList arg -> PT.TList(c arg)
+    | PT.TOption arg -> PT.TOption(c arg)
+    | PT.TResult (okArg, errorArg) -> PT.TResult(c okArg, c errorArg)
+    | PT.THttpResponse arg -> PT.THttpResponse(c arg)
+    | PT.TDict valArg -> PT.TDict(c valArg)
+    | PT.TVariable _ -> typ
+    | PT.TDB arg -> PT.TDB(c arg)
+    | PT.TBool
+    | PT.TBytes
+    | PT.TInt
+    | PT.TString
+    | PT.TChar
+    | PT.TFloat
+    | PT.TDateTime
+    | PT.TUuid
+    | PT.TUnit
+    | PT.TPassword -> typ
 
 
 module LetPattern =
@@ -307,9 +378,11 @@ module Expr =
     | SynExpr.InterpolatedString (parts, _, _) ->
       let parts =
         parts
-        |> List.map (function
-          | SynInterpolatedStringPart.String (s, _) -> PT.StringText s
-          | SynInterpolatedStringPart.FillExpr (e, _) -> PT.StringInterpolation(c e))
+        |> List.filterMap (function
+          | SynInterpolatedStringPart.String ("", _) -> None
+          | SynInterpolatedStringPart.String (s, _) -> Some(PT.StringText s)
+          | SynInterpolatedStringPart.FillExpr (e, _) ->
+            Some(PT.StringInterpolation(c e)))
       PT.EString(id, parts)
 
 
@@ -728,67 +801,28 @@ module Expr =
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (e : PT.Expr)
     : PT.Expr =
-
-    let fnNameFor modules function_ version =
-      let userName : PT.FQFnName.UserFnName =
-        { modules = modules; function_ = function_; version = version }
-      let stdlibName : PT.FQFnName.StdlibFnName =
-        { modules = modules; function_ = function_; version = version }
-      if Set.contains userName userFunctions then
-        Some(PT.FQFnName.User(userName))
-      else if modules <> [] || Set.contains function_ PT.FQFnName.oneWordFunctions then
-        Some(PT.FQFnName.Stdlib(stdlibName))
-      else
-        None
-
-    let typeNameFor modules typ version =
-      let userName : PT.FQTypeName.UserTypeName =
-        { modules = modules; typ = typ; version = version }
-      let stdlibName : PT.FQTypeName.StdlibTypeName =
-        { modules = modules; typ = typ; version = version }
-      if Set.contains userName userTypes then
-        PT.FQTypeName.User(userName)
-      else
-        PT.FQTypeName.Stdlib(stdlibName)
-
-
-    let fixupExpr =
-      (fun e ->
-        match e with
-        | PT.EFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
-          match fnNameFor name.modules name.function_ name.version with
-          | Some name -> PT.EFnCall(id, name, typeArgs, args)
-          | None -> e
-        | _ -> e)
-
     let fixupPipeExpr =
       (fun e ->
         match e with
-        | PT.EPipeFnCall (id, PT.FQFnName.User name, typeArgs, args) ->
-          match fnNameFor name.modules name.function_ name.version with
-          | Some name -> PT.EPipeFnCall(id, name, typeArgs, args)
-          | None -> e
+        | PT.EPipeFnCall (id, name, typeArgs, args) ->
+          PT.EPipeFnCall(id, name, typeArgs, args)
         // pipes with variables might be fn calls
         | PT.EPipeVariable (id, name) ->
           match parseFn name with
           | Some (name, version) ->
-            match fnNameFor [] name version with
-            | Some name -> PT.EPipeFnCall(id, name, [], [])
-            | None -> e
+            if Set.contains (PT.FQFnName.userFnName [] name version) userFunctions then
+              PT.EPipeFnCall(id, PT.FQFnName.userFqName [] name version, [], [])
+            else
+              e
           | None -> e
         | _ -> e)
 
-    let fixupTypeName =
-      (fun t ->
-        match t with
-        | PT.FQTypeName.User name -> typeNameFor name.modules name.typ name.version
-        | _ -> t)
-
     LibExecution.ProgramTypesAst.preTraversal
-      fixupExpr
+      identity
       fixupPipeExpr
       identity
-      fixupTypeName
+      (FQTypeName.completeParse userTypes)
+      (FQFnName.completeParse userFunctions)
       identity
       identity
       e
@@ -923,6 +957,24 @@ module UserFunction =
       deprecated = PT.NotDeprecated
       body = f.body }
 
+  let completeParse
+    (userFunctions : Set<PT.FQFnName.UserFnName>)
+    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (f : PT.UserFunction.T)
+    : PT.UserFunction.T =
+    { tlid = f.tlid
+      name = f.name
+      typeParams = f.typeParams
+      parameters =
+        f.parameters
+        |> List.map (fun p ->
+          { p with typ = TypeReference.completeParse userTypes p.typ })
+      returnType = TypeReference.completeParse userTypes f.returnType
+      description = f.description
+      deprecated = f.deprecated
+      body = Expr.completeParse userFunctions userTypes f.body }
+
+
 module PackageFn =
   let fromSynBinding
     (owner : string)
@@ -943,103 +995,173 @@ module PackageFn =
       deprecated = PT.NotDeprecated
       body = f.body }
 
+  let completeParse (f : PT.Package.Fn) : PT.Package.Fn =
+    { tlid = f.tlid
+      id = f.id
+      name = f.name
+      typeParams = f.typeParams
+      parameters =
+        f.parameters
+        |> List.map (fun p ->
+          { p with typ = TypeReference.completeParse Set.empty p.typ })
+      returnType = TypeReference.completeParse Set.empty f.returnType
+      description = f.description
+      deprecated = f.deprecated
+      body = Expr.completeParse Set.empty Set.empty f.body }
+
 
 module CustomType =
-  module Enum =
+  module EnumCase =
     let private parseField (typ : SynField) : PT.CustomType.EnumField =
       match typ with
       | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
         { typ = TypeReference.fromSynType typ
-          label = fieldName |> Option.map (fun id -> id.idText) }
+          label = fieldName |> Option.map (fun id -> id.idText)
+          description = "" }
 
-    let private parseCase (case : SynUnionCase) : PT.CustomType.EnumCase =
+    let parseCase (case : SynUnionCase) : PT.CustomType.EnumCase =
       match case with
       | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
         match typ with
         | SynUnionCaseKind.Fields fields ->
-          { name = id.idText; fields = List.map parseField fields }
+          { name = id.idText; fields = List.map parseField fields; description = "" }
         | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
-    let fromCases typeDef (cases : List<SynUnionCase>) =
-      let firstCase, additionalCases =
-        match cases with
-        | [] ->
-          Exception.raiseInternal
-            $"Can't parse enum without any cases"
-            [ "typeDef", typeDef ]
-        | firstCase :: additionalCases -> firstCase, additionalCases
+    let completeParse
+      (userTypes : Set<PT.FQTypeName.UserTypeName>)
+      (t : PT.CustomType.EnumCase)
+      : PT.CustomType.EnumCase =
+      { name = t.name
+        fields =
+          t.fields
+          |> List.map (fun f ->
+            { f with typ = TypeReference.completeParse userTypes f.typ })
+        description = t.description }
 
-      PT.CustomType.Enum(parseCase firstCase, List.map parseCase additionalCases)
 
-  module Record =
-    let private parseField (field : SynField) : PT.CustomType.RecordField =
+  module RecordField =
+    let parseField (field : SynField) : PT.CustomType.RecordField =
       match field with
       | SynField (_, _, Some id, typ, _, _, _, _, _) ->
-        { name = id.idText; typ = TypeReference.fromSynType typ }
+        { name = id.idText; typ = TypeReference.fromSynType typ; description = "" }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
-    let fromFields typeDef (fields : List<SynField>) =
-      match fields with
+    let completeParse
+      (userTypes : Set<PT.FQTypeName.UserTypeName>)
+      (t : PT.CustomType.RecordField)
+      : PT.CustomType.RecordField =
+      { name = t.name
+        typ = TypeReference.completeParse userTypes t.typ
+        description = t.description }
+
+  let fromFields typeDef (fields : List<SynField>) : PT.CustomType.T =
+    match fields with
+    | [] ->
+      Exception.raiseInternal
+        $"Unsupported record type with no fields"
+        [ "typeDef", typeDef ]
+    | firstField :: additionalFields ->
+
+      PT.CustomType.Record(
+        RecordField.parseField firstField,
+        List.map RecordField.parseField additionalFields
+      )
+
+  let fromCases typeDef (cases : List<SynUnionCase>) : PT.CustomType.T =
+    let firstCase, additionalCases =
+      match cases with
       | [] ->
         Exception.raiseInternal
-          $"Unsupported record type with no fields"
+          $"Can't parse enum without any cases"
           [ "typeDef", typeDef ]
-      | firstField :: additionalFields ->
+      | firstCase :: additionalCases -> firstCase, additionalCases
 
-        PT.CustomType.Record(
-          parseField firstField,
-          List.map parseField additionalFields
-        )
+    PT.CustomType.Enum(
+      EnumCase.parseCase firstCase,
+      List.map EnumCase.parseCase additionalCases
+    )
 
-module UserType =
-  let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.UserType.T =
+
+  let fromSynTypeDefn (typeDef : SynTypeDefn) : (List<string> * PT.CustomType.T) =
     match typeDef with
-    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+    | SynTypeDefn (SynComponentInfo (_, _params, _, ids, _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
                                            _),
                    _,
                    _,
                    _,
-                   _) ->
-      { tlid = gid ()
-        name = { modules = []; typ = id.idText; version = 0 }
-        definition = CustomType.Record.fromFields typeDef fields }
+                   _) -> ids |> List.map string, fromFields typeDef fields
 
-    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
+    | SynTypeDefn (SynComponentInfo (_, _params, _, ids, _, _, _, _),
                    SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Union (_, cases, _),
                                            _),
                    _,
                    _,
                    _,
-                   _) ->
-      { tlid = gid ()
-        name = { modules = []; typ = id.idText; version = 0 }
-        definition = CustomType.Enum.fromCases typeDef cases }
-
+                   _) -> ids |> List.map string, fromCases typeDef cases
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
+  let completeParse
+    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (t : PT.CustomType.T)
+    : PT.CustomType.T =
+    match t with
+    | PT.CustomType.Enum (firstCase, additionalCases) ->
+      PT.CustomType.Enum(
+        EnumCase.completeParse userTypes firstCase,
+        additionalCases |> List.map (EnumCase.completeParse userTypes)
+      )
+    | PT.CustomType.Record (firstField, additionalFields) ->
+      PT.CustomType.Record(
+        RecordField.completeParse userTypes firstField,
+        additionalFields |> List.map (RecordField.completeParse userTypes)
+      )
+
+
+module UserType =
+  let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.UserType.T =
+    let (names, definition) = CustomType.fromSynTypeDefn typeDef
+    let (name, version) =
+      List.last names
+      |> Exception.unwrapOptionInternal
+           "user type should have name"
+           [ "typeDef", typeDef ]
+      |> Expr.parseTypeName
+    let modules = names |> List.initial |> Option.unwrap []
+    { tlid = gid ()
+      name = { typ = name; modules = modules; version = version }
+      definition = definition }
+
+  let completeParse
+    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (t : PT.UserType.T)
+    : PT.UserType.T =
+    { tlid = t.tlid
+      name = t.name
+      definition = CustomType.completeParse userTypes t.definition }
 
 /// Returns an incomplete parse of a PT expression. Requires calling
 /// Expr.completeParse before using
 // TODO it's hard to use the type system here since there's a lot of places we stash
 // PT.Expr, but that's even more reason to try and prevent partial parses.
-let initialParse (code : string) : PT.Expr =
+let initialParse (filename : string) (code : string) : PT.Expr =
   code
-  |> Utils.parseAsFSharpSourceFile
+  |> Utils.parseAsFSharpSourceFile filename
   |> Utils.singleExprFromImplFile
   |> Expr.fromSynExpr
 
 // Shortcut function for tests that ignore user functions and types
-let parseIgnoringUser (code : string) : PT.Expr =
-  code |> initialParse |> Expr.completeParse Set.empty Set.empty
+let parseIgnoringUser (filename : string) (code : string) : PT.Expr =
+  code |> initialParse filename |> Expr.completeParse Set.empty Set.empty
 
 let parseRTExpr
   (fns : Set<PT.FQFnName.UserFnName>)
   (types : Set<PT.FQTypeName.UserTypeName>)
+  (filename : string)
   (code : string)
   : LibExecution.RuntimeTypes.Expr =
   code
-  |> initialParse
+  |> initialParse filename
   |> Expr.completeParse fns types
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT

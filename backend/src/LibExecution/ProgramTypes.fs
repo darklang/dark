@@ -312,6 +312,40 @@ and PipeExpr =
     typeName : FQTypeName.T *
     caseName : string *
     fields : List<Expr>
+
+module Expr =
+  let toID (expr : Expr) : id =
+    match expr with
+    | EInt (id, _)
+    | EBool (id, _)
+    | EString (id, _)
+    | EChar (id, _)
+    | EFloat (id, _, _, _)
+    | EUnit id
+    | ELet (id, _, _, _)
+    | EIf (id, _, _, _)
+    | EInfix (id, _, _, _)
+    | ELambda (id, _, _)
+    | EFieldAccess (id, _, _)
+    | EVariable (id, _)
+    | EFnCall (id, _, _, _)
+    | EList (id, _)
+    | EDict (id, _)
+    | ETuple (id, _, _, _)
+    | EPipe (id, _, _, _)
+    | ERecord (id, _, _)
+    | EEnum (id, _, _, _)
+    | EMatch (id, _, _) -> id
+
+module PipeExpr =
+  let toID (expr : PipeExpr) : id =
+    match expr with
+    | EPipeVariable (id, _)
+    | EPipeLambda (id, _, _)
+    | EPipeInfix (id, _, _)
+    | EPipeFnCall (id, _, _, _)
+    | EPipeEnum (id, _, _, _) -> id
+
 // Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
 type Deprecation<'name> =
@@ -329,10 +363,14 @@ type Deprecation<'name> =
 
 /// A type defined by a standard library module, a canvas/user, or a package
 module CustomType =
-  type RecordField = { name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference; description : string }
 
-  type EnumField = { typ : TypeReference; label : Option<string> }
-  type EnumCase = { name : string; fields : List<EnumField> }
+  type EnumField =
+    { typ : TypeReference
+      label : Option<string>
+      description : string }
+
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   type T =
     // TODO: //| Abbreviation/Alias of TypeReference

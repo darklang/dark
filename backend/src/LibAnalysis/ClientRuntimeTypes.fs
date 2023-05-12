@@ -269,32 +269,45 @@ module MatchPattern =
 
 module CustomType =
   // TYPESCLEANUP support type parameters
-  type RecordField = { name : string; typ : TypeReference }
+  type RecordField = { name : string; typ : TypeReference; description : string }
 
   module RecordField =
     let fromCT (f : RecordField) : RT.CustomType.RecordField =
-      { name = f.name; typ = TypeReference.fromCT f.typ }
+      { name = f.name
+        typ = TypeReference.fromCT f.typ
+        description = f.description }
 
     let toCT (f : RT.CustomType.RecordField) : RecordField =
-      { name = f.name; typ = TypeReference.toCT f.typ }
+      { name = f.name; typ = TypeReference.toCT f.typ; description = f.description }
 
-  type EnumField = { typ : TypeReference; label : Option<string> }
+  type EnumField =
+    { typ : TypeReference
+      label : Option<string>
+      description : string }
 
   module EnumField =
     let fromCT (f : EnumField) : RT.CustomType.EnumField =
-      { typ = TypeReference.fromCT f.typ; label = f.label }
+      { typ = TypeReference.fromCT f.typ
+        label = f.label
+        description = f.description }
 
     let toCT (f : RT.CustomType.EnumField) : EnumField =
-      { typ = TypeReference.toCT f.typ; label = f.label }
+      { typ = TypeReference.toCT f.typ
+        label = f.label
+        description = f.description }
 
-  type EnumCase = { name : string; fields : List<EnumField> }
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   module EnumCase =
     let fromCT (c : EnumCase) : RT.CustomType.EnumCase =
-      { name = c.name; fields = List.map EnumField.fromCT c.fields }
+      { name = c.name
+        fields = List.map EnumField.fromCT c.fields
+        description = c.description }
 
     let toCT (c : RT.CustomType.EnumCase) : EnumCase =
-      { name = c.name; fields = List.map EnumField.toCT c.fields }
+      { name = c.name
+        fields = List.map EnumField.toCT c.fields
+        description = c.description }
 
   type T =
     | Record of firstField : RecordField * additionalFields : List<RecordField>
@@ -735,6 +748,7 @@ module Package =
 
   type Fn =
     { name : FQFnName.PackageFnName
+      tlid : tlid
       body : Expr.T
       typeParams : List<string>
       parameters : List<Parameter>
@@ -743,6 +757,7 @@ module Package =
   module Fn =
     let fromCT (fn : Fn) : RT.Package.Fn =
       { name = FQFnName.PackageFnName.fromCT fn.name
+        tlid = fn.tlid
         body = Expr.fromCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.fromCT fn.parameters
@@ -750,6 +765,7 @@ module Package =
 
     let toCT (fn : RT.Package.Fn) : Fn =
       { name = FQFnName.PackageFnName.toCT fn.name
+        tlid = fn.tlid
         body = Expr.toCT fn.body
         typeParams = fn.typeParams
         parameters = List.map Parameter.toCT fn.parameters

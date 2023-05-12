@@ -26,11 +26,11 @@ let parseLetBinding
     ProgramTypes.PackageFn.fromSynBinding owner modules letBinding
   | _ ->
     Exception.raiseInternal
-      "Expected owner, package, and at least 1 other modules"
+      "Expected owner, and at least 1 other modules"
       [ "modules", modules; "binding", letBinding ]
 
 
-let parseDecls
+let rec parseDecls
   (modules : List<string>)
   (decls : List<SynModuleDecl>)
   : PackageModule =
@@ -42,25 +42,45 @@ let parseDecls
         let fns = List.map (parseLetBinding modules) bindings
         { m with fns = m.fns @ fns }
 
-      // | SynModuleDecl.Types (defns, _) ->
-      //   List.fold m (fun m d -> parseTypeDefn m d) defns
+      | SynModuleDecl.Types (defns, _) -> List.fold m (fun m d -> m) defns
+
+      | SynModuleDecl.NestedModule (SynComponentInfo (_,
+                                                      _,
+                                                      _,
+                                                      nestedModules,
+                                                      _,
+                                                      _,
+                                                      _,
+                                                      _),
+                                    _,
+                                    nested,
+                                    _,
+                                    _,
+                                    _) ->
+
+        let modules = modules @ (nestedModules |> List.map (fun id -> id.idText))
+        let nestedDecls = parseDecls modules nested
+        { m with fns = m.fns @ nestedDecls.fns }
+
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
 
-let parseModule (moduleDecl : SynModuleOrNamespace) : PackageModule =
-  match moduleDecl with
-  | SynModuleOrNamespace (names, _, _, decls, _, _, _, _, _) ->
-    let names = List.map string names
-    decls |> parseDecls names
 
-
-let parseFromFile (filename : string) : PackageModule =
-  let parsedAsFSharp =
-    filename |> System.IO.File.ReadAllText |> parseAsFSharpSourceFile
-
-  match parsedAsFSharp with
-  | ParsedImplFileInput (_, _, _, _, _, modules, _, _, _) ->
-    let fns =
-      modules |> List.map parseModule |> List.map (fun m -> m.fns) |> List.concat
-    { fns = fns }
+let parse (filename : string) (contents : string) : PackageModule =
+  match parseAsFSharpSourceFile filename contents with
+  | ParsedImplFileInput (_,
+                         _,
+                         _,
+                         _,
+                         _,
+                         [ SynModuleOrNamespace (_, _, _, decls, _, _, _, _, _) ],
+                         _,
+                         _,
+                         _) ->
+    // At the toplevel, the module names will from the filenames
+    let names = []
+    let modul = parseDecls names decls
+    { fns = modul.fns }
+  | decl ->
+    Exception.raiseInternal "Unsupported Package declaration" [ "decl", decl ]

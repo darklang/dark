@@ -27,7 +27,7 @@ let (stdlibFns, stdlibTypes) =
     []
 
 
-let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
+let packageFns : Lazy<Task<Map<RT.FQFnName.PackageFnName, RT.Package.Fn>>> =
   lazy
     (task {
       let! packages = PackageManager.allFunctions ()
@@ -35,8 +35,7 @@ let packageFns : Lazy<Task<Map<RT.FQFnName.T, RT.Package.Fn>>> =
       return
         packages
         |> List.map (fun (f : PT.Package.Fn) ->
-          (f.name |> PT2RT.FQFnName.PackageFnName.toRT |> RT.FQFnName.Package,
-           PT2RT.Package.toRT f))
+          (f.name |> PT2RT.FQFnName.PackageFnName.toRT, PT2RT.Package.toRT f))
         |> Map.ofList
     })
 
@@ -48,10 +47,8 @@ let libraries : Lazy<Task<RT.Libraries>> =
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
       return
-        { stdlibTypes =
-            stdlibTypes |> Map.fromListBy (fun typ -> RT.FQTypeName.Stdlib typ.name)
-          stdlibFns =
-            stdlibFns |> Map.fromListBy (fun fn -> RT.FQFnName.Stdlib fn.name)
+        { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
+          stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
           packageFns = packageFns }
     })
 

@@ -15,6 +15,11 @@ do
   esac
 done
 
+# Not used but they need to be running
+./scripts/run-pubsub-emulator
+./scripts/run-cloud-storage-emulator
+./scripts/run-httptunnel
+
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish/LocalExec"
 else

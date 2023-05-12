@@ -25,10 +25,10 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { name = "name"; typ = TString },
-          [ { name = "description"; typ = TString }
-            { name = "parameters"; typ = TList(TString) }
-            { name = "returnType"; typ = TString } ]
+          { name = "name"; typ = TString; description = "" },
+          [ { name = "description"; typ = TString; description = "" }
+            { name = "parameters"; typ = TList(TString); description = "" }
+            { name = "returnType"; typ = TString; description = "" } ]
         )
       deprecated = NotDeprecated
       description = "A Darklang stdlib function" }
@@ -36,8 +36,8 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { name = "name"; typ = TString },
-          [ { name = "type"; typ = TString } ]
+          { name = "name"; typ = TString; description = "" },
+          [ { name = "type"; typ = TString; description = "" } ]
         )
       deprecated = NotDeprecated
       description = "A function parameter" } ]
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
                     paramTypeName
                     [ ("name", DString p.name)
                       ("type", DString(typeNameToStr p.typ)) ])
-              [ ("name", DString(FQFnName.toString key))
+              [ ("name", DString(FQFnName.StdlibFnName.toString key))
                 ("documentation", DString data.description)
                 ("parameters", DList parameters)
                 ("returnType", DString returnType) ]

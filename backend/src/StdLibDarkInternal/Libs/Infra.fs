@@ -25,10 +25,14 @@ let types : List<BuiltInType> =
       typeParams = []
       definition =
         CustomType.Record(
-          { name = "disk"; typ = TFloat },
-          [ { name = "rows"; typ = TFloat }
-            { name = "diskHuman"; typ = TString }
-            { name = "rowsHuman"; typ = TString } ]
+          { name = "disk"; typ = TFloat; description = "Number of bytes on disk" },
+          [ { name = "rows"; typ = TFloat; description = "Number of rows" }
+            { name = "diskHuman"
+              typ = TString
+              description = "Disk space in human readable form" }
+            { name = "rowsHuman"
+              typ = TString
+              description = "Number of rows in human readable form" } ]
         )
       deprecated = NotDeprecated
       description = "Size info for Postgres tables" } ]
@@ -100,10 +104,10 @@ human-readable data."
               tableStats
               |> List.map (fun ts ->
                 (ts.relation,
-                 [ ("disk_bytes", DInt(ts.diskBytes))
+                 [ ("disk", DInt(ts.diskBytes))
                    ("rows", DInt(ts.rows))
-                   ("disk_human", DString ts.diskHuman)
-                   ("rows_human", DString ts.rowsHuman) ]
+                   ("diskHuman", DString ts.diskHuman)
+                   ("rowsHuman", DString ts.rowsHuman) ]
                  |> Dval.record typeName))
               |> Map
               |> DDict
