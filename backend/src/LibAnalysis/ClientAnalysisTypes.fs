@@ -47,6 +47,7 @@ type HandlerAnalysisParam =
     userFns : list<CPT.UserFunction.T>
     userTypes : list<CPT.UserType.T>
     packageFns : list<CPT.PackageFn.T>
+    packageTypes : list<CPT.PackageType.T>
     secrets : list<CPT.Secret> }
 
 type FunctionAnalysisParam =
@@ -59,6 +60,7 @@ type FunctionAnalysisParam =
     userFns : list<CPT.UserFunction.T>
     userTypes : list<CPT.UserType.T>
     packageFns : list<CPT.PackageFn.T>
+    packageTypes : list<CPT.PackageType.T>
     secrets : list<CPT.Secret> }
 
 type PerformAnalysisParams =
@@ -97,6 +99,7 @@ module AnalysisRequest =
     let mapUserDB = CPT.DB.fromCT >> PT2RT.DB.toRT
     let mapExpr = CPT.Expr.fromCT >> PT2RT.Expr.toRT
     let mapPackageFn = CPT.PackageFn.fromCT >> PT2RT.PackageFn.toRT
+    let mapPackageType = CPT.PackageType.fromCT >> PT2RT.PackageType.toRT
     let mapUserSecret = CPT.Secret.fromCT >> PT2RT.Secret.toRT
 
     match ar with
@@ -111,6 +114,7 @@ module AnalysisRequest =
         dbs = List.map mapUserDB ah.dbs
         expr = mapExpr ah.handler.ast
         packageFns = List.map mapPackageFn ah.packageFns
+        packageTypes = List.map mapPackageType ah.packageTypes
         secrets = List.map mapUserSecret ah.secrets }
 
     | AnalyzeFunction af ->
@@ -124,6 +128,7 @@ module AnalysisRequest =
         dbs = List.map mapUserDB af.dbs
         expr = mapExpr af.func.body
         packageFns = List.map mapPackageFn af.packageFns
+        packageTypes = List.map mapPackageType af.packageTypes
         secrets = List.map mapUserSecret af.secrets }
 
 

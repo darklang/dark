@@ -38,17 +38,35 @@ let packageFns : Lazy<Task<Map<RT.FQFnName.PackageFnName, RT.PackageFn.T>>> =
         |> Map.ofList
     })
 
+let packageTypes : Lazy<Task<Map<RT.FQTypeName.PackageTypeName, RT.PackageType.T>>> =
+  lazy
+    (task {
+      let! packages = PackageManager.allTypes ()
+
+      return
+        packages
+        |> List.map (fun (t : PT.PackageType.T) ->
+          (t.name |> PT2RT.FQTypeName.PackageTypeName.toRT, PT2RT.PackageType.toRT t))
+        |> Map.ofList
+    })
+
 let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     (task {
       let! packageFns = Lazy.force packageFns
+      let! packageTypes = Lazy.force packageTypes
+
       let fns = contents |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
       let types = contents |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
 
       // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
-      return { stdlibTypes = types; stdlibFns = fns; packageFns = packageFns }
+      return
+        { stdlibTypes = types
+          stdlibFns = fns
+          packageFns = packageFns
+          packageTypes = packageTypes }
     })
 
 let createState

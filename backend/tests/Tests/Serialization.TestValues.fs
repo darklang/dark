@@ -665,6 +665,24 @@ module ProgramTypes =
       id = uuid
       tlid = tlid }
 
+  let packageType : PT.PackageType.T =
+    { name =
+        { owner = "darklang"
+          modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
+          typ = "T"
+          version = 0 }
+      definition =
+        PT.CustomType.Enum(
+          { name = "caseA"; fields = []; description = "" },
+          [ { name = "caseB"
+              fields = [ { typ = dtype; label = Some "i"; description = "" } ]
+              description = "" } ]
+        )
+      id = uuid
+      description = "test"
+      deprecated = PT.NotDeprecated
+      tlid = tlid }
+
   let toplevels : List<PT.Toplevel.T> =
     [ List.map PT.Toplevel.TLHandler Handler.handlers
       List.map PT.Toplevel.TLDB [ userDB ]

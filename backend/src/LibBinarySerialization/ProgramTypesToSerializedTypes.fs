@@ -638,3 +638,20 @@ module PackageFn =
       typeParams = fn.typeParams
       id = fn.id
       tlid = fn.tlid }
+
+module PackageType =
+  let toST (pt : PT.PackageType.T) : ST.PackageType.T =
+    { name = FQTypeName.PackageTypeName.toST pt.name
+      description = pt.description
+      definition = CustomType.toST pt.definition
+      deprecated = Deprecation.toST FQTypeName.toST pt.deprecated
+      id = pt.id
+      tlid = pt.tlid }
+
+  let toPT (pt : ST.PackageType.T) : PT.PackageType.T =
+    { name = FQTypeName.PackageTypeName.toPT pt.name
+      description = pt.description
+      definition = CustomType.toPT pt.definition
+      deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated
+      id = pt.id
+      tlid = pt.tlid }

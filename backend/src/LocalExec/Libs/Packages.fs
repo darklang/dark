@@ -67,7 +67,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString contents; DString path ] ->
           uply {
             let packages = Parser.Package.parse path contents
-            do! LibBackend.PackageManager.savePackages packages.fns
+            do! LibBackend.PackageManager.savePackageFunctions packages.fns
+            do! LibBackend.PackageManager.savePackageTypes packages.types
             return DResult(Ok(DUnit))
           }
         | _ -> incorrectArgs ()

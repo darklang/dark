@@ -331,3 +331,8 @@ module PackageFn =
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
       returnType = TypeReference.toRT f.returnType }
+
+module PackageType =
+  let toRT (t : PT.PackageType.T) : RT.PackageType.T =
+    { name = FQTypeName.PackageTypeName.toRT t.name
+      definition = CustomType.toRT t.definition }

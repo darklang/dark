@@ -837,3 +837,29 @@ module PackageFn =
       description = fn.description
       deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
       tlid = fn.tlid }
+
+module PackageType =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : FQTypeName.PackageTypeName
+      // CLEANUP add type params
+      definition : CustomType.T
+      description : string
+      deprecated : Deprecation<FQTypeName.T> }
+
+  let fromCT (pt : T) : PT.PackageType.T =
+    { tlid = pt.tlid
+      id = pt.id
+      name = FQTypeName.PackageTypeName.fromCT pt.name
+      definition = CustomType.fromCT pt.definition
+      description = pt.description
+      deprecated = Deprecation.fromCT FQTypeName.fromCT pt.deprecated }
+
+  let toCT (pt : PT.PackageType.T) : T =
+    { tlid = pt.tlid
+      id = pt.id
+      name = FQTypeName.PackageTypeName.toCT pt.name
+      definition = CustomType.toCT pt.definition
+      description = pt.description
+      deprecated = Deprecation.toCT FQTypeName.toCT pt.deprecated }

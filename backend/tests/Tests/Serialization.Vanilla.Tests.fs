@@ -165,6 +165,7 @@ module PersistedSerializations =
               userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
               packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
+              packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 1 } ] })
         v<CAT.PerformAnalysisParams>
           "function"
@@ -181,6 +182,7 @@ module PersistedSerializations =
               userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
               packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
+              packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 2 } ] })
 
 

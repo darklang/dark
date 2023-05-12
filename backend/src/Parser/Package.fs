@@ -9,9 +9,9 @@ module PT = LibExecution.ProgramTypes
 
 open Utils
 
-type PackageModule = { fns : List<PT.PackageFn.T> }
+type PackageModule = { fns : List<PT.PackageFn.T>; types : List<PT.PackageType.T> }
 
-let emptyModule = { fns = [] }
+let emptyModule = { fns = []; types = [] }
 
 
 /// Update a CanvasModule by parsing a single F# let binding
@@ -42,6 +42,7 @@ let rec parseDecls
         let fns = List.map (parseLetBinding modules) bindings
         { m with fns = m.fns @ fns }
 
+      // TYPETODO
       | SynModuleDecl.Types (defns, _) -> List.fold m (fun m d -> m) defns
 
       | SynModuleDecl.NestedModule (SynComponentInfo (_,
@@ -60,7 +61,7 @@ let rec parseDecls
 
         let modules = modules @ (nestedModules |> List.map (fun id -> id.idText))
         let nestedDecls = parseDecls modules nested
-        { m with fns = m.fns @ nestedDecls.fns }
+        { fns = m.fns @ nestedDecls.fns; types = m.types @ nestedDecls.types }
 
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
@@ -81,6 +82,6 @@ let parse (filename : string) (contents : string) : PackageModule =
     // At the toplevel, the module names will from the filenames
     let names = []
     let modul = parseDecls names decls
-    { fns = modul.fns }
+    { fns = modul.fns; types = modul.types }
   | decl ->
     Exception.raiseInternal "Unsupported Package declaration" [ "decl", decl ]

@@ -70,6 +70,16 @@ let serializePackageFn (fn : PT.PackageFn.T) : byte [] =
     let v = PT2ST.PackageFn.toST fn
     MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
+let serializePackageType (pt : PT.PackageType.T) : byte [] =
+  wrapSerializationException (string pt.id) (fun () ->
+    let v = PT2ST.PackageType.toST pt
+    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
+
+let deserializePackageType (uuid : System.Guid) (data : byte []) : PT.PackageType.T =
+  wrapSerializationException (string uuid) (fun () ->
+    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+    |> PT2ST.PackageType.toPT)
+
 let deserializePackageFn (uuid : System.Guid) (data : byte []) : PT.PackageFn.T =
   wrapSerializationException (string uuid) (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)

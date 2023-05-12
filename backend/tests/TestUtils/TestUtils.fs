@@ -127,7 +127,8 @@ let libraries : Lazy<RT.Libraries> =
 
      { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
        stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
-       packageFns = Map.empty })
+       packageFns = Map.empty
+       packageTypes = Map.empty })
 
 let executionStateFor
   (canvasID : CanvasID)
