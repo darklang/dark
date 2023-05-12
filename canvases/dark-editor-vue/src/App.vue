@@ -40,7 +40,8 @@ darklangJSScript.addEventListener('load', async () => {
   window.darklang = darklang
 
   await window.darklang.loadClient(
-    'http://dark-editor.dlio.localhost:11003/client.dark'
+    'http://dark-editor.dlio.localhost:11003/client.dark',
+    'http://dark-editor.dlio.localhost:11003/get-program-json',
   )
 })
 
