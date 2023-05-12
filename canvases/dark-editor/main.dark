@@ -38,26 +38,8 @@ let _handler _req =
 [<HttpHandler("GET", "/client.dark")>]
 let _handler _req =
   match Experiments.readFromCanvases "dark-editor/client.dark" with
-  | Ok sourceInBytes ->
-    let program =
-      Experiments.parseAndSerializeProgram (String.fromBytes sourceInBytes) "client.dark"
-
-    match program with
-    | Ok program ->
-      let types = Option.withDefault (Dict.get_v2 program "types") "[]"
-      let fns = Option.withDefault (Dict.get_v2 program "fns") "[]"
-      let exprs = Option.withDefault (Dict.get_v2 program "exprs") "[]"
-
-      let json = "{ \"types\": " ++ types ++ ", \"fns\": " ++ fns ++ ", \"exprs\": " ++ exprs ++ "}"
-
-      Http.responseWithHeaders
-        (String.toBytes json)
-        (Dict.fromListOverwritingDuplicates [ ("content-type","application-json")])
-        200
-
-    | Error _err -> Http.response (String.toBytes "Couldn't parse the program") 500
+  | Ok sourceInBytes -> Http.response sourceInBytes 200
   | Error _err -> Http.response (String.toBytes "Couldn't load client.dark from disk") 500
-
 
 
 // TODO: remove once a parser can run in WASM runtime

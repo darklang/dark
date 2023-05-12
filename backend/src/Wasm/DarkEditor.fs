@@ -32,13 +32,25 @@ let stdLib =
 /// Load the Darklang program that manages the state of and interactions with
 /// the JS side of the editor.
 [<JSInvokable>]
-let LoadClient (sourceURL : string) : Task<string> =
+let LoadClient (sourceURL : string, parseURL : string) : Task<string> =
   task {
     let httpClient = new HttpClient()
-    let! response = httpClient.GetAsync sourceURL |> Async.AwaitTask
-    let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
-    let clientSource = Json.Vanilla.deserialize<EditorSource> responseBody
 
+    let! clientSource =
+      task {
+        // text of client.dark
+        let! response = httpClient.GetAsync sourceURL |> Async.AwaitTask
+        let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+
+        // parse client.dark with another endpoint,
+        // which then serializes as JSON so we can deserialize below
+        let! response =
+          httpClient.PostAsync(parseURL, new StringContent(responseBody))
+          |> Async.AwaitTask
+        let! responseBody = response.Content.ReadAsStringAsync() |> Async.AwaitTask
+
+        return Json.Vanilla.deserialize<EditorSource> responseBody
+      }
 
     let expr = exprsCollapsedIntoOne clientSource.exprs
 
