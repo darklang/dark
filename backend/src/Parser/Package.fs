@@ -29,6 +29,16 @@ let parseLetBinding
       "Expected owner, and at least 1 other modules"
       [ "modules", modules; "binding", letBinding ]
 
+let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : PT.PackageType.T =
+  match modules with
+  | owner :: modules ->
+    let modules = NonEmptyList.ofList modules
+    ProgramTypes.PackageType.fromSynTypeDefn owner modules defn
+  | _ ->
+    Exception.raiseInternal
+      "Expected owner, and at least 1 other modules"
+      [ "modules", modules; "defn", defn ]
+
 
 let rec parseDecls
   (modules : List<string>)
@@ -42,8 +52,9 @@ let rec parseDecls
         let fns = List.map (parseLetBinding modules) bindings
         { m with fns = m.fns @ fns }
 
-      // TYPETODO
-      | SynModuleDecl.Types (defns, _) -> List.fold m (fun m d -> m) defns
+      | SynModuleDecl.Types (defns, _) ->
+        let types = List.map (parseTypeDef modules) defns
+        { m with types = m.types @ types }
 
       | SynModuleDecl.NestedModule (SynComponentInfo (_,
                                                       _,

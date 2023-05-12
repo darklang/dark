@@ -1167,6 +1167,35 @@ module UserType =
       name = t.name
       definition = CustomType.completeParse userTypes t.definition }
 
+module PackageType =
+  let fromSynTypeDefn
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (typeDef : SynTypeDefn)
+    : PT.PackageType.T =
+    let (names, definition) = CustomType.fromSynTypeDefn typeDef
+    let (name, version) =
+      List.last names
+      |> Exception.unwrapOptionInternal
+           "user type should have name"
+           [ "typeDef", typeDef ]
+      |> Expr.parseTypeName
+    { tlid = gid ()
+      id = System.Guid.NewGuid()
+      name = { owner = owner; modules = modules; typ = name; version = version }
+      description = ""
+      deprecated = PT.NotDeprecated
+      definition = definition }
+
+  let completeParse (f : PT.PackageType.T) : PT.PackageType.T =
+    { tlid = f.tlid
+      id = f.id
+      name = f.name
+      description = f.description
+      deprecated = f.deprecated
+      definition = CustomType.completeParse Set.empty f.definition }
+
+
 /// Returns an incomplete parse of a PT expression. Requires calling
 /// Expr.completeParse before using
 // TODO it's hard to use the type system here since there's a lot of places we stash

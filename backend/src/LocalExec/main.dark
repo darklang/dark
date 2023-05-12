@@ -31,9 +31,20 @@ let usage () : String =
       list-packages  List packages
   "
 
-let printPackage (p : LocalExec.Packages.Package) : Unit =
+let printPackageFunction (p : LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> String.join "."
-  print $"Package {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+  print $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+
+let printPackageType (p : LocalExec.Packages.Type) : Unit =
+  let modules = p.modules |> String.join "."
+  print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+
+let printPackages () : Unit =
+  let functions = LocalExec.Packages.listFunctions()
+  functions |> List.iter (fun p -> printPackageFunction p)
+  let types = LocalExec.Packages.listTypes()
+  types |> List.iter (fun p -> printPackageType p)
+
 
 let parseArgs (args : List<String>) : Result<CliOptions, String> =
   match args with
@@ -56,14 +67,10 @@ let main (args : List<String>) : Int =
       print $"Loading {f}"
       loadFile f)
     print "Done loading packages"
-    let packages = LocalExec.Packages.list()
-    packages |> List.iter (fun p -> printPackage p)
-    print "Done listing packages"
+    printPackages()
     0
   | Ok ListPackages ->
-    let packages = LocalExec.Packages.list()
-    packages |> List.iter (fun p -> printPackage p)
-    print "Done listing packages"
+    printPackages()
     0
   | Error msg ->
     print ("Error: " ++ msg)
