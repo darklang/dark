@@ -88,8 +88,8 @@ type BotResponseItem =
   | CodeSnippet of id: String
 
 type ChatHistoryItem =
-  | BotResponse of id: String * items: List<BotResponseItem>
   | UserPrompt of id: String * prompt: String
+  | BotResponse of id: String * items: List<BotResponseItem> // todo: add promptId to tie together with relevant UserPrompt
 
 type CodeSnippet =
   { id: String; code: String; eval: Option<String> }
@@ -115,21 +115,35 @@ let update (model: Model) (msg: Msg) : Model =
 
     match openAIcompletion fullPrompt with
     | Ok apiResponse ->
-      let snippetId = rUnwrap(String.random_v2 5)
+      let (newCodeSnippets, botResponseParts) =
+        (String.split_v1 (" " ++ apiResponse) "```")
+        |> List.indexedMap (fun i text -> (i, text))
+        |> List.fold ([], []) (fun acc curr ->
+          let (codeSnippets, responseParts) = acc
+          let (i, text) = curr
+          let text = String.trim text
 
-      let newCodeSnippet =
-        CodeSnippet { id = snippetId; code = apiResponse; eval = Nothing }
+          if text == "" then
+            acc
+          else
+            if i % 2 == 1 then
+              let snippetId = rUnwrap(String.random_v2 5)
+              let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
+              let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
+              (updatedCodeSnippets, updatedResponseParts)
+            else
+              codeSnippets, (List.append responseParts [BotResponseItem.Text text])
+          )
+
+      let newChatItemsItems = [
+        ChatHistoryItem.UserPrompt (rUnwrap(String.random_v2 5)) userPrompt
+        ChatHistoryItem.BotResponse (rUnwrap(String.random_v2 5)) botResponseParts
+      ]
 
       Model
         { systemPrompt = model.systemPrompt
-          chatHistory =
-            List.append
-              model.chatHistory
-              [
-                ChatHistoryItem.UserPrompt (rUnwrap(String.random_v2 5)) userPrompt
-                ChatHistoryItem.BotResponse (rUnwrap(String.random_v2 5)) [ BotResponseItem.CodeSnippet snippetId ]
-              ]
-          codeSnippets = List.append model.codeSnippets [newCodeSnippet] }
+          chatHistory = List.append model.chatHistory newChatItemsItems
+          codeSnippets = List.append model.codeSnippets newCodeSnippets }
 
     | Error err -> alert err
 
