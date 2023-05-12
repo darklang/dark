@@ -2,6 +2,12 @@ module Darklang =
   module Stdlib =
     module Http =
 
+      type Response = {
+        statusCode : Int
+        headers : List<String * String>
+        body : Bytes
+      }
+
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status <param code> and <param response> body.
       let response (body : Bytes) (statusCode : Int) : Http.Response =
