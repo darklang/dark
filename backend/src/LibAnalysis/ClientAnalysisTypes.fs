@@ -46,7 +46,7 @@ type HandlerAnalysisParam =
     dbs : List<CPT.DB.T>
     userFns : list<CPT.UserFunction.T>
     userTypes : list<CPT.UserType.T>
-    packageFns : list<CPT.Package.Fn>
+    packageFns : list<CPT.PackageFn.T>
     secrets : list<CPT.Secret> }
 
 type FunctionAnalysisParam =
@@ -58,7 +58,7 @@ type FunctionAnalysisParam =
     dbs : List<CPT.DB.T>
     userFns : list<CPT.UserFunction.T>
     userTypes : list<CPT.UserType.T>
-    packageFns : list<CPT.Package.Fn>
+    packageFns : list<CPT.PackageFn.T>
     secrets : list<CPT.Secret> }
 
 type PerformAnalysisParams =
@@ -96,7 +96,7 @@ module AnalysisRequest =
     let mapUserType = CPT.UserType.fromCT >> PT2RT.UserType.toRT
     let mapUserDB = CPT.DB.fromCT >> PT2RT.DB.toRT
     let mapExpr = CPT.Expr.fromCT >> PT2RT.Expr.toRT
-    let mapPackageFn = CPT.Package.Fn.fromCT >> PT2RT.Package.toRT
+    let mapPackageFn = CPT.PackageFn.fromCT >> PT2RT.PackageFn.toRT
     let mapUserSecret = CPT.Secret.fromCT >> PT2RT.Secret.toRT
 
     match ar with

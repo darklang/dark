@@ -53,7 +53,7 @@ let writeBody (tlid : tlid) (expr : PT.Expr) : Task<unit> =
       |> Sql.executeStatementAsync
   }
 
-let savePackages (packages : List<PT.Package.Fn>) : Task<Unit> =
+let savePackages (packages : List<PT.PackageFn.T>) : Task<Unit> =
   task {
     do!
       packages
@@ -80,7 +80,7 @@ let savePackages (packages : List<PT.Package.Fn>) : Task<Unit> =
 // Fetching functions
 // ------------------
 
-let allFunctions () : Task<List<PT.Package.Fn>> =
+let allFunctions () : Task<List<PT.PackageFn.T>> =
   task {
     let! fns =
       Sql.query "SELECT id, definition FROM package_functions_v0"

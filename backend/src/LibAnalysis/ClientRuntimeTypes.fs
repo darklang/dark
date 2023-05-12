@@ -739,10 +739,10 @@ module Package =
   type Parameter = { name : string; typ : TypeReference }
 
   module Parameter =
-    let fromCT (p : Parameter) : RT.Package.Parameter =
+    let fromCT (p : Parameter) : RT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.fromCT p.typ }
 
-    let toCT (p : RT.Package.Parameter) : Parameter =
+    let toCT (p : RT.PackageFn.Parameter) : Parameter =
       { name = p.name; typ = TypeReference.toCT p.typ }
 
   type Fn =
@@ -754,7 +754,7 @@ module Package =
       returnType : TypeReference }
 
   module Fn =
-    let fromCT (fn : Fn) : RT.Package.Fn =
+    let fromCT (fn : Fn) : RT.PackageFn.T =
       { name = FQFnName.PackageFnName.fromCT fn.name
         tlid = fn.tlid
         body = Expr.fromCT fn.body
@@ -762,7 +762,7 @@ module Package =
         parameters = List.map Parameter.fromCT fn.parameters
         returnType = TypeReference.fromCT fn.returnType }
 
-    let toCT (fn : RT.Package.Fn) : Fn =
+    let toCT (fn : RT.PackageFn.T) : Fn =
       { name = FQFnName.PackageFnName.toCT fn.name
         tlid = fn.tlid
         body = Expr.toCT fn.body

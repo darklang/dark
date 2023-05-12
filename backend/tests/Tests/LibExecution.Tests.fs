@@ -75,7 +75,7 @@ let t
   (expectedExpr : PT.Expr)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
-  (packageFns : List<PT.Package.Fn>)
+  (packageFns : List<PT.PackageFn.T>)
   (types : List<PT.UserType.T>)
   (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
@@ -109,7 +109,7 @@ let t
       let rtPackageFns =
         packageFns
         |> List.map (fun v ->
-          let fn = PT2RT.Package.toRT v
+          let fn = PT2RT.PackageFn.toRT v
           (fn.name, fn))
         |> Map
 

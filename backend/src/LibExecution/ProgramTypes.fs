@@ -463,10 +463,10 @@ type TLIDOplists = List<tlid * Oplist>
 module Secret =
   type T = { name : string; value : string; version : int }
 
-module Package =
+module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
-  type Fn =
+  type T =
     { tlid : tlid
       id : System.Guid
       name : FQFnName.PackageFnName
@@ -476,3 +476,13 @@ module Package =
       returnType : TypeReference
       description : string
       deprecated : Deprecation<FQFnName.T> }
+
+module PackageType =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : FQTypeName.PackageTypeName
+      // CLEANUP add type params
+      definition : CustomType.T
+      description : string
+      deprecated : Deprecation<FQTypeName.T> }

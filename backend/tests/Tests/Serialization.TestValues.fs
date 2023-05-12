@@ -650,7 +650,7 @@ module ProgramTypes =
   // TODO: serialize stdlib types?
   // (also make sure we roundtrip test them)
 
-  let packageFn : PT.Package.Fn =
+  let packageFn : PT.PackageFn.T =
     { name =
         { owner = "dark"
           modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]

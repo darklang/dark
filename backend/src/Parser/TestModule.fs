@@ -15,7 +15,7 @@ type T =
   { types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
-    packageFns : List<PT.Package.Fn>
+    packageFns : List<PT.PackageFn.T>
     modules : List<string * T>
     tests : List<Test> }
 
@@ -47,7 +47,7 @@ module PackageFn =
   let fromSynBinding
     ((p1, p2) : string * string)
     (binding : SynBinding)
-    : PT.Package.Fn =
+    : PT.PackageFn.T =
     let userFn = PTP.UserFunction.fromSynBinding binding
     { name =
         { owner = p1

@@ -9,7 +9,7 @@ module PT = LibExecution.ProgramTypes
 
 open Utils
 
-type PackageModule = { fns : List<PT.Package.Fn> }
+type PackageModule = { fns : List<PT.PackageFn.T> }
 
 let emptyModule = { fns = [] }
 
@@ -19,7 +19,7 @@ let emptyModule = { fns = [] }
 let parseLetBinding
   (modules : List<string>)
   (letBinding : SynBinding)
-  : PT.Package.Fn =
+  : PT.PackageFn.T =
   match modules with
   | owner :: modules ->
     let modules = NonEmptyList.ofList modules

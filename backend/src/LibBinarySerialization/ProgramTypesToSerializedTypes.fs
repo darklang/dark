@@ -609,33 +609,32 @@ module Op =
     | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
     | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
 
-module Package =
+module PackageFn =
   module Parameter =
-    let toST (p : PT.Package.Parameter) : ST.Package.Parameter =
+    let toST (p : PT.PackageFn.Parameter) : ST.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.toST p.typ; description = p.description }
 
-    let toPT (p : ST.Package.Parameter) : PT.Package.Parameter =
+    let toPT (p : ST.PackageFn.Parameter) : PT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
-  module Fn =
-    let toST (fn : PT.Package.Fn) : ST.Package.Fn =
-      { name = FQFnName.PackageFnName.toST fn.name
-        parameters = List.map Parameter.toST fn.parameters
-        returnType = TypeReference.toST fn.returnType
-        description = fn.description
-        deprecated = Deprecation.toST FQFnName.toST fn.deprecated
-        body = Expr.toST fn.body
-        typeParams = fn.typeParams
-        id = fn.id
-        tlid = fn.tlid }
+  let toST (fn : PT.PackageFn.T) : ST.PackageFn.T =
+    { name = FQFnName.PackageFnName.toST fn.name
+      parameters = List.map Parameter.toST fn.parameters
+      returnType = TypeReference.toST fn.returnType
+      description = fn.description
+      deprecated = Deprecation.toST FQFnName.toST fn.deprecated
+      body = Expr.toST fn.body
+      typeParams = fn.typeParams
+      id = fn.id
+      tlid = fn.tlid }
 
-    let toPT (fn : ST.Package.Fn) : PT.Package.Fn =
-      { name = FQFnName.PackageFnName.toPT fn.name
-        parameters = List.map Parameter.toPT fn.parameters
-        returnType = TypeReference.toPT fn.returnType
-        description = fn.description
-        deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
-        body = Expr.toPT fn.body
-        typeParams = fn.typeParams
-        id = fn.id
-        tlid = fn.tlid }
+  let toPT (fn : ST.PackageFn.T) : PT.PackageFn.T =
+    { name = FQFnName.PackageFnName.toPT fn.name
+      parameters = List.map Parameter.toPT fn.parameters
+      returnType = TypeReference.toPT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
+      body = Expr.toPT fn.body
+      typeParams = fn.typeParams
+      id = fn.id
+      tlid = fn.tlid }

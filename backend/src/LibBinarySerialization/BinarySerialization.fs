@@ -65,15 +65,15 @@ let deserializeToplevel (tlid : tlid) (data : byte []) : PT.Toplevel.T =
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
     |> PT2ST.Toplevel.toPT)
 
-let serializePackageFn (fn : PT.Package.Fn) : byte [] =
+let serializePackageFn (fn : PT.PackageFn.T) : byte [] =
   wrapSerializationException (string fn.id) (fun () ->
-    let v = PT2ST.Package.Fn.toST fn
+    let v = PT2ST.PackageFn.toST fn
     MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
-let deserializePackageFn (uuid : System.Guid) (data : byte []) : PT.Package.Fn =
+let deserializePackageFn (uuid : System.Guid) (data : byte []) : PT.PackageFn.T =
   wrapSerializationException (string uuid) (fun () ->
     MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> PT2ST.Package.Fn.toPT)
+    |> PT2ST.PackageFn.toPT)
 
 
 let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte [] =

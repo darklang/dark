@@ -793,19 +793,19 @@ module Secret =
     { name = s.name; value = s.value; version = s.version }
 
 
-module Package =
+module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   module Parameter =
-    let fromCT (p : Parameter) : PT.Package.Parameter =
+    let fromCT (p : Parameter) : PT.PackageFn.Parameter =
       { name = p.name
         typ = TypeReference.fromCT p.typ
         description = p.description }
 
-    let toCT (p : PT.Package.Parameter) : Parameter =
+    let toCT (p : PT.PackageFn.Parameter) : Parameter =
       { name = p.name; typ = TypeReference.toCT p.typ; description = p.description }
 
-  type Fn =
+  type T =
     { name : FQFnName.PackageFnName
       id : System.Guid
       body : Expr
@@ -816,25 +816,24 @@ module Package =
       deprecated : Deprecation<FQFnName.T>
       tlid : tlid }
 
-  module Fn =
-    let fromCT (fn : Fn) : PT.Package.Fn =
-      { name = FQFnName.PackageFnName.fromCT fn.name
-        id = fn.id
-        body = Expr.fromCT fn.body
-        typeParams = fn.typeParams
-        parameters = List.map Parameter.fromCT fn.parameters
-        returnType = TypeReference.fromCT fn.returnType
-        description = fn.description
-        deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
-        tlid = fn.tlid }
+  let fromCT (fn : T) : PT.PackageFn.T =
+    { name = FQFnName.PackageFnName.fromCT fn.name
+      id = fn.id
+      body = Expr.fromCT fn.body
+      typeParams = fn.typeParams
+      parameters = List.map Parameter.fromCT fn.parameters
+      returnType = TypeReference.fromCT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
+      tlid = fn.tlid }
 
-    let toCT (fn : PT.Package.Fn) : Fn =
-      { name = FQFnName.PackageFnName.toCT fn.name
-        id = fn.id
-        body = Expr.toCT fn.body
-        typeParams = fn.typeParams
-        parameters = List.map Parameter.toCT fn.parameters
-        returnType = TypeReference.toCT fn.returnType
-        description = fn.description
-        deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
-        tlid = fn.tlid }
+  let toCT (fn : PT.PackageFn.T) : T =
+    { name = FQFnName.PackageFnName.toCT fn.name
+      id = fn.id
+      body = Expr.toCT fn.body
+      typeParams = fn.typeParams
+      parameters = List.map Parameter.toCT fn.parameters
+      returnType = TypeReference.toCT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
+      tlid = fn.tlid }

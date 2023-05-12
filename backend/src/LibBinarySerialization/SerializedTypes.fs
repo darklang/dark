@@ -371,7 +371,7 @@ module UserFunction =
       [<MessagePack.Key 7>]
       body : Expr }
 
-module Package =
+module PackageFn =
   [<MessagePack.MessagePackObject>]
   type Parameter =
     { [<MessagePack.Key 0>]
@@ -382,7 +382,7 @@ module Package =
       description : string }
 
   [<MessagePack.MessagePackObject>]
-  type Fn =
+  type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]

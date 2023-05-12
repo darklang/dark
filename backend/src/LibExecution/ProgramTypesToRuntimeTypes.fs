@@ -319,12 +319,12 @@ module Toplevel =
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T = { name = s.name; value = s.value }
 
-module Package =
+module PackageFn =
   module Parameter =
-    let toRT (p : PT.Package.Parameter) : RT.Package.Parameter =
+    let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
-  let toRT (f : PT.Package.Fn) : RT.Package.Fn =
+  let toRT (f : PT.PackageFn.T) : RT.PackageFn.T =
     { name = FQFnName.PackageFnName.toRT f.name
       tlid = f.tlid
       body = Expr.toRT f.body
