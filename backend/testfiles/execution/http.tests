@@ -20,11 +20,11 @@
 
 Http.badRequest_v0 "Your request resulted in an error" = Http.response_v0 "Your request resulted in an error" 400
 Http.badRequest_v0 1 = Test.typeError_v0 "Http.badRequest was expected to be called with a `String` in error, but was actually called with 1"
-Http.notFound_v0 () = Http.response_v0 () 404
+Http.notFound_v0() = Http.response_v0() 404
 
-Http.unauthorized_v0 = Http.response_v0 () 401
+Http.unauthorized_v0() = Http.response_v0() 401
 
-Http.forbidden_v0 = Http.response_v0 () 403
+Http.forbidden_v0() = Http.response_v0() 403
 
 Http.success_v0 (Dict { test = "test1" }) = Http.response_v0 (Dict {test = "test1"}) 200
 Http.success_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) = Http.response_v0 (Dict {``Content-Length`` = "0"; Server = "darklang"}) 200
@@ -39,8 +39,8 @@ Http.responseWithText_v0 (Dict { Connection = "Keep-Alive"}) 200 =
   Http.responseWithHeaders_v0 (Dict {Connection = "Keep-Alive"}) (Dict { ``Content-Type`` = "text/plain"}) 200
 Http.responseWithText_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 200 =
   Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang") ])) (Dict { ``Content-Type`` = "text/plain" }) 200
-Darklang.Stdlib.Http.responseWithText_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 4503599627370496I =
-  Darklang.Stdlib.Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang")])) (Dict { ``Content-Type`` = "text/plain" }) 4503599627370496I
+Http.responseWithText_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 4503599627370496I =
+  Http.responseWithHeaders_v0 (Dict.fromListOverwritingDuplicates ([ ("Content-Length","0"); ("Server","darklang")])) (Dict { ``Content-Type`` = "text/plain" }) 4503599627370496I
 
 Http.responseWithJson_v0 (Dict { Connection = "Keep-Alive"})  200 = Http.responseWithHeaders_v0 (Dict {Connection = "Keep-Alive"}) (Dict {``Content-Type`` = "application/json"}) 200
 Http.responseWithJson_v0 (Dict { ``Content-Length`` = "0"; Server = "darklang"}) 200 =
