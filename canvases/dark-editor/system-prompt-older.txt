@@ -112,10 +112,9 @@ need to call any functions.
 
 ---
 
-Your job is to assist in building an application in Dark. When you reply, only provide the code and variables if needed with no explanation.
-
-Wait for the user to provide a prompt.
+Your job is to assist in building an application in Dark.
+When you reply, ensure all code samples are executable without any other context.
+Below all types and function defined, include at least one expression to be evaluated.
 
 ---
-
 

@@ -1,0 +1,315 @@
+// TODO: let ignore (z: ): Unit
+
+let alert (s: String): Unit =
+  let _ = WASM.Editor.callJSFunction "alert" [s]
+  ()
+
+let log (s: String): Unit =
+  let _ = WASM.Editor.callJSFunction "console.log" [s]
+  ()
+
+let rUnwrap (result: Result<'a, 'b>): 'a =
+  match result with
+  | Ok s -> s
+  | Error e ->
+    log e // TODO: this won't work if non-string
+    alert "Expected OK, got Error - see log"
+
+
+// todo: throw this stuff into an OpenAI module?
+type OpenAIChatCompletionRequestMessage =
+  { role: String; content: String }
+type OpenAIChatCompletionRequest =
+  { model: String
+    max_tokens: Int
+    temperature: Float
+    messages : List<OpenAIChatCompletionRequestMessage> }
+
+type OpenAIChatCompletionResponseChoiceMessage = { content: String }
+type OpenAIChatCompletionResponseChoice = { message: OpenAIChatCompletionResponseChoiceMessage }
+type OpenAIChatCompletionResponse = { choices: List<OpenAIChatCompletionResponseChoice> }
+
+let openAIcompletion (prompt: String): Result<String, String> =
+  let apiKey =
+    let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
+    match WASM.HttpClient.request "get" url [] Bytes.empty with
+    | Ok response -> response.body |> String.fromBytes
+
+  let openAIRequest =
+    OpenAIChatCompletionRequest
+      { model = "gpt-3.5-turbo"
+        max_tokens = 700
+        temperature = 0.7
+        messages = [OpenAIChatCompletionRequestMessage {role = "user"; content = prompt}] }
+
+  match Json.serialize<OpenAIChatCompletionRequest> openAIRequest with
+  | Ok reqBody ->
+    let headers =
+      [
+        ("authorization", "Bearer " ++ apiKey)
+        ("content-type", "application/json")
+      ]
+
+    let openAIResponse =
+      WASM.HttpClient.request "POST" "https://api.openai.com/v1/chat/completions" headers (String.toBytes reqBody)
+
+    match openAIResponse with
+    | Ok r ->
+      match Json.parse<OpenAIChatCompletionResponse> (String.fromBytes r.body) with
+      | Ok r ->
+        match List.head r.choices with
+        | Just c -> Ok c.message.content
+
+        | Nothing -> Error ("No choices returned")
+      | Error err -> Error ("Couldn't parse open ai completino response - " ++ err)
+    | Error e -> Error ("OpenAI API request failed\n" ++ e)
+  | Error e -> Error ("Couldn't serialize request" ++ e)
+
+
+let parseAndSerializeProgram (userProgram: String): String =
+  let response =
+    WASM.HttpClient.request
+      "POST"
+      "http://dark-editor.dlio.localhost:11003/get-program-json"
+      []
+      (String.toBytes userProgram)
+
+  response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes
+
+
+
+
+// TODO: in the prompt, include something like
+// "all code snippets returned must be executable without any other context needed"
+
+// Model
+type BotResponseItem =
+  | Text of text: String
+  | CodeSnippet of id: String
+
+type ChatHistoryItem =
+  | UserPrompt of id: String * prompt: String
+  | BotResponse of id: String * items: List<BotResponseItem> // todo: add promptId to tie together with relevant UserPrompt
+
+type CodeSnippet =
+  { id: String; code: String; eval: Option<String> }
+
+type Model =
+  { systemPrompt: String
+    chatHistory: List<ChatHistoryItem>
+    codeSnippets: List<CodeSnippet> }
+
+
+// Update
+type Msg =
+  | UserGavePrompt of prompt: String
+  | UserRequestedCodeEval of id: String * codeSnippet: String
+
+
+let update (model: Model) (msg: Msg) : Model =
+  match msg with
+  | UserGavePrompt userPrompt ->
+    // I guess, until we have cmds or something,
+    // we have to deal with http calls and such in-line, like here
+    let fullPrompt = model.systemPrompt ++ userPrompt
+
+    match openAIcompletion fullPrompt with
+    | Ok apiResponse ->
+      let (newCodeSnippets, botResponseParts) =
+        (String.split_v1 (" " ++ apiResponse) "```")
+        |> List.indexedMap (fun i text -> (i, text))
+        |> List.fold ([], []) (fun acc curr ->
+          let (codeSnippets, responseParts) = acc
+          let (i, text) = curr
+          let text = String.trim text
+
+          if text == "" then
+            acc
+          else
+            if i % 2 == 1 then
+              let snippetId = rUnwrap(String.random_v2 5)
+              let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
+              let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
+              (updatedCodeSnippets, updatedResponseParts)
+            else
+              codeSnippets, (List.append responseParts [BotResponseItem.Text text])
+          )
+
+      let newChatItemsItems = [
+        ChatHistoryItem.UserPrompt (rUnwrap(String.random_v2 5)) userPrompt
+        ChatHistoryItem.BotResponse (rUnwrap(String.random_v2 5)) botResponseParts
+      ]
+
+      Model
+        { systemPrompt = model.systemPrompt
+          chatHistory = List.append model.chatHistory newChatItemsItems
+          codeSnippets = List.append model.codeSnippets newCodeSnippets }
+
+    | Error err -> alert err
+
+  | UserRequestedCodeEval id codeSnippet ->
+    // split this into 2 groups - the one we're updating, and the rest
+    let (snippetToUpdate, otherSnippets) =
+      model.codeSnippets |> List.partition (fun cs -> cs.id == id)
+
+    match List.head snippetToUpdate with
+    | Nothing -> alert "couldn't find snippet"
+    | Just snippetToUpdate ->
+      let parsedAndSerialized = parseAndSerializeProgram codeSnippet
+
+      let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
+
+      let updatedCodeSnippets =
+        List.append
+          [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalResult }]
+          otherSnippets
+
+      Model
+        { systemPrompt = model.systemPrompt
+          chatHistory = model.chatHistory
+          codeSnippets = updatedCodeSnippets }
+
+
+/// Single point of communicating to JS host
+///
+/// Let the JS host know that the state has been updated,
+/// so that it can update the UI accordingly.
+let updateStateInJS (newState: Model): Result<Unit, String> =
+  match Json.serialize<Model> newState with
+  | Ok serialized ->
+    let _ = WASM.Editor.callJSFunction "window.stateUpdated" [serialized]
+    Ok ()
+  | Error err ->
+    let _ = WASM.Editor.callJSFunction "console.warn" ["Couldn't serialize - " ++ err]
+    Error "Couldn't serialize updated state"
+
+
+/// Single point of communication from JS host
+///
+/// Listen for events from the JS host, and update the state accordingly.
+let handleEvent (evt: String): Result<String, String> =
+  match Json.parse<Msg> evt with
+  | Ok msg ->
+    match WASM.Editor.getState<Model> with
+    | Ok currentState ->
+      let newState = update currentState msg
+
+      // returns result, but let's assume it worked...
+      let _ = WASM.Editor.setState<Model> newState
+
+      updateStateInJS newState
+
+    | Error err -> Error "Couldn't get current state"
+  | Error err -> Error "Couldn't parse raw msg"
+
+
+// Init
+// (things to run on startup, before accepting any events
+//  the initial state is set to the result of the final expr)
+let systemPrompt =
+  WASM.HttpClient.request "get" "http://dark-editor.dlio.localhost:11003/system-prompt" [] Bytes.empty
+
+1+2 // useless -- just to prove we can
+
+let initState =
+  match systemPrompt with
+  | Ok response ->
+    let demoSnippet =
+      CodeSnippet
+        { id = (String.random_v2 5) |> rUnwrap
+          code = "let incr (i: Int): Int = i + 1\n\nincr 5"
+          eval = Nothing }
+
+    let chatHistory = [
+      ChatHistoryItem.UserPrompt
+        (rUnwrap(String.random_v2 5))
+        "Hello, I want a function that increments an integer!"
+
+      ChatHistoryItem.BotResponse
+        (rUnwrap(String.random_v2 5))
+        [
+          BotResponseItem.Text "OK - here's some code:"
+          BotResponseItem.CodeSnippet demoSnippet.id
+        ]
+    ]
+
+    Model
+      { systemPrompt = String.fromBytes response.body
+        chatHistory = chatHistory
+        codeSnippets = [demoSnippet] }
+
+  | Error err ->
+    Model
+      { systemPrompt = String.fromBytes "nope"
+        chatHistory = [ ] }
+
+updateStateInJS initState
+
+initState
+
+
+
+
+
+
+
+
+
+// // Models to interop with JS host
+// // (TODO: wrap this in `module JS = `)
+// type BotResponseJS
+
+// type ChatHistoryItemJS =
+//   | BotResponse of { author : string; body : String  }
+
+// type ModelForJS =
+//   // should be 1:1 with Model, but nice and serializeable
+//   { systemPrompt : string
+//     state : string
+//     code: String
+//     chatHistory: List<ChatHistoryItemJS> }
+
+// // TODO: result
+// let stateForJS (state: Model) : ModelForJS =
+//   { systemPrompt = state.systemPrompt
+//     state = match state.State with
+//             | WaitingForFirstInput -> "WaitingForFirstInput"
+//             | WaitingForUserInput -> "WaitingForUserInput"
+//             | BotIsThinking -> "BotIsThinking"
+//     chatHistory =
+//       state.chatHistory
+//       |> List.map (fun item ->
+//            { author = match item.author with User -> "User" | Bot -> "Bot"
+//              prompt = item.text }) }
+
+// // TODO: result
+// let modelFromJS (model: ModelForJS) : Model =
+//   { SystemPrompt = Prompt model.systemPrompt
+//     State =
+//       match model.state with
+//       | "WaitingForFirstInput" -> WaitingForFirstInput
+//       | "WaitingForUserInput" -> WaitingForUserInput
+//       | "BotIsThinking" -> BotIsThinking
+//     ChatHistory =
+//       model.chatHistory
+//       |> List.map (fun item ->
+//            { Author = match item.author with "User" -> User | "Bot" -> Bot
+//              Prompt = item.text }) }
+
+
+// type EventJS = { eventName: String; data: String }
+
+// let msgOfJS (msg: EventJS) : Msg =
+//   match msg.eventName with
+//   | "userGavePrompt" -> UserGavePrompt (Prompt msg.data)
+//   | "botResponded" -> BotResponded (Prompt msg.data)
+//   | _ -> failwith "Couldn't parse event name"
+
+// let msgToJS (msg: Msg) : EventJS =
+//   match msg with
+//   | UserGavePrompt prompt ->
+//     { eventName = "userGavePrompt"
+//       data = match prompt with Prompt p -> p }
+//   | BotResponded prompt ->
+//     { eventName = "botResponded"
+//       data = match prompt with Prompt p -> p }
