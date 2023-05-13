@@ -56,7 +56,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4 bg-[#1B1B1B] rounded-2xl">
+  <div class="p-4 m-6 bg-[#1B1B1B] rounded-2xl">
     <textarea
       v-model="codeSnippet"
       :id="`editor-${props.snippet.id}`"
