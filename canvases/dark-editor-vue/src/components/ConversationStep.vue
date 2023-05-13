@@ -16,8 +16,8 @@ function snippetForId(id: string): CodeSnippet {
 
 <template>
   <div
-    class="flex flex-col p-2 mb-2 bg-gray-200 rounded"
-    :class="{ 'bg-blue-300': chatItem.typ === 'Bot' }"
+    class="flex flex-col p-2 mb-2 rounded bg-transparent text-white"
+    :class="{ 'bg-[#151515]': chatItem.typ === 'Bot' }"
   >
     <p class="font-bold">
       {{ chatItem.typ === 'User' ? 'User' : 'Bot' }}

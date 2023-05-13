@@ -1,7 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 import type { CodeSnippet } from '@/types'
+import * as CodeMirror from 'codemirror'
+import 'codemirror/lib/codemirror.css'
+import 'codemirror/theme/yonce.css'
+import 'codemirror/mode/javascript/javascript.js'
+
+const content = ref<string>('')
+
+function updateEditorSize(editor: CodeMirror.Editor) {
+  const lineHeight = editor.defaultTextHeight()
+  const lineCount = editor.lineCount()
+  const newHeight = lineCount * lineHeight + 5
+
+  editor.setSize(null, newHeight)
+}
 
 const props = defineProps<{
   snippet: CodeSnippet
@@ -18,13 +32,35 @@ async function runCode() {
     console.error(error)
   }
 }
+onMounted(() => {
+  const editorElement = document.getElementById(
+    `editor-${props.snippet.id}`
+  ) as HTMLTextAreaElement
+
+  if (editorElement) {
+    const editor = CodeMirror.fromTextArea(editorElement, {
+      lineNumbers: true,
+      mode: 'javascript',
+      theme: 'yonce',
+      viewportMargin: Infinity,
+      value: codeSnippet.value,
+    })
+    updateEditorSize(editor)
+
+    editor.on('change', () => {
+      content.value = editor.getValue()
+      updateEditorSize(editor)
+    })
+  }
+})
 </script>
 
 <template>
-  <div class="p-4 bg-gray-100 rounded">
+  <div class="p-4 bg-[#1B1B1B] rounded-2xl">
     <textarea
       v-model="codeSnippet"
-      class="w-full h-24 p-2 text-xs bg-gray-200 rounded"
+      :id="`editor-${props.snippet.id}`"
+      class="text-white bg-transparent w-full outline-none h-auto"
     ></textarea>
     <div class="flex justify-between mt-2">
       <button
