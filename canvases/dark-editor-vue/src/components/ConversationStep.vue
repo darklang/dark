@@ -16,11 +16,11 @@ function snippetForId(id: string): CodeSnippet {
 
 <template>
   <div
-    class="flex flex-col p-2 mb-2 ml-2 rounded text-white"
+    class="flex p-2 mb-2 ml-2 rounded text-white"
     :class="{ 'bg-[#131313] rounded-xl': chatItem.typ === 'Bot' }"
   >
     <div
-      class="relative inline-flex items-center justify-center w-10 h-10 overflow-hidden rounded-full"
+      class="relative inline-flex items-center justify-center w-10 h-10 overflow-hidden rounded-full p-5"
       :class="{
         'bg-[#6756F6]': chatItem.typ === 'Bot',
         'bg-[#D356CD]': chatItem.typ === 'User',
@@ -31,7 +31,7 @@ function snippetForId(id: string): CodeSnippet {
       </p>
     </div>
 
-    <div class="p-3" v-if="chatItem.typ === 'Bot'">
+    <div class="p-3 flex-grow" v-if="chatItem.typ === 'Bot'">
       <div v-for="(item, index) in chatItem.items">
         <CodeSnippetComponent
           v-if="item.typ === 'Code'"
@@ -44,7 +44,7 @@ function snippetForId(id: string): CodeSnippet {
       </div>
     </div>
 
-    <p class="p-3" v-else-if="chatItem.typ === 'User'">
+    <p class="p-3 flex-grow" v-else-if="chatItem.typ === 'User'">
       {{ chatItem.prompt }}
     </p>
   </div>
