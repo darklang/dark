@@ -62,17 +62,19 @@ onMounted(() => {
       :id="`editor-${props.snippet.id}`"
       class="text-white bg-transparent w-full outline-none h-auto"
     ></textarea>
-    <div class="flex justify-between mt-2">
+    <div class="flex justify-end mt-2">
       <button
         @click="runCode"
-        class="px-4 py-2 text-xs font-bold text-white bg-blue-500 rounded"
+        class="px-4 py-2 text-xs font-bold text-white bg-transparent hover:bg-[#6756F6] border border-white/10 rounded"
       >
         eval
       </button>
     </div>
-
-    <pre v-if="props.snippet.eval" class="text-xs bg-white rounded">
-      {{ props.snippet.eval }}
-    </pre>
+  </div>
+  <div
+    v-if="props.snippet.eval"
+    class="text-xs p-2 bg-[#FEFEFE] rounded text-black mt-2"
+  >
+    {{ props.snippet.eval }}
   </div>
 </template>
