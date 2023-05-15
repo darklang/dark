@@ -32,7 +32,9 @@ const Darklang = {
 
     await invoke("InitializeDarkRuntime");
 
-    await invoke("LoadClient", sourceURL, parseUrl);
+    await invoke("Test");
+
+    //await invoke("LoadClient", sourceURL, parseUrl);
 
     // return object to expose as 'darklang'
     return {

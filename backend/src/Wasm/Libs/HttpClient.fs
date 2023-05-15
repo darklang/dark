@@ -81,6 +81,7 @@ module HttpClient =
             new HttpRequestMessage(
               httpRequest.method,
               reqUri,
+              Content = new ByteArrayContent(httpRequest.body),
 
               // Support both Http 2.0 and 3.0
               // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
@@ -88,14 +89,6 @@ module HttpClient =
               Version = System.Net.HttpVersion.Version30,
               VersionPolicy = System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
             )
-
-          let strBody = System.Text.Encoding.UTF8.GetString httpRequest.body
-
-          // CLEANUP: BodyContent, used by the 'regular' HttpClient,
-          // doesn't seem to work in the Wasm runtime,
-          // so we'll have to figure out some other way of supporting
-          // non-text bodies in that environment
-          if strBody <> "" then req.Content <- new StringContent(strBody)
 
           // headers
           httpRequest.headers

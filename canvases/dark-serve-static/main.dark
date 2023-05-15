@@ -1,3 +1,8 @@
+
+[<HttpHandler("POST", "/handle-bytes")>]
+let _handler _req =
+  Http.response (request.body |> Bytes.length |> Int.toString |> String.toBytes) 200
+
 [<HttpHandler("GET", "/:path")>]
 let _handler _req =
   let body =

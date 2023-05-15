@@ -2,6 +2,10 @@
 let _handler _req =
   Http.redirectTo "/assets/index.html"
 
+[<HttpHandler("POST", "/handle-bytes")>]
+let _handler _req =
+  Http.response (request.body |> Bytes.length |> Int.toString |> String.toBytes) 200
+
 [<HttpHandler("GET", "/assets/:path")>]
 let _handler _req =
   let body =

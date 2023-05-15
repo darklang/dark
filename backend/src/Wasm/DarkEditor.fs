@@ -86,3 +86,28 @@ let HandleEvent (serializedEvent : string) : Task<string> =
 
     return LibExecution.DvalReprDeveloper.toRepr result
   }
+
+
+let generateRandomBytes (length: int) =
+  let random = new Random()
+  let buffer = Array.zeroCreate<byte> length
+  random.NextBytes(buffer)
+  buffer
+
+
+[<JSInvokable>]
+let Test () : Task<unit> =
+  task {
+    let! response =
+      Wasm.Libs.HttpClient.HttpClient.request
+        { url  = "http://dark-repl.dlio.localhost:11003/handle-bytes"
+          method  = HttpMethod.Post
+          headers  = []
+          body  = generateRandomBytes 10 }
+
+    match response with
+    | Ok response ->
+      WasmHelpers.callJSFunction "console.log" [ "got response"; System.Text.Encoding.UTF8.GetString response.body]
+    | Error err ->
+      WasmHelpers.callJSFunction "console.log" [ "got error" ]
+  }
