@@ -11,7 +11,13 @@ const Darklang = {
     });
   },
 
-  init: async function () {
+  init: async function (sourceURL, parseUrl) {
+    if (!sourceURL || !parseUrl) {
+      throw new Error(
+        "Darklang.init() requires a sourceURL and parseUrl to be passed in"
+      );
+    }
+
     await this._loadBlazorScript();
 
     await Blazor.start({
@@ -26,20 +32,17 @@ const Darklang = {
 
     await invoke("InitializeDarkRuntime");
 
+    await invoke("LoadClient", sourceURL, parseUrl);
+
     // return object to expose as 'darklang'
     return {
-      /** Load a client Dark code from a URL */
-      loadClient: async function (sourceURL, parseUrl) {
-        return await invoke("LoadClient", sourceURL, parseUrl);
-      },
-
       /** Handle an event that the JS client has captured
        * and is forwarding to the WASM runtime */
-      handleEventRaw: async function (event) {
-        return await invoke("HandleEvent", event);
-      },
       handleEvent: async function (event) {
         this.handleEventRaw(JSON.stringify(event));
+      },
+      handleEventRaw: async function (event) {
+        return await invoke("HandleEvent", event);
       },
     };
   },
