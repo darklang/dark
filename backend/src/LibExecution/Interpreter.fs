@@ -412,6 +412,33 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
+
+        | MPListCons (id, headPats, tailPat) ->
+          match dv with
+          | DList vals ->
+            if List.length vals >= List.length headPats then
+              let (headVals, tailVals) = List.splitAt (List.length headPats) vals
+              let (headPassResults, headVarResults, headTraceResults) =
+                List.zip headVals headPats
+                |> List.map (fun (dv, pat) -> checkPattern dv pat)
+                |> List.unzip3
+              let allHeadPass = headPassResults |> List.forall identity
+              let allHeadVars = headVarResults |> List.collect identity
+              let allHeadTraces = headTraceResults |> List.collect identity
+              if allHeadPass then
+                let (tailPass, tailVars, tailTraces) =
+                  checkPattern (DList tailVals) tailPat
+                if tailPass then
+                  let combinedVars = allHeadVars @ tailVars
+                  let combinedTraces = allHeadTraces @ tailTraces
+                  true, combinedVars, (id, dv) :: combinedTraces
+                else
+                  false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
+              else
+                false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
+            else
+              false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
+          | _ -> false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
         | MPList (id, pats) ->
           match dv with
           | DList vals ->

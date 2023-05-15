@@ -278,6 +278,7 @@ type MatchPattern =
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
   | MPList of id * List<MatchPattern>
+  | MPListCons of id * heads : List<MatchPattern> * tail : MatchPattern
 
 module MatchPattern =
   let rec fromCT (pat : MatchPattern) : PT.MatchPattern =
@@ -294,6 +295,8 @@ module MatchPattern =
     | MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
     | MPList (id, pats) -> PT.MPList(id, List.map fromCT pats)
+    | MPListCons (id, heads, tail) ->
+      PT.MPListCons(id, List.map fromCT heads, fromCT tail)
 
   let rec toCT (pat : PT.MatchPattern) : MatchPattern =
     match pat with
@@ -309,7 +312,8 @@ module MatchPattern =
     | PT.MPTuple (id, first, second, theRest) ->
       MPTuple(id, toCT first, toCT second, List.map toCT theRest)
     | PT.MPList (id, pats) -> MPList(id, List.map toCT pats)
-
+    | PT.MPListCons (id, heads, tail) ->
+      MPListCons(id, List.map toCT heads, toCT tail)
 
 type BinaryOperation =
   | BinOpAnd

@@ -336,6 +336,7 @@ and MatchPattern =
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
   | MPList of id * List<MatchPattern>
+  | MPListCons of id * heads : List<MatchPattern> * tail : MatchPattern
 
 type DvalMap = Map<string, Dval>
 
@@ -525,6 +526,7 @@ module MatchPattern =
     | MPVariable (id, _)
     | MPTuple (id, _, _, _)
     | MPEnum (id, _, _)
+    | MPListCons (id, _, _)
     | MPList (id, _) -> id
 
 // Functions for working with Dark runtime values

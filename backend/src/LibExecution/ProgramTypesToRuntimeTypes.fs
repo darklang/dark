@@ -121,8 +121,8 @@ module MatchPattern =
     | PT.MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, toRT first, toRT second, List.map toRT theRest)
     | PT.MPList (id, pats) -> RT.MPList(id, List.map toRT pats)
-
-
+    | PT.MPListCons (id, heads, tail) ->
+      RT.MPListCons(id, List.map toRT heads, toRT tail)
 
 module Expr =
   let rec toRT (e : PT.Expr) : RT.Expr =

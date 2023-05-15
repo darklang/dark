@@ -195,6 +195,7 @@ type MatchPattern =
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
   | MPList of id * List<MatchPattern>
+  | MPListCons of id * heads : List<MatchPattern> * tail : MatchPattern
 
 [<MessagePack.MessagePackObject>]
 type BinaryOperation =

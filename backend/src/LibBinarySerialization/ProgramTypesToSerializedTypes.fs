@@ -221,6 +221,9 @@ module MatchPattern =
     | PT.MPTuple (id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
     | PT.MPList (id, pats) -> ST.MPList(id, List.map toST pats)
+    | PT.MPListCons (id, heads, tail) ->
+      ST.MPListCons(id, List.map toST heads, toST tail)
+
 
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
     match p with
@@ -236,6 +239,8 @@ module MatchPattern =
     | ST.MPTuple (id, first, second, theRest) ->
       PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
     | ST.MPList (id, pats) -> PT.MPList(id, List.map toPT pats)
+    | ST.MPListCons (id, heads, tail) ->
+      PT.MPListCons(id, List.map toPT heads, toPT tail)
 
 
 module Expr =
