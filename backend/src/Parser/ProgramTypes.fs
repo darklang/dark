@@ -566,7 +566,7 @@ module Expr =
 
         let name, version =
           parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
-          
+
         let typeArgs =
           typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 

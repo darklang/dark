@@ -3,9 +3,7 @@ function setOutput(message) {
 }
 
 (async () => {
-  const darklang = await Darklang.init();
-
-  await darklang.loadClient(
+  const darklang = await Darklang.init(
     "http://dark-repl.dlio.localhost:11003/assets/client.dark",
     "http://dark-repl.dlio.localhost:11003/get-program-json",
   );
