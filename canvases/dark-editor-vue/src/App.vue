@@ -18,7 +18,7 @@ window.stateUpdated = (serializedNewState: string) => {
     const parsed = fromSerializedDarkModel(serializedNewState)
     state.value = parsed
   } catch (e) {
-    console.error("Failed to parse updated state", e)
+    console.error('Failed to parse updated state', e)
   }
 }
 
@@ -32,17 +32,14 @@ darklangJSScript.setAttribute(
 darklangJSScript.setAttribute('defer', '')
 darklangJSScript.addEventListener('load', async () => {
   // TODO: maybe do this on `onMounted`?
-  const darklang = await window.Darklang.init()
+  const darklang = await window.Darklang.init(
+    'http://dark-editor.dlio.localhost:11003/client.dark',
+    'http://dark-editor.dlio.localhost:11003/get-program-json'
+  )
 
   // TODO: we don't need to expose this onace the logic in ResponseChat.vue is
   // ported to Dark.
-  // (while we're at it, we could collapse .init() and .loadClient() into one thing)
   window.darklang = darklang
-
-  await window.darklang.loadClient(
-    'http://dark-editor.dlio.localhost:11003/client.dark',
-    'http://dark-editor.dlio.localhost:11003/get-program-json',
-  )
 })
 
 document.head.appendChild(darklangJSScript)

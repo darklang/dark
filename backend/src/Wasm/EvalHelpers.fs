@@ -1,4 +1,3 @@
-/// I don't know where to put these - feedback appreciated.
 module Wasm.EvalHelpers
 
 open Prelude

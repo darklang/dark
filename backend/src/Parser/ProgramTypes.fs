@@ -544,27 +544,9 @@ module Expr =
              [ "name", name.idText; "ast", ast ]
       PT.EFnCall(gid (), PT.FQFnName.userFqName [] name version, typeArgs, [])
 
+    // e.g. `Module1.Module2.fnName<String>`
     | SynExpr.TypeApp (SynExpr.LongIdent (_,
-                                          SynLongIdent ([ modName; fnName ], _, _),
-                                          _,
-                                          _),
-                       _,
-                       typeArgs,
-                       _,
-                       _,
-                       _,
-                       _) ->
-      let modules = [ modName.idText ]
-      let name, version =
-        parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
-      let typeArgs =
-        typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
-
-      PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, typeArgs, [])
-
-    // TODO: fix this before merging - it's basically a dupe of the above
-    | SynExpr.TypeApp (SynExpr.LongIdent (_,
-                                          SynLongIdent ([ modName; modName2; fnName ],
+                                          SynLongIdent (first :: second :: theRest,
                                                         _,
                                                         _),
                                           _,
@@ -575,13 +557,26 @@ module Expr =
                        _,
                        _,
                        _) ->
-      let modules = [ modName.idText; modName2.idText ]
-      let name, version =
-        parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
-      let typeArgs =
-        typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-      PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, typeArgs, [])
+      match List.rev (first :: second :: theRest) with
+      // the last item is the function name
+      // the preceding items are the module names
+      | fnName :: modNameParts ->
+        let modules = modNameParts |> List.rev |> List.map (fun i -> i.idText)
+
+        let name, version =
+          parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
+
+        let typeArgs =
+          typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
+
+        PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, typeArgs, [])
+
+      | _ ->
+        // should never happen
+        Exception.raiseInternal "invalid fn" []
+
+
 
     // Field access: a.b.c.d
     | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) ->
