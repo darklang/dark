@@ -16,8 +16,8 @@ function snippetForId(id: string): CodeSnippet {
 
 <template>
   <div
-    class="flex p-2 mb-2 ml-2 rounded text-white"
-    :class="{ 'bg-[#131313] rounded-xl': chatItem.typ === 'Bot' }"
+    class="flex p-3 mb-2 ml-2 rounded text-white"
+    :class="{ 'bg-[#222222] rounded-xl': chatItem.typ === 'Bot' }"
   >
     <div
       class="relative inline-flex items-center justify-center w-10 h-10 overflow-hidden rounded-full p-5"

@@ -49,6 +49,7 @@ onMounted(() => {
 
     editor.on('change', () => {
       content.value = editor.getValue()
+      codeSnippet.value = content.value
       updateEditorSize(editor)
     })
   }
@@ -56,24 +57,29 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-4 m-6 bg-[#1C1C1C] rounded-2xl">
-    <textarea
-      v-model="codeSnippet"
-      :id="`editor-${props.snippet.id}`"
-      class="text-white bg-transparent w-full outline-none h-auto"
-    ></textarea>
-    <div class="flex justify-end mt-2">
-      <button
-        @click="runCode"
-        class="px-4 py-2 text-xs font-bold text-white bg-transparent hover:bg-[#6756F6] border border-white/10 rounded"
-      >
-        eval
+  <div class="flex p-4 m-2 mt-6 bg-[#1C1C1C] rounded-2xl">
+    <div class="flex flex-col items-center mt-4 px-1">
+      <button class="mb-3" @click="runCode">
+        <fa icon="play" class="w-4 h-4 text-[#8f53ff]" />
       </button>
+      <button class="mb-3">
+        <fa icon="fa-pen-to-square" class="w-4 h-4 text-[#808080]" />
+      </button>
+      <button class="mb-3">
+        <fa icon="fa-clone" class="w-4 h-4 text-[#808080]" />
+      </button>
+    </div>
+    <div class="ml-3 border-l border-[#333333]">
+      <textarea
+        v-model="codeSnippet"
+        :id="`editor-${props.snippet.id}`"
+        class="text-white bg-transparent w-full outline-none h-auto"
+      ></textarea>
     </div>
   </div>
   <div
     v-if="props.snippet.eval"
-    class="text-xs p-2 bg-[#FEFEFE] rounded text-black mt-2"
+    class="text-xs p-2 bg-[#323232] rounded text-white mt-4"
   >
     {{ props.snippet.eval }}
   </div>
