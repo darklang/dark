@@ -124,7 +124,10 @@ let fns : List<BuiltInFn> =
             let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
 
             let stdLib =
-              LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
+              LibExecution.StdLib.combine
+                [ StdLibExecution.StdLib.contents; Wasm.Libs.HttpClient.contents ]
+                []
+                []
 
             let! result =
               let expr = exprsCollapsedIntoOne source.exprs
