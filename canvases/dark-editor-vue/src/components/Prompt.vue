@@ -14,6 +14,7 @@ async function submit() {
     const evt = { UserGavePrompt: [userInput.value] }
     const result = await window.darklang.handleEvent(evt)
     console.log('result', result)
+    userInput.value = ''
     isLoading.value = false
     autosize.destroy(content.value)
     autosize(content.value)
