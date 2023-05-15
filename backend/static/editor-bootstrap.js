@@ -39,7 +39,7 @@ const Darklang = {
         return await invoke("HandleEvent", event);
       },
       handleEvent: async function (event) {
-        return await invoke("HandleEvent", JSON.stringify(event));
+        this.handleEventRaw(JSON.stringify(event));
       },
     };
   },
