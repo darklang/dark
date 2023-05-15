@@ -18,6 +18,8 @@ async function submit() {
     isLoading.value = false
     autosize.destroy(content.value)
     autosize(content.value)
+    let contentTextarea = document.getElementById('content') as HTMLTextAreaElement
+    contentTextarea.style.height = 'auto'
   } catch (error) {
     console.error(error)
   }
@@ -32,6 +34,7 @@ onMounted(() => autosize(content.value))
   >
     <textarea
       ref="content"
+      id="content"
       v-model="userInput"
       autosize
       rows="1"
