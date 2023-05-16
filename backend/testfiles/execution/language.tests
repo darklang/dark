@@ -51,14 +51,17 @@ module Tuple =
   (1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
 
 module Alias =
-  type Id = Int
+  type Id = String
   type Something = { ID : Id; Data : String }
-  Something { ID = 1; Data = "test" } = Something { ID = 1; Data = "test" }
+  //Something { ID = 1; Data = "test" } = Something { ID = 1; Data = "test" }
+
+  Something { ID = 2; Data = "test" } = Test.typeError "Expected a value of type `String` but got a `Int` in ID"
+  Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
 //TODO: Make this work
-  //type Person = { name: String }
-  //type MyPerson = Person
-  //MyPerson{ name = "test" } = Person{ name = "test" }
+  type Person = { name: String }
+  type MyPerson = Person
+  (MyPerson{ name = "test" } == Person{ name = "test" }) = true
   //let getName(p:MyPerson) : String = p.name
   //getName(MyPerson{ name = "test" }) = "test"
 

@@ -8,9 +8,27 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
+let rec getUnderlyingTypeFromAlias
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (typeName : CustomType.T)
+  : CustomType.T =
+  let found =
+    availableTypes |> Map.toList |> List.tryFind (fun (_, v) -> v = typeName)
+  match found with
+  | Some (_, CustomType.Alias (TCustomType (innerType, _))) ->
+    match Map.tryFind innerType availableTypes with
+    | Some alias -> getUnderlyingTypeFromAlias availableTypes alias
+    | None -> Exception.raiseCode "Alias not found"
+  | _ -> typeName
 
 
-let rec equals (a : Dval) (b : Dval) : bool =
+
+let rec equals
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (a : Dval)
+  (b : Dval)
+  : bool =
+  let equals = equals availableTypes
   match a, b with
   | DInt a, DInt b -> a = b
   | DFloat a, DFloat b -> a = b
@@ -31,15 +49,20 @@ let rec equals (a : Dval) (b : Dval) : bool =
            Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
          a
   | DRecord (tn1, a), DRecord (tn2, b) ->
-    tn1 = tn2
-    && Map.count a = Map.count b
-    && Map.forall
-         (fun k v ->
-           Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
-         a
+    match Map.tryFind tn1 availableTypes, Map.tryFind tn2 availableTypes with
+    | Some t1, Some t2 ->
+      let tn1 = getUnderlyingTypeFromAlias availableTypes t1
+      let tn2 = getUnderlyingTypeFromAlias availableTypes t2
+      tn1 = tn2
+      && Map.count a = Map.count b
+      && Map.forall
+           (fun k v ->
+             Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+           a
+    | _ -> Exception.raiseCode "TODO"
   | DFnVal a, DFnVal b ->
     match a, b with
-    | Lambda a, Lambda b -> equalsLambdaImpl a b
+    | Lambda a, Lambda b -> equalsLambdaImpl availableTypes a b
   | DDateTime a, DDateTime b -> a = b
   | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
@@ -85,20 +108,30 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DError _, _
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
-and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
+and equalsLambdaImpl
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (impl1 : LambdaImpl)
+  (impl2 : LambdaImpl)
+  : bool =
   impl1.parameters.Length = impl2.parameters.Length
   && List.forall2
        (fun (_, str1) (_, str2) -> str1 = str2)
        impl1.parameters
        impl2.parameters
-  && equalsSymtable impl1.symtable impl2.symtable
+  && equalsSymtable availableTypes impl1.symtable impl2.symtable
   && equalsExpr impl1.body impl2.body
 
-and equalsSymtable (a : Symtable) (b : Symtable) : bool =
+and equalsSymtable
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (a : Symtable)
+  (b : Symtable)
+  : bool =
   Map.count a = Map.count b
   && Map.forall
        (fun k v ->
-         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+         Map.tryFind k b
+         |> Option.map (equals availableTypes v)
+         |> Option.defaultValue false)
        a
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
@@ -267,7 +300,9 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, _, [ a; b ] -> equals a b |> DBool |> Ply
+        | state, _, [ a; b ] ->
+          let availableTypes = ExecutionState.availableTypes state
+          equals availableTypes a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -281,7 +316,9 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
+        | state, _, [ a; b ] ->
+          let availableTypes = ExecutionState.availableTypes state
+          equals availableTypes a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure

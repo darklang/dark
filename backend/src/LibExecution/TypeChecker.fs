@@ -84,13 +84,31 @@ module Error =
 
 open Error
 
+let rec getUnderlyingTypeFromAlias
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (typ : TypeReference)
+  : TypeReference =
+  match typ with
+  | TCustomType (typeName, typeArgs) ->
+    match Map.tryFind typeName availableTypes with
+    | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
+      getUnderlyingTypeFromAlias
+        availableTypes
+        (TCustomType(innerTypeName, typeArgs))
+    | _ -> typ
+  | _ -> typ
+
+
 let rec unify
   (path : List<string>)
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (expected : TypeReference)
   (value : Dval)
   : Result<unit, Error.T> =
-  match (expected, value) with
+
+  let resolvedType = getUnderlyingTypeFromAlias availableTypes expected
+
+  match (resolvedType, value) with
   // Any should be removed, but we currently allow it as a param type
   // in user functions, so we should allow it here.
   //
@@ -133,6 +151,10 @@ let rec unify
         )
 
       match ut, value with
+      | CustomType.Alias aliasType, typ ->
+        let resolvedAliasType = getUnderlyingTypeFromAlias availableTypes aliasType
+        unify path availableTypes resolvedAliasType typ
+
       | CustomType.Record (firstField, additionalFields), DRecord (tn, dmap) ->
         if tn <> typeName then
           Error(
