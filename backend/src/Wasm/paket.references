@@ -2,3 +2,5 @@
 FSharp.Core
 
 Microsoft.AspNetCore.Components.WebAssembly
+SpawnDev.BlazorJS
+SpawnDev.BlazorJS.WebWorkers

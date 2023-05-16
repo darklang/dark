@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../buildMultiTargeting/SpawnDev.BlazorJS.props" />
-</Project>

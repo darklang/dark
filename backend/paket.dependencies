@@ -66,4 +66,6 @@ nuget Argu = 6.1.1
 nuget Legivel = 0.4.6
 
 // Wasm
-nuget Microsoft.AspNetCore.Components.WebAssembly = 7.0.2
+nuget Microsoft.AspNetCore.Components.WebAssembly = 7.0.3
+nuget SpawnDev.BlazorJS = 2.1.13
+nuget SpawnDev.BlazorJS.WebWorkers = 2.1.13
