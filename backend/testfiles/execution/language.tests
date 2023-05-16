@@ -431,7 +431,8 @@ module Pipes =
 
 
 module Match =
-  // List destruction
+  // List destructuring
+  // TODO - check for incomplete pattern matches
 
   // head tail
   let headTail (list: List<Int>) : (Int * List<Int>)  =
@@ -469,6 +470,22 @@ module Match =
   (complexSum []) = 0
   (complexSum [[1;2];[3;4]]) = 4
   (complexSum [[1;2;3];[3;4;5];[4;5;6]]) = 14
+
+   // misc
+  (match [1;2;3;4] with
+  | 2::a::[3;4] -> a+1
+  | 1::a::[4;3] -> a+2
+  | 1::a::[3;4] -> a+3
+  | 1::a::rest -> a+4) = 5
+
+  (match [1;2;3;4] with
+   | 2::a::rest -> a-1
+   | 1::a::rest -> a*2) = 4
+
+  (match [1;2;3;4] with
+   | 1::a::[4;3] -> a+1
+   | _ ::a:: _ -> a+2
+   | 1::a::rest -> a+3) = 4
 
   (match 6 with | 5 -> "fail" | 6 -> "pass" | var -> "fail") = "pass"
   (match "x" with | "y" -> "fail" | "x" -> "pass" | var -> "fail") = "pass"
