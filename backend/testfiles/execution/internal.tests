@@ -18,7 +18,7 @@ module Documentation =
 module Infra =
 
   // correct number of tables
-  Dict.size_v0 DarkInternal.Infra.getAndLogTableSizes_v0 = 16
+  Dict.size_v0 DarkInternal.Infra.getAndLogTableSizes_v0 = 17
 
   // server build hash
   (match DarkInternal.Infra.serverBuildHash_v0 with
