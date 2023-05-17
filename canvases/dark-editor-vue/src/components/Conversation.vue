@@ -12,10 +12,10 @@ const isPromptVisible = ref(false)
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100">
-    <div class="p-4">
+  <div class="min-h-screen bg-[#151515]">
+    <div class="p-4 pb-20">
       <!-- system prompt -->
-      <div class="bg-white rounded">
+      <div class="rounded text-white">
         <input
           type="checkbox"
           id="system-prompt"
@@ -24,14 +24,15 @@ const isPromptVisible = ref(false)
         />
         <label
           for="system-prompt"
-          class="block p-2 mb-2 font-bold text-white bg-blue-500 rounded-t cursor-pointer"
+          class="p-4 cursor-pointer flex items-center justify-between border-2 border-white/10 hover:border-[#C56AE4] rounded-md mb-2"
         >
           System Prompt
+          <fa icon="fa-angle-down" class="w-4 h-4 ml-2" />
         </label>
-        <div v-show="isPromptVisible" class="p-4">
+        <div v-show="isPromptVisible">
           <textarea
             v-model="state.systemPrompt"
-            class="w-full p-2 border border-gray-300 rounded"
+            class="border-2 rounded-md border-white/10 bg-transparent outline-0 p-4 w-full resize-none h-96 max-h-96 overflow-y-auto text-white"
             rows="4"
           ></textarea>
         </div>
