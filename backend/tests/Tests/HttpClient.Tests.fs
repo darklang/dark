@@ -182,7 +182,8 @@ let makeTest versionName filename =
         |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
         |> PT2RT.Expr.toRT
       let! expected = Exe.executeExpr state Map.empty expectedCode
-      return Expect.equalDval actual expected $"Responses don't match"
+      let availableTypes = Map.empty
+      return Expect.equalDval availableTypes actual expected $"Responses don't match"
   }
 
 
