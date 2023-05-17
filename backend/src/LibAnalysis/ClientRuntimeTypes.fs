@@ -233,7 +233,7 @@ type MatchPattern =
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
   | MPList of id * List<MatchPattern>
-  | MPListCons of id * heads : List<MatchPattern> * tail : MatchPattern
+  | MPListCons of id * head : MatchPattern * tail : MatchPattern
 
 module MatchPattern =
   let rec fromCT (p : MatchPattern) : RT.MatchPattern =
@@ -251,7 +251,7 @@ module MatchPattern =
     | MPTuple (id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
     | MPList (id, pats) -> RT.MPList(id, List.map r pats)
-    | MPListCons (id, heads, tail) -> RT.MPListCons(id, List.map r heads, r tail)
+    | MPListCons (id, head, tail) -> RT.MPListCons(id, r head, r tail)
 
   let rec toCT (p : RT.MatchPattern) : MatchPattern =
     let r = toCT
@@ -268,7 +268,7 @@ module MatchPattern =
     | RT.MPTuple (id, first, second, theRest) ->
       MPTuple(id, r first, r second, List.map r theRest)
     | RT.MPList (id, pats) -> MPList(id, List.map r pats)
-    | RT.MPListCons (id, heads, tail) -> MPListCons(id, List.map r heads, r tail)
+    | RT.MPListCons (id, head, tail) -> MPListCons(id, r head, r tail)
 
 module CustomType =
   // TYPESCLEANUP support type parameters

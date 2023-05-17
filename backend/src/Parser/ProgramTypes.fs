@@ -226,15 +226,6 @@ module MatchPattern =
       | SynPat.Tuple (_, args, _) -> List.map r args
       | e -> [ r e ]
 
-    let rec convertListConsPattern
-      (pat : SynPat)
-      : List<PT.MatchPattern> * PT.MatchPattern =
-      match pat with
-      | SynPat.ListCons (head, tail, _, _) ->
-        let headPats, tailPat = convertListConsPattern tail
-        (r head :: headPats, tailPat)
-      | _ -> ([], r pat)
-
     match pat with
     | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
@@ -265,9 +256,8 @@ module MatchPattern =
       PT.MPEnum(id, enumName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
-    | SynPat.ListCons (rhsPat, lhsPat, _, _) ->
-      let headPats, tailPat = convertListConsPattern lhsPat
-      PT.MPListCons(id, r rhsPat :: headPats, tailPat)
+    | SynPat.ListCons (headPat, tailPat, _, _) ->
+      PT.MPListCons(id, r headPat, r tailPat)
     | SynPat.ArrayOrList (_, pats, _) -> PT.MPList(id, List.map r pats)
     | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
 

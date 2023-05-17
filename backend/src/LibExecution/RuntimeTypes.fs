@@ -336,7 +336,7 @@ and MatchPattern =
   | MPUnit of id
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
   | MPList of id * List<MatchPattern>
-  | MPListCons of id * heads : List<MatchPattern> * tail : MatchPattern
+  | MPListCons of id * head : MatchPattern * tail : MatchPattern
 
 type DvalMap = Map<string, Dval>
 

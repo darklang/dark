@@ -7,7 +7,6 @@ open FSharp.Control.Tasks.Affine.Unsafe
 
 open Prelude
 open RuntimeTypes
-open Prelude
 
 /// Gathers any global data (Secrets, DBs, etc.)
 /// that may be needed to evaluate an expression
@@ -413,32 +412,23 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
 
-        | MPListCons (id, headPats, tailPat) ->
+        | MPListCons (id, headPat, tailPat) ->
           match dv with
-          | DList vals ->
-            if List.length vals >= List.length headPats then
-              let (headVals, tailVals) = List.splitAt (List.length headPats) vals
-              let (headPassResults, headVarResults, headTraceResults) =
-                List.zip headVals headPats
-                |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip3
-              let allHeadPass = headPassResults |> List.forall identity
-              let allHeadVars = headVarResults |> List.collect identity
-              let allHeadTraces = headTraceResults |> List.collect identity
-              if allHeadPass then
-                let (tailPass, tailVars, tailTraces) =
-                  checkPattern (DList tailVals) tailPat
-                if tailPass then
-                  let combinedVars = allHeadVars @ tailVars
-                  let combinedTraces = allHeadTraces @ tailTraces
-                  true, combinedVars, (id, dv) :: combinedTraces
-                else
-                  false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
+          | DList vals when List.length vals >= 1 ->
+            let (headVal, tailVals) = (List.head vals, List.tail vals)
+            let (headPass, headVars, headTraces) = checkPattern headVal headPat
+            if headPass then
+              let (tailPass, tailVars, tailTraces) =
+                checkPattern (DList tailVals) tailPat
+              if tailPass then
+                let combinedVars = headVars @ tailVars
+                let combinedTraces = headTraces @ tailTraces
+                true, combinedVars, (id, dv) :: combinedTraces
               else
-                false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
+                false, [], traceIncompleteWithArgs id [ headPat; tailPat ]
             else
-              false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
-          | _ -> false, [], traceIncompleteWithArgs id (headPats @ [ tailPat ])
+              false, [], traceIncompleteWithArgs id [ headPat; tailPat ]
+          | _ -> false, [], traceIncompleteWithArgs id [ headPat; tailPat ]
         | MPList (id, pats) ->
           match dv with
           | DList vals ->
