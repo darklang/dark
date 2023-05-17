@@ -26,22 +26,23 @@ module S = TestUtils.RTShortcuts
 let testBasicTypecheckWorks : Test =
   let t
     ((fn, args) : RT.FQFnName.StdlibFnName * List<string * RT.Dval>)
-    : Result<unit, TypeChecker.Error.T> =
-    let args = Map.ofList args
+    : Task<Result<unit, TypeChecker.Error.T>> =
+    task {
+      let args = Map.ofList args
+      let! libraries = Lazy.force libraries
 
-    let fn =
-      libraries
-      |> Lazy.force
-      |> fun l -> l.stdlibFns
-      |> Map.get fn
-      |> Exception.unwrapOptionInternal "missing library function" [ "fn", fn ]
-      |> RT.builtInFnToFn
+      let fn =
+        libraries.stdlibFns
+        |> Map.get fn
+        |> Exception.unwrapOptionInternal "missing library function" [ "fn", fn ]
+        |> RT.builtInFnToFn
 
-    let typeArgs = [] // CLEANUP consider adding this as a param
+      let typeArgs = [] // CLEANUP consider adding this as a param
 
-    TypeChecker.checkFunctionCall [] Map.empty fn typeArgs args
+      return TypeChecker.checkFunctionCall [] Map.empty fn typeArgs args
+    }
 
-  testMany
+  testManyTask
     "basic type checking"
     t
     (let intAdd : RT.FQFnName.StdlibFnName =

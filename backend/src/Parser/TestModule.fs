@@ -16,11 +16,18 @@ type T =
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
     packageFns : List<PT.PackageFn.T>
+    packageTypes : List<PT.PackageType.T>
     modules : List<string * T>
     tests : List<Test> }
 
 let empty =
-  { types = []; dbs = []; fns = []; modules = []; tests = []; packageFns = [] }
+  { types = []
+    dbs = []
+    fns = []
+    modules = []
+    tests = []
+    packageFns = []
+    packageTypes = [] }
 
 
 module UserDB =
@@ -139,6 +146,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
         { types = parent.types
           fns = parent.fns
           packageFns = parent.packageFns
+          packageTypes = parent.packageTypes
           dbs = parent.dbs
           modules = []
           tests = [] }
@@ -184,14 +192,17 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
     let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
     let typeNames = m.types |> List.map (fun t -> t.name) |> Set
     let fixup = ProgramTypes.Expr.completeParse fnNames typeNames
-    { m with
-        packageFns =
-          m.packageFns |> List.map (fun fn -> { fn with body = fixup fn.body })
-        fns = m.fns |> List.map (fun fn -> { fn with body = fixup fn.body })
-        tests =
-          m.tests
-          |> List.map (fun test ->
-            { test with actual = fixup test.actual; expected = fixup test.expected }) }
+    { packageFns =
+        m.packageFns |> List.map (fun fn -> { fn with body = fixup fn.body })
+      packageTypes = m.packageTypes
+      fns = m.fns |> List.map (fun fn -> { fn with body = fixup fn.body })
+      types = m.types
+      dbs = m.dbs
+      modules = m.modules
+      tests =
+        m.tests
+        |> List.map (fun test ->
+          { test with actual = fixup test.actual; expected = fixup test.expected }) }
 
 
 

@@ -85,20 +85,28 @@ module FQTypeName =
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { modules = modules; typ = typ; version = version }
 
-  let userTypeName (modul : string) (typ : string) (version : int) : UserTypeName =
-    userTypeName' [ modul ] typ version
 
-  let toString (fqtn : T) : string =
-    match fqtn with
-    | Stdlib s ->
-      let fqName = s.modules @ [ s.typ ] |> String.concat "."
-      $"{fqName}_v{s.version}"
-    | User u ->
-      let fqName = u.modules @ [ u.typ ] |> String.concat "."
-      $"{fqName}_v{u.version}"
-    | Package p ->
-      let mn = p.modules |> Prelude.NonEmptyList.toList |> String.concat "."
-      $"{p.owner}.{mn}.{p.typ}_v{p.version}"
+  module StdlibTypeName =
+    let toString (s : StdlibTypeName) : string =
+      let name = s.modules @ [ s.typ ] |> String.concat "."
+      if s.version = 0 then name else $"{name}_v{s.version}"
+
+  module UserTypeName =
+    let toString (u : UserTypeName) : string =
+      let name = u.modules @ [ u.typ ] |> String.concat "."
+      if u.version = 0 then name else $"{name}_v{u.version}"
+
+  module PackageTypeName =
+    let toString (pkg : PackageTypeName) : string =
+      let mn = pkg.modules |> Prelude.NonEmptyList.toList |> String.concat "."
+      let name = $"{pkg.owner}.{mn}.{pkg.typ}"
+      if pkg.version = 0 then name else $"{name}_v{pkg.version}"
+
+  let toString (fqfnName : T) : string =
+    match fqfnName with
+    | User name -> UserTypeName.toString name
+    | Stdlib std -> StdlibTypeName.toString std
+    | Package pkg -> PackageTypeName.toString pkg
 
 
 
@@ -1016,9 +1024,13 @@ module ExecutionState =
       |> Map.toList
       |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
 
-    // TODO: package types
+    let packageTypes =
+      state.libraries.packageTypes
+      |> Map.toList
+      |> List.map (fun (name, packageType) ->
+        FQTypeName.Package name, packageType.definition)
 
-    List.concat [ userTypes; stdlibTypes ] |> Map
+    List.concat [ userTypes; stdlibTypes; packageTypes ] |> Map
 
 let rec getTypeReferenceFromAlias
   (availableTypes : Map<FQTypeName.T, CustomType.T>)

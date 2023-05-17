@@ -15,6 +15,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
@@ -115,20 +116,36 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
 /// In the case of a fn existing in both places, the test fn is the one used.
-let libraries : Lazy<RT.Libraries> =
+let libraries : Lazy<Task<RT.Libraries>> =
   lazy
-    (let (fns, types) =
-      LibExecution.StdLib.combine
-        [ LibTest.contents
-          LibRealExecution.RealExecution.contents
-          StdLibCli.StdLib.contents ]
-        []
-        []
+    task {
 
-     { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
-       stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
-       packageFns = Map.empty
-       packageTypes = Map.empty })
+      let (fns, types) =
+        LibExecution.StdLib.combine
+          [ LibTest.contents
+            LibRealExecution.RealExecution.contents
+            StdLibCli.StdLib.contents ]
+          []
+          []
+      let! packageFns = LibBackend.PackageManager.allFunctions ()
+      let packageFns =
+        packageFns
+        |> List.map (fun (f : PT.PackageFn.T) ->
+          (f.name |> PT2RT.FQFnName.PackageFnName.toRT, PT2RT.PackageFn.toRT f))
+        |> Map.ofList
+      let! packageTypes = LibBackend.PackageManager.allTypes ()
+      let packageTypes =
+        packageTypes
+        |> List.map (fun (t : PT.PackageType.T) ->
+          (t.name |> PT2RT.FQTypeName.PackageTypeName.toRT, PT2RT.PackageType.toRT t))
+        |> Map.ofList
+
+      return
+        { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
+          stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
+          packageFns = packageFns
+          packageTypes = packageTypes }
+    }
 
 let executionStateFor
   (canvasID : CanvasID)
@@ -190,10 +207,11 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
+    let! libraries = libraries.Force()
 
     let state =
       Exe.createState
-        (Lazy.force libraries)
+        libraries
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier
