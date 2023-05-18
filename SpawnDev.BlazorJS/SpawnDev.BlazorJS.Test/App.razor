@@ -1,0 +1,75 @@
+﻿@inject WebWorkerService webWorkerService
+@inject IMathService mathService
+
+<div class="row" style="background-color: white;">
+    <div class="col-5 col-xs-12">
+        Calculate Pi to N decimal places<br />
+        <input type="text" @bind="piDecimalPlaces" placeholder="decimal places" /><br />
+        <progress max=@piDecimalPlaces value="@piProgress" /><br /><br />
+        <div>While processing PI without a worker the main thread will be unresponsive</div>
+        <button disabled=@RunDisabled @onclick=OnWithoutThreadClicked class="btn btn-primary">Without Worker</button><br /><br />
+        <div>While processing PI with a worker the main thread will stay responsive</div>
+        <button disabled=@WorkerDisabled @onclick=OnWithThreadClicked class="btn btn-primary">With Worker</button><br /><br />
+        <button disabled=@canDisposeWorker @onclick="OnDisposeWorker" class="btn btn-secondary">Dispose Worker</button><br />
+        <strong>Output:</strong>
+        <hr />
+        <pre style="min-width: 800px; min-height: 300px;">
+      @output
+        </pre>
+    </div>
+</div>
+@code {
+  int piDecimalPlaces = 1500;
+  int piProgress = 0;
+  string output = "";
+  WebWorker? webWorker;
+  string? canDisposeWorker => webWorker != null ? null : "disabled";
+  string? RunDisabled => Running ? "disabled" : null;
+  string? WorkerDisabled => Running || !supported ? "disabled" : null;
+  bool supported => webWorkerService != null && webWorkerService.SharedWebWorkerSupported;
+  bool Running = false;
+
+  string rn = Environment.NewLine;
+
+  async Task OnWithoutThreadClicked()
+  {
+    Running = true;
+    piProgress = 0;
+    StateHasChanged();
+    var result = await mathService.CalculatePi(piDecimalPlaces);
+    piProgress = piDecimalPlaces;
+    output += $"{rn}{LogDate()} EstimatePI({piDecimalPlaces}) = {result}";
+    Running = false;
+    StateHasChanged();
+  }
+
+  async Task OnWithThreadClicked()
+  {
+    Running = true;
+    piProgress = 0;
+    StateHasChanged();
+    if (webWorker == null) webWorker = await webWorkerService.GetWebWorker();
+    var mathServiceWorker = webWorker.GetService<IMathService>();
+    var result = await mathServiceWorker.CalculatePiWithActionProgress(piDecimalPlaces, new Action<int>((i) =>
+    {
+      piProgress = i;
+      StateHasChanged();
+    }));
+    piProgress = piDecimalPlaces;
+    output += $"{rn}{LogDate()} EstimatePI({piDecimalPlaces}) = {result}";
+    Running = false;
+    StateHasChanged();
+  }
+
+  public void OnDisposeWorker()
+  {
+    webWorker?.Dispose();
+    webWorker = null;
+    Running = false;
+  }
+
+  private string LogDate()
+  {
+    return DateTime.Now.ToString("HH:mm:ss:fff");
+  }
+}
