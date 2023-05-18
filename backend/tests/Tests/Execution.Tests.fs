@@ -371,7 +371,17 @@ let testMatchPreview : Test =
        pListCons1,
        pListCons2,
        pLClist) =
-    gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
+    gid (),
+    gid (),
+    gid (),
+    gid (),
+    gid (),
+    gid (),
+    gid (),
+    gid (),
+    gid (),
+    gid (),
+    gid ()
 
   let pNothingId, nothingRhsId = gid (), gid ()
   let pVarId, varRhsId = gid (), gid ()
@@ -424,7 +434,9 @@ let testMatchPreview : Test =
           pListCons2,
           MPString(pLCval2, "val2"),
           MPList(pLClist, [ MPString(pLCval3, "val3") ])
-        )), EInt(LCintRhsId,42L) )
+        )
+       ),
+       EInt(LCintRhsId, 42L))
 
       ]
 
