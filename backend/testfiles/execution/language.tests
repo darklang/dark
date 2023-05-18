@@ -40,69 +40,6 @@ module Lists =
   [ 5; Test.typeError_v0 "test"; 0 ] = Test.typeError_v0 "test"
   [ 5; Test.typeError_v0 "1"; Test.typeError_v0 "2" ] = Test.typeError_v0 "1"
 
-module ListCons =
-  // base
-  (match [1; 2; 3] with | 1::2::[3] -> 42) = 42
-  (match [1; 2; 3] with | 1::2::[3] -> 42 | [] -> 4 | _ -> 2) = 42
-  (match [1; 2; 3] with | [] -> 4 | 1::2::[3] -> 42 | _ -> 2) = 42
-  (match [1; 2; 3] with |  _ -> 2 | 1::2::[3] -> 42 |[] -> 4) = 2
-  (match [1; 2; 3] with | head::rest -> head + (rest |> List.head |> Test.unwrap)) = 3
-
-  // head tail
-  let headTail (list: List<Int>) : (Int * List<Int>)  =
-    match list with
-    | head :: tail -> (head, tail)
-    | [] -> (0,[])
-
-  (headTail []) = (0, [])
-  (headTail [1]) = (1, [])
-  (headTail [1; 2]) = (1, [2])
-  (headTail [1; 2; 3]) = (1, [2; 3])
-  (match ["dd";"aa";"fff";"gg"] with
-    | head::tail -> (head,tail)) = ("dd", ["aa";"fff";"gg"])
-
-  // heads tail
-  let sequence (list : List<Int>) : Int =
-    match list with
-    | a :: b :: c :: rest -> a + b + c
-    | a :: b :: rest -> a + b - 1
-    |[] -> 0
-    | _ -> -1
-
-  (sequence []) = 0
-  (sequence [1]) = -1
-  (sequence [1; 2]) = 2
-  (sequence [1; 2; 3]) = 6
-  (sequence [1; 2; 3; 0]) = 6
-
-  // nested
-  let complexSum (list : List<List<Int>>) : Int =
-    match list with
-    | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest -> a1 + a2 + b1 + b2 + c1
-    | (a :: ar)::(b :: brest) :: rest -> a + b
-    | _ -> 0
-
-  (complexSum []) = 0
-  (complexSum [[1;2];[3;4]]) = 4
-  (complexSum [[1;2;3];[3;4;5];[4;5;6]]) = 14
-
-  // wildcard
-  (match [1;2;3;4] with
-   | 1::a::[4;3] -> a+1
-   | _ ::a:: _ -> a+2
-   | 1::a::rest -> a+3) = 4
-
-  // misc
-  (match [1;2;3;4] with
-  | 2::a::[3;4] -> a+1
-  | 1::a::[4;3] -> a+2
-  | 1::a::[3;4] -> a+3
-  | 1::a::rest -> a+4) = 5
-
-  (match [1;2;3;4] with
-   | 2::a::rest -> a-1
-   | 1::a::rest -> a*2) = 4
-
 
 module Tuple =
   (1,2) = (1,2)
@@ -718,6 +655,70 @@ module Match =
   | [i] -> "list:" ++ i
   | (1, 2) -> "1 and 2"
   | Nothing -> "constructor nothing") = Test.typeError "No match"
+
+  module ListCons =
+    (match [1; 2; 3] with | 1::2::[3] -> 42) = 42
+    (match [1; 2; 3] with | 1::2::[3] -> 42 | [] -> 4 | _ -> 2) = 42
+    (match [1; 2; 3] with | [] -> 4 | 1::2::[3] -> 42 | _ -> 2) = 42
+    (match [1; 2; 3] with |  _ -> 2 | 1::2::[3] -> 42 |[] -> 4) = 2
+    (match [1; 2; 3] with | head::rest -> head + (rest |> List.head |> Test.unwrap)) = 3
+
+    // head tail
+    let headTail (list: List<Int>) : (Int * List<Int>)  =
+      match list with
+      | head :: tail -> (head, tail)
+      | [] -> (0,[])
+
+    (headTail []) = (0, [])
+    (headTail [1]) = (1, [])
+    (headTail [1; 2]) = (1, [2])
+    (headTail [1; 2; 3]) = (1, [2; 3])
+    (match ["dd";"aa";"fff";"gg"] with
+      | head::tail -> (head,tail)) = ("dd", ["aa";"fff";"gg"])
+
+    // heads tail
+    let sequence (list : List<Int>) : Int =
+      match list with
+      | a :: b :: c :: rest -> a + b + c
+      | a :: b :: rest -> a + b - 1
+      | [] -> 0
+      | _ -> -1
+
+    (sequence []) = 0
+    (sequence [1]) = -1
+    (sequence [1; 2]) = 2
+    (sequence [1; 2; 3]) = 6
+    (sequence [1; 2; 3; 0]) = 6
+
+    // nested
+    let complexSum (list : List<List<Int>>) : Int =
+      match list with
+      | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest ->
+        a1 + a2 + b1 + b2 + c1
+      | (a :: ar) :: (b :: brest) :: rest ->
+        a + b
+      | _ -> 0
+
+    (complexSum []) = 0
+    (complexSum [[1;2];[3;4]]) = 4
+    (complexSum [[1;2;3];[3;4;5];[4;5;6]]) = 14
+
+    // wildcard
+    (match [1; 2; 3; 4] with
+    | 1 :: a :: [4; 3] -> a+1
+    | _ :: a :: _ -> a+2
+    | 1 :: a :: rest -> a+3) = 4
+
+    // misc
+    (match [1;2;3;4] with
+    | 2 :: a :: [3; 4] -> a+1
+    | 1 :: a :: [4; 3] -> a+2
+    | 1 :: a :: [3; 4] -> a+3
+    | 1 :: a :: rest -> a+4) = 5
+
+    (match [1;2;3;4] with
+    | 2 :: a :: rest -> a-1
+    | 1 :: a :: rest -> a*2) = 4
 
 
 
