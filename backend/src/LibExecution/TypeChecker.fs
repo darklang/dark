@@ -84,17 +84,13 @@ module Error =
 
 open Error
 
-
-
 let rec unify
   (path : List<string>)
   (availableTypes : Map<FQTypeName.T, CustomType.T>)
   (expected : TypeReference)
   (value : Dval)
   : Result<unit, Error.T> =
-
   let resolvedType = getTypeReferenceFromAlias availableTypes expected
-
   match (resolvedType, value) with
   // Any should be removed, but we currently allow it as a param type
   // in user functions, so we should allow it here.

@@ -59,7 +59,7 @@ let rec equals
            (fun k v ->
              Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
            a
-    | _ -> Exception.raiseCode "TODO"
+    | _ -> Exception.raiseInternal "Type not found" []
   | DFnVal a, DFnVal b ->
     match a, b with
     | Lambda a, Lambda b -> equalsLambdaImpl availableTypes a b
