@@ -80,6 +80,7 @@ module RuntimeTypes =
         [ RT.MPVariable(12748124UL, "var2") ]
       )
       RT.MPFloat(12385781243UL, 79375.847583)
+      RT.MPList(12741471UL, [ RT.MPString(185712383UL, "1234") ])
       RT.MPListCons(
         596996239UL,
         RT.MPString(949735651UL, "val1"),
@@ -207,6 +208,7 @@ module ProgramTypes =
         PT.MPBool(81871UL, true),
         [ PT.MPUnit(17123UL) ]
       )
+      PT.MPList(57174UL, [ PT.MPInt(58175891783UL, 123) ])
       PT.MPListCons(
         59696239UL,
         PT.MPString(94973551UL, "val1"),
@@ -457,6 +459,19 @@ module ProgramTypes =
                               (PT.MPList(
                                 387662539UL,
                                 [ PT.MPBool(435227293UL, true) ]
+                               ),
+                               PT.EList(657848009UL, [ PT.EBool(435227293UL, true) ]))
+                              (PT.MPListCons(
+                                596996239UL,
+                                PT.MPString(949735651UL, "val1"),
+                                PT.MPListCons(
+                                  580612639UL,
+                                  PT.MPString(191110189UL, "val2"),
+                                  PT.MPList(
+                                    448252771UL,
+                                    [ PT.MPString(98945887UL, "val3") ]
+                                  )
+                                )
                                ),
                                PT.EList(657848009UL, [ PT.EBool(435227293UL, true) ]))
                               (PT.MPString(491115870UL, "string"),
