@@ -357,6 +357,8 @@ let testMatchPreview : Test =
   let pStrId, strRhsId = gid (), gid ()
   let pUnitId, unitRhsId = gid (), gid ()
   let pTupleId, tupleRhsId = gid (), gid ()
+  let pLCval1, pLCval2, pLCval3, LCintRhsId = gid (), gid (), gid (), gid ()
+
 
   let (pOkVarOkId,
        pOkVarVarId,
@@ -365,8 +367,11 @@ let testMatchPreview : Test =
        okVarRhsVarId,
        okVarRhsStrId,
        pTupleIdX,
-       pTupleIdY) =
-    gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
+       pTupleIdY,
+       pListCons1,
+       pListCons2,
+       pLClist) =
+    gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
 
   let pNothingId, nothingRhsId = gid (), gid ()
   let pVarId, varRhsId = gid (), gid ()
@@ -409,7 +414,19 @@ let testMatchPreview : Test =
 
       // | name -> name
       // (everything should match this, except for 'fake' dvals such as errors)
-      (MPVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
+      (MPVariable(pVarId, "name"), EVariable(varRhsId, "name"))
+
+      // | "val1"::["val2";"val3"] -> 42
+      (MPListCons(
+        pListCons1,
+        MPString(pLCval1, "val1"),
+        MPListCons(
+          pListCons2,
+          MPString(pLCval2, "val2"),
+          MPList(pLClist, [ MPString(pLCval3, "val3") ])
+        )), EInt(LCintRhsId,42L) )
+
+      ]
 
   let getSubExprIds (arg : Expr) =
     let mutable argIDs = []
