@@ -58,12 +58,13 @@ module Alias =
   Something { ID = 2; Data = "test" } = Test.typeError "Expected a value of type `String` but got a `Int` in ID"
   Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
-//TODO: Make this work
   type Person = { name: String }
   type MyPerson = Person
+  type MyPerson2 = Person
   (MyPerson{ name = "test" } == Person{ name = "test" }) = true
-  //let getName(p:MyPerson) : String = p.name
-  //getName(MyPerson{ name = "test" }) = "test"
+  (MyPerson{ name = "test" } == MyPerson2{ name = "test" }) = true
+  let getName(p:MyPerson) : String = p.name
+  getName(MyPerson{ name = "test" }) = "test"
 
 module Records =
   type Cols1 = { col1 : Int }

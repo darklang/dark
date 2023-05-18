@@ -84,19 +84,6 @@ module Error =
 
 open Error
 
-let rec getUnderlyingTypeFromAlias
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (typ : TypeReference)
-  : TypeReference =
-  match typ with
-  | TCustomType (typeName, typeArgs) ->
-    match Map.tryFind typeName availableTypes with
-    | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
-      getUnderlyingTypeFromAlias
-        availableTypes
-        (TCustomType(innerTypeName, typeArgs))
-    | _ -> typ
-  | _ -> typ
 
 
 let rec unify
@@ -106,7 +93,7 @@ let rec unify
   (value : Dval)
   : Result<unit, Error.T> =
 
-  let resolvedType = getUnderlyingTypeFromAlias availableTypes expected
+  let resolvedType = getTypeReferenceFromAlias availableTypes expected
 
   match (resolvedType, value) with
   // Any should be removed, but we currently allow it as a param type
@@ -151,20 +138,29 @@ let rec unify
         )
 
       match ut, value with
-      | CustomType.Alias aliasType, typ ->
-        let resolvedAliasType = getUnderlyingTypeFromAlias availableTypes aliasType
-        unify path availableTypes resolvedAliasType typ
+      | CustomType.Alias aliasType, _ ->
+        let resolvedAliasType = getTypeReferenceFromAlias availableTypes aliasType
+        unify path availableTypes resolvedAliasType value
 
       | CustomType.Record (firstField, additionalFields), DRecord (tn, dmap) ->
-        if tn <> typeName then
-          Error(
-            TypeUnificationFailure(
-              { expectedType = expected; actualValue = value },
-              List.rev path
+        let aliasedType =
+          getTypeReferenceFromAlias availableTypes (TCustomType(tn, []))
+        match aliasedType with
+        | TCustomType (concreteTn, typeArgs) ->
+          if concreteTn <> typeName then
+            Error(
+              TypeUnificationFailure(
+                { expectedType = expected; actualValue = value },
+                List.rev path
+              )
             )
-          )
-        else
-          unifyRecordFields path availableTypes (firstField :: additionalFields) dmap
+          else
+            unifyRecordFields
+              path
+              availableTypes
+              (firstField :: additionalFields)
+              dmap
+        | _ -> err
 
       | CustomType.Enum (firstCase, additionalCases), DEnum (tn, caseName, valFields) ->
         if tn <> typeName then

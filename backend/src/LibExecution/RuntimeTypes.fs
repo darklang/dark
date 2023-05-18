@@ -1028,6 +1028,19 @@ module ExecutionState =
 
     List.concat [ userTypes; stdlibTypes ] |> Map
 
+let rec getTypeReferenceFromAlias
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (typ : TypeReference)
+  : TypeReference =
+  match typ with
+  | TCustomType (typeName, typeArgs) ->
+    match Map.tryFind typeName availableTypes with
+    | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
+      getTypeReferenceFromAlias availableTypes (TCustomType(innerTypeName, typeArgs))
+    | _ -> typ
+  | _ -> typ
+
+
 let consoleReporter : ExceptionReporter =
   fun _state (metadata : Metadata) (exn : exn) ->
     printException "runtime-error" metadata exn
