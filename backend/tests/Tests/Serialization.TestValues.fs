@@ -79,7 +79,16 @@ module RuntimeTypes =
         RT.MPString(128734857124UL, "1243sdfsadf"),
         [ RT.MPVariable(12748124UL, "var2") ]
       )
-      RT.MPFloat(12385781243UL, 79375.847583) ]
+      RT.MPFloat(12385781243UL, 79375.847583)
+      RT.MPListCons(
+        596996239UL,
+        RT.MPString(949735651UL, "val1"),
+        RT.MPListCons(
+          580612639UL,
+          RT.MPString(191110189UL, "val2"),
+          RT.MPList(448252771UL, [ RT.MPString(98945887UL, "val3") ])
+        )
+      ) ]
 
   let exprs : List<RT.Expr> =
     [ RT.EInt(124151234UL, 7)
@@ -197,6 +206,15 @@ module ProgramTypes =
         PT.MPInt(812831UL, 123),
         PT.MPBool(81871UL, true),
         [ PT.MPUnit(17123UL) ]
+      )
+      PT.MPListCons(
+        59696239UL,
+        PT.MPString(94973551UL, "val1"),
+        PT.MPListCons(
+          580612639UL,
+          PT.MPString(19111089UL, "val2"),
+          PT.MPList(44252771UL, [ PT.MPString(989487UL, "val3") ])
+        )
       ) ]
 
   let dtypes : List<PT.TypeReference> =

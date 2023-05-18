@@ -224,8 +224,6 @@ module MatchPattern =
       | SynPat.Tuple (_, args, _) -> List.map r args
       | e -> [ r e ]
 
-
-
     match pat with
     | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
@@ -244,7 +242,6 @@ module MatchPattern =
       PT.MPFloat(id, sign, whole, fraction)
     | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
     | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
-      let args = List.map convertEnumArg args |> List.concat
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
       let modules =
@@ -253,9 +250,12 @@ module MatchPattern =
         Exception.raiseInternal
           "Module in enum pattern casename. Only use the casename in Enum patterns"
           [ "pat", pat ]
+      let args = List.map convertEnumArg args |> List.concat
       PT.MPEnum(id, enumName.idText, args)
     | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
+    | SynPat.ListCons (headPat, tailPat, _, _) ->
+      PT.MPListCons(id, r headPat, r tailPat)
     | SynPat.ArrayOrList (_, pats, _) -> PT.MPList(id, List.map r pats)
     | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
 

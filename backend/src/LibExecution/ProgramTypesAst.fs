@@ -85,6 +85,7 @@ let rec preTraversal
     | MPList (id, pats) -> MPList(id, List.map f pats)
     | MPTuple (id, p1, p2, pats) -> MPTuple(id, f p1, f p2, List.map f pats)
     | MPEnum (id, name, pats) -> MPEnum(id, name, List.map f pats)
+    | MPListCons (id, head, tail) -> MPListCons(id, f head, f tail)
 
   let rec preTraversalTypeRef (typeRef : TypeReference) : TypeReference =
     let f = preTraversalTypeRef
@@ -211,7 +212,7 @@ let rec matchPatternPreTraversal
   | MPTuple (patternID, first, second, theRest) ->
     MPTuple(patternID, r first, r second, List.map r theRest)
   | MPList (patternID, pats) -> MPList(patternID, List.map r pats)
-
+  | MPListCons (patternID, head, tail) -> MPListCons(patternID, r head, r tail)
 
 let rec matchPatternPostTraversal
   (f : MatchPattern -> MatchPattern)
@@ -232,4 +233,5 @@ let rec matchPatternPostTraversal
     | MPTuple (patternID, first, second, theRest) ->
       MPTuple(patternID, r first, r second, List.map r theRest)
     | MPList (patternID, pats) -> MPList(patternID, List.map r pats)
+    | MPListCons (patternID, head, tail) -> MPListCons(patternID, r head, r tail)
   f result

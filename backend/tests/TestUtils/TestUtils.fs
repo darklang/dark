@@ -457,6 +457,9 @@ module Expect =
     | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
     | MPList (_, pats), MPList (_, pats') -> eqList path pats pats'
+    | MPListCons (_, head, tail), MPListCons (_, head', tail') ->
+      check path head head'
+      check path tail tail'
     // exhaustiveness check
     | MPVariable _, _
     | MPEnum _, _
@@ -467,6 +470,7 @@ module Expect =
     | MPChar _, _
     | MPUnit _, _
     | MPTuple _, _
+    | MPListCons _, _
     | MPList _, _ -> check path actual expected
 
 

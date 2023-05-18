@@ -239,6 +239,8 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
     && List.forall2 equalsMatchPattern elems1 elems2
   | MPList (_, elems1), MPList (_, elems2) ->
     elems1.Length = elems2.Length && List.forall2 equalsMatchPattern elems1 elems2
+  | MPListCons (_, head, tail), MPListCons (_, head', tail') ->
+    equalsMatchPattern head head' && equalsMatchPattern tail tail'
   // exhaustiveness check
   | MPVariable _, _
   | MPEnum _, _
@@ -249,6 +251,7 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
   | MPFloat _, _
   | MPUnit _, _
   | MPTuple _, _
+  | MPListCons _, _
   | MPList _, _ -> false
 
 
