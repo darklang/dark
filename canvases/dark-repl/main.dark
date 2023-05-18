@@ -2,6 +2,16 @@
 let _handler _req =
   Http.redirectTo "/assets/index.html"
 
+                      /assets/index.html/_content/SpawnDev.BlazorJS/SpawnDev.BlazorJS.lib.module.js
+[<HttpHandler("GET", "/assets/index.html/_content/SpawnDev.BlazorJS/spawndev.blazorjs.lib.module.js")>]
+let _handler _req = Http.redirectTo ()"https://dark-serve-static/spawndev.blazorjs.lib.module.js"
+
+[<HttpHandler("GET", "/assets/index.html/_content/SpawnDev.BlazorJS.WebWorkers/spawndev.blazorjs.webworkers.js")>]
+let _handler _req = Http.redirectTo ()"https://dark-serve-static/spawndev.blazorjs.webworkers.js"
+
+[<HttpHandler("GET", "/assets/index.html/_content/SpawnDev.BlazorJS.WebWorkers/spawndev.blazorjs.webworkers.faux-env.js")>]
+let _handler _req = Http.redirectTo ()"https://dark-serve-static/spawndev.blazorjs.webworkers.faux-env.js"
+
 [<HttpHandler("GET", "/assets/:path")>]
 let _handler _req =
   let body =
