@@ -51,13 +51,13 @@ module Tuple =
   (1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
 
 module Alias =
+  // simple alias
   type Id = String
   type Something = { ID : Id; Data : String }
-  //Something { ID = 1; Data = "test" } = Something { ID = 1; Data = "test" }
-
   Something { ID = 2; Data = "test" } = Test.typeError "Expected a value of type `String` but got a `Int` in ID"
   Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
+  // record alias
   type Person = { name: String }
   type MyPerson = Person
   type MyPerson2 = Person
@@ -65,6 +65,28 @@ module Alias =
   (MyPerson{ name = "test" } == MyPerson2{ name = "test" }) = true
   let getName(p:MyPerson) : String = p.name
   getName(MyPerson{ name = "test" }) = "test"
+
+  // enum alias
+  type UserRole = Admin | User | Guest
+  type User = {
+    id : Id;
+    name : String;
+    role : UserRole
+  }
+  type Admin = User
+
+  Admin { id = "1"; name = "Alice"; role = UserRole.Admin } = Admin { id = "1"; name = "Alice"; role = UserRole.Admin }
+  User { id = "2"; name = "Bob"; role = UserRole.User } = User { id = "2"; name = "Bob"; role = UserRole.User }
+  User { id = "3"; name = "Charlie"; role = UserRole.Guest } = User { id = "3"; name = "Charlie"; role = UserRole.Guest }
+
+  let getUserRole(u:User) : UserRole = u.role
+  getUserRole(User { id = "1"; name = "Alice"; role = UserRole.Admin }) = UserRole.Admin
+  getUserRole(User { id = "2"; name = "Bob"; role = UserRole.User }) = UserRole.User
+  getUserRole(User { id = "3"; name = "Charlie"; role = UserRole.Guest }) = UserRole.Guest
+
+  let isAdmin(u:User) : Bool = u.role == UserRole.Admin
+  isAdmin(Admin { id = "1"; name = "Alice"; role = UserRole.Admin }) = true
+
 
 module Records =
   type Cols1 = { col1 : Int }
