@@ -75,8 +75,6 @@ let t
   (expectedExpr : PT.Expr)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
-  (packageFns : List<PT.PackageFn.T>)
-  (packageTypes : List<PT.PackageType.T>)
   (types : List<PT.UserType.T>)
   (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
@@ -107,32 +105,14 @@ let t
            (fn.name, fn))
          |> Map.ofList)
 
-      let rtPackageFns =
-        packageFns
-        |> List.map (fun v ->
-          let fn = PT2RT.PackageFn.toRT v
-          (fn.name, fn))
-        |> Map
-
-      let rtPackageTypes =
-        packageTypes
-        |> List.map (fun v ->
-          let fn = PT2RT.PackageType.toRT v
-          (fn.name, fn))
-        |> Map
-
       let! (state : RT.ExecutionState) =
         executionStateFor canvasID internalFnsAllowed rtDBs rtTypes rtFunctions
       let state =
         { state with
             libraries =
               { state.libraries with
-                  packageFns =
-                    Map.mergeFavoringRight state.libraries.packageFns rtPackageFns
-                  packageTypes =
-                    Map.mergeFavoringRight
-                      state.libraries.packageTypes
-                      rtPackageTypes } }
+                  packageFns = state.libraries.packageFns
+                  packageTypes = state.libraries.packageTypes } }
 
       let msg = $"\n\n{actualExpr}\n=\n{expectedExpr} ->"
 
@@ -201,8 +181,6 @@ let fileTests () : Test =
             test.expected
             test.lineNumber
             modul.dbs
-            modul.packageFns
-            modul.packageTypes
             modul.types
             modul.fns
             [])
