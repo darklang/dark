@@ -9,26 +9,20 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 let rec getUnderlyingTypeFromAlias
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (typeName : CustomType.T)
+  (typ : CustomType.T)
+  (types : Types)
   : CustomType.T =
-  let found =
-    availableTypes |> Map.toList |> List.tryFind (fun (_, v) -> v = typeName)
-  match found with
-  | Some (_, CustomType.Alias (TCustomType (innerType, _))) ->
-    match Map.tryFind innerType availableTypes with
-    | Some alias -> getUnderlyingTypeFromAlias availableTypes alias
+  match typ with
+  | CustomType.Alias (TCustomType (innerType, _)) ->
+    match Types.find innerType types with
+    | Some alias -> getUnderlyingTypeFromAlias alias types
     | None -> Exception.raiseCode "Alias not found"
-  | _ -> typeName
+  | _ -> typ
 
 
 
-let rec equals
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (a : Dval)
-  (b : Dval)
-  : bool =
-  let equals = equals availableTypes
+let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
+  let equals = equals types
   match a, b with
   | DInt a, DInt b -> a = b
   | DFloat a, DFloat b -> a = b
@@ -49,10 +43,10 @@ let rec equals
            Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
          a
   | DRecord (tn1, a), DRecord (tn2, b) ->
-    match Map.tryFind tn1 availableTypes, Map.tryFind tn2 availableTypes with
+    match Types.find tn1 types, Types.find tn2 types with
     | Some t1, Some t2 ->
-      let tn1 = getUnderlyingTypeFromAlias availableTypes t1
-      let tn2 = getUnderlyingTypeFromAlias availableTypes t2
+      let tn1 = getUnderlyingTypeFromAlias t1 types
+      let tn2 = getUnderlyingTypeFromAlias t2 types
       tn1 = tn2
       && Map.count a = Map.count b
       && Map.forall
@@ -62,7 +56,7 @@ let rec equals
     | _ -> Exception.raiseInternal "Type not found" []
   | DFnVal a, DFnVal b ->
     match a, b with
-    | Lambda a, Lambda b -> equalsLambdaImpl availableTypes a b
+    | Lambda a, Lambda b -> equalsLambdaImpl types a b
   | DDateTime a, DDateTime b -> a = b
   | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
@@ -106,7 +100,7 @@ let rec equals
   | DIncomplete _, _ -> Exception.raiseCode "Both values must be the same type"
 
 and equalsLambdaImpl
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (impl1 : LambdaImpl)
   (impl2 : LambdaImpl)
   : bool =
@@ -115,20 +109,14 @@ and equalsLambdaImpl
        (fun (_, str1) (_, str2) -> str1 = str2)
        impl1.parameters
        impl2.parameters
-  && equalsSymtable availableTypes impl1.symtable impl2.symtable
+  && equalsSymtable types impl1.symtable impl2.symtable
   && equalsExpr impl1.body impl2.body
 
-and equalsSymtable
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (a : Symtable)
-  (b : Symtable)
-  : bool =
+and equalsSymtable (types : Types) (a : Symtable) (b : Symtable) : bool =
   Map.count a = Map.count b
   && Map.forall
        (fun k v ->
-         Map.tryFind k b
-         |> Option.map (equals availableTypes v)
-         |> Option.defaultValue false)
+         Map.tryFind k b |> Option.map (equals types v) |> Option.defaultValue false)
        a
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
@@ -298,8 +286,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ a; b ] ->
-          let availableTypes = ExecutionState.availableTypes state
-          equals availableTypes a b |> DBool |> Ply
+          let types = ExecutionState.availableTypes state
+          equals types a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure

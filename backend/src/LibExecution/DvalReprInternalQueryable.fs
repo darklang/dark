@@ -70,11 +70,11 @@ type Utf8JsonWriter with
 
 let rec private toJsonV0
   (w : Utf8JsonWriter)
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (typ : TypeReference)
   (dv : Dval)
   : unit =
-  let writeDval = toJsonV0 w availableTypes
+  let writeDval = toJsonV0 w types
 
   match typ, dv with
   // basic types
@@ -112,7 +112,7 @@ let rec private toJsonV0
           writeDval objType v)
         o)
   | TCustomType (typeName, args), dv ->
-    match Map.tryFind typeName availableTypes, dv with
+    match Types.find typeName types, dv with
     | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
     | Some (CustomType.Record (f1, fs)), DRecord (_, dm) ->
       // TYPESCLEANUP: shouldn't we be using `args` here?
@@ -172,19 +172,11 @@ let rec private toJsonV0
 
 
 
-let toJsonStringV0
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (typ : TypeReference)
-  (dval : Dval)
-  : string =
-  writeJson (fun w -> toJsonV0 w availableTypes typ dval)
+let toJsonStringV0 (types : Types) (typ : TypeReference) (dval : Dval) : string =
+  writeJson (fun w -> toJsonV0 w types typ dval)
 
 
-let parseJsonV0
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (typ : TypeReference)
-  (str : string)
-  : Dval =
+let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
   let rec convert (typ : TypeReference) (j : JsonElement) : Dval =
     match typ, j.ValueKind with
     | TUnit, JsonValueKind.Number -> DUnit
@@ -224,7 +216,7 @@ let parseJsonV0
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
       objFields |> Map.mapWithIndex (fun k v -> convert typ v) |> DDict
     | TCustomType (typeName, args), JsonValueKind.Object ->
-      match Map.tryFind typeName availableTypes with
+      match Types.find typeName types with
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
       | Some (CustomType.Alias (f1)) -> convert f1 j
       | Some (CustomType.Record (f1, fs)) ->

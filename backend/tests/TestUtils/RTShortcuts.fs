@@ -91,8 +91,11 @@ let userTypeName
   (modules : List<string>)
   (name : string)
   (version : int)
-  : FQTypeName.T =
-  FQTypeName.User { modules = modules; typ = name; version = version }
+  : FQTypeName.UserTypeName =
+  { modules = modules; typ = name; version = version }
+
+let fqUserTypeName (modules : List<string>) (name : string) (version : int) =
+  FQTypeName.User(userTypeName modules name version)
 
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
@@ -102,7 +105,7 @@ let userTypeReference
   (name : string)
   (version : int)
   : TypeReference =
-  TCustomType(userTypeName modules name version, [])
+  TCustomType(fqUserTypeName modules name version, [])
 
 let customTypeRecord (fields : List<string * TypeReference>) : CustomType.T =
   let fields =

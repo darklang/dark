@@ -1011,36 +1011,52 @@ and ExecutionState =
     // (as opposed to being previewed for traces)
     onExecutionPath : bool }
 
+and Types =
+  { stdlibTypes : Map<FQTypeName.StdlibTypeName, BuiltInType>
+    packageTypes : Map<FQTypeName.PackageTypeName, PackageType.T>
+    userTypes : Map<FQTypeName.UserTypeName, UserType.T> }
+
 module ExecutionState =
-  let availableTypes (state : ExecutionState) : Map<FQTypeName.T, CustomType.T> =
-    let stdlibTypes =
-      state.libraries.stdlibTypes
-      |> Map.toList
-      |> List.map (fun (name, stdlibType) ->
-        FQTypeName.Stdlib name, stdlibType.definition)
+  let availableTypes (state : ExecutionState) : Types =
+    { stdlibTypes = state.libraries.stdlibTypes
+      packageTypes = state.libraries.packageTypes
+      userTypes = state.program.userTypes }
 
-    let userTypes =
-      state.program.userTypes
-      |> Map.toList
-      |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
+module Types =
+  let empty =
+    { stdlibTypes = Map.empty; packageTypes = Map.empty; userTypes = Map.empty }
 
-    let packageTypes =
-      state.libraries.packageTypes
-      |> Map.toList
-      |> List.map (fun (name, packageType) ->
-        FQTypeName.Package name, packageType.definition)
+  let find (name : FQTypeName.T) (types : Types) : Option<CustomType.T> =
+    match name with
+    | FQTypeName.User user ->
+      Map.tryFind user types.userTypes |> Option.map (fun t -> t.definition)
+    | FQTypeName.Package pkg ->
+      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
+    | FQTypeName.Stdlib std ->
+      Map.tryFind std types.stdlibTypes
+      |> Option.map (fun t -> t.definition)
+      |> Option.orElseWith (fun () ->
+        match name with
+        | FQTypeName.Stdlib std ->
+          let packageName : FQTypeName.PackageTypeName =
+            { owner = "Darklang"
+              modules = NonEmptyList.ofList ("Stdlib" :: std.modules)
+              typ = std.typ
+              version = std.version }
+          Map.tryFind packageName types.packageTypes
+          |> Option.map (fun t -> t.definition)
+        | _ -> None)
 
-    List.concat [ userTypes; stdlibTypes; packageTypes ] |> Map
 
 let rec getTypeReferenceFromAlias
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (typ : TypeReference)
   : TypeReference =
   match typ with
   | TCustomType (typeName, typeArgs) ->
-    match Map.tryFind typeName availableTypes with
+    match Types.find typeName types with
     | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
-      getTypeReferenceFromAlias availableTypes (TCustomType(innerTypeName, typeArgs))
+      getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
     | _ -> typ
   | _ -> typ
 

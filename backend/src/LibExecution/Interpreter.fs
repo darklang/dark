@@ -181,12 +181,12 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | ERecord (id, typeName, fields) ->
-      let availableTypes = ExecutionState.availableTypes state
-      let typ = Map.tryFind typeName availableTypes
       let typeStr = FQTypeName.toString typeName
+      let types = ExecutionState.availableTypes state
+      let typ = Types.find typeName types
 
       let rec recordMaybe (typeName : FQTypeName.T) =
-        match Map.tryFind typeName availableTypes with
+        match Types.find typeName types with
         | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
           recordMaybe innerTypeName
         | Some (CustomType.Record (firstField, otherFields)) ->
@@ -220,7 +220,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     return v
                   else
                     let field = Map.find k expectedFields
-                    match TypeChecker.unify [ k ] availableTypes field v with
+                    match TypeChecker.unify [ k ] types field v with
                     | Ok () ->
                       match r with
                       | DRecord (typeName, m) ->
@@ -588,10 +588,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return err id $"Result.Error expects 1 argument but got {fields.Length}"
         | name, _ -> return err id $"Invalid name for enum {name}"
       | typeName ->
-        let availableTypes = ExecutionState.availableTypes state
-        let typ = Map.tryFind typeName availableTypes
         let typeStr = FQTypeName.toString typeName
-        match typ with
+        let types = ExecutionState.availableTypes state
+        match Types.find typeName types with
         | None -> return err id $"There is no type named `{typeStr}`"
         | Some (CustomType.Alias _) ->
           return err id $"Expected an enum but {typeStr} is an alias"
@@ -620,12 +619,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                         if Dval.isFake v then
                           return v
                         else
-                          match
-                            TypeChecker.unify
-                              [ case.name ]
-                              availableTypes
-                              enumField.typ
-                              v
+                          match TypeChecker.unify [ case.name ] types enumField.typ v
                             with
                           | Ok () ->
                             match r with
@@ -800,12 +794,12 @@ and execFn
   uply {
     let sourceID = SourceID(state.tlid, id) in
 
-    let typeErrorOrValue userTypes result =
+    let typeErrorOrValue types result =
       if Dval.isFake result then
         result
       else
         let name = FQFnName.toString fnDesc
-        match TypeChecker.checkFunctionReturnType [ name ] userTypes fn result with
+        match TypeChecker.checkFunctionReturnType [ name ] types fn result with
         | Ok () -> result
         | Error err ->
           let msg = $"Type error in return type: {TypeChecker.Error.toString err}"
@@ -879,14 +873,13 @@ and execFn
         | PackageFunction (tlid, body)
         | UserFunction (tlid, body) ->
           let name = [ FQFnName.toString fnDesc ]
-          let availableTypes = ExecutionState.availableTypes state
-          match TypeChecker.checkFunctionCall name availableTypes fn typeArgs args
-            with
+          let types = ExecutionState.availableTypes state
+          match TypeChecker.checkFunctionCall name types fn typeArgs args with
           | Ok () ->
             state.tracing.traceTLID tlid
             let state = { state with tlid = tlid }
             let! result = eval state argsWithGlobals body
-            return result |> typeErrorOrValue availableTypes
+            return typeErrorOrValue types result
           | Error err ->
             let msg =
               "Type error in function parameters: " + TypeChecker.Error.toString err

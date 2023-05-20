@@ -39,7 +39,7 @@ let testBasicTypecheckWorks : Test =
 
       let typeArgs = [] // CLEANUP consider adding this as a param
 
-      return TypeChecker.checkFunctionCall [] Map.empty fn typeArgs args
+      return TypeChecker.checkFunctionCall [] RT.Types.empty fn typeArgs args
     }
 
   testManyTask
