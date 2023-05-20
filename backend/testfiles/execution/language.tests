@@ -900,84 +900,15 @@ module Equality =
 
 // ---------------------------
 // User-defined Functions
+// Should match packages/darklang/test/test.dark
 // ---------------------------
-let stringFn (key:String) : String =
-  key ++ " appended string"
 
-let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
-  arg
-
-let twoStringFn (str1: String) (str2: String) : String =
-  str1 ++ " appended " ++ str2
-
-let returnsInt () : Int =
-  5
-
-let returnsString () : String =
-  "string"
-
-let returnsOptionJust () : Option<Int> =
-  Just 5
-
-let returnsOptionNothing () : Option<Int> =
-  Nothing
-
-let returnsResultOk () : Result<Int, 'err> =
-  Ok 5
-
-let returnsResultError () : Result<String, Bool> =
-  Error false
-
-let throwsException () : 'a =
-  Test.raiseException "throwsException message"
-
-let derrorFn (msg:String) : String =
-  msg ++ Test.typeError_v0 msg
-
-module FunctionCalls =
-  stringFn "string" = "string appended string"
-  twoStringFn "str1" "str2" = "str1 appended str2"
-  returnsInt () = 5
-  returnsString () = "string"
-  returnsOptionJust () = Just 5
-  (returnsOptionJust ()) |> Test.unwrap = 5
-  returnsOptionNothing () = Nothing
-  returnsResultOk () = Ok 5
-  (returnsResultOk ()) |> Test.unwrap = 5
-  fnWithTypeArgAndOneParam<Int> 1 = 1
-
-module InvalidFnCalls =
-  functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
-  stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in stringFn->key"
-  stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
-
-  fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-  fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-  fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-  fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
-  //TODO: fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "type arg doesn't match arg."
-
-  (let _ = Test.setExpectedExceptionCount 1 in
-   throwsException ()) = Test.typeError "Unknown error"
-  derrorFn "msg" = Test.typeError "msg"
-
-
-let myUserFunction_v2 (str:String) : Int =
-  6
-
-// user function with _v2 in it
-(myUserFunction_v2 "x") = 6
-
-// ---------------------------
-// Package manager function calls
-// ---------------------------
-[<Package("test", "Test")>]
-module Packages =
+module UserDefined =
   let stringFn (key:String) : String =
     key ++ " appended string"
 
   let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
-    JSON.parse<'a> arg
+    arg
 
   let twoStringFn (str1: String) (str2: String) : String =
     str1 ++ " appended " ++ str2
@@ -991,44 +922,82 @@ module Packages =
   let returnsOptionJust () : Option<Int> =
     Just 5
 
-  let returnsOptionNothing () : Option<'a> =
+  let returnsOptionNothing () : Option<Int> =
     Nothing
 
-  let returnsResultOk () : Result<Int, String> =
+  let returnsResultOk () : Result<Int, 'err> =
     Ok 5
 
-  let returnsResultError () : Result<Char, Bool> =
+  let returnsResultError () : Result<String, Bool> =
     Error false
 
-  let throwsException () : DateTime =
+  let throwsException () : 'a =
     Test.raiseException "throwsException message"
 
   let derrorFn (msg:String) : String =
     msg ++ Test.typeError_v0 msg
 
-  Test.Test.stringFn "string" = "string appended string"
-  Test.Test.twoStringFn "str1" "str2" = "str1 appended str2"
-  Test.Test.returnsInt () = 5
-  Test.Test.returnsString () = "string"
-  Test.Test.returnsOptionJust () = Just 5
-  (Test.Test.returnsOptionJust ()) |> Test.unwrap = 5
-  Test.Test.returnsOptionNothing () = Nothing
-  Test.Test.returnsResultOk () = Ok 5
-  (Test.Test.returnsResultOk ()) |> Test.unwrap = 5
-  Test.Test.returnsResultError () = Error false
+  module FunctionCalls =
+    stringFn "string" = "string appended string"
+    twoStringFn "str1" "str2" = "str1 appended str2"
+    returnsInt () = 5
+    returnsString () = "string"
+    returnsOptionJust () = Just 5
+    (returnsOptionJust ()) |> Test.unwrap = 5
+    returnsOptionNothing () = Nothing
+    returnsResultOk () = Ok 5
+    (returnsResultOk ()) |> Test.unwrap = 5
+    fnWithTypeArgAndOneParam<Int> 1 = 1
 
-  module Invalid =
-    Test.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in test.Test.stringFn->key"
-    Test.Test.stringFn "str1" "str2" = Test.typeError "test.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
-    Test.Test.derrorFn "test" = Test.typeError "test"
-
-    (let _ = Test.setExpectedExceptionCount 1 in
-     Test.Test.throwsException ()) = Test.typeError "Unknown error"
+  module InvalidFnCalls =
+    functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
+    stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in stringFn->key"
+    stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
     fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    //TODO: fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "type arg doesn't match arg."
+
+    (let _ = Test.setExpectedExceptionCount 1 in
+    throwsException ()) = Test.typeError "Unknown error"
+    derrorFn "msg" = Test.typeError "msg"
+
+
+  let myUserFunction_v2 (str:String) : Int =
+    6
+
+  // user function with _v2 in it
+  (myUserFunction_v2 "x") = 6
+
+// ---------------------------
+// Package manager function calls
+// ---------------------------
+module Packages =
+  @Darklang.Test.stringFn "string" = "string appended string"
+  @Darklang.Test.twoStringFn "str1" "str2" = "str1 appended str2"
+  @Darklang.Test.returnsInt () = 5
+  @Darklang.Test.returnsString () = "string"
+  @Darklang.Test.returnsOptionJust () = Just 5
+  (@Darklang.Test.returnsOptionJust ()) |> Test.unwrap = 5
+  @Darklang.Test.returnsOptionNothing () = Nothing
+  @Darklang.Test.returnsResultOk () = Ok 5
+  (@Darklang.Test.returnsResultOk ()) |> Test.unwrap = 5
+  @Darklang.Test.returnsResultError () = Error false
+
+  module Invalid =
+    @Darklang.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in test.Test.stringFn->key"
+    @Darklang.Test.stringFn "str1" "str2" = Test.typeError "test.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    @Darklang.Test.derrorFn "test" = Test.typeError "test"
+
+    (let _ = Test.setExpectedExceptionCount 1 in
+     @Darklang.Test.throwsException ()) = Test.typeError "Unknown error"
+
+    @Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    @Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    @Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    @Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
 
 module TypeChecking =
