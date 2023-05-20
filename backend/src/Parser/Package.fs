@@ -93,8 +93,8 @@ let parse (filename : string) (contents : string) : PackageModule =
     // At the toplevel, the module names will from the filenames
     let names = []
     let modul = parseDecls names decls
-    let fns = modul.fns |> List.map ProgramTypes.PackageFn.completeParse
-    let types = modul.types |> List.map ProgramTypes.PackageType.completeParse
+    let fns = modul.fns |> List.map ProgramTypes.PackageFn.resolveNames
+    let types = modul.types |> List.map ProgramTypes.PackageType.resolveNames
     { fns = fns; types = types }
   // in the parsed package, types are being read as user, as opposed to the package that's right there
   | decl ->

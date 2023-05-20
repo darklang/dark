@@ -188,17 +188,17 @@ let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
 let postProcessModule (m : CanvasModule) : CanvasModule =
   let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
   let userTypeNames = m.types |> List.map (fun t -> t.name) |> Set
-  let fixExpr = ProgramTypes.Expr.completeParse userFnNames userTypeNames
+  let fixExpr = ProgramTypes.Expr.resolveNames userFnNames userTypeNames
   { handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixExpr expr))
     exprs = m.exprs |> List.map fixExpr
     fns =
       m.fns
-      |> List.map (ProgramTypes.UserFunction.completeParse userFnNames userTypeNames)
-    types = m.types |> List.map (ProgramTypes.UserType.completeParse userTypeNames)
+      |> List.map (ProgramTypes.UserFunction.resolveNames userFnNames userTypeNames)
+    types = m.types |> List.map (ProgramTypes.UserType.resolveNames userTypeNames)
     dbs =
       m.dbs
       |> List.map (fun db ->
-        { db with typ = ProgramTypes.TypeReference.completeParse userTypeNames db.typ }) }
+        { db with typ = ProgramTypes.TypeReference.resolveNames userTypeNames db.typ }) }
 
 let parse (filename : string) (source : string) : CanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source

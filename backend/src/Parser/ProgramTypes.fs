@@ -23,7 +23,7 @@ let (|PipePlaceholder|_|) (input : PT.PipeExpr) =
   if input = pipePlaceholder then Some() else None
 
 module FQTypeName =
-  let completeParse
+  let resolveNames
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (name : PT.FQTypeName.T)
     : PT.FQTypeName.T =
@@ -44,7 +44,7 @@ module FQTypeName =
         PT.FQTypeName.Stdlib(n)
 
 module FQFnName =
-  let completeParse
+  let resolveNames
     (userFns : Set<PT.FQFnName.UserFnName>)
     (name : PT.FQFnName.T)
     : PT.FQFnName.T =
@@ -156,14 +156,14 @@ module TypeReference =
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
-  let rec completeParse
+  let rec resolveNames
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (typ : PT.TypeReference)
     : PT.TypeReference =
-    let c = completeParse userTypes
+    let c = resolveNames userTypes
     match typ with
     | PT.TCustomType (tn, args) ->
-      PT.TCustomType(FQTypeName.completeParse userTypes tn, List.map c args)
+      PT.TCustomType(FQTypeName.resolveNames userTypes tn, List.map c args)
     | PT.TFn (args, ret) -> PT.TFn(List.map c args, c ret)
     | PT.TTuple (first, second, theRest) ->
       PT.TTuple(c first, c second, List.map c theRest)
@@ -809,12 +809,12 @@ module Expr =
   // whole program once, and then run this on any expressions, passing in User types
   // and functions. It converts user types that are not in the list to Stdlib types.
   // TODO: we need some sort of unambiguous way to refer to user types
-  let completeParse
+  let resolveNames
     (userFunctions : Set<PT.FQFnName.UserFnName>)
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (e : PT.Expr)
     : PT.Expr =
-    let fixupPipeExpr =
+    let resolvePipeExprNames =
       (fun e ->
         match e with
         | PT.EPipeFnCall (id, name, typeArgs, args) ->
@@ -832,10 +832,10 @@ module Expr =
 
     LibExecution.ProgramTypesAst.preTraversal
       identity
-      fixupPipeExpr
+      resolvePipeExprNames
       identity
-      (FQTypeName.completeParse userTypes)
-      (FQFnName.completeParse userFunctions)
+      (FQTypeName.resolveNames userTypes)
+      (FQFnName.resolveNames userFunctions)
       identity
       identity
       e
@@ -970,7 +970,7 @@ module UserFunction =
       deprecated = PT.NotDeprecated
       body = f.body }
 
-  let completeParse
+  let resolveNames
     (userFunctions : Set<PT.FQFnName.UserFnName>)
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (f : PT.UserFunction.T)
@@ -981,11 +981,11 @@ module UserFunction =
       parameters =
         f.parameters
         |> List.map (fun p ->
-          { p with typ = TypeReference.completeParse userTypes p.typ })
-      returnType = TypeReference.completeParse userTypes f.returnType
+          { p with typ = TypeReference.resolveNames userTypes p.typ })
+      returnType = TypeReference.resolveNames userTypes f.returnType
       description = f.description
       deprecated = f.deprecated
-      body = Expr.completeParse userFunctions userTypes f.body }
+      body = Expr.resolveNames userFunctions userTypes f.body }
 
 
 module PackageFn =
@@ -1008,7 +1008,7 @@ module PackageFn =
       deprecated = PT.NotDeprecated
       body = f.body }
 
-  let completeParse (f : PT.PackageFn.T) : PT.PackageFn.T =
+  let resolveNames (f : PT.PackageFn.T) : PT.PackageFn.T =
     { tlid = f.tlid
       id = f.id
       name = f.name
@@ -1016,11 +1016,11 @@ module PackageFn =
       parameters =
         f.parameters
         |> List.map (fun p ->
-          { p with typ = TypeReference.completeParse Set.empty p.typ })
-      returnType = TypeReference.completeParse Set.empty f.returnType
+          { p with typ = TypeReference.resolveNames Set.empty p.typ })
+      returnType = TypeReference.resolveNames Set.empty f.returnType
       description = f.description
       deprecated = f.deprecated
-      body = Expr.completeParse Set.empty Set.empty f.body }
+      body = Expr.resolveNames Set.empty Set.empty f.body }
 
 
 module CustomType =
@@ -1040,7 +1040,7 @@ module CustomType =
           { name = id.idText; fields = List.map parseField fields; description = "" }
         | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
-    let completeParse
+    let resolveNames
       (userTypes : Set<PT.FQTypeName.UserTypeName>)
       (t : PT.CustomType.EnumCase)
       : PT.CustomType.EnumCase =
@@ -1048,7 +1048,7 @@ module CustomType =
         fields =
           t.fields
           |> List.map (fun f ->
-            { f with typ = TypeReference.completeParse userTypes f.typ })
+            { f with typ = TypeReference.resolveNames userTypes f.typ })
         description = t.description }
 
 
@@ -1059,12 +1059,12 @@ module CustomType =
         { name = id.idText; typ = TypeReference.fromSynType typ; description = "" }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
-    let completeParse
+    let resolveNames
       (userTypes : Set<PT.FQTypeName.UserTypeName>)
       (t : PT.CustomType.RecordField)
       : PT.CustomType.RecordField =
       { name = t.name
-        typ = TypeReference.completeParse userTypes t.typ
+        typ = TypeReference.resolveNames userTypes t.typ
         description = t.description }
 
   let fromFields typeDef (fields : List<SynField>) : PT.CustomType.T =
@@ -1126,20 +1126,20 @@ module CustomType =
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
-  let completeParse
+  let resolveNames
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (t : PT.CustomType.T)
     : PT.CustomType.T =
     match t with
     | PT.CustomType.Enum (firstCase, additionalCases) ->
       PT.CustomType.Enum(
-        EnumCase.completeParse userTypes firstCase,
-        additionalCases |> List.map (EnumCase.completeParse userTypes)
+        EnumCase.resolveNames userTypes firstCase,
+        additionalCases |> List.map (EnumCase.resolveNames userTypes)
       )
     | PT.CustomType.Record (firstField, additionalFields) ->
       PT.CustomType.Record(
-        RecordField.completeParse userTypes firstField,
-        additionalFields |> List.map (RecordField.completeParse userTypes)
+        RecordField.resolveNames userTypes firstField,
+        additionalFields |> List.map (RecordField.resolveNames userTypes)
       )
     | PT.CustomType.Alias typ ->
       PT.CustomType.Alias(TypeReference.completeParse userTypes typ)
@@ -1159,13 +1159,13 @@ module UserType =
       name = { typ = name; modules = modules; version = version }
       definition = definition }
 
-  let completeParse
+  let resolveNames
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
     (t : PT.UserType.T)
     : PT.UserType.T =
     { tlid = t.tlid
       name = t.name
-      definition = CustomType.completeParse userTypes t.definition }
+      definition = CustomType.resolveNames userTypes t.definition }
 
 module PackageType =
   let fromSynTypeDefn
@@ -1187,17 +1187,17 @@ module PackageType =
       deprecated = PT.NotDeprecated
       definition = definition }
 
-  let completeParse (f : PT.PackageType.T) : PT.PackageType.T =
+  let resolveNames (f : PT.PackageType.T) : PT.PackageType.T =
     { tlid = f.tlid
       id = f.id
       name = f.name
       description = f.description
       deprecated = f.deprecated
-      definition = CustomType.completeParse Set.empty f.definition }
+      definition = CustomType.resolveNames Set.empty f.definition }
 
 
 /// Returns an incomplete parse of a PT expression. Requires calling
-/// Expr.completeParse before using
+/// Expr.resolveNames before using
 // TODO it's hard to use the type system here since there's a lot of places we stash
 // PT.Expr, but that's even more reason to try and prevent partial parses.
 let initialParse (filename : string) (code : string) : PT.Expr =
@@ -1208,7 +1208,7 @@ let initialParse (filename : string) (code : string) : PT.Expr =
 
 // Shortcut function for tests that ignore user functions and types
 let parseIgnoringUser (filename : string) (code : string) : PT.Expr =
-  code |> initialParse filename |> Expr.completeParse Set.empty Set.empty
+  code |> initialParse filename |> Expr.resolveNames Set.empty Set.empty
 
 let parseRTExpr
   (fns : Set<PT.FQFnName.UserFnName>)
@@ -1218,5 +1218,5 @@ let parseRTExpr
   : LibExecution.RuntimeTypes.Expr =
   code
   |> initialParse filename
-  |> Expr.completeParse fns types
+  |> Expr.resolveNames fns types
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT

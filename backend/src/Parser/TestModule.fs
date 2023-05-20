@@ -191,7 +191,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
         decls
     let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
     let typeNames = m.types |> List.map (fun t -> t.name) |> Set
-    let fixup = ProgramTypes.Expr.completeParse fnNames typeNames
+    let fixup = ProgramTypes.Expr.resolveNames fnNames typeNames
     { packageFns =
         m.packageFns |> List.map (fun fn -> { fn with body = fixup fn.body })
       packageTypes = m.packageTypes
