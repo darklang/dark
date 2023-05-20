@@ -1028,24 +1028,12 @@ module Types =
 
   let find (name : FQTypeName.T) (types : Types) : Option<CustomType.T> =
     match name with
+    | FQTypeName.Stdlib std ->
+      Map.tryFind std types.stdlibTypes |> Option.map (fun t -> t.definition)
     | FQTypeName.User user ->
       Map.tryFind user types.userTypes |> Option.map (fun t -> t.definition)
     | FQTypeName.Package pkg ->
       Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
-    | FQTypeName.Stdlib std ->
-      Map.tryFind std types.stdlibTypes
-      |> Option.map (fun t -> t.definition)
-      |> Option.orElseWith (fun () ->
-        match name with
-        | FQTypeName.Stdlib std ->
-          let packageName : FQTypeName.PackageTypeName =
-            { owner = "Darklang"
-              modules = NonEmptyList.ofList ("Stdlib" :: std.modules)
-              typ = std.typ
-              version = std.version }
-          Map.tryFind packageName types.packageTypes
-          |> Option.map (fun t -> t.definition)
-        | _ -> None)
 
 
 let rec getTypeReferenceFromAlias

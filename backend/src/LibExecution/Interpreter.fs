@@ -720,16 +720,7 @@ and callFn
     let fn =
       match desc with
       | FQFnName.Stdlib std ->
-        // CLEANUP: do this when the libraries are loaded
-        state.libraries.stdlibFns.TryFind std
-        |> Option.map builtInFnToFn
-        |> Option.orElseWith (fun () ->
-          let packageName : FQFnName.PackageFnName =
-            { owner = "Darklang"
-              modules = NonEmptyList.ofList ("Stdlib" :: std.modules)
-              function_ = std.function_
-              version = std.version }
-          state.libraries.packageFns.TryFind packageName |> Option.map packageFnToFn)
+        state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
       | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
       | FQFnName.Package pkg ->
         state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
