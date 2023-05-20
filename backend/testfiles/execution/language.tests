@@ -87,6 +87,18 @@ module Alias =
   let isAdmin(u:User) : Bool = u.role == UserRole.Admin
   isAdmin(Admin { id = "1"; name = "Alice"; role = UserRole.Admin }) = true
 
+  // nested alias
+  type UserCredential = (String * Id)
+  type EmployeeCredential = UserCredential
+  let getUserID(credential:UserCredential) : Id = credential |> Tuple2.second
+  getUserID(("Alice", "EMP123")) = "EMP123"
+  getUserID(("Alice", 123)) = Test.typeError "Type error in return type: Expected a value of type `String` but got a `Int` in getUserID->result"
+
+  type UserProfile = { credential: UserCredential; name: String; role: UserRole }
+  type EmployeeProfile = UserProfile
+  let getEmployeeName(profile:EmployeeProfile) : String = profile.name
+  getEmployeeName(UserProfile { credential = ("Alice", "EMP123"); name = "Alice"; role = UserRole.Admin }) = "Alice"
+
 
 module Records =
   type Cols1 = { col1 : Int }
