@@ -148,7 +148,7 @@ let rec serialize
           w.writeArray (fun () ->
             List.zip fieldDefs fields
             |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
-      | _ -> Exception.raiseInternal "TODO: error message" []
+      | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
     | CustomType.Record (firstField, additionalFields) ->
       match dval with
@@ -181,7 +181,7 @@ let rec serialize
 
             r matchingTypeReference dval))
       | DRecord (_, _) -> Exception.raiseInternal "Incorrect record type" []
-      | _ -> Exception.raiseInternal "Fail " []
+      | _ -> Exception.raiseInternal "Expected a DRecord but got something else" []
 
 
   // Not supported
@@ -420,7 +420,10 @@ let parse
           |> Map.ofSeq
 
         DRecord(typeName, dvalMap)
-      | _ -> Exception.raiseInternal "TODO: Error message" []
+      | _ ->
+        Exception.raiseInternal
+          "Can't currently parse this custom type"
+          [ "type", typeName ]
 
 
     // Explicitly not supported
