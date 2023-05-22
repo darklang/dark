@@ -112,12 +112,18 @@ module Alias =
   getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [] }) = Nothing
   (getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) == Just UserRole.Guest) = false
 
-
   // list alias
   type IntegerList = List<Int>
   let isEmpty(il: IntegerList) : Bool = List.isEmpty_v0 il
   isEmpty([]) = true
   isEmpty([1;2;3]) = false
+
+  // result alias
+  type IntResult = Result<Int, String>
+  let getIntResultValue(ir: IntResult) : Int = Result.withDefault_v0 ir 0
+  getIntResultValue(Ok 5) = 5
+  getIntResultValue(Error "error") = 0
+
 
 module Records =
   type Cols1 = { col1 : Int }
