@@ -410,6 +410,7 @@ module Expect =
 
 
   let rec userTypeNameEqualityBaseFn
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
     (path : Path)
     (actual : FQTypeName.T)
     (expected : FQTypeName.T)
@@ -508,13 +509,14 @@ module Expect =
 
 
   let rec exprEqualityBaseFn
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
     (checkIDs : bool)
     (path : Path)
     (actual : Expr)
     (expected : Expr)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
+    let eq path a e = exprEqualityBaseFn availableTypes checkIDs path a e errorFn
 
     let check path (a : 'a) (e : 'a) =
       if a <> e then errorFn path (string actual) (string expected)
@@ -568,7 +570,7 @@ module Expect =
       eqList path args args'
 
     | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      userTypeNameEqualityBaseFn availableTypes path typeName typeName' errorFn
       List.iter2
         (fun (k, v) (k', v') ->
           check path k k'
@@ -589,7 +591,7 @@ module Expect =
       check path f f'
 
     | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      userTypeNameEqualityBaseFn availableTypes path typeName typeName' errorFn
       check path caseName caseName'
       eqList path fields fields'
       ()
@@ -641,12 +643,13 @@ module Expect =
   // If the dvals are not the same, call errorFn. This is in this form to allow
   // both an equality function and a test expectation function
   let rec dvalEqualityBaseFn
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
     (path : Path)
     (actual : Dval)
     (expected : Dval)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let de p a e = dvalEqualityBaseFn p a e errorFn
+    let de p a e = dvalEqualityBaseFn availableTypes p a e errorFn
     let error path = errorFn path (string actual) (string expected)
 
     let check (path : Path) (a : 'a) (e : 'a) : unit =
@@ -703,7 +706,7 @@ module Expect =
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
     | DRecord (ltn, ls), DRecord (rtn, rs) ->
-      userTypeNameEqualityBaseFn path ltn rtn errorFn
+      userTypeNameEqualityBaseFn availableTypes path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
         (fun key v1 ->
@@ -722,7 +725,7 @@ module Expect =
 
 
     | DEnum (typeName, caseName, fields), DEnum (typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+      userTypeNameEqualityBaseFn availableTypes path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
       check ("fields.Length" :: path) (List.length fields) (List.length fields)
@@ -740,7 +743,7 @@ module Expect =
       let vals l = List.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
-      exprEqualityBaseFn false path l1.body l2.body errorFn
+      exprEqualityBaseFn availableTypes false path l1.body l2.body errorFn
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
     | DHttpResponse _, _
@@ -766,8 +769,13 @@ module Expect =
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
 
-  let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
-    dvalEqualityBaseFn [] actual expected (fun path a e ->
+  let rec equalDval
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
+    (actual : Dval)
+    (expected : Dval)
+    (msg : string)
+    : unit =
+    dvalEqualityBaseFn availableTypes [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path} (overall: {actual})")
 
   let rec equalMatchPattern
@@ -785,21 +793,39 @@ module Expect =
     matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
       Expect.equal a e (pathToString path))
 
-  let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
-    exprEqualityBaseFn true [] actual expected (fun path a e ->
+  let rec equalExpr
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
+    (actual : Expr)
+    (expected : Expr)
+    (msg : string)
+    : unit =
+    exprEqualityBaseFn availableTypes true [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path}")
 
-  let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
-    exprEqualityBaseFn false [] actual expected (fun path a e ->
+  let rec equalExprIgnoringIDs
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
+    (actual : Expr)
+    (expected : Expr)
+    : unit =
+    exprEqualityBaseFn availableTypes false [] actual expected (fun path a e ->
       Expect.equal a e (pathToString path))
 
-  let dvalEquality (left : Dval) (right : Dval) : bool =
+  let dvalEquality
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
+    (left : Dval)
+    (right : Dval)
+    : bool =
     let success = ref true
-    dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
+    dvalEqualityBaseFn availableTypes [] left right (fun _ _ _ ->
+      success.Value <- false)
     success.Value
 
-  let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
-    dvalEquality (DDict m1) (DDict m2)
+  let dvalMapEquality
+    (availableTypes : Map<FQTypeName.T, CustomType.T>)
+    (m1 : DvalMap)
+    (m2 : DvalMap)
+    =
+    dvalEquality availableTypes (DDict m1) (DDict m2)
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []

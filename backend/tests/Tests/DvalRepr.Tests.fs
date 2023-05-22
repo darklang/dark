@@ -21,10 +21,11 @@ module Errors = LibExecution.Errors
 module S = TestUtils.RTShortcuts
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
+  let availableTypes = Map.empty
   dv
   |> DvalReprInternalRoundtrippable.toJsonV0
   |> DvalReprInternalRoundtrippable.parseJsonV0
-  |> Expect.dvalEquality dv
+  |> Expect.dvalEquality availableTypes dv
 
 let queryableRoundtripsSuccessfullyInRecord
   (
@@ -41,13 +42,14 @@ let queryableRoundtripsSuccessfullyInRecord
   record
   |> DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef
   |> DvalReprInternalQueryable.parseJsonV0 availableTypes typeRef
-  |> Expect.dvalEquality record
+  |> Expect.dvalEquality availableTypes record
 
 let queryableRoundtripsSuccessfully (dv : RT.Dval, typ : RT.TypeReference) : bool =
+  let availableTypes = Map.empty
   dv
   |> DvalReprInternalQueryable.toJsonStringV0 Map.empty typ
   |> DvalReprInternalQueryable.parseJsonV0 Map.empty typ
-  |> Expect.dvalEquality dv
+  |> Expect.dvalEquality availableTypes dv
 
 let testDvalRoundtrippableRoundtrips =
 
@@ -132,12 +134,13 @@ let allRoundtrips =
       t
         "vanilla"
         (fun (dv, _) ->
+          let availableTypes = Map.empty
           dv
           |> CRT.Dval.toCT
           |> Json.Vanilla.serialize
           |> Json.Vanilla.deserialize
           |> CRT.Dval.fromCT
-          |> Expect.dvalEquality dv)
+          |> Expect.dvalEquality availableTypes dv)
         (dvs (function
           | RT.DPassword _ -> false
           | _ -> true)) ]
@@ -160,8 +163,10 @@ module Password =
   let testJsonRoundtripForwards =
     test "json roundtrips forward" {
       let password = RT.DPassword(Password(UTF8.toBytes "x"))
+      let availableTypes = Map.empty
 
       Expect.equalDval
+        availableTypes
         password
         (password
          |> DvalReprInternalRoundtrippable.toJsonV0
@@ -196,8 +201,12 @@ module Password =
       let roundtrips name serialize deserialize =
         let bytes = UTF8.toBytes "encryptedbytes"
         let password = RT.DPassword(Password bytes)
+        let typeName = S.userTypeName [] "MyType" 0
+        let availableTypes =
+          Map [ typeName, S.customTypeRecord [ "x", RT.TPassword ] ]
 
         Expect.equalDval
+          availableTypes
           password
           (password |> serialize |> deserialize |> serialize |> deserialize)
           $"Passwords serialize in non-redaction function: {name}"
@@ -235,6 +244,7 @@ module Password =
       let serialize = DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef
       let deserialize = DvalReprInternalQueryable.parseJsonV0 availableTypes typeRef
       Expect.equalDval
+        availableTypes
         password
         (password |> serialize |> deserialize |> serialize |> deserialize)
         "Passwords serialize in non-redaction function: toInternalQueryableV1"

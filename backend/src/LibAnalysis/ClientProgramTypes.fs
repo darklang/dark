@@ -576,11 +576,13 @@ module CustomType =
         description = ec.description }
 
   type T =
+    | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
   let fromCT (def : T) : PT.CustomType.T =
     match def with
+    | Alias typ -> PT.CustomType.Alias(TypeReference.fromCT typ)
     | Record (firstField, additionalFields) ->
       PT.CustomType.Record(
         RecordField.fromCT firstField,
@@ -594,6 +596,7 @@ module CustomType =
 
   let toCT (def : PT.CustomType.T) : T =
     match def with
+    | PT.CustomType.Alias typ -> Alias(TypeReference.toCT typ)
     | PT.CustomType.Record (firstField, additionalFields) ->
       Record(RecordField.toCT firstField, List.map RecordField.toCT additionalFields)
     | PT.CustomType.Enum (firstCase, additionalCases) ->

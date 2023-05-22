@@ -247,6 +247,7 @@ module CustomType =
 
   let toRT (d : PT.CustomType.T) : RT.CustomType.T =
     match d with
+    | PT.CustomType.Alias (typ) -> RT.CustomType.Alias(TypeReference.toRT typ)
     | PT.CustomType.Record (firstField, additionalFields) ->
       RT.CustomType.Record(
         RecordField.toRT firstField,

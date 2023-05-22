@@ -90,7 +90,8 @@ let rec unify
   (expected : TypeReference)
   (value : Dval)
   : Result<unit, Error.T> =
-  match (expected, value) with
+  let resolvedType = getTypeReferenceFromAlias availableTypes expected
+  match (resolvedType, value) with
   // Any should be removed, but we currently allow it as a param type
   // in user functions, so we should allow it here.
   //
@@ -133,16 +134,29 @@ let rec unify
         )
 
       match ut, value with
+      | CustomType.Alias aliasType, _ ->
+        let resolvedAliasType = getTypeReferenceFromAlias availableTypes aliasType
+        unify path availableTypes resolvedAliasType value
+
       | CustomType.Record (firstField, additionalFields), DRecord (tn, dmap) ->
-        if tn <> typeName then
-          Error(
-            TypeUnificationFailure(
-              { expectedType = expected; actualValue = value },
-              List.rev path
+        let aliasedType =
+          getTypeReferenceFromAlias availableTypes (TCustomType(tn, []))
+        match aliasedType with
+        | TCustomType (concreteTn, typeArgs) ->
+          if concreteTn <> typeName then
+            Error(
+              TypeUnificationFailure(
+                { expectedType = expected; actualValue = value },
+                List.rev path
+              )
             )
-          )
-        else
-          unifyRecordFields path availableTypes (firstField :: additionalFields) dmap
+          else
+            unifyRecordFields
+              path
+              availableTypes
+              (firstField :: additionalFields)
+              dmap
+        | _ -> err
 
       | CustomType.Enum (firstCase, additionalCases), DEnum (tn, caseName, valFields) ->
         if tn <> typeName then

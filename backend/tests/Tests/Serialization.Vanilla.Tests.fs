@@ -356,7 +356,12 @@ module RoundtripTests =
           CRT.Dval.toCT
           CRT.Dval.fromCT
           (Some (fun l r ->
-            Expect.equalDval l r "dval does not roundtrip successfully")) ]
+            let availableTypes = Map.empty
+            Expect.equalDval
+              availableTypes
+              l
+              r
+              "dval does not roundtrip successfully")) ]
 
   module ProgramTypes =
     let tests =

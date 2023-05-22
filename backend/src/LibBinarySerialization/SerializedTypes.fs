@@ -287,6 +287,7 @@ module CustomType =
 
   [<MessagePack.MessagePackObject>]
   type T =
+    | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 

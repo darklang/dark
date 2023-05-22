@@ -122,76 +122,66 @@ let rec serialize
       w.WritePropertyName "Error"
       r errType dv)
 
-  | TCustomType (typeName, _typeArgs), DDict dvalMap ->
+  | TCustomType (typeName, _typeArgs), dval ->
     // TODO: try find exactly one matching type
     let matchingType = availableTypes[typeName]
 
     match matchingType with
+    | CustomType.Alias typ -> r typ dv
+
     | CustomType.Enum (firstCase, additionalCases) ->
-      Exception.raiseInternal "TODO" []
+      // TODO: ensure that the type names are the same
+      // TODO: _something_ with the type args
+      //   (or maybe we just need to revisit once TypeDefinition is present)
+
+      match dval with
+      | DEnum (dTypeName, caseName, fields) ->
+        let matchingCase =
+          (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
+        // TODO: handle 0 or 2+ cases
+
+        let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
+        // TODO: ensure that the field count is the same
+
+        w.writeObject (fun () ->
+          w.WritePropertyName caseName
+          w.writeArray (fun () ->
+            List.zip fieldDefs fields
+            |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+      | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
+
     | CustomType.Record (firstField, additionalFields) ->
-      let fieldDefs = firstField :: additionalFields
-      w.writeObject (fun () ->
-        dvalMap
-        |> Map.toList
-        |> List.iter (fun (fieldName, dval) ->
-          w.WritePropertyName fieldName
+      match dval with
+      | DDict dvalMap ->
+        let fieldDefs = firstField :: additionalFields
+        w.writeObject (fun () ->
+          dvalMap
+          |> Map.toList
+          |> List.iter (fun (fieldName, dval) ->
+            w.WritePropertyName fieldName
 
-          let matchingTypeReference =
-            fieldDefs
-            // TODO: handle case where field isn't found
-            |> List.find (fun def -> def.name = fieldName)
-            |> fun def -> def.typ
+            let matchingTypeReference =
+              fieldDefs
+              |> List.find (fun def -> def.name = fieldName)
+              |> fun def -> def.typ
 
-          r matchingTypeReference dval))
+            r matchingTypeReference dval))
+      | DRecord (recordTypeName, dvalMap) when recordTypeName = typeName ->
+        let fieldDefs = firstField :: additionalFields
+        w.writeObject (fun () ->
+          dvalMap
+          |> Map.toList
+          |> List.iter (fun (fieldName, dval) ->
+            w.WritePropertyName fieldName
 
-  | TCustomType (typeName, _typeArgs), DRecord (_, dvalMap) ->
-    // TODO: try find exactly one matching type
-    let matchingType = availableTypes[typeName]
+            let matchingTypeReference =
+              fieldDefs
+              |> List.find (fun def -> def.name = fieldName)
+              |> fun def -> def.typ
 
-    match matchingType with
-    | CustomType.Enum (firstCase, additionalCases) ->
-      Exception.raiseInternal "TODO" []
-    | CustomType.Record (firstField, additionalFields) ->
-      let fieldDefs = firstField :: additionalFields
-      w.writeObject (fun () ->
-        dvalMap
-        |> Map.toList
-        |> List.iter (fun (fieldName, dval) ->
-          w.WritePropertyName fieldName
-
-          let matchingTypeReference =
-            fieldDefs
-            |> List.find (fun def -> def.name = fieldName)
-            |> fun def -> def.typ
-
-          r matchingTypeReference dval))
-
-
-
-  | TCustomType (tTypeName, _typeArgs), DEnum (dTypeName, caseName, fields) ->
-    // TODO: ensure that the type names are the same
-    // TODO: _something_ with the type args
-    //   (or maybe we just need to revisit once TypeDefinition is present)
-
-    // TODO: try find exactly one matching type
-    let matchingType = availableTypes[tTypeName]
-    match matchingType with
-    | CustomType.Enum (firstCase, additionalCases) ->
-      let matchingCase =
-        (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
-      // TODO: handle 0 or 2+ cases
-
-      let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
-      // TODO: ensure that the field count is the same
-
-      w.writeObject (fun () ->
-        w.WritePropertyName caseName
-        w.writeArray (fun () ->
-          List.zip fieldDefs fields
-          |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
-
-    | CustomType.Record _ -> Exception.raiseInternal "TODO" []
+            r matchingTypeReference dval))
+      | DRecord (_, _) -> Exception.raiseInternal "Incorrect record type" []
+      | _ -> Exception.raiseInternal "Expected a DRecord but got something else" []
 
 
   // Not supported
@@ -383,13 +373,15 @@ let parse
       |> Map.ofSeq
       |> DDict
 
-    | TCustomType (typeName, typeArgs), JsonValueKind.Object ->
+    | TCustomType (typeName, typeArgs), jsonValueKind ->
       // TODO: something with typeArgs
 
       let matchingType = availableTypes[typeName]
       // TODO: handle type missing
-      match matchingType with
-      | CustomType.Enum (firstCase, additionalCases) ->
+      match matchingType, jsonValueKind with
+      | CustomType.Alias alias, _ -> convert alias j
+
+      | CustomType.Enum (firstCase, additionalCases), JsonValueKind.Object ->
         let enumerated =
           j.EnumerateObject()
           |> Seq.map (fun jp -> (jp.Name, jp.Value))
@@ -409,7 +401,7 @@ let parse
 
         | _ -> Exception.raiseInternal "TODO" []
 
-      | CustomType.Record (firstField, additionalFields) ->
+      | CustomType.Record (firstField, additionalFields), JsonValueKind.Object ->
         let fieldDefs = firstField :: additionalFields
         let enumerated = j.EnumerateObject() |> Seq.toList
 
@@ -428,6 +420,10 @@ let parse
           |> Map.ofSeq
 
         DRecord(typeName, dvalMap)
+      | _ ->
+        Exception.raiseInternal
+          "Can't currently parse this custom type"
+          [ "type", typeName ]
 
 
     // Explicitly not supported

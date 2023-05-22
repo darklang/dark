@@ -467,6 +467,7 @@ and Param = { name : string; typ : TypeReference }
 module CustomType =
   // TYPESCLEANUP support type parameters
   type RecordField = { name : string; typ : TypeReference; description : string }
+  type Alias = { typ : TypeReference }
 
   type EnumField =
     { typ : TypeReference
@@ -476,6 +477,7 @@ module CustomType =
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   type T =
+    | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
@@ -1025,6 +1027,19 @@ module ExecutionState =
     // TODO: package types
 
     List.concat [ userTypes; stdlibTypes ] |> Map
+
+let rec getTypeReferenceFromAlias
+  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (typ : TypeReference)
+  : TypeReference =
+  match typ with
+  | TCustomType (typeName, typeArgs) ->
+    match Map.tryFind typeName availableTypes with
+    | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
+      getTypeReferenceFromAlias availableTypes (TCustomType(innerTypeName, typeArgs))
+    | _ -> typ
+  | _ -> typ
+
 
 let consoleReporter : ExceptionReporter =
   fun _state (metadata : Metadata) (exn : exn) ->
