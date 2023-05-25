@@ -30,11 +30,19 @@ module FQTypeName =
     match name with
     | PT.FQTypeName.Package _ -> name
     | PT.FQTypeName.User n ->
-      if Set.contains n userTypes then
-        PT.FQTypeName.User n
-      else
-        PT.FQTypeName.Stdlib
-          { typ = n.typ; version = n.version; modules = n.modules }
+      match n.modules with
+      | owner :: package :: rest when String.startsWith "@" owner ->
+        PT.FQTypeName.Package
+          { owner = owner
+            modules = NonEmptyList.ofList (package :: rest)
+            typ = n.typ
+            version = n.version }
+      | _ ->
+        if Set.contains n userTypes then
+          PT.FQTypeName.User n
+        else
+          PT.FQTypeName.Stdlib
+            { typ = n.typ; version = n.version; modules = n.modules }
     | PT.FQTypeName.Stdlib n ->
       let userName : PT.FQTypeName.UserTypeName =
         { modules = n.modules; typ = n.typ; version = n.version }
@@ -51,11 +59,19 @@ module FQFnName =
     match name with
     | PT.FQFnName.Package _ -> name
     | PT.FQFnName.User n ->
-      if Set.contains n userFns then
-        PT.FQFnName.User n
-      else
-        PT.FQFnName.Stdlib
-          { function_ = n.function_; version = n.version; modules = n.modules }
+      match n.modules with
+      | owner :: package :: rest when String.startsWith "@" owner ->
+        PT.FQFnName.Package
+          { owner = owner
+            modules = NonEmptyList.ofList (package :: rest)
+            function_ = n.function_
+            version = n.version }
+      | _ ->
+        if Set.contains n userFns then
+          PT.FQFnName.User n
+        else
+          PT.FQFnName.Stdlib
+            { function_ = n.function_; version = n.version; modules = n.modules }
     | PT.FQFnName.Stdlib n ->
       let userName : PT.FQFnName.UserFnName =
         { modules = n.modules; function_ = n.function_; version = n.version }
@@ -496,7 +512,8 @@ module Expr =
       (names
        |> List.initial
        |> Option.unwrap []
-       |> List.all (fun n -> n.idText <> "" && System.Char.IsUpper(n.idText[0])))
+       |> List.all (fun n ->
+         n.idText <> "" && (System.Char.IsUpper(n.idText[0]) || n.idText[0] = '@')))
       ->
       let modules =
         List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
@@ -514,7 +531,6 @@ module Expr =
           List.last modules |> Exception.unwrapOptionInternal "empty list" []
         let (typ, version) = parseTypeName typename
         let modules = List.initial modules |> Option.unwrap []
-        // TYPESCLEANUP might not be a usertype
         PT.EEnum(
           gid (),
           PT.FQTypeName.User
