@@ -45,6 +45,8 @@ const isPromptVisible = ref(false)
           :key="chatItem.id"
           :chatItem="chatItem"
           :codeSnippets="state.codeSnippets"
+          :tasks="state.tasks"
+          :actions="state.actions"
         />
       </div>
     </div>
