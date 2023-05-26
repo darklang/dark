@@ -136,7 +136,7 @@ let update (model: Model) (msg: Msg) : Model =
       let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
       let newtasks =
         apiResponse
-        |> String.slice_v0 taskIndex 45321111
+        |> String.slice_v0 taskIndex (String.length_v1 apiResponse)
         |> String.split_v1 "\n"
         |> List.map (fun line ->
             Task {
