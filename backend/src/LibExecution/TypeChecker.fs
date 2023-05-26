@@ -139,8 +139,7 @@ let rec unify
         unify path types resolvedAliasType value
 
       | CustomType.Record (firstField, additionalFields), DRecord (tn, dmap) ->
-        let aliasedType =
-          getTypeReferenceFromAlias types (TCustomType(tn, []))
+        let aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
         match aliasedType with
         | TCustomType (concreteTn, typeArgs) ->
           if concreteTn <> typeName then
