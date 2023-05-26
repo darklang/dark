@@ -94,12 +94,12 @@ def copy_dark_wasm():
   if optimize:
     dark_wasm = run_backend(
         start,
-        "rsync -a backend/Build/out/Wasm/Release/net7.0/publish/wwwroot/ backend/static/dark_wasm/"
+        "rsync -a backend/Build/out/Wasm/Release/net7.0/publish/wwwroot/_framework/ backend/static/dark_wasm/"
     )
   else:
     dark_wasm = run_backend(
         start,
-        "rsync -a backend/Build/out/Wasm/Debug/net7.0/wwwroot/ backend/static/dark_wasm/"
+        "rsync -a backend/Build/out/Wasm/Debug/net7.0/wwwroot/_framework/ backend/static/dark_wasm/"
     )
   return dark_wasm
 

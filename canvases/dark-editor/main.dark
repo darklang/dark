@@ -34,8 +34,18 @@ let _handler _req =
 
   | Error _e -> Http.response (String.toBytes "Couldn't load asset") 400
 
+// We're sharing the Worker script between this canvas and
+// dark-repl, and Worker scripts can't be loaded across
+// origins, so we need to serve it from the same origin.
+// Nothing else should be served from this handler,
+// so let's assume JS content-type.
+[<HttpHandler("GET", "/static/:path")>]
+let _handler _req =
+  let body = (Experiments.readFromStaticDir $"{path}") |> Result.withDefault Bytes.empty
+  let headers = Dict.fromListOverwritingDuplicates [ ("Content-type", "text/javascript") ]
+  Http.responseWithHeaders body headers 200
 
-[<HttpHandler("GET", "/client.dark")>]
+[<HttpHandler("GET", "/assets/client.dark")>]
 let _handler _req =
   match Experiments.readFromCanvases "dark-editor/client.dark" with
   | Ok sourceInBytes -> Http.response sourceInBytes 200

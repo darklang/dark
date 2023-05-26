@@ -16,17 +16,19 @@
   <body>
     <div class="container">
       <div>
-        <textarea id="input-textarea" class="textarea">type Person = {Name: String}
+        <textarea id="input-textarea" class="textarea">
+type Person = {Name: String}
 
 (Person { Name = "Joe" })
-  |> fun p -> String.toLowercase_v1 p.Name</textarea>
+  |> fun p -> String.toLowercase_v1 p.Name
+        </textarea>
       </div>
       <div>
         <textarea id="output-textarea" class="textarea" disabled></textarea>
       </div>
     </div>
 
-    <script src="http://dark-serve-static.dlio.localhost:11003/editor-bootstrap.js"></script>
-    <script src="/assets/index.js"> </script>
+    <script src="/static/editor-bootstrap.js"></script>
+    <script src="/assets/index.js"></script>
   </body>
 </html>

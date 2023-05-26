@@ -177,7 +177,7 @@ let update (model: Model) (msg: Msg) : Model =
 let updateStateInJS (newState: Model): Result<Unit, String> =
   match Json.serialize<Model> newState with
   | Ok serialized ->
-    let _ = WASM.Editor.callJSFunction "window.stateUpdated" [serialized]
+    let _ = WASM.Editor.callJSFunction "self.receiveEvalResult" [serialized]
     Ok ()
   | Error err ->
     let _ = WASM.Editor.callJSFunction "console.warn" ["Couldn't serialize - " ++ err]
