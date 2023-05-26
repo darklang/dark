@@ -132,6 +132,18 @@ let update (model: Model) (msg: Msg) : Model =
 
     match openAIcompletion fullPrompt with
     | Ok apiResponse ->
+
+      let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
+      let newtasks =
+        apiResponse
+        |> String.slice_v0 taskIndex 45321111
+        |> String.split_v1 "\n"
+        |> List.map (fun line ->
+            Task {
+            id = (String.random_v2 5) |> rUnwrap
+            description = line
+            status = Status.Todo})
+
       let (newCodeSnippets, botResponseParts) =
         (String.split (" " ++ apiResponse) "```")
         |> List.indexedMap (fun i text -> (i, text))
@@ -161,7 +173,7 @@ let update (model: Model) (msg: Msg) : Model =
         { systemPrompt = model.systemPrompt
           chatHistory = List.append model.chatHistory newChatItemsItems
           codeSnippets = List.append model.codeSnippets newCodeSnippets
-          tasks = model.tasks
+          tasks = List.append model.tasks newtasks
           actions = model.actions
           }
 
