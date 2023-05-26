@@ -1158,7 +1158,7 @@ module CustomType =
         additionalFields |> List.map (RecordField.resolveNames userTypes)
       )
     | PT.CustomType.Alias typ ->
-      PT.CustomType.Alias(TypeReference.completeParse userTypes typ)
+      PT.CustomType.Alias(TypeReference.resolveNames userTypes typ)
 
 
 module UserType =
