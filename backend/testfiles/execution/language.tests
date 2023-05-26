@@ -975,29 +975,29 @@ module UserDefined =
 // Package manager function calls
 // ---------------------------
 module Packages =
-  @Darklang.Test.stringFn "string" = "string appended string"
-  @Darklang.Test.twoStringFn "str1" "str2" = "str1 appended str2"
-  @Darklang.Test.returnsInt () = 5
-  @Darklang.Test.returnsString () = "string"
-  @Darklang.Test.returnsOptionJust () = Just 5
-  (@Darklang.Test.returnsOptionJust ()) |> Test.unwrap = 5
-  @Darklang.Test.returnsOptionNothing () = Nothing
-  @Darklang.Test.returnsResultOk () = Ok 5
-  (@Darklang.Test.returnsResultOk ()) |> Test.unwrap = 5
-  @Darklang.Test.returnsResultError () = Error false
+  PACKAGE.Darklang.Test.stringFn "string" = "string appended string"
+  PACKAGE.Darklang.Test.twoStringFn "str1" "str2" = "str1 appended str2"
+  PACKAGE.Darklang.Test.returnsInt () = 5
+  PACKAGE.Darklang.Test.returnsString () = "string"
+  PACKAGE.Darklang.Test.returnsOptionJust () = Just 5
+  (PACKAGE.Darklang.Test.returnsOptionJust ()) |> Test.unwrap = 5
+  PACKAGE.Darklang.Test.returnsOptionNothing () = Nothing
+  PACKAGE.Darklang.Test.returnsResultOk () = Ok 5
+  (PACKAGE.Darklang.Test.returnsResultOk ()) |> Test.unwrap = 5
+  PACKAGE.Darklang.Test.returnsResultError () = Error false
 
   module Invalid =
-    @Darklang.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in test.Test.stringFn->key"
-    @Darklang.Test.stringFn "str1" "str2" = Test.typeError "test.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
-    @Darklang.Test.derrorFn "test" = Test.typeError "test"
+    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in Darklang.Test.stringFn->key"
+    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.derrorFn "test" = Test.typeError "test"
 
     (let _ = Test.setExpectedExceptionCount 1 in
-     @Darklang.Test.throwsException ()) = Test.typeError "Unknown error"
+     PACKAGE.Darklang.Test.throwsException ()) = Test.typeError "Unknown error"
 
-    @Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-    @Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-    @Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-    @Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
 
 module TypeChecking =

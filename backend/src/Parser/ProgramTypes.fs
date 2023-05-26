@@ -31,7 +31,7 @@ module FQTypeName =
     | PT.FQTypeName.Package _ -> name
     | PT.FQTypeName.User n ->
       match n.modules with
-      | owner :: package :: rest when String.startsWith "@" owner ->
+      | "PACKAGE" :: owner :: package :: rest ->
         PT.FQTypeName.Package
           { owner = owner
             modules = NonEmptyList.ofList (package :: rest)
@@ -60,7 +60,7 @@ module FQFnName =
     | PT.FQFnName.Package _ -> name
     | PT.FQFnName.User n ->
       match n.modules with
-      | owner :: package :: rest when String.startsWith "@" owner ->
+      | "PACKAGE" :: owner :: package :: rest ->
         PT.FQFnName.Package
           { owner = owner
             modules = NonEmptyList.ofList (package :: rest)
@@ -512,8 +512,7 @@ module Expr =
       (names
        |> List.initial
        |> Option.unwrap []
-       |> List.all (fun n ->
-         n.idText <> "" && (System.Char.IsUpper(n.idText[0]) || n.idText[0] = '@')))
+       |> List.all (fun n -> n.idText <> "" && (System.Char.IsUpper(n.idText[0]))))
       ->
       let modules =
         List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)

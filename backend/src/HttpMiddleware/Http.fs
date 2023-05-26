@@ -41,22 +41,23 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DRecord (RT.FQTypeName.Stdlib ({ modules = [ "Http" ]
+    | RT.DRecord (RT.FQTypeName.Package { owner = "Darklang"
+                                          modules = { Head = "Stdlib"
+                                                      Tail = [ "Http" ] }
                                           typ = "Response"
-                                          version = 0 }),
+                                          version = 0 },
                   fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
-      let code = Map.get "code" fields
+      let code = Map.get "statusCode" fields
       let headers = Map.get "headers" fields
       let body = Map.get "body" fields
       match code, headers, body with
-      | Some (RT.DInt code), Some (RT.DDict headers), Some (RT.DBytes body) ->
+      | Some (RT.DInt code), Some (RT.DList headers), Some (RT.DBytes body) ->
         let headers =
           headers
-          |> Map.toList
-          |> List.fold (Ok []) (fun acc (k, v) ->
+          |> List.fold (Ok []) (fun acc v ->
             match acc, v with
-            | Ok acc, RT.DString str -> Ok((k, str) :: acc)
+            | Ok acc, RT.DTuple (RT.DString k, RT.DString v, []) -> Ok((k, v) :: acc)
             // Deliberately don't include the header value in the error message as we show it to users
             | Ok _, _ -> Error $"Header must be a string"
             | Error _, _ -> acc)

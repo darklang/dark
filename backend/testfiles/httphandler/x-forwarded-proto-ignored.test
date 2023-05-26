@@ -1,5 +1,5 @@
 [http-handler GET /a]
-Http.response (String.toBytes_v0 request.url) 200
+PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 request.url) 200
 
 
 [domain forwarded.myspecialdomain.com]
