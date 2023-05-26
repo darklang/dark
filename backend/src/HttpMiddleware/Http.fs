@@ -85,9 +85,12 @@ module Response =
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
           let message =
-            $"Application error: expected an http response, got:
-{LibExecution.DvalReprDeveloper.dvalTypeName result}: {LibExecution.DvalReprDeveloper.toRepr result}
-
-Consider using `Http.response`, `Http.responseWithHeaders`, or a similar function."
-
-          UTF8.toBytes message }
+            [ $"Application error: expected a HTTP response, got:"
+              $"{LibExecution.DvalReprDeveloper.dvalTypeName result}: {LibExecution.DvalReprDeveloper.toRepr result}"
+              "\nHTTP handlers should return results in the form:"
+              "  PACKAGE.Darklang.Stdlib.Http.Response {"
+              "    statusCode : Int"
+              "    headers : List<String*String>"
+              "    body : Bytes"
+              "  }" ]
+          message |> String.concat "\n" |> UTF8.toBytes }
