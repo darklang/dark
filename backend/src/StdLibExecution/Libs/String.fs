@@ -994,7 +994,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
-    ]
+      deprecated = NotDeprecated } ]
 
 let contents = (fns, types)
