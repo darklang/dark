@@ -3,20 +3,11 @@ function setOutput(message) {
 }
 
 (async () => {
-  const darklang = await Darklang.init(
-    "http://dark-repl.dlio.localhost:11003/assets/client.dark",
-    "http://dark-repl.dlio.localhost:11003/get-program-json",
-  );
+  const darklang = await Darklang.init("dark-repl", setOutput);
 
   async function doEval() {
-    try {
-      const input = document.getElementById("input-textarea").value;
-      const result = await darklang.handleEventRaw(input);
-      setOutput(result);
-    } catch (error) {
-      //setOutput("Error" + error);
-      console.warn("Couldn't parse", error);
-    }
+    const userCode = document.getElementById("input-textarea").value;
+    darklang.handleEventRaw(userCode);
   }
 
   document

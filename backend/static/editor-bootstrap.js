@@ -1,51 +1,74 @@
-const Darklang = {
-  _loadBlazorScript: async function () {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src =
-        "http://dark-serve-static.dlio.localhost:11003/dark_wasm/_framework/blazor.webassembly.js";
-      script.setAttribute("autostart", "false");
-      script.addEventListener("load", resolve);
-      script.addEventListener("error", reject);
-      document.head.appendChild(script);
-    });
-  },
+// Exposes a `Darklang.init(canvasName, callback)` function to bootstrap
+// the Darklang runtime in WASM, in a WebWorker.
 
-  init: async function (sourceURL, parseUrl) {
-    if (!sourceURL || !parseUrl) {
-      throw new Error(
-        "Darklang.init() requires a sourceURL and parseUrl to be passed in"
-      );
+window.Darklang = {
+  init: async function (canvasName, stateUpdatedCallback) {
+    // time the below
+    let startTime = performance.now();
+
+    console.log("Initializing WASM Darklang runtime for editor");
+
+    if (typeof stateUpdatedCallback !== "function") {
+      throw new Error("usage: `Darklang.init(updatedState => { ... })`");
     }
 
-    await this._loadBlazorScript();
-
-    await Blazor.start({
-      loadBootResource: function (_type, name, _defaultUri, _integrity) {
-        return `http://dark-serve-static.dlio.localhost:11003/dark_wasm/_framework/${name}`;
-      },
+    // create worker - this loads Blazor, and then Darklang stuff
+    let resolveWorkerInit;
+    const workerInitialized = new Promise((resolve, _reject) => {
+      resolveWorkerInit = resolve;
     });
+    const worker = new Worker("/static/dark-wasm-webworker.js");
 
-    let invoke = async function (method, ...args) {
-      return await DotNet.invokeMethodAsync("Wasm", method, ...args);
+    // receive messages (usually state updates) from worker
+    worker.onmessage = e => {
+      const message = e.data;
+
+      if (typeof message !== "object") {
+        console.error(
+          "Unexpected non-object message received from worker",
+          message,
+        );
+        return;
+      }
+
+      switch (message.type) {
+        case "blazor-loaded":
+          worker.postMessage({ type: "load-client", data: { canvasName } });
+          break;
+
+        case "client-loaded":
+          resolveWorkerInit();
+          break;
+
+        case "eval-result": {
+          const updatedState = message.data;
+          stateUpdatedCallback(updatedState);
+        }
+      }
     };
 
-    await invoke("InitializeDarkRuntime");
+    await workerInitialized;
 
-    await invoke("LoadClient", sourceURL, parseUrl);
+    let endTime = performance.now();
+    console.log(
+      `Initialized WASM Darklang runtime for editor in ${
+        Math.round((endTime - startTime) / 10) / 100
+      }s`,
+    );
 
     // return object to expose as 'darklang'
     return {
       /** Handle an event that the JS client has captured
        * and is forwarding to the WASM runtime */
       handleEvent: async function (event) {
-        this.handleEventRaw(JSON.stringify(event));
+        worker.postMessage({
+          type: "handle-event",
+          data: JSON.stringify(event),
+        });
       },
       handleEventRaw: async function (event) {
-        return await invoke("HandleEvent", event);
+        worker.postMessage({ type: "handle-event", data: event });
       },
     };
   },
 };
-
-window.Darklang = Darklang;

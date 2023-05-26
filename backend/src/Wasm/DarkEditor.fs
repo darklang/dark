@@ -32,7 +32,10 @@ let stdLib =
 /// Load the Darklang program that manages the state of and interactions with
 /// the JS side of the editor.
 [<JSInvokable>]
-let LoadClient (sourceURL : string, parseURL : string) : Task<string> =
+let LoadClient (canvasName : string) : Task<string> =
+  let sourceURL = $"http://{canvasName}.dlio.localhost:11003/assets/client.dark"
+  let parseURL = $"http://{canvasName}.dlio.localhost:11003/get-program-json"
+
   task {
     let httpClient = new HttpClient()
 

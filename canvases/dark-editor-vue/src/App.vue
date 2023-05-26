@@ -32,10 +32,7 @@ darklangJSScript.setAttribute(
 darklangJSScript.setAttribute('defer', '')
 darklangJSScript.addEventListener('load', async () => {
   // TODO: maybe do this on `onMounted`?
-  const darklang = await window.Darklang.init(
-    'http://dark-editor.dlio.localhost:11003/client.dark',
-    'http://dark-editor.dlio.localhost:11003/get-program-json'
-  )
+  const darklang = await window.Darklang.init('dark-editor', window.stateUpdated)
 
   // TODO: we don't need to expose this onace the logic in ResponseChat.vue is
   // ported to Dark.

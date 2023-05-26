@@ -75,7 +75,9 @@ let fns : List<BuiltInFn> =
         [ Param.make "functionName" TString ""
           Param.make "args" (TList TString) "" ]
       returnType = TResult(TUnit, TString)
-      description = "Calls a globally-accessible JS function with the given args"
+      description =
+        "Calls a JS function with the given args.
+        Note: this will throw an exception if the function doesn't exist in the webworker that hosts the Dark runtime"
       fn =
         (function
         | _, _, [ DString functionName; DList args ] ->
