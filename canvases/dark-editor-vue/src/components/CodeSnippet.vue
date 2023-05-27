@@ -37,7 +37,7 @@ async function sendError(value: string) {
   try {
     console.log('emitting error prompt')
     let errmsg =
-      'update the code snippet based to fix the error ```' +
+      'update the code snippet to fix the error ```' +
       codeSnippet.value +
       '```' +
       '\n' +
