@@ -12,14 +12,14 @@ HttpClient.plainTextContentType_v0 = Dict {``Content-Type`` = "text/plain; chars
 
 HttpClient.htmlContentType_v0 = Dict {``Content-Type`` = "text/html; charset=utf-8" }
 
-HttpClient.bearerToken_v1 "YWxhZGRpbjpvcGVuc2VzYW1l" = Dict { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
+HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = Dict { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
 
-HttpClient.basicAuth_v1 "username" "password" = Dict { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
-HttpClient.basicAuth_v1 "" "" = Dict { Authorization = "Basic Og==" }
-HttpClient.basicAuth_v1 "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
-HttpClient.basicAuth_v1 "" "-" = Dict { Authorization = "Basic Oi0=" }
-HttpClient.basicAuth_v1 ":" "" = Dict { Authorization = "Basic Ojo=" }
-HttpClient.basicAuth_v1 "" ":" = Dict { Authorization = "Basic Ojo=" }
+HttpClient.basicAuth "username" "password" = Dict { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
+HttpClient.basicAuth "" "" = Dict { Authorization = "Basic Og==" }
+HttpClient.basicAuth "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
+HttpClient.basicAuth "" "-" = Dict { Authorization = "Basic Oi0=" }
+HttpClient.basicAuth ":" "" = Dict { Authorization = "Basic Ojo=" }
+HttpClient.basicAuth "" ":" = Dict { Authorization = "Basic Ojo=" }
 
 
 // Tests that try to make requests to the internet
@@ -43,8 +43,8 @@ HttpClient.request "get" "" [] Bytes.empty = Error "Bad URL: Invalid URI"
 HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = Error "Bad URL: Invalid URI"
 
 // basic requests work
-((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map_v1 (fun response -> response.statusCode)) = Ok 200
-((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map_v1 (fun response -> response.statusCode)) = Ok 200
+((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
+((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
 
 // URLs we can't actually communicacte with
 (match HttpClient.request "get" "http://localhost:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
@@ -58,7 +58,7 @@ HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error
 
 // Basic request works including headers
 (let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
- let respHeaders = response.headers |> List.filter_v2(fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h != "date")
  Record.set_v0 response "headers" respHeaders) =
    HttpClient.Response
     { statusCode = 200

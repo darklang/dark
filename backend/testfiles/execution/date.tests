@@ -1,12 +1,12 @@
 let d (datestr:String) : DateTime =
-  (DateTime.parse_v2 datestr) |> Test.unwrap
+  (DateTime.parse datestr) |> Test.unwrap
 
 let p (datestr:String) : Result<DateTime, String> =
-  (DateTime.parse_v2 datestr) |> Result.map_v1 (fun x -> DateTime.toString_v0 x)
+  (DateTime.parse datestr) |> Result.map (fun x -> DateTime.toString_v0 x)
 
 module DateParsing =
-  (DateTime.parse_v2 "2019-07-28T22:42:36Z") |> Result.map_v1 (fun x -> DateTime.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
-  DateTime.parse_v2 "asd" = Error "Invalid date format"
+  (DateTime.parse "2019-07-28T22:42:36Z") |> Result.map (fun x -> DateTime.toString_v0 x) = Ok "2019-07-28T22:42:36Z"
+  DateTime.parse "asd" = Error "Invalid date format"
 
 // Parse in both
 p "2018-09-24T18:01:24Z" = Ok "2018-09-24T18:01:24Z"
@@ -153,8 +153,8 @@ module Fields =
   DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019
   DateTime.month_v0 (d "2019-07-28T22:42:36Z") = 7
   DateTime.day_v0 (d "2019-07-28T22:42:36Z") = 28
-  DateTime.hour_v2 (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
-  DateTime.minute_v1 (d "2019-07-28T22:42:36Z") = 42
+  DateTime.hour (d "2019-12-27T03:27:36Z")  = 3 // Leif's test case
+  DateTime.minute (d "2019-07-28T22:42:36Z") = 42
   DateTime.weekday_v0 (d "2019-07-22T22:42:36Z") = 1 // Monday
   DateTime.weekday_v0 (d "2019-07-23T22:42:36Z") = 2
   DateTime.weekday_v0 (d "2019-07-24T22:42:36Z") = 3
@@ -169,29 +169,29 @@ module Epoch1919 =
   DateTime.month_v0 (d "1919-07-28T22:42:36Z") = 7
   DateTime.day_v0 (d "1919-07-28T22:42:36Z") = 28
   DateTime.weekday_v0 (d "1919-07-28T22:42:36Z") = 1
-  DateTime.hour_v2 (d "1919-12-27T03:27:36Z")  = 3
-  DateTime.minute_v1 (d "1919-07-28T22:42:36Z") = 42
-  DateTime.second_v1 (d "1919-07-28T22:42:36Z") = 36
+  DateTime.hour (d "1919-12-27T03:27:36Z")  = 3
+  DateTime.minute (d "1919-07-28T22:42:36Z") = 42
+  DateTime.second (d "1919-07-28T22:42:36Z") = 36
 
 module Epoch1969 =
   DateTime.year_v0 (d "1969-07-28T22:42:36Z") = 1969
   DateTime.month_v0 (d "1969-07-28T22:42:36Z") = 7
   DateTime.day_v0 (d "1969-07-28T22:42:36Z") = 28
   DateTime.weekday_v0 (d "1969-07-28T22:42:36Z") = 1
-  DateTime.hour_v2 (d "1969-12-27T03:27:36Z")  = 3
-  DateTime.minute_v1 (d "1969-07-28T22:42:36Z") = 42
-  DateTime.second_v1 (d "1969-07-28T22:42:36Z") = 36
+  DateTime.hour (d "1969-12-27T03:27:36Z")  = 3
+  DateTime.minute (d "1969-07-28T22:42:36Z") = 42
+  DateTime.second (d "1969-07-28T22:42:36Z") = 36
 
 module Epoch1970 =
   DateTime.year_v0    (d "1970-07-28T22:42:36Z") = 1970
   DateTime.month_v0   (d "1970-07-28T22:42:36Z") = 7
   DateTime.day_v0     (d "1970-07-28T22:42:36Z") = 28
   DateTime.weekday_v0 (d "1970-07-28T22:42:36Z") = 2
-  DateTime.hour_v2    (d "1970-12-27T03:27:36Z")  = 3
-  DateTime.minute_v1  (d "1970-07-28T22:42:36Z") = 42
-  DateTime.minute_v1  (d "1970-07-28T22:42:36Z") = 42
-  DateTime.second_v1  (d "1970-07-28T22:42:36Z") = 36
-  DateTime.second_v1  (d "1970-07-28T22:42:36Z") = 36
+  DateTime.hour    (d "1970-12-27T03:27:36Z")  = 3
+  DateTime.minute  (d "1970-07-28T22:42:36Z") = 42
+  DateTime.minute  (d "1970-07-28T22:42:36Z") = 42
+  DateTime.second  (d "1970-07-28T22:42:36Z") = 36
+  DateTime.second  (d "1970-07-28T22:42:36Z") = 36
 
 module Convertsion =
   DateTime.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
@@ -221,11 +221,11 @@ module SubtractingSeconds =
   DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10 = (d "2020-11-26T04:37:56Z")
 
 module Difference =
-  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0L
-  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:45Z") = 1L
-  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:36Z") = 10L
-  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:56Z") = -10L
-  DateTime.subtract_v1 (d "2020-11-26T04:37:46Z") (d "2020-11-14T14:51:06Z") = 1000000L
-  DateTime.subtract_v1 (d "2020-11-14T14:51:06Z") (d "2020-11-26T04:37:46Z") = -1000000L
-  DateTime.subtract_v1 (d "1921-01-01T12:00:00Z") (d "2021-01-01T12:00:00Z") = -3155760000L
-  DateTime.subtract_v1 (d "2021-01-01T12:00:00Z") (d "1921-01-01T12:00:00Z") = 3155760000L
+  DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0L
+  DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:45Z") = 1L
+  DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:36Z") = 10L
+  DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:56Z") = -10L
+  DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-14T14:51:06Z") = 1000000L
+  DateTime.subtract (d "2020-11-14T14:51:06Z") (d "2020-11-26T04:37:46Z") = -1000000L
+  DateTime.subtract (d "1921-01-01T12:00:00Z") (d "2021-01-01T12:00:00Z") = -3155760000L
+  DateTime.subtract (d "2021-01-01T12:00:00Z") (d "1921-01-01T12:00:00Z") = 3155760000L

@@ -8,7 +8,7 @@ module Documentation =
    |> List.map (fun f -> (f.name, f))
    |> Dict.fromList_v0
    |> Test.unwrap
-   |> Dict.get_v2 "Int.add"
+   |> Dict.get "Int.add"
    |> Test.unwrap
    |> (fun f -> f.parameters)) =
      [ DarkInternal.Documentation.Parameter { name = "a"; ``type`` = "Int" }
@@ -98,7 +98,7 @@ module UnlockedDB =
     (DarkInternal.Canvas.DB.unlocked Test.getCanvasID) |> List.length = 1
 
     // one but locked
-    (let _ = DB.set_v1 (X { x = "str" }) "test" XDB in
+    (let _ = DB.set (X { x = "str" }) "test" XDB in
     DarkInternal.Canvas.DB.unlocked Test.getCanvasID) = []
 
 module Queue =

@@ -27,4 +27,4 @@ Bytes.hexEncode_v0 (Crypto.sha384_v0 (String.toBytes_v0 "a longer string that's 
  let service = Crypto.sha256hmac_v0 region (String.toBytes_v0 "iam") in
  let signing = Crypto.sha256hmac_v0 service (String.toBytes_v0 "aws4_request") in
  let signed = Crypto.sha256hmac_v0 signing (String.toBytes_v0 strToSign) in
- String.toLowercase_v1 (Bytes.hexEncode_v0 signed)) = "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"
+ String.toLowercase (Bytes.hexEncode_v0 signed)) = "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"

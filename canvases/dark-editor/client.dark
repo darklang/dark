@@ -116,7 +116,7 @@ let update (model: Model) (msg: Msg) : Model =
     match openAIcompletion fullPrompt with
     | Ok apiResponse ->
       let (newCodeSnippets, botResponseParts) =
-        (String.split_v1 (" " ++ apiResponse) "```")
+        (String.split (" " ++ apiResponse) "```")
         |> List.indexedMap (fun i text -> (i, text))
         |> List.fold ([], []) (fun acc curr ->
           let (codeSnippets, responseParts) = acc
@@ -127,7 +127,7 @@ let update (model: Model) (msg: Msg) : Model =
             acc
           else
             if i % 2 == 1 then
-              let snippetId = rUnwrap(String.random_v2 5)
+              let snippetId = rUnwrap(String.random 5)
               let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
               let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
               (updatedCodeSnippets, updatedResponseParts)
@@ -136,8 +136,8 @@ let update (model: Model) (msg: Msg) : Model =
           )
 
       let newChatItemsItems = [
-        ChatHistoryItem.UserPrompt (rUnwrap(String.random_v2 5)) userPrompt
-        ChatHistoryItem.BotResponse (rUnwrap(String.random_v2 5)) botResponseParts
+        ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userPrompt
+        ChatHistoryItem.BotResponse (rUnwrap(String.random 5)) botResponseParts
       ]
 
       Model
@@ -216,17 +216,17 @@ let initState =
   | Ok response ->
     let demoSnippet =
       CodeSnippet
-        { id = (String.random_v2 5) |> rUnwrap
+        { id = (String.random 5) |> rUnwrap
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
           eval = Nothing }
 
     let chatHistory = [
       ChatHistoryItem.UserPrompt
-        (rUnwrap(String.random_v2 5))
+        (rUnwrap(String.random 5))
         "Hello, I want a function that increments an integer!"
 
       ChatHistoryItem.BotResponse
-        (rUnwrap(String.random_v2 5))
+        (rUnwrap(String.random 5))
         [
           BotResponseItem.Text "OK - here's some code:"
           BotResponseItem.CodeSnippet demoSnippet.id

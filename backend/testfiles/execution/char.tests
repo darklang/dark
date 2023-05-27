@@ -1,36 +1,36 @@
 let smiley () : Char =
-  (String.toList_v1 "😂") |> List.head |> Test.unwrap
+  (String.toList "😂") |> List.head |> Test.unwrap
 
 let hand () : Char =
-  (String.toList_v1 "✋🏿") |> List.head |> Test.unwrap
+  (String.toList "✋🏿") |> List.head |> Test.unwrap
 
 let family () : Char =
-  (String.toList_v1 "👩‍👩‍👧‍👦") |> List.head |> Test.unwrap
+  (String.toList "👩‍👩‍👧‍👦") |> List.head |> Test.unwrap
 
-Char.toLowercase_v1 'A' = 'a'
-Char.toLowercase_v1 'a' = 'a'
-Char.toLowercase_v1 'Á' = 'á'
-Char.toLowercase_v1 '3' = '3'
-Char.toLowercase_v1 (smiley ()) = smiley ()
-Char.toLowercase_v1 'Ż' = 'ż'
-Char.toLowercase_v1 'Ó' = 'ó'
-Char.toLowercase_v1 'Ł' = 'ł'
-Char.toLowercase_v1 (hand ()) = hand ()
-Char.toLowercase_v1 'Ჾ' = 'ჾ'
-Char.toLowercase_v1 'ჾ' = 'ჾ'
+Char.toLowercase 'A' = 'a'
+Char.toLowercase 'a' = 'a'
+Char.toLowercase 'Á' = 'á'
+Char.toLowercase '3' = '3'
+Char.toLowercase (smiley ()) = smiley ()
+Char.toLowercase 'Ż' = 'ż'
+Char.toLowercase 'Ó' = 'ó'
+Char.toLowercase 'Ł' = 'ł'
+Char.toLowercase (hand ()) = hand ()
+Char.toLowercase 'Ჾ' = 'ჾ'
+Char.toLowercase 'ჾ' = 'ჾ'
 
 
-Char.toUppercase_v1 'a' = 'A'
-Char.toUppercase_v1 'A' = 'A'
-Char.toUppercase_v1 'á' = 'Á'
-Char.toUppercase_v1 '3' = '3'
-Char.toUppercase_v1 (smiley ()) = smiley ()
-Char.toUppercase_v1 'ż' = 'Ż'
-Char.toUppercase_v1 'ó' = 'Ó'
-Char.toUppercase_v1 'ł' = 'Ł'
-Char.toUppercase_v1 (hand ()) = hand ()
-Char.toUppercase_v1 'ჾ' = 'Ჾ'
-Char.toUppercase_v1 'Ჾ' = 'Ჾ'
+Char.toUppercase 'a' = 'A'
+Char.toUppercase 'A' = 'A'
+Char.toUppercase 'á' = 'Á'
+Char.toUppercase '3' = '3'
+Char.toUppercase (smiley ()) = smiley ()
+Char.toUppercase 'ż' = 'Ż'
+Char.toUppercase 'ó' = 'Ó'
+Char.toUppercase 'ł' = 'Ł'
+Char.toUppercase (hand ()) = hand ()
+Char.toUppercase 'ჾ' = 'Ჾ'
+Char.toUppercase 'Ჾ' = 'Ჾ'
 
 
 Char.isLowercase_v0 'a' = true

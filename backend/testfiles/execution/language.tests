@@ -220,7 +220,7 @@ module Enums =
                    EnumOfMixedCases.X "testX";
                    EnumOfMixedCases.Y(5);
                    EnumOfMixedCases.Z("testZ", 2)]
-    match List.getAt_v1 values 3 with
+    match List.getAt values 3 with
     | Just z -> Ok z
     | Nothing -> Error "Failure") = Ok (EnumOfMixedCases.Z ("testZ", 2))
 
@@ -314,9 +314,9 @@ module Variable =
   (let x = 5 in x) = 5
 
 module Dict =
-  ((Dict { a = 5 }) |> Dict.get_v2 "a") = Just 5
-  ((Dict { ___ = 5 }) |> Dict.get_v2 "") = Just 5
-  ((Dict { a = 5 }) |> Dict.get_v2 "b") = Nothing
+  ((Dict { a = 5 }) |> Dict.get "a") = Just 5
+  ((Dict { ___ = 5 }) |> Dict.get "") = Just 5
+  ((Dict { a = 5 }) |> Dict.get "b") = Nothing
 
 
 module InterpolatedString =
@@ -403,8 +403,8 @@ module Lambdas =
 
   (String.join_v0
     (List.map_v0
-      (String.toList_v1 "some string")
-      (fun var -> String.toUppercase_v1 (String.fromChar_v1 var))) "") = "SOME STRING"
+      (String.toList "some string")
+      (fun var -> String.toUppercase (String.fromChar var))) "") = "SOME STRING"
 
   (let y = (fun c -> if c > 2 then Test.typeError_v0 "err" else 18) in
    [1; 2; 3; 4] |> List.map_v0 y) = Test.typeError_v0 "err"
@@ -467,13 +467,13 @@ module Pipes =
 
   (let x = Just 3
    x
-   |> Option.map_v1 (fun a -> a)
-   |> Option.map_v1 (fun a -> a + 1)) = Just 4
+   |> Option.map (fun a -> a)
+   |> Option.map (fun a -> a + 1)) = Just 4
 
-  (let x = fun x -> Option.map_v1 x (fun a -> a) in
+  (let x = fun x -> Option.map x (fun a -> a) in
    (Just 3)
    |> x
-   |> Option.map_v1 (fun a -> a + 1)) = Just 4
+   |> Option.map (fun a -> a + 1)) = Just 4
 
   ((Just 3)
    |> Option.withDefault_v0 Nothing
@@ -502,10 +502,10 @@ module Pipes =
 
   (3
    |> Just
-   |> Result.fromOption_v2 "test") = Ok 3
+   |> Result.fromOption "test") = Ok 3
 
   (Nothing
-   |> Result.fromOption_v2 "test") = Error "test"
+   |> Result.fromOption "test") = Error "test"
 
 
 module Match =
@@ -871,8 +871,8 @@ module Equality =
   (ERec { x = 6; y = 7 } != ERec { x = 7; y = 6 }) = true
   ("asd" == "asd") = true
   ("asd" != "sad") = true
-  ((DateTime.parse_v2 "2019-07-28T22:42:36Z") == (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
-  ((DateTime.parse_v2 "2019-07-28T22:42:37Z") != (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
+  ((DateTime.parse "2019-07-28T22:42:36Z") == (DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((DateTime.parse "2019-07-28T22:42:37Z") != (DateTime.parse "2019-07-28T22:42:36Z")) = true
   (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" == Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
   (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" != Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
   (Nothing == Nothing) = true
@@ -965,11 +965,11 @@ module UserDefined =
     derrorFn "msg" = Test.typeError "msg"
 
 
-  let myUserFunction_v2 (str:String) : Int =
+  let myUserFunction (str:String) : Int =
     6
 
-  // user function with _v2 in it
-  (myUserFunction_v2 "x") = 6
+  // user function with  in it
+  (myUserFunction "x") = 6
 
 // ---------------------------
 // Package manager function calls

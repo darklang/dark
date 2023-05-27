@@ -134,7 +134,7 @@ Json.parse<Float> "\"42\n\"" = Error "not JSON"
 
 // Chars
 //let charFromString (s: String) =
-//  (String.toList_v1 s) |> List.head_v2 |> Test.unwrap
+//  (String.toList s) |> List.head |> Test.unwrap
 
 Json.serialize<Char> 'a' = Ok "\"a\""
 Json.parse<Char> "\"a\"" = Ok 'a'
@@ -165,7 +165,7 @@ Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 
 // Datetimes
-let d (datestr: String) : DateTime = (DateTime.parse_v2 datestr) |> Test.unwrap
+let d (datestr: String) : DateTime = (DateTime.parse datestr) |> Test.unwrap
 
 // now-ish
 Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = Ok "\"2023-07-28T22:42:36Z\""
