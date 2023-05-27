@@ -20,14 +20,14 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "formContentType" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{Content-Type}} set for HTML form
          requests or responses"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           Ply(
             DDict(
               Map.ofList [ "Content-Type",
@@ -42,14 +42,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "HttpClient" "jsonContentType" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict TString
       description =
         "Returns a header <type dict> with {{Content-Type}} set for JSON requests or
          responses"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           Ply(
             DDict(
               Map.ofList [ "Content-Type", DString "application/json; charset=utf-8" ]
@@ -63,14 +63,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "HttpClient" "plainTextContentType" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Content-Type'}} set for plain text
          requests or responses"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           Ply(
             DDict(Map.ofList [ "Content-Type", DString "text/plain; charset=utf-8" ])
           )
@@ -82,14 +82,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "HttpClient" "htmlContentType" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{'Content-Type'}} set for html requests
          or responses"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           Ply(
             DDict(Map.ofList [ "Content-Type", DString "text/html; charset=utf-8" ])
           )

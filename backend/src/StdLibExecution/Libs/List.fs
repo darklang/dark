@@ -279,12 +279,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "List" "empty" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList varA
       description = "Returns an empty list"
       fn =
         (function
-        | _, _, [] -> Ply(DList [])
+        | _, _, [ DUnit ] -> Ply(DList [])
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

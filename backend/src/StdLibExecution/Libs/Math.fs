@@ -17,14 +17,14 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fn "Math" "pi" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TFloat
       description =
         "Returns an approximation for the mathematical constant {{π}}, the ratio of a
          circle's circumference to its diameter."
       fn =
         (function
-        | _, _, [] -> Ply(DFloat System.Math.PI)
+        | _, _, [ DUnit ] -> Ply(DFloat System.Math.PI)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -33,14 +33,14 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Math" "tau" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TFloat
       description =
         "Returns an approximation for the mathematical constant {{τ}}, the number of
          radians in one turn. Equivalent to {{Float.multiply Math.pi 2}}."
       fn =
         (function
-        | _, _, [] -> Ply(DFloat System.Math.Tau)
+        | _, _, [ DUnit ] -> Ply(DFloat System.Math.Tau)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
