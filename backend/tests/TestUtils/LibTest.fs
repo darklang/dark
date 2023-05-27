@@ -41,12 +41,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "incomplete" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TVariable "a"
       description = "Return a DIncomplet"
       fn =
         (function
-        | _, _, [] -> Ply(DIncomplete(SourceNone))
+        | _, _, [ DUnit ] -> Ply(DIncomplete(SourceNone))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -71,12 +71,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "nan" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TFloat
       description = "Return a NaN"
       fn =
         (function
-        | _, _, [] -> Ply(DFloat(System.Double.NaN))
+        | _, _, [ DUnit ] -> Ply(DFloat(System.Double.NaN))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "infinity" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TFloat
       description = "Returns positive infitity"
       fn =
@@ -119,7 +119,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "negativeInfinity" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TFloat
       description = "Returns negative infinity"
       fn =
@@ -151,12 +151,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "sideEffectCount" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, _, [] -> Ply(Dval.int state.test.sideEffectCount)
+        | state, _, [ DUnit ] -> Ply(Dval.int state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -346,12 +346,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Test" "getCanvasID" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
       description = "Get the name of the canvas that's running"
       fn =
         (function
-        | state, _, [] -> state.program.canvasID |> DUuid |> Ply
+        | state, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
