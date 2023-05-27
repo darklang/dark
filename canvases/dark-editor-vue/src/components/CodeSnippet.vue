@@ -27,11 +27,37 @@ async function runCode() {
   try {
     const evt = { UserRequestedCodeEval: [props.snippet.id, codeSnippet.value] }
     const result = await window.darklang.handleEvent(evt)
-    console.log('result', result)
   } catch (error) {
     console.error(error)
   }
 }
+
+async function sendError(value: string) {
+  console.log('error', value)
+  try {
+    console.log('emitting error prompt')
+    let errmsg =
+      'update the code snippet based to fix the error ```' +
+      codeSnippet.value +
+      '```' +
+      '\n' +
+      value
+    console.log('errmsg', errmsg)
+    const evt = { UserGavePrompt: [errmsg] }
+    const result = await window.darklang.handleEvent(evt)
+    console.log('result', evt)
+  } catch (error) {
+    console.error(error)
+  }
+}
+
+function checkForError(value: string) {
+  if (value.includes('<error:')) {
+    sendError(value)
+  }
+  return value
+}
+
 onMounted(() => {
   const editorElement = document.getElementById(
     `editor-${props.snippet.id}`
@@ -81,6 +107,6 @@ onMounted(() => {
     v-if="props.snippet.eval"
     class="text-xs p-2 bg-[#323232] rounded text-white mt-4"
   >
-    {{ props.snippet.eval }}
+    {{ checkForError(props.snippet.eval) }}
   </div>
 </template>

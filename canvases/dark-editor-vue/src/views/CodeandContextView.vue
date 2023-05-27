@@ -10,7 +10,6 @@ let props = defineProps<{
 }>()
 
 function snippetForId(id: string): CodeSnippet {
-  console.log('snippetForIdcode', id)
   return props.codeSnippets.find((snippet) => snippet.id === id)!
 }
 </script>
