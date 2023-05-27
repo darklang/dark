@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> =
 
     // See above for when to uncomment this
     // TODO: A future version should support all non-zero modulus values and should include the infix "%"
-    // { name = fn "Int" "mod" 1
+    // { name = fn "Int" "mod" 0
     //   parameters = [ Param.make "value" TInt ""; Param.make "modulus" TInt "" ]
     //   returnType = TResult(TInt, TString)
     //   description =
@@ -291,7 +291,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "random" 1
+    { name = fn "Int" "random" 0
       typeParams = []
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt

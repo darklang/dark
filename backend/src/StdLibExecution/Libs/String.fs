@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "foreach" 1
+    { name = fn "String" "foreach" 0
       typeParams = []
       parameters =
         [ Param.make "s" TString ""
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "toList" 1
+    { name = fn "String" "toList" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TList TChar
@@ -141,7 +141,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "toUppercase" 1
+    { name = fn "String" "toUppercase" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "toLowercase" 1
+    { name = fn "String" "toLowercase" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
@@ -169,7 +169,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "length" 1
+    { name = fn "String" "length" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TInt
@@ -183,7 +183,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "append" 1
+    { name = fn "String" "append" 0
       typeParams = []
       parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]
       returnType = TString
@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
 
 
     // CLEANUP move to stdlib
-    { name = fn "String" "slugify" 2
+    { name = fn "String" "slugify" 0
       typeParams = []
       parameters = [ Param.make "string" TString "" ]
       returnType = TString
@@ -264,7 +264,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "split" 1
+    { name = fn "String" "split" 0
       typeParams = []
       parameters = [ Param.make "s" TString ""; Param.make "separator" TString "" ]
       returnType = TList TString
@@ -335,7 +335,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "fromList" 1
+    { name = fn "String" "fromList" 0
       typeParams = []
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TString
@@ -359,7 +359,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "fromChar" 1
+    { name = fn "String" "fromChar" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TString
@@ -467,7 +467,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "random" 2
+    { name = fn "String" "random" 0
       typeParams = []
       parameters = [ Param.make "length" TInt "" ]
       returnType = TResult(TString, TString)

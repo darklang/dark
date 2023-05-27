@@ -99,7 +99,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpClient" "bearerToken" 1
+    { name = fn "HttpClient" "bearerToken" 0
       typeParams = []
       parameters = [ Param.make "token" TString "" ]
       returnType = TDict TString
