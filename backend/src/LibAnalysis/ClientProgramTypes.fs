@@ -73,7 +73,6 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar
@@ -98,7 +97,6 @@ module TypeReference =
     | TTuple (first, second, theRest) ->
       PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
     | TDict (t) -> PT.TDict(fromCT t)
-    | THttpResponse (t) -> PT.THttpResponse(fromCT t)
     | TDB (t) -> PT.TDB(fromCT t)
     | TDateTime -> PT.TDateTime
     | TChar -> PT.TChar
@@ -123,7 +121,6 @@ module TypeReference =
     | PT.TTuple (first, second, theRest) ->
       TTuple(toCT first, toCT second, List.map toCT theRest)
     | PT.TDict (t) -> TDict(toCT t)
-    | PT.THttpResponse (t) -> THttpResponse(toCT t)
     | PT.TDB (t) -> TDB(toCT t)
     | PT.TDateTime -> TDateTime
     | PT.TChar -> TChar
@@ -796,19 +793,19 @@ module Secret =
     { name = s.name; value = s.value; version = s.version }
 
 
-module Package =
+module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   module Parameter =
-    let fromCT (p : Parameter) : PT.Package.Parameter =
+    let fromCT (p : Parameter) : PT.PackageFn.Parameter =
       { name = p.name
         typ = TypeReference.fromCT p.typ
         description = p.description }
 
-    let toCT (p : PT.Package.Parameter) : Parameter =
+    let toCT (p : PT.PackageFn.Parameter) : Parameter =
       { name = p.name; typ = TypeReference.toCT p.typ; description = p.description }
 
-  type Fn =
+  type T =
     { name : FQFnName.PackageFnName
       id : System.Guid
       body : Expr
@@ -819,25 +816,50 @@ module Package =
       deprecated : Deprecation<FQFnName.T>
       tlid : tlid }
 
-  module Fn =
-    let fromCT (fn : Fn) : PT.Package.Fn =
-      { name = FQFnName.PackageFnName.fromCT fn.name
-        id = fn.id
-        body = Expr.fromCT fn.body
-        typeParams = fn.typeParams
-        parameters = List.map Parameter.fromCT fn.parameters
-        returnType = TypeReference.fromCT fn.returnType
-        description = fn.description
-        deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
-        tlid = fn.tlid }
+  let fromCT (fn : T) : PT.PackageFn.T =
+    { name = FQFnName.PackageFnName.fromCT fn.name
+      id = fn.id
+      body = Expr.fromCT fn.body
+      typeParams = fn.typeParams
+      parameters = List.map Parameter.fromCT fn.parameters
+      returnType = TypeReference.fromCT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
+      tlid = fn.tlid }
 
-    let toCT (fn : PT.Package.Fn) : Fn =
-      { name = FQFnName.PackageFnName.toCT fn.name
-        id = fn.id
-        body = Expr.toCT fn.body
-        typeParams = fn.typeParams
-        parameters = List.map Parameter.toCT fn.parameters
-        returnType = TypeReference.toCT fn.returnType
-        description = fn.description
-        deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
-        tlid = fn.tlid }
+  let toCT (fn : PT.PackageFn.T) : T =
+    { name = FQFnName.PackageFnName.toCT fn.name
+      id = fn.id
+      body = Expr.toCT fn.body
+      typeParams = fn.typeParams
+      parameters = List.map Parameter.toCT fn.parameters
+      returnType = TypeReference.toCT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
+      tlid = fn.tlid }
+
+module PackageType =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : FQTypeName.PackageTypeName
+      // CLEANUP add type params
+      definition : CustomType.T
+      description : string
+      deprecated : Deprecation<FQTypeName.T> }
+
+  let fromCT (pt : T) : PT.PackageType.T =
+    { tlid = pt.tlid
+      id = pt.id
+      name = FQTypeName.PackageTypeName.fromCT pt.name
+      definition = CustomType.fromCT pt.definition
+      description = pt.description
+      deprecated = Deprecation.fromCT FQTypeName.fromCT pt.deprecated }
+
+  let toCT (pt : PT.PackageType.T) : T =
+    { tlid = pt.tlid
+      id = pt.id
+      name = FQTypeName.PackageTypeName.toCT pt.name
+      definition = CustomType.toCT pt.definition
+      description = pt.description
+      deprecated = Deprecation.toCT FQTypeName.toCT pt.deprecated }

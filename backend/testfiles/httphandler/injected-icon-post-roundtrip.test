@@ -1,5 +1,5 @@
 [http-handler POST /]
-Http.response request.body 200
+PACKAGE.Darklang.Stdlib.Http.response request.body 200
 
 [request]
 POST / HTTP/1.1

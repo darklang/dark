@@ -225,10 +225,6 @@ and [<NoComparison>] Dval =
   | DUuid of System.Guid
   | DBytes of byte array
 
-  // TODO: remove DHttpResponse eventually - this should really just be a DRecord
-  // of a type that is defined in the standard library (http module)
-  | DHttpResponse of int64 * List<string * string> * Dval
-
   | DRecord (* FQTypeName.T * *)  of DvalMap
   | DDict of DvalMap
 

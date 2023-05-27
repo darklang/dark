@@ -75,7 +75,6 @@ let t
   (expectedExpr : PT.Expr)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
-  (packageFns : List<PT.Package.Fn>)
   (types : List<PT.UserType.T>)
   (functions : List<PT.UserFunction.T>)
   (workers : List<string>)
@@ -106,17 +105,14 @@ let t
            (fn.name, fn))
          |> Map.ofList)
 
-      let rtPackageFns =
-        packageFns
-        |> List.map (fun v ->
-          let fn = PT2RT.Package.toRT v
-          (fn.name, fn))
-        |> Map
-
       let! (state : RT.ExecutionState) =
         executionStateFor canvasID internalFnsAllowed rtDBs rtTypes rtFunctions
       let state =
-        { state with libraries = { state.libraries with packageFns = rtPackageFns } }
+        { state with
+            libraries =
+              { state.libraries with
+                  packageFns = state.libraries.packageFns
+                  packageTypes = state.libraries.packageTypes } }
 
       let msg = $"\n\n{actualExpr}\n=\n{expectedExpr} ->"
 
@@ -170,13 +166,13 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests (moduleName : string) (module' : Parser.TestModule.T) =
+    let rec moduleToTests (moduleName : string) (modul : Parser.TestModule.T) =
 
       let nestedModules =
-        List.map (fun (name, m) -> moduleToTests name m) module'.modules
+        List.map (fun (name, m) -> moduleToTests name m) modul.modules
 
       let tests =
-        module'.tests
+        modul.tests
         |> List.map (fun test ->
           t
             initializeCanvas
@@ -184,10 +180,9 @@ let fileTests () : Test =
             test.actual
             test.expected
             test.lineNumber
-            module'.dbs
-            module'.packageFns
-            module'.types
-            module'.fns
+            modul.dbs
+            modul.types
+            modul.fns
             [])
 
       if List.isEmpty tests && List.isEmpty nestedModules then

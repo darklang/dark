@@ -344,52 +344,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "httpResponseStatusCode" 0
-      typeParams = []
-      parameters = [ Param.make "response" (THttpResponse varA) "" ]
-      returnType = TInt
-      description = "Get the status code from a HttpResponse"
-      fn =
-        (function
-        | _, _, [ DHttpResponse (code, _, _) ] -> DInt code |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Test" "httpResponseHeaders" 0
-      typeParams = []
-      parameters = [ Param.make "response" (THttpResponse varA) "" ]
-      returnType = TList(TList TString)
-      description = "Get headers from a HttpResponse"
-      fn =
-        (function
-        | _, _, [ DHttpResponse (_, headers, _) ] ->
-          headers
-          |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-          |> DList
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "Test" "httpResponseBody" 0
-      typeParams = []
-      parameters = [ Param.make "response" (THttpResponse varA) "" ]
-      returnType = varA
-      description = "Get the body from a HttpResponse"
-      fn =
-        (function
-        | _, _, [ DHttpResponse (_, _, body) ] -> body |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "Test" "getCanvasID" 0
       typeParams = []
       parameters = []

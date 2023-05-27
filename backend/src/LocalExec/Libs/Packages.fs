@@ -14,23 +14,41 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> =
-  [ { name = typ' [ "LocalExec"; "Packages" ] "Package" 0
-      description = "The name of a package"
+  [ { name = typ' [ "LocalExec"; "Packages" ] "Function" 0
+      description = "The name of a package function"
       typeParams = []
       definition =
         CustomType.Record(
           { name = "owner"
             typ = TString
-            description = "The username of the owner of the package" },
+            description = "The username of the owner of the function" },
           [ { name = "modules"
               typ = TList TString
-              description = "The modules in the package" }
-            { name = "name"; typ = TString; description = "The name of the package" }
+              description = "The modules the function is in" }
+            { name = "name"
+              typ = TString
+              description = "The name of the function" }
             { name = "version"
               typ = TInt
-              description = "The version of the package" } ]
+              description = "The version of the function" } ]
+        )
+      deprecated = NotDeprecated }
+    { name = typ' [ "LocalExec"; "Packages" ] "Type" 0
+      description = "The name of a package type"
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { name = "owner"
+            typ = TString
+            description = "The username of the owner of the function" },
+          [ { name = "modules"
+              typ = TList TString
+              description = "The module the type is in" }
+            { name = "name"; typ = TString; description = "The name of the type" }
+            { name = "version"; typ = TInt; description = "The version of the type" } ]
         )
       deprecated = NotDeprecated } ]
+
 
 
 
@@ -67,7 +85,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString contents; DString path ] ->
           uply {
             let packages = Parser.Package.parse path contents
-            do! LibBackend.PackageManager.savePackages packages.fns
+            do! LibBackend.PackageManager.savePackageFunctions packages.fns
+            do! LibBackend.PackageManager.savePackageTypes packages.types
             return DResult(Ok(DUnit))
           }
         | _ -> incorrectArgs ()
@@ -76,17 +95,17 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn' [ "LocalExec"; "Packages" ] "list" 0
+    { name = fn' [ "LocalExec"; "Packages" ] "listFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
           TCustomType(
-            FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Package" 0),
+            FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Function" 0),
             []
           )
         )
-      description = "List all packages"
+      description = "List all package functions"
       fn =
         function
         | _, _, [ DUnit ] ->
@@ -104,12 +123,57 @@ let fns : List<BuiltInFn> =
                 packages
                 |> List.map (fun (owner, fnname, modules, version) ->
                   DRecord(
-                    FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Package" 0),
+                    FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Function" 0),
                     Map(
                       [ ("owner", DString owner)
                         ("modules",
                          modules |> String.split "." |> List.map DString |> DList)
                         ("name", DString fnname)
+                        ("version", DInt version) ]
+                    )
+                  ))
+              ))
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn' [ "LocalExec"; "Packages" ] "listTypes" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TList(
+          TCustomType(
+            FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Type" 0),
+            []
+          )
+        )
+      description = "List all package types"
+      fn =
+        function
+        | _, _, [ DUnit ] ->
+          uply {
+            let! packages =
+              Sql.query
+                "SELECT owner, modules, typename, version FROM package_types_v0"
+              |> Sql.executeAsync (fun read ->
+                (read.string "owner",
+                 read.string "typename",
+                 read.string "modules",
+                 read.int "version"))
+            return
+              (DList(
+                packages
+                |> List.map (fun (owner, typename, modules, version) ->
+                  DRecord(
+                    FQTypeName.Stdlib(typ' [ "LocalExec"; "Packages" ] "Type" 0),
+                    Map(
+                      [ ("owner", DString owner)
+                        ("modules",
+                         modules |> String.split "." |> List.map DString |> DList)
+                        ("name", DString typename)
                         ("version", DInt version) ]
                     )
                   ))

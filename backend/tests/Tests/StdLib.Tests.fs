@@ -119,10 +119,11 @@ let hardToRepresentTests =
       true ]
 
 let oldFunctionsAreDeprecated =
-  test "old functions are deprecated" {
+  testTask "old functions are deprecated" {
     let counts = ref Map.empty
 
-    let fns = libraries.Force().stdlibFns |> Map.values
+    let! (libraries : RT.Libraries) = Lazy.force libraries
+    let fns = libraries.stdlibFns |> Map.values
 
     fns
     |> List.iter (fun fn ->
@@ -143,4 +144,33 @@ let oldFunctionsAreDeprecated =
       counts.Value
   }
 
-let tests = testList "stdlib" [ hardToRepresentTests; oldFunctionsAreDeprecated ]
+let oldTypesAreDeprecated =
+  testTask "old types are deprecated" {
+    let counts = ref Map.empty
+
+    let! (libraries : RT.Libraries) = Lazy.force libraries
+    let types = libraries.stdlibTypes |> Map.values
+
+    types
+    |> List.iter (fun type_ ->
+      let key = RT.FQTypeName.StdlibTypeName.toString { type_.name with version = 0 }
+
+      if type_.deprecated = RT.NotDeprecated then
+        counts.Value <-
+          Map.update
+            key
+            (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
+            counts.Value
+
+      ())
+
+    Map.iter
+      (fun name count ->
+        Expect.equal count 1 $"{name} has more than one undeprecated type")
+      counts.Value
+  }
+
+let tests =
+  testList
+    "stdlib"
+    [ hardToRepresentTests; oldFunctionsAreDeprecated; oldTypesAreDeprecated ]

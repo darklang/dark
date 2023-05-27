@@ -53,42 +53,64 @@ let writeBody (tlid : tlid) (expr : PT.Expr) : Task<unit> =
       |> Sql.executeStatementAsync
   }
 
-let savePackages (packages : List<PT.Package.Fn>) : Task<Unit> =
-  task {
-    do!
-      packages
-      |> Task.iterInParallel (fun fn ->
-        Sql.query
-          "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
-           VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
-        |> Sql.parameters [ "tlid", Sql.tlid fn.tlid
-                            "id", Sql.uuid fn.id
-                            "owner", Sql.string fn.name.owner
-                            "modules",
-                            Sql.string (fn.name.modules |> String.concat ".")
-                            "fnname", Sql.string fn.name.function_
-                            "version", Sql.int fn.name.version
-                            "definition",
-                            Sql.bytea (BinarySerialization.serializePackageFn fn) ]
-        |> Sql.executeStatementAsync)
-    return ()
-  }
+let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
+  fns
+  |> Task.iterInParallel (fun fn ->
+    Sql.query
+      "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
+       VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
+    |> Sql.parameters [ "tlid", Sql.tlid fn.tlid
+                        "id", Sql.uuid fn.id
+                        "owner", Sql.string fn.name.owner
+                        "modules", Sql.string (fn.name.modules |> String.concat ".")
+                        "fnname", Sql.string fn.name.function_
+                        "version", Sql.int fn.name.version
+                        "definition",
+                        Sql.bytea (BinarySerialization.serializePackageFn fn) ]
+    |> Sql.executeStatementAsync)
+
+let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
+  types
+  |> Task.iterInParallel (fun typ ->
+    Sql.query
+      "INSERT INTO package_types_v0 (tlid, id, owner, modules, typename, version, definition)
+       VALUES (@tlid, @id, @owner, @modules, @typename, @version, @definition)"
+    |> Sql.parameters [ "tlid", Sql.tlid typ.tlid
+                        "id", Sql.uuid typ.id
+                        "owner", Sql.string typ.name.owner
+                        "modules", Sql.string (typ.name.modules |> String.concat ".")
+                        "typename", Sql.string typ.name.typ
+                        "version", Sql.int typ.name.version
+                        "definition",
+                        Sql.bytea (BinarySerialization.serializePackageType typ) ]
+    |> Sql.executeStatementAsync)
 
 
 
 // ------------------
-// Fetching functions
+// Fetching
 // ------------------
 
-let allFunctions () : Task<List<PT.Package.Fn>> =
+let allFunctions () : Task<List<PT.PackageFn.T>> =
   task {
     let! fns =
       Sql.query "SELECT id, definition FROM package_functions_v0"
       |> Sql.parameters []
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "def"))
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
 
     return
       fns
       |> List.map (fun (id, def) -> BinarySerialization.deserializePackageFn id def)
+  }
 
+let allTypes () : Task<List<PT.PackageType.T>> =
+  task {
+    let! types =
+      Sql.query "SELECT id, definition FROM package_types_v0"
+      |> Sql.parameters []
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
+
+    return
+      types
+      |> List.map (fun (id, def) -> BinarySerialization.deserializePackageType id def)
   }

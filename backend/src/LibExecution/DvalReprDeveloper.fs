@@ -21,7 +21,6 @@ let rec typeName (t : TypeReference) : string =
   | TDict nested -> $"Dict<{typeName nested}>"
   | TFn _ -> "Function"
   | TVariable varname -> $"'{varname}"
-  | THttpResponse _ -> "Response"
   | TDB _ -> "Datastore"
   | TDateTime -> "DateTime"
   | TPassword -> "Password"
@@ -54,7 +53,6 @@ let rec dvalTypeName (dv : Dval) : string =
   | DList (v :: _) -> "List<" + dvalTypeName v + ">"
   | DDict _ -> "Dict"
   | DFnVal (Lambda _) -> "Lambda"
-  | DHttpResponse _ -> "HttpResponse"
   | DDB _ -> "Datastore"
   | DDateTime _ -> "DateTime"
   | DPassword _ -> "Password"
@@ -116,14 +114,6 @@ let toRepr (dv : Dval) : string =
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
-    | DHttpResponse (code, headers, hdv) ->
-      let headerString =
-        headers
-        |> List.map (fun (k, v) -> k + ": " + v)
-        |> String.concat ", "
-        |> fun s -> "{" + s + "}"
-
-      $"{code} {headerString}" + nl + toRepr_ indent hdv
     | DList l ->
       if List.isEmpty l then
         "[]"

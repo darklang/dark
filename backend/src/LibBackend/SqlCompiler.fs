@@ -48,7 +48,6 @@ let rec dvalToSql
   match expectedType, dval with
   | _, DError _
   | _, DIncomplete _ -> Errors.foundFakeDval dval
-  | _, DHttpResponse _
   | _, DFnVal _
   | _, DDB _
   | _, DDict _ // CLEANUP allow
@@ -142,7 +141,7 @@ let rec typecheck
 
 let typecheckDval
   (name : string)
-  (types : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (dval : Dval)
   (expectedType : TypeReference)
   =
@@ -253,7 +252,7 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
   (fns : Map<FQFnName.StdlibFnName, BuiltInFn>)
-  (types : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (symtable : DvalMap)
   (paramName : string)
   (dbTypeRef : TypeReference)
@@ -444,7 +443,7 @@ let rec lambdaToSql
         match dbTypeRef with
         // TYPESCLEANUP use args
         | TCustomType (typeName, args) ->
-          match Map.get typeName types with
+          match Types.find typeName types with
           // TODO: Deal with alias of record type
           | Some (CustomType.Alias _) ->
             error2

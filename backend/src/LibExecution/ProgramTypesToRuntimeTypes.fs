@@ -40,7 +40,6 @@ module TypeReference =
     | PT.TTuple (firstType, secondType, otherTypes) ->
       RT.TTuple(toRT firstType, toRT secondType, List.map toRT otherTypes)
     | PT.TDict typ -> RT.TDict(toRT typ)
-    | PT.THttpResponse typ -> RT.THttpResponse(toRT typ)
     | PT.TDB typ -> RT.TDB(toRT typ)
     | PT.TDateTime -> RT.TDateTime
     | PT.TChar -> RT.TChar
@@ -320,15 +319,20 @@ module Toplevel =
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T = { name = s.name; value = s.value }
 
-module Package =
+module PackageFn =
   module Parameter =
-    let toRT (p : PT.Package.Parameter) : RT.Package.Parameter =
+    let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
-  let toRT (f : PT.Package.Fn) : RT.Package.Fn =
+  let toRT (f : PT.PackageFn.T) : RT.PackageFn.T =
     { name = FQFnName.PackageFnName.toRT f.name
       tlid = f.tlid
       body = Expr.toRT f.body
       typeParams = f.typeParams
       parameters = List.map Parameter.toRT f.parameters
       returnType = TypeReference.toRT f.returnType }
+
+module PackageType =
+  let toRT (t : PT.PackageType.T) : RT.PackageType.T =
+    { name = FQTypeName.PackageTypeName.toRT t.name
+      definition = CustomType.toRT t.definition }

@@ -164,7 +164,8 @@ module PersistedSerializations =
                 [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
               userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
-              packageFns = [ V.ProgramTypes.packageFn |> CPT.Package.Fn.toCT ]
+              packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
+              packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 1 } ] })
         v<CAT.PerformAnalysisParams>
           "function"
@@ -180,7 +181,8 @@ module PersistedSerializations =
                 [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
               userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
-              packageFns = [ V.ProgramTypes.packageFn |> CPT.Package.Fn.toCT ]
+              packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
+              packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 2 } ] })
 
 
@@ -356,12 +358,8 @@ module RoundtripTests =
           CRT.Dval.toCT
           CRT.Dval.fromCT
           (Some (fun l r ->
-            let availableTypes = Map.empty
-            Expect.equalDval
-              availableTypes
-              l
-              r
-              "dval does not roundtrip successfully")) ]
+            let types = RT.Types.empty
+            Expect.equalDval types l r "dval does not roundtrip successfully")) ]
 
   module ProgramTypes =
     let tests =
@@ -432,8 +430,8 @@ module RoundtripTests =
         testRoundtrip
           "PT.Package"
           V.ProgramTypes.packageFn
-          CPT.Package.Fn.toCT
-          CPT.Package.Fn.fromCT ]
+          CPT.PackageFn.toCT
+          CPT.PackageFn.fromCT ]
 
 
 let tests =

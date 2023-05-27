@@ -34,17 +34,11 @@ let currentDarkVersion = 0
 
 type Uuid = System.Guid
 
-let rec dbToDval
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (dbValue : string)
-  : RT.Dval =
-  let availableTypes = RT.ExecutionState.availableTypes state
-  DvalReprInternalQueryable.parseJsonV0 availableTypes db.typ dbValue
+let rec dbToDval (types : RT.Types) (db : RT.DB.T) (dbValue : string) : RT.Dval =
+  DvalReprInternalQueryable.parseJsonV0 types db.typ dbValue
 
-let rec dvalToDB (state : RT.ExecutionState) (db : RT.DB.T) (dv : RT.Dval) : string =
-  let availableTypes = RT.ExecutionState.availableTypes state
-  DvalReprInternalQueryable.toJsonStringV0 availableTypes db.typ dv
+let rec dvalToDB (types : RT.Types) (db : RT.DB.T) (dv : RT.Dval) : string =
+  DvalReprInternalQueryable.toJsonStringV0 types db.typ dv
 
 let rec set
   (state : RT.ExecutionState)
@@ -55,9 +49,8 @@ let rec set
   : Task<Uuid> =
   let id = System.Guid.NewGuid()
 
-  let availableTypes = RT.ExecutionState.availableTypes state
-
-  match LibExecution.TypeChecker.unify [ db.name ] availableTypes db.typ dv with
+  let types = RT.ExecutionState.availableTypes state
+  match LibExecution.TypeChecker.unify [ db.name ] types db.typ dv with
   | Error err ->
     let msg = LibExecution.TypeChecker.Error.toString err
     Exception.raiseCode msg
@@ -80,7 +73,7 @@ let rec set
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion
                       "key", Sql.string key
-                      "data", Sql.jsonb (dvalToDB state db dv) ]
+                      "data", Sql.jsonb (dvalToDB types db dv) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
 
@@ -92,6 +85,7 @@ and getOption
   (key : string)
   : Task<Option<RT.Dval>> =
   task {
+    let types = RT.ExecutionState.availableTypes state
     let! result =
       Sql.query
         "SELECT data
@@ -107,7 +101,7 @@ and getOption
                           "darkVersion", Sql.int currentDarkVersion
                           "key", Sql.string key ]
       |> Sql.executeRowOptionAsync (fun read -> read.string "data")
-    return Option.map (dbToDval state db) result
+    return Option.map (dbToDval types db) result
   }
 
 
@@ -116,6 +110,7 @@ and getMany
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<RT.Dval>> =
+  let types = RT.ExecutionState.availableTypes state
   Sql.query
     "SELECT data
        FROM user_data_v0
@@ -130,7 +125,7 @@ and getMany
                       "darkVersion", Sql.int currentDarkVersion
                       "keys", Sql.stringArray (Array.ofList keys) ]
   |> Sql.executeAsync (fun read -> read.string "data")
-  |> Task.map (List.map (dbToDval state db))
+  |> Task.map (List.map (dbToDval types db))
 
 
 
@@ -139,6 +134,7 @@ and getManyWithKeys
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<string * RT.Dval>> =
+  let types = RT.ExecutionState.availableTypes state
   Sql.query
     "SELECT key, data
        FROM user_data_v0
@@ -153,7 +149,7 @@ and getManyWithKeys
                       "darkVersion", Sql.int currentDarkVersion
                       "keys", Sql.stringArray (Array.ofList keys) ]
   |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-  |> Task.map (List.map (fun (key, data) -> key, dbToDval state db data))
+  |> Task.map (List.map (fun (key, data) -> key, dbToDval types db data))
 
 
 
@@ -161,6 +157,7 @@ let getAll
   (state : RT.ExecutionState)
   (db : RT.DB.T)
   : Task<List<string * RT.Dval>> =
+  let types = RT.ExecutionState.availableTypes state
   Sql.query
     "SELECT key, data
        FROM user_data_v0
@@ -173,7 +170,7 @@ let getAll
                       "userVersion", Sql.int db.version
                       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-  |> Task.map (List.map (fun (key, data) -> key, dbToDval state db data))
+  |> Task.map (List.map (fun (key, data) -> key, dbToDval types db data))
 
 // Reusable function that provides the template for the SqlCompiler query functions
 let doQuery
@@ -215,11 +212,12 @@ let query
   (b : RT.LambdaImpl)
   : Task<List<string * RT.Dval>> =
   task {
+    let types = RT.ExecutionState.availableTypes state
     let! query = doQuery state db b "key, data"
     let! results =
       query |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
-    return results |> List.map (fun (key, data) -> (key, dbToDval state db data))
+    return results |> List.map (fun (key, data) -> (key, dbToDval types db data))
   }
 
 let queryValues
@@ -228,11 +226,12 @@ let queryValues
   (b : RT.LambdaImpl)
   : Task<List<RT.Dval>> =
   task {
+    let types = RT.ExecutionState.availableTypes state
     let! query = doQuery state db b "data"
 
     let! results = query |> Sql.executeAsync (fun read -> read.string "data")
 
-    return results |> List.map (dbToDval state db)
+    return results |> List.map (dbToDval types db)
   }
 
 let queryCount

@@ -111,7 +111,8 @@ type AnalysisRequest =
     userTypes : List<RT.UserType.T>
     dbs : List<RT.DB.T>
     expr : RT.Expr
-    packageFns : List<RT.Package.Fn>
+    packageFns : List<RT.PackageFn.T>
+    packageTypes : List<RT.PackageType.T>
     secrets : List<RT.Secret.T> }
 
 type AnalysisResults = System.Collections.Generic.Dictionary<id, ExecutionResult>

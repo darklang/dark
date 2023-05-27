@@ -23,7 +23,6 @@ let contents : StdLib.Contents =
       Libs.DateTime.contents
       Libs.Dict.contents
       Libs.Float.contents
-      Libs.Http.contents
       Libs.HttpClient.contents
       Libs.HttpClientAuth.contents
       Libs.Json.contents

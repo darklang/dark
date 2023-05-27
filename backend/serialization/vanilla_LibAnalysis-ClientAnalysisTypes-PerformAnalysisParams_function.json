@@ -25,24 +25,21 @@
                 [
                   "TDB",
                   [
-                    "THttpResponse",
+                    "TOption",
                     [
-                      "TOption",
+                      "TResult",
                       [
-                        "TResult",
+                        "TInt"
+                      ],
+                      [
+                        "TFn",
                         [
-                          "TInt"
+                          [
+                            "TFloat"
+                          ]
                         ],
                         [
-                          "TFn",
-                          [
-                            [
-                              "TFloat"
-                            ]
-                          ],
-                          [
-                            "TUnit"
-                          ]
+                          "TUnit"
                         ]
                       ]
                     ]
@@ -84,12 +81,6 @@
               ],
               [
                 "TDict",
-                [
-                  "TInt"
-                ]
-              ],
-              [
-                "THttpResponse",
                 [
                   "TInt"
                 ]
@@ -173,24 +164,21 @@
             [
               "TDB",
               [
-                "THttpResponse",
+                "TOption",
                 [
-                  "TOption",
+                  "TResult",
                   [
-                    "TResult",
+                    "TInt"
+                  ],
+                  [
+                    "TFn",
                     [
-                      "TInt"
+                      [
+                        "TFloat"
+                      ]
                     ],
                     [
-                      "TFn",
-                      [
-                        [
-                          "TFloat"
-                        ]
-                      ],
-                      [
-                        "TUnit"
-                      ]
+                      "TUnit"
                     ]
                   ]
                 ]
@@ -232,12 +220,6 @@
           ],
           [
             "TDict",
-            [
-              "TInt"
-            ]
-          ],
-          [
-            "THttpResponse",
             [
               "TInt"
             ]
@@ -532,12 +514,6 @@
                               ],
                               [
                                 "TDict",
-                                [
-                                  "TBool"
-                                ]
-                              ],
-                              [
-                                "THttpResponse",
                                 [
                                   "TBool"
                                 ]
@@ -1350,24 +1326,21 @@
                   [
                     "TDB",
                     [
-                      "THttpResponse",
+                      "TOption",
                       [
-                        "TOption",
+                        "TResult",
                         [
-                          "TResult",
+                          "TInt"
+                        ],
+                        [
+                          "TFn",
                           [
-                            "TInt"
+                            [
+                              "TFloat"
+                            ]
                           ],
                           [
-                            "TFn",
-                            [
-                              [
-                                "TFloat"
-                              ]
-                            ],
-                            [
-                              "TUnit"
-                            ]
+                            "TUnit"
                           ]
                         ]
                       ]
@@ -1409,12 +1382,6 @@
                 ],
                 [
                   "TDict",
-                  [
-                    "TInt"
-                  ]
-                ],
-                [
-                  "THttpResponse",
                   [
                     "TInt"
                   ]
@@ -1498,24 +1465,21 @@
               [
                 "TDB",
                 [
-                  "THttpResponse",
+                  "TOption",
                   [
-                    "TOption",
+                    "TResult",
                     [
-                      "TResult",
+                      "TInt"
+                    ],
+                    [
+                      "TFn",
                       [
-                        "TInt"
+                        [
+                          "TFloat"
+                        ]
                       ],
                       [
-                        "TFn",
-                        [
-                          [
-                            "TFloat"
-                          ]
-                        ],
-                        [
-                          "TUnit"
-                        ]
+                        "TUnit"
                       ]
                     ]
                   ]
@@ -1557,12 +1521,6 @@
             ],
             [
               "TDict",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "THttpResponse",
               [
                 "TInt"
               ]
@@ -1857,12 +1815,6 @@
                                 ],
                                 [
                                   "TDict",
-                                  [
-                                    "TBool"
-                                  ]
-                                ],
-                                [
-                                  "THttpResponse",
                                   [
                                     "TBool"
                                   ]
@@ -2636,24 +2588,21 @@
                   [
                     "TDB",
                     [
-                      "THttpResponse",
+                      "TOption",
                       [
-                        "TOption",
+                        "TResult",
                         [
-                          "TResult",
+                          "TInt"
+                        ],
+                        [
+                          "TFn",
                           [
-                            "TInt"
+                            [
+                              "TFloat"
+                            ]
                           ],
                           [
-                            "TFn",
-                            [
-                              [
-                                "TFloat"
-                              ]
-                            ],
-                            [
-                              "TUnit"
-                            ]
+                            "TUnit"
                           ]
                         ]
                       ]
@@ -2695,12 +2644,6 @@
                 ],
                 [
                   "TDict",
-                  [
-                    "TInt"
-                  ]
-                ],
-                [
-                  "THttpResponse",
                   [
                     "TInt"
                   ]
@@ -2805,24 +2748,21 @@
                         [
                           "TDB",
                           [
-                            "THttpResponse",
+                            "TOption",
                             [
-                              "TOption",
+                              "TResult",
                               [
-                                "TResult",
+                                "TInt"
+                              ],
+                              [
+                                "TFn",
                                 [
-                                  "TInt"
+                                  [
+                                    "TFloat"
+                                  ]
                                 ],
                                 [
-                                  "TFn",
-                                  [
-                                    [
-                                      "TFloat"
-                                    ]
-                                  ],
-                                  [
-                                    "TUnit"
-                                  ]
+                                  "TUnit"
                                 ]
                               ]
                             ]
@@ -2864,12 +2804,6 @@
                       ],
                       [
                         "TDict",
-                        [
-                          "TInt"
-                        ]
-                      ],
-                      [
-                        "THttpResponse",
                         [
                           "TInt"
                         ]
@@ -3184,12 +3118,6 @@
                                 ],
                                 [
                                   "TDict",
-                                  [
-                                    "TBool"
-                                  ]
-                                ],
-                                [
-                                  "THttpResponse",
                                   [
                                     "TBool"
                                   ]
@@ -3955,24 +3883,21 @@
                   [
                     "TDB",
                     [
-                      "THttpResponse",
+                      "TOption",
                       [
-                        "TOption",
+                        "TResult",
                         [
-                          "TResult",
+                          "TInt"
+                        ],
+                        [
+                          "TFn",
                           [
-                            "TInt"
+                            [
+                              "TFloat"
+                            ]
                           ],
                           [
-                            "TFn",
-                            [
-                              [
-                                "TFloat"
-                              ]
-                            ],
-                            [
-                              "TUnit"
-                            ]
+                            "TUnit"
                           ]
                         ]
                       ]
@@ -4014,12 +3939,6 @@
                 ],
                 [
                   "TDict",
-                  [
-                    "TInt"
-                  ]
-                ],
-                [
-                  "THttpResponse",
                   [
                     "TInt"
                   ]
@@ -4103,24 +4022,21 @@
               [
                 "TDB",
                 [
-                  "THttpResponse",
+                  "TOption",
                   [
-                    "TOption",
+                    "TResult",
                     [
-                      "TResult",
+                      "TInt"
+                    ],
+                    [
+                      "TFn",
                       [
-                        "TInt"
+                        [
+                          "TFloat"
+                        ]
                       ],
                       [
-                        "TFn",
-                        [
-                          [
-                            "TFloat"
-                          ]
-                        ],
-                        [
-                          "TUnit"
-                        ]
+                        "TUnit"
                       ]
                     ]
                   ]
@@ -4162,12 +4078,6 @@
             ],
             [
               "TDict",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "THttpResponse",
               [
                 "TInt"
               ]
@@ -4244,6 +4154,184 @@
           "NotDeprecated"
         ],
         "tlid": 7
+      }
+    ],
+    "packageTypes": [
+      {
+        "tlid": 7,
+        "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
+        "name": {
+          "owner": "darklang",
+          "modules": {
+            "Head": "stdlib",
+            "Tail": [
+              "Int",
+              "Int64"
+            ]
+          },
+          "typ": "T",
+          "version": 0
+        },
+        "definition": [
+          "Enum",
+          {
+            "name": "caseA",
+            "fields": [],
+            "description": ""
+          },
+          [
+            {
+              "name": "caseB",
+              "fields": [
+                {
+                  "typ": [
+                    "TTuple",
+                    [
+                      "TList",
+                      [
+                        "TDict",
+                        [
+                          "TDB",
+                          [
+                            "TOption",
+                            [
+                              "TResult",
+                              [
+                                "TInt"
+                              ],
+                              [
+                                "TFn",
+                                [
+                                  [
+                                    "TFloat"
+                                  ]
+                                ],
+                                [
+                                  "TUnit"
+                                ]
+                              ]
+                            ]
+                          ]
+                        ]
+                      ]
+                    ],
+                    [
+                      "TInt"
+                    ],
+                    [
+                      [
+                        "TFloat"
+                      ],
+                      [
+                        "TBool"
+                      ],
+                      [
+                        "TUnit"
+                      ],
+                      [
+                        "TString"
+                      ],
+                      [
+                        "TList",
+                        [
+                          "TInt"
+                        ]
+                      ],
+                      [
+                        "TTuple",
+                        [
+                          "TInt"
+                        ],
+                        [
+                          "TString"
+                        ],
+                        []
+                      ],
+                      [
+                        "TDict",
+                        [
+                          "TInt"
+                        ]
+                      ],
+                      [
+                        "TDB",
+                        [
+                          "TInt"
+                        ]
+                      ],
+                      [
+                        "TDateTime"
+                      ],
+                      [
+                        "TChar"
+                      ],
+                      [
+                        "TPassword"
+                      ],
+                      [
+                        "TUuid"
+                      ],
+                      [
+                        "TOption",
+                        [
+                          "TInt"
+                        ]
+                      ],
+                      [
+                        "TCustomType",
+                        [
+                          "User",
+                          {
+                            "modules": [
+                              "Mod"
+                            ],
+                            "typ": "name",
+                            "version": 0
+                          }
+                        ],
+                        []
+                      ],
+                      [
+                        "TBytes"
+                      ],
+                      [
+                        "TResult",
+                        [
+                          "TInt"
+                        ],
+                        [
+                          "TString"
+                        ]
+                      ],
+                      [
+                        "TVariable",
+                        "v"
+                      ],
+                      [
+                        "TFn",
+                        [
+                          [
+                            "TInt"
+                          ]
+                        ],
+                        [
+                          "TInt"
+                        ]
+                      ]
+                    ]
+                  ],
+                  "label": "i",
+                  "description": ""
+                }
+              ],
+              "description": ""
+            }
+          ]
+        ],
+        "description": "test",
+        "deprecated": [
+          "NotDeprecated"
+        ]
       }
     ],
     "secrets": [

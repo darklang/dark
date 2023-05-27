@@ -130,7 +130,6 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar
@@ -157,7 +156,6 @@ module TypeReference =
     | RT.TList t -> TList(r t)
     | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
     | RT.TDict t -> TDict(r t)
-    | RT.THttpResponse t -> THttpResponse(r t)
     | RT.TDB t -> TDB(r t)
     | RT.TDateTime -> TDateTime
     | RT.TChar -> TChar
@@ -184,7 +182,6 @@ module TypeReference =
     | TList t -> RT.TList(r t)
     | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
     | TDict t -> RT.TDict(r t)
-    | THttpResponse t -> RT.THttpResponse(r t)
     | TDB t -> RT.TDB(r t)
     | TDateTime -> RT.TDateTime
     | TChar -> RT.TChar
@@ -521,7 +518,6 @@ module Dval =
     | DDict of Map<string, T>
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DHttpResponse of int64 * List<string * string> * T
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of Password
@@ -556,7 +552,6 @@ module Dval =
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(pw)
-    | DHttpResponse (id, pairs, dval) -> RT.DHttpResponse(id, pairs, r dval)
     | DList list -> RT.DList(List.map r list)
     | DTuple (first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
@@ -594,8 +589,6 @@ module Dval =
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
     | RT.DPassword (Password pw) -> DPassword(Password pw)
-    | RT.DHttpResponse (code, headers, dval) ->
-      DHttpResponse(code, headers, toCT dval)
     | RT.DList l -> DList(List.map r l)
     | RT.DTuple (first, second, theRest) ->
       DTuple(r first, r second, List.map r theRest)
@@ -746,10 +739,10 @@ module Package =
   type Parameter = { name : string; typ : TypeReference }
 
   module Parameter =
-    let fromCT (p : Parameter) : RT.Package.Parameter =
+    let fromCT (p : Parameter) : RT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.fromCT p.typ }
 
-    let toCT (p : RT.Package.Parameter) : Parameter =
+    let toCT (p : RT.PackageFn.Parameter) : Parameter =
       { name = p.name; typ = TypeReference.toCT p.typ }
 
   type Fn =
@@ -761,7 +754,7 @@ module Package =
       returnType : TypeReference }
 
   module Fn =
-    let fromCT (fn : Fn) : RT.Package.Fn =
+    let fromCT (fn : Fn) : RT.PackageFn.T =
       { name = FQFnName.PackageFnName.fromCT fn.name
         tlid = fn.tlid
         body = Expr.fromCT fn.body
@@ -769,7 +762,7 @@ module Package =
         parameters = List.map Parameter.fromCT fn.parameters
         returnType = TypeReference.fromCT fn.returnType }
 
-    let toCT (fn : RT.Package.Fn) : Fn =
+    let toCT (fn : RT.PackageFn.T) : Fn =
       { name = FQFnName.PackageFnName.toCT fn.name
         tlid = fn.tlid
         body = Expr.toCT fn.body

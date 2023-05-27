@@ -1,6 +1,6 @@
 [http-handler POST /]
 (let body = request.body |> Bytes.length |> Int.toString |> String.toBytes_v0 in
-Http.response body 200)
+PACKAGE.Darklang.Stdlib.Http.response body 200)
 
 [request]
 POST / HTTP/1.1

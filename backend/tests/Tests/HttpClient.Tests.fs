@@ -156,7 +156,7 @@ let makeTest versionName filename =
         |> Parser.TestModule.parseSingleTestFromFile "httpclient.tests.fs"
       let actualCode =
         test.actual
-        |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
+        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty
         |> PT2RT.Expr.toRT
 
       // Run the handler (call the HTTP client)
@@ -179,11 +179,11 @@ let makeTest versionName filename =
 
       let expectedCode =
         test.expected
-        |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
+        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty
         |> PT2RT.Expr.toRT
       let! expected = Exe.executeExpr state Map.empty expectedCode
-      let availableTypes = Map.empty
-      return Expect.equalDval availableTypes actual expected $"Responses don't match"
+      let types = RT.Types.empty
+      return Expect.equalDval types actual expected $"Responses don't match"
   }
 
 

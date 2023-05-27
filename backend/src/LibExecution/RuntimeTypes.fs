@@ -85,20 +85,28 @@ module FQTypeName =
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { modules = modules; typ = typ; version = version }
 
-  let userTypeName (modul : string) (typ : string) (version : int) : UserTypeName =
-    userTypeName' [ modul ] typ version
 
-  let toString (fqtn : T) : string =
-    match fqtn with
-    | Stdlib s ->
-      let fqName = s.modules @ [ s.typ ] |> String.concat "."
-      $"{fqName}_v{s.version}"
-    | User u ->
-      let fqName = u.modules @ [ u.typ ] |> String.concat "."
-      $"{fqName}_v{u.version}"
-    | Package p ->
-      let mn = p.modules |> Prelude.NonEmptyList.toList |> String.concat "."
-      $"{p.owner}.{mn}.{p.typ}_v{p.version}"
+  module StdlibTypeName =
+    let toString (s : StdlibTypeName) : string =
+      let name = s.modules @ [ s.typ ] |> String.concat "."
+      if s.version = 0 then name else $"{name}_v{s.version}"
+
+  module UserTypeName =
+    let toString (u : UserTypeName) : string =
+      let name = u.modules @ [ u.typ ] |> String.concat "."
+      if u.version = 0 then name else $"{name}_v{u.version}"
+
+  module PackageTypeName =
+    let toString (pkg : PackageTypeName) : string =
+      let mn = pkg.modules |> Prelude.NonEmptyList.toList |> String.concat "."
+      let name = $"{pkg.owner}.{mn}.{pkg.typ}"
+      if pkg.version = 0 then name else $"{name}_v{pkg.version}"
+
+  let toString (fqfnName : T) : string =
+    match fqfnName with
+    | User name -> UserTypeName.toString name
+    | Stdlib std -> StdlibTypeName.toString std
+    | Package pkg -> PackageTypeName.toString pkg
 
 
 
@@ -221,7 +229,6 @@ type TypeReference =
   | TOption of TypeReference // CLEANUP remove
   | TResult of TypeReference * TypeReference // CLEANUP remove
   | TDict of TypeReference // CLEANUP add key type
-  | THttpResponse of TypeReference // CLEANUP remove
 
   member this.isFn() : bool =
     match this with
@@ -241,7 +248,6 @@ type TypeReference =
       | TOption t -> isConcrete t
       | TResult (t1, t2) -> isConcrete t1 && isConcrete t2
       | TDict t -> isConcrete t
-      | THttpResponse t -> isConcrete t
       // exhaustiveness
       | TUnit
       | TBool
@@ -403,13 +409,6 @@ and [<NoComparison>] Dval =
   | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
-
-  // TODO: remove DHttpResponse eventually - this should really just be a DRecord
-  // of a type that is defined in the standard library (http module)
-  | DHttpResponse of
-    statusCode : int64 *
-    headers : List<string * string> *
-    responseBody : Dval
 
   | DDict of DvalMap
 
@@ -594,7 +593,6 @@ module Dval =
     | DOption (Some v), TOption t
     | DResult (Ok v), TResult (t, _) -> typeMatches t v
     | DResult (Error v), TResult (_, t) -> typeMatches t v
-    | DHttpResponse (_, _, body), THttpResponse t -> typeMatches t body
 
     | DRecord (typeName, fields), TCustomType (typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
@@ -630,7 +628,6 @@ module Dval =
     | DFnVal _, _
     | DOption _, _
     | DResult _, _
-    | DHttpResponse _, _
     | DEnum _, _ -> false
 
 
@@ -771,16 +768,19 @@ module Secret =
 // Functions
 // ------------
 
-module Package =
+module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
-  type Fn =
+  type T =
     { name : FQFnName.PackageFnName
       tlid : tlid
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
       body : Expr }
+
+module PackageType =
+  type T = { name : FQTypeName.PackageTypeName; definition : CustomType.T }
 
 
 // <summary>
@@ -967,8 +967,8 @@ and Libraries =
   { stdlibTypes : Map<FQTypeName.StdlibTypeName, BuiltInType>
     stdlibFns : Map<FQFnName.StdlibFnName, BuiltInFn>
 
-    // TODO: package types
-    packageFns : Map<FQFnName.PackageFnName, Package.Fn> }
+    packageFns : Map<FQFnName.PackageFnName, PackageFn.T>
+    packageTypes : Map<FQTypeName.PackageTypeName, PackageType.T> }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1011,32 +1011,40 @@ and ExecutionState =
     // (as opposed to being previewed for traces)
     onExecutionPath : bool }
 
+and Types =
+  { stdlibTypes : Map<FQTypeName.StdlibTypeName, BuiltInType>
+    packageTypes : Map<FQTypeName.PackageTypeName, PackageType.T>
+    userTypes : Map<FQTypeName.UserTypeName, UserType.T> }
+
 module ExecutionState =
-  let availableTypes (state : ExecutionState) : Map<FQTypeName.T, CustomType.T> =
-    let stdlibTypes =
-      state.libraries.stdlibTypes
-      |> Map.toList
-      |> List.map (fun (name, stdlibType) ->
-        FQTypeName.Stdlib name, stdlibType.definition)
+  let availableTypes (state : ExecutionState) : Types =
+    { stdlibTypes = state.libraries.stdlibTypes
+      packageTypes = state.libraries.packageTypes
+      userTypes = state.program.userTypes }
 
-    let userTypes =
-      state.program.userTypes
-      |> Map.toList
-      |> List.map (fun (name, userType) -> FQTypeName.User name, userType.definition)
+module Types =
+  let empty =
+    { stdlibTypes = Map.empty; packageTypes = Map.empty; userTypes = Map.empty }
 
-    // TODO: package types
+  let find (name : FQTypeName.T) (types : Types) : Option<CustomType.T> =
+    match name with
+    | FQTypeName.Stdlib std ->
+      Map.tryFind std types.stdlibTypes |> Option.map (fun t -> t.definition)
+    | FQTypeName.User user ->
+      Map.tryFind user types.userTypes |> Option.map (fun t -> t.definition)
+    | FQTypeName.Package pkg ->
+      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
 
-    List.concat [ userTypes; stdlibTypes ] |> Map
 
 let rec getTypeReferenceFromAlias
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (typ : TypeReference)
   : TypeReference =
   match typ with
   | TCustomType (typeName, typeArgs) ->
-    match Map.tryFind typeName availableTypes with
+    match Types.find typeName types with
     | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
-      getTypeReferenceFromAlias availableTypes (TCustomType(innerTypeName, typeArgs))
+      getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
     | _ -> typ
   | _ -> typ
 
@@ -1071,8 +1079,8 @@ let userFnToFn (fn : UserFunction.T) : Fn =
     sqlSpec = NotQueryable
     fn = UserFunction(fn.tlid, fn.body) }
 
-let packageFnToFn (fn : Package.Fn) : Fn =
-  let toParam (p : Package.Parameter) : Param = { name = p.name; typ = p.typ }
+let packageFnToFn (fn : PackageFn.T) : Fn =
+  let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
 
   { name = FQFnName.Package fn.name
     typeParams = fn.typeParams

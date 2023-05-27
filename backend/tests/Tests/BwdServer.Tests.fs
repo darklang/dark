@@ -194,7 +194,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
       |> List.map (fun handler ->
         let (source : PT.Expr) =
           Parser.ProgramTypes.initialParse "BwdServer.Tests.fs" handler.code
-          |> Parser.ProgramTypes.Expr.completeParse Set.empty Set.empty
+          |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty
 
         let gid = Prelude.gid
 

@@ -16,9 +16,14 @@ x-darklang-execution-id: 0123456789
 Content-Type: text/plain; charset=utf-8
 Server: darklang
 Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-Content-Length: 142
+Content-Length: LENGTH
 
-Application error: expected an http response, got:
+Application error: expected a HTTP response, got:
 Int: 13
 
-Consider using `Http.response`, `Http.responseWithHeaders`, or a similar function.
+HTTP handlers should return results in the form:
+  PACKAGE.Darklang.Stdlib.Http.Response {
+    statusCode : Int
+    headers : List<String*String>
+    body : Bytes
+  }

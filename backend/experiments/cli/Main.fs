@@ -48,7 +48,8 @@ let (stdlibFns, stdlibTypes) =
 let libraries : RT.Libraries =
   { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
     stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
-    packageFns = Map.empty }
+    packageFns = Map.empty
+    packageTypes = Map.empty }
 
 
 let execute
