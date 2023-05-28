@@ -60,8 +60,10 @@ let renameTypes
   existing @ newTypes
 
 let checkFn (fn : BuiltInFn) : unit =
-  if fn.parameters = [] then
-    Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
+  // We can't do this until constants (eg Math.pi) are no longer implemented as functions
+  // if fn.parameters = [] then
+  //   Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
+  ()
 
 /// Provided a list of library contents, combine them (handling renames)
 let combine

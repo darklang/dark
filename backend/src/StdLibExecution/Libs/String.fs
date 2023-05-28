@@ -76,12 +76,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "String" "newline" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = []
       returnType = TString
       description = "Returns a string containing a single '\n'"
       fn =
         (function
-        | _, _, [ DUnit ] -> Ply(DString "\n")
+        | _, _, [] -> Ply(DString "\n")
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

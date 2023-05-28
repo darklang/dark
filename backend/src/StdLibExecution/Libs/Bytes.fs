@@ -13,12 +13,12 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fn "Bytes" "empty" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = []
       returnType = TBytes
       description = "Returns an empty list of bytes"
       fn =
         (function
-        | _, _, [ DUnit ] -> DBytes [||] |> Ply
+        | _, _, [] -> DBytes [||] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

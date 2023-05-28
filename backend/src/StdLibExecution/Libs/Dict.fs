@@ -358,12 +358,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "Dict" "empty" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
+      parameters = []
       returnType = TDict varA
       description = "Returns an empty dictionary"
       fn =
         (function
-        | _, _, [ DUnit ] -> Ply(DDict Map.empty)
+        | _, _, [] -> Ply(DDict Map.empty)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
