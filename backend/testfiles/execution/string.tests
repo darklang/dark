@@ -580,4 +580,4 @@ String.padEnd_v0 "鷝" "觌഻" 0 = Ok "鷝"
 
 // Check that foreach executes the right number of times
 (let v = String.foreach "a string" (fun x -> let _ = Test.incrementSideEffectCounter_v0 false in 'c') in
- (v, Test.sideEffectCount_v0)) = ("cccccccc", 8)
+ (v, Test.sideEffectCount_v0 ())) = ("cccccccc", 8)

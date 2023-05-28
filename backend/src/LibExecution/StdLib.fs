@@ -59,6 +59,12 @@ let renameTypes
     |> Map.values
   existing @ newTypes
 
+let checkFn (fn : BuiltInFn) : unit =
+  // We can't do this until constants (eg Math.pi) are no longer implemented as functions
+  // if fn.parameters = [] then
+  //   Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
+  ()
+
 /// Provided a list of library contents, combine them (handling renames)
 let combine
   (libs : List<Contents>)
@@ -66,6 +72,7 @@ let combine
   (typeRenames : TypeRenames)
   : Contents =
   let (fns, types) = List.unzip libs
+  fns |> List.concat |> List.iter checkFn
   (fns |> List.concat |> renameFunctions fnRenames,
    types |> List.concat |> renameTypes typeRenames)
 

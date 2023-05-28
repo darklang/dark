@@ -455,8 +455,8 @@ module CompiledFunctions =
   (friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = ["GrumpyCat"]
   (friends (fun p -> DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
   (friends (fun p -> DateTime.greaterThan p.dob (rossDOB ()))) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.addSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
-  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.addSeconds_v0 (DateTime.now_v0 ()) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
+  (friends (fun p -> DateTime.lessThanOrEqualTo p.dob (DateTime.subtractSeconds_v0 (DateTime.now_v0 ()) 1 ))) = [" Chandler "; "GrumpyCat"; "Rachel"; "Ross"]
   (friends (fun p -> DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [" Chandler "]
   (friends (fun p -> DateTime.hour p.dob == 10)) = [" Chandler "]
   (friends (fun p -> DateTime.day_v0 p.dob == 19)) = [" Chandler "]
@@ -535,4 +535,4 @@ module QueryCount =
    DB.queryCount_v0 PersonDB (fun p -> p.height > 3)) = 4
 
 
-(DB.generateKey_v0 |> String.length) = 36
+((DB.generateKey_v0 ()) |> String.length) = 36

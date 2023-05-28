@@ -108,12 +108,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DateTime" "now" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
       description = "Returns the current time"
       fn =
         (function
-        | _, _, [] -> Instant.now () |> DarkDateTime.fromInstant |> DDateTime |> Ply
+        | _, _, [ DUnit ] ->
+          Instant.now () |> DarkDateTime.fromInstant |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -122,12 +123,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DateTime" "today" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
       description = "Returns the <type Date> with the time set to midnight"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           let now = DarkDateTime.fromInstant (Instant.now ())
           Ply(DDateTime(DarkDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())

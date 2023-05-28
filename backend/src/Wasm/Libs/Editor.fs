@@ -33,12 +33,12 @@ let mutable editor : Editor = { Types = []; Functions = []; CurrentState = DUnit
 let fns : List<BuiltInFn> =
   [ { name = fn' [ "WASM"; "Editor" ] "getState" 0
       typeParams = [ "state" ]
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TResult(TVariable "a", TString)
       description = "TODO"
       fn =
         (function
-        | _, [ _typeParam ], [] ->
+        | _, [ _typeParam ], [ DUnit ] ->
           uply {
             let state = editor.CurrentState
             // TODO: assert that the type matches the given typeParam

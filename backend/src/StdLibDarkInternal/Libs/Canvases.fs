@@ -66,12 +66,12 @@ let types : List<BuiltInType> =
 let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList TUuid
       description = "Get a list of all canvas IDs"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
             return hosts |> List.map DUuid |> DList
@@ -177,12 +177,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "darkEditorCanvasID" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TCustomType(FQTypeName.Stdlib(typ "Meta" 0), [])
       description = "Returns the ID of the special dark-editor canvas"
       fn =
         (function
-        | state, _, [] -> uply { return DUuid state.program.canvasID }
+        | state, _, [ DUnit ] -> uply { return DUuid state.program.canvasID }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

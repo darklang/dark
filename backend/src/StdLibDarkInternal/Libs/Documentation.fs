@@ -46,13 +46,13 @@ let types : List<BuiltInType> =
 let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList(TCustomType(FQTypeName.Stdlib(typ "Function" 0), []))
       description =
         "Returns a list of Function records, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =
         (function
-        | state, _, [] ->
+        | state, _, [ DUnit ] ->
           let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
           state.libraries.stdlibFns
           |> Map.toList

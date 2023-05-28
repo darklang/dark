@@ -266,12 +266,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DB" "generateKey" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, _, [] -> System.Guid.NewGuid() |> string |> DString |> Ply
+        | _, _, [ DUnit ] -> System.Guid.NewGuid() |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

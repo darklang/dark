@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the current working directory"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           uply {
             let contents = System.IO.Directory.GetCurrentDirectory()
             return DString contents
