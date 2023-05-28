@@ -9,7 +9,7 @@ let _handler _req =
     |> Result.withDefault Bytes.empty
 
   let contentType =
-    match (String.split_v1 path ".") |> List.last_v2 |> Option.withDefault "" with
+    match (String.split path ".") |> List.last |> Option.withDefault "" with
     | "js" -> "text/javascript"
     | "json" -> "application/json"
     | "html" -> "text/html"
@@ -18,8 +18,8 @@ let _handler _req =
 
   let incomingHost =
     request.headers
-    |> List.findFirst_v2 (fun t -> Tuple2.first t == "origin")
-    |> Option.map_v1 (fun t -> Tuple2.second t)
+    |> List.findFirst (fun t -> Tuple2.first t == "origin")
+    |> Option.map (fun t -> Tuple2.second t)
     |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
@@ -54,9 +54,9 @@ let _handler _req =
 
   match program with
   | Ok program ->
-    let types = Option.withDefault (Dict.get_v2 program "types") "[]"
-    let fns = Option.withDefault (Dict.get_v2 program "fns") "[]"
-    let exprs = Option.withDefault (Dict.get_v2 program "exprs") "[]"
+    let types = Option.withDefault (Dict.get program "types") "[]"
+    let fns = Option.withDefault (Dict.get program "fns") "[]"
+    let exprs = Option.withDefault (Dict.get program "exprs") "[]"
 
     let json = "{ \"types\": " ++ types ++ ", \"fns\": " ++ fns ++ ", \"exprs\": " ++ exprs ++ "}"
 

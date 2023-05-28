@@ -320,7 +320,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "last" 2
+    { name = fn "List" "last" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -350,7 +350,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "findFirst" 2
+    { name = fn "List" "findFirst" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -837,7 +837,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "filter" 2
+    { name = fn "List" "filter" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1342,7 +1342,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "getAt" 1
+    { name = fn "List" "getAt" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA

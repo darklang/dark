@@ -90,7 +90,7 @@ module InfixFnName =
     | PT.ComparisonGreaterThanOrEqual -> ([ "Int" ], "greaterThanOrEqualTo", 0)
     | PT.ComparisonLessThan -> ([ "Int" ], "lessThan", 0)
     | PT.ComparisonLessThanOrEqual -> ([ "Int" ], "lessThanOrEqualTo", 0)
-    | PT.StringConcat -> ([ "String" ], "append", 1)
+    | PT.StringConcat -> ([ "String" ], "append", 0)
     | PT.ComparisonEquals -> ([], "equals", 0)
     | PT.ComparisonNotEquals -> ([], "notEquals", 0)
 

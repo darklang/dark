@@ -395,7 +395,7 @@ let testMatchPreview : Test =
       (MPEnum(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
-         PT.FQFnName.stdlibFqName [ "String" ] "append" 1
+         PT.FQFnName.stdlibFqName [ "String" ] "append" 0
          |> PT2RT.FQFnName.toRT
          |> FnName,
          [],

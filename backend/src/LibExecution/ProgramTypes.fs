@@ -93,7 +93,8 @@ module FQFnName =
           "notEquals"
           "equals_v0"
           "notEquals_v0"
-          "emit_v1"
+          "emit_v0"
+          "emit"
           "print"
           "print_v0" ]
 

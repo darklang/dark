@@ -176,7 +176,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "get" 2
+    { name = fn "Dict" "get" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TOption varA
@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "filter" 1
+    { name = fn "Dict" "filter" 0
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""

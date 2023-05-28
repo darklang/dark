@@ -12,7 +12,7 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Char" "toUppercase" 1
+  [ { name = fn "Char" "toUppercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "toLowercase" 1
+    { name = fn "Char" "toLowercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar

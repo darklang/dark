@@ -5,11 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dark REPL</title>
     <style>
-      * { font-family: Courier New, sans-serif; font-size: 26px; background-color: black; color: white }
-      body, html { height: 100%; margin: 0 }
-      .container  { display: flex; height: 100%; }
-      .container div { flex: 1; padding: 10px; }
-      .textarea { width: 100%; height: 100%; resize: none; }
+      * {
+        font-family: Courier New, sans-serif;
+        font-size: 26px;
+        background-color: black;
+        color: white;
+      }
+      body,
+      html {
+        height: 100%;
+        margin: 0;
+      }
+      .container {
+        display: flex;
+        height: 100%;
+      }
+      .container div {
+        flex: 1;
+        padding: 10px;
+      }
+      .textarea {
+        width: 100%;
+        height: 100%;
+        resize: none;
+      }
     </style>
   </head>
 
@@ -20,7 +39,7 @@
 type Person = {Name: String}
 
 (Person { Name = "Joe" })
-  |> fun p -> String.toLowercase_v1 p.Name
+  |> fun p -> String.toLowercase p.Name
         </textarea>
       </div>
       <div>

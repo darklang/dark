@@ -19,7 +19,7 @@ Redirect destination reached with cookies
 // This is here to be a destination for valid redirect tests with cookies
 (let reqHeaders = { Cookie = "yummy_cookie=choco; tasty_cookie=strawberry" }
  let response = (HttpClient.request "get" "http://URL" {} reqHeaders) |> Test.unwrap
- let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
  Record.set_v0 response "headers" respHeaders) =
    HttpClient.Response
     { body = "Redirect destination reached with cookies"

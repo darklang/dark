@@ -32,7 +32,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DateTime" "parse" 2
+  [ { name = fn "DateTime" "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TDateTime, TString)
@@ -321,7 +321,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DateTime" "hour" 2
+    { name = fn "DateTime" "hour" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
@@ -335,7 +335,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DateTime" "minute" 1
+    { name = fn "DateTime" "minute" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
@@ -349,7 +349,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DateTime" "second" 1
+    { name = fn "DateTime" "second" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
@@ -383,7 +383,7 @@ let fns : List<BuiltInFn> =
     //
     // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
     // currently support such a complex sqlSpec in Dark fns.
-    { name = fn "DateTime" "subtract" 1
+    { name = fn "DateTime" "subtract" 0
       typeParams = []
       parameters = [ Param.make "end" TDateTime ""; Param.make "start" TDateTime "" ]
       returnType = TInt

@@ -7,7 +7,7 @@ let listDirectoryRecursive (dir : String) : List<String> =
 let listPackageFiles (dir : String) : List<String> =
   dir
   |> listDirectoryRecursive
-  |> List.filter_v2 (fun x -> x |> String.endsWith ".dark")
+  |> List.filter (fun x -> x |> String.endsWith ".dark")
 
 let loadFile (filename : String) : Unit =
   filename

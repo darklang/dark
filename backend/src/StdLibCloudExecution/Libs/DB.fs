@@ -41,7 +41,7 @@ let handleUnexpectedExceptionDuringQuery
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DB" "set" 1
+  [ { name = fn "DB" "set" 0
       typeParams = []
       parameters = [ valParam; keyParam; tableParam ]
       returnType = valType
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "get" 2
+    { name = fn "DB" "get" 0
       typeParams = []
       parameters = [ keyParam; tableParam ]
       returnType = TOption valType
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getMany" 3
+    { name = fn "DB" "getMany" 0
       typeParams = []
       parameters = [ keysParam; tableParam ]
       returnType = TOption(TList valType)
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getManyWithKeys" 1
+    { name = fn "DB" "getManyWithKeys" 0
       typeParams = []
       parameters = [ keysParam; tableParam ]
       returnType = TDict valType
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "delete" 1
+    { name = fn "DB" "delete" 0
       typeParams = []
       parameters = [ keyParam; tableParam ]
       returnType = TUnit
@@ -187,7 +187,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "deleteAll" 1
+    { name = fn "DB" "deleteAll" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TUnit
@@ -206,7 +206,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getAll" 3
+    { name = fn "DB" "getAll" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TList valType
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getAllWithKeys" 2
+    { name = fn "DB" "getAllWithKeys" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TDict valType
@@ -278,7 +278,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "keys" 1
+    { name = fn "DB" "keys" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TList TString
@@ -298,7 +298,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "query" 4
+    { name = fn "DB" "query" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TList valType
@@ -321,7 +321,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "queryWithKey" 3
+    { name = fn "DB" "queryWithKey" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TDict valType
@@ -344,7 +344,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "queryOne" 4
+    { name = fn "DB" "queryOne" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TOption valType
@@ -370,7 +370,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "queryOneWithKey" 3
+    { name = fn "DB" "queryOneWithKey" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TOption(TTuple(TString, valType, []))

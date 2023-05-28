@@ -42,7 +42,7 @@ some examples:
 ```
 
 ```
-{ name = fn "String" "foreach" 1
+{ name = fn "String" "foreach" 0
   typeParams = []
   parameters =
     [ Param.make "s" TStr ""
@@ -84,7 +84,7 @@ some examples:
 ```
 
 ```
-{ name = fn "DB" "getMany" 3
+{ name = fn "DB" "getMany" 0
   typeParams = []
   parameters = [ keysParam; tableParam ]
   returnType = TOption varA

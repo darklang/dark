@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "base64Decode" 1
+    { name = fn "Bytes" "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TBytes, TString)
