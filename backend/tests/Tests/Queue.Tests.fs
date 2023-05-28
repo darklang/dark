@@ -37,7 +37,7 @@ let initializeCanvas (name : string) : Task<CanvasID * tlid> =
     // set up handler
     let! canvasID = initializeTestCanvas name
 
-    let h = testWorker "test" (p "let data = DateTime.now_v0 in 123")
+    let h = testWorker "test" (p "let data = DateTime.now_v0 () in 123")
     let oplists = [ PT.SetHandler h ]
 
     do!

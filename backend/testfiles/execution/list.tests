@@ -34,19 +34,19 @@ List.dropWhile_v0 [] (fun item -> item < 3) = []
 List.empty_v0 = []
 
 (List.iter [1; 2; 3] (fun x -> Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 3
+ Test.sideEffectCount ()) = 3
 
 (List.iter [1; 2; 3; 4; 5] (fun x -> if x % 2 == 0 then Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 2
+ Test.sideEffectCount ()) = 2
 
 (List.iter [] (fun x -> Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 0
+ Test.sideEffectCount ()) = 0
 
 (List.iter [10; 20; 30] (fun x -> Test.incrementSideEffectCounter(); Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 6
+ Test.sideEffectCount ()) = 6
 
 (List.iter [1; 2; 3] (fun x -> if x > 2 then Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 1
+ Test.sideEffectCount ()) = 1
 
 
 
