@@ -12,6 +12,7 @@ async function submit() {
     isLoading.value = true
     console.log('emitting prompt to submit')
     const evt = { UserGavePrompt: [userInput.value] }
+    console.log('evt', evt)
     const result = await window.darklang.handleEvent(evt)
     console.log('result', result)
     userInput.value = ''

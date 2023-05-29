@@ -22,14 +22,13 @@ let _handler _req =
     |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
-    Dict.fromListOverwritingDuplicates
-      [
-        ("Access-Control-Allow-Origin", incomingHost)
-        ("Access-Control-Allow-Credentials", "true")
-        ("Content-type", contentType)
-        ("Accept-Ranges", "bytes")
-      ]
+    [
+      ("Access-Control-Allow-Origin", incomingHost)
+      ("Access-Control-Allow-Credentials", "true")
+      ("Content-type", contentType)
+      ("Accept-Ranges", "bytes")
+    ]
 
-  Http.responseWithHeaders body headers 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
 
 

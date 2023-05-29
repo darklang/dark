@@ -17,5 +17,7 @@ let parseAndSerializeProgram (userProgram: String): String =
 
 let handleEvent (userProgramSource: String): Result<Unit, String> =
   let parsedAndSerialized = parseAndSerializeProgram userProgramSource
+  debuG "parsedAndSerialized" parsedAndSerialized
   let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
+  debuG "evalResult" evalResult
   WASM.Editor.callJSFunction "self.receiveEvalResult" [evalResult]
