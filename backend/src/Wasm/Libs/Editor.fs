@@ -123,25 +123,30 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString sourceJson ] ->
           uply {
-            let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
+            try
+              let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
 
-            let stdLib =
-              LibExecution.StdLib.combine
-                [ StdLibExecution.StdLib.contents; Wasm.Libs.HttpClient.contents ]
-                []
-                []
+              let stdLib =
+                LibExecution.StdLib.combine
+                  [ StdLibExecution.StdLib.contents; Wasm.Libs.HttpClient.contents ]
+                  []
+                  []
 
-            let! result =
-              let expr = exprsCollapsedIntoOne source.exprs
-              let state = getStateForEval stdLib source.types source.fns
-              let inputVars = Map.empty
-              LibExecution.Execution.executeExpr state inputVars expr
+              let! result =
+                let expr = exprsCollapsedIntoOne source.exprs
+                let state = getStateForEval stdLib source.types source.fns
+                let inputVars = Map.empty
+                LibExecution.Execution.executeExpr state inputVars expr
 
-            return
-              LibExecution.DvalReprDeveloper.toRepr result
-              |> DString
-              |> Ok
-              |> DResult
+              return
+                LibExecution.DvalReprDeveloper.toRepr result
+                |> DString
+                |> Ok
+                |> DResult
+            with
+            | e ->
+              let error = Exception.getMessages e |> String.concat " "
+              return DResult(Error(DString($"Error parsing code: {error}")))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
