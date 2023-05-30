@@ -120,6 +120,7 @@ type Model =
 // Update
 type Msg =
   | UserGavePrompt of prompt: String
+  | UserGaveError of prompt: String
   | UserRequestedCodeEval of id: String * codeSnippet: String
 
 
@@ -167,6 +168,58 @@ let update (model: Model) (msg: Msg) : Model =
       let newChatItemsItems = [
         ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userPrompt
         ChatHistoryItem.BotResponse (rUnwrap(String.random 5)) botResponseParts
+      ]
+
+      Model
+        { systemPrompt = model.systemPrompt
+          chatHistory = List.append model.chatHistory newChatItemsItems
+          codeSnippets = List.append model.codeSnippets newCodeSnippets
+          tasks = List.append model.tasks newtasks
+          actions = model.actions
+          }
+
+    | Error err -> alert err
+
+  | UserGaveError userError ->
+    let fullPrompt = model.systemPrompt ++ "update the code snippet to fix the error" ++ userError
+
+    match openAIcompletion fullPrompt with
+    | Ok apiResponse ->
+
+      let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
+      let newtasks =
+        apiResponse
+        |> String.slice_v0 taskIndex (String.length_v1 apiResponse)
+        |> String.split_v1 "\n"
+        |> List.map (fun line ->
+            Task {
+            id = (String.random_v2 5) |> rUnwrap
+            description = line
+            status = Status.Todo})
+
+      let (newCodeSnippets, botResponseParts) =
+        (String.split_v1 (" " ++ apiResponse) "```")
+        |> List.indexedMap (fun i text -> (i, text))
+        |> List.fold ([], []) (fun acc curr ->
+          let (codeSnippets, responseParts) = acc
+          let (i, text) = curr
+          let text = String.trim text
+
+          if text == "" then
+            acc
+          else
+            if i % 2 == 1 then
+              let snippetId = rUnwrap(String.random_v2 5)
+              let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
+              let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
+              (updatedCodeSnippets, updatedResponseParts)
+            else
+              codeSnippets, (List.append responseParts [BotResponseItem.Text text])
+          )
+
+      let newChatItemsItems = [
+        ChatHistoryItem.UserPrompt (rUnwrap(String.random_v2 5)) userError
+        ChatHistoryItem.BotResponse (rUnwrap(String.random_v2 5)) botResponseParts
       ]
 
       Model

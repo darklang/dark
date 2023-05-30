@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 
 import type { CodeSnippet } from '@/types'
 import * as CodeMirror from 'codemirror'
@@ -23,39 +23,32 @@ const props = defineProps<{
 
 const codeSnippet = ref(props.snippet.code)
 
+watch(
+  () => props.snippet.eval,
+  async (newVal) => {
+    let value = newVal
+    if (value?.includes('<error:')) {
+      console.log('error', value)
+      try {
+        let errmsg = value + '\n' + '```' + codeSnippet.value + '```'
+        const evt = { UserGaveError: [errmsg] }
+        const result = await window.darklang.handleEvent(evt)
+        console.log('result', evt)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+  }
+)
+
 async function runCode() {
   try {
     const evt = { UserRequestedCodeEval: [props.snippet.id, codeSnippet.value] }
     const result = await window.darklang.handleEvent(evt)
+    console.log('result', result)
   } catch (error) {
     console.error(error)
   }
-}
-
-async function sendError(value: string) {
-  console.log('error', value)
-  try {
-    console.log('emitting error prompt')
-    let errmsg =
-      'update the code snippet to fix the error ```' +
-      codeSnippet.value +
-      '```' +
-      '\n' +
-      value
-    console.log('errmsg', errmsg)
-    const evt = { UserGavePrompt: [errmsg] }
-    const result = await window.darklang.handleEvent(evt)
-    console.log('result', evt)
-  } catch (error) {
-    console.error(error)
-  }
-}
-
-function checkForError(value: string) {
-  if (value.includes('<error:')) {
-    sendError(value)
-  }
-  return value
 }
 
 onMounted(() => {
@@ -107,6 +100,6 @@ onMounted(() => {
     v-if="props.snippet.eval"
     class="text-xs p-2 bg-[#323232] rounded text-white mt-4"
   >
-    {{ checkForError(props.snippet.eval) }}
+    {{ props.snippet.eval }}
   </div>
 </template>
