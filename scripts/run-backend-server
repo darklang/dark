@@ -70,6 +70,7 @@ echo "Stopping servers"
 sudo pkill -f "BwdServer" || true
 sudo pkill -f "CronChecker" || true
 sudo pkill -f "QueueWorker" || true
+sudo pkill -f "BwdDangerServer" || true
 
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
@@ -96,7 +97,7 @@ echo "Done waiting for compiled servers"
 echo "Running migrations"
 "${PRODEXEC_EXE}" migrations run > "$LOGS/migrations.log" 2>&1
 echo "Loading packages"
-"${LOCALEXEC_EXE}" load-packages > "$LOGS/packages.log" 2>&1 &
+"${LOCALEXEC_EXE}" load-packages > "$LOGS/packages.log" 2>&1
 echo "Running bwdserver"
 "${BWDSERVER_EXE}" > "$LOGS/bwdserver.log" 2>&1 &
 echo "Running cronchecker"

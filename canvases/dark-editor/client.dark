@@ -190,7 +190,7 @@ let updateStateInJS (newState: Model): Result<Unit, String> =
 let handleEvent (evt: String): Result<String, String> =
   match Json.parse<Msg> evt with
   | Ok msg ->
-    match WASM.Editor.getState<Model> with
+    match WASM.Editor.getState<Model> () with
     | Ok currentState ->
       let newState = update currentState msg
 
@@ -199,8 +199,13 @@ let handleEvent (evt: String): Result<String, String> =
 
       updateStateInJS newState
 
-    | Error err -> Error "Couldn't get current state"
-  | Error err -> Error "Couldn't parse raw msg"
+    | Error err ->
+      log ("Couldn't get current state:  " ++ err)
+      Error "Couldn't get current state"
+
+  | Error err ->
+    log ("Couldn't get current state: " ++ err)
+    Error ("Couldn't parse raw msg: " ++ err)
 
 
 // Init
