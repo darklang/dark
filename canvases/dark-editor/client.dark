@@ -34,7 +34,6 @@ let openAIcompletion (prompt: String): Result<String, String> =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
     match WASM.HttpClient.request "get" url [] Bytes.empty with
     | Ok response -> response.body |> String.fromBytes
-    | Error err -> "Couldn't get api key - " ++ err
 
   let openAIRequest =
     OpenAIChatCompletionRequest
