@@ -10,21 +10,10 @@ let _handler _req =
     match file with
     | Ok f ->  f
     | Error _ -> Bytes.empty
-
-  // Http.responseWithHeaders
-  //   (body)
-  //   (Dict.fromListOverwritingDuplicates [ ("Content-Type", "text/html") ])
-  //   200
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
     (body)
     [ ("Content-Type", "text/html") ]
     200
-  // PACKAGE.Darklang.Stdlib.Http.Response {
-  //   statusCode = 200
-  //   headers = [("Content-Type", "text/html; charset=utf-8")]
-  //   body = body
-  // }
-
 
 [<HttpHandler("GET", "/assets/:path")>]
 let _handler _req =

@@ -191,7 +191,7 @@ let updateStateInJS (newState: Model): Result<Unit, String> =
 let handleEvent (evt: String): Result<String, String> =
   match Json.parse<Msg> evt with
   | Ok msg ->
-    match WASM.Editor.getState<Model> with
+    match WASM.Editor.getState<Model> () with
     | Ok currentState ->
       let newState = update currentState msg
 
