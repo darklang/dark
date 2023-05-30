@@ -87,5 +87,23 @@ let HandleEvent (serializedEvent : string) : Task<string> =
           [ DString serializedEvent ]
       )
 
-    return LibExecution.DvalReprDeveloper.toRepr result
+    match result with
+    | DError (_source, err) ->
+      WasmHelpers.callJSFunction
+        "console.error"
+        [ $"Error calling handleEvent with provided args: {err}" ]
+      return "failed - see console.error"
+
+    | DIncomplete (_) ->
+      WasmHelpers.callJSFunction
+        "console.error"
+        [ $"handleError returned Incomplete" ]
+      return "failed - handleError returned Incomplete"
+
+    | DFnVal (_) ->
+      WasmHelpers.callJSFunction "console.error" [ $"handleError returned DFnVal" ]
+      return "failed - handleError returned DFnVal"
+
+    | result -> return LibExecution.DvalReprDeveloper.toRepr result
+
   }
