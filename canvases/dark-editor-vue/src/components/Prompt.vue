@@ -30,7 +30,7 @@ onMounted(() => autosize(content.value))
 
 <template>
   <div
-    class="flex items-center justify-center m-4 fixed bottom-0 left-0 right-0 p-3 border border-white/10 rounded-md"
+    class="flex items-center justify-center m-4 fixed bottom-0 left-0 right-0 p-3 border border-white/10 rounded-md bg-[#151515]"
   >
     <textarea
       ref="content"

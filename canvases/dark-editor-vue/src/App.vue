@@ -48,20 +48,20 @@ document.head.appendChild(darklangJSScript)
 </script>
 
 <template>
-  <div>
+  <div class="h-screen overflow-hidden">
     <Header />
-    <div class="flex">
-      <div class="w-1/5">
+    <div class="flex h-screen overflow-hidden">
+      <div class="w-1/5 overflow-auto">
         <TasksandActionsView
           v-bind:state="state"
           :tasks="state.tasks"
           :actions="state.actions"
         />
       </div>
-      <div class="w-2/5">
+      <div class="w-2/5 overflow-auto">
         <ConversationView v-bind:state="state" />
       </div>
-      <div class="w-2/5">
+      <div class="w-2/5 overflow-auto">
         <CodeandContextView
           v-bind:state="state"
           :codeSnippets="state.codeSnippets"
