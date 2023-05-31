@@ -137,11 +137,11 @@ let update (model: Model) (msg: Msg) : Model =
       let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
       let newtasks =
         apiResponse
-        |> String.slice_v0 taskIndex (String.length_v1 apiResponse)
-        |> String.split_v1 "\n"
+        |> String.slice_v0 taskIndex (String.length apiResponse)
+        |> String.split "\n"
         |> List.map (fun line ->
             Task {
-            id = (String.random_v2 5) |> rUnwrap
+            id = (String.random 5) |> rUnwrap
             description = line
             status = Status.Todo})
 
@@ -189,16 +189,16 @@ let update (model: Model) (msg: Msg) : Model =
       let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
       let newtasks =
         apiResponse
-        |> String.slice_v0 taskIndex (String.length_v1 apiResponse)
-        |> String.split_v1 "\n"
+        |> String.slice_v0 taskIndex (String.length apiResponse)
+        |> String.split "\n"
         |> List.map (fun line ->
             Task {
-            id = (String.random_v2 5) |> rUnwrap
+            id = (String.random 5) |> rUnwrap
             description = line
             status = Status.Todo})
 
       let (newCodeSnippets, botResponseParts) =
-        (String.split_v1 (" " ++ apiResponse) "```")
+        (String.split (" " ++ apiResponse) "```")
         |> List.indexedMap (fun i text -> (i, text))
         |> List.fold ([], []) (fun acc curr ->
           let (codeSnippets, responseParts) = acc
@@ -209,7 +209,7 @@ let update (model: Model) (msg: Msg) : Model =
             acc
           else
             if i % 2 == 1 then
-              let snippetId = rUnwrap(String.random_v2 5)
+              let snippetId = rUnwrap(String.random 5)
               let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
               let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
               (updatedCodeSnippets, updatedResponseParts)
@@ -218,8 +218,8 @@ let update (model: Model) (msg: Msg) : Model =
           )
 
       let newChatItemsItems = [
-        ChatHistoryItem.UserPrompt (rUnwrap(String.random_v2 5)) userError
-        ChatHistoryItem.BotResponse (rUnwrap(String.random_v2 5)) botResponseParts
+        ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userError
+        ChatHistoryItem.BotResponse (rUnwrap(String.random 5)) botResponseParts
       ]
 
       Model
@@ -290,6 +290,10 @@ let handleEvent (evt: String): Result<String, String> =
       log ("Couldn't get current state:  " ++ err)
       Error "Couldn't get current state"
 
+    | _ ->
+      log ("erroooooooooooor:  ")
+      Error "erroooooooooooor"
+
   | Error err ->
     log ("Couldn't get current state: " ++ err)
     Error ("Couldn't parse raw msg: " ++ err)
@@ -313,29 +317,29 @@ let initState =
           eval = Nothing }
 
     let demoTask = [
-      Task { id = (String.random_v2 5) |> rUnwrap
+      Task { id = (String.random 5) |> rUnwrap
              description = "Task: first task in progress"
              status = Status.InProgress};
 
-      Task { id = (String.random_v2 5) |> rUnwrap
+      Task { id = (String.random 5) |> rUnwrap
              description = "Task: second task to do"
              status = Status.Todo};
 
-      Task { id = (String.random_v2 5) |> rUnwrap
+      Task { id = (String.random 5) |> rUnwrap
              description = "Task: first task task done"
              status = Status.InProgress}
     ]
 
     let demoAction = [
-      Action { id = (String.random_v2 5) |> rUnwrap
+      Action { id = (String.random 5) |> rUnwrap
                description = "Action: first action"
                status = Status.InProgress};
 
-      Action { id = (String.random_v2 5) |> rUnwrap
+      Action { id = (String.random 5) |> rUnwrap
                description = "Action: second action"
                status = Status.Todo};
 
-      Action { id = (String.random_v2 5) |> rUnwrap
+      Action { id = (String.random 5) |> rUnwrap
                description = "Action: third action"
                status = Status.InProgress}
     ]
