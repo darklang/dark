@@ -290,10 +290,6 @@ let handleEvent (evt: String): Result<String, String> =
       log ("Couldn't get current state:  " ++ err)
       Error "Couldn't get current state"
 
-    | _ ->
-      log ("erroooooooooooor:  ")
-      Error "erroooooooooooor"
-
   | Error err ->
     log ("Couldn't get current state: " ++ err)
     Error ("Couldn't parse raw msg: " ++ err)
