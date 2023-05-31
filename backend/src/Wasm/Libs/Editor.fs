@@ -40,9 +40,15 @@ let fns : List<BuiltInFn> =
         (function
         | _, [ _typeParam ], [ DUnit ] ->
           uply {
-            let state = editor.CurrentState
-            // TODO: assert that the type matches the given typeParam
-            return DResult(Ok state)
+            try
+              let state = editor.CurrentState
+              debuG "getState" state
+              // TODO: assert that the type matches the given typeParam
+              return DResult(Ok state)
+            with
+            | e ->
+              return
+                $"Error getting state: {e.Message}" |> DString |> Error |> DResult
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
