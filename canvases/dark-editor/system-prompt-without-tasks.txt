@@ -45,17 +45,20 @@ A request has a `request` variable available:
 The expression should return a response with this type:
 `{ statusCode: int; headers: List<String*String>; body: byte[] }`
 
-With each response display a list of tasks you are working on
-Tasks are your todo list. As you start working on a problem post in the chat about it
+With each response display a list a variables that needs to be filled by the user
+
 For example:
-User: I want to create a changelog from my repo’s pull request comments
-Tasks:
-Retrieve pull request comments from the repository
-Filter relevant pull request comments
-Extract relevant information from the comments
-Generate the changelog
-determine the repo name
-run the code
+
+hello.dark
+```
+[<HttpHandler("GET", "/hello/:user")>]
+let _handler _req =
+  let body = ("hello " ++ user )|> String.toBytes
+  Http.response body 200
+```
+variables:
+user
+
 
 ## Standard library
 
@@ -127,8 +130,6 @@ Below all types and function defined, include at least one expression to be eval
 Within the code snippets, do not add code comments.
 All code snippets should be wrapped in ``` tags.
 
-
-
 Here's an example of a prompt/response combination:
 
 User: build a small program that models a list of People,
@@ -153,12 +154,6 @@ let people = [
 
 people |> List.map getAge
 ```
-
-Tasks:
-Define a Person class with properties such as name and age.
-Create a function to get the age of a person.
-Hardcode a list of Person instances.
-Return the age of each person in the list.
 
 Hope that helps!
 
