@@ -120,7 +120,6 @@ type Model =
 // Update
 type Msg =
   | UserGavePrompt of prompt: String
-  | UserGaveError of prompt: String
   | UserRequestedCodeEval of id: String * codeSnippet: String
 
 
@@ -180,82 +179,80 @@ let update (model: Model) (msg: Msg) : Model =
 
     | Error err -> alert err
 
-  | UserGaveError userError ->
-    let fullPrompt = model.systemPrompt ++ "update the code snippet to fix the error" ++ userError
-
-    match openAIcompletion fullPrompt with
-    | Ok apiResponse ->
-
-      let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
-      let newtasks =
-        apiResponse
-        |> String.slice_v0 taskIndex (String.length apiResponse)
-        |> String.split "\n"
-        |> List.map (fun line ->
-            Task {
-            id = (String.random 5) |> rUnwrap
-            description = line
-            status = Status.Todo})
-
-      let (newCodeSnippets, botResponseParts) =
-        (String.split (" " ++ apiResponse) "```")
-        |> List.indexedMap (fun i text -> (i, text))
-        |> List.fold ([], []) (fun acc curr ->
-          let (codeSnippets, responseParts) = acc
-          let (i, text) = curr
-          let text = String.trim text
-
-          if text == "" then
-            acc
-          else
-            if i % 2 == 1 then
-              let snippetId = rUnwrap(String.random 5)
-              let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
-              let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
-              (updatedCodeSnippets, updatedResponseParts)
-            else
-              codeSnippets, (List.append responseParts [BotResponseItem.Text text])
-          )
-
-      let newChatItemsItems = [
-        ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userError
-        ChatHistoryItem.BotResponse (rUnwrap(String.random 5)) botResponseParts
-      ]
-
-      Model
-        { systemPrompt = model.systemPrompt
-          chatHistory = List.append model.chatHistory newChatItemsItems
-          codeSnippets = List.append model.codeSnippets newCodeSnippets
-          tasks = List.append model.tasks newtasks
-          actions = model.actions
-          }
-
-    | Error err -> alert err
-
   | UserRequestedCodeEval id codeSnippet ->
     // split this into 2 groups - the one we're updating, and the rest
     let (snippetToUpdate, otherSnippets) =
       model.codeSnippets |> List.partition (fun cs -> cs.id == id)
 
     match List.head snippetToUpdate with
-    | Nothing -> alert "couldn't find snippet"
+    | Nothing -> log "couldn't find snippet"
     | Just snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
-
       let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
 
-      let updatedCodeSnippets =
-        List.append
-          [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalResult }]
-          otherSnippets
+      if String.contains evalResult "<error:" then
+        let fullPrompt = model.systemPrompt ++ "update the code snippet to fix the error " ++ evalResult ++ "\n" ++ "```" ++ codeSnippet
+        match openAIcompletion fullPrompt with
+        | Ok apiResponse ->
 
-      Model
-        { systemPrompt = model.systemPrompt
-          chatHistory = model.chatHistory
-          codeSnippets = updatedCodeSnippets
-          tasks = model.tasks
-          actions = model.actions }
+          let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
+          let newtasks =
+            apiResponse
+            |> String.slice_v0 taskIndex (String.length apiResponse)
+            |> String.split "\n"
+            |> List.map (fun line ->
+                Task {
+                id = (String.random 5) |> rUnwrap
+                description = line
+                status = Status.Todo})
 
+          let (newCodeSnippets, botResponseParts) =
+            (String.split (" " ++ apiResponse) "```")
+            |> List.indexedMap (fun i text -> (i, text))
+            |> List.fold ([], []) (fun acc curr ->
+              let (codeSnippets, responseParts) = acc
+              let (i, text) = curr
+              let text = String.trim text
+
+              if text == "" then
+                acc
+              else
+                if i % 2 == 1 then
+                  let snippetId = rUnwrap(String.random 5)
+                  let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
+                  let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
+                  (updatedCodeSnippets, updatedResponseParts)
+                else
+                  codeSnippets, (List.append responseParts [BotResponseItem.Text text])
+              )
+
+          let newChatItemsItems = [
+            ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) evalResult
+            ChatHistoryItem.BotResponse (rUnwrap(String.random 5)) botResponseParts
+          ]
+
+          Model
+            { systemPrompt = model.systemPrompt
+              chatHistory = List.append model.chatHistory newChatItemsItems
+              codeSnippets = List.append model.codeSnippets newCodeSnippets
+              tasks = List.append model.tasks newtasks
+              actions = model.actions
+              }
+
+        | Error err -> log err
+
+      else
+        let updatedCodeSnippets =
+          List.append
+            [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalResult }]
+            otherSnippets
+
+        Model
+          { systemPrompt = model.systemPrompt
+            chatHistory = model.chatHistory
+            codeSnippets = updatedCodeSnippets
+            tasks = model.tasks
+            actions = model.actions }
 
 /// Single point of communicating to JS host
 ///

@@ -23,24 +23,6 @@ const props = defineProps<{
 
 const codeSnippet = ref(props.snippet.code)
 
-watch(
-  () => props.snippet.eval,
-  async (newVal) => {
-    let value = newVal
-    if (value?.includes('<error:')) {
-      console.log('error', value)
-      try {
-        let errmsg = value + '\n' + '```' + codeSnippet.value + '```'
-        const evt = { UserGaveError: [errmsg] }
-        const result = await window.darklang.handleEvent(evt)
-        console.log('result', evt)
-      } catch (error) {
-        console.error(error)
-      }
-    }
-  }
-)
-
 async function runCode() {
   try {
     const evt = { UserRequestedCodeEval: [props.snippet.id, codeSnippet.value] }

@@ -42,7 +42,6 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let state = editor.CurrentState
-              debuG "getState" state
               // TODO: assert that the type matches the given typeParam
               return DResult(Ok state)
             with
