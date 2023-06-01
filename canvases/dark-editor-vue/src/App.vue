@@ -4,8 +4,8 @@ import { ref } from 'vue'
 import { fromSerializedDarkModel, type Model } from './types'
 import Header from './components/Header.vue'
 import ConversationView from './views/ConversationView.vue'
-import TasksandActionsView from './views/TasksandActionsView.vue'
-import CodeandContextView from './views/CodeandContextView.vue'
+import TasksAndActionsView from './views/TasksAndActionsView.vue'
+import CodeAndContextView from './views/CodeAndContextView.vue'
 
 let init: Model = {
   systemPrompt: '<system prompt here>!',
@@ -52,7 +52,7 @@ document.head.appendChild(darklangJSScript)
     <Header />
     <div class="flex h-screen overflow-hidden">
       <div class="w-1/5 overflow-auto pb-24">
-        <TasksandActionsView
+        <TasksAndActionsView
           v-bind:state="state"
           :tasks="state.tasks"
           :actions="state.actions"
@@ -62,7 +62,7 @@ document.head.appendChild(darklangJSScript)
         <ConversationView v-bind:state="state" />
       </div>
       <div class="w-2/5 overflow-auto pb-24">
-        <CodeandContextView
+        <CodeAndContextView
           v-bind:state="state"
           :codeSnippets="state.codeSnippets"
         />
