@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 
 import type { CodeSnippet } from '@/types'
 import * as CodeMirror from 'codemirror'
