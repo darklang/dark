@@ -32,6 +32,7 @@ async function runCode() {
     console.error(error)
   }
 }
+
 onMounted(() => {
   const editorElement = document.getElementById(
     `editor-${props.snippet.id}`
@@ -57,7 +58,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex p-4 m-2 mt-6 bg-[#1C1C1C] rounded-2xl">
+  <div class="flex p-4 m-2 mt-6 bg-[#1C1C1C] rounded-2xl overflow-hidden relative">
     <div class="flex flex-col items-center mt-4 px-1">
       <button class="mb-3" @click="runCode">
         <fa icon="play" class="w-4 h-4 text-[#8f53ff]" />
@@ -69,11 +70,11 @@ onMounted(() => {
         <fa icon="fa-clone" class="w-4 h-4 text-[#808080]" />
       </button>
     </div>
-    <div class="ml-3 border-l border-[#333333]">
+    <div class="ml-3 border-l border-[#333333] overflow-scroll">
       <textarea
         v-model="codeSnippet"
         :id="`editor-${props.snippet.id}`"
-        class="text-white bg-transparent w-full outline-none h-auto"
+        class="text-white bg-transparent w-full outline-none h-auto absolute inset-1"
       ></textarea>
     </div>
   </div>

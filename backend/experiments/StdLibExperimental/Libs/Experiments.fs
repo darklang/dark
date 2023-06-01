@@ -174,7 +174,12 @@ let fns : List<BuiltInFn> =
             with
             | e ->
               let error = Exception.getMessages e |> String.concat " "
-              return DString($"Error parsing code: {error}") |> Error |> DResult
+              let metadata = Exception.nestedMetadata e
+              let metadataDval = metadata |> Map.ofList
+              return
+                DString($"Error parsing code: {error} {metadataDval}")
+                |> Error
+                |> DResult
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

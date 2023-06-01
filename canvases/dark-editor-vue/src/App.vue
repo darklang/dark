@@ -2,12 +2,17 @@
 import { ref } from 'vue'
 
 import { fromSerializedDarkModel, type Model } from './types'
+import Header from './components/Header.vue'
 import ConversationView from './views/ConversationView.vue'
+import TasksAndActionsView from './views/TasksAndActionsView.vue'
+import CodeAndContextView from './views/CodeAndContextView.vue'
 
 let init: Model = {
   systemPrompt: '<system prompt here>!',
   chatHistory: [],
   codeSnippets: [],
+  tasks: [],
+  actions: [],
 }
 
 // Set initial state; listen for state updates from Dark
@@ -43,5 +48,25 @@ document.head.appendChild(darklangJSScript)
 </script>
 
 <template>
-  <ConversationView v-bind:state="state" />
+  <div class="h-screen overflow-hidden">
+    <Header />
+    <div class="flex h-screen overflow-hidden">
+      <div class="w-1/5 overflow-auto pb-24">
+        <TasksAndActionsView
+          v-bind:state="state"
+          :tasks="state.tasks"
+          :actions="state.actions"
+        />
+      </div>
+      <div class="w-2/5 overflow-auto pb-24">
+        <ConversationView v-bind:state="state" />
+      </div>
+      <div class="w-2/5 overflow-auto pb-24">
+        <CodeAndContextView
+          v-bind:state="state"
+          :codeSnippets="state.codeSnippets"
+        />
+      </div>
+    </div>
+  </div>
 </template>

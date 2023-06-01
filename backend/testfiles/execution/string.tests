@@ -577,6 +577,18 @@ String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = Ok "🧟‍♀️🧟‍�
 String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
 String.padEnd_v0 "鷝" "觌഻" 0 = Ok "鷝"
 
+String.indexOf_v0 "hello world" "world" = Just 6
+String.indexOf_v0 "hello world" "earth" = Nothing
+String.indexOf_v0 "" "" =  Just 0
+String.indexOf_v0 "hello" "" =  Just 0
+String.indexOf_v0 "" "hello" = Nothing
+String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"  = Just 6
+String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"  = Nothing
+String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = Just 11
+String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = Just 4
+String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = Nothing
+String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = Nothing
+
 
 // Check that foreach executes the right number of times
 (let v = String.foreach "a string" (fun x -> let _ = Test.incrementSideEffectCounter_v0 false in 'c') in

@@ -972,6 +972,28 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "String" "indexOf" 0
+      typeParams = []
+      parameters =
+        [ Param.make "str" TString "The string to search in"
+          Param.make
+            "searchFor"
+            TString
+            "The string to search for within <param str>" ]
+      returnType = TOption TInt
+      description =
+        "Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>, or returns {{Nothing}} if <param searchFor> does not occur."
+      fn =
+        (function
+        | _, _, [ DString str; DString search ] ->
+          let index = str.IndexOf(search)
+          if index = -1 then Ply(DOption None) else Ply(DOption(Some(DInt index)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let contents = (fns, types)

@@ -83,9 +83,23 @@ let parseAndSerializeProgram (userProgram: String): String =
 // "all code snippets returned must be executable without any other context needed"
 
 // Model
+
+type Status =
+  | Todo
+  | InProgress
+  | Done
+
+type Task =
+  { id: String; description: String; status: Status }
+
+type Action =
+  { id: String; description: String; status: Status}
+
 type BotResponseItem =
   | Text of text: String
   | CodeSnippet of id: String
+  | Tasks of tasks: List<Task>
+  | Actions of actions: List<Action>
 
 type ChatHistoryItem =
   | UserPrompt of id: String * prompt: String
@@ -97,7 +111,10 @@ type CodeSnippet =
 type Model =
   { systemPrompt: String
     chatHistory: List<ChatHistoryItem>
-    codeSnippets: List<CodeSnippet> }
+    codeSnippets: List<CodeSnippet>
+    tasks : List<Task>
+    actions: List<Action>
+    }
 
 
 // Update
@@ -115,6 +132,18 @@ let update (model: Model) (msg: Msg) : Model =
 
     match openAIcompletion fullPrompt with
     | Ok apiResponse ->
+
+      let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
+      let newtasks =
+        apiResponse
+        |> String.slice_v0 taskIndex (String.length apiResponse)
+        |> String.split "\n"
+        |> List.map (fun line ->
+            Task {
+            id = (String.random 5) |> rUnwrap
+            description = line
+            status = Status.Todo})
+
       let (newCodeSnippets, botResponseParts) =
         (String.split (" " ++ apiResponse) "```")
         |> List.indexedMap (fun i text -> (i, text))
@@ -143,7 +172,10 @@ let update (model: Model) (msg: Msg) : Model =
       Model
         { systemPrompt = model.systemPrompt
           chatHistory = List.append model.chatHistory newChatItemsItems
-          codeSnippets = List.append model.codeSnippets newCodeSnippets }
+          codeSnippets = List.append model.codeSnippets newCodeSnippets
+          tasks = List.append model.tasks newtasks
+          actions = model.actions
+          }
 
     | Error err -> alert err
 
@@ -153,10 +185,9 @@ let update (model: Model) (msg: Msg) : Model =
       model.codeSnippets |> List.partition (fun cs -> cs.id == id)
 
     match List.head snippetToUpdate with
-    | Nothing -> alert "couldn't find snippet"
+    | Nothing -> log "couldn't find snippet"
     | Just snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
-
       let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
 
       let updatedCodeSnippets =
@@ -167,8 +198,9 @@ let update (model: Model) (msg: Msg) : Model =
       Model
         { systemPrompt = model.systemPrompt
           chatHistory = model.chatHistory
-          codeSnippets = updatedCodeSnippets }
-
+          codeSnippets = updatedCodeSnippets
+          tasks = model.tasks
+          actions = model.actions }
 
 /// Single point of communicating to JS host
 ///
@@ -225,6 +257,34 @@ let initState =
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
           eval = Nothing }
 
+    let demoTask = [
+      Task { id = (String.random 5) |> rUnwrap
+             description = "Task: first task in progress"
+             status = Status.InProgress};
+
+      Task { id = (String.random 5) |> rUnwrap
+             description = "Task: second task to do"
+             status = Status.Todo};
+
+      Task { id = (String.random 5) |> rUnwrap
+             description = "Task: first task task done"
+             status = Status.InProgress}
+    ]
+
+    let demoAction = [
+      Action { id = (String.random 5) |> rUnwrap
+               description = "Action: first action"
+               status = Status.InProgress};
+
+      Action { id = (String.random 5) |> rUnwrap
+               description = "Action: second action"
+               status = Status.Todo};
+
+      Action { id = (String.random 5) |> rUnwrap
+               description = "Action: third action"
+               status = Status.InProgress}
+    ]
+
     let chatHistory = [
       ChatHistoryItem.UserPrompt
         (rUnwrap(String.random 5))
@@ -235,13 +295,20 @@ let initState =
         [
           BotResponseItem.Text "OK - here's some code:"
           BotResponseItem.CodeSnippet demoSnippet.id
+          BotResponseItem.Text "And here are some tasks:"
+          BotResponseItem.Tasks demoTask
+          BotResponseItem.Text "And here are some actions:"
+          BotResponseItem.Actions demoAction
         ]
     ]
 
     Model
       { systemPrompt = String.fromBytes response.body
         chatHistory = chatHistory
-        codeSnippets = [demoSnippet] }
+        codeSnippets = [demoSnippet]
+        tasks = demoTask
+        actions = demoAction
+      }
 
   | Error err ->
     Model
