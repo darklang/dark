@@ -135,14 +135,17 @@ let update (model: Model) (msg: Msg) : Model =
 
       let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
       let newtasks =
-        apiResponse
-        |> String.slice_v0 taskIndex (String.length apiResponse)
-        |> String.split "\n"
-        |> List.map (fun line ->
-            Task {
-            id = (String.random 5) |> rUnwrap
-            description = line
-            status = Status.Todo})
+        match taskIndex with
+        | Nothing -> []
+        | Just taskIndex ->
+          apiResponse
+          |> String.slice_v0 taskIndex (String.length apiResponse)
+          |> String.split "\n"
+          |> List.map (fun line ->
+              Task {
+              id = (String.random 5) |> rUnwrap
+              description = line
+              status = Status.Todo})
 
       let (newCodeSnippets, botResponseParts) =
         (String.split (" " ++ apiResponse) "```")
