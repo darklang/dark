@@ -14,7 +14,7 @@ resource "google_storage_bucket" "us_artifacts_balmy_ground_195100_appspot_com" 
   force_destroy            = false
   location                 = "US"
   name                     = "us.artifacts.balmy-ground-195100.appspot.com"
-  project                  = "balmy-ground-195100"
+  project                  = local.project_name
   public_access_prevention = "inherited"
   storage_class            = "STANDARD"
 }
@@ -28,7 +28,7 @@ resource "google_storage_bucket" "dark_cli" {
   force_destroy            = false
   location                 = "US"
   name                     = "dark-cli"
-  project                  = "balmy-ground-195100"
+  project                  = local.project_name
   public_access_prevention = "inherited"
   storage_class            = "STANDARD"
   website {
@@ -42,7 +42,7 @@ resource "google_storage_bucket" "dark_osxcross_files" {
   force_destroy            = false
   location                 = "US"
   name                     = "dark-osxcross-files"
-  project                  = "balmy-ground-195100"
+  project                  = local.project_name
   public_access_prevention = "inherited"
   storage_class            = "STANDARD"
 }
@@ -58,7 +58,7 @@ resource "google_storage_bucket" "dark_static_assets" {
   force_destroy            = false
   location                 = "US"
   name                     = "dark-static-assets"
-  project                  = "balmy-ground-195100"
+  project                  = local.project_name
   public_access_prevention = "inherited"
   storage_class            = "STANDARD"
   website {
@@ -72,7 +72,7 @@ resource "google_storage_bucket" "dark_static_assets_dev" {
   force_destroy            = false
   location                 = "US"
   name                     = "dark-static-assets-dev"
-  project                  = "balmy-ground-195100"
+  project                  = local.project_name
   public_access_prevention = "inherited"
   storage_class            = "STANDARD"
   website {
@@ -85,7 +85,7 @@ resource "google_storage_bucket" "dark_traces" {
   force_destroy               = false
   location                    = "US-WEST1"
   name                        = "dark-traces"
-  project                     = "balmy-ground-195100"
+  project                     = local.project_name
   public_access_prevention    = "enforced"
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
@@ -102,7 +102,7 @@ resource "google_storage_bucket" "darklang_static_assets" {
   force_destroy               = false
   location                    = "US"
   name                        = "darklang-static-assets"
-  project                     = "balmy-ground-195100"
+  project                     = local.project_name
   public_access_prevention    = "inherited"
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
@@ -120,7 +120,7 @@ resource "google_storage_bucket" "darklang_downloads" {
   force_destroy               = false
   location                    = "US"
   name                        = "darklang-downloads"
-  project                     = "balmy-ground-195100"
+  project                     = local.project_name
   public_access_prevention    = "inherited"
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
@@ -129,3 +129,13 @@ resource "google_storage_bucket" "darklang_downloads" {
   }
 }
 
+# Bucket for storing customer traces on darklang-classic
+resource "google_storage_bucket" "dark_traces-2" {
+  force_destroy               = false
+  location                    = "US-WEST1"
+  name                        = "dark-traces-2"
+  project                     = local.project_name
+  public_access_prevention    = "enforced"
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+}
