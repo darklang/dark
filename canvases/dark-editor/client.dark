@@ -198,10 +198,13 @@ let update (model: Model) (msg: Msg) : Model =
     | Nothing -> log "couldn't find snippet"
     | Just snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
-      let evalResult =
-        match parsedAndSerialized with
-        | Ok parsedAndSerialized ->
-          let evalPgm = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
+      match parsedAndSerialized with
+      | Ok parsedAndSerialized ->
+        let evalPgm = (WASM.Editor.evalUserProgram parsedAndSerialized)
+
+        match evalPgm with
+        | Ok evalPgm ->
+          evalPgm
           let updatedCodeSnippets =
             List.append
                 [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalPgm}]
@@ -215,9 +218,11 @@ let update (model: Model) (msg: Msg) : Model =
               actions = model.actions }
 
         | Error err ->
-          sendError model codeSnippet err
+        sendError model codeSnippet err
 
-      evalResult
+      | Error err ->
+        sendError model codeSnippet err
+
 
 /// Single point of communicating to JS host
 ///

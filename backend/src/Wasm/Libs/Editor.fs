@@ -138,11 +138,14 @@ let fns : List<BuiltInFn> =
                 let inputVars = Map.empty
                 LibExecution.Execution.executeExpr state inputVars expr
 
-              return
-                LibExecution.DvalReprDeveloper.toRepr result
-                |> DString
-                |> Ok
-                |> DResult
+              match result with
+              | DError (_source, err) -> return DResult(Error(DString err))
+              | result ->
+                return
+                  LibExecution.DvalReprDeveloper.toRepr result
+                  |> DString
+                  |> Ok
+                  |> DResult
             with
             | e ->
               let error = Exception.getMessages e |> String.concat " "
