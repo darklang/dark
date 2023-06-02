@@ -66,7 +66,7 @@ let openAIcompletion (prompt: String): Result<String, String> =
   | Error e -> Error ("Couldn't serialize request" ++ e)
 
 
-let parseAndSerializeProgram (userProgram: String): String =
+let parseAndSerializeProgram (userProgram: String): Result<String, String> =
   let response =
     WASM.HttpClient.request
       "POST"
@@ -74,9 +74,11 @@ let parseAndSerializeProgram (userProgram: String): String =
       []
       (String.toBytes userProgram)
 
-  response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes
-
-
+  let statusCode = response |> rUnwrap |> (fun r -> r.statusCode)
+  match statusCode with
+  | 200 -> Ok (response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
+  | 400 -> Error (response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
+  | _ -> Error ("Unexpected response code: " ++ Int.toString statusCode)
 
 
 // TODO: in the prompt, include something like
@@ -191,7 +193,10 @@ let update (model: Model) (msg: Msg) : Model =
     | Nothing -> log "couldn't find snippet"
     | Just snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
-      let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
+      let evalResult =
+        match parsedAndSerialized with
+        | Error err ->  err
+        | Ok parsedAndSerialized -> (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
 
       let updatedCodeSnippets =
         List.append
