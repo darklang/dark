@@ -7,7 +7,7 @@ terraform {
 }
 
 provider "google" {
-  project = "balmy-ground-195100"
+  project = local.project_name
   region  = "us-west1"
 }
 

@@ -8,11 +8,6 @@
 ###################
 # General admin
 ###################
-locals {
-  project_name = "balmy-ground-195100"
-  project_id   = "118633020131"
-}
-
 resource "google_service_account" "circleci_deployer" {
   account_id   = "circleci-deployer"
   display_name = "CircleCI-deployer"
