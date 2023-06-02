@@ -130,10 +130,10 @@ resource "google_storage_bucket" "darklang_downloads" {
 }
 
 # Bucket for storing customer traces on darklang-classic
-resource "google_storage_bucket" "dark_traces-2" {
+resource "google_storage_bucket" "dark_traces_ai" {
   force_destroy               = false
   location                    = "US-WEST1"
-  name                        = "dark-traces-2"
+  name                        = "dark-traces-ai"
   project                     = local.project_name
   public_access_prevention    = "enforced"
   storage_class               = "STANDARD"

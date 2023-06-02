@@ -64,6 +64,31 @@ resource "google_service_account" "traces_storage_ai" {
   display_name = "traces-storage-ai"
   project      = local.project_name
 }
+resource "google_project_iam_member" "traces_storage_ai_member_object_creator" {
+  role    = "roles/storage.objectCreator"
+  member  = "serviceAccount:${google_service_account.traces_storage_ai.email}"
+  project = local.project_id
+
+  condition {
+    title       = "Limit to bucket"
+    description = "Only allow access to ai traces bucket"
+    expression  = "resource.name == \"${google_storage_bucket.dark_traces_ai.name}\""
+  }
+}
+
+resource "google_project_iam_member" "traces_storage_ai_member_object_viewer" {
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.traces_storage_ai.email}"
+  project = local.project_id
+
+  condition {
+    title       = "Limit to bucket"
+    description = "Only allow access to ai traces bucket"
+    expression  = "resource.name == \"${google_storage_bucket.dark_traces_ai.name}\""
+  }
+}
+
+
 
 
 
@@ -99,14 +124,6 @@ resource "google_project_iam_member" "queue_pubsub_access_member_pubsub_subscrib
   project = local.project_id
 }
 
-# condition {
-#   title       = "expires_after_2019_12_31"
-#   description = "Expiring at midnight of 2019-12-31"
-#   expression  = "request.time < timestamp(\"2020-01-01T00:00:00Z\")"
-# }
-
-
-
 
 #####
 # Darklang classic trace storage
@@ -128,12 +145,6 @@ resource "google_project_iam_member" "traces_storage_member_object_viewer" {
   role    = "roles/storage.objectViewer"
   member  = "serviceAccount:${google_service_account.traces_storage.email}"
   project = local.project_id
-
-  # condition {
-  #   title       = "expires_after_2019_12_31"
-  #   description = "Expiring at midnight of 2019-12-31"
-  #   expression  = "request.time < timestamp(\"2020-01-01T00:00:00Z\")"
-  # }
 }
 
 
