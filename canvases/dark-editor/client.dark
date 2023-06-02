@@ -125,6 +125,11 @@ type Msg =
   | UserRequestedCodeEval of id: String * codeSnippet: String
 
 
+let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
+  let errMsg = "update the code snippet to fix " ++ "\n" ++ err ++ "\n" ++ "```" ++ codeSnippet ++"```"
+  update model (Msg.UserGavePrompt errMsg)
+
+
 let update (model: Model) (msg: Msg) : Model =
   match msg with
   | UserGavePrompt userPrompt ->
@@ -195,20 +200,24 @@ let update (model: Model) (msg: Msg) : Model =
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
       let evalResult =
         match parsedAndSerialized with
-        | Error err ->  err
-        | Ok parsedAndSerialized -> (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
+        | Ok parsedAndSerialized ->
+          let evalPgm = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
+          let updatedCodeSnippets =
+            List.append
+                [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalPgm}]
+                otherSnippets
 
-      let updatedCodeSnippets =
-        List.append
-          [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalResult }]
-          otherSnippets
+          Model
+            { systemPrompt = model.systemPrompt
+              chatHistory = model.chatHistory
+              codeSnippets = updatedCodeSnippets
+              tasks = model.tasks
+              actions = model.actions }
 
-      Model
-        { systemPrompt = model.systemPrompt
-          chatHistory = model.chatHistory
-          codeSnippets = updatedCodeSnippets
-          tasks = model.tasks
-          actions = model.actions }
+        | Error err ->
+          sendError model codeSnippet err
+
+      evalResult
 
 /// Single point of communicating to JS host
 ///
