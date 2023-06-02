@@ -39,7 +39,7 @@ resource "google_project_iam_member" "queue_pubsub_access_ai_member_pubsub_publi
   condition {
     title       = "Limit queue"
     description = "Only allow access to ai deployment queue"
-    expression  = "resource.name == \"projects/balmy-ground-195100/subscriptions/topic-queueworker-2-sub\""
+    expression  = "resource.name == \"${google_pubsub_topic.topic_queueworker_2.id}\""
   }
 }
 
@@ -51,7 +51,7 @@ resource "google_project_iam_member" "queue_pubsub_access_ai_member_pubsub_subsc
   condition {
     title       = "Limit queue"
     description = "Only allow access to ai deployment queue"
-    expression  = "resource.name == \"projects/balmy-ground-195100/subscriptions/topic-queueworker-2-sub\""
+    expression  = "resource.name == \"${google_pubsub_subscription.topic_queueworker_2_sub.id}\""
   }
 }
 
