@@ -17,6 +17,13 @@ let modul = [ "DarkInternal"; "Canvas" ]
 let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
   FQTypeName.stdlibTypeName' modul name version
 
+let ptTyp
+  (submodules : List<string>)
+  (name : string)
+  (version : int)
+  : FQTypeName.StdlibTypeName =
+  FQTypeName.stdlibTypeName' [ "DarkInternal"; "ProgramTypes" ] name version
+
 let fn (name : string) (version : int) : FQFnName.StdlibFnName =
   FQFnName.stdlibFnName' modul name version
 
@@ -28,6 +35,8 @@ let types : List<BuiltInType> =
         CustomType.Record({ name = "id"; typ = TUuid; description = "" }, [])
       description = "Metadata about a canvas"
       deprecated = NotDeprecated }
+
+
     { name = typ "DB" 0
       typeParams = []
       definition =
@@ -37,6 +46,8 @@ let types : List<BuiltInType> =
         )
       deprecated = NotDeprecated
       description = "A database on a canvas" }
+
+
     { name = typ "HttpHandler" 0
       typeParams = []
       definition =
@@ -47,17 +58,25 @@ let types : List<BuiltInType> =
         )
       deprecated = NotDeprecated
       description = "An HTTP handler on a canvas" }
+
+
     { name = typ "Program" 0
       typeParams = []
       definition =
         CustomType.Record(
           { name = "id"; typ = TUuid; description = "" },
-          [ { name = "dbs"
-              typ = TList(TCustomType(FQTypeName.Stdlib(typ "DB" 0), []))
-              description = "" }
-            { name = "httpHandlers"
-              typ = TList(TCustomType(FQTypeName.Stdlib(typ "HttpHandler" 0), []))
-              description = "" } ]
+          [ { name = "types"
+              typ = TList(TCustomType(FQTypeName.Stdlib(ptTyp [] "UserType" 0), []))
+              description = "All typed defined within this canvas" }
+
+            // { name = "dbs"
+            //   typ = TList(TCustomType(FQTypeName.Stdlib(typ "DB" 0), []))
+            //   description = "" }
+
+            // { name = "httpHandlers"
+            //   typ = TList(TCustomType(FQTypeName.Stdlib(typ "HttpHandler" 0), []))
+            //   description = "" }
+            ]
         )
       deprecated = NotDeprecated
       description = "A program on a canvas" } ]
@@ -178,7 +197,7 @@ let fns : List<BuiltInFn> =
     { name = fn "darkEditorCanvasID" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(FQTypeName.Stdlib(typ "Meta" 0), [])
+      returnType = TUuid
       description = "Returns the ID of the special dark-editor canvas"
       fn =
         (function
@@ -189,8 +208,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: this name is bad?
-    { name = fn "canvasProgram" 0
+    { name = fn "fullProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
@@ -203,34 +221,61 @@ let fns : List<BuiltInFn> =
           uply {
             let! canvas = Canvas.loadAll canvasID
 
-            let dbs =
-              Map.values canvas.dbs
-              |> Seq.toList
-              |> List.map (fun db ->
-                [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
-                |> Map
-                |> DDict)
+            let types =
+              canvas.userTypes
+              |> Map.toList
+              |> List.map (fun (tlid, userType) ->
+                DRecord(
+                  FQTypeName.Stdlib(ptTyp [] "UserType" 0),
+                  Map [ "tlid", DInt(int64 tlid)
+
+                        "name",
+                        DRecord(
+                          FQTypeName.Stdlib(ptTyp [ "FQTypeName" ] "UserTypeName" 0),
+                          Map [ "modules",
+                                DList(List.map DString userType.name.modules)
+
+                                "typ", DUnit // TODO
+
+                                "version", DInt userType.name.version ]
+                        )
+
+                        "definition", DUnit ] // TODO
+                )
+
+              )
               |> DList
 
-            let httpHandlers =
-              Map.values canvas.handlers
-              |> Seq.toList
-              |> List.choose (fun handler ->
-                match handler.spec with
-                | PT.Handler.Worker _
-                | PT.Handler.Cron _
-                | PT.Handler.REPL _ -> None
-                | PT.Handler.HTTP (route, method) ->
-                  [ "tlid", DString(handler.tlid.ToString())
-                    "method", DString method
-                    "route", DString route ]
-                  |> Map
-                  |> DDict
-                  |> Some)
-              |> DList
+            // let dbs =
+            //   Map.values canvas.dbs
+            //   |> Seq.toList
+            //   |> List.map (fun db ->
+            //     [ "tlid", DString(db.tlid.ToString()); "name", DString db.name ]
+            //     |> Map
+            //     |> DDict)
+            //   |> DList
+
+            // let httpHandlers =
+            //   Map.values canvas.handlers
+            //   |> Seq.toList
+            //   |> List.choose (fun handler ->
+            //     match handler.spec with
+            //     | PT.Handler.Worker _
+            //     | PT.Handler.Cron _
+            //     | PT.Handler.REPL _ -> None
+            //     | PT.Handler.HTTP (route, method) ->
+            //       [ "tlid", DString(handler.tlid.ToString())
+            //         "method", DString method
+            //         "route", DString route ]
+            //       |> Map
+            //       |> DDict
+            //       |> Some)
+            //   |> DList
 
             return
-              DResult(Ok(DDict(Map [ "dbs", dbs; "httpHandlers", httpHandlers ])))
+              DResult(
+                Ok(DRecord(FQTypeName.Stdlib(ptTyp [] "" 0), Map [ "types", types ]))
+              )
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
