@@ -16,9 +16,11 @@ function snippetForId(id: string): CodeSnippet {
 
 <template>
   <div class="min-h-screen bg-[#151515] text-white">
-    <h1>Context & Code</h1>
-    <h2>Context</h2>
-    <h2>Code</h2>
+    <h1 class="p-2 mt-2 font-semibold">Context And Code</h1>
+    <div class="p-2 m-2">
+      <h2 class="font-semibold">Context</h2>
+    </div>
+    <h2 class="p-2 m-2 font-semibold">Code</h2>
     <div v-for="(item, index) in codeSnippets" :key="index">
       <CodeSnippetComponent :key="item.id" :snippet="snippetForId(item.id)" />
     </div>

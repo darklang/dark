@@ -126,13 +126,14 @@ Below all types and function defined, include at least one expression to be eval
 Within the code snippets, do not add code comments.
 All code snippets should be wrapped in ``` tags.
 
-Here's an example of a prompt/response combination:
+Here's an example of a response to the following prompt:
 
 User: build a small program that models a list of People,
 a function that returns the age of a Person, then hardcode a list of people
 and return the age of each person
 
-You:
+Response:
+
 Ok, no problem.
 ```
 type Person = {

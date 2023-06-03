@@ -126,7 +126,7 @@ type Msg =
 
 
 let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
-  let errMsg = "update the code snippet to fix " ++ "\n" ++ err ++ "\n" ++ "```" ++ codeSnippet ++"```"
+  let errMsg = "Update the code snippet to fix " ++ "\n" ++ err ++ "\n" ++ "```" ++ "\n" ++ codeSnippet ++ "\n" ++ "```"
   update model (Msg.UserGavePrompt errMsg)
 
 
@@ -218,7 +218,7 @@ let update (model: Model) (msg: Msg) : Model =
               actions = model.actions }
 
         | Error err ->
-        sendError model codeSnippet err
+          sendError model codeSnippet err
 
       | Error err ->
         sendError model codeSnippet err
@@ -281,29 +281,29 @@ let initState =
 
     let demoTask = [
       Task { id = (String.random 5) |> rUnwrap
-             description = "Task: first task in progress"
+             description = "First task in progress"
              status = Status.InProgress};
 
       Task { id = (String.random 5) |> rUnwrap
-             description = "Task: second task to do"
+             description = "Second task to do"
              status = Status.Todo};
 
       Task { id = (String.random 5) |> rUnwrap
-             description = "Task: first task task done"
+             description = "Third task task done"
              status = Status.InProgress}
     ]
 
     let demoAction = [
       Action { id = (String.random 5) |> rUnwrap
-               description = "Action: first action"
+               description = "First action"
                status = Status.InProgress};
 
       Action { id = (String.random 5) |> rUnwrap
-               description = "Action: second action"
+               description = "Second action"
                status = Status.Todo};
 
       Action { id = (String.random 5) |> rUnwrap
-               description = "Action: third action"
+               description = "Third action"
                status = Status.InProgress}
     ]
 
@@ -317,9 +317,7 @@ let initState =
         [
           BotResponseItem.Text "OK - here's some code:"
           BotResponseItem.CodeSnippet demoSnippet.id
-          BotResponseItem.Text "And here are some tasks:"
           BotResponseItem.Tasks demoTask
-          BotResponseItem.Text "And here are some actions:"
           BotResponseItem.Actions demoAction
         ]
     ]

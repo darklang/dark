@@ -25,16 +25,19 @@ let props = defineProps<{
       </p>
     </div>
 
-    <div class="p-3 flex-grow" v-if="chatItem.typ === 'Bot'">
+    <div class="pl-3 flex-grow" v-if="chatItem.typ === 'Bot'">
       <div v-for="(item, index) in chatItem.items">
-        <p v-if="item.typ === 'Text'">
-          {{ item.text }}
-        </p>
+        <pre class="whitespace-pre-wrap break-w text-sm" v-if="item.typ === 'Text'"
+          >{{ item.text }} </pre
+        >
       </div>
     </div>
 
-    <p class="p-3 flex-grow" v-else-if="chatItem.typ === 'User'">
-      {{ chatItem.prompt }}
-    </p>
+    <div
+      class="pl-3 flex items-center flex-grow"
+      v-else-if="chatItem.typ === 'User'"
+    >
+      <pre class="whitespace-pre-wrap break-w text-sm">{{ chatItem.prompt }}</pre>
+    </div>
   </div>
 </template>
