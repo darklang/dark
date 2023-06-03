@@ -72,7 +72,7 @@ resource "google_project_iam_member" "traces_storage_ai_member_object_creator" {
   condition {
     title       = "Limit to bucket"
     description = "Only allow access to ai traces bucket"
-    expression  = "resource.name == \"${google_storage_bucket.dark_traces_ai.name}\""
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.dark_traces_ai.id}\")"
   }
 }
 
@@ -84,7 +84,7 @@ resource "google_project_iam_member" "traces_storage_ai_member_object_viewer" {
   condition {
     title       = "Limit to bucket"
     description = "Only allow access to ai traces bucket"
-    expression  = "resource.name == \"${google_storage_bucket.dark_traces_ai.name}\""
+    expression  = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.dark_traces_ai.id}\")"
   }
 }
 
