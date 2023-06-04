@@ -137,10 +137,10 @@ commands:
   build-gcp-containers:
     steps:
       - run: echo TODO
-      # LIGHTTODO
-      # - prep-container-creation
+      - prep-container-creation
+      # LIGHTTODO build containers
       # - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
-      # - run: cat gcr-image-ids.json
+      - run: cat gcr-image-ids.json
       # Test them
       # - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
@@ -208,8 +208,8 @@ jobs:
           paths:
             # Just enough for deploy
             - backend/Build/out/BwdServer/Release/net7.0/linux-x64/publish/BwdServer
-            - backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/QueueWorker
-            - backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish/CronChecker
+            # - backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish/QueueWorker
+            # - backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish/CronChecker
             - backend/Build/out/ProdExec/Release/net7.0/linux-x64/publish/ProdExec
       - show-large-files-and-directories
       - save_cache:
@@ -230,20 +230,10 @@ jobs:
       - run: scripts/linting/shellchecker
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
+      # LIGHTTODO check terraform
       - run: scripts/formatting/format check
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
-
-  predeployment-checks:
-    executor: in-container
-    steps:
-      - run: echo TODO
-      # LIGHTTODO
-      # - darkcheckout
-      # - auth-with-gcp: { background: false }
-      # - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
-      # - slack-notify-job-failure
-      # - deploy-lock-remove-on-fail
 
   gcp-containers-test:
     executor: in-container
@@ -257,7 +247,6 @@ jobs:
       - deploy-lock-remove-on-fail
 
   push-containers-to-gcp:
-    # LIGHTTODO
     executor: in-container
     steps:
       - darkcheckout
@@ -270,6 +259,7 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths: ["gcr-image-ids.json"]
+      # LIGHTTODO push containers
       # - run: scripts/deployment/shipit containers push
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
@@ -313,25 +303,33 @@ workflows:
     jobs:
       # initial builds & tests
       - static-checks
-      - predeployment-checks:
+      - build-backend
+
+      - gcp-containers-test:
+          # This is fully covered by push-containers-to-gcp, so no need to do it twice
+          filters:
+            branches:
+              ignore: main
+          requires:
+            - build-backend
+
+      - push-assets-to-gcp:
           context:
             - gcp context
           filters:
             branches:
-              ignore: /^(pull|dependabot)\/.*$/
-      - build-backend
+              only: main
+          requires:
+            - build-backend
 
-      # LightTODO the below has all been commented out until we
-      # get to a point where this is worth 'hosting'.
-      # For now, CI just ensures everything builds OK.
-
-      # - gcp-containers-test:
-      #     # This is fully covered by push-containers-to-gcp, so no need to do it twice
-      #     filters:
-      #       branches:
-      #         ignore: main
-      #     requires:
-      #       - build-backend
+      - push-containers-to-gcp:
+          context:
+            - gcp context
+          filters:
+            branches:
+              only: main
+          requires:
+            - build-backend
 
       # actual deploy
       - deploy:
@@ -342,10 +340,9 @@ workflows:
               only: main
           requires:
             - deploy-lock
-            # LIGHTTODO
-            # - push-containers-to-gcp
+            - push-containers-to-gcp
+            - push-assets-to-gcp
             - static-checks
-            - predeployment-checks
 
       - deploy-lock:
           filters:
@@ -358,6 +355,5 @@ workflows:
               ignore: main
           requires:
             - build-backend
-            # - gcp-containers-test
+            - gcp-containers-test
             - static-checks
-            - predeployment-checks
