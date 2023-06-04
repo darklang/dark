@@ -15,7 +15,7 @@ Location: /v0/response-redirect-destination
 (match HttpClient.request "delete" "http://URL" [] Bytes.empty with
  | Ok _ -> "fail"
  | Error response ->
-    let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
+    let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
     Record.set_v0 response "headers" respHeaders) =
   HttpClient.Response
     { body = ""

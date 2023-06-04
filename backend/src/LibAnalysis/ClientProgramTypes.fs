@@ -33,10 +33,7 @@ module FQTypeName =
 
 
   type PackageTypeName =
-    { owner : string
-      modules : NonEmptyList<string>
-      typ : string
-      version : int }
+    { owner : string; modules : NonEmptyList<string>; typ : string; version : int }
 
   module PackageTypeName =
     let fromCT (t : PackageTypeName) : PT.FQTypeName.PackageTypeName =
@@ -73,7 +70,6 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar
@@ -94,23 +90,22 @@ module TypeReference =
     | TBool -> PT.TBool
     | TUnit -> PT.TUnit
     | TString -> PT.TString
-    | TList (t) -> PT.TList(fromCT t)
-    | TTuple (first, second, theRest) ->
+    | TList(t) -> PT.TList(fromCT t)
+    | TTuple(first, second, theRest) ->
       PT.TTuple(fromCT first, fromCT second, List.map fromCT theRest)
-    | TDict (t) -> PT.TDict(fromCT t)
-    | THttpResponse (t) -> PT.THttpResponse(fromCT t)
-    | TDB (t) -> PT.TDB(fromCT t)
+    | TDict(t) -> PT.TDict(fromCT t)
+    | TDB(t) -> PT.TDB(fromCT t)
     | TDateTime -> PT.TDateTime
     | TChar -> PT.TChar
     | TPassword -> PT.TPassword
     | TUuid -> PT.TUuid
-    | TOption (t) -> PT.TOption(fromCT t)
-    | TCustomType (t, typeArgs) ->
+    | TOption(t) -> PT.TOption(fromCT t)
+    | TCustomType(t, typeArgs) ->
       PT.TCustomType(FQTypeName.fromCT t, List.map fromCT typeArgs)
     | TBytes -> PT.TBytes
-    | TResult (ok, err) -> PT.TResult(fromCT ok, fromCT err)
-    | TVariable (name) -> PT.TVariable(name)
-    | TFn (args, body) -> PT.TFn(List.map fromCT args, fromCT body)
+    | TResult(ok, err) -> PT.TResult(fromCT ok, fromCT err)
+    | TVariable(name) -> PT.TVariable(name)
+    | TFn(args, body) -> PT.TFn(List.map fromCT args, fromCT body)
 
   let rec toCT (dtype : PT.TypeReference) : TypeReference =
     match dtype with
@@ -119,23 +114,22 @@ module TypeReference =
     | PT.TBool -> TBool
     | PT.TUnit -> TUnit
     | PT.TString -> TString
-    | PT.TList (t) -> TList(toCT t)
-    | PT.TTuple (first, second, theRest) ->
+    | PT.TList(t) -> TList(toCT t)
+    | PT.TTuple(first, second, theRest) ->
       TTuple(toCT first, toCT second, List.map toCT theRest)
-    | PT.TDict (t) -> TDict(toCT t)
-    | PT.THttpResponse (t) -> THttpResponse(toCT t)
-    | PT.TDB (t) -> TDB(toCT t)
+    | PT.TDict(t) -> TDict(toCT t)
+    | PT.TDB(t) -> TDB(toCT t)
     | PT.TDateTime -> TDateTime
     | PT.TChar -> TChar
     | PT.TPassword -> TPassword
     | PT.TUuid -> TUuid
-    | PT.TOption (t) -> TOption(toCT t)
-    | PT.TCustomType (t, typeArgs) ->
+    | PT.TOption(t) -> TOption(toCT t)
+    | PT.TCustomType(t, typeArgs) ->
       TCustomType(FQTypeName.toCT t, List.map toCT typeArgs)
     | PT.TBytes -> TBytes
-    | PT.TResult (ok, err) -> TResult(toCT ok, toCT err)
-    | PT.TVariable (name) -> TVariable(name)
-    | PT.TFn (args, body) -> TFn(List.map toCT args, toCT body)
+    | PT.TResult(ok, err) -> TResult(toCT ok, toCT err)
+    | PT.TVariable(name) -> TVariable(name)
+    | PT.TFn(args, body) -> TFn(List.map toCT args, toCT body)
 
 
 module FQFnName =
@@ -256,14 +250,14 @@ type LetPattern =
 module LetPattern =
   let rec fromCT (p : LetPattern) : PT.LetPattern =
     match p with
-    | LPVariable (id, str) -> PT.LPVariable(id, str)
-    | LPTuple (id, first, second, theRest) ->
+    | LPVariable(id, str) -> PT.LPVariable(id, str)
+    | LPTuple(id, first, second, theRest) ->
       PT.LPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (p : PT.LetPattern) : LetPattern =
     match p with
-    | PT.LPVariable (id, str) -> LPVariable(id, str)
-    | PT.LPTuple (id, first, second, theRest) ->
+    | PT.LPVariable(id, str) -> LPVariable(id, str)
+    | PT.LPTuple(id, first, second, theRest) ->
       LPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 
@@ -283,35 +277,35 @@ type MatchPattern =
 module MatchPattern =
   let rec fromCT (pat : MatchPattern) : PT.MatchPattern =
     match pat with
-    | MPVariable (id, str) -> PT.MPVariable(id, str)
-    | MPEnum (id, caseName, fieldPats) ->
+    | MPVariable(id, str) -> PT.MPVariable(id, str)
+    | MPEnum(id, caseName, fieldPats) ->
       PT.MPEnum(id, caseName, List.map fromCT fieldPats)
-    | MPInt (id, i) -> PT.MPInt(id, i)
-    | MPBool (id, b) -> PT.MPBool(id, b)
-    | MPChar (id, str) -> PT.MPChar(id, str)
-    | MPString (id, str) -> PT.MPString(id, str)
-    | MPFloat (id, sign, whole, frac) -> PT.MPFloat(id, sign, whole, frac)
-    | MPUnit (id) -> PT.MPUnit(id)
-    | MPTuple (id, first, second, theRest) ->
+    | MPInt(id, i) -> PT.MPInt(id, i)
+    | MPBool(id, b) -> PT.MPBool(id, b)
+    | MPChar(id, str) -> PT.MPChar(id, str)
+    | MPString(id, str) -> PT.MPString(id, str)
+    | MPFloat(id, sign, whole, frac) -> PT.MPFloat(id, sign, whole, frac)
+    | MPUnit(id) -> PT.MPUnit(id)
+    | MPTuple(id, first, second, theRest) ->
       PT.MPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
-    | MPList (id, pats) -> PT.MPList(id, List.map fromCT pats)
-    | MPListCons (id, head, tail) -> PT.MPListCons(id, fromCT head, fromCT tail)
+    | MPList(id, pats) -> PT.MPList(id, List.map fromCT pats)
+    | MPListCons(id, head, tail) -> PT.MPListCons(id, fromCT head, fromCT tail)
 
   let rec toCT (pat : PT.MatchPattern) : MatchPattern =
     match pat with
-    | PT.MPVariable (id, str) -> MPVariable(id, str)
-    | PT.MPEnum (id, caseName, fieldPats) ->
+    | PT.MPVariable(id, str) -> MPVariable(id, str)
+    | PT.MPEnum(id, caseName, fieldPats) ->
       MPEnum(id, caseName, List.map toCT fieldPats)
-    | PT.MPInt (id, i) -> MPInt(id, i)
-    | PT.MPBool (id, b) -> MPBool(id, b)
-    | PT.MPChar (id, str) -> MPChar(id, str)
-    | PT.MPString (id, str) -> MPString(id, str)
-    | PT.MPFloat (id, sign, whole, frac) -> MPFloat(id, sign, whole, frac)
-    | PT.MPUnit (id) -> MPUnit(id)
-    | PT.MPTuple (id, first, second, theRest) ->
+    | PT.MPInt(id, i) -> MPInt(id, i)
+    | PT.MPBool(id, b) -> MPBool(id, b)
+    | PT.MPChar(id, str) -> MPChar(id, str)
+    | PT.MPString(id, str) -> MPString(id, str)
+    | PT.MPFloat(id, sign, whole, frac) -> MPFloat(id, sign, whole, frac)
+    | PT.MPUnit(id) -> MPUnit(id)
+    | PT.MPTuple(id, first, second, theRest) ->
       MPTuple(id, toCT first, toCT second, List.map toCT theRest)
-    | PT.MPList (id, pats) -> MPList(id, List.map toCT pats)
-    | PT.MPListCons (id, head, tail) -> MPListCons(id, toCT head, toCT tail)
+    | PT.MPList(id, pats) -> MPList(id, List.map toCT pats)
+    | PT.MPListCons(id, head, tail) -> MPListCons(id, toCT head, toCT tail)
 
 type BinaryOperation =
   | BinOpAnd
@@ -336,13 +330,13 @@ type Infix =
 module Infix =
   let fromCT (infix : Infix) : PT.Infix =
     match infix with
-    | InfixFnCall (name) -> PT.InfixFnCall(InfixFnName.fromCT name)
-    | BinOp (op) -> PT.BinOp(BinaryOperation.fromCT op)
+    | InfixFnCall(name) -> PT.InfixFnCall(InfixFnName.fromCT name)
+    | BinOp(op) -> PT.BinOp(BinaryOperation.fromCT op)
 
   let toCT (infix : PT.Infix) : Infix =
     match infix with
-    | PT.InfixFnCall (name) -> InfixFnCall(InfixFnName.toCT name)
-    | PT.BinOp (op) -> BinOp(BinaryOperation.toCT op)
+    | PT.InfixFnCall(name) -> InfixFnCall(InfixFnName.toCT name)
+    | PT.BinOp(op) -> BinOp(BinaryOperation.toCT op)
 
 
 type Expr =
@@ -390,33 +384,33 @@ and PipeExpr =
 module Expr =
   let rec fromCT (expr : Expr) : PT.Expr =
     match expr with
-    | EInt (id, i) -> PT.EInt(id, i)
-    | EBool (id, b) -> PT.EBool(id, b)
-    | EString (id, segment) -> PT.EString(id, List.map stringSegmentFromCTPT segment)
-    | EChar (id, c) -> PT.EChar(id, c)
-    | EFloat (id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
-    | EUnit (id) -> PT.EUnit(id)
-    | ELet (id, pat, expr, body) ->
+    | EInt(id, i) -> PT.EInt(id, i)
+    | EBool(id, b) -> PT.EBool(id, b)
+    | EString(id, segment) -> PT.EString(id, List.map stringSegmentFromCTPT segment)
+    | EChar(id, c) -> PT.EChar(id, c)
+    | EFloat(id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
+    | EUnit(id) -> PT.EUnit(id)
+    | ELet(id, pat, expr, body) ->
       PT.ELet(id, LetPattern.fromCT pat, fromCT expr, fromCT body)
-    | EIf (id, cond, ifExpr, thenExpr) ->
+    | EIf(id, cond, ifExpr, thenExpr) ->
       PT.EIf(id, fromCT cond, fromCT ifExpr, fromCT thenExpr)
-    | EInfix (id, infix, first, second) ->
+    | EInfix(id, infix, first, second) ->
       PT.EInfix(id, Infix.fromCT (infix), fromCT first, fromCT second)
-    | ELambda (id, args, body) -> PT.ELambda(id, args, fromCT body)
-    | EFieldAccess (id, expr, fieldName) ->
+    | ELambda(id, args, body) -> PT.ELambda(id, args, fromCT body)
+    | EFieldAccess(id, expr, fieldName) ->
       PT.EFieldAccess(id, fromCT expr, fieldName)
-    | EVariable (id, name) -> PT.EVariable(id, name)
-    | EFnCall (id, fnName, typeArgs, args) ->
+    | EVariable(id, name) -> PT.EVariable(id, name)
+    | EFnCall(id, fnName, typeArgs, args) ->
       PT.EFnCall(
         id,
         FQFnName.fromCT fnName,
         List.map TypeReference.fromCT typeArgs,
         List.map fromCT args
       )
-    | EList (id, exprs) -> PT.EList(id, List.map fromCT exprs)
-    | ETuple (id, first, second, theRest) ->
+    | EList(id, exprs) -> PT.EList(id, List.map fromCT exprs)
+    | ETuple(id, first, second, theRest) ->
       PT.ETuple(id, fromCT first, fromCT second, List.map fromCT theRest)
-    | ERecord (id, typeName, fields) ->
+    | ERecord(id, typeName, fields) ->
       PT.ERecord(
         id,
         FQTypeName.fromCT typeName,
@@ -435,15 +429,15 @@ module Expr =
         pipeExprFromCTPT expr2,
         List.map pipeExprFromCTPT exprs
       )
-    | EMatch (id, matchExpr, cases) ->
+    | EMatch(id, matchExpr, cases) ->
       PT.EMatch(
         id,
         fromCT matchExpr,
         cases |> List.map (fun (pat, expr) -> (MatchPattern.fromCT pat, fromCT expr))
       )
-    | EEnum (id, typeName, caseName, fields) ->
+    | EEnum(id, typeName, caseName, fields) ->
       PT.Expr.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map fromCT fields)
-    | EDict (id, fields) ->
+    | EDict(id, fields) ->
       PT.Expr.EDict(id, fields |> List.map (fun (key, value) -> (key, fromCT value)))
 
   and stringSegmentFromCTPT (segment : StringSegment) : PT.StringSegment =
@@ -453,50 +447,50 @@ module Expr =
 
   and pipeExprFromCTPT (pipeExpr : PipeExpr) : PT.PipeExpr =
     match pipeExpr with
-    | EPipeVariable (id, name) -> PT.EPipeVariable(id, name)
-    | EPipeLambda (id, args, body) -> PT.EPipeLambda(id, args, fromCT body)
-    | EPipeInfix (id, infix, first) ->
+    | EPipeVariable(id, name) -> PT.EPipeVariable(id, name)
+    | EPipeLambda(id, args, body) -> PT.EPipeLambda(id, args, fromCT body)
+    | EPipeInfix(id, infix, first) ->
       PT.EPipeInfix(id, Infix.fromCT (infix), fromCT first)
-    | EPipeFnCall (id, fnName, typeArgs, args) ->
+    | EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
         FQFnName.fromCT fnName,
         List.map TypeReference.fromCT typeArgs,
         List.map fromCT args
       )
-    | EPipeEnum (id, typeName, caseName, fields) ->
+    | EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(id, FQTypeName.fromCT typeName, caseName, List.map fromCT fields)
 
   let rec toCT (expr : PT.Expr) : Expr =
     match expr with
-    | PT.EInt (id, i) -> EInt(id, i)
-    | PT.EBool (id, b) -> EBool(id, b)
-    | PT.EString (id, s) -> EString(id, List.map stringSegmentToCT s)
-    | PT.EChar (id, c) -> EChar(id, c)
-    | PT.EFloat (id, sign, whole, frac) -> EFloat(id, sign, whole, frac)
-    | PT.EUnit (id) -> EUnit(id)
-    | PT.ELet (id, pat, expr, body) ->
+    | PT.EInt(id, i) -> EInt(id, i)
+    | PT.EBool(id, b) -> EBool(id, b)
+    | PT.EString(id, s) -> EString(id, List.map stringSegmentToCT s)
+    | PT.EChar(id, c) -> EChar(id, c)
+    | PT.EFloat(id, sign, whole, frac) -> EFloat(id, sign, whole, frac)
+    | PT.EUnit(id) -> EUnit(id)
+    | PT.ELet(id, pat, expr, body) ->
       ELet(id, LetPattern.toCT pat, toCT expr, toCT body)
-    | PT.EIf (id, cond, ifExpr, thenExpr) ->
+    | PT.EIf(id, cond, ifExpr, thenExpr) ->
       EIf(id, toCT cond, toCT ifExpr, toCT thenExpr)
-    | PT.EInfix (id, PT.InfixFnCall (name), first, second) ->
+    | PT.EInfix(id, PT.InfixFnCall(name), first, second) ->
       EInfix(id, InfixFnCall(InfixFnName.toCT name), toCT first, toCT second)
-    | PT.EInfix (id, PT.BinOp op, first, second) ->
+    | PT.EInfix(id, PT.BinOp op, first, second) ->
       EInfix(id, BinOp(BinaryOperation.toCT op), toCT first, toCT second)
-    | PT.ELambda (id, args, body) -> ELambda(id, args, toCT body)
-    | PT.EFieldAccess (id, expr, fieldName) -> EFieldAccess(id, toCT expr, fieldName)
-    | PT.EVariable (id, name) -> EVariable(id, name)
-    | PT.EFnCall (id, fnName, typeArgs, args) ->
+    | PT.ELambda(id, args, body) -> ELambda(id, args, toCT body)
+    | PT.EFieldAccess(id, expr, fieldName) -> EFieldAccess(id, toCT expr, fieldName)
+    | PT.EVariable(id, name) -> EVariable(id, name)
+    | PT.EFnCall(id, fnName, typeArgs, args) ->
       EFnCall(
         id,
         FQFnName.toCT fnName,
         List.map TypeReference.toCT typeArgs,
         List.map toCT args
       )
-    | PT.EList (id, exprs) -> EList(id, List.map toCT exprs)
-    | PT.ETuple (id, first, second, theRest) ->
+    | PT.EList(id, exprs) -> EList(id, List.map toCT exprs)
+    | PT.ETuple(id, first, second, theRest) ->
       ETuple(id, toCT first, toCT second, List.map toCT theRest)
-    | PT.ERecord (id, typeName, fields) ->
+    | PT.ERecord(id, typeName, fields) ->
       ERecord(
         id,
         FQTypeName.toCT typeName,
@@ -510,15 +504,15 @@ module Expr =
       )
     | PT.EPipe (id, expr1, expr2, exprs) ->
       EPipe(id, toCT expr1, pipeExprToCT expr2, List.map pipeExprToCT exprs)
-    | PT.EEnum (id, typeName, caseName, fields) ->
+    | PT.EEnum(id, typeName, caseName, fields) ->
       EEnum(id, FQTypeName.toCT typeName, caseName, List.map toCT fields)
-    | PT.EMatch (id, matchExpr, cases) ->
+    | PT.EMatch(id, matchExpr, cases) ->
       EMatch(
         id,
         toCT matchExpr,
         cases |> List.map (fun (pat, expr) -> (MatchPattern.toCT pat, toCT expr))
       )
-    | PT.EDict (id, fields) ->
+    | PT.EDict(id, fields) ->
       EDict(id, fields |> List.map (fun (key, value) -> (key, toCT value)))
 
 
@@ -529,20 +523,20 @@ module Expr =
 
   and pipeExprToCT (pipeExpr : PT.PipeExpr) : PipeExpr =
     match pipeExpr with
-    | PT.EPipeVariable (id, name) -> EPipeVariable(id, name)
-    | PT.EPipeLambda (id, args, body) -> EPipeLambda(id, args, toCT body)
-    | PT.EPipeInfix (id, PT.InfixFnCall (name), first) ->
+    | PT.EPipeVariable(id, name) -> EPipeVariable(id, name)
+    | PT.EPipeLambda(id, args, body) -> EPipeLambda(id, args, toCT body)
+    | PT.EPipeInfix(id, PT.InfixFnCall(name), first) ->
       EPipeInfix(id, InfixFnCall(InfixFnName.toCT name), toCT first)
-    | PT.EPipeInfix (id, PT.BinOp op, first) ->
+    | PT.EPipeInfix(id, PT.BinOp op, first) ->
       EPipeInfix(id, BinOp(BinaryOperation.toCT op), toCT first)
-    | PT.EPipeFnCall (id, fnName, typeArgs, args) ->
+    | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       EPipeFnCall(
         id,
         FQFnName.toCT fnName,
         List.map TypeReference.toCT typeArgs,
         List.map toCT args
       )
-    | PT.EPipeEnum (id, nameOpt, caseName, fields) ->
+    | PT.EPipeEnum(id, nameOpt, caseName, fields) ->
       EPipeEnum(id, FQTypeName.toCT nameOpt, caseName, List.map toCT fields)
 
 module CustomType =
@@ -560,9 +554,7 @@ module CustomType =
         description = rf.description }
 
   type EnumField =
-    { typ : TypeReference
-      label : Option<string>
-      description : string }
+    { typ : TypeReference; label : Option<string>; description : string }
 
   module EnumField =
     let fromCT (ef : EnumField) : PT.CustomType.EnumField =
@@ -589,17 +581,19 @@ module CustomType =
         description = ec.description }
 
   type T =
+    | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
   let fromCT (def : T) : PT.CustomType.T =
     match def with
-    | Record (firstField, additionalFields) ->
+    | Alias typ -> PT.CustomType.Alias(TypeReference.fromCT typ)
+    | Record(firstField, additionalFields) ->
       PT.CustomType.Record(
         RecordField.fromCT firstField,
         List.map RecordField.fromCT additionalFields
       )
-    | Enum (firstCase, additionalCases) ->
+    | Enum(firstCase, additionalCases) ->
       PT.CustomType.Enum(
         EnumCase.fromCT firstCase,
         List.map EnumCase.fromCT additionalCases
@@ -607,9 +601,10 @@ module CustomType =
 
   let toCT (def : PT.CustomType.T) : T =
     match def with
-    | PT.CustomType.Record (firstField, additionalFields) ->
+    | PT.CustomType.Alias typ -> Alias(TypeReference.toCT typ)
+    | PT.CustomType.Record(firstField, additionalFields) ->
       Record(RecordField.toCT firstField, List.map RecordField.toCT additionalFields)
-    | PT.CustomType.Enum (firstCase, additionalCases) ->
+    | PT.CustomType.Enum(firstCase, additionalCases) ->
       Enum(EnumCase.toCT firstCase, List.map EnumCase.toCT additionalCases)
 
 
@@ -679,17 +674,17 @@ module Handler =
   module Spec =
     let fromCT (spec : Spec) : PT.Handler.Spec =
       match spec with
-      | Spec.HTTP (route, method) -> PT.Handler.HTTP(route, method)
+      | Spec.HTTP(route, method) -> PT.Handler.HTTP(route, method)
       | Spec.Worker name -> PT.Handler.Worker name
-      | Spec.Cron (name, interval) ->
+      | Spec.Cron(name, interval) ->
         PT.Handler.Cron(name, CronInterval.fromCT interval)
       | Spec.REPL name -> PT.Handler.REPL name
 
     let toCT (spec : PT.Handler.Spec) : Spec =
       match spec with
-      | PT.Handler.HTTP (route, method) -> Spec.HTTP(route, method)
+      | PT.Handler.HTTP(route, method) -> Spec.HTTP(route, method)
       | PT.Handler.Worker name -> Spec.Worker name
-      | PT.Handler.Cron (name, interval) ->
+      | PT.Handler.Cron(name, interval) ->
         Spec.Cron(name, CronInterval.toCT interval)
       | PT.Handler.REPL name -> Spec.REPL name
 
@@ -806,19 +801,19 @@ module Secret =
     { name = s.name; value = s.value; version = s.version }
 
 
-module Package =
+module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   module Parameter =
-    let fromCT (p : Parameter) : PT.Package.Parameter =
+    let fromCT (p : Parameter) : PT.PackageFn.Parameter =
       { name = p.name
         typ = TypeReference.fromCT p.typ
         description = p.description }
 
-    let toCT (p : PT.Package.Parameter) : Parameter =
+    let toCT (p : PT.PackageFn.Parameter) : Parameter =
       { name = p.name; typ = TypeReference.toCT p.typ; description = p.description }
 
-  type Fn =
+  type T =
     { name : FQFnName.PackageFnName
       id : System.Guid
       body : Expr
@@ -829,25 +824,50 @@ module Package =
       deprecated : Deprecation<FQFnName.T>
       tlid : tlid }
 
-  module Fn =
-    let fromCT (fn : Fn) : PT.Package.Fn =
-      { name = FQFnName.PackageFnName.fromCT fn.name
-        id = fn.id
-        body = Expr.fromCT fn.body
-        typeParams = fn.typeParams
-        parameters = List.map Parameter.fromCT fn.parameters
-        returnType = TypeReference.fromCT fn.returnType
-        description = fn.description
-        deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
-        tlid = fn.tlid }
+  let fromCT (fn : T) : PT.PackageFn.T =
+    { name = FQFnName.PackageFnName.fromCT fn.name
+      id = fn.id
+      body = Expr.fromCT fn.body
+      typeParams = fn.typeParams
+      parameters = List.map Parameter.fromCT fn.parameters
+      returnType = TypeReference.fromCT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
+      tlid = fn.tlid }
 
-    let toCT (fn : PT.Package.Fn) : Fn =
-      { name = FQFnName.PackageFnName.toCT fn.name
-        id = fn.id
-        body = Expr.toCT fn.body
-        typeParams = fn.typeParams
-        parameters = List.map Parameter.toCT fn.parameters
-        returnType = TypeReference.toCT fn.returnType
-        description = fn.description
-        deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
-        tlid = fn.tlid }
+  let toCT (fn : PT.PackageFn.T) : T =
+    { name = FQFnName.PackageFnName.toCT fn.name
+      id = fn.id
+      body = Expr.toCT fn.body
+      typeParams = fn.typeParams
+      parameters = List.map Parameter.toCT fn.parameters
+      returnType = TypeReference.toCT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
+      tlid = fn.tlid }
+
+module PackageType =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : FQTypeName.PackageTypeName
+      // CLEANUP add type params
+      definition : CustomType.T
+      description : string
+      deprecated : Deprecation<FQTypeName.T> }
+
+  let fromCT (pt : T) : PT.PackageType.T =
+    { tlid = pt.tlid
+      id = pt.id
+      name = FQTypeName.PackageTypeName.fromCT pt.name
+      definition = CustomType.fromCT pt.definition
+      description = pt.description
+      deprecated = Deprecation.fromCT FQTypeName.fromCT pt.deprecated }
+
+  let toCT (pt : PT.PackageType.T) : T =
+    { tlid = pt.tlid
+      id = pt.id
+      name = FQTypeName.PackageTypeName.toCT pt.name
+      definition = CustomType.toCT pt.definition
+      description = pt.description
+      deprecated = Deprecation.toCT FQTypeName.toCT pt.deprecated }

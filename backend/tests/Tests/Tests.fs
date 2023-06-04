@@ -78,8 +78,7 @@ let main (args : string array) : int =
     httpClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
     exitCode
-  with
-  | e ->
+  with e ->
     printException "Outer exception" [] e
     NonBlockingConsole.wait () // flush stdout
     1

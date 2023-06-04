@@ -48,7 +48,8 @@ let (stdlibFns, stdlibTypes) =
 let libraries : RT.Libraries =
   { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
     stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
-    packageFns = Map.empty }
+    packageFns = Map.empty
+    packageTypes = Map.empty }
 
 
 let execute
@@ -97,7 +98,7 @@ let execute
 let initSerializers () = ()
 
 [<EntryPoint>]
-let main (args : string []) =
+let main (args : string[]) =
   try
     initSerializers ()
     let mainFile = "/home/dark/app/backend/experiments/cli/program.dark"
@@ -106,7 +107,7 @@ let main (args : string []) =
     let result = execute mod' (Map [ "args", args ])
     NonBlockingConsole.wait ()
     match result.Result with
-    | RT.DError (_, msg) ->
+    | RT.DError(_, msg) ->
       System.Console.WriteLine $"Error: {msg}"
       1
     | RT.DInt i -> (int i)
@@ -114,7 +115,6 @@ let main (args : string []) =
       let output = LibExecution.DvalReprDeveloper.toRepr dval
       System.Console.WriteLine "Error: main function must return an int"
       1
-  with
-  | e ->
+  with e ->
     printException "Error starting cli" [] e
     1

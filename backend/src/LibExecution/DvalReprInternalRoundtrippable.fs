@@ -97,7 +97,6 @@ module FormatV0 =
     | DDict of DvalMap
     | DError of DvalSource * string
     | DIncomplete of DvalSource
-    | DHttpResponse of int64 * List<string * string> * Dval
     | DDB of string
     | DDateTime of NodaTime.LocalDateTime
     | DPassword of byte array // We are allowed serialize this here, so don't use the Password type which doesn't deserialize
@@ -121,25 +120,24 @@ module FormatV0 =
         RT.Lambda { parameters = []; symtable = Map []; body = RT.Expr.EUnit 0UL }
       )
     | DIncomplete SourceNone -> RT.DIncomplete RT.SourceNone
-    | DIncomplete (SourceID (tlid, id)) -> RT.DIncomplete(RT.SourceID(tlid, id))
-    | DError (SourceNone, msg) -> RT.DError(RT.SourceNone, msg)
-    | DError (SourceID (tlid, id), msg) -> RT.DError(RT.SourceID(tlid, id), msg)
+    | DIncomplete(SourceID(tlid, id)) -> RT.DIncomplete(RT.SourceID(tlid, id))
+    | DError(SourceNone, msg) -> RT.DError(RT.SourceNone, msg)
+    | DError(SourceID(tlid, id), msg) -> RT.DError(RT.SourceID(tlid, id), msg)
     | DDateTime d -> RT.DDateTime d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(Password pw)
-    | DHttpResponse (code, headers, hdv) -> RT.DHttpResponse(code, headers, toRT hdv)
     | DList l -> RT.DList(List.map toRT l)
-    | DTuple (first, second, theRest) ->
+    | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
     | DDict o -> RT.DDict(Map.map toRT o)
-    | DRecord (typeName, o) -> RT.DRecord(FQTypeName.toRT typeName, Map.map toRT o)
+    | DRecord(typeName, o) -> RT.DRecord(FQTypeName.toRT typeName, Map.map toRT o)
     | DOption None -> RT.DOption None
-    | DOption (Some dv) -> RT.DOption(Some(toRT dv))
-    | DResult (Ok dv) -> RT.DResult(Ok(toRT dv))
-    | DResult (Error dv) -> RT.DResult(Error(toRT dv))
+    | DOption(Some dv) -> RT.DOption(Some(toRT dv))
+    | DResult(Ok dv) -> RT.DResult(Ok(toRT dv))
+    | DResult(Error dv) -> RT.DResult(Error(toRT dv))
     | DBytes bytes -> RT.DBytes bytes
-    | DEnum (typeName, caseName, fields) ->
+    | DEnum(typeName, caseName, fields) ->
       RT.DEnum(FQTypeName.toRT typeName, caseName, List.map toRT fields)
 
 
@@ -153,27 +151,25 @@ module FormatV0 =
     | RT.DUnit -> DUnit
     | RT.DFnVal _ -> DLambda
     | RT.DIncomplete RT.SourceNone -> DIncomplete SourceNone
-    | RT.DIncomplete (RT.SourceID (tlid, id)) -> DIncomplete(SourceID(tlid, id))
-    | RT.DError (RT.SourceNone, msg) -> DError(SourceNone, msg)
-    | RT.DError (RT.SourceID (tlid, id), msg) -> DError(SourceID(tlid, id), msg)
+    | RT.DIncomplete(RT.SourceID(tlid, id)) -> DIncomplete(SourceID(tlid, id))
+    | RT.DError(RT.SourceNone, msg) -> DError(SourceNone, msg)
+    | RT.DError(RT.SourceID(tlid, id), msg) -> DError(SourceID(tlid, id), msg)
     | RT.DDateTime d -> DDateTime d
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
-    | RT.DPassword (Password pw) -> DPassword pw
-    | RT.DHttpResponse (code, headers, hdv) ->
-      DHttpResponse(code, headers, fromRT hdv)
+    | RT.DPassword(Password pw) -> DPassword pw
     | RT.DList l -> DList(List.map fromRT l)
-    | RT.DTuple (first, second, theRest) ->
+    | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
     | RT.DDict o -> DDict(Map.map fromRT o)
-    | RT.DRecord (typeName, o) ->
+    | RT.DRecord(typeName, o) ->
       DRecord(FQTypeName.fromRT typeName, Map.map fromRT o)
     | RT.DOption None -> DOption None
-    | RT.DOption (Some dv) -> DOption(Some(fromRT dv))
-    | RT.DResult (Ok dv) -> DResult(Ok(fromRT dv))
-    | RT.DResult (Error dv) -> DResult(Error(fromRT dv))
+    | RT.DOption(Some dv) -> DOption(Some(fromRT dv))
+    | RT.DResult(Ok dv) -> DResult(Ok(fromRT dv))
+    | RT.DResult(Error dv) -> DResult(Error(fromRT dv))
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DEnum (typeName, caseName, fields) ->
+    | RT.DEnum(typeName, caseName, fields) ->
       DEnum(FQTypeName.fromRT typeName, caseName, List.map fromRT fields)
 
 
@@ -208,16 +204,15 @@ module Test =
     | RT.DDateTime _
     | RT.DOption None
     | RT.DPassword _ -> true
-    | RT.DEnum (_typeName, _caseName, fields) -> List.all isRoundtrippableDval fields
+    | RT.DEnum(_typeName, _caseName, fields) -> List.all isRoundtrippableDval fields
     | RT.DList dvals -> List.all isRoundtrippableDval dvals
     | RT.DDict map -> map |> Map.values |> List.all isRoundtrippableDval
-    | RT.DRecord (_, map) -> map |> Map.values |> List.all isRoundtrippableDval
+    | RT.DRecord(_, map) -> map |> Map.values |> List.all isRoundtrippableDval
     | RT.DUuid _ -> true
-    | RT.DTuple (v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
-    | RT.DOption (Some v)
-    | RT.DHttpResponse (_, _, v)
-    | RT.DResult (Error v)
-    | RT.DResult (Ok v) -> isRoundtrippableDval v
+    | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
+    | RT.DOption(Some v)
+    | RT.DResult(Error v)
+    | RT.DResult(Ok v) -> isRoundtrippableDval v
     | RT.DDB _
     | RT.DError _
 

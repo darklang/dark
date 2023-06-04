@@ -29,8 +29,7 @@ let _waitForDB () : Task<unit> =
           |> Sql.parameters []
           |> Sql.executeStatementAsync
         success <- true
-      with
-      | e ->
+      with e ->
         Telemetry.addException [] e
         do! Task.Delay 1000
     return ()

@@ -327,19 +327,20 @@ let testLambdaPreview : Test =
     "lambda preview"
     f
     [ (EString(65UL, [ StringText "body" ])),
-      (Map.fromList [ (lID,
-                       AT.ExecutedResult(
-                         DFnVal(
-                           Lambda(
-                             { parameters = [ (p2ID, "var") ]
-                               symtable = Map.empty
-                               body = EString(65UL, [ StringText "body" ]) }
-                           )
-                         )
-                       ))
-                      (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
-                      (p2ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p2ID))))
-                      (65UL, AT.NonExecutedResult(DString "body")) ]) ]
+      (Map.fromList
+        [ (lID,
+           AT.ExecutedResult(
+             DFnVal(
+               Lambda(
+                 { parameters = [ (p2ID, "var") ]
+                   symtable = Map.empty
+                   body = EString(65UL, [ StringText "body" ]) }
+               )
+             )
+           ))
+          (p1ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p1ID))))
+          (p2ID, AT.NonExecutedResult(DIncomplete(SourceID(7UL, p2ID))))
+          (65UL, AT.NonExecutedResult(DString "body")) ]) ]
 
 
 /// Test the results that are returned when we're "previewing" (i.e. Analysis)
@@ -395,7 +396,7 @@ let testMatchPreview : Test =
       (MPEnum(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
-         PT.FQFnName.stdlibFqName [ "String" ] "append" 1
+         PT.FQFnName.stdlibFqName [ "String" ] "append" 0
          |> PT2RT.FQFnName.toRT
          |> FnName,
          [],
@@ -465,12 +466,12 @@ let testMatchPreview : Test =
       resultsUnaccountedFor
       |> Seq.iter (fun (id, result) ->
         match result with
-        | Some (AT.ExecutedResult dv) ->
+        | Some(AT.ExecutedResult dv) ->
           Expect.isTrue
             false
             $"{msg}: found unexpected execution result ({id}: {dv})"
         | None -> Expect.isTrue false "missing value"
-        | Some (AT.NonExecutedResult _) -> ())
+        | Some(AT.NonExecutedResult _) -> ())
     }
 
   // helpers

@@ -19,7 +19,6 @@
     <Compile Include="Libs/DateTime.fs" />
     <Compile Include="Libs/Dict.fs" />
     <Compile Include="Libs/Float.fs" />
-    <Compile Include="Libs/Http.fs" />
     <Compile Include="Libs/HttpClient.fs" />
     <Compile Include="Libs/Int.fs" />
     <Compile Include="Libs/Json.fs" />

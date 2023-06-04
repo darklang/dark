@@ -66,7 +66,8 @@ let getHeader (hs : IHeaderDictionary) (name : string) : string option =
 let getHeadersWithoutMergingKeys (ctx : HttpContext) : List<string * string> =
   ctx.Request.Headers
   |> Seq.map Tuple2.fromKeyValuePair
-  |> Seq.map (fun (k, v) -> v.ToArray() |> Array.toList |> List.map (fun v -> (k, v)))
+  |> Seq.map (fun (k, v) ->
+    v.ToArray() |> Array.toList |> List.map (fun v -> (k, v)))
   |> Seq.collect (fun pair -> pair)
   |> Seq.toList
 
@@ -87,8 +88,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
         let ms = new IO.MemoryStream()
         do! ctx.Request.Body.CopyToAsync(ms)
         return ms.ToArray()
-    with
-    | e ->
+    with e ->
       // Let's try to get a good error message to the user, but don't include .NET specific hints
       let tooSlowlyMessage =
         "Reading the request body timed out due to data arriving too slowly"
@@ -107,7 +107,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
 
 /// Sets the response header
 let setResponseHeader (ctx : HttpContext) (name : string) (value : string) : unit =
-  ctx.Response.Headers[ name ] <- StringValues([| value |])
+  ctx.Response.Headers[name] <- StringValues([| value |])
 
 /// Reads a static (Dark) favicon image
 let favicon : Lazy<ReadOnlyMemory<byte>> =
@@ -280,7 +280,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       match domain with
       | None -> Task.FromResult None
       | Some domain ->
-        ctx.Items[ "canvasDomain" ] <- domain // store for exception tracking
+        ctx.Items["canvasDomain"] <- domain // store for exception tracking
         Telemetry.addTags [ "canvas.domain", domain ]
         Canvas.canvasIDForDomain domain
 
@@ -309,7 +309,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       match pages with
       // matching handler found - process normally
-      | [ { spec = PT.Handler.HTTP (route = route); tlid = tlid } as handler ] ->
+      | [ { spec = PT.Handler.HTTP(route = route); tlid = tlid } as handler ] ->
         Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
         let routeVars = Routing.routeInputVars route requestPath
@@ -410,14 +410,14 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
     let domain =
       try
         Some(ctx.Items["canvasDomain"])
-      with
-      | _ -> None
+      with _ ->
+        None
 
     let id =
       try
         Some(ctx.Items["canvasOwnerID"] :?> UserID)
-      with
-      | _ -> None
+      with _ ->
+        None
 
     let metadata =
       domain |> Option.map (fun d -> [ "canvasDomain", d ]) |> Option.defaultValue []
@@ -501,5 +501,5 @@ let main _ =
     // CLEANUP I suspect this isn't called
     LibService.Init.shutdown name
     0
-  with
-  | e -> Rollbar.lastDitchBlockAndPage "error starting bwdserver" e
+  with e ->
+    Rollbar.lastDitchBlockAndPage "error starting bwdserver" e

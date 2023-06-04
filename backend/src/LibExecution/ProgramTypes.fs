@@ -14,10 +14,7 @@ module FQTypeName =
 
   /// The name of a type in the package manager
   type PackageTypeName =
-    { owner : string
-      modules : NonEmptyList<string>
-      typ : string
-      version : int }
+    { owner : string; modules : NonEmptyList<string>; typ : string; version : int }
 
   type T =
     | Stdlib of StdlibTypeName
@@ -89,13 +86,15 @@ module FQFnName =
     | Package of PackageFnName
 
   let oneWordFunctions =
-    Set [ "equals"
-          "notEquals"
-          "equals_v0"
-          "notEquals_v0"
-          "emit_v1"
-          "print"
-          "print_v0" ]
+    Set
+      [ "equals"
+        "notEquals"
+        "equals_v0"
+        "notEquals_v0"
+        "emit_v0"
+        "emit"
+        "print"
+        "print_v0" ]
 
   // CLEANUP Packages should just have a uuid
   let namePat = @"^[a-z][a-z0-9_]*$"
@@ -219,7 +218,6 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar
@@ -318,36 +316,36 @@ and PipeExpr =
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
-    | EInt (id, _)
-    | EBool (id, _)
-    | EString (id, _)
-    | EChar (id, _)
-    | EFloat (id, _, _, _)
+    | EInt(id, _)
+    | EBool(id, _)
+    | EString(id, _)
+    | EChar(id, _)
+    | EFloat(id, _, _, _)
     | EUnit id
-    | ELet (id, _, _, _)
-    | EIf (id, _, _, _)
-    | EInfix (id, _, _, _)
-    | ELambda (id, _, _)
-    | EFieldAccess (id, _, _)
-    | EVariable (id, _)
-    | EFnCall (id, _, _, _)
-    | EList (id, _)
-    | EDict (id, _)
-    | ETuple (id, _, _, _)
-    | EPipe (id, _, _, _)
-    | ERecord (id, _, _)
-    | ERecordUpdate (id, _, _)
-    | EEnum (id, _, _, _)
-    | EMatch (id, _, _) -> id
+    | ELet(id, _, _, _)
+    | EIf(id, _, _, _)
+    | EInfix(id, _, _, _)
+    | ELambda(id, _, _)
+    | EFieldAccess(id, _, _)
+    | EVariable(id, _)
+    | EFnCall(id, _, _, _)
+    | EList(id, _)
+    | EDict(id, _)
+    | ETuple(id, _, _, _)
+    | EPipe(id, _, _, _)
+    | ERecord(id, _, _)
+    | ERecordUpdate(id, _, _)
+    | EEnum(id, _, _, _)
+    | EMatch(id, _, _) -> id
 
 module PipeExpr =
   let toID (expr : PipeExpr) : id =
     match expr with
-    | EPipeVariable (id, _)
-    | EPipeLambda (id, _, _)
-    | EPipeInfix (id, _, _)
-    | EPipeFnCall (id, _, _, _)
-    | EPipeEnum (id, _, _, _) -> id
+    | EPipeVariable(id, _)
+    | EPipeLambda(id, _, _)
+    | EPipeInfix(id, _, _)
+    | EPipeFnCall(id, _, _, _)
+    | EPipeEnum(id, _, _, _) -> id
 
 // Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
@@ -369,14 +367,13 @@ module CustomType =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
   type EnumField =
-    { typ : TypeReference
-      label : Option<string>
-      description : string }
+    { typ : TypeReference; label : Option<string>; description : string }
 
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   type T =
-    // TODO: //| Abbreviation/Alias of TypeReference
+    /// `type MyAlias = Int`
+    | Alias of TypeReference
 
     /// `type MyRecord = { a : int; b : string }`
     | Record of firstField : RecordField * additionalFields : List<RecordField>
@@ -465,10 +462,10 @@ type TLIDOplists = List<tlid * Oplist>
 module Secret =
   type T = { name : string; value : string; version : int }
 
-module Package =
+module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
-  type Fn =
+  type T =
     { tlid : tlid
       id : System.Guid
       name : FQFnName.PackageFnName
@@ -478,3 +475,13 @@ module Package =
       returnType : TypeReference
       description : string
       deprecated : Deprecation<FQFnName.T> }
+
+module PackageType =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : FQTypeName.PackageTypeName
+      // CLEANUP add type params
+      definition : CustomType.T
+      description : string
+      deprecated : Deprecation<FQTypeName.T> }

@@ -1,17 +1,11 @@
 <script setup lang="ts">
-import type { ChatHistoryItem, CodeSnippet } from '@/types'
-
-import CodeSnippetComponent from './CodeSnippet.vue'
+import type { ChatHistoryItem, CodeSnippet, Task } from '@/types'
 
 let props = defineProps<{
   chatItem: ChatHistoryItem
   codeSnippets: CodeSnippet[]
+  tasks: Task[]
 }>()
-
-function snippetForId(id: string): CodeSnippet {
-  // TODO: handle 'missing' snippet better
-  return props.codeSnippets.find((snippet) => snippet.id === id)!
-}
 </script>
 
 <template>
@@ -33,12 +27,7 @@ function snippetForId(id: string): CodeSnippet {
 
     <div class="p-3 flex-grow" v-if="chatItem.typ === 'Bot'">
       <div v-for="(item, index) in chatItem.items">
-        <CodeSnippetComponent
-          v-if="item.typ === 'Code'"
-          :key="item.id"
-          :snippet="snippetForId(item.id)"
-        />
-        <p v-else>
+        <p v-if="item.typ === 'Text'">
           {{ item.text }}
         </p>
       </div>

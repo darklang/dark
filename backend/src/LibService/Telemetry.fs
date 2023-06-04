@@ -269,29 +269,31 @@ let configureAspNetCore
         |> String.split ","
         |> List.head
         |> Option.unwrap (string httpRequest.HttpContext.Connection.RemoteIpAddress)
-      with
-      | _ -> ""
+      with _ ->
+        ""
     let proto =
       try
         httpRequest.Headers.["x-forwarded-proto"].[0]
-      with
-      | _ -> ""
+      with _ ->
+        ""
 
     activity
-    |> Span.addTags [ "meta.type", "http_request"
-                      "http.request.cookies.count", httpRequest.Cookies.Count
-                      "http.request.content_type", httpRequest.ContentType
-                      "http.request.content_length", httpRequest.ContentLength
-                      "http.remote_addr", ipAddress
-                      "http.proto", proto ]
+    |> Span.addTags
+      [ "meta.type", "http_request"
+        "http.request.cookies.count", httpRequest.Cookies.Count
+        "http.request.content_type", httpRequest.ContentType
+        "http.request.content_length", httpRequest.ContentLength
+        "http.remote_addr", ipAddress
+        "http.proto", proto ]
 
   let enrichHttpResponse
     activity
     (httpResponse : Microsoft.AspNetCore.Http.HttpResponse)
     =
     activity
-    |> Span.addTags [ "http.response.content_length", httpResponse.ContentLength
-                      "http.response.content_type", httpResponse.ContentType ]
+    |> Span.addTags
+      [ "http.response.content_length", httpResponse.ContentLength
+        "http.response.content_type", httpResponse.ContentType ]
 
 
   options.EnrichWithHttpRequest <-
@@ -355,26 +357,26 @@ let addTelemetry
   builder
   |> fun b -> b.SetSampler(Sampler(serviceName))
   |> fun b ->
-       List.fold
-         b
-         (fun b exporter ->
-           match exporter with
-           | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions)
-           | Config.Console -> b.AddConsoleExporter())
-         Config.telemetryExporters
+      List.fold
+        b
+        (fun b exporter ->
+          match exporter with
+          | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions)
+          | Config.Console -> b.AddConsoleExporter())
+        Config.telemetryExporters
   |> fun b ->
-       b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
+      b.SetResourceBuilder(ResourceBuilder.CreateDefault().AddService(serviceName))
   |> fun b ->
-       b.AddHttpClientInstrumentation (fun options ->
-         options.RecordException <- true
-         ())
+      b.AddHttpClientInstrumentation(fun options ->
+        options.RecordException <- true
+        ())
   // TODO HttpClient instrumentation isn't working, so let's try to add it
   // before AspNetCoreInstrumentation
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
   |> fun b ->
-       match traceDBQueries with
-       | TraceDBQueries -> b.AddNpgsql()
-       | DontTraceDBQueries -> b
+      match traceDBQueries with
+      | TraceDBQueries -> b.AddNpgsql()
+      | DontTraceDBQueries -> b
   |> fun b -> b.AddSource("Dark")
 
 

@@ -48,7 +48,6 @@ let rec dvalToSql
   match expectedType, dval with
   | _, DError _
   | _, DIncomplete _ -> Errors.foundFakeDval dval
-  | _, DHttpResponse _
   | _, DFnVal _
   | _, DDB _
   | _, DDict _ // CLEANUP allow
@@ -142,12 +141,12 @@ let rec typecheck
 
 let typecheckDval
   (name : string)
-  (types : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (dval : Dval)
   (expectedType : TypeReference)
   =
   match TypeChecker.unify [ name ] types expectedType dval with
-  | Ok () -> ()
+  | Ok() -> ()
   | Error err -> error $"Incorrect type in {name}: {err}"
 
 let escapeFieldname (str : string) : string =
@@ -205,10 +204,10 @@ let rec inline'
         (currentExpr : Expr, letPattern : LetPattern)
         : Map<string, Expr> =
         match letPattern with
-        | LPVariable (_id, name) -> Map.add name currentExpr symtable
-        | LPTuple (_id, first, second, theRest) ->
+        | LPVariable(_id, name) -> Map.add name currentExpr symtable
+        | LPTuple(_id, first, second, theRest) ->
           match currentExpr with
-          | ETuple (_, firstExpr, secondExpr, restExpr) ->
+          | ETuple(_, firstExpr, secondExpr, restExpr) ->
             let exprList = firstExpr :: secondExpr :: restExpr
             let patternList = first :: second :: theRest
 
@@ -224,12 +223,12 @@ let rec inline'
 
 
       match expr with
-      | ELet (_, lpVariable, expr, body) ->
+      | ELet(_, lpVariable, expr, body) ->
         let newMap = mapLetPattern symtable (expr, lpVariable)
 
         inline' paramName newMap body
 
-      | EVariable (_, name) as expr when name <> paramName ->
+      | EVariable(_, name) as expr when name <> paramName ->
         (match Map.get name symtable with
          | Some found -> found
          | None ->
@@ -241,7 +240,7 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
-  | EApply (_, FnName (FQFnName.Stdlib std), [], args) when
+  | EApply(_, FnName(FQFnName.Stdlib std), [], args) when
     std.modules = [ mName ] && std.function_ = fName && std.version = v
     ->
     Some args
@@ -253,7 +252,7 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
   (fns : Map<FQFnName.StdlibFnName, BuiltInFn>)
-  (types : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (symtable : DvalMap)
   (paramName : string)
   (dbTypeRef : TypeReference)
@@ -265,7 +264,7 @@ let rec lambdaToSql
 
   let (sql, vars, actualType) =
     match expr with
-    | EApply (_, FnName (FQFnName.Stdlib name as fqName), [], args) ->
+    | EApply(_, FnName(FQFnName.Stdlib name as fqName), [], args) ->
       let nameStr = FQFnName.toString fqName
       match Map.get name fns with
       | Some fn ->
@@ -313,7 +312,7 @@ let rec lambdaToSql
             match Map.get name actualTypes with
             | Some typ -> typ
             | None -> error "Could not find return type"
-          | TList (TVariable name) ->
+          | TList(TVariable name) ->
             match Map.get name actualTypes with
             | Some typ -> TList typ
             | None -> error "Could not find return type"
@@ -330,10 +329,10 @@ let rec lambdaToSql
         | { sqlSpec = SqlFunction fnname }, _ ->
           let argSql = String.concat ", " argSqls
           $"({fnname}({argSql}))", sqlVars, returnType
-        | { sqlSpec = SqlFunctionWithPrefixArgs (fnName, fnArgs) }, _ ->
+        | { sqlSpec = SqlFunctionWithPrefixArgs(fnName, fnArgs) }, _ ->
           let argSql = fnArgs @ argSqls |> String.concat ", "
           $"({fnName} ({argSql}))", sqlVars, returnType
-        | { sqlSpec = SqlFunctionWithSuffixArgs (fnName, fnArgs) }, _ ->
+        | { sqlSpec = SqlFunctionWithSuffixArgs(fnName, fnArgs) }, _ ->
           let argSql = argSqls @ fnArgs |> String.concat ", "
           $"({fnName} ({argSql}))", sqlVars, returnType
         | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
@@ -343,7 +342,7 @@ let rec lambdaToSql
         error
           $"Only builtin functions can be used in queries right now; {nameStr} is not a builtin function"
 
-    | EAnd (_, left, right) ->
+    | EAnd(_, left, right) ->
       let leftSql, leftVars, leftActual = lts TBool left
       let rightSql, rightVars, rightActual = lts TBool right
       typecheck "left side of and" leftActual TBool
@@ -351,7 +350,7 @@ let rec lambdaToSql
       $"({leftSql} AND {rightSql})", leftVars @ rightVars, TBool
 
 
-    | EOr (_, left, right) ->
+    | EOr(_, left, right) ->
       let leftSql, leftVars, leftActual = lts TBool left
       let rightSql, rightVars, rightActual = lts TBool right
       typecheck "left side of or" leftActual TBool
@@ -361,7 +360,7 @@ let rec lambdaToSql
 
     // TYPESCLEANUP - this could be the paramName, now that we support more than
     // records here.
-    | EVariable (_, varname) ->
+    | EVariable(_, varname) ->
       match Map.get varname symtable with
       | Some dval ->
         typecheckDval $"variable {varname}" types dval expectedType
@@ -373,12 +372,12 @@ let rec lambdaToSql
         $"(@{newname})", [ newname, sqlValue ], actualType
       | None -> error $"This variable is not defined: {varname}"
 
-    | EInt (_, v) ->
+    | EInt(_, v) ->
       typecheck $"Int {v}" TInt expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.int64 v ], TInt
 
-    | EBool (_, v) ->
+    | EBool(_, v) ->
       typecheck $"Bool {v}" TBool expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.bool v ], TBool
@@ -388,17 +387,17 @@ let rec lambdaToSql
       let name = randomString 10
       $"(@{name})", [ name, Sql.int64 0L ], TUnit
 
-    | EFloat (_, v) ->
+    | EFloat(_, v) ->
       typecheck $"Float {v}" TFloat expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.double v ], TFloat
 
-    | EString (_, parts) ->
+    | EString(_, parts) ->
       let strParts, vars =
         parts
         |> List.map (fun part ->
           match part with
-          | StringText (s) ->
+          | StringText(s) ->
             typecheck $"String \"{s}\"" TString expectedType
             let name = randomString 10
             $"(@{name})", [ name, Sql.string s ]
@@ -412,12 +411,12 @@ let rec lambdaToSql
       let vars = vars |> List.concat
       strPart, vars, TString
 
-    | EChar (_, v) ->
+    | EChar(_, v) ->
       typecheck $"Char '{v}'" TChar expectedType
       let name = randomString 10
       $"(@{name})", [ name, Sql.string v ], TChar
 
-    | EList (_, items) ->
+    | EList(_, items) ->
       match expectedType with
       | TVariable _ as expectedType
       | TList expectedType ->
@@ -437,20 +436,25 @@ let rec lambdaToSql
       | _ -> error "Expected a List"
 
 
-    | EFieldAccess (_, EVariable (_, v), fieldname) when v = paramName ->
+    | EFieldAccess(_, EVariable(_, v), fieldname) when v = paramName ->
       // Because this is the param name, we know its type to be dbType
 
       let dbFieldType =
         match dbTypeRef with
         // TYPESCLEANUP use args
-        | TCustomType (typeName, args) ->
-          match Map.get typeName types with
-          | Some (CustomType.Record (f1, fields)) ->
+        | TCustomType(typeName, args) ->
+          match Types.find typeName types with
+          // TODO: Deal with alias of record type
+          | Some(CustomType.Alias _) ->
+            error2
+              "The datastore's type is not a record"
+              (FQTypeName.toString typeName)
+          | Some(CustomType.Record(f1, fields)) ->
             let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
             match field with
             | Some v -> v.typ
             | None -> error2 "The datastore does not have a field named" fieldname
-          | Some (CustomType.Enum _) ->
+          | Some(CustomType.Enum _) ->
             error2
               "The datastore's type is not a record"
               (FQTypeName.toString typeName)
@@ -558,24 +562,24 @@ let partiallyEvaluate
         // interpreter instead of in the DB. Anything immutable should be good,
         // including literals and variables with known values (so not `paramName`)
         match expr with
-        | EFieldAccess (_, EVariable (_, name), _) when name <> paramName ->
+        | EFieldAccess(_, EVariable(_, name), _) when name <> paramName ->
           return! exec expr
-        | EFieldAccess (_, ERecord _, _) ->
+        | EFieldAccess(_, ERecord _, _) ->
           // inlining can create these situations
           return! exec expr
-        | EAnd (_, EBool _, EBool _)
-        | EOr (_, EBool _, EBool _) -> return! exec expr
-        | EAnd (_, EBool _, EVariable (_, name))
-        | EAnd (_, EVariable (_, name), EBool _)
-        | EOr (_, EBool _, EVariable (_, name))
-        | EOr (_, EVariable (_, name), EBool _) when name <> paramName ->
+        | EAnd(_, EBool _, EBool _)
+        | EOr(_, EBool _, EBool _) -> return! exec expr
+        | EAnd(_, EBool _, EVariable(_, name))
+        | EAnd(_, EVariable(_, name), EBool _)
+        | EOr(_, EBool _, EVariable(_, name))
+        | EOr(_, EVariable(_, name), EBool _) when name <> paramName ->
           return! exec expr
-        | EOr (_, EVariable (_, name1), EVariable (_, name2))
-        | EAnd (_, EVariable (_, name1), EVariable (_, name2)) when
+        | EOr(_, EVariable(_, name1), EVariable(_, name2))
+        | EAnd(_, EVariable(_, name1), EVariable(_, name2)) when
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EApply (_, _, typeArgs, args) ->
+        | EApply(_, _, typeArgs, args) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
             | EInt _
@@ -585,8 +589,8 @@ let partiallyEvaluate
             | EString _
             | EChar _
             | EVariable _ -> true
-            | ETuple (_, e1, e2, rest) -> List.all fullySpecified (e1 :: e2 :: rest)
-            | EList (_, exprs) -> List.all fullySpecified exprs
+            | ETuple(_, e1, e2, rest) -> List.all fullySpecified (e1 :: e2 :: rest)
+            | EList(_, exprs) -> List.all fullySpecified exprs
             | _ -> false
 
           if List.all fullySpecified args && typeArgs = [] then
@@ -631,33 +635,33 @@ let partiallyEvaluate
             | EBool _
             | EUnit _
             | EFloat _ -> return expr
-            | ELet (id, pat, rhs, next) ->
+            | ELet(id, pat, rhs, next) ->
               let! rhs = r rhs
               let! next = r next
               return ELet(id, pat, rhs, next)
-            | EApply (id, fnName, typeArgs, exprs) ->
+            | EApply(id, fnName, typeArgs, exprs) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EApply(id, fnName, typeArgs, exprs)
-            | EIf (id, cond, ifexpr, elseexpr) ->
+            | EIf(id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr
               let! elseexpr = r elseexpr
               return EIf(id, cond, ifexpr, elseexpr)
-            | EFieldAccess (id, expr, fieldname) ->
+            | EFieldAccess(id, expr, fieldname) ->
               let! expr = r expr
               return EFieldAccess(id, expr, fieldname)
-            | ELambda (id, names, expr) ->
+            | ELambda(id, names, expr) ->
               let! expr = r expr
               return ELambda(id, names, expr)
-            | EList (id, exprs) ->
+            | EList(id, exprs) ->
               let! exprs = Ply.List.mapSequentially r exprs
               return EList(id, exprs)
-            | ETuple (id, first, second, theRest) ->
+            | ETuple(id, first, second, theRest) ->
               let! first = r first
               let! second = r second
               let! theRest = Ply.List.mapSequentially r theRest
               return ETuple(id, first, second, theRest)
-            | EMatch (id, mexpr, pairs) ->
+            | EMatch(id, mexpr, pairs) ->
               let! mexpr = r mexpr
 
               let! pairs =
@@ -670,7 +674,7 @@ let partiallyEvaluate
                   pairs
 
               return EMatch(id, mexpr, pairs)
-            | ERecord (id, typeName, fields) ->
+            | ERecord(id, typeName, fields) ->
               let! fields =
                 Ply.List.mapSequentially
                   (fun (name, expr) ->
@@ -703,14 +707,14 @@ let partiallyEvaluate
                   fields
 
               return EDict(id, fields)
-            | EEnum (id, typeName, caseName, fields) ->
+            | EEnum(id, typeName, caseName, fields) ->
               let! fields = Ply.List.mapSequentially r fields
               return EEnum(id, typeName, caseName, fields)
-            | EAnd (id, left, right) ->
+            | EAnd(id, left, right) ->
               let! left = r left
               let! right = r right
               return EAnd(id, left, right)
-            | EOr (id, left, right) ->
+            | EOr(id, left, right) ->
               let! left = r left
               let! right = r right
               return EOr(id, left, right)

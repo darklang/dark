@@ -99,8 +99,8 @@ let fns : List<BuiltInFn> =
             try
               do! Secret.insert canvasID name value (int version)
               return DResult(Ok DUnit)
-            with
-            | _ -> return DResult(Error(DString "Error inserting secret"))
+            with _ ->
+              return DResult(Error(DString "Error inserting secret"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

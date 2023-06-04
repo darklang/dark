@@ -15,7 +15,7 @@ let parseAndSerializeProgram (userProgram: String): String =
 
   response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes
 
-let handleEvent (userProgramSource: String): String =
+let handleEvent (userProgramSource: String): Result<Unit, String> =
   let parsedAndSerialized = parseAndSerializeProgram userProgramSource
   let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
-  evalResult
+  WASM.Editor.callJSFunction "self.receiveEvalResult" [evalResult]

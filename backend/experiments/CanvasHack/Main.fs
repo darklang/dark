@@ -41,7 +41,7 @@ let parseYamlExn<'a> (filename : string) : 'a =
   let deserialized = Legivel.Serialization.Deserialize<'a> contents
 
   match List.head deserialized with
-  | Some (Legivel.Serialization.Success s) -> s.Data
+  | Some(Legivel.Serialization.Success s) -> s.Data
   | ex -> Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
 
 let seedCanvasV2 (canvasName : string) =
@@ -120,7 +120,7 @@ let seedCanvasV2 (canvasName : string) =
   }
 
 [<EntryPoint>]
-let main (args : string []) =
+let main (args : string[]) =
   try
     initSerializers ()
 
@@ -172,7 +172,6 @@ let main (args : string []) =
     }
     |> fun x -> x.Result
 
-  with
-  | e ->
+  with e ->
     printException "Exception running CanvasHack" [ "args", args ] e
     1

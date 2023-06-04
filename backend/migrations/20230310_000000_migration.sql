@@ -123,6 +123,33 @@ BEFORE UPDATE ON package_functions_v0
 FOR EACH ROW
 EXECUTE PROCEDURE trigger_set_timestamp();
 
+CREATE TABLE IF NOT EXISTS
+package_types_v0
+-- IDs
+( id UUID PRIMARY KEY
+, tlid BIGINT NOT NULL -- includes TLID for tracing
+  /* owner/namespace part of the string, eg dark.
+   * CLEANUP This isn't a good way to store this because the username should be
+   * stored in the editor canvas. But we haven't got all the details worked out so
+   * for now store the owner */
+-- allow search by name
+, owner TEXT NOT NULL
+, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
+, typename TEXT NOT NULL /* eg sendText */
+, version INTEGER NOT NULL /* eg 0 */
+-- the actual definition
+, definition BYTEA NOT NULL /* the whole thing serialized as binary */
+-- bonus
+, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER set_package_type_timestamp
+BEFORE UPDATE ON package_types_v0
+FOR EACH ROW
+EXECUTE PROCEDURE trigger_set_timestamp();
+
+
 
 CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 

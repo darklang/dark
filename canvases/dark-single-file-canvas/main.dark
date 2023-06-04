@@ -44,7 +44,7 @@ type Test = {
 
 [<HttpHandler("GET", "/get-tests")>]
 let _handler _req =
-  let allRecords = DB.getAll_v3 TestDB
+  let allRecords = DB.getAll TestDB
   let respBody = allRecords |> Json.serialize<List<Test>>
 
   let respBody =
@@ -58,6 +58,6 @@ let _handler _req =
 
 [<HttpHandler("GET", "/add-test")>]
 let _handler _req =
-  let key = DB.generateKey_v0
-  let _ = DB.set_v1 { id = 1; name = key } key TestDB
+  let key = DB.generateKey_v0 ()
+  let _ = DB.set { id = 1; name = key } key TestDB
   Http.response Bytes.empty 200

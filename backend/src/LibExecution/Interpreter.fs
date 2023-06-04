@@ -51,36 +51,36 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   uply {
     match e with
-    | EString (id, segments) ->
+    | EString(id, segments) ->
       let! result =
         segments
         |> Ply.List.foldSequentially
-             (fun builtUpString seg ->
-               uply {
-                 match builtUpString, seg with
-                 | Ok str, StringText (text) -> return Ok(str + text)
-                 | Ok str, StringInterpolation (expr) ->
-                   let! result = eval state st expr
-                   match result with
-                   | DString s -> return Ok(str + s)
-                   | DIncomplete _
-                   | DError _ -> return Error(result)
-                   | dv ->
-                     let msg = "Expected string, got " + DvalReprDeveloper.toRepr dv
-                     return Error(err id msg)
-                 | Error dv, _ -> return Error dv
-               })
-             (Ok "")
+          (fun builtUpString seg ->
+            uply {
+              match builtUpString, seg with
+              | Ok str, StringText(text) -> return Ok(str + text)
+              | Ok str, StringInterpolation(expr) ->
+                let! result = eval state st expr
+                match result with
+                | DString s -> return Ok(str + s)
+                | DIncomplete _
+                | DError _ -> return Error(result)
+                | dv ->
+                  let msg = "Expected string, got " + DvalReprDeveloper.toRepr dv
+                  return Error(err id msg)
+              | Error dv, _ -> return Error dv
+            })
+          (Ok "")
       match result with
       | Ok str -> return DString(String.normalize str)
       | Error dv -> return dv
-    | EBool (_id, b) -> return DBool b
-    | EInt (_id, i) -> return DInt i
-    | EFloat (_id, value) -> return DFloat value
+    | EBool(_id, b) -> return DBool b
+    | EInt(_id, i) -> return DInt i
+    | EFloat(_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
-    | EChar (_id, s) -> return DChar s
+    | EChar(_id, s) -> return DChar s
 
-    | ELet (id, pattern, rhs, body) ->
+    | ELet(id, pattern, rhs, body) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
       let traceIncompleteWithArgs id argPatterns =
         let argTraces =
@@ -102,14 +102,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
 
-        | LPVariable (id, varName) ->
+        | LPVariable(id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-        | LPTuple (id, firstPat, secondPat, theRestPat) ->
+        | LPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
 
           match dv with
-          | DTuple (first, second, theRest) ->
+          | DTuple(first, second, theRest) ->
             let allVals = first :: second :: theRest
 
             if List.length allVals = List.length allPatterns then
@@ -151,7 +151,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let! r = eval state newSymtable body
         return r
 
-    | EList (_id, exprs) ->
+    | EList(_id, exprs) ->
       let! results = Ply.List.mapSequentially (eval state st) exprs
 
       match List.tryFind Dval.isFake results with
@@ -159,7 +159,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | None -> return DList results
 
 
-    | ETuple (_id, first, second, theRest) ->
+    | ETuple(_id, first, second, theRest) ->
 
       let! firstResult = eval state st first
       let! secondResult = eval state st second
@@ -174,21 +174,34 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | None -> return DTuple(firstResult, secondResult, otherResults)
 
 
-    | EVariable (id, name) ->
+    | EVariable(id, name) ->
       match st.TryFind name with
       | None -> return err id $"There is no variable named: {name}"
       | Some other -> return other
 
 
-    | ERecord (id, typeName, fields) ->
-      let availableTypes = ExecutionState.availableTypes state
-      let typ = Map.tryFind typeName availableTypes
+    | ERecord(id, typeName, fields) ->
       let typeStr = FQTypeName.toString typeName
-      match typ with
-      | None -> return err id $"There is no type named `{typeStr}`"
-      | Some (CustomType.Enum _) ->
-        return err id $"Expected a record but {typeStr} is an enum"
-      | Some (CustomType.Record (expected1, expectedRest)) ->
+      let types = ExecutionState.availableTypes state
+      let typ = Types.find typeName types
+
+      let rec recordMaybe (typeName : FQTypeName.T) =
+        match Types.find typeName types with
+        | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
+          recordMaybe innerTypeName
+        | Some(CustomType.Record(firstField, otherFields)) ->
+          Some(firstField, otherFields)
+        | Some(CustomType.Enum _) -> None
+        | _ -> None
+
+      match recordMaybe typeName with
+      | None ->
+        match typ with
+        | None -> return err id $"There is no type named `{typeStr}`"
+        | Some(CustomType.Enum _) ->
+          return err id $"Expected a record but {typeStr} is an enum"
+        | _ -> return err id $"Expected a record but {typeStr} is something else"
+      | Some(expected1, expectedRest) ->
         let expectedFields =
           (expected1 :: expectedRest) |> List.map (fun f -> f.name, f.typ) |> Map
         let! result =
@@ -207,10 +220,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     return v
                   else
                     let field = Map.find k expectedFields
-                    match TypeChecker.unify [ k ] availableTypes field v with
-                    | Ok () ->
+                    match TypeChecker.unify [ k ] types field v with
+                    | Ok() ->
                       match r with
-                      | DRecord (typeName, m) ->
+                      | DRecord(typeName, m) ->
                         return DRecord(typeName, Map.add k v m)
                       | _ -> return err id "Expected a record"
                     | Error e -> return err id (TypeChecker.Error.toString e)
@@ -218,7 +231,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             (DRecord(typeName, Map.empty))
             fields
         match result with
-        | DRecord (_, fields) ->
+        | DRecord(_, fields) ->
           if Map.count fields = Map.count expectedFields then
             return result
           else
@@ -266,7 +279,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               updates
       | _ -> return err id "Expected a record"
 
-    | EDict (id, fields) ->
+    | EDict(id, fields) ->
       return!
         Ply.List.foldSequentially
           (fun r (k, expr) ->
@@ -284,7 +297,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
 
-    | EApply (id, fnTarget, typeArgs, exprs) ->
+    | EApply(id, fnTarget, typeArgs, exprs) ->
       let! args = Ply.List.mapSequentially (eval state st) exprs
 
       match fnTarget with
@@ -294,14 +307,14 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return! applyFn state target id args
 
 
-    | EFieldAccess (id, e, field) ->
+    | EFieldAccess(id, e, field) ->
       let! obj = eval state st e
 
       if field = "" then
         return err id "Field name is empty"
       else
         match obj with
-        | DRecord (typeName, o) ->
+        | DRecord(typeName, o) ->
           match Map.tryFind field o with
           | Some v -> return v
           | None ->
@@ -320,7 +333,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return err id msg
 
 
-    | ELambda (_id, parameters, body) ->
+    | ELambda(_id, parameters, body) ->
       if state.tracing.realOrPreview = Preview then
         // In case this never gets executed, add default analysis results
         parameters
@@ -349,7 +362,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       return DFnVal(Lambda { symtable = st; parameters = parameters; body = body })
 
 
-    | EMatch (id, matchExpr, cases) ->
+    | EMatch(id, matchExpr, cases) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
       let traceIncompleteWithArgs id argPatterns =
         let argTraces =
@@ -370,23 +383,23 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         (pattern : MatchPattern)
         : bool * List<string * Dval> * List<id * Dval> =
         match pattern with
-        | MPInt (id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
-        | MPBool (id, b) -> (dv = DBool b), [], [ (id, DBool b) ]
-        | MPChar (id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
-        | MPString (id, s) -> (dv = DString s), [], [ (id, DString s) ]
-        | MPFloat (id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
-        | MPUnit (id) -> (dv = DUnit), [], [ (id, DUnit) ]
+        | MPInt(id, i) -> (dv = DInt i), [], [ (id, DInt i) ]
+        | MPBool(id, b) -> (dv = DBool b), [], [ (id, DBool b) ]
+        | MPChar(id, c) -> (dv = DChar c), [], [ (id, DChar c) ]
+        | MPString(id, s) -> (dv = DString s), [], [ (id, DString s) ]
+        | MPFloat(id, f) -> (dv = DFloat f), [], [ (id, DFloat f) ]
+        | MPUnit(id) -> (dv = DUnit), [], [ (id, DUnit) ]
 
-        | MPVariable (id, varName) ->
+        | MPVariable(id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
-        | MPEnum (id, caseName, fieldPats) ->
+        | MPEnum(id, caseName, fieldPats) ->
           match (caseName, fieldPats, dv) with
           | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
-          | "Just", [ p ], DOption (Some v)
-          | "Ok", [ p ], DResult (Ok v)
-          | "Error", [ p ], DResult (Error v) ->
+          | "Just", [ p ], DOption(Some v)
+          | "Ok", [ p ], DResult(Ok v)
+          | "Error", [ p ], DResult(Error v) ->
             let (passes, newVars, traces) = checkPattern v p
 
             if passes then
@@ -402,9 +415,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let (_, newVars, traces) = checkPattern (incomplete pID) p
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
-          | caseName, fieldPats, DEnum (_dTypeName, dCaseName, dFields) ->
+          | caseName, fieldPats, DEnum(_dTypeName, dCaseName, dFields) ->
 
-            if List.length dFields = List.length fieldPats && caseName = dCaseName then
+            if
+              List.length dFields = List.length fieldPats && caseName = dCaseName
+            then
               let (passResults, newVarResults, traceResults) =
                 List.zip dFields fieldPats
                 |> List.map (fun (dv, pat) -> checkPattern dv pat)
@@ -424,11 +439,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           | _caseName, fieldPats, _dv ->
             false, [], traceIncompleteWithArgs id fieldPats
 
-        | MPTuple (id, firstPat, secondPat, theRestPat) ->
+        | MPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
 
           match dv with
-          | DTuple (first, second, theRest) ->
+          | DTuple(first, second, theRest) ->
             let allVals = first :: second :: theRest
 
             if List.length allVals = List.length allPatterns then
@@ -449,9 +464,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
 
-        | MPListCons (id, headPat, tailPat) ->
+        | MPListCons(id, headPat, tailPat) ->
           match dv with
-          | DList (headVal :: tailVals) ->
+          | DList(headVal :: tailVals) ->
             let (headPass, headVars, headTraces) = checkPattern headVal headPat
             let (tailPass, tailVars, tailTraces) =
               checkPattern (DList tailVals) tailPat
@@ -467,7 +482,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               false, allSubVars, traces
           | _ -> false, [], traceIncompleteWithArgs id [ headPat; tailPat ]
 
-        | MPList (id, pats) ->
+        | MPList(id, pats) ->
           match dv with
           | DList vals ->
             if List.length vals = List.length pats then
@@ -529,7 +544,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       return matchResult
 
 
-    | EIf (id, cond, thenbody, elsebody) ->
+    | EIf(id, cond, thenbody, elsebody) ->
       match! eval state st cond with
       | DBool false ->
         do! preview st thenbody
@@ -548,7 +563,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return err id "If only supports Booleans"
 
 
-    | EOr (id, left, right) ->
+    | EOr(id, left, right) ->
       match! eval state st left with
       | DBool true ->
         do! preview st right
@@ -567,7 +582,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return err id "|| only supports Booleans"
 
 
-    | EAnd (id, left, right) ->
+    | EAnd(id, left, right) ->
       match! eval state st left with
       | DBool false ->
         do! preview st right
@@ -586,9 +601,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return err id "&& only supports Booleans"
 
 
-    | EEnum (id, typeName, caseName, fields) ->
+    | EEnum(id, typeName, caseName, fields) ->
       match typeName with
-      | FQTypeName.Stdlib ({ modules = []; typ = "Option"; version = 0 }) ->
+      | FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 }) ->
         match (caseName, fields) with
         | "Nothing", [] -> return DOption None
         | "Nothing", _ ->
@@ -599,7 +614,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | "Just", _ ->
           return err id $"Option.Just expects 1 argument but got {fields.Length}"
         | name, _ -> return err id $"Invalid name for enum {name}"
-      | FQTypeName.Stdlib ({ modules = []; typ = "Result"; version = 0 }) ->
+      | FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 }) ->
         match (caseName, fields) with
         | "Ok", [ arg ] ->
           let! dv = eval state st arg
@@ -613,14 +628,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return err id $"Result.Error expects 1 argument but got {fields.Length}"
         | name, _ -> return err id $"Invalid name for enum {name}"
       | typeName ->
-        let availableTypes = ExecutionState.availableTypes state
-        let typ = Map.tryFind typeName availableTypes
         let typeStr = FQTypeName.toString typeName
-        match typ with
+        let types = ExecutionState.availableTypes state
+        match Types.find typeName types with
         | None -> return err id $"There is no type named `{typeStr}`"
-        | Some (CustomType.Record _) ->
+        | Some(CustomType.Alias _) ->
+          return err id $"Expected an enum but {typeStr} is an alias"
+        | Some(CustomType.Record _) ->
           return err id $"Expected an enum but {typeStr} is a record"
-        | Some (CustomType.Enum (case, cases)) ->
+        | Some(CustomType.Enum(case, cases)) ->
           let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
           match case with
           | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
@@ -644,17 +660,17 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                           return v
                         else
                           match
-                            TypeChecker.unify
-                              [ case.name ]
-                              availableTypes
-                              enumField.typ
-                              v
-                            with
-                          | Ok () ->
+                            TypeChecker.unify [ case.name ] types enumField.typ v
+                          with
+                          | Ok() ->
                             match r with
-                            | DEnum (typeName, caseName, existing) ->
+                            | DEnum(typeName, caseName, existing) ->
                               return
-                                DEnum(typeName, caseName, List.append existing [ v ])
+                                DEnum(
+                                  typeName,
+                                  caseName,
+                                  List.append existing [ v ]
+                                )
                             | _ -> return err id "Expected an enum"
                           | Error e -> return err id (TypeChecker.Error.toString e)
                     })
@@ -749,7 +765,6 @@ and callFn
     let fn =
       match desc with
       | FQFnName.Stdlib std ->
-        // CLEANUP: do this when the libraries are loaded
         state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
       | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
       | FQFnName.Package pkg ->
@@ -769,7 +784,7 @@ and callFn
           // doing this again
 
           match fnResult with
-          | Some (result, _ts) -> return result
+          | Some(result, _ts) -> return result
           | None ->
             return
               DError(sourceID, $"Function {FQFnName.toString desc} is not found")
@@ -784,8 +799,10 @@ and callFn
 
           let err errMsg = DError(sourceID, errMsg)
 
-          if (expectedTypeParamLength = actualTypeArgLength)
-             && (expectedArgLength = actualArgLength) then
+          if
+            (expectedTypeParamLength = actualTypeArgLength)
+            && (expectedArgLength = actualArgLength)
+          then
 
             let args =
               fn.parameters
@@ -815,20 +832,22 @@ and execFn
   uply {
     let sourceID = SourceID(state.tlid, id) in
 
-    let typeErrorOrValue userTypes result =
+    let typeErrorOrValue types result =
       if Dval.isFake result then
         result
       else
         let name = FQFnName.toString fnDesc
-        match TypeChecker.checkFunctionReturnType [ name ] userTypes fn result with
-        | Ok () -> result
+        match TypeChecker.checkFunctionReturnType [ name ] types fn result with
+        | Ok() -> result
         | Error err ->
           let msg = $"Type error in return type: {TypeChecker.Error.toString err}"
           DError(sourceID, msg)
 
-    if state.tracing.realOrPreview = Preview
-       && not state.onExecutionPath
-       && Set.contains fnDesc state.callstack then
+    if
+      state.tracing.realOrPreview = Preview
+      && not state.onExecutionPath
+      && Set.contains fnDesc state.callstack
+    then
       // Don't recurse (including transitively!) when previewing unexecuted paths
       // in the editor. If we do, we'll recurse forever and blow the stack.
       return DIncomplete(sourceID)
@@ -856,15 +875,14 @@ and execFn
         | StdLib f ->
           if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
             match state.tracing.loadFnResult fnRecord arglist with
-            | Some (result, _ts) -> return result
+            | Some(result, _ts) -> return result
             | None -> return DIncomplete sourceID
           else
             let! result =
               uply {
                 try
                   return! f (state, typeArgs, arglist)
-                with
-                | e ->
+                with e ->
                   let context : Metadata =
                     [ "fn", fnDesc; "args", arglist; "id", id ]
                   return
@@ -872,8 +890,7 @@ and execFn
                     | Errors.IncorrectArgs ->
                       Errors.incorrectArgsToDError sourceID fn arglist
                     | Errors.FakeDvalFound dv -> dv
-                    | (:? CodeException
-                    | :? GrandUserException) as e ->
+                    | (:? CodeException | :? GrandUserException) as e ->
                       // There errors are created by us, within the libraries, so they are
                       // safe to show to users (but not grandusers)
                       Dval.errSStr sourceID e.Message
@@ -891,17 +908,16 @@ and execFn
               state.tracing.storeFnResult fnRecord arglist result
 
             return result
-        | PackageFunction (tlid, body)
-        | UserFunction (tlid, body) ->
+        | PackageFunction(tlid, body)
+        | UserFunction(tlid, body) ->
           let name = [ FQFnName.toString fnDesc ]
-          let availableTypes = ExecutionState.availableTypes state
-          match TypeChecker.checkFunctionCall name availableTypes fn typeArgs args
-            with
-          | Ok () ->
+          let types = ExecutionState.availableTypes state
+          match TypeChecker.checkFunctionCall name types fn typeArgs args with
+          | Ok() ->
             state.tracing.traceTLID tlid
             let state = { state with tlid = tlid }
             let! result = eval state argsWithGlobals body
-            return result |> typeErrorOrValue availableTypes
+            return typeErrorOrValue types result
           | Error err ->
             let msg =
               "Type error in function parameters: " + TypeChecker.Error.toString err

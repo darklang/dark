@@ -41,7 +41,7 @@ let handleUnexpectedExceptionDuringQuery
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DB" "set" 1
+  [ { name = fn "DB" "set" 0
       typeParams = []
       parameters = [ valParam; keyParam; tableParam ]
       returnType = valType
@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "get" 2
+    { name = fn "DB" "get" 0
       typeParams = []
       parameters = [ keyParam; tableParam ]
       returnType = TOption valType
@@ -80,7 +80,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getMany" 3
+    { name = fn "DB" "getMany" 0
       typeParams = []
       parameters = [ keysParam; tableParam ]
       returnType = TOption(TList valType)
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getManyWithKeys" 1
+    { name = fn "DB" "getManyWithKeys" 0
       typeParams = []
       parameters = [ keysParam; tableParam ]
       returnType = TDict valType
@@ -168,7 +168,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "delete" 1
+    { name = fn "DB" "delete" 0
       typeParams = []
       parameters = [ keyParam; tableParam ]
       returnType = TUnit
@@ -187,7 +187,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "deleteAll" 1
+    { name = fn "DB" "deleteAll" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TUnit
@@ -206,7 +206,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getAll" 3
+    { name = fn "DB" "getAll" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TList valType
@@ -225,7 +225,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "getAllWithKeys" 2
+    { name = fn "DB" "getAllWithKeys" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TDict valType
@@ -266,19 +266,19 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DB" "generateKey" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, _, [] -> System.Guid.NewGuid() |> string |> DString |> Ply
+        | _, _, [ DUnit ] -> System.Guid.NewGuid() |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "keys" 1
+    { name = fn "DB" "keys" 0
       typeParams = []
       parameters = [ tableParam ]
       returnType = TList TString
@@ -298,7 +298,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "query" 4
+    { name = fn "DB" "query" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TList valType
@@ -306,14 +306,14 @@ let fns : List<BuiltInFn> =
         "Fetch all the values from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               return results |> Dval.list
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -321,7 +321,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "queryWithKey" 3
+    { name = fn "DB" "queryWithKey" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TDict valType
@@ -329,14 +329,14 @@ let fns : List<BuiltInFn> =
         "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               return results |> Map.ofList |> DDict
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -344,7 +344,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "queryOne" 4
+    { name = fn "DB" "queryOne" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TOption valType
@@ -352,7 +352,7 @@ let fns : List<BuiltInFn> =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
@@ -361,8 +361,8 @@ let fns : List<BuiltInFn> =
               match results with
               | [ (_, v) ] -> return Dval.optionJust v
               | _ -> return DOption None
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -370,7 +370,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DB" "queryOneWithKey" 3
+    { name = fn "DB" "queryOneWithKey" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
       returnType = TOption(TTuple(TString, valType, []))
@@ -378,7 +378,7 @@ let fns : List<BuiltInFn> =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
@@ -387,8 +387,8 @@ let fns : List<BuiltInFn> =
               match results with
               | [ (key, dv) ] -> return Dval.optionJust (DTuple(DString key, dv, []))
               | _ -> return DOption None
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -404,14 +404,14 @@ let fns : List<BuiltInFn> =
         "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
               let! result = UserDB.queryCount state db b
               return Dval.int result
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction

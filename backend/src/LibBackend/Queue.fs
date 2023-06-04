@@ -43,12 +43,14 @@ type EventID = System.Guid
 type NotificationData = { id : EventID; canvasID : CanvasID }
 
 type Notification =
-  { data : NotificationData
+  {
+    data : NotificationData
     pubSubMessageID : string
     /// The first delivery has value 1
     deliveryAttempt : int
     timeInQueue : System.TimeSpan
-    pubSubAckID : string }
+    pubSubAckID : string
+  }
 
 /// Events are stored in the DB and are the source of truth for when and how an event
 /// should be executed. When they are complete, they are deleted.
@@ -84,13 +86,13 @@ let createEvent
      VALUES
        (@id, @canvasID, @module, @name, @modifier, @value,
         CURRENT_TIMESTAMP, NULL)"
-  |> Sql.parameters [ "id", Sql.uuid id
-                      "canvasID", Sql.uuid canvasID
-                      "module", Sql.string module'
-                      "name", Sql.string name
-                      "modifier", Sql.string modifier
-                      "value",
-                      Sql.string (DvalReprInternalRoundtrippable.toJsonV0 value) ]
+  |> Sql.parameters
+    [ "id", Sql.uuid id
+      "canvasID", Sql.uuid canvasID
+      "module", Sql.string module'
+      "name", Sql.string name
+      "modifier", Sql.string modifier
+      "value", Sql.string (DvalReprInternalRoundtrippable.toJsonV0 value) ]
   |> Sql.executeStatementAsync
 
 let loadEvent (canvasID : CanvasID) (id : EventID) : Task<Option<T>> =
@@ -122,10 +124,11 @@ let loadEventIDs
        AND modifier = @modifier
        AND canvas_id = @canvasID
        LIMIT 1000" // don't go overboard
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "module", Sql.string module'
-                      "name", Sql.string name
-                      "modifier", Sql.string modifier ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "module", Sql.string module'
+      "name", Sql.string name
+      "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
 module Test =
@@ -141,10 +144,11 @@ module Test =
           AND modifier = @modifier
           AND canvas_id = @canvasID
           LIMIT 1000" // don't go overboard
-    |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                        "module", Sql.string module'
-                        "name", Sql.string name
-                        "modifier", Sql.string modifier ]
+    |> Sql.parameters
+      [ "canvasID", Sql.uuid canvasID
+        "module", Sql.string module'
+        "name", Sql.string name
+        "modifier", Sql.string modifier ]
     |> Sql.executeAsync (fun read ->
       read.string "value" |> DvalReprInternalRoundtrippable.parseJsonV0)
 
@@ -153,8 +157,8 @@ module Test =
 let deleteEvent (event : T) : Task<unit> =
   Sql.query
     "DELETE FROM queue_events_v0 WHERE id = @eventID AND canvas_id = @canvasID"
-  |> Sql.parameters [ "eventID", Sql.uuid event.id
-                      "canvasID", Sql.uuid event.canvasID ]
+  |> Sql.parameters
+    [ "eventID", Sql.uuid event.id; "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
 
 /// Claim the lock by setting the lockedAt field. Must have already determined in
@@ -171,10 +175,10 @@ let claimLock (event : T) (_n : Notification) : Task<Result<unit, string>> =
             AND canvas_id = @canvasID
             AND locked_at IS NOT DISTINCT FROM @currentLockedAt"
       // IS NOT DISTINCT FROM is like `=`, but it allows a null value
-      |> Sql.parameters [ "eventID", Sql.uuid event.id
-                          "canvasID", Sql.uuid event.canvasID
-                          "currentLockedAt",
-                          Sql.instantWithTimeZoneOrNone event.lockedAt ]
+      |> Sql.parameters
+        [ "eventID", Sql.uuid event.id
+          "canvasID", Sql.uuid event.canvasID
+          "currentLockedAt", Sql.instantWithTimeZoneOrNone event.lockedAt ]
       |> Sql.executeNonQueryAsync
     if rowCount = 1 then return Ok()
     else if rowCount = 0 then return Error "LockNotClaimed"
@@ -230,8 +234,8 @@ let publisher : Lazy<Task<PublisherServiceApiClient>> =
             try
               let! _ = client.GetTopicAsync(topicName)
               return true
-            with
-            | _ -> return false
+            with _ ->
+              return false
           }
         if not topicFound then
           let! (_ : Topic) = client.CreateTopicAsync(topicName)
@@ -272,8 +276,8 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
             try
               let! _ = client.GetSubscriptionAsync(subscriptionName)
               return true
-            with
-            | _ -> return false
+            with _ ->
+              return false
           }
         if not subFound then
           let! (_ : Subscription) =
@@ -311,8 +315,7 @@ let dequeue (count : int) : Task<List<Notification>> =
         // We set the deadline above, and then if it didn't find anything it throws a
         // DeadlineExceeded Exception
         | :? Grpc.Core.RpcException as e when
-          e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded
-          ->
+            e.StatusCode = Grpc.Core.StatusCode.DeadlineExceeded ->
           return []
       }
     return

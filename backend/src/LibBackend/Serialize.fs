@@ -126,9 +126,10 @@ let fetchReleventTLIDsForHTTP
              AND modifier = @method)
          OR tipe <> 'handler'::toplevel_type)
        AND deleted IS FALSE"
-  |> Sql.parameters [ "path", Sql.string path
-                      "method", Sql.string method
-                      "canvasID", Sql.uuid canvasID ]
+  |> Sql.parameters
+    [ "path", Sql.string path
+      "method", Sql.string method
+      "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
@@ -154,10 +155,11 @@ let fetchRelevantTLIDsForEvent
               AND modifier = @modifier)
               OR tipe <> 'handler'::toplevel_type)
         AND deleted IS FALSE"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "space", Sql.string module'
-                      "name", Sql.string name
-                      "modifier", Sql.string modifier ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "space", Sql.string module'
+      "name", Sql.string name
+      "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> read.id "tlid")
 
 
@@ -234,5 +236,5 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
         interval
         |> PTParser.Handler.CronInterval.parse
         |> Exception.unwrapOptionInternal
-             "Could not parse cron modifier"
-             [ "interval", interval; "canvasID", canvasID ] })
+          "Could not parse cron modifier"
+          [ "interval", interval; "canvasID", canvasID ] })

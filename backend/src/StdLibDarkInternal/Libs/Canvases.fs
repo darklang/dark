@@ -66,12 +66,12 @@ let types : List<BuiltInType> =
 let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList TUuid
       description = "Get a list of all canvas IDs"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
             return hosts |> List.map DUuid |> DList
@@ -134,10 +134,12 @@ let fns : List<BuiltInFn> =
             let tlid = uint64 tlid
             let! c =
               Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasID [ tlid ]
-            if Map.containsKey tlid c.deletedHandlers
-               || Map.containsKey tlid c.deletedDBs
-               || Map.containsKey tlid c.deletedUserTypes
-               || Map.containsKey tlid c.deletedUserFunctions then
+            if
+              Map.containsKey tlid c.deletedHandlers
+              || Map.containsKey tlid c.deletedDBs
+              || Map.containsKey tlid c.deletedUserTypes
+              || Map.containsKey tlid c.deletedUserFunctions
+            then
               do! Canvas.deleteToplevelForever canvasID tlid
               return DBool true
             else
@@ -177,12 +179,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "darkEditorCanvasID" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TCustomType(FQTypeName.Stdlib(typ "Meta" 0), [])
       description = "Returns the ID of the special dark-editor canvas"
       fn =
         (function
-        | state, _, [] -> uply { return DUuid state.program.canvasID }
+        | state, _, [ DUnit ] -> uply { return DUuid state.program.canvasID }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -220,7 +222,7 @@ let fns : List<BuiltInFn> =
                 | PT.Handler.Worker _
                 | PT.Handler.Cron _
                 | PT.Handler.REPL _ -> None
-                | PT.Handler.HTTP (route, method) ->
+                | PT.Handler.HTTP(route, method) ->
                   [ "tlid", DString(handler.tlid.ToString())
                     "method", DString method
                     "route", DString route ]

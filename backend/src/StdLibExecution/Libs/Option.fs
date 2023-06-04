@@ -22,7 +22,7 @@ let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Option" "map" 1
+  [ { name = fn "Option" "map" 0
       typeParams = []
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB

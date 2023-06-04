@@ -70,11 +70,11 @@ type Utf8JsonWriter with
 
 let rec private toJsonV0
   (w : Utf8JsonWriter)
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (typ : TypeReference)
   (dv : Dval)
   : unit =
-  let writeDval = toJsonV0 w availableTypes
+  let writeDval = toJsonV0 w types
 
   match typ, dv with
   // basic types
@@ -98,10 +98,10 @@ let rec private toJsonV0
   | TBytes, DBytes bytes ->
     bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
   | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
-  | TPassword, DPassword (Password hashed) ->
+  | TPassword, DPassword(Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
   | TList ltype, DList l -> w.writeArray (fun () -> List.iter (writeDval ltype) l)
-  | TTuple (t1, t2, trest), DTuple (d1, d2, rest) ->
+  | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
     w.writeArray (fun () ->
       List.iter2 writeDval (t1 :: t2 :: trest) (d1 :: d2 :: rest))
   | TDict objType, DDict o ->
@@ -111,10 +111,10 @@ let rec private toJsonV0
           w.WritePropertyName k
           writeDval objType v)
         o)
-  | TCustomType (typeName, args), dv ->
-    match Map.tryFind typeName availableTypes, dv with
+  | TCustomType(typeName, args), dv ->
+    match Types.find typeName types, dv with
     | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-    | Some (CustomType.Record (f1, fs)), DRecord (_, dm) ->
+    | Some(CustomType.Record(f1, fs)), DRecord(_, dm) ->
       // TYPESCLEANUP: shouldn't we be using `args` here?
       let fields = f1 :: fs
       w.writeObject (fun () ->
@@ -123,7 +123,7 @@ let rec private toJsonV0
           w.WritePropertyName f.name
           let dval = Map.find f.name dm
           writeDval f.typ dval))
-    | Some (CustomType.Enum _), DEnum _ ->
+    | Some(CustomType.Enum _), DEnum _ ->
       Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
     | Some typ, dv ->
       Exception.raiseInternal
@@ -132,19 +132,18 @@ let rec private toJsonV0
 
   // Not supported
   | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
-  | TOption oType, DOption (Some dv) ->
+  | TOption oType, DOption(Some dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Just"
       writeDval oType dv)
-  | TResult (okType, _), DResult (Ok dv) ->
+  | TResult(okType, _), DResult(Ok dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Ok"
       writeDval okType dv)
-  | TResult (_, errType), DResult (Error dv) ->
+  | TResult(_, errType), DResult(Error dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Error"
       writeDval errType dv)
-  | THttpResponse _, DHttpResponse _
   | TFn _, DFnVal _
   | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
   // exhaustiveness checking
@@ -164,7 +163,6 @@ let rec private toJsonV0
   | TBytes, _
   | TOption _, _
   | TResult _, _
-  | THttpResponse _, _
   | TVariable _, _ // CLEANUP: pass the map of variable names in
   | TDB _, _
   | TFn _, _ ->
@@ -174,19 +172,11 @@ let rec private toJsonV0
 
 
 
-let toJsonStringV0
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (typ : TypeReference)
-  (dval : Dval)
-  : string =
-  writeJson (fun w -> toJsonV0 w availableTypes typ dval)
+let toJsonStringV0 (types : Types) (typ : TypeReference) (dval : Dval) : string =
+  writeJson (fun w -> toJsonV0 w types typ dval)
 
 
-let parseJsonV0
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
-  (typ : TypeReference)
-  (str : string)
-  : Dval =
+let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
   let rec convert (typ : TypeReference) (j : JsonElement) : Dval =
     match typ, j.ValueKind with
     | TUnit, JsonValueKind.Number -> DUnit
@@ -212,7 +202,7 @@ let parseJsonV0
       |> DDateTime
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
-    | TTuple (t1, t2, rest), JsonValueKind.Array ->
+    | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList
       if List.length arr = 2 + List.length rest then
         let d1 = convert t1 arr[0]
@@ -225,10 +215,11 @@ let parseJsonV0
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
       objFields |> Map.mapWithIndex (fun k v -> convert typ v) |> DDict
-    | TCustomType (typeName, args), JsonValueKind.Object ->
-      match Map.tryFind typeName availableTypes with
+    | TCustomType(typeName, args), JsonValueKind.Object ->
+      match Types.find typeName types with
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-      | Some (CustomType.Record (f1, fs)) ->
+      | Some(CustomType.Alias(f1)) -> convert f1 j
+      | Some(CustomType.Record(f1, fs)) ->
         let fields = f1 :: fs
         let objFields =
           j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
@@ -246,13 +237,12 @@ let parseJsonV0
           Exception.raiseInternal
             "Record has incorrect field count"
             [ "expected", List.length fields; "actual", Map.count objFields ]
-      | Some (CustomType.Enum (f1, fs)) ->
+      | Some(CustomType.Enum(f1, fs)) ->
         Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
 
     | TBytes _, _ -> Exception.raiseInternal "Not supported yet" []
     | TOption _, _ -> Exception.raiseInternal "Not supported yet" []
     | TResult _, _ -> Exception.raiseInternal "Not supported yet" []
-    | THttpResponse _, _ -> Exception.raiseInternal "Not supported yet" []
     | TFn _, _ -> Exception.raiseInternal "Not supported yet" []
     | TDB _, _ -> Exception.raiseInternal "Not supported yet" []
     | TVariable _, _ -> Exception.raiseInternal "Not supported yet" []
@@ -292,13 +282,12 @@ module Test =
     | DUuid _ -> true
     | DList dvals -> List.all isQueryableDval dvals
     | DDict map -> map |> Map.values |> List.all isQueryableDval
-    | DEnum (_typeName, _caseName, fields) -> fields |> List.all isQueryableDval
-    | DTuple (d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
+    | DEnum(_typeName, _caseName, fields) -> fields |> List.all isQueryableDval
+    | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
     // TODO support
     | DRecord _ // TYPESCLEANUP
     | DBytes _
-    | DHttpResponse _
     | DOption _
     | DResult _
 

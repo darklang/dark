@@ -68,7 +68,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "getAndLogTableSizes" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict(stdlibTypeRef "DarkInternal" "TableSize" 0)
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
@@ -77,7 +77,7 @@ via the backend; its primary purpose is to send data to Honeycomb, but also give
 human-readable data."
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           uply {
             let! tableStats = LibBackend.Db.tableStats ()
             // Send events to honeycomb. We could save some events by sending
@@ -139,12 +139,12 @@ human-readable data."
 
     { name = fn "serverBuildHash" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
       description = "Returns the git hash of the server's current deploy"
       fn =
         (function
-        | _, _, [] -> uply { return DString LibService.Config.buildHash }
+        | _, _, [ DUnit ] -> uply { return DString LibService.Config.buildHash }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

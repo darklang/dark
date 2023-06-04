@@ -30,8 +30,8 @@ let renameFunctions
       let newFn =
         Map.tryFind newName (Map.mergeFavoringLeft renamedFns existingMap)
         |> Exception.unwrapOptionInternal
-             $"all fns should exist {oldName} -> {newName}"
-             [ "oldName", oldName; "newName", newName ]
+          $"all fns should exist {oldName} -> {newName}"
+          [ "oldName", oldName; "newName", newName ]
       Map.add
         oldName
         { newFn with name = oldName; deprecated = RenamedTo newName }
@@ -50,14 +50,20 @@ let renameTypes
       let newType =
         Map.tryFind newName (Map.mergeFavoringLeft renamedTypes existingMap)
         |> Exception.unwrapOptionInternal
-             $"all types should exist {oldName} -> {newName}"
-             [ "oldName", oldName; "newName", newName ]
+          $"all types should exist {oldName} -> {newName}"
+          [ "oldName", oldName; "newName", newName ]
       Map.add
         oldName
         { newType with name = oldName; deprecated = RenamedTo newName }
         renamedTypes)
     |> Map.values
   existing @ newTypes
+
+let checkFn (fn : BuiltInFn) : unit =
+  // We can't do this until constants (eg Math.pi) are no longer implemented as functions
+  // if fn.parameters = [] then
+  //   Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
+  ()
 
 /// Provided a list of library contents, combine them (handling renames)
 let combine
@@ -66,6 +72,7 @@ let combine
   (typeRenames : TypeRenames)
   : Contents =
   let (fns, types) = List.unzip libs
+  fns |> List.concat |> List.iter checkFn
   (fns |> List.concat |> renameFunctions fnRenames,
    types |> List.concat |> renameTypes typeRenames)
 

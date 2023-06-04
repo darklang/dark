@@ -50,6 +50,80 @@ module Tuple =
   (1, Test.typeError_v0 "test", 3) = Test.typeError_v0 "test"
   (1, Test.typeError_v0 "error1", Test.typeError_v0 "error2") = Test.typeError_v0 "error1"
 
+module Alias =
+  // simple alias
+  type Id = String
+  type Something = { ID : Id; Data : String }
+  Something { ID = 2; Data = "test" } = Test.typeError "Expected a value of type `String` but got a `Int` in ID"
+  Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
+
+  // record alias
+  type Person = { name: String }
+  type MyPerson = Person
+  type MyPerson2 = Person
+  (MyPerson{ name = "test" } == Person{ name = "test" }) = true
+  (MyPerson{ name = "test" } == MyPerson2{ name = "test" }) = true
+  let getName(p:MyPerson) : String = p.name
+  getName(MyPerson{ name = "test" }) = "test"
+
+  // enum alias
+  type UserRole = Admin | User | Guest
+  type User = {
+    id : Id;
+    name : String;
+    role : UserRole
+  }
+  type Admin = User
+
+  Admin { id = "1"; name = "Alice"; role = UserRole.Admin } = Admin { id = "1"; name = "Alice"; role = UserRole.Admin }
+  User { id = "2"; name = "Bob"; role = UserRole.User } = User { id = "2"; name = "Bob"; role = UserRole.User }
+  User { id = "3"; name = "Charlie"; role = UserRole.Guest } = User { id = "3"; name = "Charlie"; role = UserRole.Guest }
+
+  let getUserRole(u:User) : UserRole = u.role
+  getUserRole(User { id = "1"; name = "Alice"; role = UserRole.Admin }) = UserRole.Admin
+  getUserRole(User { id = "2"; name = "Bob"; role = UserRole.User }) = UserRole.User
+  getUserRole(User { id = "3"; name = "Charlie"; role = UserRole.Guest }) = UserRole.Guest
+
+  let isAdmin(u:User) : Bool = u.role == UserRole.Admin
+  isAdmin(Admin { id = "1"; name = "Alice"; role = UserRole.Admin }) = true
+
+  // nested alias
+  type UserCredential = (String * Id)
+  type EmployeeCredential = UserCredential
+  let getUserID(credential:UserCredential) : Id = credential |> Tuple2.second
+  getUserID(("Alice", "EMP123")) = "EMP123"
+  getUserID(("Alice", 123)) = Test.typeError "Type error in return type: Expected a value of type `String` but got a `Int` in getUserID->result"
+
+  type UserProfile = { credential: UserCredential; name: String; role: UserRole }
+  type EmployeeProfile = UserProfile
+  let getEmployeeName(profile:EmployeeProfile) : String = profile.name
+  getEmployeeName(UserProfile { credential = ("Alice", "EMP123"); name = "Alice"; role = UserRole.Admin }) = "Alice"
+
+  // option alias
+  type OptionName = Option<String>
+  type UserInfo = { id: Id; name: OptionName ; roles: List<UserRole> }
+  let userHasRole(user: UserInfo) (role: UserRole) : Bool = List.member_v0  user.roles role
+  userHasRole(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) UserRole.Admin = true
+  userHasRole(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) UserRole.Guest = false
+
+  type UserRoleOption = Option<UserRole>
+  let getUserRoleAsOption (user: UserInfo) : UserRoleOption = user.roles |> List.head
+  getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) = Just UserRole.Admin
+  getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [] }) = Nothing
+  (getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) == Just UserRole.Guest) = false
+
+  // list alias
+  type IntegerList = List<Int>
+  let isEmpty(il: IntegerList) : Bool = List.isEmpty_v0 il
+  isEmpty([]) = true
+  isEmpty([1;2;3]) = false
+
+  // result alias
+  type IntResult = Result<Int, String>
+  let getIntResultValue(ir: IntResult) : Int = Result.withDefault_v0 ir 0
+  getIntResultValue(Ok 5) = 5
+  getIntResultValue(Error "error") = 0
+
 
 module Records =
   type Cols1 = { col1 : Int }
@@ -158,7 +232,7 @@ module Enums =
                    EnumOfMixedCases.X "testX";
                    EnumOfMixedCases.Y(5);
                    EnumOfMixedCases.Z("testZ", 2)]
-    match List.getAt_v1 values 3 with
+    match List.getAt values 3 with
     | Just z -> Ok z
     | Nothing -> Error "Failure") = Ok (EnumOfMixedCases.Z ("testZ", 2))
 
@@ -252,9 +326,9 @@ module Variable =
   (let x = 5 in x) = 5
 
 module Dict =
-  ((Dict { a = 5 }) |> Dict.get_v2 "a") = Just 5
-  ((Dict { ___ = 5 }) |> Dict.get_v2 "") = Just 5
-  ((Dict { a = 5 }) |> Dict.get_v2 "b") = Nothing
+  ((Dict { a = 5 }) |> Dict.get "a") = Just 5
+  ((Dict { ___ = 5 }) |> Dict.get "") = Just 5
+  ((Dict { a = 5 }) |> Dict.get "b") = Nothing
 
 
 module InterpolatedString =
@@ -341,8 +415,8 @@ module Lambdas =
 
   (String.join_v0
     (List.map_v0
-      (String.toList_v1 "some string")
-      (fun var -> String.toUppercase_v1 (String.fromChar_v1 var))) "") = "SOME STRING"
+      (String.toList "some string")
+      (fun var -> String.toUppercase (String.fromChar var))) "") = "SOME STRING"
 
   (let y = (fun c -> if c > 2 then Test.typeError_v0 "err" else 18) in
    [1; 2; 3; 4] |> List.map_v0 y) = Test.typeError_v0 "err"
@@ -405,13 +479,13 @@ module Pipes =
 
   (let x = Just 3
    x
-   |> Option.map_v1 (fun a -> a)
-   |> Option.map_v1 (fun a -> a + 1)) = Just 4
+   |> Option.map (fun a -> a)
+   |> Option.map (fun a -> a + 1)) = Just 4
 
-  (let x = fun x -> Option.map_v1 x (fun a -> a) in
+  (let x = fun x -> Option.map x (fun a -> a) in
    (Just 3)
    |> x
-   |> Option.map_v1 (fun a -> a + 1)) = Just 4
+   |> Option.map (fun a -> a + 1)) = Just 4
 
   ((Just 3)
    |> Option.withDefault_v0 Nothing
@@ -440,10 +514,10 @@ module Pipes =
 
   (3
    |> Just
-   |> Result.fromOption_v2 "test") = Ok 3
+   |> Result.fromOption "test") = Ok 3
 
   (Nothing
-   |> Result.fromOption_v2 "test") = Error "test"
+   |> Result.fromOption "test") = Error "test"
 
 
 module Match =
@@ -777,7 +851,7 @@ module Shadowing =
 // ---------------------------
 module Darkinternal =
  (let _ = Test.setExpectedExceptionCount 1 in
-  DarkInternal.Infra.SchedulingRule.list) = Test.typeError_v0 "Unknown error"
+  DarkInternal.Infra.SchedulingRule.list ()) = Test.typeError_v0 "Unknown error"
 
 // ---------------------------
 // Equality
@@ -809,8 +883,8 @@ module Equality =
   (ERec { x = 6; y = 7 } != ERec { x = 7; y = 6 }) = true
   ("asd" == "asd") = true
   ("asd" != "sad") = true
-  ((DateTime.parse_v2 "2019-07-28T22:42:36Z") == (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
-  ((DateTime.parse_v2 "2019-07-28T22:42:37Z") != (DateTime.parse_v2 "2019-07-28T22:42:36Z")) = true
+  ((DateTime.parse "2019-07-28T22:42:36Z") == (DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((DateTime.parse "2019-07-28T22:42:37Z") != (DateTime.parse "2019-07-28T22:42:36Z")) = true
   (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" == Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
   (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" != Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
   (Nothing == Nothing) = true
@@ -838,84 +912,15 @@ module Equality =
 
 // ---------------------------
 // User-defined Functions
+// Should match packages/darklang/test/test.dark
 // ---------------------------
-let stringFn (key:String) : String =
-  key ++ " appended string"
 
-let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
-  arg
-
-let twoStringFn (str1: String) (str2: String) : String =
-  str1 ++ " appended " ++ str2
-
-let returnsInt () : Int =
-  5
-
-let returnsString () : String =
-  "string"
-
-let returnsOptionJust () : Option<Int> =
-  Just 5
-
-let returnsOptionNothing () : Option<Int> =
-  Nothing
-
-let returnsResultOk () : Result<Int, 'err> =
-  Ok 5
-
-let returnsResultError () : Result<String, Bool> =
-  Error false
-
-let throwsException () : 'a =
-  Test.raiseException "throwsException message"
-
-let derrorFn (msg:String) : String =
-  msg ++ Test.typeError_v0 msg
-
-module FunctionCalls =
-  stringFn "string" = "string appended string"
-  twoStringFn "str1" "str2" = "str1 appended str2"
-  returnsInt () = 5
-  returnsString () = "string"
-  returnsOptionJust () = Just 5
-  (returnsOptionJust ()) |> Test.unwrap = 5
-  returnsOptionNothing () = Nothing
-  returnsResultOk () = Ok 5
-  (returnsResultOk ()) |> Test.unwrap = 5
-  fnWithTypeArgAndOneParam<Int> 1 = 1
-
-module InvalidFnCalls =
-  functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
-  stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in stringFn->key"
-  stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
-
-  fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-  fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-  fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-  fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
-  //TODO: fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "type arg doesn't match arg."
-
-  (let _ = Test.setExpectedExceptionCount 1 in
-   throwsException ()) = Test.typeError "Unknown error"
-  derrorFn "msg" = Test.typeError "msg"
-
-
-let myUserFunction_v2 (str:String) : Int =
-  6
-
-// user function with _v2 in it
-(myUserFunction_v2 "x") = 6
-
-// ---------------------------
-// Package manager function calls
-// ---------------------------
-[<Package("test", "Test")>]
-module Packages =
+module UserDefined =
   let stringFn (key:String) : String =
     key ++ " appended string"
 
   let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
-    JSON.parse<'a> arg
+    arg
 
   let twoStringFn (str1: String) (str2: String) : String =
     str1 ++ " appended " ++ str2
@@ -929,44 +934,82 @@ module Packages =
   let returnsOptionJust () : Option<Int> =
     Just 5
 
-  let returnsOptionNothing () : Option<'a> =
+  let returnsOptionNothing () : Option<Int> =
     Nothing
 
-  let returnsResultOk () : Result<Int, String> =
+  let returnsResultOk () : Result<Int, 'err> =
     Ok 5
 
-  let returnsResultError () : Result<Char, Bool> =
+  let returnsResultError () : Result<String, Bool> =
     Error false
 
-  let throwsException () : DateTime =
+  let throwsException () : 'a =
     Test.raiseException "throwsException message"
 
   let derrorFn (msg:String) : String =
     msg ++ Test.typeError_v0 msg
 
-  Test.Test.stringFn "string" = "string appended string"
-  Test.Test.twoStringFn "str1" "str2" = "str1 appended str2"
-  Test.Test.returnsInt () = 5
-  Test.Test.returnsString () = "string"
-  Test.Test.returnsOptionJust () = Just 5
-  (Test.Test.returnsOptionJust ()) |> Test.unwrap = 5
-  Test.Test.returnsOptionNothing () = Nothing
-  Test.Test.returnsResultOk () = Ok 5
-  (Test.Test.returnsResultOk ()) |> Test.unwrap = 5
-  Test.Test.returnsResultError () = Error false
+  module FunctionCalls =
+    stringFn "string" = "string appended string"
+    twoStringFn "str1" "str2" = "str1 appended str2"
+    returnsInt () = 5
+    returnsString () = "string"
+    returnsOptionJust () = Just 5
+    (returnsOptionJust ()) |> Test.unwrap = 5
+    returnsOptionNothing () = Nothing
+    returnsResultOk () = Ok 5
+    (returnsResultOk ()) |> Test.unwrap = 5
+    fnWithTypeArgAndOneParam<Int> 1 = 1
 
-  module Invalid =
-    Test.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in test.Test.stringFn->key"
-    Test.Test.stringFn "str1" "str2" = Test.typeError "test.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
-    Test.Test.derrorFn "test" = Test.typeError "test"
-
-    (let _ = Test.setExpectedExceptionCount 1 in
-     Test.Test.throwsException ()) = Test.typeError "Unknown error"
+  module InvalidFnCalls =
+    functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
+    stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in stringFn->key"
+    stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
     fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    //TODO: fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "type arg doesn't match arg."
+
+    (let _ = Test.setExpectedExceptionCount 1 in
+    throwsException ()) = Test.typeError "Unknown error"
+    derrorFn "msg" = Test.typeError "msg"
+
+
+  let myUserFunction (str:String) : Int =
+    6
+
+  // user function with  in it
+  (myUserFunction "x") = 6
+
+// ---------------------------
+// Package manager function calls
+// ---------------------------
+module Packages =
+  PACKAGE.Darklang.Test.stringFn "string" = "string appended string"
+  PACKAGE.Darklang.Test.twoStringFn "str1" "str2" = "str1 appended str2"
+  PACKAGE.Darklang.Test.returnsInt () = 5
+  PACKAGE.Darklang.Test.returnsString () = "string"
+  PACKAGE.Darklang.Test.returnsOptionJust () = Just 5
+  (PACKAGE.Darklang.Test.returnsOptionJust ()) |> Test.unwrap = 5
+  PACKAGE.Darklang.Test.returnsOptionNothing () = Nothing
+  PACKAGE.Darklang.Test.returnsResultOk () = Ok 5
+  (PACKAGE.Darklang.Test.returnsResultOk ()) |> Test.unwrap = 5
+  PACKAGE.Darklang.Test.returnsResultError () = Error false
+
+  module Invalid =
+    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in Darklang.Test.stringFn->key"
+    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.derrorFn "test" = Test.typeError "test"
+
+    (let _ = Test.setExpectedExceptionCount 1 in
+     PACKAGE.Darklang.Test.throwsException ()) = Test.typeError "Unknown error"
+
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
 
 module TypeChecking =

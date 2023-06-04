@@ -17,14 +17,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   | date when date.Contains("GMT") -> Error()
   | date when date.EndsWith('z') -> Error()
   | date when
-    System.DateTime.TryParseExact
-      (
-        date,
-        ISO8601Format,
-        culture,
-        styles,
-        &result
-      )
+    System.DateTime.TryParseExact(date, ISO8601Format, culture, styles, &result)
     ->
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
   | _ -> Error()
@@ -32,7 +25,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "DateTime" "parse" 2
+  [ { name = fn "DateTime" "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TDateTime, TString)
@@ -108,12 +101,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DateTime" "now" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
       description = "Returns the current time"
       fn =
         (function
-        | _, _, [] -> Instant.now () |> DarkDateTime.fromInstant |> DDateTime |> Ply
+        | _, _, [ DUnit ] ->
+          Instant.now () |> DarkDateTime.fromInstant |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -122,12 +116,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn "DateTime" "today" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
       description = "Returns the <type Date> with the time set to midnight"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           let now = DarkDateTime.fromInstant (Instant.now ())
           Ply(DDateTime(DarkDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
@@ -321,7 +315,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DateTime" "hour" 2
+    { name = fn "DateTime" "hour" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
@@ -335,7 +329,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DateTime" "minute" 1
+    { name = fn "DateTime" "minute" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
@@ -349,7 +343,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "DateTime" "second" 1
+    { name = fn "DateTime" "second" 0
       typeParams = []
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
@@ -383,7 +377,7 @@ let fns : List<BuiltInFn> =
     //
     // Note: the SQL here would be `EPOCH FROM (end - start)`, but we don't
     // currently support such a complex sqlSpec in Dark fns.
-    { name = fn "DateTime" "subtract" 1
+    { name = fn "DateTime" "subtract" 0
       typeParams = []
       parameters = [ Param.make "end" TDateTime ""; Param.make "start" TDateTime "" ]
       returnType = TInt

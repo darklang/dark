@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
         NOTE: This is not usable interactively, because we do not send Password values to the client for security reasons."
       fn =
         (function
-        | _, _, [ DPassword (Password existingpw); DString rawpw ] ->
+        | _, _, [ DPassword(Password existingpw); DString rawpw ] ->
           Sodium.PasswordHash.ArgonHashStringVerify(existingpw, UTF8.toBytes rawpw)
           |> DBool
           |> Ply

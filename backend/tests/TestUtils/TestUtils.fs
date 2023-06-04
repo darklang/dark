@@ -15,6 +15,7 @@ open Tablecloth
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Exe = LibExecution.Execution
@@ -115,19 +116,36 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
 /// In the case of a fn existing in both places, the test fn is the one used.
-let libraries : Lazy<RT.Libraries> =
+let libraries : Lazy<Task<RT.Libraries>> =
   lazy
-    (let (fns, types) =
-      LibExecution.StdLib.combine
-        [ LibTest.contents
-          LibRealExecution.RealExecution.contents
-          StdLibCli.StdLib.contents ]
-        []
-        []
+    task {
 
-     { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
-       stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
-       packageFns = Map.empty })
+      let (fns, types) =
+        LibExecution.StdLib.combine
+          [ LibTest.contents
+            LibRealExecution.RealExecution.contents
+            StdLibCli.StdLib.contents ]
+          []
+          []
+      let! packageFns = LibBackend.PackageManager.allFunctions ()
+      let packageFns =
+        packageFns
+        |> List.map (fun (f : PT.PackageFn.T) ->
+          (f.name |> PT2RT.FQFnName.PackageFnName.toRT, PT2RT.PackageFn.toRT f))
+        |> Map.ofList
+      let! packageTypes = LibBackend.PackageManager.allTypes ()
+      let packageTypes =
+        packageTypes
+        |> List.map (fun (t : PT.PackageType.T) ->
+          (t.name |> PT2RT.FQTypeName.PackageTypeName.toRT, PT2RT.PackageType.toRT t))
+        |> Map.ofList
+
+      return
+        { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
+          stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
+          packageFns = packageFns
+          packageTypes = packageTypes }
+    }
 
 let executionStateFor
   (canvasID : CanvasID)
@@ -189,10 +207,11 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
+    let! libraries = libraries.Force()
 
     let state =
       Exe.createState
-        (Lazy.force libraries)
+        libraries
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier
@@ -291,7 +310,7 @@ let testListUsingProperty
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError (_, str) -> RT.DError(RT.SourceNone, str)
+  | RT.DError(_, str) -> RT.DError(RT.SourceNone, str)
   | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
@@ -303,7 +322,7 @@ let rec debugDval (v : Dval) : string =
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord (tn, o) ->
+  | DRecord(tn, o) ->
     let typeStr = FQTypeName.toString tn
     o
     |> Map.toList
@@ -352,28 +371,17 @@ module Expect =
     | DOption None
     | DFloat _ -> true
 
-    | DHttpResponse (_, headers, v) ->
-      // We don't check code as you can actually set it to anything
-      let vOk = check v
-
-      let headersOk =
-        List.all
-          (fun ((k, v) : string * string) -> k.IsNormalized() && v.IsNormalized())
-          headers
-
-      vOk && headersOk
-
-    | DResult (Ok v)
-    | DResult (Error v)
-    | DOption (Some v) -> check v
+    | DResult(Ok v)
+    | DResult(Error v)
+    | DOption(Some v) -> check v
 
     | DList vs -> List.all check vs
-    | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
+    | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
-    | DRecord (_, vs) -> vs |> Map.values |> List.all check
+    | DRecord(_, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DEnum (_typeName, _caseName, fields) -> fields |> List.all check
+    | DEnum(_typeName, _caseName, fields) -> fields |> List.all check
 
   type Path = string list
 
@@ -394,8 +402,8 @@ module Expect =
     if checkIDs then check path (LetPattern.toID actual) (LetPattern.toID expected)
 
     match actual, expected with
-    | LPVariable (_, name), LPVariable (_, name') -> check path name name'
-    | LPTuple (_, first, second, theRest), LPTuple (_, first', second', theRest') ->
+    | LPVariable(_, name), LPVariable(_, name') -> check path name name'
+    | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
       let all = first :: second :: theRest
       let all' = first' :: second' :: theRest'
       let zipped = List.zip all all'
@@ -410,6 +418,7 @@ module Expect =
 
 
   let rec userTypeNameEqualityBaseFn
+    (types : Types)
     (path : Path)
     (actual : FQTypeName.T)
     (expected : FQTypeName.T)
@@ -444,20 +453,20 @@ module Expect =
       check path (MatchPattern.toID actual) (MatchPattern.toID expected)
 
     match actual, expected with
-    | MPVariable (_, name), MPVariable (_, name') -> check path name name'
-    | (MPEnum (_, caseName, fieldPats), MPEnum (_, caseName', fieldPats')) ->
+    | MPVariable(_, name), MPVariable(_, name') -> check path name name'
+    | (MPEnum(_, caseName, fieldPats), MPEnum(_, caseName', fieldPats')) ->
       check path caseName caseName'
       eqList (caseName :: path) fieldPats fieldPats'
-    | MPString (_, str), MPString (_, str') -> check path str str'
-    | MPInt (_, l), MPInt (_, l') -> check path l l'
-    | MPFloat (_, d), MPFloat (_, d') -> check path d d'
-    | MPBool (_, l), MPBool (_, l') -> check path l l'
-    | MPChar (_, c), MPChar (_, c') -> check path c c'
-    | MPUnit (_), MPUnit (_) -> ()
-    | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
+    | MPString(_, str), MPString(_, str') -> check path str str'
+    | MPInt(_, l), MPInt(_, l') -> check path l l'
+    | MPFloat(_, d), MPFloat(_, d') -> check path d d'
+    | MPBool(_, l), MPBool(_, l') -> check path l l'
+    | MPChar(_, c), MPChar(_, c') -> check path c c'
+    | MPUnit(_), MPUnit(_) -> ()
+    | MPTuple(_, first, second, theRest), MPTuple(_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
-    | MPList (_, pats), MPList (_, pats') -> eqList path pats pats'
-    | MPListCons (_, head, tail), MPListCons (_, head', tail') ->
+    | MPList(_, pats), MPList(_, pats') -> eqList path pats pats'
+    | MPListCons(_, head, tail), MPListCons(_, head', tail') ->
       check path head head'
       check path tail tail'
     // exhaustiveness check
@@ -488,33 +497,33 @@ module Expect =
     | TBool, _
     | TUnit, _
     | TString, _
-    | TList (_), _
-    | TTuple (_, _, _), _
-    | TDict (_), _
-    | THttpResponse (_), _
-    | TDB (_), _
+    | TList(_), _
+    | TTuple(_, _, _), _
+    | TDict(_), _
+    | TDB(_), _
     | TDateTime, _
     | TChar, _
     | TPassword, _
     | TUuid, _
     | TBytes, _
-    | TVariable (_), _
-    | TFn (_, _), _
-    | TCustomType (_, _), _
-    | TOption (_), _
-    | TResult (_, _), _ ->
+    | TVariable(_), _
+    | TFn(_, _), _
+    | TCustomType(_, _), _
+    | TOption(_), _
+    | TResult(_, _), _ ->
       if actual <> expected then errorFn path (string actual) (string expected)
 
 
 
   let rec exprEqualityBaseFn
+    (types : Types)
     (checkIDs : bool)
     (path : Path)
     (actual : Expr)
     (expected : Expr)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
+    let eq path a e = exprEqualityBaseFn types checkIDs path a e errorFn
 
     let check path (a : 'a) (e : 'a) =
       if a <> e then errorFn path (string actual) (string expected)
@@ -529,33 +538,33 @@ module Expect =
     // expressions with no values
     | EUnit _, EUnit _ -> ()
     // expressions with single string values
-    | EString (_, s), EString (_, s') ->
+    | EString(_, s), EString(_, s') ->
       let rec checkSegment s s' =
         match s, s' with
         | StringText s, StringText s' -> check path s s'
         | StringInterpolation e, StringInterpolation e' -> eq path e e'
         | _ -> check path s s'
       List.iter2 checkSegment s s'
-    | EChar (_, v), EChar (_, v')
-    | EVariable (_, v), EVariable (_, v') -> check path v v'
-    | EInt (_, v), EInt (_, v') -> check path v v'
-    | EFloat (_, v), EFloat (_, v') -> check path v v'
-    | EBool (_, v), EBool (_, v') -> check path v v'
-    | ELet (_, pat, rhs, body), ELet (_, pat', rhs', body') ->
+    | EChar(_, v), EChar(_, v')
+    | EVariable(_, v), EVariable(_, v') -> check path v v'
+    | EInt(_, v), EInt(_, v') -> check path v v'
+    | EFloat(_, v), EFloat(_, v') -> check path v v'
+    | EBool(_, v), EBool(_, v') -> check path v v'
+    | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
       letPatternEqualityBaseFn checkIDs path pat pat' errorFn
       eq ("rhs" :: path) rhs rhs'
       eq ("body" :: path) body body'
-    | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
+    | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
       eq ("cond" :: path) con con'
       eq ("then" :: path) thn thn'
       eq ("else" :: path) els els'
-    | EList (_, l), EList (_, l') -> eqList path l l'
-    | ETuple (_, first, second, theRest), ETuple (_, first', second', theRest') ->
+    | EList(_, l), EList(_, l') -> eqList path l l'
+    | ETuple(_, first, second, theRest), ETuple(_, first', second', theRest') ->
       eq ("first" :: path) first first'
       eq ("second" :: path) second second'
       eqList path theRest theRest'
 
-    | EApply (_, name, typeArgs, args), EApply (_, name', typeArgs', args') ->
+    | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
       let path = (string name :: path)
       check path name name'
 
@@ -567,8 +576,8 @@ module Expect =
 
       eqList path args args'
 
-    | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+    | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
+      userTypeNameEqualityBaseFn types path typeName typeName' errorFn
       List.iter2
         (fun (k, v) (k', v') ->
           check path k k'
@@ -591,21 +600,21 @@ module Expect =
         fields
         fields'
 
-    | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
+    | EFieldAccess(_, e, f), EFieldAccess(_, e', f') ->
       eq (f :: path) e e'
       check path f f'
 
-    | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+    | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn types path typeName typeName' errorFn
       check path caseName caseName'
       eqList path fields fields'
       ()
 
-    | ELambda (_, vars, e), ELambda (_, vars', e') ->
+    | ELambda(_, vars, e), ELambda(_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
       List.iteri2 (fun i (_, v) (_, v') -> check (string i :: path) v v') vars vars'
-    | EMatch (_, e, branches), EMatch (_, e', branches') ->
+    | EMatch(_, e, branches), EMatch(_, e', branches') ->
       eq ("matchCond" :: path) e e'
 
       List.iter2
@@ -614,10 +623,10 @@ module Expect =
           eq (string p :: path) v v')
         branches
         branches'
-    | EAnd (_, l, r), EAnd (_, l', r') ->
+    | EAnd(_, l, r), EAnd(_, l', r') ->
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
-    | EOr (_, l, r), EOr (_, l', r') ->
+    | EOr(_, l, r), EOr(_, l', r') ->
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
 
@@ -649,12 +658,13 @@ module Expect =
   // If the dvals are not the same, call errorFn. This is in this form to allow
   // both an equality function and a test expectation function
   let rec dvalEqualityBaseFn
+    (types : Types)
     (path : Path)
     (actual : Dval)
     (expected : Dval)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let de p a e = dvalEqualityBaseFn p a e errorFn
+    let de p a e = dvalEqualityBaseFn types p a e errorFn
     let error path = errorFn path (string actual) (string expected)
 
     let check (path : Path) (a : 'a) (e : 'a) : unit =
@@ -665,17 +675,19 @@ module Expect =
       if System.Double.IsNaN l && System.Double.IsNaN r then
         // This isn't "true" equality, it's just for tests
         ()
-      else if System.Double.IsPositiveInfinity l
-              && System.Double.IsPositiveInfinity r then
+      else if
+        System.Double.IsPositiveInfinity l && System.Double.IsPositiveInfinity r
+      then
         ()
-      else if System.Double.IsNegativeInfinity l
-              && System.Double.IsNegativeInfinity r then
+      else if
+        System.Double.IsNegativeInfinity l && System.Double.IsNegativeInfinity r
+      then
         ()
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
         error path
-    | DResult (Ok l), DResult (Ok r) -> de ("Ok" :: path) l r
-    | DResult (Error l), DResult (Error r) -> de ("Error" :: path) l r
-    | DOption (Some l), DOption (Some r) -> de ("Just" :: path) l r
+    | DResult(Ok l), DResult(Ok r) -> de ("Ok" :: path) l r
+    | DResult(Error l), DResult(Error r) -> de ("Error" :: path) l r
+    | DOption(Some l), DOption(Some r) -> de ("Just" :: path) l r
     | DDateTime l, DDateTime r ->
       // Two dates can be the same millisecond and not be equal if they don't
       // have the same number of ticks. For testing, we shall consider them
@@ -685,7 +697,7 @@ module Expect =
       check (".Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
 
-    | DTuple (firstL, secondL, theRestL), DTuple (firstR, secondR, theRestR) ->
+    | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
       de path firstL firstR
 
       de path secondL secondR
@@ -710,8 +722,8 @@ module Expect =
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord (ltn, ls), DRecord (rtn, rs) ->
-      userTypeNameEqualityBaseFn path ltn rtn errorFn
+    | DRecord(ltn, ls), DRecord(rtn, rs) ->
+      userTypeNameEqualityBaseFn types path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
         (fun key v1 ->
@@ -729,29 +741,24 @@ module Expect =
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
 
-    | DEnum (typeName, caseName, fields), DEnum (typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
+    | DEnum(typeName, caseName, fields), DEnum(typeName', caseName', fields') ->
+      userTypeNameEqualityBaseFn types path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
       check ("fields.Length" :: path) (List.length fields) (List.length fields)
       List.iteri2 (fun i l r -> de (string i :: path) l r) fields fields'
       ()
 
-    | DHttpResponse (sc1, h1, b1), DHttpResponse (sc2, h2, b2) ->
-      check path sc1 sc2
-      check path h1 h2
-      de ("response" :: path) b1 b2
     | DIncomplete _, DIncomplete _ -> ()
-    | DError (_, msg1), DError (_, msg2) ->
+    | DError(_, msg1), DError(_, msg2) ->
       check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
-    | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
+    | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
       let vals l = List.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
-      exprEqualityBaseFn false path l1.body l2.body errorFn
+      exprEqualityBaseFn types false path l1.body l2.body errorFn
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
-    | DHttpResponse _, _
     | DDict _, _
     | DRecord _, _
     | DEnum _, _
@@ -774,8 +781,13 @@ module Expect =
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
 
-  let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
-    dvalEqualityBaseFn [] actual expected (fun path a e ->
+  let rec equalDval
+    (types : Types)
+    (actual : Dval)
+    (expected : Dval)
+    (msg : string)
+    : unit =
+    dvalEqualityBaseFn types [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path} (overall: {actual})")
 
   let rec equalMatchPattern
@@ -793,21 +805,30 @@ module Expect =
     matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
       Expect.equal a e (pathToString path))
 
-  let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
-    exprEqualityBaseFn true [] actual expected (fun path a e ->
+  let rec equalExpr
+    (types : Types)
+    (actual : Expr)
+    (expected : Expr)
+    (msg : string)
+    : unit =
+    exprEqualityBaseFn types true [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path}")
 
-  let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
-    exprEqualityBaseFn false [] actual expected (fun path a e ->
+  let rec equalExprIgnoringIDs
+    (types : Types)
+    (actual : Expr)
+    (expected : Expr)
+    : unit =
+    exprEqualityBaseFn types false [] actual expected (fun path a e ->
       Expect.equal a e (pathToString path))
 
-  let dvalEquality (left : Dval) (right : Dval) : bool =
+  let dvalEquality (types : Types) (left : Dval) (right : Dval) : bool =
     let success = ref true
-    dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
+    dvalEqualityBaseFn types [] left right (fun _ _ _ -> success.Value <- false)
     success.Value
 
-  let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
-    dvalEquality (DDict m1) (DDict m2)
+  let dvalMapEquality (types : Types) (m1 : DvalMap) (m2 : DvalMap) =
+    dvalEquality types (DDict m1) (DDict m2)
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
@@ -816,16 +837,15 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord (_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DEnum (_typeName, _caseName, fields) ->
+    | DRecord(_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DEnum(_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
-    | DTuple (first, second, theRest) ->
+    | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DHttpResponse (_, _, v)
-    | DResult (Error v)
-    | DResult (Ok v)
-    | DOption (Some v) -> visit v
+    | DResult(Error v)
+    | DResult(Ok v)
+    | DOption(Some v) -> visit v
     | DOption None
     | DString _
     | DInt _
@@ -956,35 +976,35 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TList TInt)
     ("record",
      DRecord(
-       S.userTypeName [ "Two"; "Modules" ] "Foo" 0,
+       S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
        Map.ofList [ "foo", Dval.int 5 ]
      ),
-     TCustomType(S.userTypeName [ "Two"; "Modules" ] "Foo" 0, []))
+     TCustomType(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0, []))
     ("record2",
      DRecord(
-       S.userTypeName [] "Foo" 0,
+       S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
      ),
-     TCustomType(S.userTypeName [] "Foo" 0, []))
+     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record3",
      DRecord(
-       S.userTypeName [] "Foo" 0,
+       S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
      ),
-     TCustomType(S.userTypeName [] "Foo" 0, []))
+     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     // More Json.NET tests
     ("record4",
-     DRecord(S.userTypeName [] "Foo" 0, Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
-     TCustomType(S.userTypeName [] "Foo" 0, []))
+     DRecord(S.fqUserTypeName [] "Foo" 0, Map.ofList [ "foo\\\\bar", Dval.int 5 ]),
+     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record5",
-     DRecord(S.userTypeName [] "Foo" 0, Map.ofList [ "$type", Dval.int 5 ]),
-     TCustomType(S.userTypeName [] "Foo" 0, []))
+     DRecord(S.fqUserTypeName [] "Foo" 0, Map.ofList [ "$type", Dval.int 5 ]),
+     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("record with error",
      DRecord(
-       S.userTypeName [] "Foo" 0,
+       S.fqUserTypeName [] "Foo" 0,
        Map.ofList [ "v", DError(SourceNone, "some error string") ]
      ),
-     TCustomType(S.userTypeName [] "Foo" 0, []))
+     TCustomType(S.fqUserTypeName [] "Foo" 0, []))
     ("dict", DDict(Map.ofList [ "foo", Dval.int 5 ]), TDict TInt)
     ("dict3",
      DDict(Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]),
@@ -1048,9 +1068,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
            parameters = [ (id 5678, "a") ] }
      ),
      TFn([ TInt ], TInt))
-    ("httpresponse",
-     DHttpResponse(200L, [ "content-length", "9" ], DString "success"),
-     THttpResponse TString)
     ("db", DDB "Visitors", TDB TInt)
     ("date",
      DDateTime(
@@ -1094,9 +1111,9 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 let sampleDvals : List<string * (Dval * TypeReference)> =
   (List.map (fun (k, v) -> k, DInt v, TInt) interestingInts
    @ List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
-     @ List.map (fun (k, v) -> k, DString v, TString) interestingStrings
-       @ List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
-         @ interestingDvals)
+   @ List.map (fun (k, v) -> k, DString v, TString) interestingStrings
+   @ List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
+   @ interestingDvals)
   |> List.map (fun (k, v, t) -> k, (v, t))
 
 // Utilties shared among tests
@@ -1180,8 +1197,10 @@ let configureLogging
   // console logging threads).
   builder
     .ClearProviders()
-    .Services
-    .AddLogging(fun loggingBuilder ->
-      loggingBuilder.AddFile($"{LibBackend.Config.logDir}{name}.log", append = false)
+    .Services.AddLogging(fun loggingBuilder ->
+      loggingBuilder.AddFile(
+        $"{LibBackend.Config.logDir}{name}.log",
+        append = false
+      )
       |> ignore<ILoggingBuilder>)
   |> ignore<IServiceCollection>

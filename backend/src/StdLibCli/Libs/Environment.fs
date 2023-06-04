@@ -36,13 +36,13 @@ let fns : List<BuiltInFn> =
 
     { name = fn "EnvVar" "getAll" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict TString
       description =
         "Returns a list of tuples containing all the environment variables and their values."
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           let envVars = System.Environment.GetEnvironmentVariables()
 
           let envMap =

@@ -134,7 +134,7 @@ Json.parse<Float> "\"42\n\"" = Error "not JSON"
 
 // Chars
 //let charFromString (s: String) =
-//  (String.toList_v1 s) |> List.head_v2 |> Test.unwrap
+//  (String.toList s) |> List.head |> Test.unwrap
 
 Json.serialize<Char> 'a' = Ok "\"a\""
 Json.parse<Char> "\"a\"" = Ok 'a'
@@ -165,7 +165,7 @@ Json.parse<String> "\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳�
 
 
 // Datetimes
-let d (datestr: String) : DateTime = (DateTime.parse_v2 datestr) |> Test.unwrap
+let d (datestr: String) : DateTime = (DateTime.parse datestr) |> Test.unwrap
 
 // now-ish
 Json.serialize<DateTime> (d "2023-07-28T22:42:36Z") = Ok "\"2023-07-28T22:42:36Z\""
@@ -286,6 +286,7 @@ Json.parse<Result<Int, String>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 // ## Custom types
 
 // ### User-defined
+
 // #### Enums
 type PrettyLikely = Yeah | Enh of reason: String * Int
 
@@ -314,6 +315,33 @@ Json.parse<Person> """{ "Name": "Bob", "Age": 42, "Height": "6 ft" }""" = Ok (Pe
  | Ok person -> person.Age
  | Error _ -> 0) = 42
 
+
+// #### Aliases
+type MyInt = Int
+
+Json.serialize<MyInt> 42 = Ok "42"
+Json.parse<MyInt> "42" = Ok 42
+
+type MyPerson= Person
+Json.serialize<MyPerson> (Person { Name = "Bob"; Age = 42 }) = Ok """{"Age":42,"Name":"Bob"}"""
+Json.parse<MyPerson> """{ "Name": "Bob", "Age": 42 }""" = Ok (Person { Name = "Bob"; Age = 42 })
+type MyPrettyLikely = PrettyLikely
+Json.serialize<MyPrettyLikely> (PrettyLikely.Enh("printer broke", 7)) = Ok "{\"Enh\":[\"printer broke\",7]}"
+Json.parse<MyPrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = Ok (PrettyLikely.Enh("printer broke", 7))
+
+
+type Person1 = { Name: String; Age: Int }
+type Person2 = { Name: String; Age: Int }
+
+Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Error "Incorrect record type"
+
+type StringResult<’a> = Result<’a, String>
+Json.serialize<StringResult<Int>> (Ok 1) = Ok "{\"Ok\":1}"
+Json.serialize<StringResult<Int>> (Error “err”) = Ok "{\"Error\":\"err\"}"
+Json.serialize<StringResult<Int>> (Error 1) = Error "Incorrect type for Error value"
+
+// TODO: This test should fail but doesn't
+// Json.serialize<StringResult<Int>> (Error 1) = Ok "{\"Error\":1}"
 
 
 // ### Package

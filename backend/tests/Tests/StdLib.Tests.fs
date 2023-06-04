@@ -38,7 +38,8 @@ let hardToRepresentTests =
       let! state = executionStateFor meta false Map.empty Map.empty Map.empty
       let! actual =
         LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
-      return Expect.dvalEquality actual expected
+      let availableTypes = RT.ExecutionState.availableTypes state
+      return Expect.dvalEquality availableTypes actual expected
     }
 
   let fnName mod_ function_ version = PT.FQFnName.stdlibFnName mod_ function_ version
@@ -58,7 +59,7 @@ let hardToRepresentTests =
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
       true
 
-      (fnName [ "Result" ] "fromOption" 2,
+      (fnName [ "Result" ] "fromOption" 0,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -82,7 +83,7 @@ let hardToRepresentTests =
       )),
       true
 
-      (fnName [ "Result" ] "fromOption" 2,
+      (fnName [ "Result" ] "fromOption" 0,
        [ RT.DOption(
            Some(
              RT.DFnVal(
@@ -118,10 +119,11 @@ let hardToRepresentTests =
       true ]
 
 let oldFunctionsAreDeprecated =
-  test "old functions are deprecated" {
+  testTask "old functions are deprecated" {
     let counts = ref Map.empty
 
-    let fns = libraries.Force().stdlibFns |> Map.values
+    let! (libraries : RT.Libraries) = Lazy.force libraries
+    let fns = libraries.stdlibFns |> Map.values
 
     fns
     |> List.iter (fun fn ->
@@ -142,4 +144,34 @@ let oldFunctionsAreDeprecated =
       counts.Value
   }
 
-let tests = testList "stdlib" [ hardToRepresentTests; oldFunctionsAreDeprecated ]
+let oldTypesAreDeprecated =
+  testTask "old types are deprecated" {
+    let counts = ref Map.empty
+
+    let! (libraries : RT.Libraries) = Lazy.force libraries
+    let types = libraries.stdlibTypes |> Map.values
+
+    types
+    |> List.iter (fun type_ ->
+      let key =
+        RT.FQTypeName.StdlibTypeName.toString { type_.name with version = 0 }
+
+      if type_.deprecated = RT.NotDeprecated then
+        counts.Value <-
+          Map.update
+            key
+            (fun count -> count |> Option.defaultValue 0 |> (+) 1 |> Some)
+            counts.Value
+
+      ())
+
+    Map.iter
+      (fun name count ->
+        Expect.equal count 1 $"{name} has more than one undeprecated type")
+      counts.Value
+  }
+
+let tests =
+  testList
+    "stdlib"
+    [ hardToRepresentTests; oldFunctionsAreDeprecated; oldTypesAreDeprecated ]

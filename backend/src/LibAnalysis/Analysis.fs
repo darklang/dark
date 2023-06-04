@@ -28,13 +28,15 @@ module Eval =
 
     results
     |> List.filterMap (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
-      if RT.FQFnName.toString fnName = rFnName
-         && callerID = rCallerID
-         && hash = (Map.get hashVersion hashes
-                    |> Exception.unwrapOptionInternal
-                         "Could not find hash"
-                         [ "hashVersion", hashVersion; "hashes", hashes ]
-                    |> Lazy.force) then
+      if
+        RT.FQFnName.toString fnName = rFnName
+        && callerID = rCallerID
+        && hash = (Map.get hashVersion hashes
+                   |> Exception.unwrapOptionInternal
+                     "Could not find hash"
+                     [ "hashVersion", hashVersion; "hashes", hashes ]
+                   |> Lazy.force)
+      then
         Some dval
       else
         None)
@@ -57,11 +59,15 @@ module Eval =
         LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
 
       let packageFns = request.packageFns |> Map.fromListBy (fun fn -> fn.name)
+      let packageTypes = request.packageTypes |> Map.fromListBy (fun typ -> typ.name)
+
 
       let libraries : RT.Libraries =
         { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
           stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
-          packageFns = packageFns }
+          packageFns = packageFns
+          packageTypes = packageTypes }
+
       let results, traceDvalFn = Exe.traceDvals ()
       let functionResults = request.traceData.functionResults
 

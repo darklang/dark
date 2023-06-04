@@ -78,7 +78,8 @@ let fns : List<BuiltInFn> =
                   "path", DString path
                   "modifier", DString modifier
                   "timestamp", DDateTime(DarkDateTime.fromInstant instant)
-                  "traceID", DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
+                  "traceID",
+                  DUuid(LibExecution.AnalysisTypes.TraceID.toUUID traceID) ]
                 |> Dval.record typeName)
               |> DList
           }

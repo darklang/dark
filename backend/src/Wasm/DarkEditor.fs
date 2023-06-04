@@ -18,9 +18,7 @@ let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 /// Source of the editor
 /// (types, functions, and exprs to run on start to set the initial value)
 type EditorSource =
-  { types : List<UserType.T>
-    fns : List<UserFunction.T>
-    exprs : List<Expr> }
+  { types : List<UserType.T>; fns : List<UserFunction.T>; exprs : List<Expr> }
 
 
 let stdLib =
@@ -32,7 +30,10 @@ let stdLib =
 /// Load the Darklang program that manages the state of and interactions with
 /// the JS side of the editor.
 [<JSInvokable>]
-let LoadClient (sourceURL : string, parseURL : string) : Task<string> =
+let LoadClient (canvasName : string) : Task<string> =
+  let sourceURL = $"http://{canvasName}.dlio.localhost:11003/assets/client.dark"
+  let parseURL = $"http://{canvasName}.dlio.localhost:11003/get-program-json"
+
   task {
     let httpClient = new HttpClient()
 
@@ -84,5 +85,23 @@ let HandleEvent (serializedEvent : string) : Task<string> =
           [ DString serializedEvent ]
       )
 
-    return LibExecution.DvalReprDeveloper.toRepr result
+    match result with
+    | DError(_source, err) ->
+      WasmHelpers.callJSFunction
+        "console.error"
+        [ $"Error calling handleEvent with provided args: {err}" ]
+      return "failed - see console.error"
+
+    | DIncomplete(_) ->
+      WasmHelpers.callJSFunction
+        "console.error"
+        [ $"handleError returned Incomplete" ]
+      return "failed - handleError returned Incomplete"
+
+    | DFnVal(_) ->
+      WasmHelpers.callJSFunction "console.error" [ $"handleError returned DFnVal" ]
+      return "failed - handleError returned DFnVal"
+
+    | result -> return LibExecution.DvalReprDeveloper.toRepr result
+
   }

@@ -25,7 +25,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "base64Decode" 1
+    { name = fn "Bytes" "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -60,8 +60,8 @@ let fns : List<BuiltInFn> =
               |> Ok
               |> DResult
               |> Ply
-            with
-            | e -> Ply(DResult(Error(DString("Not a valid base64 string"))))
+            with e ->
+              Ply(DResult(Error(DString("Not a valid base64 string"))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

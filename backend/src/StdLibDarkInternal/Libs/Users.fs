@@ -21,12 +21,12 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fn "create" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
       description = "Creates a user, and returns their userID."
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           uply {
             let! canvasID = LibBackend.Account.createUser ()
             return DUuid canvasID

@@ -33,7 +33,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "foreach" 1
+    { name = fn "String" "foreach" 0
       typeParams = []
       parameters =
         [ Param.make "s" TString ""
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "toList" 1
+    { name = fn "String" "toList" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TList TChar
@@ -141,7 +141,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "toUppercase" 1
+    { name = fn "String" "toUppercase" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "toLowercase" 1
+    { name = fn "String" "toLowercase" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TString
@@ -169,7 +169,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "length" 1
+    { name = fn "String" "length" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TInt
@@ -183,7 +183,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "append" 1
+    { name = fn "String" "append" 0
       typeParams = []
       parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]
       returnType = TString
@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
 
 
     // CLEANUP move to stdlib
-    { name = fn "String" "slugify" 2
+    { name = fn "String" "slugify" 0
       typeParams = []
       parameters = [ Param.make "string" TString "" ]
       returnType = TString
@@ -264,7 +264,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "split" 1
+    { name = fn "String" "split" 0
       typeParams = []
       parameters = [ Param.make "s" TString ""; Param.make "separator" TString "" ]
       returnType = TList TString
@@ -335,7 +335,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "fromList" 1
+    { name = fn "String" "fromList" 0
       typeParams = []
       parameters = [ Param.make "l" (TList TChar) "" ]
       returnType = TString
@@ -359,7 +359,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "fromChar" 1
+    { name = fn "String" "fromChar" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TString
@@ -433,8 +433,8 @@ let fns : List<BuiltInFn> =
               |> System.Text.Encoding.UTF8.GetString
               |> String.normalize
               |> okPipe
-            with
-            | e -> "Not a valid base64 string" |> errPipe
+            with e ->
+              "Not a valid base64 string" |> errPipe
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -467,7 +467,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "String" "random" 2
+    { name = fn "String" "random" 0
       typeParams = []
       parameters = [ Param.make "length" TInt "" ]
       returnType = TResult(TString, TString)
@@ -549,7 +549,7 @@ let fns : List<BuiltInFn> =
           Ply(DBool(haystack.Contains needle))
         | _ -> incorrectArgs ())
       sqlSpec =
-        SqlCallback2 (fun lookingIn searchingFor ->
+        SqlCallback2(fun lookingIn searchingFor ->
           // strpos returns indexed from 1; 0 means missing
           $"strpos({lookingIn}, {searchingFor}) > 0")
       previewable = Pure
@@ -969,6 +969,28 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString subject; DString suffix ] ->
           Ply(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "String" "indexOf" 0
+      typeParams = []
+      parameters =
+        [ Param.make "str" TString "The string to search in"
+          Param.make
+            "searchFor"
+            TString
+            "The string to search for within <param str>" ]
+      returnType = TOption TInt
+      description =
+        "Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>, or returns {{Nothing}} if <param searchFor> does not occur."
+      fn =
+        (function
+        | _, _, [ DString str; DString search ] ->
+          let index = str.IndexOf(search)
+          if index = -1 then Ply(DOption None) else Ply(DOption(Some(DInt index)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

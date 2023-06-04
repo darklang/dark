@@ -21,7 +21,7 @@ let varC = TVariable "c"
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Result" "map" 1
+  [ { name = fn "Result" "map" 0
       typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "mapError" 1
+    { name = fn "Result" "mapError" 0
       typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -98,7 +98,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "fromOption" 2
+    { name = fn "Result" "fromOption" 0
       typeParams = []
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" varErr "" ]
@@ -117,7 +117,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "toOption" 1
+    { name = fn "Result" "toOption" 0
       typeParams = []
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
@@ -165,7 +165,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "andThen" 1
+    { name = fn "Result" "andThen" 0
       typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -185,8 +185,8 @@ let fns : List<BuiltInFn> =
               let! result = Interpreter.applyFnVal state b [ dv ]
 
               match result with
-              | DResult (Ok result) -> return Dval.resultOk result
-              | DResult (Error result) -> return Dval.resultError result
+              | DResult(Ok result) -> return Dval.resultOk result
+              | DResult(Error result) -> return Dval.resultError result
               | other ->
                 return
                   Exception.raiseCode (

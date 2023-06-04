@@ -44,7 +44,7 @@ let fns : List<BuiltInFn> =
 
     // See above for when to uncomment this
     // TODO: A future version should support all non-zero modulus values and should include the infix "%"
-    // { name = fn "Int" "mod" 1
+    // { name = fn "Int" "mod" 0
     //   parameters = [ Param.make "value" TInt ""; Param.make "modulus" TInt "" ]
     //   returnType = TResult(TInt, TString)
     //   description =
@@ -96,8 +96,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DInt v; DInt d ] ->
           (try
             v % d |> DInt |> Ok |> DResult |> Ply
-           with
-           | e ->
+           with e ->
              if d = 0L then
                Ply(DResult(Error(DString($"`divisor` must be non-zero"))))
              else
@@ -181,8 +180,8 @@ let fns : List<BuiltInFn> =
               -1L |> okPipe
             else
               (bigint number) ** (int exp) |> int64 |> okPipe
-           with
-           | _ -> "Error raising to exponent" |> errPipe)
+           with _ ->
+             "Error raising to exponent" |> errPipe)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -291,7 +290,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "random" 1
+    { name = fn "Int" "random" 0
       typeParams = []
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
@@ -355,7 +354,9 @@ let fns : List<BuiltInFn> =
                 match i with
                 | DInt it -> it
                 | _ ->
-                  Exception.raiseCode (Errors.argumentWasntType (TList TInt) "a" ldv))
+                  Exception.raiseCode (
+                    Errors.argumentWasntType (TList TInt) "a" ldv
+                  ))
               l
 
           let sum = List.fold (fun acc elem -> acc + elem) 0L ints
@@ -433,8 +434,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString s ] ->
           (try
             s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
-           with
-           | _e ->
+           with _e ->
              $"Expected to parse String with only numbers, instead got \"{s}\""
              |> DString
              |> Error

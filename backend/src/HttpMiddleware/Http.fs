@@ -34,16 +34,47 @@ module Request =
 
 module Response =
   type HttpResponse =
-    { statusCode : int
-      body : byte array
-      headers : HttpHeaders.T }
+    { statusCode : int; body : byte array; headers : HttpHeaders.T }
 
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DHttpResponse (code, headers, RT.DBytes body) ->
+    | RT.DRecord(RT.FQTypeName.Package { owner = "Darklang"
+                                         modules = { Head = "Stdlib"
+                                                     Tail = [ "Http" ] }
+                                         typ = "Response"
+                                         version = 0 },
+                 fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
-      { statusCode = int code; headers = lowercaseHeaderKeys headers; body = body }
+      let code = Map.get "statusCode" fields
+      let headers = Map.get "headers" fields
+      let body = Map.get "body" fields
+      match code, headers, body with
+      | Some(RT.DInt code), Some(RT.DList headers), Some(RT.DBytes body) ->
+        let headers =
+          headers
+          |> List.fold (Ok []) (fun acc v ->
+            match acc, v with
+            | Ok acc, RT.DTuple(RT.DString k, RT.DString v, []) -> Ok((k, v) :: acc)
+            // Deliberately don't include the header value in the error message as we show it to users
+            | Ok _, _ -> Error $"Header must be a string"
+            | Error _, _ -> acc)
+        match headers with
+        | Ok headers ->
+          { statusCode = int code
+            headers = headers |> lowercaseHeaderKeys
+            body = body }
+        | Error msg ->
+          { statusCode = 500
+            headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+            body = UTF8.toBytes msg }
+      // Error responses
+      | _incorrectFieldTypes ->
+        { statusCode = 500
+          headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+          body =
+            UTF8.toBytes
+              "Application error: expected a Http.Response_v0, but its fields were the wrong type" }
 
     // Error responses
     | uncaughtResult ->
@@ -52,9 +83,12 @@ module Response =
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
           let message =
-            $"Application error: expected an http response, got:
-{LibExecution.DvalReprDeveloper.dvalTypeName result}: {LibExecution.DvalReprDeveloper.toRepr result}
-
-Consider using `Http.response`, `Http.responseWithHeaders`, or a similar function."
-
-          UTF8.toBytes message }
+            [ $"Application error: expected a HTTP response, got:"
+              $"{LibExecution.DvalReprDeveloper.dvalTypeName result}: {LibExecution.DvalReprDeveloper.toRepr result}"
+              "\nHTTP handlers should return results in the form:"
+              "  PACKAGE.Darklang.Stdlib.Http.Response {"
+              "    statusCode : Int"
+              "    headers : List<String*String>"
+              "    body : Bytes"
+              "  }" ]
+          message |> String.concat "\n" |> UTF8.toBytes }

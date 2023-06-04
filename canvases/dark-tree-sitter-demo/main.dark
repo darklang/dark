@@ -5,7 +5,7 @@ let _handler _req =
     |> Result.withDefault Bytes.empty
 
   let contentType =
-    match (String.split_v1 path ".") |> List.last_v2 |> Option.withDefault "" with
+    match (String.split path ".") |> List.last |> Option.withDefault "" with
     | "wasm" -> "application/wasm"
     | "js" -> "text/javascript"
     | "dll" -> "application/octet-stream"
@@ -16,8 +16,8 @@ let _handler _req =
 
   let incomingHost =
     request.headers
-    |> List.findFirst_v2 (fun t -> Tuple2.first t == "origin")
-    |> Option.map_v1 (fun t -> Tuple2.second t)
+    |> List.findFirst (fun t -> Tuple2.first t == "origin")
+    |> Option.map (fun t -> Tuple2.second t)
     |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
@@ -152,7 +152,7 @@ let _indexHandler _req =
 //
 // I tried appending the big int with an L, but the parser seems to fail.
 let gid (): Int =
-  Int.random_v1 0 9223372036854775807
+  Int.random 0 9223372036854775807
 
 
 let err (msg: String): Unit =
@@ -209,7 +209,7 @@ let getField (node: SyntaxTreeNode) (fieldName: String): SyntaxTreeNode =
   // (right now this won't error if 2 of the same fieldName exist)
   let found =
     children
-    |> List.findFirst_v2 (fun c ->
+    |> List.findFirst (fun c ->
       match c.fieldName with
       | Just fName -> fName == fieldName
       | Nothing -> false

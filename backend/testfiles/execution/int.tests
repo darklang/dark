@@ -161,13 +161,13 @@ Int.divide_v0 -8 5 = -1
 Int.divide_v0 0 1 = 0
 Int.divide_v0 1 0 = Test.typeError_v0 "Division by zero"
 
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1  1  2) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1 10 20) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1  2  1) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
-(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random_v1 20 10) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random  1  2) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random 10 20) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random  2  1) |> List.map_v0 (fun x -> (x >=  1) && (x <=  2)) = [true; true; true; true; true]
+(List.range_v0 1 5) |> List.map_v0 (fun x -> Int.random 20 10) |> List.map_v0 (fun x -> (x >= 10) && (x <= 20)) = [true; true; true; true; true]
 
-((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v1 0 1) |> List.unique_v0) = [0; 1]
-((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random_v1 0 2) |> List.unique_v0) = [0; 1; 2]
+((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random 0 1) |> List.unique_v0) = [0; 1]
+((List.range_v0 1 100) |> List.map_v0 (fun x -> Int.random 0 2) |> List.unique_v0) = [0; 1; 2]
 
 Int.sum_v0 [1;2] = 3
 Int.sum_v0 [1.0;2] = Test.typeError_v0 "Expected `a` to be a `List<Int>`, but it was `[\n  1.0, 2\n]`"

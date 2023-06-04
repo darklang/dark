@@ -13,12 +13,12 @@ let types : List<BuiltInType> = []
 let fns : List<BuiltInFn> =
   [ { name = fn "Uuid" "generate" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
       description = "Generate a new <type Uuid> v4 according to RFC 4122"
       fn =
         (function
-        | _, _, [] -> Ply(DUuid(System.Guid.NewGuid()))
+        | _, _, [ DUnit ] -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       // similarly to DateTime.now, it's not particularly fun for this to change

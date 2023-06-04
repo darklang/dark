@@ -20,13 +20,13 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EUnit _
   | EChar _
   | EFloat _ -> expr
-  | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
-  | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
-  | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
-  | EApply (id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
-  | ELambda (id, names, expr) -> ELambda(id, names, r expr)
-  | EList (id, exprs) -> EList(id, List.map r exprs)
-  | ETuple (id, first, second, theRest) ->
+  | ELet(id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
+  | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
+  | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
+  | EApply(id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
+  | ELambda(id, names, expr) -> ELambda(id, names, r expr)
+  | EList(id, exprs) -> EList(id, List.map r exprs)
+  | ETuple(id, first, second, theRest) ->
     ETuple(id, r first, r second, List.map r theRest)
   | EMatch (id, mexpr, pairs) ->
     EMatch(id, r mexpr, List.map (Tuple2.mapSecond r) pairs)
@@ -52,13 +52,13 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EBool _
     | EUnit _
     | EFloat _ -> expr
-    | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
-    | EApply (id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
-    | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
-    | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
-    | ELambda (id, names, expr) -> ELambda(id, names, r expr)
-    | EList (id, exprs) -> EList(id, List.map r exprs)
-    | ETuple (id, first, second, theRest) ->
+    | ELet(id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
+    | EApply(id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
+    | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
+    | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
+    | ELambda(id, names, expr) -> ELambda(id, names, r expr)
+    | EList(id, exprs) -> EList(id, List.map r exprs)
+    | ETuple(id, first, second, theRest) ->
       ETuple(id, r first, r second, List.map r theRest)
     | EMatch (id, mexpr, pairs) ->
       EMatch(id, r mexpr, List.map (Tuple2.mapSecond r) pairs)

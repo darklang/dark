@@ -30,8 +30,8 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type",
-                           DString "application/x-www-form-urlencoded" ]
+              Map.ofList
+                [ "Content-Type", DString "application/x-www-form-urlencoded" ]
             )
           )
         | _ -> incorrectArgs ())
@@ -52,7 +52,8 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type", DString "application/json; charset=utf-8" ]
+              Map.ofList
+                [ "Content-Type", DString "application/json; charset=utf-8" ]
             )
           )
         | _ -> incorrectArgs ())
@@ -99,7 +100,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpClient" "bearerToken" 1
+    { name = fn "HttpClient" "bearerToken" 0
       typeParams = []
       parameters = [ Param.make "token" TString "" ]
       returnType = TDict TString

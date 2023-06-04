@@ -74,12 +74,13 @@ let storeEvent
     (canvas_id, trace_id, module, path, modifier, timestamp, value)
     VALUES (@canvasID, @traceID, @module, @path, @modifier, CURRENT_TIMESTAMP, @value)
     RETURNING timestamp"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.traceID traceID
-                      "module", Sql.string module_
-                      "path", Sql.string path
-                      "modifier", Sql.string modifier
-                      ("value", event |> Repr.toJsonV0 |> Sql.string) ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "traceID", Sql.traceID traceID
+      "module", Sql.string module_
+      "path", Sql.string path
+      "modifier", Sql.string modifier
+      ("value", event |> Repr.toJsonV0 |> Sql.string) ]
   |> Sql.executeRowAsync (fun reader -> reader.instant "timestamp")
 
 let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
@@ -105,8 +106,9 @@ let listEvents (limit : Limit) (canvasID : CanvasID) : Task<List<EventRecord>> =
       {timestampSql}"
 
   Sql.query sql
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "timestamp", Sql.instantWithoutTimeZone timestamp ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "timestamp", Sql.instantWithoutTimeZone timestamp ]
   |> Sql.executeAsync (fun read ->
     ((read.string "module", read.string "path", read.string "modifier"),
      read.instant "timestamp",
@@ -138,10 +140,11 @@ let loadEventIDs
        AND modifier = @modifier
      ORDER BY timestamp DESC
      LIMIT 10"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "module", Sql.string module_
-                      "path", Sql.string route
-                      "modifier", Sql.string modifier ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "module", Sql.string module_
+      "path", Sql.string route
+      "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> (read.traceID "trace_id", read.string "path"))
 
 
@@ -182,8 +185,9 @@ let delete404s
      AND module = @module
      AND path = @path
      AND modifier = @modifier"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "module", Sql.string space
-                      "path", Sql.string path
-                      "modifier", Sql.string modifier ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "module", Sql.string space
+      "path", Sql.string path
+      "modifier", Sql.string modifier ]
   |> Sql.executeStatementAsync

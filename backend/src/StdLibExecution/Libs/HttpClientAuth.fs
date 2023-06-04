@@ -11,7 +11,7 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "HttpClient" "basicAuth" 1
+  [ { name = fn "HttpClient" "basicAuth" 0
       typeParams = []
       parameters =
         [ Param.make "username" TString ""; Param.make "password" TString "" ]
@@ -23,7 +23,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString u; DString p ] ->
           /// Base64-encodes username/password combination for basic authentication
           let encodeBasicAuth (u : string) (p : string) : string =
-            let input : byte [] =
+            let input : byte[] =
               if u.Contains("-") then
                 Exception.raiseCode "Username cannot contain a hyphen"
               else

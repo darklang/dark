@@ -16,7 +16,7 @@ Hello back
 [test]
 (let reqHeaders = [("content-type", "application/json; charset=utf-8")]
  let response = (HttpClient.request "put" "http://URL" reqHeaders ("string" |> String.toBytes)) |> Test.unwrap
- let respHeaders = response.headers |> List.filter_v2 (fun h -> Tuple2.first h != "date")
+ let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
  Record.set_v0 response "headers" respHeaders) =
    HttpClient.Response
     { statusCode = 200

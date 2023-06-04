@@ -4,7 +4,7 @@
    |> List.map (fun ((k,v)) -> "(\"" ++ k ++ "\", \"" ++ v ++ "\")")
    |> String.join ",\n"
    |> String.toBytes
- Http.response body 200)
+ PACKAGE.Darklang.Stdlib.Http.response body 200)
 
 [request]
 GET / HTTP/1.1

@@ -144,7 +144,6 @@ type TypeReference =
   | TString
   | TList of TypeReference
   | TDict of TypeReference
-  | THttpResponse of TypeReference
   | TDB of TypeReference
   | TDateTime
   | TChar
@@ -288,6 +287,7 @@ module CustomType =
 
   [<MessagePack.MessagePackObject>]
   type T =
+    | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
@@ -372,7 +372,7 @@ module UserFunction =
       [<MessagePack.Key 7>]
       body : Expr }
 
-module Package =
+module PackageFn =
   [<MessagePack.MessagePackObject>]
   type Parameter =
     { [<MessagePack.Key 0>]
@@ -383,7 +383,7 @@ module Package =
       description : string }
 
   [<MessagePack.MessagePackObject>]
-  type Fn =
+  type T =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
@@ -403,8 +403,22 @@ module Package =
       [<MessagePack.Key 8>]
       deprecated : Deprecation<FQFnName.T> }
 
-
-
+module PackageType =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      id : System.Guid
+      [<MessagePack.Key 2>]
+      name : FQTypeName.PackageTypeName
+      // CLEANUP add type params
+      [<MessagePack.Key 3>]
+      definition : CustomType.T
+      [<MessagePack.Key 4>]
+      description : string
+      [<MessagePack.Key 5>]
+      deprecated : Deprecation<FQTypeName.T> }
 
 
 module Toplevel =

@@ -18,8 +18,7 @@ let run () : Task<unit> =
       try
         use (_span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
         do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
-      with
-      | e ->
+      with e ->
         // If there's an exception, alert and continue
         Rollbar.sendException None [] e
       do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
@@ -59,5 +58,5 @@ let main _ : int =
       Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []
     LibService.Init.shutdown name
     0
-  with
-  | e -> Rollbar.lastDitchBlockAndPage "Error starting cronchecker" e
+  with e ->
+    Rollbar.lastDitchBlockAndPage "Error starting cronchecker" e

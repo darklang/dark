@@ -23,20 +23,22 @@ let checkFilename (root : Config.Root) (mode : Mode) (f : string) =
     if value then print $"checkFilename failed: {name}: {value}"
     value
 
-  if (root <> Config.NoCheck)
-     && (f.Contains ".." |> debug "dots"
-         || f.Contains "~" |> debug "tilde"
-         || f.EndsWith "." |> debug "ends dot"
-         || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
-         || (not (dir.EndsWith "/")) |> debug "dir no slash"
-         || f.EndsWith "etc/passwd" |> debug "etc"
-         // being used wrong
-         || f.EndsWith "//" |> debug "double slash"
-         // check for irregular file
-         || (mode = Read
-             && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
-             && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
-            |> debug "irreg") then
+  if
+    (root <> Config.NoCheck)
+    && (f.Contains ".." |> debug "dots"
+        || f.Contains "~" |> debug "tilde"
+        || f.EndsWith "." |> debug "ends dot"
+        || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
+        || (not (dir.EndsWith "/")) |> debug "dir no slash"
+        || f.EndsWith "etc/passwd" |> debug "etc"
+        // being used wrong
+        || f.EndsWith "//" |> debug "double slash"
+        // check for irregular file
+        || (mode = Read
+            && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
+            && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
+           |> debug "irreg")
+  then
     Exception.raiseInternal "FILE SECURITY VIOLATION" [ "file", f ]
   else
     f
@@ -65,7 +67,7 @@ let lsPattern (root : Config.Root) (pattern : string) : string list =
 let readfile (root : Config.Root) (f : string) : string =
   f |> checkFilename root Read |> System.IO.File.ReadAllText
 
-let readfileBytes (root : Config.Root) (f : string) : byte [] =
+let readfileBytes (root : Config.Root) (f : string) : byte[] =
   f |> checkFilename root Read |> System.IO.File.ReadAllBytes
 
 let tryReadFile (root : Config.Root) (f : string) : string option =
@@ -74,11 +76,7 @@ let tryReadFile (root : Config.Root) (f : string) : string option =
   else
     None
 
-let rec writefileBytes
-  (root : Config.Root)
-  (f : string)
-  (contents : byte [])
-  : unit =
+let rec writefileBytes (root : Config.Root) (f : string) (contents : byte[]) : unit =
   let f = checkFilename root Write f
 
   // First write to a temp file, then copy atomically. Do this as we've lost our data
@@ -94,8 +92,7 @@ let rec writefileBytes
     try
       System.IO.File.Move(tempFilename, f, true)
       success <- true
-    with
-    | e ->
+    with e ->
       count <- count + 1
       if count > 10 then e.Reraise() else ()
       ()

@@ -130,12 +130,12 @@ let fns : List<BuiltInFn> =
 
     { name = fn [ "DarkInternal"; "Infra"; "SchedulingRule" ] "list" 0
       typeParams = []
-      parameters = []
+      parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList schedulingRuleTypeRef
       description = "Returns a list of all queue scheduling rules"
       fn =
         (function
-        | _, _, [] ->
+        | _, _, [ DUnit ] ->
           uply {
             let! rules = SchedulingRules.getAllSchedulingRules ()
             return rules |> List.map ruleToDval |> DList

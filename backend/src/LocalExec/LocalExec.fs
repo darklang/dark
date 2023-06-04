@@ -23,7 +23,8 @@ let (stdlibFns, stdlibTypes) =
 let libraries : RT.Libraries =
   { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
     stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
-    packageFns = Map.empty }
+    packageFns = Map.empty
+    packageTypes = Map.empty }
 
 let defaultTLID = 7UL
 
@@ -109,7 +110,7 @@ let sourceOf
 let initSerializers () = ()
 
 [<EntryPoint>]
-let main (args : string []) : int =
+let main (args : string[]) : int =
   let name = "LocalExec"
   try
     initSerializers ()
@@ -124,13 +125,13 @@ let main (args : string []) : int =
     let result = execute modul (Map [ "args", args ])
     NonBlockingConsole.wait ()
     match result.Result with
-    | RT.DError (RT.SourceID (tlid, id), msg) ->
+    | RT.DError(RT.SourceID(tlid, id), msg) ->
       System.Console.WriteLine $"Error: {msg}"
       System.Console.WriteLine $"Failure at: {sourceOf tlid id modul}"
       // System.Console.WriteLine $"module is: {modul}"
       // System.Console.WriteLine $"(source {tlid}, {id})"
       1
-    | RT.DError (RT.SourceNone, msg) ->
+    | RT.DError(RT.SourceNone, msg) ->
       System.Console.WriteLine $"Error: {msg}"
       System.Console.WriteLine $"(source unknown)"
       1
@@ -140,8 +141,7 @@ let main (args : string []) : int =
       System.Console.WriteLine
         $"Error: main function must return an int, not {output}"
       1
-  with
-  | e ->
+  with e ->
     // Don't reraise or report as LocalExec is only run interactively
     printException "Exception" [] e
     // LibService.Init.shutdown name

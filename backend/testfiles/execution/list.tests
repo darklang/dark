@@ -34,38 +34,38 @@ List.dropWhile_v0 [] (fun item -> item < 3) = []
 List.empty_v0 = []
 
 (List.iter [1; 2; 3] (fun x -> Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 3
+ Test.sideEffectCount ()) = 3
 
 (List.iter [1; 2; 3; 4; 5] (fun x -> if x % 2 == 0 then Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 2
+ Test.sideEffectCount ()) = 2
 
 (List.iter [] (fun x -> Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 0
+ Test.sideEffectCount ()) = 0
 
 (List.iter [10; 20; 30] (fun x -> Test.incrementSideEffectCounter(); Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 6
+ Test.sideEffectCount ()) = 6
 
 (List.iter [1; 2; 3] (fun x -> if x > 2 then Test.incrementSideEffectCounter ());
- Test.sideEffectCount) = 1
+ Test.sideEffectCount ()) = 1
 
 
 
-List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`"
-List.filter_v2 [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
-List.filter_v2 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3 ]
-List.filter_v2 [] (fun item -> true) = []
-List.filter_v2 [-20; 5; 9;] (fun x -> x > 20) = []
-List.filter_v2 [] (fun item -> "a") = []
+List.filter [1;2;3] (fun item -> match item with | 1 -> Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`"
+List.filter [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
+List.filter [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3 ]
+List.filter [] (fun item -> true) = []
+List.filter [-20; 5; 9;] (fun x -> x > 20) = []
+List.filter [] (fun item -> "a") = []
 
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then Nothing else (Just (item * 2))) = [ 2; 6 ]
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (Just (item * 2))) = Test.typeError_v0 "Expected `fn` to return a Option<'b>, but it returned `false`"
 List.filterMap_v0 [] (fun item -> 0) = []
 
-List.findFirst_v2 [1;2;3] (fun x -> x > 5) = Nothing
-List.findFirst_v2 [] (fun x -> x) = Nothing
-List.findFirst_v2 [1;2;3;1;4] (fun x -> x > 1 ) = Just 2
-List.findFirst_v2 [0; 5; -6; -10; ] (fun x -> x < 0) = Just -6
-List.findFirst_v2 [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = Just -2
+List.findFirst [1;2;3] (fun x -> x > 5) = Nothing
+List.findFirst [] (fun x -> x) = Nothing
+List.findFirst [1;2;3;1;4] (fun x -> x > 1 ) = Just 2
+List.findFirst [0; 5; -6; -10; ] (fun x -> x < 0) = Just -6
+List.findFirst [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = Just -2
 
 List.flatten_v0 [1;2;3] = Test.typeError_v0 "Flattening non-lists"
 List.flatten_v0 [[1];[2];[3]] = [ 1; 2; 3 ]
@@ -78,14 +78,14 @@ List.fold_v0 ["a"; "b"; "c"; "d"] "x" (fun accum curr -> accum ++ curr) = "xabcd
 List.fold_v0 [1;2;3;4;5] [] (fun accum curr -> List.pushBack_v0 accum (curr + 1)) = [2;3;4;5;6]
 List.fold_v0 [] [] (fun accum curr -> 5) = []
 
-List.getAt_v1 ["a"; "b"; "c"; "d"] -1 = Nothing
-List.getAt_v1 [0] 1 = Nothing
-List.getAt_v1 [] 1 = Nothing
-List.getAt_v1 [1; 2; 3; 4] 6018427387902I = Nothing
-List.getAt_v1 [1; 2; 3; 4] 4611686018427387902I = Nothing
-List.getAt_v1 [1;2;3;4] 0 = Just 1
-List.getAt_v1 [3; 3; 3] -5 = Nothing
-List.getAt_v1 [3; 3; 3] 2147483648I = Nothing
+List.getAt ["a"; "b"; "c"; "d"] -1 = Nothing
+List.getAt [0] 1 = Nothing
+List.getAt [] 1 = Nothing
+List.getAt [1; 2; 3; 4] 6018427387902I = Nothing
+List.getAt [1; 2; 3; 4] 4611686018427387902I = Nothing
+List.getAt [1;2;3;4] 0 = Just 1
+List.getAt [3; 3; 3] -5 = Nothing
+List.getAt [3; 3; 3] 2147483648I = Nothing
 
 List.head [1; 2; 3] = Just 1
 List.head [Test.typeError_v0 "test"] = Test.typeError_v0 "test"
@@ -111,9 +111,9 @@ List.interpose_v0 ["a"; "b"; "c"] 0 = ["a"; 0; "b"; 0; "c"]
 List.isEmpty_v0 [1] = false
 List.isEmpty_v0 [] = true
 
-List.last_v2 [1; 2; 3] = Just 3
-List.last_v2 [Test.typeError_v0 "test"] = Test.typeError_v0 "test"
-List.last_v2 [] = Nothing
+List.last [1; 2; 3] = Just 3
+List.last [Test.typeError_v0 "test"] = Test.typeError_v0 "test"
+List.last [] = Nothing
 
 List.length_v0 [1;2;3] = 3
 List.length_v0 [] = 0

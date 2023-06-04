@@ -42,8 +42,7 @@ let fns : List<BuiltInFn> =
             let chars = PemEncoding.Write(label, data)
             let str = new System.String(chars) + "\n"
             str |> DString |> Ok |> DResult |> Ply
-          with
-          | e ->
+          with e ->
             // The OCaml version seems to support anything starting in BEGIN
             // CERTIFICATE. If it doesn't find that, it errors with No certificates. If
             // it does find that, it tries to parse it, returning X509: failed to parse

@@ -68,8 +68,8 @@ let runSystemMigration (name : string) (sql : string) : unit =
 
     let counts =
       LibService.DBConnection.connect ()
-      |> Sql.executeTransaction [ sql, []
-                                  recordMigrationStmt, [ recordMigrationParams ] ]
+      |> Sql.executeTransaction
+        [ sql, []; recordMigrationStmt, [ recordMigrationParams ] ]
 
     assertEq "recorded migrations" 1 counts[1]
 

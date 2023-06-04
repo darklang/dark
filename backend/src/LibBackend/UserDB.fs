@@ -34,17 +34,11 @@ let currentDarkVersion = 0
 
 type Uuid = System.Guid
 
-let rec dbToDval
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (dbValue : string)
-  : RT.Dval =
-  let availableTypes = RT.ExecutionState.availableTypes state
-  DvalReprInternalQueryable.parseJsonV0 availableTypes db.typ dbValue
+let rec dbToDval (types : RT.Types) (db : RT.DB.T) (dbValue : string) : RT.Dval =
+  DvalReprInternalQueryable.parseJsonV0 types db.typ dbValue
 
-let rec dvalToDB (state : RT.ExecutionState) (db : RT.DB.T) (dv : RT.Dval) : string =
-  let availableTypes = RT.ExecutionState.availableTypes state
-  DvalReprInternalQueryable.toJsonStringV0 availableTypes db.typ dv
+let rec dvalToDB (types : RT.Types) (db : RT.DB.T) (dv : RT.Dval) : string =
+  DvalReprInternalQueryable.toJsonStringV0 types db.typ dv
 
 let rec set
   (state : RT.ExecutionState)
@@ -55,9 +49,8 @@ let rec set
   : Task<Uuid> =
   let id = System.Guid.NewGuid()
 
-  let availableTypes = RT.ExecutionState.availableTypes state
-
-  match LibExecution.TypeChecker.unify [ db.name ] availableTypes db.typ dv with
+  let types = RT.ExecutionState.availableTypes state
+  match LibExecution.TypeChecker.unify [ db.name ] types db.typ dv with
   | Error err ->
     let msg = LibExecution.TypeChecker.Error.toString err
     Exception.raiseCode msg
@@ -74,13 +67,14 @@ let rec set
        (id, canvas_id, table_tlid, user_version, dark_version, key, data)
        VALUES (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data)
        {upsertQuery}"
-  |> Sql.parameters [ "id", Sql.uuid id
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "tlid", Sql.id db.tlid
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion
-                      "key", Sql.string key
-                      "data", Sql.jsonb (dvalToDB state db dv) ]
+  |> Sql.parameters
+    [ "id", Sql.uuid id
+      "canvasID", Sql.uuid state.program.canvasID
+      "tlid", Sql.id db.tlid
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion
+      "key", Sql.string key
+      "data", Sql.jsonb (dvalToDB types db dv) ]
   |> Sql.executeStatementAsync
   |> Task.map (fun () -> id)
 
@@ -92,6 +86,7 @@ and getOption
   (key : string)
   : Task<Option<RT.Dval>> =
   task {
+    let types = RT.ExecutionState.availableTypes state
     let! result =
       Sql.query
         "SELECT data
@@ -101,13 +96,14 @@ and getOption
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key = @key"
-      |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                          "canvasID", Sql.uuid state.program.canvasID
-                          "userVersion", Sql.int db.version
-                          "darkVersion", Sql.int currentDarkVersion
-                          "key", Sql.string key ]
+      |> Sql.parameters
+        [ "tlid", Sql.tlid db.tlid
+          "canvasID", Sql.uuid state.program.canvasID
+          "userVersion", Sql.int db.version
+          "darkVersion", Sql.int currentDarkVersion
+          "key", Sql.string key ]
       |> Sql.executeRowOptionAsync (fun read -> read.string "data")
-    return Option.map (dbToDval state db) result
+    return Option.map (dbToDval types db) result
   }
 
 
@@ -116,6 +112,7 @@ and getMany
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<RT.Dval>> =
+  let types = RT.ExecutionState.availableTypes state
   Sql.query
     "SELECT data
        FROM user_data_v0
@@ -124,13 +121,14 @@ and getMany
         AND user_version = @userVersion
         AND dark_version = @darkVersion
         AND key = ANY (@keys)"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion
-                      "keys", Sql.stringArray (Array.ofList keys) ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid state.program.canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion
+      "keys", Sql.stringArray (Array.ofList keys) ]
   |> Sql.executeAsync (fun read -> read.string "data")
-  |> Task.map (List.map (dbToDval state db))
+  |> Task.map (List.map (dbToDval types db))
 
 
 
@@ -139,6 +137,7 @@ and getManyWithKeys
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<string * RT.Dval>> =
+  let types = RT.ExecutionState.availableTypes state
   Sql.query
     "SELECT key, data
        FROM user_data_v0
@@ -147,13 +146,14 @@ and getManyWithKeys
         AND user_version = @userVersion
         AND dark_version = @darkVersion
         AND key = ANY (@keys)"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion
-                      "keys", Sql.stringArray (Array.ofList keys) ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid state.program.canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion
+      "keys", Sql.stringArray (Array.ofList keys) ]
   |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-  |> Task.map (List.map (fun (key, data) -> key, dbToDval state db data))
+  |> Task.map (List.map (fun (key, data) -> key, dbToDval types db data))
 
 
 
@@ -161,6 +161,7 @@ let getAll
   (state : RT.ExecutionState)
   (db : RT.DB.T)
   : Task<List<string * RT.Dval>> =
+  let types = RT.ExecutionState.availableTypes state
   Sql.query
     "SELECT key, data
        FROM user_data_v0
@@ -168,12 +169,13 @@ let getAll
         AND canvas_id = @canvasID
         AND user_version = @userVersion
         AND dark_version = @darkVersion"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid state.program.canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-  |> Task.map (List.map (fun (key, data) -> key, dbToDval state db data))
+  |> Task.map (List.map (fun (key, data) -> key, dbToDval types db data))
 
 // Reusable function that provides the template for the SqlCompiler query functions
 let doQuery
@@ -215,11 +217,12 @@ let query
   (b : RT.LambdaImpl)
   : Task<List<string * RT.Dval>> =
   task {
+    let types = RT.ExecutionState.availableTypes state
     let! query = doQuery state db b "key, data"
     let! results =
       query |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
-    return results |> List.map (fun (key, data) -> (key, dbToDval state db data))
+    return results |> List.map (fun (key, data) -> (key, dbToDval types db data))
   }
 
 let queryValues
@@ -228,11 +231,12 @@ let queryValues
   (b : RT.LambdaImpl)
   : Task<List<RT.Dval>> =
   task {
+    let types = RT.ExecutionState.availableTypes state
     let! query = doQuery state db b "data"
 
     let! results = query |> Sql.executeAsync (fun read -> read.string "data")
 
-    return results |> List.map (dbToDval state db)
+    return results |> List.map (dbToDval types db)
   }
 
 let queryCount
@@ -253,10 +257,11 @@ let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
      AND canvas_id = @canvasID
      AND user_version = @userVersion
      AND dark_version = @darkVersion"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid state.program.canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> read.string "key")
 
 let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
@@ -267,10 +272,11 @@ let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
        AND canvas_id = @canvasID
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid state.program.canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
 
 let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit> =
@@ -282,11 +288,12 @@ let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit
        AND canvas_id = @canvasID
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
-  |> Sql.parameters [ "key", Sql.string key
-                      "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.parameters
+    [ "key", Sql.string key
+      "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid state.program.canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
 
 let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
@@ -297,10 +304,11 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
        AND table_tlid = @tlid
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid state.program.canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid state.program.canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
 
 // -------------------------
@@ -338,10 +346,11 @@ let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
        AND canvas_id = @canvasID
        AND user_version = @userVersion
        AND dark_version = @darkVersion"
-  |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-                      "canvasID", Sql.uuid canvasID
-                      "userVersion", Sql.int db.version
-                      "darkVersion", Sql.int currentDarkVersion ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid db.tlid
+      "canvasID", Sql.uuid canvasID
+      "userVersion", Sql.int db.version
+      "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
 
 // Given a [canvasID], return tlids for all unlocked databases -

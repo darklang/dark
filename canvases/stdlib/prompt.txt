@@ -42,7 +42,7 @@ some examples:
 ```
 
 ```
-{ name = fn "String" "foreach" 1
+{ name = fn "String" "foreach" 0
   typeParams = []
   parameters =
     [ Param.make "s" TStr ""
@@ -84,7 +84,7 @@ some examples:
 ```
 
 ```
-{ name = fn "DB" "getMany" 3
+{ name = fn "DB" "getMany" 0
   typeParams = []
   parameters = [ keysParam; tableParam ]
   returnType = TOption varA
@@ -224,10 +224,6 @@ and [<NoComparison>] Dval =
   | DPassword of Password
   | DUuid of System.Guid
   | DBytes of byte array
-
-  // TODO: remove DHttpResponse eventually - this should really just be a DRecord
-  // of a type that is defined in the standard library (http module)
-  | DHttpResponse of int64 * List<string * string> * Dval
 
   | DRecord (* FQTypeName.T * *)  of DvalMap
   | DDict of DvalMap

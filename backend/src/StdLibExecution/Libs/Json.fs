@@ -50,12 +50,12 @@ type Utf8JsonWriter with
 
 
 let rec serialize
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (w : Utf8JsonWriter)
   (typ : TypeReference)
   (dv : Dval)
   : unit =
-  let r = serialize availableTypes w
+  let r = serialize types w
 
   match typ, dv with
   // basic types
@@ -89,7 +89,7 @@ let rec serialize
   | TBytes, DBytes bytes ->
     bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
 
-  | TPassword, DPassword (Password hashed) ->
+  | TPassword, DPassword(Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
 
 
@@ -104,95 +104,71 @@ let rec serialize
           r objType v)
         o)
 
-  | TTuple (t1, t2, trest), DTuple (d1, d2, rest) ->
+  | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
     let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
     w.writeArray (fun () -> List.iter (fun (t, d) -> r t d) zipped)
 
   | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
-  | TOption oType, DOption (Some dv) ->
+  | TOption oType, DOption(Some dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Just"
       r oType dv)
-  | TResult (okType, _), DResult (Ok dv) ->
+  | TResult(okType, _), DResult(Ok dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Ok"
       r okType dv)
-  | TResult (_, errType), DResult (Error dv) ->
+  | TResult(_, errType), DResult(Error dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Error"
       r errType dv)
 
-  | TCustomType (typeName, _typeArgs), DDict dvalMap ->
+  | TCustomType(typeName, _typeArgs), dval ->
     // TODO: try find exactly one matching type
-    let matchingType = availableTypes[typeName]
 
-    match matchingType with
-    | CustomType.Enum (firstCase, additionalCases) ->
-      Exception.raiseInternal "TODO" []
-    | CustomType.Record (firstField, additionalFields) ->
-      let fieldDefs = firstField :: additionalFields
-      w.writeObject (fun () ->
-        dvalMap
-        |> Map.toList
-        |> List.iter (fun (fieldName, dval) ->
-          w.WritePropertyName fieldName
+    match Types.find typeName types with
+    | Some(CustomType.Alias typ) -> r typ dv
 
-          let matchingTypeReference =
-            fieldDefs
-            // TODO: handle case where field isn't found
-            |> List.find (fun def -> def.name = fieldName)
-            |> fun def -> def.typ
+    | Some(CustomType.Enum(firstCase, additionalCases)) ->
+      // TODO: ensure that the type names are the same
+      // TODO: _something_ with the type args
+      //   (or maybe we just need to revisit once TypeDefinition is present)
 
-          r matchingTypeReference dval))
+      match dval with
+      | DEnum(dTypeName, caseName, fields) ->
+        let matchingCase =
+          (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
+        // TODO: handle 0 or 2+ cases
 
-  | TCustomType (typeName, _typeArgs), DRecord (_, dvalMap) ->
-    // TODO: try find exactly one matching type
-    let matchingType = availableTypes[typeName]
+        let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
+        // TODO: ensure that the field count is the same
 
-    match matchingType with
-    | CustomType.Enum (firstCase, additionalCases) ->
-      Exception.raiseInternal "TODO" []
-    | CustomType.Record (firstField, additionalFields) ->
-      let fieldDefs = firstField :: additionalFields
-      w.writeObject (fun () ->
-        dvalMap
-        |> Map.toList
-        |> List.iter (fun (fieldName, dval) ->
-          w.WritePropertyName fieldName
+        w.writeObject (fun () ->
+          w.WritePropertyName caseName
+          w.writeArray (fun () ->
+            List.zip fieldDefs fields
+            |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+      | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
-          let matchingTypeReference =
-            fieldDefs
-            |> List.find (fun def -> def.name = fieldName)
-            |> fun def -> def.typ
+    | Some(CustomType.Record(firstField, additionalFields)) ->
+      match dval with
+      | DRecord(recordTypeName, dvalMap) when recordTypeName = typeName ->
+        let fieldDefs = firstField :: additionalFields
+        w.writeObject (fun () ->
+          dvalMap
+          |> Map.toList
+          |> List.iter (fun (fieldName, dval) ->
+            w.WritePropertyName fieldName
 
-          r matchingTypeReference dval))
+            let matchingTypeReference =
+              fieldDefs
+              |> List.find (fun def -> def.name = fieldName)
+              |> fun def -> def.typ
 
+            r matchingTypeReference dval))
+      | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
+      | _ -> Exception.raiseInternal "Expected a DRecord but got something else" []
 
-
-  | TCustomType (tTypeName, _typeArgs), DEnum (dTypeName, caseName, fields) ->
-    // TODO: ensure that the type names are the same
-    // TODO: _something_ with the type args
-    //   (or maybe we just need to revisit once TypeDefinition is present)
-
-    // TODO: try find exactly one matching type
-    let matchingType = availableTypes[tTypeName]
-    match matchingType with
-    | CustomType.Enum (firstCase, additionalCases) ->
-      let matchingCase =
-        (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
-      // TODO: handle 0 or 2+ cases
-
-      let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
-      // TODO: ensure that the field count is the same
-
-      w.writeObject (fun () ->
-        w.WritePropertyName caseName
-        w.writeArray (fun () ->
-          List.zip fieldDefs fields
-          |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
-
-    | CustomType.Record _ -> Exception.raiseInternal "TODO" []
-
+    | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
 
   // Not supported
   | TVariable _, _ ->
@@ -203,9 +179,6 @@ let rec serialize
   | TFn _, DFnVal _ -> Exception.raiseInternal "Cannot serialize functions" []
 
   | TDB _, DDB _ -> Exception.raiseInternal "Cannot serialize DB references" []
-
-  | THttpResponse _, _ ->
-    Exception.raiseInternal "Not worth supporting - about to be deleted" []
 
 
   // Exhaust the types
@@ -287,7 +260,7 @@ module JsonParseError =
     | NotJson -> "Not JSON"
     | TypeUnsupported typ -> $"Type not supported (intentionally): {typ}"
     | TypeNotYetSupported typ -> $"Type not yet supported: {typ}"
-    | CantMatchWithType (typ, json, errorPath) ->
+    | CantMatchWithType(typ, json, errorPath) ->
       let errorPath =
         errorPath
         |> List.map (function
@@ -299,7 +272,7 @@ module JsonParseError =
       $"Can't match JSON with type {typ} at {errorPath}: {json}"
 
 let parse
-  (availableTypes : Map<FQTypeName.T, CustomType.T>)
+  (types : Types)
   (typ : TypeReference)
   (str : string)
   : Result<Dval, string> =
@@ -344,7 +317,7 @@ let parse
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
 
-    | TTuple (t1, t2, rest), JsonValueKind.Array ->
+    | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let mapped =
         j.EnumerateArray()
         |> Seq.toList
@@ -368,7 +341,7 @@ let parse
       | None -> DOption None
     | TOption oType, v -> convert oType j |> Some |> DOption
 
-    | TResult (okType, errType), JsonValueKind.Object ->
+    | TResult(okType, errType), JsonValueKind.Object ->
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
 
@@ -383,13 +356,15 @@ let parse
       |> Map.ofSeq
       |> DDict
 
-    | TCustomType (typeName, typeArgs), JsonValueKind.Object ->
+    | TCustomType(typeName, typeArgs), jsonValueKind ->
       // TODO: something with typeArgs
 
-      let matchingType = availableTypes[typeName]
       // TODO: handle type missing
-      match matchingType with
-      | CustomType.Enum (firstCase, additionalCases) ->
+      match Types.find typeName types, jsonValueKind with
+      | Some(CustomType.Alias alias), _ -> convert alias j
+
+      | Some(CustomType.Enum(firstCase, additionalCases)), JsonValueKind.Object ->
+
         let enumerated =
           j.EnumerateObject()
           |> Seq.map (fun jp -> (jp.Name, jp.Value))
@@ -409,7 +384,7 @@ let parse
 
         | _ -> Exception.raiseInternal "TODO" []
 
-      | CustomType.Record (firstField, additionalFields) ->
+      | Some(CustomType.Record(firstField, additionalFields)), JsonValueKind.Object ->
         let fieldDefs = firstField :: additionalFields
         let enumerated = j.EnumerateObject() |> Seq.toList
 
@@ -428,6 +403,11 @@ let parse
           |> Map.ofSeq
 
         DRecord(typeName, dvalMap)
+      | None, _ -> Exception.raiseInternal "TODO - type not found" []
+      | _ ->
+        Exception.raiseInternal
+          "Can't currently parse this custom type"
+          [ "type", typeName ]
 
 
     // Explicitly not supported
@@ -441,12 +421,6 @@ let parse
     | TFn _, _ -> Exception.raiseInternal "Cannot parse functions" []
 
     | TDB _, _ -> Exception.raiseInternal "Cannot serialize DB references" []
-
-    | THttpResponse _, _ ->
-      Exception.raiseInternal
-        "Can't currently parse this type/value combination"
-        [ "type", typ; "value", j ]
-
 
     // exhaust TypeReferences
     | TUnit, _
@@ -467,8 +441,7 @@ let parse
     | TCustomType _, _
     | TOption _, _
     | TResult _, _
-    | TDict _, _
-    | THttpResponse _, _ ->
+    | TDict _, _ ->
       Exception.raiseInternal
         "Can't currently parse this type/value combination"
         [ "type", typ; "value", j ]
@@ -476,8 +449,8 @@ let parse
   let parsed =
     try
       Ok(parseJson str)
-    with
-    | _ex -> Error "not JSON"
+    with _ex ->
+      Error "not JSON"
 
   match parsed with
   | Error err -> Error err
@@ -500,14 +473,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ typeArg ], [ arg ] ->
-          let availableTypes = ExecutionState.availableTypes state
 
           try
-            let response =
-              writeJson (fun w -> serialize availableTypes w typeArg arg)
+            let types = ExecutionState.availableTypes state
+            let response = writeJson (fun w -> serialize types w typeArg arg)
             Ply(DResult(Ok(DString response)))
-          with
-          | ex -> Ply(DResult(Error(DString ex.Message)))
+          with ex ->
+            Ply(DResult(Error(DString ex.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -522,9 +494,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ typeArg ], [ DString arg ] ->
-          let availableTypes = ExecutionState.availableTypes state
-
-          match parse availableTypes typeArg arg with
+          let types = ExecutionState.availableTypes state
+          match parse types typeArg arg with
           | Ok v -> Ply(DResult(Ok v))
           | Error e -> Ply(DResult(Error(DString e)))
         | _ -> incorrectArgs ())

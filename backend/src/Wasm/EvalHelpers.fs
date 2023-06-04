@@ -11,6 +11,7 @@ let getStateForEval
   (fns : List<UserFunction.T>)
   : ExecutionState =
   let packageFns = Map.empty // TODO
+  let packageTypes = Map.empty // TODO
 
   let libraries : Libraries =
     let stdlibFns, stdlibTypes = stdlib
@@ -19,7 +20,8 @@ let getStateForEval
 
       stdlibFns = stdlibFns |> List.map (fun fn -> fn.name, fn) |> Map
 
-      packageFns = packageFns }
+      packageFns = packageFns
+      packageTypes = packageTypes }
 
   let program : ProgramContext =
     { canvasID = CanvasID.Empty
@@ -64,8 +66,8 @@ let exprsCollapsedIntoOne (exprs : List<Expr>) : Expr =
   |> List.rev
   |> List.fold (EUnit(gid ())) (fun agg expr ->
     match agg with
-    | EUnit (_) -> expr
+    | EUnit(_) -> expr
     | _ ->
       match expr with
-      | ELet (id, lp, expr, _) -> ELet(id, lp, expr, agg)
+      | ELet(id, lp, expr, _) -> ELet(id, lp, expr, agg)
       | other -> ELet(gid (), LPVariable(gid (), "_"), other, agg))

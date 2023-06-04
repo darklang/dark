@@ -393,8 +393,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString s ] ->
           (try
             float (s) |> DFloat |> Ok |> DResult |> Ply
-           with
-           | e ->
+           with e ->
              "Expected a String representation of an IEEE float"
              |> DString
              |> Error

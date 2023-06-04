@@ -68,8 +68,8 @@ RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
 
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
-RUN echo "deb https://deb.nodesource.com/node_14.x jammy main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_14.x jammy main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_20.x jammy main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_20.x jammy main" >> /etc/apt/sources.list.d/nodesource.list
 
 RUN echo "deb http://packages.cloud.google.com/apt cloud-sdk main" > /etc/apt/sources.list.d/google-cloud-sdk.list
 RUN echo "deb [arch=${TARGETARCH}] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
@@ -170,7 +170,7 @@ ENV LC_ALL en_US.UTF-8
 ############################
 # Frontend
 ############################
-RUN sudo npm install -g prettier@2.8.4
+RUN sudo npm install -g prettier@2.8.8
 
 ############################
 # Postgres
@@ -300,9 +300,9 @@ RUN chmod +x /home/dark/install-exe-file
 # Terraform
 ############################
 RUN /home/dark/install-targz-file \
-  --arm64-sha256=da571087268c5faf884912c4239c6b9c8e1ed8e8401ab1dcb45712df70f42f1b \
-  --amd64-sha256=53048fa573effdd8f2a59b726234c6f450491fe0ded6931e9f4c6e3df6eece56 \
-  --url=https://releases.hashicorp.com/terraform/1.3.9/terraform_1.3.9_linux_${TARGETARCH}.zip \
+  --arm64-sha256=b38f5db944ac4942f11ceea465a91e365b0636febd9998c110fbbe95d61c3b26 \
+  --amd64-sha256=e079db1a8945e39b1f8ba4e513946b3ab9f32bd5a2bdf19b9b186d22c5a3d53b \
+  --url=https://releases.hashicorp.com/terraform/1.4.6/terraform_1.4.6_linux_${TARGETARCH}.zip \
   --extract-file=terraform \
   --target=/usr/bin/terraform
 
@@ -321,16 +321,16 @@ ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
 
 # GCS emulator
 RUN /home/dark/install-targz-file \
-  --arm64-sha256=31f39066aa0d2ece95458d98ed86a7ac21cc82f734a5202196bef64574e586dd \
-  --amd64-sha256=b426a537811d505809caf21f5b5fa27bb00b7fa081bafd9f90ca7a4b26398220 \
-  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.44.0/fake-gcs-server_1.44.0_Linux_${TARGETARCH}.tar.gz\
+  --arm64-sha256=e37183fb37d3614434bb6e9aa9cfe953a9cde83c240088d842ff1671f8804bda \
+  --amd64-sha256=443811366a779b204adb5feff2460248bc0aef0d0b713b64cb52947ebd429563 \
+  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.45.2/fake-gcs-server_1.45.2_Linux_${TARGETARCH}.tar.gz\
   --extract-file=fake-gcs-server \
   --target=/usr/bin/fake-gcs-server
 
 ############################
 # Pip packages
 ############################
-RUN sudo pip3 install --no-cache-dir yq yamllint watchfiles yapf==0.32.0
+RUN sudo pip3 install --no-cache-dir yq yamllint watchfiles yapf==0.33.0
 ENV PATH "$PATH:/home/dark/.local/bin"
 
 ####################################
@@ -377,7 +377,7 @@ RUN /home/dark/install-exe-file \
 # (runtime-deps, runtime, and sdk), see
 # https://github.com/dotnet/dotnet-docker/blob/master/src
 
-ENV DOTNET_SDK_VERSION=7.0.201 \
+ENV DOTNET_SDK_VERSION=7.0.302 \
     # Skip extraction of XML docs - generally not useful within an
     # image/container - helps performance
     NUGET_XMLDOC_MODE=skip \
@@ -395,11 +395,11 @@ set -e
 case ${TARGETARCH} in
   arm64)
     ARCH=arm64
-    CHECKSUM=a4c4d0e7d51643d6a7ff3322f795f0cdf174f62689606304e4dbfb6b38717b111d0a21ecfe2efea0234947deb87383b7cdf38e96b7e4b7bc13127b0d70431b9b
+    CHECKSUM=7f6372faa348c84560e3f1139605dc08d888b14b98c400724f628b52156fe31c20a50dc2a2f8673e29239d04ef06744e16c6f8bd8eb1756f99274c73eda74621
     ;;
   amd64)
     ARCH=x64
-    CHECKSUM=fc9d224bf1d3600e878991fc1e8d3b1a0f21c7a8aac7b3cae0e4925ad33172cc12f56210eabfd66cfedd5f70f85918b889673401172b3999cecbeb8f2fe58863
+    CHECKSUM=9387bd804ed980ba1bc33093598ddbafa3a761e07d28916c94442cc329533d78a03bfc59d3066a1a861244302414e7e658b4e721b5bc825f623f8f908e748b7e
     ;;
   *) exit 1;;
 esac
@@ -414,14 +414,14 @@ dotnet --help
 EOF
 
 # formatting
-RUN dotnet tool install fantomas-tool --version 4.7.9 -g
+RUN dotnet tool install fantomas --version 6.0.4 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 #############
 # Emscripten,
 # for compiling the tree-sitter parser to wasm
 #############
-RUN git clone https://github.com/emscripten-core/emsdk.git \
+RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1 \
   && cd emsdk \
   # TODO pin to a recent stable version (i.e. 3.1.37)
   # we are using the latest version because Linux arm64 binaries aren't available in all releases.
