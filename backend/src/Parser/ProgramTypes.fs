@@ -757,12 +757,12 @@ module Expr =
         PT.ERecord(id, typeName, fields)
 
     // Record update: {myRecord with x = 5 }
-    | SynExpr.Record (_, Some (baseRecord, _), updates, _) ->
+    | SynExpr.Record(_, Some(baseRecord, _), updates, _) ->
       let updates =
         updates
         |> List.map (fun field ->
           match field with
-          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
+          | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
             (nameOrBlank name.idText, c expr)
           | f ->
             Exception.raiseInternal "Not an expected updates field" [ "field", f ])

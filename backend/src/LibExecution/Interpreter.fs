@@ -240,13 +240,21 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             return err id $"Missing key `{key}` in {typeStr}"
         | _ -> return result
 
-    | ERecordUpdate (id, baseRecord, updates) ->
+    | ERecordUpdate(id, baseRecord, updates) ->
       let! baseRecord = eval state st baseRecord
-      let availableTypes = ExecutionState.availableTypes state
+      let types = ExecutionState.availableTypes state
       match baseRecord with
-      | DRecord (typeName, fields) ->
-        let typ = Map.tryFind typeName availableTypes
+      | DRecord(typeName, fields) ->
+        let typ = Types.find typeName types
         let typeStr = FQTypeName.toString typeName
+        let rec recordMaybe (typeName : FQTypeName.T) =
+          match Types.find typeName types with
+          | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
+            recordMaybe innerTypeName
+          | Some(CustomType.Record(firstField, otherFields)) ->
+            Some(firstField, otherFields)
+          | Some(CustomType.Enum _) -> None
+          | _ -> None
         if List.length updates > Map.count fields then
           return err id "The updates list is longer than the record filedls list"
         else
@@ -256,22 +264,31 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 uply {
                   let! v = eval state st v
                   match r with
-                  | DRecord (typeName, m) ->
+                  | DRecord(typeName, m) ->
                     if not (Map.containsKey k m) then
                       return err id $"Unexpected field `{k}` in {typeStr}"
                     else
-                      match typ with
-                      | None -> return err id $"There is no type named `{typeStr}`"
-                      | Some (CustomType.Enum _) ->
-                        return err id $"Expected a record but {typeStr} is an enum"
-                      | Some (CustomType.Record (expected1, expectedRest)) ->
+                      match recordMaybe typeName with
+                      | None ->
+                        match typ with
+                        | None ->
+                          return err id $"There is no type named `{typeStr}`"
+                        | Some(CustomType.Enum _) ->
+                          return
+                            err id $"Expected a record but {typeStr} is an enum"
+                        | _ ->
+                          return
+                            err
+                              id
+                              $"Expected a record but {typeStr} is something else"
+                      | Some(expected1, expectedRest) ->
                         let expectedFields =
                           (expected1 :: expectedRest)
                           |> List.map (fun f -> f.name, f.typ)
                           |> Map
                         let field = Map.find k expectedFields
-                        match TypeChecker.unify [ k ] availableTypes field v with
-                        | Ok () -> return DRecord(typeName, Map.add k v m)
+                        match TypeChecker.unify [ k ] types field v with
+                        | Ok() -> return DRecord(typeName, Map.add k v m)
                         | Error e -> return err id (TypeChecker.Error.toString e)
                   | _ -> return err id "Expected a record"
                 })

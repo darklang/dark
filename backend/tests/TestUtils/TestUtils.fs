@@ -584,7 +584,7 @@ module Expect =
           eq (k :: path) v v')
         fields
         fields'
-    | ERecordUpdate (_, record, updates), ERecordUpdate (_, record', updates') ->
+    | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
       check path record record'
       List.iter2
         (fun (k, v) (k', v') ->
@@ -592,7 +592,7 @@ module Expect =
           eq (k :: path) v v')
         updates
         updates'
-    | EDict (_, fields), EDict (_, fields') ->
+    | EDict(_, fields), EDict(_, fields') ->
       List.iter2
         (fun (k, v) (k', v') ->
           check ("key" :: path) k k'

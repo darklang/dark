@@ -685,7 +685,7 @@ let partiallyEvaluate
                   fields
 
               return ERecord(id, typeName, fields)
-            | ERecordUpdate (id, record, updates) ->
+            | ERecordUpdate(id, record, updates) ->
               let! updates =
                 Ply.List.mapSequentially
                   (fun (name, expr) ->
@@ -696,7 +696,7 @@ let partiallyEvaluate
                   updates
               let! record = r record
               return ERecordUpdate(id, record, updates)
-            | EDict (id, fields) ->
+            | EDict(id, fields) ->
               let! fields =
                 Ply.List.mapSequentially
                   (fun (key, expr) ->

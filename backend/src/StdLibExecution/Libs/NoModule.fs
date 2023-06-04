@@ -156,19 +156,17 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     typeName = typeName'
     && fields1.Length = fields2.Length
     && List.forall2
-         (fun (name1, expr1) (name2, expr2) ->
-           name1 = name2 && equalsExpr expr1 expr2)
-         fields1
-         fields2
-  | ERecordUpdate (_, record1, updates1), ERecordUpdate (_, record2, updates2) ->
+      (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
+      fields1
+      fields2
+  | ERecordUpdate(_, record1, updates1), ERecordUpdate(_, record2, updates2) ->
     record1 = record2
     && updates1.Length = updates2.Length
     && List.forall2
-         (fun (name1, expr1) (name2, expr2) ->
-           name1 = name2 && equalsExpr expr1 expr2)
-         updates1
-         updates2
-  | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
+      (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
+      updates1
+      updates2
+  | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
     typeName = typeName'
     && caseName = caseName'
     && fields.Length = fields'.Length

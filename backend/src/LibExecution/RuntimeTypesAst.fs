@@ -28,17 +28,17 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EList(id, exprs) -> EList(id, List.map r exprs)
   | ETuple(id, first, second, theRest) ->
     ETuple(id, r first, r second, List.map r theRest)
-  | EMatch (id, mexpr, pairs) ->
+  | EMatch(id, mexpr, pairs) ->
     EMatch(id, r mexpr, List.map (Tuple2.mapSecond r) pairs)
-  | ERecord (id, typeName, fields) ->
+  | ERecord(id, typeName, fields) ->
     ERecord(id, typeName, List.map (Tuple2.mapSecond r) fields)
-  | ERecordUpdate (id, record, updates) ->
+  | ERecordUpdate(id, record, updates) ->
     ERecordUpdate(id, r record, List.map (Tuple2.mapSecond r) updates)
-  | EAnd (id, left, right) -> EAnd(id, r left, r right)
-  | EOr (id, left, right) -> EOr(id, r left, r right)
-  | EEnum (id, typeName, caseName, fields) ->
+  | EAnd(id, left, right) -> EAnd(id, r left, r right)
+  | EOr(id, left, right) -> EOr(id, r left, r right)
+  | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, typeName, caseName, List.map r fields)
-  | EDict (id, fields) -> EDict(id, List.map (Tuple2.mapSecond r) fields)
+  | EDict(id, fields) -> EDict(id, List.map (Tuple2.mapSecond r) fields)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
@@ -60,17 +60,17 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EList(id, exprs) -> EList(id, List.map r exprs)
     | ETuple(id, first, second, theRest) ->
       ETuple(id, r first, r second, List.map r theRest)
-    | EMatch (id, mexpr, pairs) ->
+    | EMatch(id, mexpr, pairs) ->
       EMatch(id, r mexpr, List.map (Tuple2.mapSecond r) pairs)
-    | ERecord (id, typeName, fields) ->
+    | ERecord(id, typeName, fields) ->
       ERecord(id, typeName, List.map (Tuple2.mapSecond r) fields)
-    | ERecordUpdate (id, record, updates) ->
+    | ERecordUpdate(id, record, updates) ->
       ERecordUpdate(id, r record, List.map (Tuple2.mapSecond r) updates)
-    | EAnd (id, left, right) -> EAnd(id, r left, r right)
-    | EOr (id, left, right) -> EOr(id, r left, r right)
-    | EEnum (id, typeName, caseName, fields) ->
+    | EAnd(id, left, right) -> EAnd(id, r left, r right)
+    | EOr(id, left, right) -> EOr(id, r left, r right)
+    | EEnum(id, typeName, caseName, fields) ->
       EEnum(id, typeName, caseName, List.map r fields)
-    | EDict (id, fields) -> EDict(id, List.map (Tuple2.mapSecond r) fields)
+    | EDict(id, fields) -> EDict(id, List.map (Tuple2.mapSecond r) fields)
 
 
   f result

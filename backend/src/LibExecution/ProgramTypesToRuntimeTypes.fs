@@ -168,9 +168,9 @@ module Expr =
         List.map (Tuple2.mapSecond toRT) fields
       )
 
-    | PT.ERecordUpdate (id, record, updates) ->
+    | PT.ERecordUpdate(id, record, updates) ->
       RT.ERecordUpdate(id, toRT record, List.map (Tuple2.mapSecond toRT) updates)
-    | PT.EPipe (pipeID, expr1, expr2, rest) ->
+    | PT.EPipe(pipeID, expr1, expr2, rest) ->
       // Convert v |> fn1 a |> fn2 |> fn3 b c
       // into fn3 (fn2 (fn1 v a)) b c
       let folder (prev : RT.Expr) (next : PT.PipeExpr) : RT.Expr =
