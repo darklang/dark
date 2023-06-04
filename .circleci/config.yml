@@ -140,7 +140,7 @@ commands:
       - prep-container-creation
       # LIGHTTODO build containers
       # - run: scripts/deployment/shipit containers build --save-manifest=gcr-image-ids.json
-      - run: cat gcr-image-ids.json
+      # - run: cat gcr-image-ids.json
       # Test them
       # - run: scripts/deployment/shipit release prepare --arg CHANGE_CAUSE="test" --manifest=gcr-image-ids.json
 
