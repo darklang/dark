@@ -99,8 +99,7 @@ let testCanvasVerificationUndoRenameDupedName : Test =
     try
       Canvas.fromOplist canvasID ops1 [ PT.UndoTL dbID ] |> ignore<Canvas.T>
       Expect.isFalse true "should fail to verify"
-    with
-    | _ ->
+    with _ ->
       // Expected
       ()
   }

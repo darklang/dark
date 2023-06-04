@@ -38,10 +38,11 @@ let insert
     "INSERT INTO secrets_v0
     (canvas_id, name, value, version)
     VALUES (@canvasID, @name, @value, @version)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "name", Sql.string name
-                      "value", Sql.string value
-                      "version", Sql.int version ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "name", Sql.string name
+      "value", Sql.string value
+      "version", Sql.int version ]
   |> Sql.executeStatementAsync
 
 let delete (canvasID : CanvasID) (name : string) (version : int) : Task<unit> =
@@ -50,7 +51,8 @@ let delete (canvasID : CanvasID) (name : string) (version : int) : Task<unit> =
       WHERE canvas_id = @canvasID
         AND name = @Name
         AND version = @version"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "name", Sql.string name
-                      "version", Sql.int version ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "name", Sql.string name
+      "version", Sql.int version ]
   |> Sql.executeStatementAsync

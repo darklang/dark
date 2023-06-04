@@ -310,7 +310,7 @@ let testListUsingProperty
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
-  | RT.DError (_, str) -> RT.DError(RT.SourceNone, str)
+  | RT.DError(_, str) -> RT.DError(RT.SourceNone, str)
   | RT.DIncomplete _ -> RT.DIncomplete(RT.SourceNone)
   | dv -> dv
 
@@ -322,7 +322,7 @@ let rec debugDval (v : Dval) : string =
     $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
-  | DRecord (tn, o) ->
+  | DRecord(tn, o) ->
     let typeStr = FQTypeName.toString tn
     o
     |> Map.toList
@@ -371,17 +371,17 @@ module Expect =
     | DOption None
     | DFloat _ -> true
 
-    | DResult (Ok v)
-    | DResult (Error v)
-    | DOption (Some v) -> check v
+    | DResult(Ok v)
+    | DResult(Error v)
+    | DOption(Some v) -> check v
 
     | DList vs -> List.all check vs
-    | DTuple (first, second, rest) -> List.all check ([ first; second ] @ rest)
+    | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
-    | DRecord (_, vs) -> vs |> Map.values |> List.all check
+    | DRecord(_, vs) -> vs |> Map.values |> List.all check
     | DString str -> str.IsNormalized()
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
-    | DEnum (_typeName, _caseName, fields) -> fields |> List.all check
+    | DEnum(_typeName, _caseName, fields) -> fields |> List.all check
 
   type Path = string list
 
@@ -402,8 +402,8 @@ module Expect =
     if checkIDs then check path (LetPattern.toID actual) (LetPattern.toID expected)
 
     match actual, expected with
-    | LPVariable (_, name), LPVariable (_, name') -> check path name name'
-    | LPTuple (_, first, second, theRest), LPTuple (_, first', second', theRest') ->
+    | LPVariable(_, name), LPVariable(_, name') -> check path name name'
+    | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
       let all = first :: second :: theRest
       let all' = first' :: second' :: theRest'
       let zipped = List.zip all all'
@@ -453,20 +453,20 @@ module Expect =
       check path (MatchPattern.toID actual) (MatchPattern.toID expected)
 
     match actual, expected with
-    | MPVariable (_, name), MPVariable (_, name') -> check path name name'
-    | (MPEnum (_, caseName, fieldPats), MPEnum (_, caseName', fieldPats')) ->
+    | MPVariable(_, name), MPVariable(_, name') -> check path name name'
+    | (MPEnum(_, caseName, fieldPats), MPEnum(_, caseName', fieldPats')) ->
       check path caseName caseName'
       eqList (caseName :: path) fieldPats fieldPats'
-    | MPString (_, str), MPString (_, str') -> check path str str'
-    | MPInt (_, l), MPInt (_, l') -> check path l l'
-    | MPFloat (_, d), MPFloat (_, d') -> check path d d'
-    | MPBool (_, l), MPBool (_, l') -> check path l l'
-    | MPChar (_, c), MPChar (_, c') -> check path c c'
-    | MPUnit (_), MPUnit (_) -> ()
-    | MPTuple (_, first, second, theRest), MPTuple (_, first', second', theRest') ->
+    | MPString(_, str), MPString(_, str') -> check path str str'
+    | MPInt(_, l), MPInt(_, l') -> check path l l'
+    | MPFloat(_, d), MPFloat(_, d') -> check path d d'
+    | MPBool(_, l), MPBool(_, l') -> check path l l'
+    | MPChar(_, c), MPChar(_, c') -> check path c c'
+    | MPUnit(_), MPUnit(_) -> ()
+    | MPTuple(_, first, second, theRest), MPTuple(_, first', second', theRest') ->
       eqList path (first :: second :: theRest) (first' :: second' :: theRest')
-    | MPList (_, pats), MPList (_, pats') -> eqList path pats pats'
-    | MPListCons (_, head, tail), MPListCons (_, head', tail') ->
+    | MPList(_, pats), MPList(_, pats') -> eqList path pats pats'
+    | MPListCons(_, head, tail), MPListCons(_, head', tail') ->
       check path head head'
       check path tail tail'
     // exhaustiveness check
@@ -497,20 +497,20 @@ module Expect =
     | TBool, _
     | TUnit, _
     | TString, _
-    | TList (_), _
-    | TTuple (_, _, _), _
-    | TDict (_), _
-    | TDB (_), _
+    | TList(_), _
+    | TTuple(_, _, _), _
+    | TDict(_), _
+    | TDB(_), _
     | TDateTime, _
     | TChar, _
     | TPassword, _
     | TUuid, _
     | TBytes, _
-    | TVariable (_), _
-    | TFn (_, _), _
-    | TCustomType (_, _), _
-    | TOption (_), _
-    | TResult (_, _), _ ->
+    | TVariable(_), _
+    | TFn(_, _), _
+    | TCustomType(_, _), _
+    | TOption(_), _
+    | TResult(_, _), _ ->
       if actual <> expected then errorFn path (string actual) (string expected)
 
 
@@ -538,33 +538,33 @@ module Expect =
     // expressions with no values
     | EUnit _, EUnit _ -> ()
     // expressions with single string values
-    | EString (_, s), EString (_, s') ->
+    | EString(_, s), EString(_, s') ->
       let rec checkSegment s s' =
         match s, s' with
         | StringText s, StringText s' -> check path s s'
         | StringInterpolation e, StringInterpolation e' -> eq path e e'
         | _ -> check path s s'
       List.iter2 checkSegment s s'
-    | EChar (_, v), EChar (_, v')
-    | EVariable (_, v), EVariable (_, v') -> check path v v'
-    | EInt (_, v), EInt (_, v') -> check path v v'
-    | EFloat (_, v), EFloat (_, v') -> check path v v'
-    | EBool (_, v), EBool (_, v') -> check path v v'
-    | ELet (_, pat, rhs, body), ELet (_, pat', rhs', body') ->
+    | EChar(_, v), EChar(_, v')
+    | EVariable(_, v), EVariable(_, v') -> check path v v'
+    | EInt(_, v), EInt(_, v') -> check path v v'
+    | EFloat(_, v), EFloat(_, v') -> check path v v'
+    | EBool(_, v), EBool(_, v') -> check path v v'
+    | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
       letPatternEqualityBaseFn checkIDs path pat pat' errorFn
       eq ("rhs" :: path) rhs rhs'
       eq ("body" :: path) body body'
-    | EIf (_, con, thn, els), EIf (_, con', thn', els') ->
+    | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
       eq ("cond" :: path) con con'
       eq ("then" :: path) thn thn'
       eq ("else" :: path) els els'
-    | EList (_, l), EList (_, l') -> eqList path l l'
-    | ETuple (_, first, second, theRest), ETuple (_, first', second', theRest') ->
+    | EList(_, l), EList(_, l') -> eqList path l l'
+    | ETuple(_, first, second, theRest), ETuple(_, first', second', theRest') ->
       eq ("first" :: path) first first'
       eq ("second" :: path) second second'
       eqList path theRest theRest'
 
-    | EApply (_, name, typeArgs, args), EApply (_, name', typeArgs', args') ->
+    | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
       let path = (string name :: path)
       check path name name'
 
@@ -576,7 +576,7 @@ module Expect =
 
       eqList path args args'
 
-    | ERecord (_, typeName, fields), ERecord (_, typeName', fields') ->
+    | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
       userTypeNameEqualityBaseFn types path typeName typeName' errorFn
       List.iter2
         (fun (k, v) (k', v') ->
@@ -585,7 +585,7 @@ module Expect =
         fields
         fields'
 
-    | EDict (_, fields), EDict (_, fields') ->
+    | EDict(_, fields), EDict(_, fields') ->
       List.iter2
         (fun (k, v) (k', v') ->
           check ("key" :: path) k k'
@@ -593,21 +593,21 @@ module Expect =
         fields
         fields'
 
-    | EFieldAccess (_, e, f), EFieldAccess (_, e', f') ->
+    | EFieldAccess(_, e, f), EFieldAccess(_, e', f') ->
       eq (f :: path) e e'
       check path f f'
 
-    | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
+    | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn types path typeName typeName' errorFn
       check path caseName caseName'
       eqList path fields fields'
       ()
 
-    | ELambda (_, vars, e), ELambda (_, vars', e') ->
+    | ELambda(_, vars, e), ELambda(_, vars', e') ->
       let path = ("lambda" :: path)
       eq path e e'
       List.iteri2 (fun i (_, v) (_, v') -> check (string i :: path) v v') vars vars'
-    | EMatch (_, e, branches), EMatch (_, e', branches') ->
+    | EMatch(_, e, branches), EMatch(_, e', branches') ->
       eq ("matchCond" :: path) e e'
 
       List.iter2
@@ -616,10 +616,10 @@ module Expect =
           eq (string p :: path) v v')
         branches
         branches'
-    | EAnd (_, l, r), EAnd (_, l', r') ->
+    | EAnd(_, l, r), EAnd(_, l', r') ->
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
-    | EOr (_, l, r), EOr (_, l', r') ->
+    | EOr(_, l, r), EOr(_, l', r') ->
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
 
@@ -667,17 +667,19 @@ module Expect =
       if System.Double.IsNaN l && System.Double.IsNaN r then
         // This isn't "true" equality, it's just for tests
         ()
-      else if System.Double.IsPositiveInfinity l
-              && System.Double.IsPositiveInfinity r then
+      else if
+        System.Double.IsPositiveInfinity l && System.Double.IsPositiveInfinity r
+      then
         ()
-      else if System.Double.IsNegativeInfinity l
-              && System.Double.IsNegativeInfinity r then
+      else if
+        System.Double.IsNegativeInfinity l && System.Double.IsNegativeInfinity r
+      then
         ()
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
         error path
-    | DResult (Ok l), DResult (Ok r) -> de ("Ok" :: path) l r
-    | DResult (Error l), DResult (Error r) -> de ("Error" :: path) l r
-    | DOption (Some l), DOption (Some r) -> de ("Just" :: path) l r
+    | DResult(Ok l), DResult(Ok r) -> de ("Ok" :: path) l r
+    | DResult(Error l), DResult(Error r) -> de ("Error" :: path) l r
+    | DOption(Some l), DOption(Some r) -> de ("Just" :: path) l r
     | DDateTime l, DDateTime r ->
       // Two dates can be the same millisecond and not be equal if they don't
       // have the same number of ticks. For testing, we shall consider them
@@ -687,7 +689,7 @@ module Expect =
       check (".Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
 
-    | DTuple (firstL, secondL, theRestL), DTuple (firstR, secondR, theRestR) ->
+    | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
       de path firstL firstR
 
       de path secondL secondR
@@ -712,7 +714,7 @@ module Expect =
         rs
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
-    | DRecord (ltn, ls), DRecord (rtn, rs) ->
+    | DRecord(ltn, ls), DRecord(rtn, rs) ->
       userTypeNameEqualityBaseFn types path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
@@ -731,7 +733,7 @@ module Expect =
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
 
-    | DEnum (typeName, caseName, fields), DEnum (typeName', caseName', fields') ->
+    | DEnum(typeName, caseName, fields), DEnum(typeName', caseName', fields') ->
       userTypeNameEqualityBaseFn types path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
@@ -740,9 +742,9 @@ module Expect =
       ()
 
     | DIncomplete _, DIncomplete _ -> ()
-    | DError (_, msg1), DError (_, msg2) ->
+    | DError(_, msg1), DError(_, msg2) ->
       check path (msg1.Replace("_v0", "")) (msg2.Replace("_v0", ""))
-    | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
+    | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
       let vals l = List.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
@@ -827,15 +829,15 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     match dv with
     // Keep for exhaustiveness checking
     | DDict map -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DRecord (_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
-    | DEnum (_typeName, _caseName, fields) ->
+    | DRecord(_, map) -> Map.values map |> List.map visit |> ignore<List<unit>>
+    | DEnum(_typeName, _caseName, fields) ->
       fields |> List.map visit |> ignore<List<unit>>
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
-    | DTuple (first, second, theRest) ->
+    | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DResult (Error v)
-    | DResult (Ok v)
-    | DOption (Some v) -> visit v
+    | DResult(Error v)
+    | DResult(Ok v)
+    | DOption(Some v) -> visit v
     | DOption None
     | DString _
     | DInt _
@@ -1101,9 +1103,9 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 let sampleDvals : List<string * (Dval * TypeReference)> =
   (List.map (fun (k, v) -> k, DInt v, TInt) interestingInts
    @ List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
-     @ List.map (fun (k, v) -> k, DString v, TString) interestingStrings
-       @ List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
-         @ interestingDvals)
+   @ List.map (fun (k, v) -> k, DString v, TString) interestingStrings
+   @ List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
+   @ interestingDvals)
   |> List.map (fun (k, v, t) -> k, (v, t))
 
 // Utilties shared among tests
@@ -1187,8 +1189,10 @@ let configureLogging
   // console logging threads).
   builder
     .ClearProviders()
-    .Services
-    .AddLogging(fun loggingBuilder ->
-      loggingBuilder.AddFile($"{LibBackend.Config.logDir}{name}.log", append = false)
+    .Services.AddLogging(fun loggingBuilder ->
+      loggingBuilder.AddFile(
+        $"{LibBackend.Config.logDir}{name}.log",
+        append = false
+      )
       |> ignore<ILoggingBuilder>)
   |> ignore<IServiceCollection>

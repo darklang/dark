@@ -24,15 +24,13 @@ let empty = { types = []; dbs = []; fns = []; modules = []; tests = [] }
 module UserDB =
   let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.DB.T =
     match typeDef with
-    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
-                                                                             typ,
-                                                                             _),
-                                           _),
-                   _members,
-                   _,
-                   _,
-                   _) ->
+    | SynTypeDefn(SynComponentInfo(_, _params, _, [ id ], _, _, _, _),
+                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
+                                         _),
+                  _members,
+                  _,
+                  _,
+                  _) ->
       { tlid = gid ()
         name = id.idText
         version = 0
@@ -47,18 +45,15 @@ let parseTest (ast : SynExpr) : Test =
   let convert (x : SynExpr) : PT.Expr = PTP.Expr.fromSynExpr x
 
   match ast with
-  | SynExpr.App (_,
-                 _,
-                 SynExpr.App (_,
-                              _,
-                              SynExpr.LongIdent (_,
-                                                 SynLongIdent ([ ident ], _, _),
-                                                 _,
-                                                 _),
-                              actual,
-                              _),
-                 expected,
-                 range) when ident.idText = "op_Equality" ->
+  | SynExpr.App(_,
+                _,
+                SynExpr.App(_,
+                            _,
+                            SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _),
+                            actual,
+                            _),
+                expected,
+                range) when ident.idText = "op_Equality" ->
     { name = "test"
       lineNumber = range.Start.Line
       actual = convert actual
@@ -69,7 +64,7 @@ let parseTest (ast : SynExpr) : Test =
 let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
   let parseTypeDecl (typeDefn : SynTypeDefn) : List<PT.DB.T> * List<PT.UserType.T> =
     match typeDefn with
-    | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
+    | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
       let isDB =
         attrs
@@ -90,32 +85,32 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
           tests = [] }
         (fun m decl ->
           match decl with
-          | SynModuleDecl.Let (_, bindings, _) ->
+          | SynModuleDecl.Let(_, bindings, _) ->
             let newUserFns = List.map PTP.UserFunction.fromSynBinding bindings
             { m with fns = m.fns @ newUserFns }
 
-          | SynModuleDecl.Types (defns, _) ->
+          | SynModuleDecl.Types(defns, _) ->
             let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
             { m with
                 types = m.types @ List.concat types
                 dbs = m.dbs @ List.concat dbs }
 
-          | SynModuleDecl.Expr (expr, _) ->
+          | SynModuleDecl.Expr(expr, _) ->
             { m with tests = m.tests @ [ parseTest expr ] }
 
-          | SynModuleDecl.NestedModule (SynComponentInfo (attrs,
-                                                          _,
-                                                          _,
-                                                          [ name ],
-                                                          _,
-                                                          _,
-                                                          _,
-                                                          _),
-                                        _,
-                                        decls,
-                                        _,
-                                        _,
-                                        _) ->
+          | SynModuleDecl.NestedModule(SynComponentInfo(attrs,
+                                                        _,
+                                                        _,
+                                                        [ name ],
+                                                        _,
+                                                        _,
+                                                        _,
+                                                        _),
+                                       _,
+                                       decls,
+                                       _,
+                                       _,
+                                       _) ->
             let nested = parseModule m decls
             { m with modules = m.modules @ [ (name.idText, nested) ] }
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
@@ -137,15 +132,15 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
 
   let decls =
     match parsedAsFSharp with
-    | ParsedImplFileInput (_,
-                           _,
-                           _,
-                           _,
-                           _,
-                           [ SynModuleOrNamespace (_, _, _, decls, _, _, _, _, _) ],
-                           _,
-                           _,
-                           _) -> decls
+    | ParsedImplFileInput(_,
+                          _,
+                          _,
+                          _,
+                          _,
+                          [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
+                          _,
+                          _,
+                          _) -> decls
     | _ ->
       Exception.raiseInternal
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"

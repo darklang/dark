@@ -143,8 +143,7 @@ let t
         Expect.isTrue canonical "expected is canonicalized"
       let availableTypes = RT.ExecutionState.availableTypes state
       return Expect.equalDval availableTypes actual expected msg
-    with
-    | e ->
+    with e ->
       let metadata = Exception.toMetadata e
       printMetadata "" metadata
       return
@@ -197,8 +196,7 @@ let fileTests () : Test =
         (baseDir + filename)
         |> Parser.TestModule.parseTestFile
         |> moduleToTests testName
-      with
-      | e ->
+      with e ->
         print $"Exception in {file}: {e.Message}"
         reraise ())
   |> Array.toList

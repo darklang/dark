@@ -31,20 +31,19 @@ open TestUtils.TestUtils
 type HandlerVersion = | Http
 
 type TestHandler =
-  { version : HandlerVersion
-    route : string
-    method : string
-    code : string }
+  { version : HandlerVersion; route : string; method : string; code : string }
 
 type TestSecret = string * string * int
 
 type Test =
-  { handlers : List<TestHandler>
+  {
+    handlers : List<TestHandler>
     secrets : List<TestSecret>
     /// Allow testing of a specific canvas name
     domain : Option<string>
     request : byte array
-    expectedResponse : byte array }
+    expectedResponse : byte array
+  }
 
 
 let newline = byte '\n'
@@ -129,9 +128,8 @@ module ParseTest =
 
           | InResponse ->
             let updatedResponse =
-              Array.concat [| result.expectedResponse
-                              injectedBytes
-                              [| newline |] |]
+              Array.concat
+                [| result.expectedResponse; injectedBytes; [| newline |] |]
             (InRequest, { result with expectedResponse = updatedResponse })
 
           | InHttpHandler
@@ -159,14 +157,14 @@ module ParseTest =
             InResponse,
             { result with
                 expectedResponse =
-                  Array.concat [| result.expectedResponse
-                                  Array.ofList line
-                                  [| newline |] |] }
+                  Array.concat
+                    [| result.expectedResponse; Array.ofList line; [| newline |] |] }
           | InRequest ->
             InRequest,
             { result with
                 request =
-                  Array.concat [| result.request; Array.ofList line; [| newline |] |] }
+                  Array.concat
+                    [| result.request; Array.ofList line; [| newline |] |] }
           | Limbo ->
             if line.Length = 0 then
               (Limbo, result)
@@ -176,11 +174,11 @@ module ParseTest =
                 [ "line", line ])
     |> Tuple2.second
     |> fun test ->
-         { test with
-             // Remove the superfluously added newline on response
-             expectedResponse = Array.slice 0 -1 test.expectedResponse
-             // Allow separation from the next section with a blank line
-             request = Array.slice 0 -2 test.request }
+        { test with
+            // Remove the superfluously added newline on response
+            expectedResponse = Array.slice 0 -1 test.expectedResponse
+            // Allow separation from the next section with a blank line
+            request = Array.slice 0 -2 test.request }
 
 
 /// Initializes and sets up a test canvas (handlers, secrets, etc.)
@@ -267,8 +265,7 @@ module Execution =
           if not connected then
             do! client.ConnectAsync("127.0.0.1", port)
             connected <- true
-        with
-        | _ when i <> 10 ->
+        with _ when i <> 10 ->
           print $"Server not ready on port {port}, maybe retry"
           do! System.Threading.Tasks.Task.Delay 1000
       return client
@@ -353,15 +350,17 @@ module Execution =
           |> List.find (fun (k, _) -> String.toLowercase k = "content-length")
         match contentLength with
         | None -> ()
-        | Some (_, v) ->
+        | Some(_, v) ->
           if String.includes "ALLOW-INCORRECT-CONTENT-LENGTH" v then
             ()
           else
             Expect.equal parsedTestRequest.body.Length (int v) ""
 
       // Check input LENGTH not set
-      if testRequest |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
-         && not incorrectContentTypeAllowed then // false alarm as also have LENGTH in it
+      if
+        testRequest |> UTF8.ofBytesWithReplacement |> String.includes "LENGTH"
+        && not incorrectContentTypeAllowed
+      then // false alarm as also have LENGTH in it
         Expect.isFalse true "LENGTH substitution not done on request"
 
       // Make the request

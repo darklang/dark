@@ -20,8 +20,7 @@ let fireAndForgetTask (name : string) (f : unit -> Task<'b>) : unit =
       let! (_ : 'b) = f ()
       Telemetry.addTag "success" true
       return ()
-    with
-    | e ->
+    with e ->
       Telemetry.addTag "success" false
       Rollbar.sendException None [ "fire-and-forget", name ] e
       return ()

@@ -59,14 +59,14 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
     Sql.query
       "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
-    |> Sql.parameters [ "tlid", Sql.tlid fn.tlid
-                        "id", Sql.uuid fn.id
-                        "owner", Sql.string fn.name.owner
-                        "modules", Sql.string (fn.name.modules |> String.concat ".")
-                        "fnname", Sql.string fn.name.function_
-                        "version", Sql.int fn.name.version
-                        "definition",
-                        Sql.bytea (BinarySerialization.serializePackageFn fn) ]
+    |> Sql.parameters
+      [ "tlid", Sql.tlid fn.tlid
+        "id", Sql.uuid fn.id
+        "owner", Sql.string fn.name.owner
+        "modules", Sql.string (fn.name.modules |> String.concat ".")
+        "fnname", Sql.string fn.name.function_
+        "version", Sql.int fn.name.version
+        "definition", Sql.bytea (BinarySerialization.serializePackageFn fn) ]
     |> Sql.executeStatementAsync)
 
 let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
@@ -75,14 +75,14 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
     Sql.query
       "INSERT INTO package_types_v0 (tlid, id, owner, modules, typename, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @typename, @version, @definition)"
-    |> Sql.parameters [ "tlid", Sql.tlid typ.tlid
-                        "id", Sql.uuid typ.id
-                        "owner", Sql.string typ.name.owner
-                        "modules", Sql.string (typ.name.modules |> String.concat ".")
-                        "typename", Sql.string typ.name.typ
-                        "version", Sql.int typ.name.version
-                        "definition",
-                        Sql.bytea (BinarySerialization.serializePackageType typ) ]
+    |> Sql.parameters
+      [ "tlid", Sql.tlid typ.tlid
+        "id", Sql.uuid typ.id
+        "owner", Sql.string typ.name.owner
+        "modules", Sql.string (typ.name.modules |> String.concat ".")
+        "typename", Sql.string typ.name.typ
+        "version", Sql.int typ.name.version
+        "definition", Sql.bytea (BinarySerialization.serializePackageType typ) ]
     |> Sql.executeStatementAsync)
 
 
@@ -112,5 +112,6 @@ let allTypes () : Task<List<PT.PackageType.T>> =
 
     return
       types
-      |> List.map (fun (id, def) -> BinarySerialization.deserializePackageType id def)
+      |> List.map (fun (id, def) ->
+        BinarySerialization.deserializePackageType id def)
   }

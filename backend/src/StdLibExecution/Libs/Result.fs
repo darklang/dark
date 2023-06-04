@@ -185,8 +185,8 @@ let fns : List<BuiltInFn> =
               let! result = Interpreter.applyFnVal state b [ dv ]
 
               match result with
-              | DResult (Ok result) -> return Dval.resultOk result
-              | DResult (Error result) -> return Dval.resultError result
+              | DResult(Ok result) -> return Dval.resultOk result
+              | DResult(Error result) -> return Dval.resultError result
               | other ->
                 return
                   Exception.raiseCode (

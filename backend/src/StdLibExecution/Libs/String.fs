@@ -433,8 +433,8 @@ let fns : List<BuiltInFn> =
               |> System.Text.Encoding.UTF8.GetString
               |> String.normalize
               |> okPipe
-            with
-            | e -> "Not a valid base64 string" |> errPipe
+            with e ->
+              "Not a valid base64 string" |> errPipe
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -549,7 +549,7 @@ let fns : List<BuiltInFn> =
           Ply(DBool(haystack.Contains needle))
         | _ -> incorrectArgs ())
       sqlSpec =
-        SqlCallback2 (fun lookingIn searchingFor ->
+        SqlCallback2(fun lookingIn searchingFor ->
           // strpos returns indexed from 1; 0 means missing
           $"strpos({lookingIn}, {searchingFor}) > 0")
       previewable = Pure

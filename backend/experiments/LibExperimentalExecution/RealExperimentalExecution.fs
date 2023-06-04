@@ -117,7 +117,7 @@ let executeHandler
     let tracing = Tracing.create canvasID h.tlid traceID
 
     match reason with
-    | InitialExecution (desc, varname, inputVar) ->
+    | InitialExecution(desc, varname, inputVar) ->
       tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 

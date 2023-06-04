@@ -13,14 +13,14 @@ module LibExecution.VendoredTablecloth
 module Map =
   let keys (map : Map<'k, 'v>) : List<'k> =
     seq {
-      for KeyValue (key, _) in map do
+      for KeyValue(key, _) in map do
         yield key
     }
     |> List.ofSeq
 
   let values (map : Map<'k, 'v>) : List<'v> =
     seq {
-      for KeyValue (_, value) in map do
+      for KeyValue(_, value) in map do
         yield value
     }
     |> List.ofSeq

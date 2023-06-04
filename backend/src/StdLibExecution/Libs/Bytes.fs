@@ -60,8 +60,8 @@ let fns : List<BuiltInFn> =
               |> Ok
               |> DResult
               |> Ply
-            with
-            | e -> Ply(DResult(Error(DString("Not a valid base64 string"))))
+            with e ->
+              Ply(DResult(Error(DString("Not a valid base64 string"))))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

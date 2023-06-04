@@ -40,10 +40,11 @@ let queryableRoundtripsSuccessfullyInRecord
   let types : RT.Types =
     { RT.Types.empty with
         userTypes =
-          Map [ typeName,
-                { name = typeName
-                  tlid = 8UL
-                  definition = S.customTypeRecord [ "field", fieldTyp ] } ] }
+          Map
+            [ typeName,
+              { name = typeName
+                tlid = 8UL
+                definition = S.customTypeRecord [ "field", fieldTyp ] } ] }
 
 
   record
@@ -212,7 +213,8 @@ module Password =
         let types =
           { RT.Types.empty with
               userTypes =
-                Map [ typeName, S.userTypeRecord [] "MyType" 0 [ "x", RT.TPassword ] ] }
+                Map
+                  [ typeName, S.userTypeRecord [] "MyType" 0 [ "x", RT.TPassword ] ] }
 
         Expect.equalDval
           types
@@ -253,10 +255,11 @@ module Password =
       let availableTypes =
         { RT.Types.empty with
             userTypes =
-              Map [ typeName,
-                    { tlid = 8UL
-                      name = typeName
-                      definition = S.customTypeRecord [ "x", RT.TPassword ] } ] }
+              Map
+                [ typeName,
+                  { tlid = 8UL
+                    name = typeName
+                    definition = S.customTypeRecord [ "x", RT.TPassword ] } ] }
 
 
       let serialize = DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef

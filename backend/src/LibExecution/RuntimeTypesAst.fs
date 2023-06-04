@@ -20,23 +20,23 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EUnit _
   | EChar _
   | EFloat _ -> expr
-  | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
-  | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
-  | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
-  | EApply (id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
-  | ELambda (id, names, expr) -> ELambda(id, names, r expr)
-  | EList (id, exprs) -> EList(id, List.map r exprs)
-  | ETuple (id, first, second, theRest) ->
+  | ELet(id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
+  | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
+  | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
+  | EApply(id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
+  | ELambda(id, names, expr) -> ELambda(id, names, r expr)
+  | EList(id, exprs) -> EList(id, List.map r exprs)
+  | ETuple(id, first, second, theRest) ->
     ETuple(id, r first, r second, List.map r theRest)
-  | EMatch (id, mexpr, pairs) ->
+  | EMatch(id, mexpr, pairs) ->
     EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
-  | ERecord (id, typeName, fields) ->
+  | ERecord(id, typeName, fields) ->
     ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
-  | EAnd (id, left, right) -> EAnd(id, r left, r right)
-  | EOr (id, left, right) -> EOr(id, r left, r right)
-  | EEnum (id, typeName, caseName, fields) ->
+  | EAnd(id, left, right) -> EAnd(id, r left, r right)
+  | EOr(id, left, right) -> EOr(id, r left, r right)
+  | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, typeName, caseName, List.map r fields)
-  | EDict (id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
+  | EDict(id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f
@@ -50,23 +50,23 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EBool _
     | EUnit _
     | EFloat _ -> expr
-    | ELet (id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
-    | EApply (id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
-    | EIf (id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
-    | EFieldAccess (id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
-    | ELambda (id, names, expr) -> ELambda(id, names, r expr)
-    | EList (id, exprs) -> EList(id, List.map r exprs)
-    | ETuple (id, first, second, theRest) ->
+    | ELet(id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
+    | EApply(id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)
+    | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
+    | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, r expr, fieldname)
+    | ELambda(id, names, expr) -> ELambda(id, names, r expr)
+    | EList(id, exprs) -> EList(id, List.map r exprs)
+    | ETuple(id, first, second, theRest) ->
       ETuple(id, r first, r second, List.map r theRest)
-    | EMatch (id, mexpr, pairs) ->
+    | EMatch(id, mexpr, pairs) ->
       EMatch(id, r mexpr, List.map (fun (name, expr) -> (name, r expr)) pairs)
-    | ERecord (id, typeName, fields) ->
+    | ERecord(id, typeName, fields) ->
       ERecord(id, typeName, List.map (fun (name, expr) -> (name, r expr)) fields)
-    | EAnd (id, left, right) -> EAnd(id, r left, r right)
-    | EOr (id, left, right) -> EOr(id, r left, r right)
-    | EEnum (id, typeName, caseName, fields) ->
+    | EAnd(id, left, right) -> EAnd(id, r left, r right)
+    | EOr(id, left, right) -> EOr(id, r left, r right)
+    | EEnum(id, typeName, caseName, fields) ->
       EEnum(id, typeName, caseName, List.map r fields)
-    | EDict (id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
+    | EDict(id, fields) -> EDict(id, List.map (fun (k, v) -> (k, r v)) fields)
 
 
   f result

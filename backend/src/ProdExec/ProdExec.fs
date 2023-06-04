@@ -88,7 +88,7 @@ type Options =
   | ConvertST2RTAll
   | Help
 
-let parse (args : string []) : Options =
+let parse (args : string[]) : Options =
   match args with
   | [| "migrations"; "list" |] -> MigrationList
   | [| "migrations"; "run" |] -> MigrationsRun
@@ -193,7 +193,7 @@ let initSerializers () =
 // Json.Vanilla.allow<CTPusher.Payload.UpdateWorkerStates> "Pusher"
 
 [<EntryPoint>]
-let main (args : string []) : int =
+let main (args : string[]) : int =
   let name = "ProdExec"
   try
     initSerializers ()
@@ -205,8 +205,7 @@ let main (args : string []) : int =
     let result = (run options).Result
     LibService.Init.shutdown name
     result
-  with
-  | e ->
+  with e ->
     // Don't reraise or report as ProdExec is only run interactively
     printException "" [] e
     LibService.Init.shutdown name

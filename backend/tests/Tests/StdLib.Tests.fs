@@ -153,7 +153,8 @@ let oldTypesAreDeprecated =
 
     types
     |> List.iter (fun type_ ->
-      let key = RT.FQTypeName.StdlibTypeName.toString { type_.name with version = 0 }
+      let key =
+        RT.FQTypeName.StdlibTypeName.toString { type_.name with version = 0 }
 
       if type_.deprecated = RT.NotDeprecated then
         counts.Value <-

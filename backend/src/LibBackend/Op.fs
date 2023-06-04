@@ -72,15 +72,15 @@ let hasEffect (op : PT.Op) : bool =
 let tlidOf (op : PT.Op) : tlid =
   match op with
   | PT.SetHandler h -> h.tlid
-  | PT.CreateDB (tlid, _, _) -> tlid
-  | PT.SetExpr (tlid, _, _) -> tlid
+  | PT.CreateDB(tlid, _, _) -> tlid
+  | PT.SetExpr(tlid, _, _) -> tlid
   | PT.TLSavepoint tlid -> tlid
   | PT.UndoTL tlid -> tlid
   | PT.RedoTL tlid -> tlid
   | PT.DeleteTL tlid -> tlid
   | PT.SetFunction f -> f.tlid
   | PT.DeleteFunction tlid -> tlid
-  | PT.RenameDB (tlid, _) -> tlid
+  | PT.RenameDB(tlid, _) -> tlid
   | PT.SetType ut -> ut.tlid
   | PT.DeleteType tlid -> tlid
 
@@ -95,8 +95,8 @@ let tlidOplists2oplist (tos : PT.TLIDOplists) : PT.Oplist =
 let astOf (op : PT.Op) : Option<PT.Expr> =
   match op with
   | PT.SetFunction f -> Some f.body
-  | PT.SetExpr (_, _, ast) -> Some ast
-  | PT.SetHandler (h) -> Some h.ast
+  | PT.SetExpr(_, _, ast) -> Some ast
+  | PT.SetHandler(h) -> Some h.ast
   | PT.CreateDB _
   | PT.DeleteTL _
   | PT.TLSavepoint _
@@ -111,15 +111,15 @@ let astOf (op : PT.Op) : Option<PT.Expr> =
 let withAST (newAST : PT.Expr) (op : PT.Op) =
   match op with
   | PT.SetFunction userfn -> PT.SetFunction { userfn with body = newAST }
-  | PT.SetExpr (tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
-  | PT.SetHandler (handler) -> PT.SetHandler({ handler with ast = newAST })
+  | PT.SetExpr(tlid, id, _) -> PT.SetExpr(tlid, id, newAST)
+  | PT.SetHandler(handler) -> PT.SetHandler({ handler with ast = newAST })
   | PT.CreateDB _
   | PT.DeleteTL _
   | PT.TLSavepoint _
   | PT.UndoTL _
   | PT.RedoTL _
   | PT.DeleteFunction _
-  | PT.RenameDB (_, _)
+  | PT.RenameDB(_, _)
   | PT.SetType _
   | PT.DeleteType _ -> op
 

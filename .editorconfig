@@ -26,6 +26,7 @@ fsharp_max_dot_get_expression_width=85
 fsharp_max_elmish_width=85
 fsharp_max_function_binding_width=85
 fsharp_max_if_then_else_short_width=80
+fsharp_max_if_then_short_width=80
 fsharp_max_infix_operator_expression=80
 fsharp_max_record_width=85
 #fsharp_max_record_number_of_items=1 # does nothing, due to character_width

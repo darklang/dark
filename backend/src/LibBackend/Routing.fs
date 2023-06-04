@@ -36,7 +36,8 @@ let routeToPostgresPattern (route : string) : string =
     | '_' -> "\\_"
     | other -> string other)
   |> splitUriPath
-  |> Array.map (fun segment -> if String.startsWith ":" segment then "%" else segment)
+  |> Array.map (fun segment ->
+    if String.startsWith ":" segment then "%" else segment)
   |> String.concat "/"
   |> (+) "/"
 

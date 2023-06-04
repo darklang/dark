@@ -134,10 +134,12 @@ let fns : List<BuiltInFn> =
             let tlid = uint64 tlid
             let! c =
               Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasID [ tlid ]
-            if Map.containsKey tlid c.deletedHandlers
-               || Map.containsKey tlid c.deletedDBs
-               || Map.containsKey tlid c.deletedUserTypes
-               || Map.containsKey tlid c.deletedUserFunctions then
+            if
+              Map.containsKey tlid c.deletedHandlers
+              || Map.containsKey tlid c.deletedDBs
+              || Map.containsKey tlid c.deletedUserTypes
+              || Map.containsKey tlid c.deletedUserFunctions
+            then
               do! Canvas.deleteToplevelForever canvasID tlid
               return DBool true
             else
@@ -220,7 +222,7 @@ let fns : List<BuiltInFn> =
                 | PT.Handler.Worker _
                 | PT.Handler.Cron _
                 | PT.Handler.REPL _ -> None
-                | PT.Handler.HTTP (route, method) ->
+                | PT.Handler.HTTP(route, method) ->
                   [ "tlid", DString(handler.tlid.ToString())
                     "method", DString method
                     "route", DString route ]

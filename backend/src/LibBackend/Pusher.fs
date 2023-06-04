@@ -38,8 +38,7 @@ type EventNameAndPayload = { EventName : string; Payload : string }
 // We sometimes need _only_ the event name, and serialization of the payload
 // may be expensive, so include a function that _just_ gets the event name.
 type PusherEventSerializer =
-  { EventName : Event -> string
-    Serialize : Event -> EventNameAndPayload }
+  { EventName : Event -> string; Serialize : Event -> EventNameAndPayload }
 
 
 /// <summary>Send an event to Pusher.com.</summary>

@@ -15,7 +15,7 @@ let rec typeName (t : TypeReference) : string =
   | TChar -> "Char"
   | TString -> "String"
   | TList nested -> $"List<{typeName nested}>"
-  | TTuple (n1, n2, rest) ->
+  | TTuple(n1, n2, rest) ->
     let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
     $"({nested})"
   | TDict nested -> $"Dict<{typeName nested}>"
@@ -26,8 +26,8 @@ let rec typeName (t : TypeReference) : string =
   | TPassword -> "Password"
   | TUuid -> "Uuid"
   | TOption nested -> $"Option<{typeName nested}>"
-  | TResult (ok, err) -> $"Result<{typeName ok}, {typeName err}>"
-  | TCustomType (t, typeArgs) ->
+  | TResult(ok, err) -> $"Result<{typeName ok}, {typeName err}>"
+  | TCustomType(t, typeArgs) ->
     let typeArgsPortion =
       match typeArgs with
       | [] -> ""
@@ -50,22 +50,22 @@ let rec dvalTypeName (dv : Dval) : string =
   | DChar _ -> "Char"
   | DString _ -> "String"
   | DList [] -> "List<'a>"
-  | DList (v :: _) -> "List<" + dvalTypeName v + ">"
+  | DList(v :: _) -> "List<" + dvalTypeName v + ">"
   | DDict _ -> "Dict"
-  | DFnVal (Lambda _) -> "Lambda"
+  | DFnVal(Lambda _) -> "Lambda"
   | DDB _ -> "Datastore"
   | DDateTime _ -> "DateTime"
   | DPassword _ -> "Password"
   | DUuid _ -> "Uuid"
-  | DOption (Some v) -> "Option<" + dvalTypeName v + ">"
+  | DOption(Some v) -> "Option<" + dvalTypeName v + ">"
   | DOption None -> "Option<'a>"
-  | DResult (Ok v) -> "Result<" + dvalTypeName v + ", 'err>"
-  | DResult (Error v) -> "Result<'ok, " + dvalTypeName v + ">"
-  | DTuple (t1, t2, trest) ->
+  | DResult(Ok v) -> "Result<" + dvalTypeName v + ", 'err>"
+  | DResult(Error v) -> "Result<'ok, " + dvalTypeName v + ">"
+  | DTuple(t1, t2, trest) ->
     "(" + (t1 :: t2 :: trest |> List.map dvalTypeName |> String.concat ", ") + ")"
   | DBytes _ -> "Bytes"
-  | DRecord (typeName, _) -> FQTypeName.toString typeName
-  | DEnum (typeName, _, _) -> FQTypeName.toString typeName
+  | DRecord(typeName, _) -> FQTypeName.toString typeName
+  | DEnum(typeName, _, _) -> FQTypeName.toString typeName
 
 
 // SERIALIZER_DEF Custom DvalReprDeveloper.toRepr
@@ -110,7 +110,7 @@ let toRepr (dv : Dval) : string =
       // See docs/dblock-serialization.ml
       justType
     | DIncomplete _ -> justType
-    | DError (_, msg) -> $"<error: {msg}>"
+    | DError(_, msg) -> $"<error: {msg}>"
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
@@ -120,11 +120,11 @@ let toRepr (dv : Dval) : string =
       else
         let elems = String.concat ", " (List.map (toRepr_ indent) l)
         $"[{inl}{elems}{nl}]"
-    | DTuple (first, second, theRest) ->
+    | DTuple(first, second, theRest) ->
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
       $"({inl}{elems}{nl})"
-    | DRecord (typeName, o) ->
+    | DRecord(typeName, o) ->
       let strs =
         o
         |> Map.toList
@@ -145,11 +145,11 @@ let toRepr (dv : Dval) : string =
         let elems = String.concat $",{inl}" strs
         "{" + $"{inl}{elems}{nl}" + "}"
     | DOption None -> "Nothing"
-    | DOption (Some dv) -> "Just " + toRepr_ indent dv
-    | DResult (Ok dv) -> "Ok " + toRepr_ indent dv
-    | DResult (Error dv) -> "Error " + toRepr_ indent dv
+    | DOption(Some dv) -> "Just " + toRepr_ indent dv
+    | DResult(Ok dv) -> "Ok " + toRepr_ indent dv
+    | DResult(Error dv) -> "Error " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
-    | DEnum (typeName, caseName, fields) ->
+    | DEnum(typeName, caseName, fields) ->
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 

@@ -130,13 +130,13 @@ module TypeReference =
     let c = fromSynType
 
     match typ with
-    | SynType.Paren (t, _) -> c t
+    | SynType.Paren(t, _) -> c t
 
     // Variable types (i.e. "generic types")
     // e.g. `'a` in `'a -> bool`
-    | SynType.Var (SynTypar (id, _, _), _) -> PT.TVariable(id.idText)
+    | SynType.Var(SynTypar(id, _, _), _) -> PT.TVariable(id.idText)
 
-    | SynType.Tuple (_, args, _) ->
+    | SynType.Tuple(_, args, _) ->
       let args =
         args
         |> List.filterMap (fun arg ->
@@ -153,22 +153,22 @@ module TypeReference =
 
     // Function types
     // e.g. `'a -> bool` in `let friends (lambda: ('a -> bool)) = ...`
-    | SynType.Fun (arg, ret, _, _) -> PT.TFn([ c arg ], c ret)
+    | SynType.Fun(arg, ret, _, _) -> PT.TFn([ c arg ], c ret)
 
 
     // Named types. covers:
     // - built-in F# types like `bool`
     // - Stdlib-defined types
     // - User-defined types
-    | SynType.App (SynType.LongIdent (SynLongIdent (names, _, _)),
-                   _,
-                   typeArgs,
-                   _,
-                   _,
-                   _,
-                   range) -> fromNamesAndTypeArgs names typeArgs
+    | SynType.App(SynType.LongIdent(SynLongIdent(names, _, _)),
+                  _,
+                  typeArgs,
+                  _,
+                  _,
+                  _,
+                  range) -> fromNamesAndTypeArgs names typeArgs
 
-    | SynType.LongIdent (SynLongIdent (names, _, _)) -> fromNamesAndTypeArgs names []
+    | SynType.LongIdent(SynLongIdent(names, _, _)) -> fromNamesAndTypeArgs names []
 
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
@@ -178,14 +178,14 @@ module TypeReference =
     : PT.TypeReference =
     let c = resolveNames userTypes
     match typ with
-    | PT.TCustomType (tn, args) ->
+    | PT.TCustomType(tn, args) ->
       PT.TCustomType(FQTypeName.resolveNames userTypes tn, List.map c args)
-    | PT.TFn (args, ret) -> PT.TFn(List.map c args, c ret)
-    | PT.TTuple (first, second, theRest) ->
+    | PT.TFn(args, ret) -> PT.TFn(List.map c args, c ret)
+    | PT.TTuple(first, second, theRest) ->
       PT.TTuple(c first, c second, List.map c theRest)
     | PT.TList arg -> PT.TList(c arg)
     | PT.TOption arg -> PT.TOption(c arg)
-    | PT.TResult (okArg, errorArg) -> PT.TResult(c okArg, c errorArg)
+    | PT.TResult(okArg, errorArg) -> PT.TResult(c okArg, c errorArg)
     | PT.TDict valArg -> PT.TDict(c valArg)
     | PT.TVariable _ -> typ
     | PT.TDB arg -> PT.TDB(c arg)
@@ -206,12 +206,11 @@ module LetPattern =
     let mapPat = fromSynPat
 
     match pat with
-    | SynPat.Paren (subPat, _) -> mapPat subPat
-    | SynPat.Wild (_) -> PT.LPVariable(gid (), "_")
-    | SynPat.Named (SynIdent (name, _), _, _, _) ->
-      PT.LPVariable(gid (), name.idText)
+    | SynPat.Paren(subPat, _) -> mapPat subPat
+    | SynPat.Wild(_) -> PT.LPVariable(gid (), "_")
+    | SynPat.Named(SynIdent(name, _), _, _, _) -> PT.LPVariable(gid (), name.idText)
 
-    | SynPat.Tuple (_, (first :: second :: theRest), _) ->
+    | SynPat.Tuple(_, (first :: second :: theRest), _) ->
       PT.LetPattern.LPTuple(
         gid (),
         mapPat first,
@@ -233,30 +232,30 @@ module MatchPattern =
       // enum. But if it has two parens around it, it's a single tuple.
       // eg: (Foo(1, 2)) vs (Foo((1, 2)))
       match ast with
-      | SynPat.Paren (SynPat.Paren (SynPat.Tuple (_, t1 :: t2 :: trest, _), _), _) ->
+      | SynPat.Paren(SynPat.Paren(SynPat.Tuple(_, t1 :: t2 :: trest, _), _), _) ->
         [ PT.MPTuple(gid (), r t1, r t2, List.map r trest) ]
-      | SynPat.Paren (SynPat.Tuple (_, args, _), _) -> List.map r args
-      | SynPat.Tuple (_, args, _) -> List.map r args
+      | SynPat.Paren(SynPat.Tuple(_, args, _), _) -> List.map r args
+      | SynPat.Tuple(_, args, _) -> List.map r args
       | e -> [ r e ]
 
     match pat with
-    | SynPat.Named (SynIdent (name, _), _, _, _) -> PT.MPVariable(id, name.idText)
+    | SynPat.Named(SynIdent(name, _), _, _, _) -> PT.MPVariable(id, name.idText)
     | SynPat.Wild _ -> PT.MPVariable(gid (), "_") // wildcard, not blank
-    | SynPat.Const (SynConst.Int32 n, _) -> PT.MPInt(id, n)
-    | SynPat.Const (SynConst.Int64 n, _) -> PT.MPInt(id, int64 n)
-    | SynPat.Const (SynConst.UInt64 n, _) -> PT.MPInt(id, int64 n)
-    | SynPat.Const (SynConst.UserNum (n, "I"), _) -> PT.MPInt(id, parseInt64 n)
-    | SynPat.Const (SynConst.Char c, _) -> PT.MPChar(id, string c)
-    | SynPat.Const (SynConst.Bool b, _) -> PT.MPBool(id, b)
-    | SynPat.Const (SynConst.Unit, _) -> PT.MPUnit(id)
+    | SynPat.Const(SynConst.Int32 n, _) -> PT.MPInt(id, n)
+    | SynPat.Const(SynConst.Int64 n, _) -> PT.MPInt(id, int64 n)
+    | SynPat.Const(SynConst.UInt64 n, _) -> PT.MPInt(id, int64 n)
+    | SynPat.Const(SynConst.UserNum(n, "I"), _) -> PT.MPInt(id, parseInt64 n)
+    | SynPat.Const(SynConst.Char c, _) -> PT.MPChar(id, string c)
+    | SynPat.Const(SynConst.Bool b, _) -> PT.MPBool(id, b)
+    | SynPat.Const(SynConst.Unit, _) -> PT.MPUnit(id)
     | SynPat.Null _ ->
       Exception.raiseInternal "null pattern not supported, use `()`" [ "pat", pat ]
-    | SynPat.Paren (pat, _) -> r pat
-    | SynPat.Const (SynConst.Double d, _) ->
+    | SynPat.Paren(pat, _) -> r pat
+    | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       PT.MPFloat(id, sign, whole, fraction)
-    | SynPat.Const (SynConst.String (s, _, _), _) -> PT.MPString(id, s)
-    | SynPat.LongIdent (SynLongIdent (names, _, _), _, _, SynArgPats.Pats args, _, _) ->
+    | SynPat.Const(SynConst.String(s, _, _), _) -> PT.MPString(id, s)
+    | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
       let enumName =
         List.last names |> Exception.unwrapOptionInternal "missing enum name" []
       let modules =
@@ -267,11 +266,11 @@ module MatchPattern =
           [ "pat", pat ]
       let args = List.map convertEnumArg args |> List.concat
       PT.MPEnum(id, enumName.idText, args)
-    | SynPat.Tuple (_isStruct, (first :: second :: theRest), _range) ->
+    | SynPat.Tuple(_isStruct, (first :: second :: theRest), _range) ->
       PT.MPTuple(id, r first, r second, List.map r theRest)
-    | SynPat.ListCons (headPat, tailPat, _, _) ->
+    | SynPat.ListCons(headPat, tailPat, _, _) ->
       PT.MPListCons(id, r headPat, r tailPat)
-    | SynPat.ArrayOrList (_, pats, _) -> PT.MPList(id, List.map r pats)
+    | SynPat.ArrayOrList(_, pats, _) -> PT.MPList(id, List.map r pats)
     | _ -> Exception.raiseInternal "unhandled pattern" [ "pattern", pat ]
 
 
@@ -302,26 +301,27 @@ module Expr =
 
   let parseNames (e : SynExpr) : List<string> =
     match e with
-    | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) ->
+    | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) ->
       names |> List.map (fun i -> i.idText)
     | SynExpr.Ident name -> [ name.idText ]
     | _ -> Exception.raiseInternal "Bad format in names" [ "e", e ]
 
 
   let private ops =
-    Map.ofList [ ("op_Addition", PT.ArithmeticPlus)
-                 ("op_Subtraction", PT.ArithmeticMinus)
-                 ("op_Multiply", PT.ArithmeticMultiply)
-                 ("op_Division", PT.ArithmeticDivide)
-                 ("op_Modulus", PT.ArithmeticModulo)
-                 ("op_Concatenate", PT.ArithmeticPower)
-                 ("op_GreaterThan", PT.ComparisonGreaterThan)
-                 ("op_GreaterThanOrEqual", PT.ComparisonGreaterThanOrEqual)
-                 ("op_LessThan", PT.ComparisonLessThan)
-                 ("op_LessThanOrEqual", PT.ComparisonLessThanOrEqual)
-                 ("op_EqualsEquals", PT.ComparisonEquals)
-                 ("op_BangEquals", PT.ComparisonNotEquals)
-                 ("op_PlusPlus", PT.StringConcat) ]
+    Map.ofList
+      [ ("op_Addition", PT.ArithmeticPlus)
+        ("op_Subtraction", PT.ArithmeticMinus)
+        ("op_Multiply", PT.ArithmeticMultiply)
+        ("op_Division", PT.ArithmeticDivide)
+        ("op_Modulus", PT.ArithmeticModulo)
+        ("op_Concatenate", PT.ArithmeticPower)
+        ("op_GreaterThan", PT.ComparisonGreaterThan)
+        ("op_GreaterThanOrEqual", PT.ComparisonGreaterThanOrEqual)
+        ("op_LessThan", PT.ComparisonLessThan)
+        ("op_LessThanOrEqual", PT.ComparisonLessThanOrEqual)
+        ("op_EqualsEquals", PT.ComparisonEquals)
+        ("op_BangEquals", PT.ComparisonNotEquals)
+        ("op_PlusPlus", PT.StringConcat) ]
 
   let rec fromSynExpr' (ast : SynExpr) : PT.Expr =
     let c = fromSynExpr'
@@ -331,35 +331,35 @@ module Expr =
       // enum. But if it has two parens around it, it's a single tuple.
       // eg: (Foo(1, 2)) vs (Foo((1, 2)))
       match ast with
-      | SynExpr.Paren (SynExpr.Paren (SynExpr.Tuple (_, t1 :: t2 :: trest, _, _),
-                                      _,
-                                      _,
-                                      _),
-                       _,
-                       _,
-                       _) -> [ PT.ETuple(gid (), c t1, c t2, List.map c trest) ]
-      | SynExpr.Paren (SynExpr.Tuple (_, args, _, _), _, _, _) -> List.map c args
-      | SynExpr.Tuple (_, args, _, _) -> List.map c args
+      | SynExpr.Paren(SynExpr.Paren(SynExpr.Tuple(_, t1 :: t2 :: trest, _, _),
+                                    _,
+                                    _,
+                                    _),
+                      _,
+                      _,
+                      _) -> [ PT.ETuple(gid (), c t1, c t2, List.map c trest) ]
+      | SynExpr.Paren(SynExpr.Tuple(_, args, _, _), _, _, _) -> List.map c args
+      | SynExpr.Tuple(_, args, _, _) -> List.map c args
       | e -> [ c e ]
 
 
     let convertLambdaVar (var : SynSimplePat) : string =
       match var with
-      | SynSimplePat.Id (name, _, _, _, _, _) -> nameOrBlank name.idText
+      | SynSimplePat.Id(name, _, _, _, _, _) -> nameOrBlank name.idText
       | _ -> Exception.raiseInternal "unsupported lambdaVar" [ "var", var ]
 
     let synToPipeExpr (e : SynExpr) : PT.PipeExpr =
       match c e with
-      | PT.EFnCall (id, name, typeArgs, args) ->
+      | PT.EFnCall(id, name, typeArgs, args) ->
         PT.EPipeFnCall(id, name, typeArgs, args)
-      | PT.EInfix (id, op, Placeholder, arg2) -> PT.EPipeInfix(id, op, arg2)
-      | PT.EInfix (id, op, arg1, Placeholder) -> PT.EPipeInfix(id, op, arg1)
-      | PT.EEnum (id, typeName, caseName, fields) ->
+      | PT.EInfix(id, op, Placeholder, arg2) -> PT.EPipeInfix(id, op, arg2)
+      | PT.EInfix(id, op, arg1, Placeholder) -> PT.EPipeInfix(id, op, arg1)
+      | PT.EEnum(id, typeName, caseName, fields) ->
         PT.EPipeEnum(id, typeName, caseName, fields)
-      | PT.EVariable (id, name) -> PT.EPipeVariable(id, name)
-      | PT.EEnum (id, typeName, caseName, fields) ->
+      | PT.EVariable(id, name) -> PT.EPipeVariable(id, name)
+      | PT.EEnum(id, typeName, caseName, fields) ->
         PT.EPipeEnum(id, typeName, caseName, fields)
-      | PT.ELambda (id, vars, body) -> PT.EPipeLambda(id, vars, body)
+      | PT.ELambda(id, vars, body) -> PT.EPipeLambda(id, vars, body)
       | other ->
         Exception.raiseInternal
           "Expected a function, got something else."
@@ -373,46 +373,46 @@ module Expr =
     // Literals (ints, chars, bools, etc)
     | SynExpr.Null _ ->
       Exception.raiseInternal "null not supported, use `()`" [ "ast", ast ]
-    | SynExpr.Const (SynConst.Unit _, _) -> PT.EUnit id
-    | SynExpr.Const (SynConst.Int32 n, _) -> PT.EInt(id, n)
-    | SynExpr.Const (SynConst.Int64 n, _) -> PT.EInt(id, int64 n)
-    | SynExpr.Const (SynConst.UInt64 n, _) -> PT.EInt(id, int64 n)
-    | SynExpr.Const (SynConst.UserNum (n, "I"), _) -> PT.EInt(id, parseInt64 n)
-    | SynExpr.Const (SynConst.Char c, _) -> PT.EChar(id, string c)
-    | SynExpr.Const (SynConst.Bool b, _) -> PT.EBool(id, b)
-    | SynExpr.Const (SynConst.Double d, _) ->
+    | SynExpr.Const(SynConst.Unit _, _) -> PT.EUnit id
+    | SynExpr.Const(SynConst.Int32 n, _) -> PT.EInt(id, n)
+    | SynExpr.Const(SynConst.Int64 n, _) -> PT.EInt(id, int64 n)
+    | SynExpr.Const(SynConst.UInt64 n, _) -> PT.EInt(id, int64 n)
+    | SynExpr.Const(SynConst.UserNum(n, "I"), _) -> PT.EInt(id, parseInt64 n)
+    | SynExpr.Const(SynConst.Char c, _) -> PT.EChar(id, string c)
+    | SynExpr.Const(SynConst.Bool b, _) -> PT.EBool(id, b)
+    | SynExpr.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       PT.EFloat(id, sign, whole, fraction)
 
 
     // Strings
-    | SynExpr.Const (SynConst.String (s, _, _), _) ->
+    | SynExpr.Const(SynConst.String(s, _, _), _) ->
       PT.EString(id, [ PT.StringText s ])
-    | SynExpr.InterpolatedString (parts, _, _) ->
+    | SynExpr.InterpolatedString(parts, _, _) ->
       let parts =
         parts
         |> List.filterMap (function
-          | SynInterpolatedStringPart.String ("", _) -> None
-          | SynInterpolatedStringPart.String (s, _) -> Some(PT.StringText s)
-          | SynInterpolatedStringPart.FillExpr (e, _) ->
+          | SynInterpolatedStringPart.String("", _) -> None
+          | SynInterpolatedStringPart.String(s, _) -> Some(PT.StringText s)
+          | SynInterpolatedStringPart.FillExpr(e, _) ->
             Some(PT.StringInterpolation(c e)))
       PT.EString(id, parts)
 
 
     // Simple identifiers/operators like `==`
-    | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
+    | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
       Map.containsKey ident.idText ops
       ->
       let op =
         Map.get ident.idText ops
         |> Exception.unwrapOptionInternal
-             "can't find operation"
-             [ "name", ident.idText ]
+          "can't find operation"
+          [ "name", ident.idText ]
       PT.EInfix(id, PT.InfixFnCall op, placeholder, placeholder)
 
 
     // Binary Ops: && / ||
-    | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
+    | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
       List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
       ->
       let op =
@@ -425,7 +425,7 @@ module Expr =
 
 
     // Negation
-    | SynExpr.LongIdent (_, SynLongIdent ([ ident ], _, _), _, _) when
+    | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
       ident.idText = "op_UnaryNegation"
       ->
       let name = PT.FQFnName.stdlibFqName [ "Int" ] "negate" 0
@@ -435,35 +435,35 @@ module Expr =
     // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
       match parseFn ident.idText with
-      | Some (name, version) ->
+      | Some(name, version) ->
         PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [])
       | None -> PT.EVariable(id, ident.idText)
 
     // List literals
-    | SynExpr.ArrayOrList (_, exprs, _) -> PT.EList(id, exprs |> List.map c)
+    | SynExpr.ArrayOrList(_, exprs, _) -> PT.EList(id, exprs |> List.map c)
 
     // a literal list is sometimes made up of nested Sequentials
-    | SynExpr.ArrayOrListComputed (_, (SynExpr.Sequential _ as seq), _) ->
+    | SynExpr.ArrayOrListComputed(_, (SynExpr.Sequential _ as seq), _) ->
       let rec seqAsList expr : List<SynExpr> =
         match expr with
-        | SynExpr.Sequential (_, _, expr1, expr2, _) -> expr1 :: seqAsList expr2
+        | SynExpr.Sequential(_, _, expr1, expr2, _) -> expr1 :: seqAsList expr2
         | _ -> [ expr ]
       PT.EList(id, seq |> seqAsList |> List.map c)
 
-    | SynExpr.ArrayOrListComputed (_, SynExpr.Tuple (_, exprs, _, _), _) ->
+    | SynExpr.ArrayOrListComputed(_, SynExpr.Tuple(_, exprs, _, _), _) ->
       PT.EList(id, exprs |> List.map c)
 
-    | SynExpr.ArrayOrListComputed (_, expr, _) -> PT.EList(id, [ c expr ])
+    | SynExpr.ArrayOrListComputed(_, expr, _) -> PT.EList(id, [ c expr ])
 
 
     // Tuples
-    | SynExpr.Tuple (_, first :: second :: rest, _, _) ->
+    | SynExpr.Tuple(_, first :: second :: rest, _, _) ->
       PT.ETuple(id, c first, c second, List.map c rest)
 
     // Enum values (EEnums)
     // TODO: remove this explicit handling
     // when the Option and Result types are defined in StdLib
-    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
+    | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Ok"; "Error" ]
       ->
       let typeName =
@@ -471,7 +471,7 @@ module Expr =
 
       PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
-    | SynExpr.App (_, _, SynExpr.Ident name, arg, _) when
+    | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Nothing"; "Just" ]
       ->
       let typeName =
@@ -492,7 +492,7 @@ module Expr =
 
     // Package manager function calls
     // (preliminary support)
-    | SynExpr.LongIdent (_, SynLongIdent ([ owner; modName; fnName ], _, _), _, _) when
+    | SynExpr.LongIdent(_, SynLongIdent([ owner; modName; fnName ], _, _), _, _) when
       owner.idText = "Test" && modName.idText = "Test"
       ->
       PT.EFnCall(
@@ -508,7 +508,7 @@ module Expr =
 
 
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
-    | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) when
+    | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) when
       (names
        |> List.initial
        |> Option.unwrap []
@@ -522,7 +522,7 @@ module Expr =
         |> fun i -> i.idText
 
       match parseFn name with
-      | Some (name, version) ->
+      | Some(name, version) ->
         PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, [], [])
       | None ->
         let enumName = parseEnum name
@@ -546,7 +546,7 @@ module Expr =
 
 
     // e.g. `Json.serialize<T>`
-    | SynExpr.TypeApp (SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
+    | SynExpr.TypeApp(SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
@@ -554,23 +554,21 @@ module Expr =
       let name, version =
         parseFn name.idText
         |> Exception.unwrapOptionInternal
-             "invalid fn name"
-             [ "name", name.idText; "ast", ast ]
+          "invalid fn name"
+          [ "name", name.idText; "ast", ast ]
       PT.EFnCall(gid (), PT.FQFnName.userFqName [] name version, typeArgs, [])
 
     // e.g. `Module1.Module2.fnName<String>`
-    | SynExpr.TypeApp (SynExpr.LongIdent (_,
-                                          SynLongIdent (first :: second :: theRest,
-                                                        _,
-                                                        _),
-                                          _,
-                                          _),
-                       _,
-                       typeArgs,
-                       _,
-                       _,
-                       _,
-                       _) ->
+    | SynExpr.TypeApp(SynExpr.LongIdent(_,
+                                        SynLongIdent(first :: second :: theRest, _, _),
+                                        _,
+                                        _),
+                      _,
+                      typeArgs,
+                      _,
+                      _,
+                      _,
+                      _) ->
 
       match List.rev (first :: second :: theRest) with
       // the last item is the function name
@@ -593,7 +591,7 @@ module Expr =
 
 
     // Field access: a.b.c.d
-    | SynExpr.LongIdent (_, SynLongIdent (names, _, _), _, _) ->
+    | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) ->
       match names with
       | [] -> Exception.raiseInternal "empty list in LongIdent" []
       | var :: fields ->
@@ -604,7 +602,7 @@ module Expr =
           fields
 
     // (...).a.b
-    | SynExpr.DotGet (expr, _, SynLongIdent (fields, _, _), _) ->
+    | SynExpr.DotGet(expr, _, SynLongIdent(fields, _, _), _) ->
       List.fold
         (c expr)
         (fun acc (field : Ident) ->
@@ -612,21 +610,15 @@ module Expr =
         fields
 
     // Lambdas
-    | SynExpr.Lambda (_,
-                      false,
-                      SynSimplePats.SimplePats (outerVars, _),
-                      body,
-                      _,
-                      _,
-                      _) ->
+    | SynExpr.Lambda(_, false, SynSimplePats.SimplePats(outerVars, _), body, _, _, _) ->
       let rec extractVarsAndBody expr =
         match expr with
         // The 2nd param indicates this was part of a lambda
-        | SynExpr.Lambda (_, true, SynSimplePats.SimplePats (vars, _), body, _, _, _) ->
+        | SynExpr.Lambda(_, true, SynSimplePats.SimplePats(vars, _), body, _, _, _) ->
           let nestedVars, body = extractVarsAndBody body
           vars @ nestedVars, body
         // The 2nd param indicates this was not nested
-        | SynExpr.Lambda (_, false, SynSimplePats.SimplePats (vars, _), body, _, _, _) ->
+        | SynExpr.Lambda(_, false, SynSimplePats.SimplePats(vars, _), body, _, _, _) ->
           vars, body
         | SynExpr.Lambda _ ->
           Exception.raiseInternal "TODO: other types of lambda" [ "expr", expr ]
@@ -641,21 +633,21 @@ module Expr =
 
 
     // if/else expressions
-    | SynExpr.IfThenElse (cond, thenExpr, Some elseExpr, _, _, _, _) ->
+    | SynExpr.IfThenElse(cond, thenExpr, Some elseExpr, _, _, _, _) ->
       PT.EIf(id, c cond, c thenExpr, c elseExpr)
 
     // if (no else) expression
-    | SynExpr.IfThenElse (cond, thenExpr, None, _, _, _, _) ->
+    | SynExpr.IfThenElse(cond, thenExpr, None, _, _, _, _) ->
       PT.EIf(id, c cond, c thenExpr, PT.EUnit(gid ()))
 
 
     // `let` bindings
-    | SynExpr.LetOrUse (_,
-                        _,
-                        [ SynBinding (_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],
-                        body,
-                        _,
-                        _) ->
+    | SynExpr.LetOrUse(_,
+                       _,
+                       [ SynBinding(_, _, _, _, _, _, _, pat, _, rhs, _, _, _) ],
+                       body,
+                       _,
+                       _) ->
 
       PT.ELet(id, LetPattern.fromSynPat pat, c rhs, c body)
 
@@ -667,26 +659,26 @@ module Expr =
     // | None -> ... // cases
     // | Some 1 -> ...
     // | ...
-    | SynExpr.Match (_, cond, cases, _, _) ->
+    | SynExpr.Match(_, cond, cases, _, _) ->
       let convertCase
-        (SynMatchClause (pat, _, expr, _, _, _) : SynMatchClause)
+        (SynMatchClause(pat, _, expr, _, _, _) : SynMatchClause)
         : PT.MatchPattern * PT.Expr =
         (MatchPattern.fromSynPat pat, c expr)
       PT.EMatch(id, c cond, List.map convertCase cases)
 
 
     // Parens (eg `(5)`)
-    | SynExpr.Paren (expr, _, _, _) -> c expr // just unwrap
+    | SynExpr.Paren(expr, _, _, _) -> c expr // just unwrap
 
     // "Typed" (we don't use this)
-    | SynExpr.Typed (expr, _, _) -> c expr // just unwrap
+    | SynExpr.Typed(expr, _, _) -> c expr // just unwrap
 
     // Do (eg do ())
-    | SynExpr.Do (expr, _) -> c expr // just unwrap
+    | SynExpr.Do(expr, _) -> c expr // just unwrap
 
 
     // Sequential code: (a; b) -> let _ = a in b
-    | SynExpr.Sequential (_, _, a, b, _) ->
+    | SynExpr.Sequential(_, _, a, b, _) ->
       PT.ELet(id, PT.LPVariable(gid (), "_"), c a, c b)
 
 
@@ -694,21 +686,17 @@ module Expr =
     // nested pipes - F# uses 2 Apps to represent a pipe. The outer app has an
     // op_PipeRight, and the inner app has two arguments. Those arguments might
     // also be pipes
-    | SynExpr.App (_,
-                   _,
-                   SynExpr.Ident pipe,
-                   SynExpr.App (_, _, nestedPipes, arg, _),
-                   _)
-    | SynExpr.App (_,
-                   _,
-                   SynExpr.LongIdent (_, SynLongIdent ([ pipe ], _, _), _, _),
-                   SynExpr.App (_, _, nestedPipes, arg, _),
-                   _) when pipe.idText = "op_PipeRight" ->
+    | SynExpr.App(_, _, SynExpr.Ident pipe, SynExpr.App(_, _, nestedPipes, arg, _), _)
+    | SynExpr.App(_,
+                  _,
+                  SynExpr.LongIdent(_, SynLongIdent([ pipe ], _, _), _, _),
+                  SynExpr.App(_, _, nestedPipes, arg, _),
+                  _) when pipe.idText = "op_PipeRight" ->
       match c nestedPipes with
-      | PT.EPipe (id, arg1, PipePlaceholder, []) ->
+      | PT.EPipe(id, arg1, PipePlaceholder, []) ->
         // when we just built the lowest, the second one goes here
         PT.EPipe(id, arg1, synToPipeExpr arg, [])
-      | PT.EPipe (id, arg1, arg2, rest) ->
+      | PT.EPipe(id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
       // Exception.raiseInternal $"Pipe: {nestedPipes},\n\n{arg},\n\n{pipe}\n\n, {c arg})"
       | other ->
@@ -717,32 +705,32 @@ module Expr =
           [ "arg", arg ]
 
     // the very bottom on the pipe chain, this is the first and second expressions
-    | SynExpr.App (_, _, SynExpr.Ident pipe, expr, _)
-    | SynExpr.App (_,
-                   _,
-                   SynExpr.LongIdent (_, SynLongIdent ([ pipe ], _, _), _, _),
-                   expr,
-                   _) when pipe.idText = "op_PipeRight" ->
+    | SynExpr.App(_, _, SynExpr.Ident pipe, expr, _)
+    | SynExpr.App(_,
+                  _,
+                  SynExpr.LongIdent(_, SynLongIdent([ pipe ], _, _), _, _),
+                  expr,
+                  _) when pipe.idText = "op_PipeRight" ->
       // the very bottom on the pipe chain, this is just the first expression
       PT.EPipe(id, c expr, pipePlaceholder, [])
 
     // e.g. MyMod.MyRecord
-    | SynExpr.App (_,
-                   _,
-                   SynExpr.TypeApp (name, _, typeArgs, _, _, _, _),
-                   (SynExpr.Record _ as expr),
-                   _) ->
+    | SynExpr.App(_,
+                  _,
+                  SynExpr.TypeApp(name, _, typeArgs, _, _, _, _),
+                  (SynExpr.Record _ as expr),
+                  _) ->
       if List.length typeArgs <> 0 then
         Exception.raiseInternal "Record should not have type args" [ "expr", expr ]
 
       match c expr with
-      | PT.ERecord (id, typeName, fields) -> PT.ERecord(id, typeName, fields)
-      | PT.EDict (id, fields) -> PT.EDict(id, fields)
+      | PT.ERecord(id, typeName, fields) -> PT.ERecord(id, typeName, fields)
+      | PT.EDict(id, fields) -> PT.EDict(id, fields)
       | _ -> Exception.raiseInternal "Not an expected record" [ "expr", expr ]
 
 
     // Records: MyRecord { x = 5 } or Dict { x = 5 }
-    | SynExpr.App (_, _, name, SynExpr.Record (_, _, fields, _), _) when
+    | SynExpr.App(_, _, name, SynExpr.Record(_, _, fields, _), _) when
       List.all (fun n -> String.isCapitalized n) (parseNames name)
       ->
       let names = parseNames name
@@ -755,7 +743,7 @@ module Expr =
         fields
         |> List.map (fun field ->
           match field with
-          | SynExprRecordField ((SynLongIdent ([ name ], _, _), _), _, Some expr, _) ->
+          | SynExprRecordField((SynLongIdent([ name ], _, _), _), _, Some expr, _) ->
             (nameOrBlank name.idText, c expr)
           | f -> Exception.raiseInternal "Not an expected field" [ "field", f ])
 
@@ -770,30 +758,30 @@ module Expr =
 
 
     // Callers with multiple args are encoded as apps wrapping other apps.
-    | SynExpr.App (_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
+    | SynExpr.App(_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
-      | PT.EFnCall (id, name, typeArgs, args) ->
+      | PT.EFnCall(id, name, typeArgs, args) ->
         PT.EFnCall(id, name, typeArgs, args @ [ c arg ])
-      | PT.EInfix (id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
-      | PT.EInfix (id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
+      | PT.EInfix(id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
+      | PT.EInfix(id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
       // A pipe with one entry
-      | PT.EPipe (id, arg1, PipePlaceholder, []) ->
+      | PT.EPipe(id, arg1, PipePlaceholder, []) ->
         PT.EPipe(id, arg1, synToPipeExpr arg, [])
       // A pipe with more than one entry
-      | PT.EPipe (id, arg1, arg2, rest) ->
+      | PT.EPipe(id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
-      | PT.EVariable (id, name) ->
+      | PT.EVariable(id, name) ->
         // TODO: this could be an Enum too
         let (name, version) =
           parseFn name
           |> Exception.unwrapOptionInternal
-               "invalid fn name"
-               [ "name", name; "ast", ast ]
+            "invalid fn name"
+            [ "name", name; "ast", ast ]
         PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ])
 
 
       // Enums
-      | PT.EEnum (id, typeName, caseName, fields) ->
+      | PT.EEnum(id, typeName, caseName, fields) ->
         PT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)
 
       | e ->
@@ -813,8 +801,7 @@ module Expr =
   let fromSynExpr (ast : SynExpr) : PT.Expr =
     try
       fromSynExpr' ast
-    with
-    | e ->
+    with e ->
       print e.Message
       print (string ast)
       reraise ()
@@ -832,13 +819,15 @@ module Expr =
     let resolvePipeExprNames =
       (fun e ->
         match e with
-        | PT.EPipeFnCall (id, name, typeArgs, args) ->
+        | PT.EPipeFnCall(id, name, typeArgs, args) ->
           PT.EPipeFnCall(id, name, typeArgs, args)
         // pipes with variables might be fn calls
-        | PT.EPipeVariable (id, name) ->
+        | PT.EPipeVariable(id, name) ->
           match parseFn name with
-          | Some (name, version) ->
-            if Set.contains (PT.FQFnName.userFnName [] name version) userFunctions then
+          | Some(name, version) ->
+            if
+              Set.contains (PT.FQFnName.userFnName [] name version) userFunctions
+            then
               PT.EPipeFnCall(id, PT.FQFnName.userFqName [] name version, [], [])
             else
               e
@@ -871,22 +860,22 @@ module Function =
     let r = parseParamPattern
 
     match pat with
-    | SynPat.Paren (pat, _) -> r pat
+    | SynPat.Paren(pat, _) -> r pat
 
-    | SynPat.Const (SynConst.Unit, _) -> { name = "unit"; typ = PT.TUnit }
+    | SynPat.Const(SynConst.Unit, _) -> { name = "unit"; typ = PT.TUnit }
 
-    | SynPat.Typed (SynPat.Named (SynIdent (id, _), _, _, _), typ, _) ->
+    | SynPat.Typed(SynPat.Named(SynIdent(id, _), _, _, _), typ, _) ->
       { name = id.idText; typ = TypeReference.fromSynType typ }
 
-    | SynPat.Typed (SynPat.Typed _ as nested,
-                    SynType.App (SynType.LongIdent (SynLongIdent (names, _, _)),
-                                 _,
-                                 args,
-                                 _,
-                                 _,
-                                 _,
-                                 _),
-                    _) ->
+    | SynPat.Typed(SynPat.Typed _ as nested,
+                   SynType.App(SynType.LongIdent(SynLongIdent(names, _, _)),
+                               _,
+                               args,
+                               _,
+                               _,
+                               _,
+                               _),
+                   _) ->
       let nested = r nested
       { name = nested.name; typ = TypeReference.fromNamesAndTypeArgs names args }
 
@@ -896,7 +885,7 @@ module Function =
     (returnInfo : Option<SynBindingReturnInfo>)
     : PT.TypeReference =
     match returnInfo with
-    | Some (SynBindingReturnInfo (typeName, _, _, _)) ->
+    | Some(SynBindingReturnInfo(typeName, _, _, _)) ->
       TypeReference.fromSynType typeName
     | None ->
       Exception.raiseInternal
@@ -908,16 +897,16 @@ module Function =
     (pat : SynPat)
     : string * List<string> * List<Parameter> =
     match pat with
-    | SynPat.LongIdent (SynLongIdent ([ name ], _, _), _, typeArgPats, argPats, _, _) ->
+    | SynPat.LongIdent(SynLongIdent([ name ], _, _), _, typeArgPats, argPats, _, _) ->
       let typeParams =
         match typeArgPats with
         | None -> []
-        | Some (SynValTyparDecls (pats, _)) ->
+        | Some(SynValTyparDecls(pats, _)) ->
           match pats with
           | None -> []
           | Some typeParams ->
             match typeParams with
-            | SynTyparDecls.PostfixList (decls, constraints, _) ->
+            | SynTyparDecls.PostfixList(decls, constraints, _) ->
               match constraints with
               | [] ->
                 decls
@@ -925,7 +914,7 @@ module Function =
                   let SynTyparDecl (_, decl) = decl
 
                   match decl with
-                  | SynTyparDecl (_, SynTypar (name, TyparStaticReq.None, _)) ->
+                  | SynTyparDecl(_, SynTypar(name, TyparStaticReq.None, _)) ->
                     name.idText
                   | _ ->
                     Exception.raiseInternal
@@ -956,14 +945,14 @@ module Function =
 
   let fromSynBinding (binding : SynBinding) : T =
     match binding with
-    | SynBinding (_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
+    | SynBinding(_, _, _, _, _, _, _, pat, returnInfo, expr, _, _, _) ->
       let (name, typeParams, parameters) = parseSignature pat
       let returnType = parseReturnInfo returnInfo
       let (name, version) =
         Expr.parseFn name
         |> Exception.unwrapOptionInternal
-             "invalid fn name"
-             [ "name", name; "binding", binding ]
+          "invalid fn name"
+          [ "name", name; "binding", binding ]
       { name = name
         version = version
         typeParams = typeParams
@@ -1042,14 +1031,14 @@ module CustomType =
   module EnumCase =
     let private parseField (typ : SynField) : PT.CustomType.EnumField =
       match typ with
-      | SynField (_, _, fieldName, typ, _, _, _, _, _) ->
+      | SynField(_, _, fieldName, typ, _, _, _, _, _) ->
         { typ = TypeReference.fromSynType typ
           label = fieldName |> Option.map (fun id -> id.idText)
           description = "" }
 
     let parseCase (case : SynUnionCase) : PT.CustomType.EnumCase =
       match case with
-      | SynUnionCase (_, SynIdent (id, _), typ, _, _, _, _) ->
+      | SynUnionCase(_, SynIdent(id, _), typ, _, _, _, _) ->
         match typ with
         | SynUnionCaseKind.Fields fields ->
           { name = id.idText; fields = List.map parseField fields; description = "" }
@@ -1070,7 +1059,7 @@ module CustomType =
   module RecordField =
     let parseField (field : SynField) : PT.CustomType.RecordField =
       match field with
-      | SynField (_, _, Some id, typ, _, _, _, _, _) ->
+      | SynField(_, _, Some id, typ, _, _, _, _, _) ->
         { name = id.idText; typ = TypeReference.fromSynType typ; description = "" }
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
@@ -1112,32 +1101,29 @@ module CustomType =
 
   let fromSynTypeDefn (typeDef : SynTypeDefn) : (List<string> * PT.CustomType.T) =
     match typeDef with
-    | SynTypeDefn (SynComponentInfo (_, _params, _, ids, _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
-                                                                             typ,
-                                                                             _),
-                                           _),
-                   _,
-                   _,
-                   _,
-                   _) ->
+    | SynTypeDefn(SynComponentInfo(_, _params, _, ids, _, _, _, _),
+                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
+                                         _),
+                  _,
+                  _,
+                  _,
+                  _) ->
       ids |> List.map string, PT.CustomType.Alias(TypeReference.fromSynType typ)
 
-    | SynTypeDefn (SynComponentInfo (_, _params, _, ids, _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Record (_, fields, _),
-                                           _),
-                   _,
-                   _,
-                   _,
-                   _) -> ids |> List.map string, fromFields typeDef fields
+    | SynTypeDefn(SynComponentInfo(_, _params, _, ids, _, _, _, _),
+                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Record(_, fields, _),
+                                         _),
+                  _,
+                  _,
+                  _,
+                  _) -> ids |> List.map string, fromFields typeDef fields
 
-    | SynTypeDefn (SynComponentInfo (_, _params, _, ids, _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.Union (_, cases, _),
-                                           _),
-                   _,
-                   _,
-                   _,
-                   _) -> ids |> List.map string, fromCases typeDef cases
+    | SynTypeDefn(SynComponentInfo(_, _params, _, ids, _, _, _, _),
+                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Union(_, cases, _), _),
+                  _,
+                  _,
+                  _,
+                  _) -> ids |> List.map string, fromCases typeDef cases
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
@@ -1146,12 +1132,12 @@ module CustomType =
     (t : PT.CustomType.T)
     : PT.CustomType.T =
     match t with
-    | PT.CustomType.Enum (firstCase, additionalCases) ->
+    | PT.CustomType.Enum(firstCase, additionalCases) ->
       PT.CustomType.Enum(
         EnumCase.resolveNames userTypes firstCase,
         additionalCases |> List.map (EnumCase.resolveNames userTypes)
       )
-    | PT.CustomType.Record (firstField, additionalFields) ->
+    | PT.CustomType.Record(firstField, additionalFields) ->
       PT.CustomType.Record(
         RecordField.resolveNames userTypes firstField,
         additionalFields |> List.map (RecordField.resolveNames userTypes)
@@ -1166,8 +1152,8 @@ module UserType =
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
-           "user type should have name"
-           [ "typeDef", typeDef ]
+        "user type should have name"
+        [ "typeDef", typeDef ]
       |> Expr.parseTypeName
     let modules = names |> List.initial |> Option.unwrap []
     { tlid = gid ()
@@ -1192,8 +1178,8 @@ module PackageType =
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
-           "user type should have name"
-           [ "typeDef", typeDef ]
+        "user type should have name"
+        [ "typeDef", typeDef ]
       |> Expr.parseTypeName
     { tlid = gid ()
       id = System.Guid.NewGuid()

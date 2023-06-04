@@ -306,14 +306,14 @@ let fns : List<BuiltInFn> =
         "Fetch all the values from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.queryValues state db b
               return results |> Dval.list
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -329,14 +329,14 @@ let fns : List<BuiltInFn> =
         "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
               let! results = UserDB.query state db b
               return results |> Map.ofList |> DDict
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -352,7 +352,7 @@ let fns : List<BuiltInFn> =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
@@ -361,8 +361,8 @@ let fns : List<BuiltInFn> =
               match results with
               | [ (_, v) ] -> return Dval.optionJust v
               | _ -> return DOption None
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -378,7 +378,7 @@ let fns : List<BuiltInFn> =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
@@ -387,8 +387,8 @@ let fns : List<BuiltInFn> =
               match results with
               | [ (key, dv) ] -> return Dval.optionJust (DTuple(DString key, dv, []))
               | _ -> return DOption None
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
@@ -404,14 +404,14 @@ let fns : List<BuiltInFn> =
         "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | state, _, [ DDB dbname; DFnVal (Lambda b) ] ->
+        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
           uply {
             try
               let db = state.program.dbs[dbname]
               let! result = UserDB.queryCount state db b
               return Dval.int result
-            with
-            | e -> return handleUnexpectedExceptionDuringQuery state dbname b e
+            with e ->
+              return handleUnexpectedExceptionDuringQuery state dbname b e
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction

@@ -42,8 +42,8 @@ module TraceSamplingRule =
           Ok(SampleOneIn number)
         else
           Error "Invalid sample"
-      with
-      | _ -> Error "Exception thrown"
+      with _ ->
+        Error "Exception thrown"
 
   /// Fetch the traceSamplingRule from the feature flag, and parse it. If parsing
   /// fails, returns SampleNone.
@@ -94,7 +94,8 @@ module TracingConfig =
 module TraceResults =
   type T =
     { tlids : HashSet.T<tlid>
-      functionResults : Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue> }
+      functionResults :
+        Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue> }
 
   let empty () : T =
     { tlids = HashSet.empty (); functionResults = Dictionary.empty () }
@@ -103,7 +104,8 @@ module TraceResults =
 
 /// Collections of functions and values used during a single execution
 type T =
-  { /// Store the tracing input, if enabled
+  {
+    /// Store the tracing input, if enabled
     storeTraceInput : HandlerDesc -> string -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled
@@ -114,7 +116,8 @@ type T =
 
     /// Results of the execution
     results : TraceResults.T
-    enabled : bool }
+    enabled : bool
+  }
 
 
 
@@ -173,7 +176,7 @@ let createTelemetryTracer
                 let hash =
                   args
                   |> DvalReprInternalHash.hash
-                       DvalReprInternalHash.currentHashVersion
+                    DvalReprInternalHash.currentHashVersion
                 Telemetry.addEvent
                   $"function result for {name}"
                   [ "fnName", stringifiedName

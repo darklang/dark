@@ -118,8 +118,8 @@ let testUndoTooFarDoesntBreak =
          FROM toplevel_oplists_v0
          WHERE canvas_id = @canvasID
            AND tlid = @tlid"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.parameters
+        [ "canvasID", Sql.uuid canvasID; "tlid", Sql.tlid handler.tlid ]
       |> Sql.executeRowAsync (fun read ->
         read.stringOrNone "name",
         read.stringOrNone "module",
@@ -164,8 +164,8 @@ let testHttpLoadIgnoresDeletedHandler =
          FROM toplevel_oplists_v0
          WHERE canvas_id = @canvasID
            AND tlid = @tlid"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "tlid", Sql.tlid handler.tlid ]
+      |> Sql.parameters
+        [ "canvasID", Sql.uuid canvasID; "tlid", Sql.tlid handler.tlid ]
       |> Sql.executeRowAsync (fun read ->
         read.stringOrNone "name",
         read.stringOrNone "module",
@@ -331,8 +331,8 @@ let testCanvasVerificationDuplicationCreation =
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
       Expect.equal false true "should not verify"
-    with
-    | _ -> ()
+    with _ ->
+      ()
   }
 
 let testCanvasVerificationDuplicationCreationOffDisk =
@@ -359,8 +359,8 @@ let testCanvasVerificationDuplicationCreationOffDisk =
         | LibBackend.Op.AllDatastores -> Canvas.loadAll canvasID
 
       Expect.equal false true "should not verify"
-    with
-    | _ -> ()
+    with _ ->
+      ()
   }
 
 let testCanvasVerificationDuplicationRenaming =
@@ -374,8 +374,8 @@ let testCanvasVerificationDuplicationRenaming =
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
       Expect.equal false true "should not verify"
-    with
-    | _ -> ()
+    with _ ->
+      ()
   }
 
 let testCanvasVerificationNoError =
@@ -387,8 +387,8 @@ let testCanvasVerificationNoError =
         PT.CreateDB(dbid2, "Books2", PT.TInt) ]
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
-    with
-    | _ -> Expect.equal false true "should verify"
+    with _ ->
+      Expect.equal false true "should verify"
   }
 
 let testCanvasVerificationUndoRenameDupedName =
@@ -403,14 +403,14 @@ let testCanvasVerificationUndoRenameDupedName =
     let ops2 = ops1 @ [ PT.UndoTL dbid1 ]
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops1 |> ignore<Canvas.T>
-    with
-    | _ -> Expect.equal false true "should initially verify"
+    with _ ->
+      Expect.equal false true "should initially verify"
 
     try
       Canvas.empty canvasID |> Canvas.addOps [] ops2 |> ignore<Canvas.T>
       Expect.equal false true "should not verify anymore"
-    with
-    | _ -> ()
+    with _ ->
+      ()
   }
 
 

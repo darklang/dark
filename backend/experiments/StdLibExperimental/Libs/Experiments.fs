@@ -40,19 +40,21 @@ module RestrictedFileIO =
       if value then print $"checkFilename failed: {name}: {value}"
       value
 
-    if (f.Contains ".." |> debug "dots"
-        || f.Contains "~" |> debug "tilde"
-        || f.EndsWith "." |> debug "ends dot"
-        || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
-        || (not (dir.EndsWith "/")) |> debug "dir no slash"
-        || f.EndsWith "etc/passwd" |> debug "etc"
-        // being used wrong
-        || f.EndsWith "//" |> debug "double slash"
-        // check for irregular file
-        || (mode = Read
-            && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
-            && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
-           |> debug "irreg") then
+    if
+      (f.Contains ".." |> debug "dots"
+       || f.Contains "~" |> debug "tilde"
+       || f.EndsWith "." |> debug "ends dot"
+       || (mode <> Dir && f.EndsWith "/") |> debug "ends slash"
+       || (not (dir.EndsWith "/")) |> debug "dir no slash"
+       || f.EndsWith "etc/passwd" |> debug "etc"
+       // being used wrong
+       || f.EndsWith "//" |> debug "double slash"
+       // check for irregular file
+       || (mode = Read
+           && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.Normal)
+           && (System.IO.File.GetAttributes f <> System.IO.FileAttributes.ReadOnly))
+          |> debug "irreg")
+    then
       Exception.raiseInternal "FILE SECURITY VIOLATION" [ "file", f ]
     else
       f
@@ -64,7 +66,7 @@ module RestrictedFileIO =
   let readfile (root : Config.Root) (f : string) : string =
     f |> checkFilename root Read |> System.IO.File.ReadAllText
 
-  let readfileBytes (root : Config.Root) (f : string) : byte [] =
+  let readfileBytes (root : Config.Root) (f : string) : byte[] =
     f |> checkFilename root Read |> System.IO.File.ReadAllBytes
 
   let tryReadFile (root : Config.Root) (f : string) : string option =
@@ -171,8 +173,7 @@ let fns : List<BuiltInFn> =
                 |> DDict
                 |> Ok
                 |> DResult
-            with
-            | e ->
+            with e ->
               let error = Exception.getMessages e |> String.concat " "
               return DString($"Error parsing code: {error}") |> Error |> DResult
           }
@@ -198,8 +199,8 @@ let fns : List<BuiltInFn> =
                   RestrictedFileIO.Config.BackendStatic
                   path
               return DResult(Ok(DBytes contents))
-            with
-            | e -> return DResult(Error(DString($"Error reading file: {e.Message}")))
+            with e ->
+              return DResult(Error(DString($"Error reading file: {e.Message}")))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -223,8 +224,8 @@ let fns : List<BuiltInFn> =
                   RestrictedFileIO.Config.CanvasesFiles
                   path
               return DResult(Ok(DBytes contents))
-            with
-            | e -> return DResult(Error(DString($"Error reading file: {e.Message}")))
+            with e ->
+              return DResult(Error(DString($"Error reading file: {e.Message}")))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
