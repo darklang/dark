@@ -45,13 +45,13 @@ let processNotification
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
   task {
     use _span = Telemetry.createRoot "process"
-    Telemetry.addTags [ "event.time_in_queue_ms",
-                        notification.timeInQueue.TotalMilliseconds
-                        "event.id", notification.data.id
-                        "event.canvas_id", notification.data.canvasID
-                        "event.delivery_attempt", notification.deliveryAttempt
-                        "event.pubsub.ack_id", notification.pubSubAckID
-                        "event.pubsub.message_id", notification.pubSubMessageID ]
+    Telemetry.addTags
+      [ "event.time_in_queue_ms", notification.timeInQueue.TotalMilliseconds
+        "event.id", notification.data.id
+        "event.canvas_id", notification.data.canvasID
+        "event.delivery_attempt", notification.deliveryAttempt
+        "event.pubsub.ack_id", notification.pubSubAckID
+        "event.pubsub.message_id", notification.pubSubMessageID ]
 
     // Function used to quit this event
     let stop
@@ -59,9 +59,10 @@ let processNotification
       (retry : ShouldRetry)
       : Task<Result<_, string * EQ.Notification>> =
       task {
-        Telemetry.addTags [ "queue.completion_reason", reason
-                            "queue.success", false
-                            "queue.retrying", retry <> NoRetry ]
+        Telemetry.addTags
+          [ "queue.completion_reason", reason
+            "queue.success", false
+            "queue.retrying", retry <> NoRetry ]
         match retry with
         | Retry delay -> return! EQ.requeueEvent notification delay
         | NoRetry -> return! EQ.acknowledgeEvent notification
@@ -74,13 +75,13 @@ let processNotification
     match! EQ.loadEvent notification.data.canvasID notification.data.id with
     | None -> return! stop "EventMissing" NoRetry
     | Some event -> // EventPresent
-      Telemetry.addTags [ "event.handler.name", event.name
-                          "event.handler.modifier", event.modifier
-                          "event.handler.module", event.module'
-                          "event.value.type",
-                          (event.value |> DvalReprDeveloper.dvalTypeName :> obj)
-                          "event.locked_at", event.lockedAt
-                          "event.enqueued_at", event.enqueuedAt ]
+      Telemetry.addTags
+        [ "event.handler.name", event.name
+          "event.handler.modifier", event.modifier
+          "event.handler.module", event.module'
+          "event.value.type", (event.value |> DvalReprDeveloper.dvalTypeName :> obj)
+          "event.locked_at", event.lockedAt
+          "event.enqueued_at", event.enqueuedAt ]
 
       // -------
       // LockCheck
@@ -110,8 +111,8 @@ let processNotification
         match! EQ.getRule notification.data.canvasID event with
         | Some rule ->
           // Drop the notification - we'll requeue it if someone unpauses
-          Telemetry.addTags [ "queue.rule.type", rule.ruleType
-                              "queue.rule.id", rule.id ]
+          Telemetry.addTags
+            [ "queue.rule.type", rule.ruleType; "queue.rule.id", rule.id ]
           return! stop "RuleCheckPaused/Blocked" NoRetry
         | None -> // RuleNone
 
@@ -137,7 +138,7 @@ let processNotification
               // Someone else just claimed the lock!
               let retryTime = NodaTime.Duration.FromSeconds 300.0
               return! stop $"LockClaimFailed: {msg}" (Retry retryTime)
-            | Ok () -> // LockClaimed
+            | Ok() -> // LockClaimed
 
               // -------
               // Process
@@ -213,12 +214,11 @@ let processNotification
                           event.value
                         ))
 
-                    Telemetry.addTags [ "result_type",
-                                        DvalReprDeveloper.dvalTypeName result
-                                        "queue.success", true
-                                        "executed_tlids",
-                                        HashSet.toList traceResults.tlids
-                                        "queue.completion_reason", "completed" ]
+                    Telemetry.addTags
+                      [ "result_type", DvalReprDeveloper.dvalTypeName result
+                        "queue.success", true
+                        "executed_tlids", HashSet.toList traceResults.tlids
+                        "queue.completion_reason", "completed" ]
                     // ExecutesToCompletion
 
                     // -------
@@ -231,8 +231,7 @@ let processNotification
                     // End
                     // -------
                     return Ok(event, notification)
-                  with
-                  | _ ->
+                  with _ ->
                     // This automatically increments the deliveryAttempt, so it might
                     // be deleted at the next iteration.
                     let timeLeft = NodaTime.Duration.FromSeconds 301.0
@@ -288,8 +287,7 @@ let run () : Task<unit> =
         else
           do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
 
-      with
-      | e ->
+      with e ->
         // No matter where else we catch it, this is essential or else the loop won't
         // continue
         let e = (PageableException("Unhandled exception bubbled to run", [], e))
@@ -349,5 +347,5 @@ let main _ : int =
     LibService.Init.shutdown name
     0
 
-  with
-  | e -> Rollbar.lastDitchBlockAndPage "Error running Queueworker" e
+  with e ->
+    Rollbar.lastDitchBlockAndPage "Error running Queueworker" e

@@ -113,7 +113,7 @@ module PersistedSerializations =
                  LibExecution.DvalReprInternalHash.currentHashVersion,
                  V.RuntimeTypes.dvals
                  |> LibExecution.DvalReprInternalHash.hash
-                      LibExecution.DvalReprInternalHash.currentHashVersion,
+                   LibExecution.DvalReprInternalHash.currentHashVersion,
                  V.RuntimeTypes.dval
                  |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT) ] }
 
@@ -357,7 +357,7 @@ module RoundtripTests =
           V.RuntimeTypes.dvals
           CRT.Dval.toCT
           CRT.Dval.fromCT
-          (Some (fun l r ->
+          (Some(fun l r ->
             let types = RT.Types.empty
             Expect.equalDval types l r "dval does not roundtrip successfully")) ]
 

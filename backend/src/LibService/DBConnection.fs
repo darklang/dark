@@ -20,7 +20,7 @@ let connectionString =
   // collector.
 
   |> Sql.config
-       $"Pooling=true;Minimum Pool Size={minPoolSize};Maximum Pool Size={maxPoolSize};Include Error Detail=true"
+    $"Pooling=true;Minimum Pool Size={minPoolSize};Maximum Pool Size={maxPoolSize};Include Error Detail=true"
   |> Sql.formatConnectionString
 
 let connect () : Sql.SqlProps = Sql.connect connectionString

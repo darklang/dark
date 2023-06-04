@@ -23,7 +23,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString u; DString p ] ->
           /// Base64-encodes username/password combination for basic authentication
           let encodeBasicAuth (u : string) (p : string) : string =
-            let input : byte [] =
+            let input : byte[] =
               if u.Contains("-") then
                 Exception.raiseCode "Username cannot contain a hyphen"
               else

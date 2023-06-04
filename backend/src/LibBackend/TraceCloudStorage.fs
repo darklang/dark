@@ -104,7 +104,8 @@ type FunctionResultValue = RT.Dval * NodaTime.Instant
 type CloudStorageFormat =
   { storageFormatVersion : int
     input : InputVars
-    functionResults : seq<tlid * id * FnName * int * FunctionArgHash * RoundTrippableDval> }
+    functionResults :
+      seq<tlid * id * FnName * int * FunctionArgHash * RoundTrippableDval> }
 
 let bucketName = Config.traceStorageBucketName
 
@@ -148,10 +149,11 @@ let storeTraceTLIDs
     "INSERT INTO traces_v0
      (canvas_id, trace_id, root_tlid, callgraph_tlids)
      VALUES (@canvasID, @traceID, @rootTLID, @callgraphTLIDs::bigint[])"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                      "traceID", Sql.traceID traceID
-                      "rootTLID", Sql.tlid rootTLID
-                      "callgraphTLIDs", Sql.idArray callgraphTLIDs ]
+  |> Sql.parameters
+    [ "canvasID", Sql.uuid canvasID
+      "traceID", Sql.traceID traceID
+      "rootTLID", Sql.tlid rootTLID
+      "callgraphTLIDs", Sql.idArray callgraphTLIDs ]
   |> Sql.executeStatementAsync
 
 let listMostRecentTraceIDsForTLIDs
@@ -269,9 +271,9 @@ let storeToCloudStorage
     object.ContentType <- "application/json"
     object.ContentEncoding <- "br"
     object.Metadata <-
-      Map [ "storage_format_version", string currentStorageVersion
-            "hash_version",
-            string LibExecution.DvalReprInternalHash.currentHashVersion ]
+      Map
+        [ "storage_format_version", string currentStorageVersion
+          "hash_version", string LibExecution.DvalReprInternalHash.currentHashVersion ]
     object.Bucket <- bucketName
 
     // Upload to CloudStorage
@@ -304,8 +306,7 @@ let init () : Task<unit> =
         // if it exists, don't recreate it
         let! (_ : Bucket) = client.GetBucketAsync(bucketName)
         return ()
-      with
-      | _ ->
+      with _ ->
         // create bucket
         let! (_ : Bucket) =
           client.CreateBucketAsync("some-project-id", bucketName, null)

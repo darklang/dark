@@ -90,7 +90,8 @@ module ConsistentSerializationTests =
       test "check test files are correct" {
         f.prettyPrinter
         |> Option.tap (fun s ->
-          let expected = File.readfile Config.Serialization (nameFor f true "latest")
+          let expected =
+            File.readfile Config.Serialization (nameFor f true "latest")
           let actual = s Values.ProgramTypes.oplist
           Expect.equal actual expected "check generates the same json")
 

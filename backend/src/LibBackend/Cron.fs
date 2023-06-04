@@ -37,8 +37,8 @@ let lastRanAt (cron : CronScheduleData) : Task<Option<NodaTime.Instant>> =
        AND canvas_id = @canvasID
        ORDER BY id DESC
        LIMIT 1"
-  |> Sql.parameters [ "tlid", Sql.tlid cron.tlid
-                      "canvasID", Sql.uuid cron.canvasID ]
+  |> Sql.parameters
+    [ "tlid", Sql.tlid cron.tlid; "canvasID", Sql.uuid cron.canvasID ]
   |> Sql.executeRowOptionAsync (fun read -> read.instantWithoutTimeZone "ran_at")
 
 
@@ -53,9 +53,11 @@ let convertInterval (interval : PT.Handler.CronInterval) : NodaTime.Period =
 
 
 type NextExecution =
-  { scheduledRunAt : Option<NodaTime.Instant>
+  {
+    scheduledRunAt : Option<NodaTime.Instant>
     /// The interval is copied to this record for logging only
-    interval : Option<NodaTime.Period> }
+    interval : Option<NodaTime.Period>
+  }
 
 let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
   task {
@@ -88,9 +90,10 @@ let recordExecution (cron : CronScheduleData) : Task<unit> =
     "INSERT INTO cron_records_v0
     (id, tlid, canvas_id)
     VALUES (@id, @tlid, @canvasID)"
-  |> Sql.parameters [ "id", Sql.uuid (System.Guid.NewGuid())
-                      "tlid", Sql.tlid cron.tlid
-                      "canvasID", Sql.uuid cron.canvasID ]
+  |> Sql.parameters
+    [ "id", Sql.uuid (System.Guid.NewGuid())
+      "tlid", Sql.tlid cron.tlid
+      "canvasID", Sql.uuid cron.canvasID ]
   |> Sql.executeStatementAsync
 
 
@@ -163,7 +166,8 @@ let checkAndScheduleWorkForAllCrons () : Task<unit> =
     let! enqueuedCrons =
       Task.mapWithConcurrency concurrencyCount checkAndScheduleWorkForCron crons
     let enqueuedCronCount = List.count Fun.identity enqueuedCrons
-    Telemetry.addTags [ ("crons.checked", List.length crons)
-                        ("crons.scheduled", enqueuedCronCount) ]
+    Telemetry.addTags
+      [ ("crons.checked", List.length crons)
+        ("crons.scheduled", enqueuedCronCount) ]
     return ()
   }

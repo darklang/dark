@@ -26,8 +26,8 @@ let fns : List<BuiltInFn> =
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
               return DResult(Ok(DBytes contents))
-            with
-            | e -> return DResult(Error(DString($"Error reading file: {e.Message}")))
+            with e ->
+              return DResult(Error(DString($"Error reading file: {e.Message}")))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -48,8 +48,8 @@ let fns : List<BuiltInFn> =
             try
               do! System.IO.File.WriteAllBytesAsync(path, contents)
               return DResult(Ok(DUnit))
-            with
-            | e -> return DResult(Error(DString($"Error writing file: {e.Message}")))
+            with e ->
+              return DResult(Error(DString($"Error writing file: {e.Message}")))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -70,8 +70,8 @@ let fns : List<BuiltInFn> =
             try
               do! System.IO.File.WriteAllBytesAsync(path, content)
               return DResult(Ok DUnit)
-            with
-            | e -> return DResult(Error(DString e.Message))
+            with e ->
+              return DResult(Error(DString e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -92,8 +92,8 @@ let fns : List<BuiltInFn> =
             try
               let tempPath = System.IO.Path.GetTempFileName()
               return DResult(Ok(DString tempPath))
-            with
-            | e -> return DResult(Error(DString e.Message))
+            with e ->
+              return DResult(Error(DString e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -115,8 +115,8 @@ let fns : List<BuiltInFn> =
               let attrs = System.IO.File.GetAttributes(path)
               let isDir = attrs.HasFlag(System.IO.FileAttributes.Directory)
               return DBool isDir
-            with
-            | e -> return DBool false
+            with e ->
+              return DBool false
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -140,8 +140,8 @@ let fns : List<BuiltInFn> =
               let exists =
                 System.IO.File.Exists(path) || System.IO.Directory.Exists(path)
               return DBool(exists && not isDir)
-            with
-            | e -> return DBool false
+            with e ->
+              return DBool false
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -163,8 +163,8 @@ let fns : List<BuiltInFn> =
               let exists =
                 System.IO.File.Exists(path) || System.IO.Directory.Exists(path)
               return DBool exists
-            with
-            | _ -> return DBool false
+            with _ ->
+              return DBool false
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -185,8 +185,8 @@ let fns : List<BuiltInFn> =
             try
               let fileInfo = System.IO.FileInfo(path)
               return DResult(Ok(DInt fileInfo.Length))
-            with
-            | e -> return DResult(Error(DString e.Message))
+            with e ->
+              return DResult(Error(DString e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

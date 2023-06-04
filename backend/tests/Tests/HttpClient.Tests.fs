@@ -35,7 +35,8 @@ module Exe = LibExecution.Execution
 open TestUtils.TestUtils
 
 type TestCase =
-  { /// What we expect the webserver to receive when the HttpClient is used
+  {
+    /// What we expect the webserver to receive when the HttpClient is used
     expectedRequest : Http.T
 
     /// The request that our webserver actually receives
@@ -43,7 +44,8 @@ type TestCase =
 
     /// This is the result that our mock HTTP is configured to return for the test,
     /// as set by the test file.
-    responseToReturn : Http.T }
+    responseToReturn : Http.T
+  }
 
 let testCases : ConcurrentDictionary<string, TestCase> = ConcurrentDictionary()
 
@@ -128,9 +130,8 @@ let makeTest versionName filename =
 
   let dictKey = $"{versionName}/{testName}"
 
-  testCases[dictKey] <- { expectedRequest = expected
-                          actualRequest = None
-                          responseToReturn = response }
+  testCases[dictKey] <-
+    { expectedRequest = expected; actualRequest = None; responseToReturn = response }
 
 
   // Load the testcases first so that redirection works
@@ -230,8 +231,8 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
       let testCase =
         try
           Some testCases[dictKey]
-        with
-        | _ -> None
+        with _ ->
+          None
 
       match testCase with
       | None ->
@@ -273,8 +274,8 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
           |> String.split " "
           |> List.getAt 1
           |> Exception.unwrapOptionInternal
-               "invalid status code"
-               [ "status", testCase.responseToReturn.status ]
+            "invalid status code"
+            [ "status", testCase.responseToReturn.status ]
           |> int
 
         testCase.responseToReturn.headers
@@ -285,9 +286,11 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
             else if v = "gzip" then compression <- Some Gzip
             else ()
           elif String.equalsCaseInsensitive k "Content-Type" then
-            if v.Contains "charset=iso-8859-1"
-               || v.Contains "charset=latin1"
-               || v.Contains "us-ascii" then
+            if
+              v.Contains "charset=iso-8859-1"
+              || v.Contains "charset=latin1"
+              || v.Contains "us-ascii"
+            then
               transcodeToLatin1 <- true
 
           BwdServer.Server.setResponseHeader ctx k v)
@@ -318,8 +321,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
             do! ctx.Response.Body.WriteAsync(data, 0, data.Length)
 
         return ctx
-    with
-    | e ->
+    with e ->
       // It might already have started, in which case let's just get the exception in
       // the body and hope that helps
       if not ctx.Response.HasStarted then ctx.Response.StatusCode <- 500
@@ -343,12 +345,12 @@ let webserver () =
   Host.CreateDefaultBuilder()
   |> fun h -> h.ConfigureLogging(configureLogging "test-httpclient-server")
   |> fun h ->
-       h.ConfigureWebHost (fun wh ->
-         wh
-         |> fun wh -> wh.UseKestrel()
-         |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpClientPort}")
-         |> fun wh -> wh.Configure(configureApp)
-         |> ignore<IWebHostBuilder>)
+      h.ConfigureWebHost(fun wh ->
+        wh
+        |> fun wh -> wh.UseKestrel()
+        |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpClientPort}")
+        |> fun wh -> wh.Configure(configureApp)
+        |> ignore<IWebHostBuilder>)
   |> fun h -> h.Build()
 
 // run a webserver to read test input

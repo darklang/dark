@@ -89,7 +89,7 @@ module ExecutionResult =
   let toCT (er : AT.ExecutionResult) : ExecutionResult =
     match er with
     | AT.ExecutedResult dv -> ExecutedResult(CRT.Dval.toCT dv)
-    | AT.NonExecutedResult (dv) -> NonExecutedResult(CRT.Dval.toCT dv)
+    | AT.NonExecutedResult(dv) -> NonExecutedResult(CRT.Dval.toCT dv)
 
 
 module AnalysisRequest =

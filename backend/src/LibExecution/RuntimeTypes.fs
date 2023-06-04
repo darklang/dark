@@ -44,10 +44,7 @@ module FQTypeName =
 
   /// The name of a type in the package manager
   type PackageTypeName =
-    { owner : string
-      modules : NonEmptyList<string>
-      typ : string
-      version : int }
+    { owner : string; modules : NonEmptyList<string>; typ : string; version : int }
 
   type T =
     | Stdlib of StdlibTypeName
@@ -240,13 +237,13 @@ type TypeReference =
       match this with
       | TVariable _ -> false
       | TList t -> isConcrete t
-      | TTuple (t1, t2, ts) ->
+      | TTuple(t1, t2, ts) ->
         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
-      | TFn (ts, t) -> List.forall isConcrete ts && isConcrete t
+      | TFn(ts, t) -> List.forall isConcrete ts && isConcrete t
       | TDB t -> isConcrete t
-      | TCustomType (_, ts) -> List.forall isConcrete ts
+      | TCustomType(_, ts) -> List.forall isConcrete ts
       | TOption t -> isConcrete t
-      | TResult (t1, t2) -> isConcrete t1 && isConcrete t2
+      | TResult(t1, t2) -> isConcrete t1 && isConcrete t2
       | TDict t -> isConcrete t
       // exhaustiveness
       | TUnit
@@ -469,9 +466,7 @@ module CustomType =
   type Alias = { typ : TypeReference }
 
   type EnumField =
-    { typ : TypeReference
-      label : Option<string>
-      description : string }
+    { typ : TypeReference; label : Option<string>; description : string }
 
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
@@ -484,49 +479,49 @@ module CustomType =
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
-    | EInt (id, _)
-    | EString (id, _)
-    | EChar (id, _)
-    | EBool (id, _)
+    | EInt(id, _)
+    | EString(id, _)
+    | EChar(id, _)
+    | EBool(id, _)
     | EUnit id
-    | EFloat (id, _)
-    | EVariable (id, _)
-    | EFieldAccess (id, _, _)
-    | ELambda (id, _, _)
-    | ELet (id, _, _, _)
-    | EIf (id, _, _, _)
-    | EApply (id, _, _, _)
-    | EList (id, _)
-    | ETuple (id, _, _, _)
-    | ERecord (id, _, _)
-    | EDict (id, _)
-    | EEnum (id, _, _, _)
-    | EMatch (id, _, _)
-    | EAnd (id, _, _)
-    | EOr (id, _, _) -> id
+    | EFloat(id, _)
+    | EVariable(id, _)
+    | EFieldAccess(id, _, _)
+    | ELambda(id, _, _)
+    | ELet(id, _, _, _)
+    | EIf(id, _, _, _)
+    | EApply(id, _, _, _)
+    | EList(id, _)
+    | ETuple(id, _, _, _)
+    | ERecord(id, _, _)
+    | EDict(id, _)
+    | EEnum(id, _, _, _)
+    | EMatch(id, _, _)
+    | EAnd(id, _, _)
+    | EOr(id, _, _) -> id
 
 // Functions for working with Dark Let patterns
 module LetPattern =
   let toID (pat : LetPattern) : id =
     match pat with
-    | LPVariable (id, _) -> id
-    | LPTuple (id, _, _, _) -> id
+    | LPVariable(id, _) -> id
+    | LPTuple(id, _, _, _) -> id
 
 // Functions for working with Dark match patterns
 module MatchPattern =
   let toID (pat : MatchPattern) : id =
     match pat with
-    | MPInt (id, _)
-    | MPString (id, _)
-    | MPChar (id, _)
-    | MPBool (id, _)
+    | MPInt(id, _)
+    | MPString(id, _)
+    | MPChar(id, _)
+    | MPBool(id, _)
     | MPUnit id
-    | MPFloat (id, _)
-    | MPVariable (id, _)
-    | MPTuple (id, _, _, _)
-    | MPEnum (id, _, _)
-    | MPListCons (id, _, _)
-    | MPList (id, _) -> id
+    | MPFloat(id, _)
+    | MPVariable(id, _)
+    | MPTuple(id, _, _, _)
+    | MPEnum(id, _, _)
+    | MPListCons(id, _, _)
+    | MPList(id, _) -> id
 
 // Functions for working with Dark runtime values
 module Dval =
@@ -580,27 +575,27 @@ module Dval =
     | DChar _, TChar
     | DDB _, TDB _
     | DBytes _, TBytes -> true
-    | DTuple (first, second, theRest), TTuple (firstType, secondType, otherTypes) ->
+    | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
       let pairs =
         [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 
       pairs |> List.all (fun (v, subtype) -> typeMatches subtype v)
     | DList l, TList t -> List.all (typeMatches t) l
     | DDict m, TDict t -> Map.all (typeMatches t) m
-    | DFnVal (Lambda l), TFn (parameters, _) ->
+    | DFnVal(Lambda l), TFn(parameters, _) ->
       List.length parameters = List.length l.parameters
     | DOption None, TOption _ -> true
-    | DOption (Some v), TOption t
-    | DResult (Ok v), TResult (t, _) -> typeMatches t v
-    | DResult (Error v), TResult (_, t) -> typeMatches t v
+    | DOption(Some v), TOption t
+    | DResult(Ok v), TResult(t, _) -> typeMatches t v
+    | DResult(Error v), TResult(_, t) -> typeMatches t v
 
-    | DRecord (typeName, fields), TCustomType (typeName', typeArgs) ->
+    | DRecord(typeName, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
       typeName = typeName'
 
-    | DEnum (typeName, casename, fields), TCustomType (typeName', typeArgs) ->
+    | DEnum(typeName, casename, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
       // TYPESCLEANUP: are we handling type arguments here?
       // TYPESCLEANUP: do we need to check fields?
@@ -658,10 +653,10 @@ module Dval =
         // Skip empty rows
         | _, "", _ -> DError(SourceNone, $"Empty key: {k}")
         // Error if the key appears twice
-        | DRecord (_, m), k, _v when Map.containsKey k m ->
+        | DRecord(_, m), k, _v when Map.containsKey k m ->
           DError(SourceNone, $"Duplicate key: {k}")
         // Otherwise add it
-        | DRecord (tn, m), k, v -> DRecord(tn, Map.add k v m)
+        | DRecord(tn, m), k, v -> DRecord(tn, Map.add k v m)
         // If we haven't got a DDict we're propagating an error so let it go
         | m, _, _ -> m)
       fields
@@ -1041,9 +1036,9 @@ let rec getTypeReferenceFromAlias
   (typ : TypeReference)
   : TypeReference =
   match typ with
-  | TCustomType (typeName, typeArgs) ->
+  | TCustomType(typeName, typeArgs) ->
     match Types.find typeName types with
-    | Some (CustomType.Alias (TCustomType (innerTypeName, _))) ->
+    | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
       getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
     | _ -> typ
   | _ -> typ

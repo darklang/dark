@@ -34,9 +34,8 @@ let createWithExactID
          INSERT INTO domains_v0
          (canvas_id, domain)
          VALUES (@id, @domain)"
-      |> Sql.parameters [ "id", Sql.uuid id
-                          "owner", Sql.uuid owner
-                          "domain", Sql.string domain ]
+      |> Sql.parameters
+        [ "id", Sql.uuid id; "owner", Sql.uuid owner; "domain", Sql.string domain ]
       |> Sql.executeStatementAsync
   }
 
@@ -226,11 +225,11 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
   try
     match op with
     | PT.SetHandler h -> setHandler h c
-    | PT.CreateDB (tlid, name, typ) ->
+    | PT.CreateDB(tlid, name, typ) ->
       if name = "" then Exception.raiseEditor "DB must have a name"
       let db = UserDB.create tlid name typ
       setDB db c
-    | PT.SetExpr (_tlid, _id, _e) ->
+    | PT.SetExpr(_tlid, _id, _e) ->
       // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
       // applyToAllToplevels (TL.set_expr id e) tlid c
       c
@@ -243,11 +242,10 @@ let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
       Exception.raiseInternal
         "Undo/Redo op should have been preprocessed out!"
         [ "op", op ]
-    | PT.RenameDB (tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
+    | PT.RenameDB(tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
     | PT.SetType t -> setType t c
     | PT.DeleteType tlid -> deleteType tlid c
-  with
-  | e ->
+  with e ->
     // Log here so we have context, but then re-raise
     let tags = [ ("op", string op :> obj) ]
     Telemetry.addException tags (InternalException("apply_op", e))
@@ -332,8 +330,7 @@ let loadFrom
         |> addToplevels fastLoadedTLs
         |> addOps uncachedOplists []
         |> verify
-    with
-    | e when not (LD.knownBroken id) ->
+    with e when not (LD.knownBroken id) ->
       let tags = [ "tlids", tlids :> obj; "loadAmount", loadAmount ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
   }
@@ -464,7 +461,7 @@ let saveTLIDs
 
         let routingNames =
           match tl with
-          | PT.Toplevel.TLHandler ({ spec = spec }) ->
+          | PT.Toplevel.TLHandler({ spec = spec }) ->
             match spec with
             | PT.Handler.HTTP _ ->
               Some(
@@ -488,7 +485,7 @@ let saveTLIDs
           // Only save info used to find handlers when the handler has not been deleted
           if deleted = NotDeleted then
             match routingNames with
-            | Some (module_, name, modifier) ->
+            | Some(module_, name, modifier) ->
               (string2option module_, string2option name, string2option modifier)
             | None -> None, None, None
           else
@@ -519,20 +516,21 @@ let saveTLIDs
                         deleted = @deleted,
                         oplist = @oplist,
                         oplist_cache = @oplistCache"
-          |> Sql.parameters [ "canvasID", Sql.uuid id
-                              "tlid", Sql.id tlid
-                              "digest", Sql.string "fsharp"
-                              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
-                              "name", Sql.stringOrNone name
-                              "module", Sql.stringOrNone module_
-                              "modifier", Sql.stringOrNone modifier
-                              "deleted", Sql.bool deleted
-                              "oplist", Sql.bytea serializedOplist
-                              "oplistCache", Sql.bytea serializedOplistCache ]
+          |> Sql.parameters
+            [ "canvasID", Sql.uuid id
+              "tlid", Sql.id tlid
+              "digest", Sql.string "fsharp"
+              "typ", Sql.string (PTParser.Toplevel.toDBTypeString tl)
+              "name", Sql.stringOrNone name
+              "module", Sql.stringOrNone module_
+              "modifier", Sql.stringOrNone modifier
+              "deleted", Sql.bool deleted
+              "oplist", Sql.bytea serializedOplist
+              "oplistCache", Sql.bytea serializedOplistCache ]
           |> Sql.executeStatementAsync
       })
-  with
-  | e -> Exception.reraiseAsPageable "canvas save failed" [ "canvasID", id ] e
+  with e ->
+    Exception.reraiseAsPageable "canvas save failed" [ "canvasID", id ] e
 
 
 type HealthCheckResult =
@@ -560,8 +558,7 @@ let loadDomainsHealthCheck
               let _canvas =
                 Serialize.loadOplists Serialize.IncludeDeletedToplevels id
               return healthy
-            with
-            | _ ->
+            with _ ->
               return
                 HealthCheckResult.Unhealthy(
                   $"error loading canvas host healthcheck probe on {hostname}"
@@ -572,8 +569,7 @@ let loadDomainsHealthCheck
         |> List.fold healthy (fun prev current ->
           if prev = healthy && current = healthy then healthy else current)
 
-    with
-    | _ ->
+    with _ ->
       return
         HealthCheckResult.Unhealthy("error running Canvas host healthcheck probe")
   }

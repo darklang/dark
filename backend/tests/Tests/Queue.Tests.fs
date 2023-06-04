@@ -72,7 +72,7 @@ let checkSuccess
   =
   task {
     match result with
-    | Ok (event, _notification) ->
+    | Ok(event, _notification) ->
       // TODO: is there a way to count/test the number of messages in the queue?
       let! event = EQ.loadEvent event.canvasID event.id
       Expect.isNone event "should have been deleted"
@@ -191,8 +191,9 @@ let testSuccessLockExpired =
     do!
       Sql.query
         "UPDATE queue_events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "newValue", Sql.instantWithTimeZone earlier ]
+      |> Sql.parameters
+        [ "canvasID", Sql.uuid canvasID
+          "newValue", Sql.instantWithTimeZone earlier ]
       |> Sql.executeStatementAsync
 
     let! result = dequeueAndProcess ()
@@ -210,8 +211,9 @@ let testFailLocked =
     do!
       Sql.query
         "UPDATE queue_events_v0 SET locked_at = @newValue WHERE canvas_id = @canvasID"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID
-                          "newValue", Sql.instantWithTimeZone (Instant.now ()) ]
+      |> Sql.parameters
+        [ "canvasID", Sql.uuid canvasID
+          "newValue", Sql.instantWithTimeZone (Instant.now ()) ]
       |> Sql.executeStatementAsync
 
     let! result = dequeueAndProcess ()

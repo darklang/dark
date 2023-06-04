@@ -42,8 +42,7 @@ let compile
 
       let args = Map.ofList args
       return sql, args
-    with
-    | e ->
+    with e ->
       return
         Exception.raiseInternal e.Message [ "paramName", paramName; "expr", expr ]
   }
@@ -157,7 +156,7 @@ let partialEvaluation =
         let result = C.partiallyEvaluate state "x" (Map vars) expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
-        | EVariable (_, name) -> return (Map.find name dvals)
+        | EVariable(_, name) -> return (Map.find name dvals)
         | _ ->
           Expect.isTrue false "didn't match"
           return DUnit

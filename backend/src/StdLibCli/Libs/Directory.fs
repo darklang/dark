@@ -44,8 +44,8 @@ let fns : List<BuiltInFn> =
               System.IO.Directory.CreateDirectory(path)
               |> ignore<System.IO.DirectoryInfo>
               return DResult(Ok DUnit)
-            with
-            | e -> return DResult(Error(DString e.Message))
+            with e ->
+              return DResult(Error(DString e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -66,8 +66,8 @@ let fns : List<BuiltInFn> =
             try
               System.IO.Directory.Delete(path, false)
               return DResult(Ok DUnit)
-            with
-            | e -> return DResult(Error(DString e.Message))
+            with e ->
+              return DResult(Error(DString e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

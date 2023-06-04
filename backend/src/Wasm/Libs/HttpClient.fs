@@ -27,10 +27,7 @@ module HttpClient =
   type Body = byte array
 
   type HttpRequest =
-    { url : string
-      method : Method
-      headers : Headers.T
-      body : Body }
+    { url : string; method : Method; headers : Headers.T; body : Body }
 
   type HttpResult = { statusCode : int; headers : Headers.T; body : Body }
 
@@ -107,8 +104,7 @@ module HttpClient =
               try
                 req.Content.Headers.ContentType <-
                   Headers.MediaTypeHeaderValue.Parse(v)
-              with
-              | :? System.FormatException ->
+              with :? System.FormatException ->
                 Exception.raiseCode "Invalid content-type header"
             else
               let added = req.Headers.TryAddWithoutValidation(k, v)
@@ -150,7 +146,9 @@ module HttpClient =
         //
         // TODO: would this be better as a guard (i.e. `when e.Message = ...`),
         //   leaving other cases un-caught?
-        if e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')" then
+        if
+          e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
+        then
           // Telemetry.addTags [ "error", true; "error.msg", "Unsupported Protocol" ]
           return Error(BadUrl "Unsupported Protocol")
         else
@@ -220,7 +218,7 @@ let fns : List<BuiltInFn> =
             |> List.fold (Ok []) (fun agg item ->
               match agg, item with
               | (Error err, _) -> Error err
-              | (Ok pairs, DTuple (DString k, DString v, [])) ->
+              | (Ok pairs, DTuple(DString k, DString v, [])) ->
                 // TODO: what about whitespace? What else can break?
                 if k = "" then
                   BadInput "Empty request header key provided" |> Error
@@ -237,8 +235,8 @@ let fns : List<BuiltInFn> =
           let method =
             try
               Some(HttpMethod method)
-            with
-            | _ -> None
+            with _ ->
+              None
 
           match reqHeaders, method with
           | Ok reqHeaders, Some method ->
@@ -274,17 +272,17 @@ let fns : List<BuiltInFn> =
                   |> Ok
                   |> DResult
 
-              | Error (HttpClient.BadUrl details) ->
+              | Error(HttpClient.BadUrl details) ->
                 // TODO: include a DvalSource rather than SourceNone
                 return DResult(Error(DString $"Bad URL: {details}"))
 
-              | Error (HttpClient.Timeout) ->
+              | Error(HttpClient.Timeout) ->
                 return DResult(Error(DString $"Request timed out"))
 
-              | Error (HttpClient.NetworkError) ->
+              | Error(HttpClient.NetworkError) ->
                 return DResult(Error(DString $"Network error"))
 
-              | Error (HttpClient.Other details) ->
+              | Error(HttpClient.Other details) ->
                 return DResult(Error(DString details))
             }
 

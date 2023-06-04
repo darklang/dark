@@ -40,27 +40,28 @@ let parseAsFSharpSourceFile
 
 let singleExprFromImplFile (parsedAsFSharp : ParsedImplFileInput) : SynExpr =
   match parsedAsFSharp with
-  | ParsedImplFileInput (_,
-                         _,
-                         _,
-                         _,
-                         _,
-                         [ SynModuleOrNamespace (_,
-                                                 _,
-                                                 _,
-                                                 [ SynModuleDecl.Expr (expr, _) ],
-                                                 _,
-                                                 _,
-                                                 _,
-                                                 _,
-                                                 _) ],
-                         _,
-                         _,
-                         _) -> expr
+  | ParsedImplFileInput(_,
+                        _,
+                        _,
+                        _,
+                        _,
+                        [ SynModuleOrNamespace(_,
+                                               _,
+                                               _,
+                                               [ SynModuleDecl.Expr(expr, _) ],
+                                               _,
+                                               _,
+                                               _,
+                                               _,
+                                               _) ],
+                        _,
+                        _,
+                        _) -> expr
   | _ ->
     Exception.raiseInternal
       $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
       [ "parseTree", parsedAsFSharp ]
 
 type AvailableTypes =
-  Map<string, (LibExecution.ProgramTypes.FQTypeName.T * LibExecution.ProgramTypes.CustomType.T)>
+  Map<string, (LibExecution.ProgramTypes.FQTypeName.T *
+  LibExecution.ProgramTypes.CustomType.T)>

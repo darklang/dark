@@ -89,7 +89,7 @@ let rec serialize
   | TBytes, DBytes bytes ->
     bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
 
-  | TPassword, DPassword (Password hashed) ->
+  | TPassword, DPassword(Password hashed) ->
     hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
 
 
@@ -104,37 +104,37 @@ let rec serialize
           r objType v)
         o)
 
-  | TTuple (t1, t2, trest), DTuple (d1, d2, rest) ->
+  | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
     let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
     w.writeArray (fun () -> List.iter (fun (t, d) -> r t d) zipped)
 
   | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
-  | TOption oType, DOption (Some dv) ->
+  | TOption oType, DOption(Some dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Just"
       r oType dv)
-  | TResult (okType, _), DResult (Ok dv) ->
+  | TResult(okType, _), DResult(Ok dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Ok"
       r okType dv)
-  | TResult (_, errType), DResult (Error dv) ->
+  | TResult(_, errType), DResult(Error dv) ->
     w.writeObject (fun () ->
       w.WritePropertyName "Error"
       r errType dv)
 
-  | TCustomType (typeName, _typeArgs), dval ->
+  | TCustomType(typeName, _typeArgs), dval ->
     // TODO: try find exactly one matching type
 
     match Types.find typeName types with
-    | Some (CustomType.Alias typ) -> r typ dv
+    | Some(CustomType.Alias typ) -> r typ dv
 
-    | Some (CustomType.Enum (firstCase, additionalCases)) ->
+    | Some(CustomType.Enum(firstCase, additionalCases)) ->
       // TODO: ensure that the type names are the same
       // TODO: _something_ with the type args
       //   (or maybe we just need to revisit once TypeDefinition is present)
 
       match dval with
-      | DEnum (dTypeName, caseName, fields) ->
+      | DEnum(dTypeName, caseName, fields) ->
         let matchingCase =
           (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
         // TODO: handle 0 or 2+ cases
@@ -149,9 +149,9 @@ let rec serialize
             |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
       | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
-    | Some (CustomType.Record (firstField, additionalFields)) ->
+    | Some(CustomType.Record(firstField, additionalFields)) ->
       match dval with
-      | DRecord (recordTypeName, dvalMap) when recordTypeName = typeName ->
+      | DRecord(recordTypeName, dvalMap) when recordTypeName = typeName ->
         let fieldDefs = firstField :: additionalFields
         w.writeObject (fun () ->
           dvalMap
@@ -165,7 +165,7 @@ let rec serialize
               |> fun def -> def.typ
 
             r matchingTypeReference dval))
-      | DRecord (_, _) -> Exception.raiseInternal "Incorrect record type" []
+      | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
       | _ -> Exception.raiseInternal "Expected a DRecord but got something else" []
 
     | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
@@ -260,7 +260,7 @@ module JsonParseError =
     | NotJson -> "Not JSON"
     | TypeUnsupported typ -> $"Type not supported (intentionally): {typ}"
     | TypeNotYetSupported typ -> $"Type not yet supported: {typ}"
-    | CantMatchWithType (typ, json, errorPath) ->
+    | CantMatchWithType(typ, json, errorPath) ->
       let errorPath =
         errorPath
         |> List.map (function
@@ -317,7 +317,7 @@ let parse
     | TList nested, JsonValueKind.Array ->
       j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
 
-    | TTuple (t1, t2, rest), JsonValueKind.Array ->
+    | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let mapped =
         j.EnumerateArray()
         |> Seq.toList
@@ -341,7 +341,7 @@ let parse
       | None -> DOption None
     | TOption oType, v -> convert oType j |> Some |> DOption
 
-    | TResult (okType, errType), JsonValueKind.Object ->
+    | TResult(okType, errType), JsonValueKind.Object ->
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
 
@@ -356,14 +356,14 @@ let parse
       |> Map.ofSeq
       |> DDict
 
-    | TCustomType (typeName, typeArgs), jsonValueKind ->
+    | TCustomType(typeName, typeArgs), jsonValueKind ->
       // TODO: something with typeArgs
 
       // TODO: handle type missing
       match Types.find typeName types, jsonValueKind with
-      | Some (CustomType.Alias alias), _ -> convert alias j
+      | Some(CustomType.Alias alias), _ -> convert alias j
 
-      | Some (CustomType.Enum (firstCase, additionalCases)), JsonValueKind.Object ->
+      | Some(CustomType.Enum(firstCase, additionalCases)), JsonValueKind.Object ->
 
         let enumerated =
           j.EnumerateObject()
@@ -384,7 +384,7 @@ let parse
 
         | _ -> Exception.raiseInternal "TODO" []
 
-      | Some (CustomType.Record (firstField, additionalFields)), JsonValueKind.Object ->
+      | Some(CustomType.Record(firstField, additionalFields)), JsonValueKind.Object ->
         let fieldDefs = firstField :: additionalFields
         let enumerated = j.EnumerateObject() |> Seq.toList
 
@@ -449,8 +449,8 @@ let parse
   let parsed =
     try
       Ok(parseJson str)
-    with
-    | _ex -> Error "not JSON"
+    with _ex ->
+      Error "not JSON"
 
   match parsed with
   | Error err -> Error err
@@ -478,8 +478,8 @@ let fns : List<BuiltInFn> =
             let types = ExecutionState.availableTypes state
             let response = writeJson (fun w -> serialize types w typeArg arg)
             Ply(DResult(Ok(DString response)))
-          with
-          | ex -> Ply(DResult(Error(DString ex.Message)))
+          with ex ->
+            Ply(DResult(Error(DString ex.Message)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

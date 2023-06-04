@@ -107,7 +107,7 @@ module Sql =
     idsParam.Value <- ids |> List.map int64 |> List.toArray
     Sql.parameter idsParam
 
-  let array (npgsqlType) (vs : 'a []) : SqlValue =
+  let array (npgsqlType) (vs : 'a[]) : SqlValue =
     let typ = NpgsqlTypes.NpgsqlDbType.Array ||| npgsqlType
     let param = NpgsqlParameter("vals", typ)
     param.Value <- vs

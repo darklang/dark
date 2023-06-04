@@ -17,14 +17,7 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   | date when date.Contains("GMT") -> Error()
   | date when date.EndsWith('z') -> Error()
   | date when
-    System.DateTime.TryParseExact
-      (
-        date,
-        ISO8601Format,
-        culture,
-        styles,
-        &result
-      )
+    System.DateTime.TryParseExact(date, ISO8601Format, culture, styles, &result)
     ->
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
   | _ -> Error()

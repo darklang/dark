@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the first value of a pair"
       fn =
         (function
-        | _, _, [ DTuple (first, _second, []) ] -> Ply(first)
+        | _, _, [ DTuple(first, _second, []) ] -> Ply(first)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second value of a pair"
       fn =
         (function
-        | _, _, [ DTuple (_first, second, []) ] -> Ply(second)
+        | _, _, [ DTuple(_first, second, []) ] -> Ply(second)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a pair with the elements swapped"
       fn =
         (function
-        | _, _, [ DTuple (first, second, []) ] -> Ply(DTuple(second, first, []))
+        | _, _, [ DTuple(first, second, []) ] -> Ply(DTuple(second, first, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
       description = "Transform the first value in a pair"
       fn =
         (function
-        | state, _, [ DFnVal fn; DTuple (first, second, []) ] ->
+        | state, _, [ DFnVal fn; DTuple(first, second, []) ] ->
           uply {
             let! newFirst = Interpreter.applyFnVal state fn [ first ]
             return DTuple(newFirst, second, [])
@@ -110,7 +110,7 @@ let fns : List<BuiltInFn> =
       description = "Transform the second value in a pair"
       fn =
         (function
-        | state, _, [ DFnVal fn; DTuple (first, second, []) ] ->
+        | state, _, [ DFnVal fn; DTuple(first, second, []) ] ->
           uply {
             let! newSecond = Interpreter.applyFnVal state fn [ second ]
             return DTuple(first, newSecond, [])
@@ -141,7 +141,7 @@ let fns : List<BuiltInFn> =
       description = "Transform both values in a pair"
       fn =
         (function
-        | state, _, [ DFnVal fnFst; DFnVal fnSnd; DTuple (first, second, []) ] ->
+        | state, _, [ DFnVal fnFst; DFnVal fnSnd; DTuple(first, second, []) ] ->
           uply {
             let! newFirst = Interpreter.applyFnVal state fnFst [ first ]
 

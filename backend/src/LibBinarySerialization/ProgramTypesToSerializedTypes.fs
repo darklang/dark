@@ -132,7 +132,7 @@ module TypeReference =
     | PT.TUnit -> ST.TUnit
     | PT.TString -> ST.TString
     | PT.TList typ -> ST.TList(toST typ)
-    | PT.TTuple (first, second, theRest) ->
+    | PT.TTuple(first, second, theRest) ->
       ST.TTuple(toST first, toST second, List.map toST theRest)
     | PT.TDict typ -> ST.TDict(toST typ)
     | PT.TDB typ -> ST.TDB(toST typ)
@@ -141,12 +141,12 @@ module TypeReference =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
-    | PT.TCustomType (t, typeArgs) ->
+    | PT.TCustomType(t, typeArgs) ->
       ST.TCustomType(FQTypeName.toST t, List.map toST typeArgs)
     | PT.TBytes -> ST.TBytes
-    | PT.TResult (okType, errType) -> ST.TResult(toST okType, toST errType)
-    | PT.TVariable (name) -> ST.TVariable(name)
-    | PT.TFn (paramTypes, returnType) ->
+    | PT.TResult(okType, errType) -> ST.TResult(toST okType, toST errType)
+    | PT.TVariable(name) -> ST.TVariable(name)
+    | PT.TFn(paramTypes, returnType) ->
       ST.TFn(List.map toST paramTypes, toST returnType)
 
   let rec toPT (t : ST.TypeReference) : PT.TypeReference =
@@ -157,7 +157,7 @@ module TypeReference =
     | ST.TUnit -> PT.TUnit
     | ST.TString -> PT.TString
     | ST.TList typ -> PT.TList(toPT typ)
-    | ST.TTuple (firstType, secondType, otherTypes) ->
+    | ST.TTuple(firstType, secondType, otherTypes) ->
       PT.TTuple(toPT firstType, toPT secondType, List.map toPT otherTypes)
     | ST.TDict typ -> PT.TDict(toPT typ)
     | ST.TDB typ -> PT.TDB(toPT typ)
@@ -166,12 +166,12 @@ module TypeReference =
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TOption typ -> PT.TOption(toPT typ)
-    | ST.TCustomType (t, typeArgs) ->
+    | ST.TCustomType(t, typeArgs) ->
       PT.TCustomType(FQTypeName.toPT t, List.map toPT typeArgs)
     | ST.TBytes -> PT.TBytes
-    | ST.TResult (okType, errType) -> PT.TResult(toPT okType, toPT errType)
-    | ST.TVariable (name) -> PT.TVariable(name)
-    | ST.TFn (paramTypes, returnType) ->
+    | ST.TResult(okType, errType) -> PT.TResult(toPT okType, toPT errType)
+    | ST.TVariable(name) -> PT.TVariable(name)
+    | ST.TFn(paramTypes, returnType) ->
       PT.TFn(List.map toPT paramTypes, toPT returnType)
 
 module BinaryOperation =
@@ -188,106 +188,104 @@ module BinaryOperation =
 module Infix =
   let toPT (infix : ST.Infix) : PT.Infix =
     match infix with
-    | ST.InfixFnCall (fn) -> PT.InfixFnCall(InfixFnName.toPT fn)
+    | ST.InfixFnCall(fn) -> PT.InfixFnCall(InfixFnName.toPT fn)
     | ST.BinOp binop -> PT.BinOp(BinaryOperation.toPT binop)
 
 module LetPattern =
   let rec toST (p : PT.LetPattern) : ST.LetPattern =
     match p with
-    | PT.LPVariable (id, str) -> ST.LPVariable(id, str)
-    | PT.LPTuple (id, first, second, theRest) ->
+    | PT.LPVariable(id, str) -> ST.LPVariable(id, str)
+    | PT.LPTuple(id, first, second, theRest) ->
       ST.LPTuple(id, toST first, toST second, List.map toST theRest)
 
   let rec toPT (p : ST.LetPattern) : PT.LetPattern =
     match p with
-    | ST.LPVariable (id, str) -> PT.LPVariable(id, str)
-    | ST.LPTuple (id, first, second, theRest) ->
+    | ST.LPVariable(id, str) -> PT.LPVariable(id, str)
+    | ST.LPTuple(id, first, second, theRest) ->
       PT.LPTuple(id, toPT first, toPT second, List.map toPT theRest)
 
 module MatchPattern =
   let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
-    | PT.MPVariable (id, str) -> ST.MPVariable(id, str)
-    | PT.MPEnum (id, caseName, fieldPats) ->
+    | PT.MPVariable(id, str) -> ST.MPVariable(id, str)
+    | PT.MPEnum(id, caseName, fieldPats) ->
       ST.MPEnum(id, caseName, List.map toST fieldPats)
-    | PT.MPInt (id, i) -> ST.MPInt(id, i)
-    | PT.MPBool (id, b) -> ST.MPBool(id, b)
-    | PT.MPChar (id, c) -> ST.MPChar(id, c)
-    | PT.MPString (id, s) -> ST.MPString(id, s)
-    | PT.MPFloat (id, s, w, f) -> ST.MPFloat(id, s, w, f)
+    | PT.MPInt(id, i) -> ST.MPInt(id, i)
+    | PT.MPBool(id, b) -> ST.MPBool(id, b)
+    | PT.MPChar(id, c) -> ST.MPChar(id, c)
+    | PT.MPString(id, s) -> ST.MPString(id, s)
+    | PT.MPFloat(id, s, w, f) -> ST.MPFloat(id, s, w, f)
     | PT.MPUnit id -> ST.MPUnit id
-    | PT.MPTuple (id, first, second, theRest) ->
+    | PT.MPTuple(id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
-    | PT.MPList (id, pats) -> ST.MPList(id, List.map toST pats)
-    | PT.MPListCons (id, head, tail) -> ST.MPListCons(id, toST head, toST tail)
+    | PT.MPList(id, pats) -> ST.MPList(id, List.map toST pats)
+    | PT.MPListCons(id, head, tail) -> ST.MPListCons(id, toST head, toST tail)
 
 
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
     match p with
-    | ST.MPVariable (id, str) -> PT.MPVariable(id, str)
-    | ST.MPEnum (id, caseName, fieldPats) ->
+    | ST.MPVariable(id, str) -> PT.MPVariable(id, str)
+    | ST.MPEnum(id, caseName, fieldPats) ->
       PT.MPEnum(id, caseName, List.map toPT fieldPats)
-    | ST.MPInt (id, i) -> PT.MPInt(id, i)
-    | ST.MPBool (id, b) -> PT.MPBool(id, b)
-    | ST.MPChar (id, c) -> PT.MPChar(id, c)
-    | ST.MPString (id, s) -> PT.MPString(id, s)
-    | ST.MPFloat (id, s, w, f) -> PT.MPFloat(id, s, w, f)
+    | ST.MPInt(id, i) -> PT.MPInt(id, i)
+    | ST.MPBool(id, b) -> PT.MPBool(id, b)
+    | ST.MPChar(id, c) -> PT.MPChar(id, c)
+    | ST.MPString(id, s) -> PT.MPString(id, s)
+    | ST.MPFloat(id, s, w, f) -> PT.MPFloat(id, s, w, f)
     | ST.MPUnit id -> PT.MPUnit id
-    | ST.MPTuple (id, first, second, theRest) ->
+    | ST.MPTuple(id, first, second, theRest) ->
       PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
-    | ST.MPList (id, pats) -> PT.MPList(id, List.map toPT pats)
-    | ST.MPListCons (id, head, tail) -> PT.MPListCons(id, toPT head, toPT tail)
+    | ST.MPList(id, pats) -> PT.MPList(id, List.map toPT pats)
+    | ST.MPListCons(id, head, tail) -> PT.MPListCons(id, toPT head, toPT tail)
 
 
 module Expr =
   let rec toST (e : PT.Expr) : ST.Expr =
     match e with
-    | PT.EChar (id, char) -> ST.EChar(id, char)
-    | PT.EInt (id, num) -> ST.EInt(id, num)
-    | PT.EString (id, segments) ->
-      ST.EString(id, List.map stringSegmentToST segments)
-    | PT.EFloat (id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
-    | PT.EBool (id, b) -> ST.EBool(id, b)
+    | PT.EChar(id, char) -> ST.EChar(id, char)
+    | PT.EInt(id, num) -> ST.EInt(id, num)
+    | PT.EString(id, segments) -> ST.EString(id, List.map stringSegmentToST segments)
+    | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
+    | PT.EBool(id, b) -> ST.EBool(id, b)
     | PT.EUnit id -> ST.EUnit id
-    | PT.EVariable (id, var) -> ST.EVariable(id, var)
-    | PT.EFieldAccess (id, obj, fieldname) ->
-      ST.EFieldAccess(id, toST obj, fieldname)
-    | PT.EFnCall (id, name, typeArgs, args) ->
+    | PT.EVariable(id, var) -> ST.EVariable(id, var)
+    | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
+    | PT.EFnCall(id, name, typeArgs, args) ->
       ST.EFnCall(
         id,
         FQFnName.toST name,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
-    | PT.EInfix (id, PT.InfixFnCall name, arg1, arg2) ->
+    | PT.EInfix(id, PT.InfixFnCall name, arg1, arg2) ->
       ST.EInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST arg1, toST arg2)
-    | PT.EInfix (id, PT.BinOp (op), arg1, arg2) ->
+    | PT.EInfix(id, PT.BinOp(op), arg1, arg2) ->
       ST.EInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST arg1, toST arg2)
-    | PT.ELambda (id, vars, body) -> ST.ELambda(id, vars, toST body)
-    | PT.ELet (id, pat, rhs, body) ->
+    | PT.ELambda(id, vars, body) -> ST.ELambda(id, vars, toST body)
+    | PT.ELet(id, pat, rhs, body) ->
       ST.ELet(id, LetPattern.toST pat, toST rhs, toST body)
-    | PT.EIf (id, cond, thenExpr, elseExpr) ->
+    | PT.EIf(id, cond, thenExpr, elseExpr) ->
       ST.EIf(id, toST cond, toST thenExpr, toST elseExpr)
-    | PT.EList (id, exprs) -> ST.EList(id, List.map toST exprs)
-    | PT.ETuple (id, first, second, theRest) ->
+    | PT.EList(id, exprs) -> ST.EList(id, List.map toST exprs)
+    | PT.ETuple(id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
-    | PT.ERecord (id, typeName, fields) ->
+    | PT.ERecord(id, typeName, fields) ->
       ST.ERecord(
         id,
         FQTypeName.toST typeName,
         List.map (Tuple2.mapSecond toST) fields
       )
-    | PT.EPipe (pipeID, expr1, expr2, rest) ->
+    | PT.EPipe(pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, pipeExprToST expr2, List.map pipeExprToST rest)
-    | PT.EEnum (id, typeName, caseName, fields) ->
+    | PT.EEnum(id, typeName, caseName, fields) ->
       ST.EEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
-    | PT.EMatch (id, mexpr, cases) ->
+    | PT.EMatch(id, mexpr, cases) ->
       ST.EMatch(
         id,
         toST mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
-    | PT.EDict (id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
+    | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
@@ -296,67 +294,66 @@ module Expr =
 
   and pipeExprToST (pipeExpr : PT.PipeExpr) : ST.PipeExpr =
     match pipeExpr with
-    | PT.EPipeVariable (id, name) -> ST.EPipeVariable(id, name)
-    | PT.EPipeLambda (id, args, body) -> ST.EPipeLambda(id, args, toST body)
-    | PT.EPipeInfix (id, PT.InfixFnCall name, first) ->
+    | PT.EPipeVariable(id, name) -> ST.EPipeVariable(id, name)
+    | PT.EPipeLambda(id, args, body) -> ST.EPipeLambda(id, args, toST body)
+    | PT.EPipeInfix(id, PT.InfixFnCall name, first) ->
       ST.EPipeInfix(id, ST.InfixFnCall(InfixFnName.toST name), toST first)
-    | PT.EPipeInfix (id, PT.BinOp (op), first) ->
+    | PT.EPipeInfix(id, PT.BinOp(op), first) ->
       ST.EPipeInfix(id, ST.BinOp(BinaryOperation.toST (op)), toST first)
-    | PT.EPipeFnCall (id, fnName, typeArgs, args) ->
+    | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       ST.EPipeFnCall(
         id,
         FQFnName.toST fnName,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
-    | PT.EPipeEnum (id, typeName, caseName, fields) ->
+    | PT.EPipeEnum(id, typeName, caseName, fields) ->
       ST.EPipeEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
 
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
-    | ST.EChar (id, char) -> PT.EChar(id, char)
-    | ST.EInt (id, num) -> PT.EInt(id, num)
-    | ST.EString (id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
-    | ST.EFloat (id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
-    | ST.EBool (id, b) -> PT.EBool(id, b)
+    | ST.EChar(id, char) -> PT.EChar(id, char)
+    | ST.EInt(id, num) -> PT.EInt(id, num)
+    | ST.EString(id, segment) -> PT.EString(id, List.map stringSegmentToPT segment)
+    | ST.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
+    | ST.EBool(id, b) -> PT.EBool(id, b)
     | ST.EUnit id -> PT.EUnit id
-    | ST.EVariable (id, var) -> PT.EVariable(id, var)
-    | ST.EFieldAccess (id, obj, fieldname) ->
-      PT.EFieldAccess(id, toPT obj, fieldname)
-    | ST.EFnCall (id, name, typeArgs, args) ->
+    | ST.EVariable(id, var) -> PT.EVariable(id, var)
+    | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
+    | ST.EFnCall(id, name, typeArgs, args) ->
       PT.EFnCall(
         id,
         FQFnName.toPT name,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
-    | ST.ELambda (id, vars, body) -> PT.ELambda(id, vars, toPT body)
-    | ST.ELet (id, pat, rhs, body) ->
+    | ST.ELambda(id, vars, body) -> PT.ELambda(id, vars, toPT body)
+    | ST.ELet(id, pat, rhs, body) ->
       PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
-    | ST.EIf (id, cond, thenExpr, elseExpr) ->
+    | ST.EIf(id, cond, thenExpr, elseExpr) ->
       PT.EIf(id, toPT cond, toPT thenExpr, toPT elseExpr)
-    | ST.EList (id, exprs) -> PT.EList(id, List.map toPT exprs)
-    | ST.ETuple (id, first, second, theRest) ->
+    | ST.EList(id, exprs) -> PT.EList(id, List.map toPT exprs)
+    | ST.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
-    | ST.ERecord (id, typeName, fields) ->
+    | ST.ERecord(id, typeName, fields) ->
       PT.ERecord(
         id,
         FQTypeName.toPT typeName,
         List.map (Tuple2.mapSecond toPT) fields
       )
-    | ST.EPipe (pipeID, expr1, expr2, rest) ->
+    | ST.EPipe(pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
-    | ST.EEnum (id, typeName, caseName, exprs) ->
+    | ST.EEnum(id, typeName, caseName, exprs) ->
       PT.EEnum(id, FQTypeName.toPT typeName, caseName, List.map toPT exprs)
-    | ST.EMatch (id, mexpr, pairs) ->
+    | ST.EMatch(id, mexpr, pairs) ->
       PT.EMatch(
         id,
         toPT mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toPT << Tuple2.mapSecond toPT) pairs
       )
-    | ST.EInfix (id, infix, arg1, arg2) ->
+    | ST.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
-    | ST.EDict (id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
+    | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with
@@ -365,18 +362,18 @@ module Expr =
 
   and pipeExprToPT (pipeExpr : ST.PipeExpr) : PT.PipeExpr =
     match pipeExpr with
-    | ST.EPipeVariable (id, name) -> PT.EPipeVariable(id, name)
-    | ST.EPipeLambda (id, args, body) -> PT.EPipeLambda(id, args, toPT body)
-    | ST.EPipeInfix (id, infix, first) ->
+    | ST.EPipeVariable(id, name) -> PT.EPipeVariable(id, name)
+    | ST.EPipeLambda(id, args, body) -> PT.EPipeLambda(id, args, toPT body)
+    | ST.EPipeInfix(id, infix, first) ->
       PT.EPipeInfix(id, Infix.toPT infix, toPT first)
-    | ST.EPipeFnCall (id, fnName, typeArgs, args) ->
+    | ST.EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
         FQFnName.toPT fnName,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
-    | ST.EPipeEnum (id, typeName, caseName, fields) ->
+    | ST.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(id, FQTypeName.toPT typeName, caseName, List.map toPT fields)
 
 module Deprecation =
@@ -441,12 +438,12 @@ module CustomType =
   let toST (d : PT.CustomType.T) : ST.CustomType.T =
     match d with
     | PT.CustomType.Alias typ -> ST.CustomType.Alias(TypeReference.toST typ)
-    | PT.CustomType.Record (firstField, additionalFields) ->
+    | PT.CustomType.Record(firstField, additionalFields) ->
       ST.CustomType.Record(
         RecordField.toST firstField,
         List.map RecordField.toST additionalFields
       )
-    | PT.CustomType.Enum (firstCase, additionalCases) ->
+    | PT.CustomType.Enum(firstCase, additionalCases) ->
       ST.CustomType.Enum(
         EnumCase.toST firstCase,
         List.map EnumCase.toST additionalCases
@@ -455,12 +452,12 @@ module CustomType =
   let toPT (d : ST.CustomType.T) : PT.CustomType.T =
     match d with
     | ST.CustomType.Alias typ -> PT.CustomType.Alias(TypeReference.toPT typ)
-    | ST.CustomType.Record (firstField, additionalFields) ->
+    | ST.CustomType.Record(firstField, additionalFields) ->
       PT.CustomType.Record(
         RecordField.toPT firstField,
         List.map RecordField.toPT additionalFields
       )
-    | ST.CustomType.Enum (firstCase, additionalCases) ->
+    | ST.CustomType.Enum(firstCase, additionalCases) ->
       PT.CustomType.Enum(
         EnumCase.toPT firstCase,
         List.map EnumCase.toPT additionalCases
@@ -489,17 +486,17 @@ module Handler =
   module Spec =
     let toST (s : PT.Handler.Spec) : ST.Handler.Spec =
       match s with
-      | PT.Handler.HTTP (route, method) -> ST.Handler.HTTP(route, method)
+      | PT.Handler.HTTP(route, method) -> ST.Handler.HTTP(route, method)
       | PT.Handler.Worker name -> ST.Handler.Worker name
-      | PT.Handler.Cron (name, interval) ->
+      | PT.Handler.Cron(name, interval) ->
         ST.Handler.Cron(name, CronInterval.toST interval)
       | PT.Handler.REPL name -> ST.Handler.REPL name
 
     let toPT (s : ST.Handler.Spec) : PT.Handler.Spec =
       match s with
-      | ST.Handler.HTTP (route, method) -> PT.Handler.HTTP(route, method)
+      | ST.Handler.HTTP(route, method) -> PT.Handler.HTTP(route, method)
       | ST.Handler.Worker name -> PT.Handler.Worker name
-      | ST.Handler.Cron (name, interval) ->
+      | ST.Handler.Cron(name, interval) ->
         PT.Handler.Cron(name, CronInterval.toPT interval)
       | ST.Handler.REPL name -> PT.Handler.REPL name
 
@@ -579,33 +576,32 @@ module Toplevel =
 module Op =
   let toST (op : PT.Op) : ST.Op =
     match op with
-    | PT.SetHandler (handler) -> ST.SetHandler(Handler.toST handler)
-    | PT.CreateDB (tlid, name, typ) ->
-      ST.CreateDB(tlid, name, TypeReference.toST typ)
+    | PT.SetHandler(handler) -> ST.SetHandler(Handler.toST handler)
+    | PT.CreateDB(tlid, name, typ) -> ST.CreateDB(tlid, name, TypeReference.toST typ)
     | PT.DeleteTL tlid -> ST.DeleteTL tlid
     | PT.SetFunction fn -> ST.SetFunction(UserFunction.toST fn)
     | PT.UndoTL tlid -> ST.UndoTL tlid
     | PT.RedoTL tlid -> ST.RedoTL tlid
-    | PT.SetExpr (tlid, id, e) -> ST.SetExpr(tlid, id, Expr.toST e)
+    | PT.SetExpr(tlid, id, e) -> ST.SetExpr(tlid, id, Expr.toST e)
     | PT.TLSavepoint tlid -> ST.TLSavepoint tlid
     | PT.DeleteFunction tlid -> ST.DeleteFunction tlid
-    | PT.RenameDB (tlid, string) -> ST.RenameDB(tlid, string)
+    | PT.RenameDB(tlid, string) -> ST.RenameDB(tlid, string)
     | PT.SetType tipe -> ST.SetType(UserType.toST tipe)
     | PT.DeleteType tlid -> ST.DeleteType tlid
 
   let toPT (op : ST.Op) : Option<PT.Op> =
     match op with
-    | ST.SetHandler (handler) -> Some(PT.SetHandler(Handler.toPT handler))
-    | ST.CreateDB (tlid, name, typ) ->
+    | ST.SetHandler(handler) -> Some(PT.SetHandler(Handler.toPT handler))
+    | ST.CreateDB(tlid, name, typ) ->
       Some(PT.CreateDB(tlid, name, TypeReference.toPT typ))
     | ST.DeleteTL tlid -> Some(PT.DeleteTL tlid)
     | ST.SetFunction fn -> Some(PT.SetFunction(UserFunction.toPT fn))
     | ST.UndoTL tlid -> Some(PT.UndoTL tlid)
     | ST.RedoTL tlid -> Some(PT.RedoTL tlid)
-    | ST.SetExpr (tlid, id, e) -> Some(PT.SetExpr(tlid, id, Expr.toPT e))
+    | ST.SetExpr(tlid, id, e) -> Some(PT.SetExpr(tlid, id, Expr.toPT e))
     | ST.TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
     | ST.DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
-    | ST.RenameDB (tlid, string) -> Some(PT.RenameDB(tlid, string))
+    | ST.RenameDB(tlid, string) -> Some(PT.RenameDB(tlid, string))
     | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
     | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
 

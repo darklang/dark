@@ -121,11 +121,10 @@ let fns : List<BuiltInFn> =
 
           let f acc e =
             match e with
-            | DTuple (DString k, value, []) -> Map.add k value acc
-            | DTuple (k, _, []) ->
+            | DTuple(DString k, value, []) -> Map.add k value acc
+            | DTuple(k, _, []) ->
               Exception.raiseCode (Errors.argumentWasntType TString "key" k)
-            | (DIncomplete _
-            | DError _) as dv -> Errors.foundFakeDval dv
+            | (DIncomplete _ | DError _) as dv -> Errors.foundFakeDval dv
             | _ -> Exception.raiseCode "All list items must be `(key, value)`"
 
           let result = List.fold Map.empty f l
@@ -154,12 +153,10 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList l ] ->
           let f acc e =
             match acc, e with
-            | Some acc, DTuple (DString k, _, _) when Map.containsKey k acc -> None
-            | Some acc, DTuple (DString k, value, []) -> Some(Map.add k value acc)
-            | _,
-              ((DIncomplete _
-              | DError _) as dv) -> Errors.foundFakeDval dv
-            | Some _, DTuple (k, _, []) ->
+            | Some acc, DTuple(DString k, _, _) when Map.containsKey k acc -> None
+            | Some acc, DTuple(DString k, value, []) -> Some(Map.add k value acc)
+            | _, ((DIncomplete _ | DError _) as dv) -> Errors.foundFakeDval dv
+            | Some _, DTuple(k, _, []) ->
               Exception.raiseCode (Errors.argumentWasntType TString "key" k)
             | Some _, _ ->
               Exception.raiseCode "All list items must be `(key, value)`"
@@ -327,10 +324,9 @@ let fns : List<BuiltInFn> =
                   let! result = Interpreter.applyFnVal state b [ DString key; data ]
 
                   match result with
-                  | DOption (Some o) -> return Some o
+                  | DOption(Some o) -> return Some o
                   | DOption None -> return None
-                  | (DIncomplete _
-                  | DError _) as dv ->
+                  | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
                   | v ->
@@ -412,7 +408,7 @@ let fns : List<BuiltInFn> =
         "Returns a copy of <param record> with the <param key> set to <param val>"
       fn =
         (function
-        | _, _, [ DRecord (typeName, o); DString k; v ] ->
+        | _, _, [ DRecord(typeName, o); DString k; v ] ->
           Ply(DRecord(typeName, Map.add k v o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

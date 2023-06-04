@@ -18,9 +18,9 @@ module DvalComparator =
     | DString s1, DString s2 -> compare s1 s2
     | DChar c1, DChar c2 -> compare c1 c2
     | DList l1, DList l2 -> compareLists l1 l2
-    | DTuple (a1, b1, l1), DTuple (a2, b2, l2) ->
+    | DTuple(a1, b1, l1), DTuple(a2, b2, l2) ->
       compareLists (a1 :: b1 :: l1) (a2 :: b2 :: l2)
-    | DFnVal (Lambda l1), DFnVal (Lambda l2) ->
+    | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
       let c = compare (List.map snd l1.parameters) (List.map snd l2.parameters)
       if c = 0 then
         let c = compareExprs l1.body l2.body
@@ -30,7 +30,7 @@ module DvalComparator =
           c
       else
         c
-    | DError (_, str1), DError (_, str2) -> compare str1 str2
+    | DError(_, str1), DError(_, str2) -> compare str1 str2
     | DIncomplete _, DIncomplete _ -> 0
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
@@ -38,7 +38,7 @@ module DvalComparator =
     | DUuid u1, DUuid u2 -> compare u1 u2
     | DBytes b1, DBytes b2 -> compare b1 b2
     | DDict o1, DDict o2 -> compareMaps (Map.toList o1) (Map.toList o2)
-    | DRecord (tn1, o1), DRecord (tn2, o2) ->
+    | DRecord(tn1, o1), DRecord(tn2, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
     | DOption o1, DOption o2 ->
@@ -53,7 +53,7 @@ module DvalComparator =
       | Ok _, Error _ -> -1
       | Error _, Ok _ -> 1
       | Error e1, Error e2 -> compareDval e1 e2
-    | DEnum (tn1, c1, f1), DEnum (tn2, c2, f2) ->
+    | DEnum(tn1, c1, f1), DEnum(tn2, c2, f2) ->
       let c = compare tn1 tn2
       if c = 0 then
         let c = compare c1 c2
@@ -589,8 +589,7 @@ let fns : List<BuiltInFn> =
                 |> List.map fst
                 |> List.sortWith DvalComparator.compareDval
                 |> DList
-            with
-            | _ ->
+            with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
@@ -621,8 +620,7 @@ let fns : List<BuiltInFn> =
             |> List.sortWith DvalComparator.compareDval
             |> DList
             |> Ply
-          with
-          | _ ->
+          with _ ->
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
@@ -665,8 +663,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList list ] ->
           try
             list |> List.sortWith DvalComparator.compareDval |> DList |> Ply
-          with
-          | _ ->
+          with _ ->
             // TODO: we should prevent this as soon as the different types are added
             // Ideally we'd catch the exception thrown during comparison but the sort
             // catches it so we lose the error message
@@ -714,8 +711,7 @@ let fns : List<BuiltInFn> =
                   DvalComparator.compareDval k1 k2)
                 |> List.map snd
                 |> DList
-            with
-            | _ ->
+            with _ ->
               // TODO: we should prevent this as soon as the different types are added
               // Ideally we'd catch the exception thrown during comparison but the sort
               // catches it so we lose the error message
@@ -767,8 +763,8 @@ let fns : List<BuiltInFn> =
               do! Sort.sort fn array
               // CLEANUP: check fakevals
               return array |> Array.toList |> DList |> Ok |> DResult
-            with
-            | e -> return DResult(Error(DString e.Message))
+            with e ->
+              return DResult(Error(DString e.Message))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -864,8 +860,7 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DBool b -> return b
-                  | (DIncomplete _
-                  | DError _) as dv ->
+                  | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return false
                   | v ->
@@ -918,10 +913,9 @@ let fns : List<BuiltInFn> =
                   let! result = Interpreter.applyFnVal state b [ dv ]
 
                   match result with
-                  | DOption (Some o) -> return Some o
+                  | DOption(Some o) -> return Some o
                   | DOption None -> return None
-                  | (DIncomplete _
-                  | DError _) as dv ->
+                  | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
                   | v ->
@@ -989,8 +983,7 @@ let fns : List<BuiltInFn> =
                     match result with
                     | DBool true -> return! f dvs
                     | DBool false -> return dv :: dvs
-                    | (DIncomplete _
-                    | DError _) as dv ->
+                    | (DIncomplete _ | DError _) as dv ->
                       abortReason <- Some dv
                       return []
                     | v ->
@@ -1058,8 +1051,7 @@ let fns : List<BuiltInFn> =
                       let! tail = f dvs
                       return dv :: tail
                     | DBool false -> return []
-                    | (DIncomplete _
-                    | DError _) as dv ->
+                    | (DIncomplete _ | DError _) as dv ->
                       abortReason <- Some dv
                       return []
                     | v ->
@@ -1315,13 +1307,12 @@ let fns : List<BuiltInFn> =
 
           let f (acc1, acc2) i =
             match i with
-            | DTuple (a, b, []) -> (a :: acc1, b :: acc2)
-            | (DIncomplete _
-            | DError _) as dv -> Errors.foundFakeDval dv
+            | DTuple(a, b, []) -> (a :: acc1, b :: acc2)
+            | (DIncomplete _ | DError _) as dv -> Errors.foundFakeDval dv
             | v ->
               let errDetails =
                 match v with
-                | DTuple (_, _, xs) ->
+                | DTuple(_, _, xs) ->
                   $". It has length {2 + List.length xs} but should have length 2"
                 | _ ->
                   $". It is of type {DvalReprDeveloper.dvalTypeName v} instead of `Tuple`"
@@ -1417,7 +1408,7 @@ let fns : List<BuiltInFn> =
             let badKey = List.tryFind (fun (k, _) -> Dval.isFake k) result
 
             match badKey with
-            | Some (key, _) -> return key
+            | Some(key, _) -> return key
             | None ->
               let groups =
                 result
@@ -1464,8 +1455,7 @@ let fns : List<BuiltInFn> =
                     | DBool true -> return! loop (item :: a, b) tail
                     | DBool false -> return! loop (a, item :: b) tail
 
-                    | (DIncomplete _
-                    | DError _) as dv ->
+                    | (DIncomplete _ | DError _) as dv ->
                       // fake dvals
                       return Error dv
 
@@ -1478,7 +1468,7 @@ let fns : List<BuiltInFn> =
               loop ([], []) l
 
             match! partition l with
-            | Ok (a, b) -> return DTuple(DList a, DList b, [])
+            | Ok(a, b) -> return DTuple(DList a, DList b, [])
             | Error fakeDval -> return fakeDval
           }
         | _ -> incorrectArgs ())

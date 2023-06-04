@@ -30,8 +30,8 @@ let renameFunctions
       let newFn =
         Map.tryFind newName (Map.mergeFavoringLeft renamedFns existingMap)
         |> Exception.unwrapOptionInternal
-             $"all fns should exist {oldName} -> {newName}"
-             [ "oldName", oldName; "newName", newName ]
+          $"all fns should exist {oldName} -> {newName}"
+          [ "oldName", oldName; "newName", newName ]
       Map.add
         oldName
         { newFn with name = oldName; deprecated = RenamedTo newName }
@@ -50,8 +50,8 @@ let renameTypes
       let newType =
         Map.tryFind newName (Map.mergeFavoringLeft renamedTypes existingMap)
         |> Exception.unwrapOptionInternal
-             $"all types should exist {oldName} -> {newName}"
-             [ "oldName", oldName; "newName", newName ]
+          $"all types should exist {oldName} -> {newName}"
+          [ "oldName", oldName; "newName", newName ]
       Map.add
         oldName
         { newType with name = oldName; deprecated = RenamedTo newName }

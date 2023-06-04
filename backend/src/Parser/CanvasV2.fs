@@ -32,17 +32,19 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
 
   let rec parseAttrArgs (attr : SynExpr) : List<string> =
     match attr with
-    | SynExpr.Paren (expr, _, _, _) -> parseAttrArgs expr
+    | SynExpr.Paren(expr, _, _, _) -> parseAttrArgs expr
 
-    | SynExpr.Const (SynConst.String (s, _, _), _) -> [ s ]
+    | SynExpr.Const(SynConst.String(s, _, _), _) -> [ s ]
 
-    | SynExpr.Tuple (_, args, _, _) ->
+    | SynExpr.Tuple(_, args, _, _) ->
       args
       |> List.map (fun arg ->
         match arg with
-        | SynExpr.Const (SynConst.String (s, _, _), _) -> s
+        | SynExpr.Const(SynConst.String(s, _, _), _) -> s
         | _ ->
-          Exception.raiseInternal $"Couldn't parse attribute argument" [ "arg", arg ])
+          Exception.raiseInternal
+            $"Couldn't parse attribute argument"
+            [ "arg", arg ])
 
     | _ ->
       Exception.raiseInternal $"Couldn't parse attribute argument" [ "attr", attr ]
@@ -53,7 +55,7 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
 /// Depending on the attribute present, this may add a user function, a handler, or a DB
 let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule =
   match letBinding with
-  | SynBinding (_, _, _, _, attrs, _, _, pat, returnInfo, expr, _, _, _) ->
+  | SynBinding(_, _, _, _, attrs, _, _, pat, returnInfo, expr, _, _, _) ->
     let expr = ProgramTypes.Expr.fromSynExpr expr
 
     let attrs = attrs |> List.collect (fun l -> l.Attributes)
@@ -80,25 +82,25 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
 
     | [ attr ] ->
       match attr with
-      | SimpleAttribute ("HttpHandler", [ method; route ]) ->
+      | SimpleAttribute("HttpHandler", [ method; route ]) ->
         let newHttpHanlder = PT.Handler.Spec.HTTP(route, method)
         { m with handlers = (newHttpHanlder, expr) :: m.handlers }
 
-      | SimpleAttribute ("REPL", [ name ]) ->
+      | SimpleAttribute("REPL", [ name ]) ->
         //let newHandler = PT.Handler.Spec.REPL(name, randomIds ())
         //{ m with handlers = (newHandler, expr) :: m.handlers }
         Exception.raiseInternal
           $"Not currently supporting REPLs, as we can't test them well yet"
           [ "attr", attr ]
 
-      | SimpleAttribute ("Worker", [ name ]) ->
+      | SimpleAttribute("Worker", [ name ]) ->
         //let newWorker = PT.Handler.Spec.Worker(name, randomIds ())
         //{ m with handlers = (newWorker, expr) :: m.handlers }
         Exception.raiseInternal
           $"Not currently supporting Workers, as we can't test them well yet"
           [ "attr", attr ]
 
-      | SimpleAttribute ("Cron", [ name; interval ]) ->
+      | SimpleAttribute("Cron", [ name; interval ]) ->
         //let newCron = PT.Handler.Spec.Cron(name, interval, randomIds ())
         //{ m with handlers = (newCron, expr) :: m.handlers }
         Exception.raiseInternal
@@ -120,15 +122,13 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
 module UserDB =
   let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.DB.T =
     match typeDef with
-    | SynTypeDefn (SynComponentInfo (_, _params, _, [ id ], _, _, _, _),
-                   SynTypeDefnRepr.Simple (SynTypeDefnSimpleRepr.TypeAbbrev (_,
-                                                                             typ,
-                                                                             _),
-                                           _),
-                   _members,
-                   _,
-                   _,
-                   _) ->
+    | SynTypeDefn(SynComponentInfo(_, _params, _, [ id ], _, _, _, _),
+                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
+                                         _),
+                  _members,
+                  _,
+                  _,
+                  _) ->
       { tlid = gid ()
         name = id.idText
         version = 0
@@ -138,7 +138,7 @@ module UserDB =
 
 let parseTypeDefn (m : CanvasModule) (typeDefn : SynTypeDefn) : CanvasModule =
   match typeDefn with
-  | SynTypeDefn (SynComponentInfo (attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
+  | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
     let isDB =
       attrs
       |> List.map (fun attr -> attr.Attributes)
@@ -173,13 +173,13 @@ let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
     emptyModule
     (fun m decl ->
       match decl with
-      | SynModuleDecl.Let (_, bindings, _) ->
+      | SynModuleDecl.Let(_, bindings, _) ->
         List.fold m (fun m b -> parseLetBinding m b) bindings
 
-      | SynModuleDecl.Types (defns, _) ->
+      | SynModuleDecl.Types(defns, _) ->
         List.fold m (fun m d -> parseTypeDefn m d) defns
 
-      | SynModuleDecl.Expr (expr, _) ->
+      | SynModuleDecl.Expr(expr, _) ->
         { m with exprs = m.exprs @ [ ProgramTypes.Expr.fromSynExpr expr ] }
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
@@ -198,22 +198,23 @@ let postProcessModule (m : CanvasModule) : CanvasModule =
     dbs =
       m.dbs
       |> List.map (fun db ->
-        { db with typ = ProgramTypes.TypeReference.resolveNames userTypeNames db.typ }) }
+        { db with
+            typ = ProgramTypes.TypeReference.resolveNames userTypeNames db.typ }) }
 
 let parse (filename : string) (source : string) : CanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
   let decls =
     match parsedAsFSharp with
-    | ParsedImplFileInput (_,
-                           _,
-                           _,
-                           _,
-                           _,
-                           [ SynModuleOrNamespace (_, _, _, decls, _, _, _, _, _) ],
-                           _,
-                           _,
-                           _) -> decls
+    | ParsedImplFileInput(_,
+                          _,
+                          _,
+                          _,
+                          _,
+                          [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
+                          _,
+                          _,
+                          _) -> decls
     | _ ->
       Exception.raiseInternal
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"

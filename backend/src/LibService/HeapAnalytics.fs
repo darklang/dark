@@ -15,9 +15,7 @@ open Tablecloth
 module FireAndForget = LibService.FireAndForget
 
 type IdentifyUserPayload =
-  { identity : string
-    app_id : string
-    properties : Map<string, string> }
+  { identity : string; app_id : string; properties : Map<string, string> }
 
 type TrackPayload =
   { identity : string

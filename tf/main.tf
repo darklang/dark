@@ -1,13 +1,13 @@
 terraform {
-  required_version = ">= 0.14"
+  required_version = ">= 1.4.6"
 
   required_providers {
-    google = "4.47.0"
+    google = "4.67.0"
   }
 }
 
 provider "google" {
-  project = "balmy-ground-195100"
+  project = local.project_name
   region  = "us-west1"
 }
 

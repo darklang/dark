@@ -66,8 +66,8 @@ let exprsCollapsedIntoOne (exprs : List<Expr>) : Expr =
   |> List.rev
   |> List.fold (EUnit(gid ())) (fun agg expr ->
     match agg with
-    | EUnit (_) -> expr
+    | EUnit(_) -> expr
     | _ ->
       match expr with
-      | ELet (id, lp, expr, _) -> ELet(id, lp, expr, agg)
+      | ELet(id, lp, expr, _) -> ELet(id, lp, expr, agg)
       | other -> ELet(gid (), LPVariable(gid (), "_"), other, agg))

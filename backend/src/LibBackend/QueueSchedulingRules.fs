@@ -73,8 +73,8 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
       ruleType
       |> SchedulingRule.RuleType.parse
       |> Exception.unwrapOptionInternal
-           "Could not parse ruleType"
-           [ "ruleType", ruleType ]
+        "Could not parse ruleType"
+        [ "ruleType", ruleType ]
     canvasID = read.uuid "canvas_id"
     handlerName = read.string "handler_name"
     eventSpace = read.string "event_space"
@@ -161,9 +161,10 @@ let addSchedulingRule
         "INSERT INTO scheduling_rules_v0 (rule_type, canvas_id, handler_name, event_space)
          VALUES ( @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
          ON CONFLICT DO NOTHING"
-      |> Sql.parameters [ "ruleType", Sql.string ruleType
-                          "canvasID", Sql.uuid canvasID
-                          "workerName", Sql.string workerName ]
+      |> Sql.parameters
+        [ "ruleType", Sql.string ruleType
+          "canvasID", Sql.uuid canvasID
+          "workerName", Sql.string workerName ]
       |> Sql.executeStatementAsync
   }
 
@@ -181,7 +182,8 @@ let removeSchedulingRule
        AND handler_name = @workerName
        AND event_space = 'WORKER'
        AND rule_type = @ruleType::scheduling_rule_type"
-  |> Sql.parameters [ "ruleType", Sql.string ruleType
-                      "canvasID", Sql.uuid canvasID
-                      "workerName", Sql.string workerName ]
+  |> Sql.parameters
+    [ "ruleType", Sql.string ruleType
+      "canvasID", Sql.uuid canvasID
+      "workerName", Sql.string workerName ]
   |> Sql.executeStatementAsync

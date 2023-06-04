@@ -134,8 +134,7 @@ module Exception =
   let callExceptionCallback (e : exn) =
     try
       exceptionCallback e
-    with
-    | e ->
+    with e ->
       // We're completely screwed at this point
       System.Console.WriteLine "Exception calling callExceptionCallback"
       System.Console.WriteLine(e.Message)
@@ -199,21 +198,21 @@ module Exception =
       try
         let! result = f ()
         return Some result
-      with
-      | _ -> return None
+      with _ ->
+        return None
     }
 
   let catch (f : unit -> 'r) : Option<'r> =
     try
       Some(f ())
-    with
-    | _ -> None
+    with _ ->
+      None
 
   let catchError (f : unit -> 'r) : Result<'r, string> =
     try
       Ok(f ())
-    with
-    | e -> Error e.Message
+    with e ->
+      Error e.Message
 
 type System.Exception with
 
@@ -284,8 +283,7 @@ type NonBlockingConsole() =
         try
           let v = mQueue.Take()
           System.Console.WriteLine(v)
-        with
-        | e ->
+        with e ->
           System.Console.WriteLine(
             $"Exception in blocking queue thread: {e.Message}"
           )
@@ -379,8 +377,8 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 let printMetadata (prefix : string) (metadata : Metadata) =
   try
     List.iter (fun (k, v) -> print (sprintf "%s:  %s: %A" prefix k v)) metadata
-  with
-  | _ -> ()
+  with _ ->
+    ()
 
 let rec printException'
   (prefix : string)
@@ -465,29 +463,29 @@ let assertRe (msg : string) (pattern : string) (input : string) : unit =
 let parseInt (str : string) : Option<int> =
   try
     Some(int str)
-  with
-  | _ -> None
+  with _ ->
+    None
 
 let parseInt64 (str : string) : int64 =
   try
     assertRe "int64" @"-?\d+" str
     System.Convert.ToInt64 str
-  with
-  | e -> Exception.raiseInternal $"parseInt64 failed" [ "str", str; "inner", e ]
+  with e ->
+    Exception.raiseInternal $"parseInt64 failed" [ "str", str; "inner", e ]
 
 let parseUInt64 (str : string) : uint64 =
   try
     assertRe "uint64" @"-?\d+" str
     System.Convert.ToUInt64 str
-  with
-  | e -> Exception.raiseInternal $"parseUInt64 failed" [ "str", str; "inner", e ]
+  with e ->
+    Exception.raiseInternal $"parseUInt64 failed" [ "str", str; "inner", e ]
 
 let parseBigint (str : string) : bigint =
   try
     assertRe "bigint" @"-?\d+" str
     System.Numerics.BigInteger.Parse str
-  with
-  | e -> Exception.raiseInternal $"parseBigint failed" [ "str", str; "inner", e ]
+  with e ->
+    Exception.raiseInternal $"parseBigint failed" [ "str", str; "inner", e ]
 
 // We use an explicit sign for Floats, instead of making it implicit in the
 // first digit, because otherwise we lose the sign on 0, and can't represent
@@ -521,8 +519,7 @@ let makeFloat (sign : Sign) (whole : string) (fraction : string) : float =
       | Positive -> ""
       | Negative -> "-"
     $"{sign}{whole}.{fraction}" |> System.Double.Parse
-  with
-  | e ->
+  with e ->
     Exception.raiseInternal
       $"makeFloat failed"
       [ "sign", sign; "whole", whole; "fraction", fraction; "inner", e ]
@@ -547,14 +544,14 @@ module UTF8 =
   let toBytesOpt (input : string) : byte array option =
     try
       Some(toBytes input)
-    with
-    | e -> None
+    with e ->
+      None
 
   let ofBytesOpt (input : byte array) : string option =
     try
       Some(ofBytesUnsafe input)
-    with
-    | e -> None
+    with e ->
+      None
 
 
   // Use this to ignore errors
@@ -574,8 +571,8 @@ module Base64 =
 
     override this.ToString() =
       match this with
-      | UrlEncoded (Base64UrlEncoded s) -> s
-      | DefaultEncoded (Base64DefaultEncoded s) -> s
+      | UrlEncoded(Base64UrlEncoded s) -> s
+      | DefaultEncoded(Base64DefaultEncoded s) -> s
 
   /// Encodes to base64 strings (using '+' and '/'), with padding. The result is not url-safe.
   let defaultEncodeToString (input : byte array) : string =
@@ -600,14 +597,14 @@ module Base64 =
 
   let asUrlEncodedString (b64 : T) : string =
     match b64 with
-    | UrlEncoded (Base64UrlEncoded s) -> s
-    | DefaultEncoded (Base64DefaultEncoded s) ->
+    | UrlEncoded(Base64UrlEncoded s) -> s
+    | DefaultEncoded(Base64DefaultEncoded s) ->
       s.Replace('+', '-').Replace('/', '_').Replace("=", "")
 
   let asDefaultEncodedString (b64 : T) : string =
     match b64 with
-    | DefaultEncoded (Base64DefaultEncoded s) -> s
-    | UrlEncoded (Base64UrlEncoded s) ->
+    | DefaultEncoded(Base64DefaultEncoded s) -> s
+    | UrlEncoded(Base64UrlEncoded s) ->
       let initial = s.Replace('-', '+').Replace('_', '/')
       let length = initial.Length
 
@@ -620,33 +617,31 @@ module Base64 =
     input |> encode |> asUrlEncodedString
 
   // Takes an already-encoded base64 string, and decodes it to bytes
-  let decode (b64 : T) : byte [] =
+  let decode (b64 : T) : byte[] =
     b64 |> asDefaultEncodedString |> System.Convert.FromBase64String
 
   let decodeFromString (input : string) : byte array = input |> fromEncoded |> decode
 
-  let decodeOpt (b64 : T) : byte [] option =
+  let decodeOpt (b64 : T) : byte[] option =
     try
       b64 |> decode |> Some
-    with
-    | _ -> None
+    with _ ->
+      None
 
-let sha1digest (input : string) : byte [] =
+let sha1digest (input : string) : byte[] =
   use sha1 = System.Security.Cryptography.SHA1.Create()
   input |> UTF8.toBytes |> sha1.ComputeHash
 
 let truncateToInt32 (v : int64) : int32 =
   try
     int32 v
-  with
-  | :? System.OverflowException ->
+  with :? System.OverflowException ->
     if v > 0L then System.Int32.MaxValue else System.Int32.MinValue
 
 let truncateToInt64 (v : bigint) : int64 =
   try
     int64 v
-  with
-  | :? System.OverflowException ->
+  with :? System.OverflowException ->
     if v > 0I then System.Int64.MaxValue else System.Int64.MinValue
 
 let urlEncodeExcept (keep : string) (s : string) : string =
@@ -656,10 +651,12 @@ let urlEncodeExcept (keep : string) (s : string) : string =
     // We do want to escape the following: []+&^%#@"<>/;
     // We don't want to escape the following: *$@!:?,.-_'
     // cut+paste this fn to its usages; Prelude to only have idiomatic version
-    if (b >= (byte 'a') && b <= (byte 'z'))
-       || (b >= (byte '0') && b <= (byte '9'))
-       || (b >= (byte 'A') && b <= (byte 'Z'))
-       || keep.Contains b then
+    if
+      (b >= (byte 'a') && b <= (byte 'z'))
+      || (b >= (byte '0') && b <= (byte '9'))
+      || (b >= (byte 'A') && b <= (byte 'Z'))
+      || keep.Contains b
+    then
       [| b |]
     else
       UTF8.toBytes ("%" + b.ToString("X2"))
@@ -779,8 +776,8 @@ let gid () : uint64 =
     // 0b0000_0000_0000_0000_0000_0000_0000_0000_0011_1111_1111_1111_1111_1111_1111_1111L
     let mask : uint64 = 1073741823UL
     rand64 &&& mask
-  with
-  | e -> Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
+  with e ->
+    Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
 
 let randomString (length : int) : string =
   let result =
@@ -1008,7 +1005,8 @@ module Json =
         with
         // We briefly used this converter for `Vanilla` - this is us "falling
         // back" so we're able to read values serialized during that time.
-        | _ -> NodaConverters.LocalDateTimeConverter.Read(&reader, tipe, options)
+        | _ ->
+          NodaConverters.LocalDateTimeConverter.Read(&reader, tipe, options)
 
       override _.Write
         (
@@ -1032,7 +1030,7 @@ module Json =
       override _.Read(reader : byref<Utf8JsonReader>, _type, _options) =
         reader.GetString() |> Base64.fromUrlEncoded |> Base64.decode
 
-      override _.Write(writer : Utf8JsonWriter, value : byte [], _) =
+      override _.Write(writer : Utf8JsonWriter, value : byte[], _) =
         value |> Base64.urlEncodeToString |> writer.WriteStringValue
 
 
@@ -1117,8 +1115,8 @@ module Json =
             reason
         allowedTypes[key] <- reason
         ()
-      with
-      | _ -> System.Console.Write("error allowing Vanilla type")
+      with _ ->
+        System.Console.Write("error allowing Vanilla type")
 
     let assertSerializable (t : System.Type) : unit =
       if not (isSerializable t) then
@@ -1253,12 +1251,12 @@ module Ply =
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
       list
       |> foldSequentially
-           (fun (accum : List<'b>) (arg : 'a) ->
-             uply {
-               let! result = f arg
-               return result :: accum
-             })
-           []
+        (fun (accum : List<'b>) (arg : 'a) ->
+          uply {
+            let! result = f arg
+            return result :: accum
+          })
+        []
       |> map List.rev
 
     let filterSequentially (f : 'a -> Ply<bool>) (list : List<'a>) : Ply<List<'a>> =
@@ -1428,12 +1426,12 @@ module Task =
 
     list
     |> foldSequentially
-         (fun (accum : List<'b>) (arg : 'a) ->
-           task {
-             let! result = f arg
-             return result :: accum
-           })
-         []
+      (fun (accum : List<'b>) (arg : 'a) ->
+        task {
+          let! result = f arg
+          return result :: accum
+        })
+      []
     |> map List.rev
 
   let mapInParallel (f : 'a -> Task<'b>) (list : List<'a>) : Task<List<'b>> =
@@ -1464,7 +1462,7 @@ module Task =
 
   let iterInParallel (f : 'a -> Task<unit>) (list : List<'a>) : Task<unit> =
     task {
-      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit[]) = List.map f list |> Task.WhenAll
       return ()
     }
 
@@ -1476,7 +1474,7 @@ module Task =
     let semaphore = new System.Threading.SemaphoreSlim(concurrencyCount)
     let f = execWithSemaphore semaphore f
     task {
-      let! (_completedTasks : unit []) = List.map f list |> Task.WhenAll
+      let! (_completedTasks : unit[]) = List.map f list |> Task.WhenAll
       return ()
     }
 

@@ -30,8 +30,8 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type",
-                           DString "application/x-www-form-urlencoded" ]
+              Map.ofList
+                [ "Content-Type", DString "application/x-www-form-urlencoded" ]
             )
           )
         | _ -> incorrectArgs ())
@@ -52,7 +52,8 @@ let fns : List<BuiltInFn> =
         | _, _, [] ->
           Ply(
             DDict(
-              Map.ofList [ "Content-Type", DString "application/json; charset=utf-8" ]
+              Map.ofList
+                [ "Content-Type", DString "application/json; charset=utf-8" ]
             )
           )
         | _ -> incorrectArgs ())

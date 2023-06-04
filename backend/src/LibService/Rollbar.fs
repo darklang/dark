@@ -69,9 +69,7 @@ let debugRollbarConfig () =
 type HoneycombFilter = { column : string; op : string; value : string }
 
 type HoneycombJson =
-  { filters : List<HoneycombFilter>
-    limit : int
-    time_range : int }
+  { filters : List<HoneycombFilter>; limit : int; time_range : int }
 
 let honeycombLinkOfTraceID () : string =
   let rootID = Telemetry.rootID ()
@@ -127,8 +125,8 @@ let notify (message : string) (metadata : Metadata) : unit =
   print $"rollbar: {message}"
   try
     print (string metadata)
-  with
-  | _ -> ()
+  with _ ->
+    ()
   let stacktraceMetadata = ("stacktrace", System.Environment.StackTrace :> obj)
   let metadata = stacktraceMetadata :: metadata
   Telemetry.notify message metadata
@@ -142,8 +140,8 @@ let sendError (message : string) (metadata : Metadata) : unit =
   print $"rollbar: {message}"
   try
     print (string metadata)
-  with
-  | _ -> ()
+  with _ ->
+    ()
   print System.Environment.StackTrace
   Telemetry.addEvent message metadata
   let custom = createCustom (("message", message :> obj) :: metadata)
@@ -160,22 +158,22 @@ let exceptionWhileProcessingException
   // as much as possible without error
   try
     print "Exception when processing exception"
-  with
-  | _ -> ()
+  with _ ->
+    ()
 
   try
     // Let's first try to get the new exception into the tracker quickly
     Rollbar.RollbarLocator.RollbarInstance.Critical(processingException)
     |> ignore<Rollbar.ILogger>
-  with
-  | _ -> ()
+  with _ ->
+    ()
 
   try
     // Then try to get the original exception into it
     Rollbar.RollbarLocator.RollbarInstance.Error(original)
     |> ignore<Rollbar.ILogger>
-  with
-  | _ -> ()
+  with _ ->
+    ()
 
   try
     // Now let's send a pageable exception, as our exception processing being down is
@@ -187,20 +185,18 @@ let exceptionWhileProcessingException
         processingException
       )
     Rollbar.RollbarLocator.RollbarInstance.Critical(e) |> ignore<Rollbar.ILogger>
-  with
-  | _ -> ()
+  with _ ->
+    ()
 
   try
     // Do this after, as these could cause exceptions
     printException "Original exception" [] original
-  with
-  | _ ->
+  with _ ->
 
     try
       // Do this after, as these could cause exceptions
       printException "Processing exception" [] processingException
-    with
-    | _ ->
+    with _ ->
 
       try
         // Do telemetry later, in case that's the cause
@@ -208,8 +204,8 @@ let exceptionWhileProcessingException
           Telemetry.createRoot "LastDitch" |> ignore<Telemetry.Span.T>
         Telemetry.addException [] original
         Telemetry.addException [] processingException
-      with
-      | _ -> ()
+      with _ ->
+        ()
 
 let personMetadata (person : Person) : Metadata =
   match person with
@@ -245,8 +241,8 @@ let rec sendException (person : Person) (metadata : Metadata) (e : exn) : unit =
     Rollbar.RollbarLocator.RollbarInstance.Error(package, custom)
     |> ignore<Rollbar.ILogger>
   // Do the same for the innerException
-  with
-  | processingException -> exceptionWhileProcessingException e processingException
+  with processingException ->
+    exceptionWhileProcessingException e processingException
 
 
 /// Wraps the exception in a PageableException, then sends in to rollbar in a blocking
@@ -260,16 +256,13 @@ let lastDitchBlockAndPage (msg : string) (e : exn) : int =
     Telemetry.addException [] e
     let metadata = Exception.nestedMetadata e
     let custom = createCustom metadata
-    Rollbar
-      .RollbarLocator
-      .RollbarInstance
+    Rollbar.RollbarLocator.RollbarInstance
       .AsBlockingLogger(System.TimeSpan.FromSeconds(5))
       .Error(e, custom)
     |> ignore<Rollbar.ILogger>
     Telemetry.addException [] e
     (-1)
-  with
-  | processingException ->
+  with processingException ->
     exceptionWhileProcessingException e processingException
     Telemetry.flush ()
     LaunchDarkly.flush ()
@@ -296,17 +289,13 @@ module AspNet =
   // AsyncContext. This would make sense for a lot of ways to use Rollbar, but we use
   // telemetry for our context and only want to use rollbar for exception tracking.
   type DarkRollbarMiddleware
-    (
-      nextRequestProcessor : RequestDelegate,
-      rollbarCtx : RollbarContext
-    ) =
+    (nextRequestProcessor : RequestDelegate, rollbarCtx : RollbarContext) =
     member this._nextRequestProcessor : RequestDelegate = nextRequestProcessor
     member this.Invoke(ctx : HttpContext) : Task =
       task {
         try
           do! this._nextRequestProcessor.Invoke(ctx)
-        with
-        | e ->
+        with e ->
           if Some(string ctx.Request.Path) = rollbarCtx.ignoreStartupPath then
             ()
           else
@@ -319,8 +308,8 @@ module AspNet =
               let person, metadata =
                 try
                   rollbarCtx.ctxMetadataFn ctx
-                with
-                | _ -> None, [ "exception calling ctxMetadataFn", true ]
+                with _ ->
+                  None, [ "exception calling ctxMetadataFn", true ]
               let metadata = metadata @ Exception.nestedMetadata e
               let custom = createCustom metadata
               let package = createPackage e person
@@ -330,8 +319,7 @@ module AspNet =
               |> ignore<Rollbar.ILogger>
               print "Rollbar exception sent"
             // No telemetry call here as it should happen automatically
-            with
-            | processingException ->
+            with processingException ->
               exceptionWhileProcessingException e processingException
           e.Reraise()
       }

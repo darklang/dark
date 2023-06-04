@@ -33,10 +33,7 @@ module FQTypeName =
 
 
   type PackageTypeName =
-    { owner : string
-      modules : NonEmptyList<string>
-      typ : string
-      version : int }
+    { owner : string; modules : NonEmptyList<string>; typ : string; version : int }
 
   module PackageTypeName =
     let fromCT (p : PackageTypeName) : RT.FQTypeName.PackageTypeName =
@@ -154,7 +151,7 @@ module TypeReference =
     | RT.TUnit -> TUnit
     | RT.TString -> TString
     | RT.TList t -> TList(r t)
-    | RT.TTuple (t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
+    | RT.TTuple(t1, t2, ts) -> TTuple(r t1, r t2, rl ts)
     | RT.TDict t -> TDict(r t)
     | RT.TDB t -> TDB(r t)
     | RT.TDateTime -> TDateTime
@@ -162,12 +159,12 @@ module TypeReference =
     | RT.TPassword -> TPassword
     | RT.TUuid -> TUuid
     | RT.TOption t -> TOption(r t)
-    | RT.TCustomType (typeName, typeArgs) ->
+    | RT.TCustomType(typeName, typeArgs) ->
       TCustomType(FQTypeName.toCT typeName, List.map r typeArgs)
     | RT.TBytes -> TBytes
-    | RT.TResult (ok, error) -> TResult(r ok, r error)
-    | RT.TVariable (name) -> TVariable(name)
-    | RT.TFn (ts, returnType) -> TFn(rl ts, r returnType)
+    | RT.TResult(ok, error) -> TResult(r ok, r error)
+    | RT.TVariable(name) -> TVariable(name)
+    | RT.TFn(ts, returnType) -> TFn(rl ts, r returnType)
 
   let rec fromCT (t : TypeReference) : RT.TypeReference =
     let r = fromCT
@@ -180,7 +177,7 @@ module TypeReference =
     | TUnit -> RT.TUnit
     | TString -> RT.TString
     | TList t -> RT.TList(r t)
-    | TTuple (t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
+    | TTuple(t1, t2, ts) -> RT.TTuple(r t1, r t2, rl ts)
     | TDict t -> RT.TDict(r t)
     | TDB t -> RT.TDB(r t)
     | TDateTime -> RT.TDateTime
@@ -188,12 +185,12 @@ module TypeReference =
     | TPassword -> RT.TPassword
     | TUuid -> RT.TUuid
     | TOption t -> RT.TOption(r t)
-    | TCustomType (t, typeArgs) ->
+    | TCustomType(t, typeArgs) ->
       RT.TCustomType(FQTypeName.fromCT t, List.map r typeArgs)
     | TBytes -> RT.TBytes
-    | TResult (ok, error) -> RT.TResult(r ok, r error)
-    | TVariable (name) -> RT.TVariable(name)
-    | TFn (ts, returnType) -> RT.TFn(rl ts, r returnType)
+    | TResult(ok, error) -> RT.TResult(r ok, r error)
+    | TVariable(name) -> RT.TVariable(name)
+    | TFn(ts, returnType) -> RT.TFn(rl ts, r returnType)
 
 
 
@@ -208,14 +205,14 @@ type LetPattern =
 module LetPattern =
   let rec fromCT (p : LetPattern) : RT.LetPattern =
     match p with
-    | LPVariable (id, str) -> RT.LPVariable(id, str)
-    | LPTuple (id, first, second, theRest) ->
+    | LPVariable(id, str) -> RT.LPVariable(id, str)
+    | LPTuple(id, first, second, theRest) ->
       RT.LPTuple(id, fromCT first, fromCT second, List.map fromCT theRest)
 
   let rec toCT (p : RT.LetPattern) : LetPattern =
     match p with
-    | RT.LPVariable (id, str) -> LPVariable(id, str)
-    | RT.LPTuple (id, first, second, theRest) ->
+    | RT.LPVariable(id, str) -> LPVariable(id, str)
+    | RT.LPTuple(id, first, second, theRest) ->
       LPTuple(id, toCT first, toCT second, List.map toCT theRest)
 
 
@@ -236,36 +233,36 @@ module MatchPattern =
   let rec fromCT (p : MatchPattern) : RT.MatchPattern =
     let r = fromCT
     match p with
-    | MPVariable (id, str) -> RT.MPVariable(id, str)
-    | MPEnum (id, caseName, fieldPats) ->
+    | MPVariable(id, str) -> RT.MPVariable(id, str)
+    | MPEnum(id, caseName, fieldPats) ->
       RT.MPEnum(id, caseName, List.map r fieldPats)
-    | MPInt (id, i) -> RT.MPInt(id, i)
-    | MPBool (id, b) -> RT.MPBool(id, b)
-    | MPChar (id, c) -> RT.MPChar(id, c)
-    | MPString (id, s) -> RT.MPString(id, s)
-    | MPFloat (id, f) -> RT.MPFloat(id, f)
+    | MPInt(id, i) -> RT.MPInt(id, i)
+    | MPBool(id, b) -> RT.MPBool(id, b)
+    | MPChar(id, c) -> RT.MPChar(id, c)
+    | MPString(id, s) -> RT.MPString(id, s)
+    | MPFloat(id, f) -> RT.MPFloat(id, f)
     | MPUnit id -> RT.MPUnit id
-    | MPTuple (id, first, second, theRest) ->
+    | MPTuple(id, first, second, theRest) ->
       RT.MPTuple(id, r first, r second, List.map r theRest)
-    | MPList (id, pats) -> RT.MPList(id, List.map r pats)
-    | MPListCons (id, head, tail) -> RT.MPListCons(id, r head, r tail)
+    | MPList(id, pats) -> RT.MPList(id, List.map r pats)
+    | MPListCons(id, head, tail) -> RT.MPListCons(id, r head, r tail)
 
   let rec toCT (p : RT.MatchPattern) : MatchPattern =
     let r = toCT
     match p with
-    | RT.MPVariable (id, str) -> MPVariable(id, str)
-    | RT.MPEnum (id, caseName, fieldPats) ->
+    | RT.MPVariable(id, str) -> MPVariable(id, str)
+    | RT.MPEnum(id, caseName, fieldPats) ->
       MPEnum(id, caseName, List.map r fieldPats)
-    | RT.MPInt (id, i) -> MPInt(id, i)
-    | RT.MPBool (id, b) -> MPBool(id, b)
-    | RT.MPChar (id, c) -> MPChar(id, c)
-    | RT.MPString (id, s) -> MPString(id, s)
-    | RT.MPFloat (id, f) -> MPFloat(id, f)
+    | RT.MPInt(id, i) -> MPInt(id, i)
+    | RT.MPBool(id, b) -> MPBool(id, b)
+    | RT.MPChar(id, c) -> MPChar(id, c)
+    | RT.MPString(id, s) -> MPString(id, s)
+    | RT.MPFloat(id, f) -> MPFloat(id, f)
     | RT.MPUnit id -> MPUnit id
-    | RT.MPTuple (id, first, second, theRest) ->
+    | RT.MPTuple(id, first, second, theRest) ->
       MPTuple(id, r first, r second, List.map r theRest)
-    | RT.MPList (id, pats) -> MPList(id, List.map r pats)
-    | RT.MPListCons (id, head, tail) -> MPListCons(id, r head, r tail)
+    | RT.MPList(id, pats) -> MPList(id, List.map r pats)
+    | RT.MPListCons(id, head, tail) -> MPListCons(id, r head, r tail)
 
 module CustomType =
   // TYPESCLEANUP support type parameters
@@ -281,9 +278,7 @@ module CustomType =
       { name = f.name; typ = TypeReference.toCT f.typ; description = f.description }
 
   type EnumField =
-    { typ : TypeReference
-      label : Option<string>
-      description : string }
+    { typ : TypeReference; label : Option<string>; description : string }
 
   module EnumField =
     let fromCT (f : EnumField) : RT.CustomType.EnumField =
@@ -317,12 +312,12 @@ module CustomType =
   let fromCT (t : T) : RT.CustomType.T =
     match t with
     | Alias typ -> RT.CustomType.Alias(TypeReference.fromCT typ)
-    | Record (firstField, additionalFields) ->
+    | Record(firstField, additionalFields) ->
       RT.CustomType.Record(
         RecordField.fromCT firstField,
         List.map RecordField.fromCT additionalFields
       )
-    | Enum (firstCase, additionalCases) ->
+    | Enum(firstCase, additionalCases) ->
       RT.CustomType.Enum(
         EnumCase.fromCT firstCase,
         List.map EnumCase.fromCT additionalCases
@@ -331,9 +326,9 @@ module CustomType =
   let toCT (t : RT.CustomType.T) : T =
     match t with
     | RT.CustomType.Alias typ -> Alias(TypeReference.toCT typ)
-    | RT.CustomType.Record (firstField, additionalFields) ->
+    | RT.CustomType.Record(firstField, additionalFields) ->
       Record(RecordField.toCT firstField, List.map RecordField.toCT additionalFields)
-    | RT.CustomType.Enum (firstCase, additionalCases) ->
+    | RT.CustomType.Enum(firstCase, additionalCases) ->
       Enum(EnumCase.toCT firstCase, List.map EnumCase.toCT additionalCases)
 
 
@@ -373,46 +368,45 @@ module Expr =
     let r = fromCT
 
     match e with
-    | EChar (id, char) -> RT.EChar(id, char)
-    | EInt (id, num) -> RT.EInt(id, num)
-    | EString (id, segment) -> RT.EString(id, List.map stringSegmentToRT segment)
-    | EFloat (id, f) -> RT.EFloat(id, f)
+    | EChar(id, char) -> RT.EChar(id, char)
+    | EInt(id, num) -> RT.EInt(id, num)
+    | EString(id, segment) -> RT.EString(id, List.map stringSegmentToRT segment)
+    | EFloat(id, f) -> RT.EFloat(id, f)
 
-    | EBool (id, b) -> RT.EBool(id, b)
+    | EBool(id, b) -> RT.EBool(id, b)
     | EUnit id -> RT.EUnit id
-    | EVariable (id, var) -> RT.EVariable(id, var)
-    | EFieldAccess (id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
-    | ELambda (id, vars, body) -> RT.ELambda(id, vars, r body)
-    | ELet (id, pat, rhs, body) -> RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
-    | EIf (id, cond, thenExpr, elseExpr) ->
-      RT.EIf(id, r cond, r thenExpr, r elseExpr)
-    | EApply (id, target, typeArgs, exprs) ->
+    | EVariable(id, var) -> RT.EVariable(id, var)
+    | EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
+    | ELambda(id, vars, body) -> RT.ELambda(id, vars, r body)
+    | ELet(id, pat, rhs, body) -> RT.ELet(id, LetPattern.fromCT pat, r rhs, r body)
+    | EIf(id, cond, thenExpr, elseExpr) -> RT.EIf(id, r cond, r thenExpr, r elseExpr)
+    | EApply(id, target, typeArgs, exprs) ->
       RT.EApply(
         id,
         fnTargetFromCT target,
         List.map TypeReference.fromCT typeArgs,
         List.map r exprs
       )
-    | EList (id, exprs) -> RT.EList(id, List.map r exprs)
-    | ETuple (id, first, second, theRest) ->
+    | EList(id, exprs) -> RT.EList(id, List.map r exprs)
+    | ETuple(id, first, second, theRest) ->
       RT.ETuple(id, r first, r second, List.map r theRest)
-    | ERecord (id, typeName, fields) ->
+    | ERecord(id, typeName, fields) ->
       RT.ERecord(
         id,
         FQTypeName.fromCT typeName,
         List.map (Tuple2.mapSecond r) fields
       )
-    | EEnum (id, typeName, caseName, fields) ->
+    | EEnum(id, typeName, caseName, fields) ->
       RT.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map r fields)
-    | EMatch (id, mexpr, pairs) ->
+    | EMatch(id, mexpr, pairs) ->
       RT.EMatch(
         id,
         r mexpr,
         List.map (Tuple2.mapFirst MatchPattern.fromCT << Tuple2.mapSecond r) pairs
       )
-    | EAnd (id, left, right) -> RT.EAnd(id, r left, r right)
-    | EOr (id, left, right) -> RT.EOr(id, r left, r right)
-    | EDict (id, pairs) -> RT.EDict(id, List.map (Tuple2.mapSecond r) pairs)
+    | EAnd(id, left, right) -> RT.EAnd(id, r left, r right)
+    | EOr(id, left, right) -> RT.EOr(id, r left, r right)
+    | EDict(id, pairs) -> RT.EDict(id, List.map (Tuple2.mapSecond r) pairs)
 
   and stringSegmentToRT (segment : StringSegment) : RT.StringSegment =
     match segment with
@@ -429,42 +423,41 @@ module Expr =
     let r = toCT
 
     match e with
-    | RT.EChar (id, char) -> EChar(id, char)
-    | RT.EInt (id, num) -> EInt(id, num)
-    | RT.EString (id, str) -> EString(id, List.map stringSegmentToCT str)
-    | RT.EFloat (id, f) -> EFloat(id, f)
+    | RT.EChar(id, char) -> EChar(id, char)
+    | RT.EInt(id, num) -> EInt(id, num)
+    | RT.EString(id, str) -> EString(id, List.map stringSegmentToCT str)
+    | RT.EFloat(id, f) -> EFloat(id, f)
 
-    | RT.EBool (id, b) -> EBool(id, b)
+    | RT.EBool(id, b) -> EBool(id, b)
     | RT.EUnit id -> EUnit id
-    | RT.EVariable (id, var) -> EVariable(id, var)
-    | RT.EFieldAccess (id, obj, fieldname) -> EFieldAccess(id, r obj, fieldname)
-    | RT.ELambda (id, vars, body) -> ELambda(id, vars, r body)
-    | RT.ELet (id, pat, rhs, body) -> ELet(id, LetPattern.toCT pat, r rhs, r body)
-    | RT.EIf (id, cond, thenExpr, elseExpr) ->
-      EIf(id, r cond, r thenExpr, r elseExpr)
-    | RT.EApply (id, target, typeArgs, exprs) ->
+    | RT.EVariable(id, var) -> EVariable(id, var)
+    | RT.EFieldAccess(id, obj, fieldname) -> EFieldAccess(id, r obj, fieldname)
+    | RT.ELambda(id, vars, body) -> ELambda(id, vars, r body)
+    | RT.ELet(id, pat, rhs, body) -> ELet(id, LetPattern.toCT pat, r rhs, r body)
+    | RT.EIf(id, cond, thenExpr, elseExpr) -> EIf(id, r cond, r thenExpr, r elseExpr)
+    | RT.EApply(id, target, typeArgs, exprs) ->
       EApply(
         id,
         fnTargetToCT target,
         List.map TypeReference.toCT typeArgs,
         List.map r exprs
       )
-    | RT.EList (id, exprs) -> EList(id, List.map r exprs)
-    | RT.ETuple (id, first, second, theRest) ->
+    | RT.EList(id, exprs) -> EList(id, List.map r exprs)
+    | RT.ETuple(id, first, second, theRest) ->
       ETuple(id, r first, r second, List.map r theRest)
-    | RT.ERecord (id, typeName, fields) ->
+    | RT.ERecord(id, typeName, fields) ->
       ERecord(id, FQTypeName.toCT typeName, List.map (Tuple2.mapSecond r) fields)
-    | RT.EEnum (id, typeName, caseName, fields) ->
+    | RT.EEnum(id, typeName, caseName, fields) ->
       EEnum(id, FQTypeName.toCT typeName, caseName, List.map r fields)
-    | RT.EMatch (id, mexpr, pairs) ->
+    | RT.EMatch(id, mexpr, pairs) ->
       EMatch(
         id,
         r mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toCT << Tuple2.mapSecond r) pairs
       )
-    | RT.EAnd (id, left, right) -> EAnd(id, r left, r right)
-    | RT.EOr (id, left, right) -> EOr(id, r left, r right)
-    | RT.EDict (id, pairs) -> EDict(id, List.map (Tuple2.mapSecond r) pairs)
+    | RT.EAnd(id, left, right) -> EAnd(id, r left, r right)
+    | RT.EOr(id, left, right) -> EOr(id, r left, r right)
+    | RT.EDict(id, pairs) -> EDict(id, List.map (Tuple2.mapSecond r) pairs)
 
   and stringSegmentToCT (segment : RT.StringSegment) : StringSegment =
     match segment with
@@ -488,20 +481,18 @@ module Dval =
     let fromCT (s : DvalSource) : RT.DvalSource =
       match s with
       | SourceNone -> RT.SourceNone
-      | SourceID (tlid, id) -> RT.SourceID(tlid, id)
+      | SourceID(tlid, id) -> RT.SourceID(tlid, id)
 
     let toCT (s : RT.DvalSource) : DvalSource =
       match s with
       | RT.SourceNone -> SourceNone
-      | RT.SourceID (tlid, id) -> SourceID(tlid, id)
+      | RT.SourceID(tlid, id) -> SourceID(tlid, id)
 
 
   type Symtable = Map<string, T>
 
   and LambdaImpl =
-    { parameters : List<id * string>
-      symtable : Symtable
-      body : Expr.T }
+    { parameters : List<id * string>; symtable : Symtable; body : Expr.T }
 
   and FnValImpl = Lambda of LambdaImpl
 
@@ -538,7 +529,7 @@ module Dval =
     | DBool b -> RT.DBool b
     | DFloat f -> RT.DFloat f
     | DUnit -> RT.DUnit
-    | DFnVal (Lambda (impl)) ->
+    | DFnVal(Lambda(impl)) ->
       let symtable = Map.map r impl.symtable
       RT.DFnVal(
         RT.Lambda
@@ -546,23 +537,23 @@ module Dval =
             symtable = symtable
             body = Expr.fromCT impl.body }
       )
-    | DIncomplete (source) -> RT.DIncomplete(DvalSource.fromCT source)
-    | DError (source, msg) -> RT.DError(DvalSource.fromCT source, msg)
+    | DIncomplete(source) -> RT.DIncomplete(DvalSource.fromCT source)
+    | DError(source, msg) -> RT.DError(DvalSource.fromCT source, msg)
     | DDateTime d -> RT.DDateTime d
     | DDB name -> RT.DDB name
     | DUuid uuid -> RT.DUuid uuid
     | DPassword pw -> RT.DPassword(pw)
     | DList list -> RT.DList(List.map r list)
-    | DTuple (first, second, theRest) ->
+    | DTuple(first, second, theRest) ->
       RT.DTuple(r first, r second, List.map r theRest)
     | DDict o -> RT.DDict(Map.map r o)
-    | DRecord (typeName, o) -> RT.DRecord(FQTypeName.fromCT typeName, Map.map r o)
+    | DRecord(typeName, o) -> RT.DRecord(FQTypeName.fromCT typeName, Map.map r o)
     | DOption None -> RT.DOption None
-    | DOption (Some dv) -> RT.DOption(Some(r dv))
-    | DResult (Ok dv) -> RT.DResult(Ok(r dv))
-    | DResult (Error dv) -> RT.DResult(Error(r dv))
+    | DOption(Some dv) -> RT.DOption(Some(r dv))
+    | DResult(Ok dv) -> RT.DResult(Ok(r dv))
+    | DResult(Error dv) -> RT.DResult(Error(r dv))
     | DBytes bytes -> RT.DBytes bytes
-    | DEnum (typeName, caseName, fields) ->
+    | DEnum(typeName, caseName, fields) ->
       RT.DEnum(FQTypeName.fromCT typeName, caseName, List.map r fields)
 
   and toCT (dv : RT.Dval) : T =
@@ -575,7 +566,7 @@ module Dval =
     | RT.DBool b -> DBool b
     | RT.DFloat f -> DFloat f
     | RT.DUnit -> DUnit
-    | RT.DFnVal (RT.Lambda (impl)) ->
+    | RT.DFnVal(RT.Lambda(impl)) ->
       let symtable = Map.map r impl.symtable
       DFnVal(
         Lambda
@@ -583,23 +574,23 @@ module Dval =
             symtable = symtable
             body = Expr.toCT impl.body }
       )
-    | RT.DIncomplete (source) -> DIncomplete(DvalSource.toCT source)
-    | RT.DError (source, msg) -> DError(DvalSource.toCT source, msg)
+    | RT.DIncomplete(source) -> DIncomplete(DvalSource.toCT source)
+    | RT.DError(source, msg) -> DError(DvalSource.toCT source, msg)
     | RT.DDateTime d -> DDateTime d
     | RT.DDB name -> DDB name
     | RT.DUuid uuid -> DUuid uuid
-    | RT.DPassword (Password pw) -> DPassword(Password pw)
+    | RT.DPassword(Password pw) -> DPassword(Password pw)
     | RT.DList l -> DList(List.map r l)
-    | RT.DTuple (first, second, theRest) ->
+    | RT.DTuple(first, second, theRest) ->
       DTuple(r first, r second, List.map r theRest)
     | RT.DDict o -> DDict(Map.map r o)
-    | RT.DRecord (typeName, o) -> DRecord(FQTypeName.toCT typeName, Map.map r o)
+    | RT.DRecord(typeName, o) -> DRecord(FQTypeName.toCT typeName, Map.map r o)
     | RT.DOption None -> DOption None
-    | RT.DOption (Some dv) -> DOption(Some(r dv))
-    | RT.DResult (Ok dv) -> DResult(Ok(r dv))
-    | RT.DResult (Error dv) -> DResult(Error(r dv))
+    | RT.DOption(Some dv) -> DOption(Some(r dv))
+    | RT.DResult(Ok dv) -> DResult(Ok(r dv))
+    | RT.DResult(Error dv) -> DResult(Error(r dv))
     | RT.DBytes bytes -> DBytes bytes
-    | RT.DEnum (typeName, caseName, fields) -> DUnit // todo
+    | RT.DEnum(typeName, caseName, fields) -> DUnit // todo
 
 
 module Handler =
@@ -640,16 +631,16 @@ module Handler =
   module Spec =
     let fromCT (spec : Spec) : RT.Handler.Spec =
       match spec with
-      | HTTP (path, method) -> RT.Handler.HTTP(path, method)
+      | HTTP(path, method) -> RT.Handler.HTTP(path, method)
       | Worker name -> RT.Handler.Worker name
-      | Cron (name, interval) -> RT.Handler.Cron(name, CronInterval.fromCT interval)
+      | Cron(name, interval) -> RT.Handler.Cron(name, CronInterval.fromCT interval)
       | REPL name -> RT.Handler.REPL name
 
     let toCT (spec : RT.Handler.Spec) : Spec =
       match spec with
-      | RT.Handler.HTTP (path, method) -> HTTP(path, method)
+      | RT.Handler.HTTP(path, method) -> HTTP(path, method)
       | RT.Handler.Worker name -> Worker name
-      | RT.Handler.Cron (name, interval) -> Cron(name, CronInterval.toCT interval)
+      | RT.Handler.Cron(name, interval) -> Cron(name, CronInterval.toCT interval)
       | RT.Handler.REPL name -> REPL name
 
   type T = { tlid : tlid; ast : Expr.T; spec : Spec }

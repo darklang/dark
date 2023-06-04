@@ -13,7 +13,7 @@ let rec getUnderlyingTypeFromAlias
   (types : Types)
   : CustomType.T =
   match typ with
-  | CustomType.Alias (TCustomType (innerType, _)) ->
+  | CustomType.Alias(TCustomType(innerType, _)) ->
     match Types.find innerType types with
     | Some alias -> getUnderlyingTypeFromAlias alias types
     | None -> Exception.raiseCode "Alias not found"
@@ -31,7 +31,7 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DString a, DString b -> a = b
   | DChar a, DChar b -> a = b
   | DList a, DList b -> a.Length = b.Length && List.forall2 equals a b
-  | DTuple (a1, a2, a3), DTuple (b1, b2, b3) ->
+  | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     if a3.Length <> b3.Length then // special case - this is a type error
       Exception.raiseCode "tuples must be the same length"
     else
@@ -39,10 +39,10 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DDict a, DDict b ->
     Map.count a = Map.count b
     && Map.forall
-         (fun k v ->
-           Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
-         a
-  | DRecord (tn1, a), DRecord (tn2, b) ->
+      (fun k v ->
+        Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+      a
+  | DRecord(tn1, a), DRecord(tn2, b) ->
     match Types.find tn1 types, Types.find tn2 types with
     | Some t1, Some t2 ->
       let tn1 = getUnderlyingTypeFromAlias t1 types
@@ -50,9 +50,9 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
       tn1 = tn2
       && Map.count a = Map.count b
       && Map.forall
-           (fun k v ->
-             Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
-           a
+        (fun k v ->
+          Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+        a
     | _ -> Exception.raiseInternal "Type not found" []
   | DFnVal a, DFnVal b ->
     match a, b with
@@ -74,7 +74,7 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
     | Error _, Ok _ -> false
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
-  | DEnum (a1, a2, a3), DEnum (b1, b2, b3) ->
+  | DEnum(a1, a2, a3), DEnum(b1, b2, b3) ->
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
   // exhaustivenss check
   | DInt _, _
@@ -106,82 +106,81 @@ and equalsLambdaImpl
   : bool =
   impl1.parameters.Length = impl2.parameters.Length
   && List.forall2
-       (fun (_, str1) (_, str2) -> str1 = str2)
-       impl1.parameters
-       impl2.parameters
+    (fun (_, str1) (_, str2) -> str1 = str2)
+    impl1.parameters
+    impl2.parameters
   && equalsSymtable types impl1.symtable impl2.symtable
   && equalsExpr impl1.body impl2.body
 
 and equalsSymtable (types : Types) (a : Symtable) (b : Symtable) : bool =
   Map.count a = Map.count b
   && Map.forall
-       (fun k v ->
-         Map.tryFind k b |> Option.map (equals types v) |> Option.defaultValue false)
-       a
+    (fun k v ->
+      Map.tryFind k b |> Option.map (equals types v) |> Option.defaultValue false)
+    a
 
 and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   match expr1, expr2 with
-  | EInt (_, int1), EInt (_, int2) -> int1 = int2
-  | EBool (_, bool1), EBool (_, bool2) -> bool1 = bool2
-  | EString (_, segments1), EString (_, segments2) ->
+  | EInt(_, int1), EInt(_, int2) -> int1 = int2
+  | EBool(_, bool1), EBool(_, bool2) -> bool1 = bool2
+  | EString(_, segments1), EString(_, segments2) ->
     equalsStringSegments segments1 segments2
-  | EChar (_, char1), EChar (_, char2) -> char1 = char2
-  | EFloat (_, float1), EFloat (_, float2) -> float1 = float2
+  | EChar(_, char1), EChar(_, char2) -> char1 = char2
+  | EFloat(_, float1), EFloat(_, float2) -> float1 = float2
   | EUnit _, EUnit _ -> true
-  | ELet (_, pattern1, expr1, body1), ELet (_, pattern2, expr2, body2) ->
+  | ELet(_, pattern1, expr1, body1), ELet(_, pattern2, expr2, body2) ->
     equalsLetPattern pattern1 pattern2
     && equalsExpr expr1 expr2
     && equalsExpr body1 body2
-  | EIf (_, cond1, then1, else1), EIf (_, cond2, then2, else2) ->
+  | EIf(_, cond1, then1, else1), EIf(_, cond2, then2, else2) ->
     equalsExpr cond1 cond2 && equalsExpr then1 then2 && equalsExpr else1 else2
-  | ELambda (_, parameters1, body1), ELambda (_, parameters2, body2) ->
+  | ELambda(_, parameters1, body1), ELambda(_, parameters2, body2) ->
     parameters1.Length = parameters2.Length
     && List.forall2 (fun (_, str1) (_, str2) -> str1 = str2) parameters1 parameters2
     && equalsExpr body1 body2
-  | EFieldAccess (_, target1, fieldName1), EFieldAccess (_, target2, fieldName2) ->
+  | EFieldAccess(_, target1, fieldName1), EFieldAccess(_, target2, fieldName2) ->
     equalsExpr target1 target2 && fieldName1 = fieldName2
-  | EVariable (_, name1), EVariable (_, name2) -> name1 = name2
-  | EApply (_, name1, typeArgs1, args1), EApply (_, name2, typeArgs2, args2) ->
+  | EVariable(_, name1), EVariable(_, name2) -> name1 = name2
+  | EApply(_, name1, typeArgs1, args1), EApply(_, name2, typeArgs2, args2) ->
     name1 = name2
     && List.forall2 (=) typeArgs1 typeArgs2
     && List.forall2 equalsExpr args1 args2
-  | EList (_, elems1), EList (_, elems2) ->
+  | EList(_, elems1), EList(_, elems2) ->
     elems1.Length = elems2.Length && List.forall2 equalsExpr elems1 elems2
-  | ETuple (_, elem1_1, elem2_1, elems1), ETuple (_, elem1_2, elem2_2, elems2) ->
+  | ETuple(_, elem1_1, elem2_1, elems1), ETuple(_, elem1_2, elem2_2, elems2) ->
     equalsExpr elem1_1 elem1_2
     && equalsExpr elem2_1 elem2_2
     && elems1.Length = elems2.Length
     && List.forall2 equalsExpr elems1 elems2
-  | ERecord (_, typeName, fields1), ERecord (_, typeName', fields2) ->
+  | ERecord(_, typeName, fields1), ERecord(_, typeName', fields2) ->
     typeName = typeName'
     && fields1.Length = fields2.Length
     && List.forall2
-         (fun (name1, expr1) (name2, expr2) ->
-           name1 = name2 && equalsExpr expr1 expr2)
-         fields1
-         fields2
-  | EEnum (_, typeName, caseName, fields), EEnum (_, typeName', caseName', fields') ->
+      (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
+      fields1
+      fields2
+  | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
     typeName = typeName'
     && caseName = caseName'
     && fields.Length = fields'.Length
     && List.forall2 equalsExpr fields fields'
-  | EMatch (_, target1, cases1), EMatch (_, target2, cases2) ->
+  | EMatch(_, target1, cases1), EMatch(_, target2, cases2) ->
     equalsExpr target1 target2
     && cases1.Length = cases2.Length
     && List.forall2
-         (fun (p1, e1) (p2, e2) -> equalsMatchPattern p1 p2 && equalsExpr e1 e2)
-         cases1
-         cases2
-  | EAnd (_, lhs1, rhs1), EAnd (_, lhs2, rhs2) ->
+      (fun (p1, e1) (p2, e2) -> equalsMatchPattern p1 p2 && equalsExpr e1 e2)
+      cases1
+      cases2
+  | EAnd(_, lhs1, rhs1), EAnd(_, lhs2, rhs2) ->
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
-  | EOr (_, lhs1, rhs1), EOr (_, lhs2, rhs2) ->
+  | EOr(_, lhs1, rhs1), EOr(_, lhs2, rhs2) ->
     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
-  | EDict (_, fields1), EDict (_, fields2) ->
+  | EDict(_, fields1), EDict(_, fields2) ->
     fields1.Length = fields2.Length
     && List.forall2
-         (fun (k1, v1) (k2, v2) -> k1 = k2 && equalsExpr v1 v2)
-         fields1
-         fields2
+      (fun (k1, v1) (k2, v2) -> k1 = k2 && equalsExpr v1 v2)
+      fields1
+      fields2
 
   // exhaustiveness check
   | EInt _, _
@@ -209,9 +208,9 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
 
 and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =
   match pattern1, pattern2 with
-  | LPVariable (_, name1), LPVariable (_, name2) -> name1 = name2
+  | LPVariable(_, name1), LPVariable(_, name2) -> name1 = name2
 
-  | LPTuple (_, first, second, theRest), LPTuple (_, first', second', theRest') ->
+  | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
     let all = first :: second :: theRest
     let all' = first' :: second' :: theRest'
     all.Length = all'.Length && List.forall2 equalsLetPattern all all'
@@ -239,25 +238,25 @@ and equalsStringSegment
 
 and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : bool =
   match pattern1, pattern2 with
-  | MPVariable (_, name1), MPVariable (_, name2) -> name1 = name2
-  | MPEnum (_, tag1, args1), MPEnum (_, tag2, args2) ->
+  | MPVariable(_, name1), MPVariable(_, name2) -> name1 = name2
+  | MPEnum(_, tag1, args1), MPEnum(_, tag2, args2) ->
     tag1 = tag2
     && args1.Length = args2.Length
     && List.forall2 equalsMatchPattern args1 args2
-  | MPInt (_, int1), MPInt (_, int2) -> int1 = int2
-  | MPBool (_, bool1), MPBool (_, bool2) -> bool1 = bool2
-  | MPChar (_, char1), MPChar (_, char2) -> char1 = char2
-  | MPString (_, str1), MPString (_, str2) -> str1 = str2
-  | MPFloat (_, float1), MPFloat (_, float2) -> float1 = float2
+  | MPInt(_, int1), MPInt(_, int2) -> int1 = int2
+  | MPBool(_, bool1), MPBool(_, bool2) -> bool1 = bool2
+  | MPChar(_, char1), MPChar(_, char2) -> char1 = char2
+  | MPString(_, str1), MPString(_, str2) -> str1 = str2
+  | MPFloat(_, float1), MPFloat(_, float2) -> float1 = float2
   | MPUnit _, MPUnit _ -> true
-  | MPTuple (_, elem1_1, elem2_1, elems1), MPTuple (_, elem1_2, elem2_2, elems2) ->
+  | MPTuple(_, elem1_1, elem2_1, elems1), MPTuple(_, elem1_2, elem2_2, elems2) ->
     equalsMatchPattern elem1_1 elem1_2
     && equalsMatchPattern elem2_1 elem2_2
     && elems1.Length = elems2.Length
     && List.forall2 equalsMatchPattern elems1 elems2
-  | MPList (_, elems1), MPList (_, elems2) ->
+  | MPList(_, elems1), MPList(_, elems2) ->
     elems1.Length = elems2.Length && List.forall2 equalsMatchPattern elems1 elems2
-  | MPListCons (_, head, tail), MPListCons (_, head', tail') ->
+  | MPListCons(_, head, tail), MPListCons(_, head', tail') ->
     equalsMatchPattern head head' && equalsMatchPattern tail tail'
   // exhaustiveness check
   | MPVariable _, _
