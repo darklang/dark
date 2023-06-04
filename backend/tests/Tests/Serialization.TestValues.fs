@@ -141,6 +141,11 @@ module RuntimeTypes =
         ),
         [ "a9df8", RT.EUnit(71631UL) ]
       )
+      RT.ERecordUpdate(
+        619623640UL,
+        RT.EVariable(81036610UL, "myRec"),
+        [ ("y", RT.EInt(401690270UL, 2L)) ]
+      )
       RT.EEnum(
         64617UL,
         RT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 }),
@@ -432,101 +437,117 @@ module ProgramTypes =
                              )) ]
                         ),
                         PT.ELet(
-                          745304029UL,
-                          PT.LPVariable(17461UL, "m"),
-                          PT.EMatch(
-                            889712088UL,
-                            PT.EFnCall(
-                              203239466UL,
-                              PT.FQFnName.Stdlib
-                                { modules = [ "Mod" ]
-                                  function_ = "function"
-                                  version = 2 },
-                              [],
-                              []
-                            ),
-                            [ (PT.MPEnum(
-                                1015986188UL,
-                                "Ok",
-                                [ PT.MPVariable(334386852UL, "x") ]
-                               ),
-                               PT.EVariable(863810169UL, "v"))
-                              (PT.MPInt(928253813UL, 5L),
-                               PT.EInt(342670561UL, -9223372036854775808L))
-                              (PT.MPBool(435227293UL, true), PT.EInt(232748650UL, 7L))
-                              (PT.MPChar(387662539UL, "c"),
-                               PT.EChar(657848009UL, "c"))
-                              (PT.MPList(
-                                387662539UL,
-                                [ PT.MPBool(435227293UL, true) ]
-                               ),
-                               PT.EList(657848009UL, [ PT.EBool(435227293UL, true) ]))
-                              (PT.MPListCons(
-                                596996239UL,
-                                PT.MPString(949735651UL, "val1"),
-                                PT.MPListCons(
-                                  580612639UL,
-                                  PT.MPString(191110189UL, "val2"),
-                                  PT.MPList(
-                                    448252771UL,
-                                    [ PT.MPString(98945887UL, "val3") ]
-                                  )
-                                )
-                               ),
-                               PT.EList(657848009UL, [ PT.EBool(435227293UL, true) ]))
-                              (PT.MPString(491115870UL, "string"),
-                               PT.EString(
-                                 820329949UL,
-                                 [ PT.StringText "string"
-                                   PT.StringInterpolation(
-                                     PT.EVariable(1002893266UL, "var")
-                                   ) ]
-                               ))
-                              (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
-                              (PT.MPVariable(722099983UL, "var"),
-                               PT.EInfix(
-                                 275666765UL,
-                                 PT.InfixFnCall(PT.ArithmeticPlus),
-                                 PT.EInt(739193732UL, 6L),
-                                 PT.EVariable(880556562UL, "var")
-                               ))
-                              (PT.MPFloat(409097457UL, Positive, "5", "6"),
-                               PT.EFloat(131187958UL, Positive, "5", "6"))
-                              (PT.MPTuple(
-                                1285610UL,
-                                PT.MPVariable(17823641UL, "a"),
-                                PT.MPVariable(58123641UL, "b"),
-                                [ PT.MPVariable(95723641UL, "c") ]
-                               ),
-                               PT.EBool(123716747UL, true)) ]
+                          1039625813UL,
+                          PT.LPVariable(169324087UL, "updatedR"),
+                          PT.ERecordUpdate(
+                            619623640UL,
+                            PT.EVariable(81036610UL, "r"),
+                            [ ("field", PT.EInt(401690270UL, 42L)) ]
                           ),
                           PT.ELet(
-                            927055617UL,
-                            PT.LPVariable(1782674UL, "f"),
-                            PT.EIf(
-                              882488977UL,
-                              PT.EBool(349352147UL, true),
-                              PT.EInt(578528886UL, 5L),
-                              PT.EInt(562930224UL, 6L)
+                            745304029UL,
+                            PT.LPVariable(17461UL, "m"),
+                            PT.EMatch(
+                              889712088UL,
+                              PT.EFnCall(
+                                203239466UL,
+                                PT.FQFnName.Stdlib
+                                  { modules = [ "Mod" ]
+                                    function_ = "function"
+                                    version = 2 },
+                                [],
+                                []
+                              ),
+                              [ (PT.MPEnum(
+                                  1015986188UL,
+                                  "Ok",
+                                  [ PT.MPVariable(334386852UL, "x") ]
+                                 ),
+                                 PT.EVariable(863810169UL, "v"))
+                                (PT.MPInt(928253813UL, 5L),
+                                 PT.EInt(342670561UL, -9223372036854775808L))
+                                (PT.MPBool(435227293UL, true),
+                                 PT.EInt(232748650UL, 7L))
+                                (PT.MPChar(387662539UL, "c"),
+                                 PT.EChar(657848009UL, "c"))
+                                (PT.MPList(
+                                  387662539UL,
+                                  [ PT.MPBool(435227293UL, true) ]
+                                 ),
+                                 PT.EList(
+                                   657848009UL,
+                                   [ PT.EBool(435227293UL, true) ]
+                                 ))
+                                (PT.MPListCons(
+                                  596996239UL,
+                                  PT.MPString(949735651UL, "val1"),
+                                  PT.MPListCons(
+                                    580612639UL,
+                                    PT.MPString(191110189UL, "val2"),
+                                    PT.MPList(
+                                      448252771UL,
+                                      [ PT.MPString(98945887UL, "val3") ]
+                                    )
+                                  )
+                                 ),
+                                 PT.EList(
+                                   657848009UL,
+                                   [ PT.EBool(435227293UL, true) ]
+                                 ))
+                                (PT.MPString(491115870UL, "string"),
+                                 PT.EString(
+                                   820329949UL,
+                                   [ PT.StringText "string"
+                                     PT.StringInterpolation(
+                                       PT.EVariable(1002893266UL, "var")
+                                     ) ]
+                                 ))
+                                (PT.MPUnit 701616052UL, PT.EUnit 731162955UL)
+                                (PT.MPVariable(722099983UL, "var"),
+                                 PT.EInfix(
+                                   275666765UL,
+                                   PT.InfixFnCall(PT.ArithmeticPlus),
+                                   PT.EInt(739193732UL, 6L),
+                                   PT.EVariable(880556562UL, "var")
+                                 ))
+                                (PT.MPFloat(409097457UL, Positive, "5", "6"),
+                                 PT.EFloat(131187958UL, Positive, "5", "6"))
+                                (PT.MPTuple(
+                                  1285610UL,
+                                  PT.MPVariable(17823641UL, "a"),
+                                  PT.MPVariable(58123641UL, "b"),
+                                  [ PT.MPVariable(95723641UL, "c") ]
+                                 ),
+                                 PT.EBool(123716747UL, true)) ]
                             ),
                             PT.ELet(
-                              6345345UL,
-                              PT.LPVariable(17274UL, "partials"),
-                              PT.EList(23423423UL, []),
+                              927055617UL,
+                              PT.LPVariable(1782674UL, "f"),
+                              PT.EIf(
+                                882488977UL,
+                                PT.EBool(349352147UL, true),
+                                PT.EInt(578528886UL, 5L),
+                                PT.EInt(562930224UL, 6L)
+                              ),
                               PT.ELet(
-                                883434UL,
-                                PT.LPVariable(12894671UL, "tuples"),
-                                PT.ETuple(72333UL, e, e, [ e ]),
+                                6345345UL,
+                                PT.LPVariable(17274UL, "partials"),
+                                PT.EList(23423423UL, []),
                                 PT.ELet(
-                                  47462UL,
-                                  PT.LPVariable(123471UL, "binopAnd"),
-                                  PT.EInfix(
-                                    234234UL,
-                                    PT.BinOp(PT.BinOpAnd),
-                                    PT.EBool(234234UL, true),
-                                    PT.EBool(234234UL, false)
-                                  ),
-                                  e
+                                  883434UL,
+                                  PT.LPVariable(12894671UL, "tuples"),
+                                  PT.ETuple(72333UL, e, e, [ e ]),
+                                  PT.ELet(
+                                    47462UL,
+                                    PT.LPVariable(123471UL, "binopAnd"),
+                                    PT.EInfix(
+                                      234234UL,
+                                      PT.BinOp(PT.BinOpAnd),
+                                      PT.EBool(234234UL, true),
+                                      PT.EBool(234234UL, false)
+                                    ),
+                                    e
+                                  )
                                 )
                               )
                             )

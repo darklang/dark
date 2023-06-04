@@ -52,6 +52,12 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     EMatch(id, f mexpr, List.map (fun (name, expr) -> (name, f expr)) pairs)
   | ERecord (id, typeName, fields) ->
     ERecord(id, typeName, List.map (fun (name, expr) -> (name, f expr)) fields)
+  | ERecordUpdate (id, record, updates) ->
+    ERecordUpdate(
+      id,
+      f record,
+      List.map (fun (name, expr) -> (name, f expr)) updates
+    )
   | EEnum (id, typeName, caseName, fields) ->
     EEnum(id, typeName, caseName, List.map f fields)
 
@@ -186,7 +192,12 @@ let rec preTraversal
       fqtnFn typeName,
       List.map (fun (name, expr) -> (name, f expr)) fields
     )
-
+  | ERecordUpdate (id, record, updates) ->
+    ERecordUpdate(
+      id,
+      f record,
+      List.map (fun (name, expr) -> (name, f expr)) updates
+    )
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f in

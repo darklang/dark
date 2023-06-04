@@ -223,6 +223,7 @@ type Expr =
   | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ERecord of id * typeName : FQTypeName.T * fields : List<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
   | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>

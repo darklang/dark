@@ -279,6 +279,12 @@ module Expr =
         FQTypeName.toST typeName,
         List.map (Tuple2.mapSecond toST) fields
       )
+    | PT.ERecordUpdate (id, record, updates) ->
+      ST.ERecordUpdate(
+        id,
+        toST record,
+        updates |> List.map (fun (name, expr) -> (name, toST expr))
+      )
     | PT.EPipe (pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, pipeExprToST expr2, List.map pipeExprToST rest)
     | PT.EEnum (id, typeName, caseName, fields) ->
@@ -345,6 +351,12 @@ module Expr =
         id,
         FQTypeName.toPT typeName,
         List.map (Tuple2.mapSecond toPT) fields
+      )
+    | ST.ERecordUpdate (id, record, updates) ->
+      PT.ERecordUpdate(
+        id,
+        toPT record,
+        updates |> List.map (fun (name, expr) -> (name, toPT expr))
       )
     | ST.EPipe (pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)

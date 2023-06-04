@@ -575,7 +575,14 @@ module Expect =
           eq (k :: path) v v')
         fields
         fields'
-
+    | ERecordUpdate (_, record, updates), ERecordUpdate (_, record', updates') ->
+      check path record record'
+      List.iter2
+        (fun (k, v) (k', v') ->
+          check path k k'
+          eq (k :: path) v v')
+        updates
+        updates'
     | EDict (_, fields), EDict (_, fields') ->
       List.iter2
         (fun (k, v) (k', v') ->
@@ -628,6 +635,7 @@ module Expect =
     | ETuple _, _
     | EApply _, _
     | ERecord _, _
+    | ERecordUpdate _, _
     | EDict _, _
     | EFieldAccess _, _
     | EEnum _, _
