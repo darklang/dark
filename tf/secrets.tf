@@ -4,7 +4,7 @@
 #################
 
 resource "google_secret_manager_secret" "cloudsql_password" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -12,7 +12,7 @@ resource "google_secret_manager_secret" "cloudsql_password" {
 }
 
 resource "google_secret_manager_secret" "cloudsql_username" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -20,7 +20,7 @@ resource "google_secret_manager_secret" "cloudsql_username" {
 }
 
 resource "google_secret_manager_secret" "honeycomb_api_key" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -28,7 +28,7 @@ resource "google_secret_manager_secret" "honeycomb_api_key" {
 }
 
 resource "google_secret_manager_secret" "launchdarkly_sdk_api_key" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -36,7 +36,7 @@ resource "google_secret_manager_secret" "launchdarkly_sdk_api_key" {
 }
 
 resource "google_secret_manager_secret" "pusher_app_id" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -44,7 +44,7 @@ resource "google_secret_manager_secret" "pusher_app_id" {
 }
 
 resource "google_secret_manager_secret" "pusher_cluster" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -52,7 +52,7 @@ resource "google_secret_manager_secret" "pusher_cluster" {
 }
 
 resource "google_secret_manager_secret" "pusher_key" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -60,7 +60,7 @@ resource "google_secret_manager_secret" "pusher_key" {
 }
 
 resource "google_secret_manager_secret" "pusher_secret" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -68,7 +68,7 @@ resource "google_secret_manager_secret" "pusher_secret" {
 }
 
 resource "google_secret_manager_secret" "queue_pubsub_credentials" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -76,7 +76,7 @@ resource "google_secret_manager_secret" "queue_pubsub_credentials" {
 }
 
 resource "google_secret_manager_secret" "rollbar_post_token" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }
@@ -84,7 +84,7 @@ resource "google_secret_manager_secret" "rollbar_post_token" {
 }
 
 resource "google_secret_manager_secret" "traces_cloud_storage_credentials" {
-  project = "118633020131"
+  project = local.project_id
   replication {
     automatic = true
   }

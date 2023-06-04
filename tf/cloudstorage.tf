@@ -6,7 +6,7 @@ resource "google_storage_bucket" "artifacts_balmy_ground_195100_appspot_com" {
   force_destroy            = false
   location                 = "US"
   name                     = "artifacts.balmy-ground-195100.appspot.com"
-  project                  = "balmy-ground-195100"
+  project                  = local.project_name
   public_access_prevention = "inherited"
   storage_class            = "STANDARD"
 }

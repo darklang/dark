@@ -92,7 +92,7 @@ resource "google_project_iam_member" "traces_storage_ai_member_object_viewer" {
 resource "google_service_account" "dark_static_assets_tmp" {
   account_id   = "dark-static-assets-tmp"
   display_name = "dark-static-assets"
-  project      = "balmy-ground-195100"
+  project      = local.project_name
 }
 
 
