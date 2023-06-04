@@ -264,6 +264,19 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
+  push-assets-to-gcp:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - setup-app
+      - auth-with-gcp: { background: true }
+      - attach_workspace: { at: "." }
+      - show-large-files-and-directories
+      # LIGHTTODO
+      # - run: scripts/deployment/_push-assets-to-cdn
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
   deploy-lock:
     # Note that it doesn't matter if the in-container executor is a bit slow: they
     # deploy according the timestamp on the commit. Even if builds add their locks in
