@@ -48,6 +48,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return ()
     }
 
+  let recordMaybe (typeName : FQTypeName.T) =
+    let types = ExecutionState.availableTypes state
+    let rec inner (typeName : FQTypeName.T) =
+      match Types.find typeName types with
+      | Some(CustomType.Alias(TCustomType(innerTypeName, _))) -> inner innerTypeName
+      | Some(CustomType.Record(firstField, otherFields)) ->
+        Some(firstField, otherFields)
+      | Some(CustomType.Enum _) -> None
+      | _ -> None
+    inner typeName
 
   uply {
     match e with
@@ -185,15 +195,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let types = ExecutionState.availableTypes state
       let typ = Types.find typeName types
 
-      let rec recordMaybe (typeName : FQTypeName.T) =
-        match Types.find typeName types with
-        | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
-          recordMaybe innerTypeName
-        | Some(CustomType.Record(firstField, otherFields)) ->
-          Some(firstField, otherFields)
-        | Some(CustomType.Enum _) -> None
-        | _ -> None
-
       match recordMaybe typeName with
       | None ->
         match typ with
@@ -244,56 +245,43 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let! baseRecord = eval state st baseRecord
       let types = ExecutionState.availableTypes state
       match baseRecord with
+      | DRecord(_, fields) when List.length updates > Map.count fields ->
+        return err id "The updates list is longer than the record filedls list"
       | DRecord(typeName, fields) ->
         let typ = Types.find typeName types
         let typeStr = FQTypeName.toString typeName
-        let rec recordMaybe (typeName : FQTypeName.T) =
-          match Types.find typeName types with
-          | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
-            recordMaybe innerTypeName
-          | Some(CustomType.Record(firstField, otherFields)) ->
-            Some(firstField, otherFields)
-          | Some(CustomType.Enum _) -> None
-          | _ -> None
-        if List.length updates > Map.count fields then
-          return err id "The updates list is longer than the record filedls list"
-        else
-          return!
-            Ply.List.foldSequentially
-              (fun r (k, v) ->
-                uply {
-                  let! v = eval state st v
-                  match r with
-                  | DRecord(typeName, m) ->
-                    if not (Map.containsKey k m) then
-                      return err id $"Unexpected field `{k}` in {typeStr}"
-                    else
-                      match recordMaybe typeName with
-                      | None ->
-                        match typ with
-                        | None ->
-                          return err id $"There is no type named `{typeStr}`"
-                        | Some(CustomType.Enum _) ->
-                          return
-                            err id $"Expected a record but {typeStr} is an enum"
-                        | _ ->
-                          return
-                            err
-                              id
-                              $"Expected a record but {typeStr} is something else"
-                      | Some(expected1, expectedRest) ->
-                        let expectedFields =
-                          (expected1 :: expectedRest)
-                          |> List.map (fun f -> f.name, f.typ)
-                          |> Map
-                        let field = Map.find k expectedFields
-                        match TypeChecker.unify [ k ] types field v with
-                        | Ok() -> return DRecord(typeName, Map.add k v m)
-                        | Error e -> return err id (TypeChecker.Error.toString e)
-                  | _ -> return err id "Expected a record"
-                })
-              baseRecord
-              updates
+        return!
+          Ply.List.foldSequentially
+            (fun r (k, v) ->
+              uply {
+                let! v = eval state st v
+                match r with
+                | DRecord(_, m) when not (Map.containsKey k m) ->
+                  return err id $"Unexpected field `{k}` in {typeStr}"
+                | DRecord(typeName, _) when recordMaybe typeName = None ->
+                  match typ with
+                  | None -> return err id $"There is no type named `{typeStr}`"
+                  | Some(CustomType.Enum _) ->
+                    return err id $"Expected a record but {typeStr} is an enum"
+                  | _ ->
+                    return
+                      err id $"Expected a record but {typeStr} is something else"
+                | DRecord(typeName, m) ->
+                  match recordMaybe typeName with
+                  | Some(expected1, expectedRest) ->
+                    let expectedFields =
+                      (expected1 :: expectedRest)
+                      |> List.map (fun f -> f.name, f.typ)
+                      |> Map
+                    let field = Map.find k expectedFields
+                    match TypeChecker.unify [ k ] types field v with
+                    | Ok() -> return DRecord(typeName, Map.add k v m)
+                    | Error e -> return err id (TypeChecker.Error.toString e)
+                  | None -> return err id $"Unexpected case for {typeStr}"
+                | _ -> return err id "Expected a record"
+              })
+            baseRecord
+            updates
       | _ -> return err id "Expected a record"
 
     | EDict(id, fields) ->
