@@ -122,16 +122,26 @@ type Model =
 // Update
 type Msg =
   | UserGavePrompt of prompt: String
+  | DisplayPrompt of prompt: String
   | UserRequestedCodeEval of id: String * codeSnippet: String
 
 
 let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
   let errMsg = "Update the code snippet to fix " ++ "\n" ++ err ++ "\n" ++ "```" ++ "\n" ++ codeSnippet ++ "\n" ++ "```"
-  update model (Msg.UserGavePrompt errMsg)
+  let newModel = update model (Msg.DisplayPrompt errMsg)
+  update newModel (Msg.UserGavePrompt errMsg)
 
 
 let update (model: Model) (msg: Msg) : Model =
   match msg with
+  | DisplayPrompt prompt ->
+    Model
+      { systemPrompt = model.systemPrompt
+        chatHistory = List.append model.chatHistory [ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) prompt]
+        codeSnippets = model.codeSnippets
+        tasks = model.tasks
+        actions = model.actions }
+
   | UserGavePrompt userPrompt ->
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
@@ -175,7 +185,7 @@ let update (model: Model) (msg: Msg) : Model =
           )
 
       let newChatItemsItems = [
-        ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userPrompt
+        ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) ""
         ChatHistoryItem.BotResponse (rUnwrap(String.random 5)) botResponseParts
       ]
 
