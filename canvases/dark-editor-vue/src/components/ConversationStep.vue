@@ -10,6 +10,7 @@ let props = defineProps<{
 
 <template>
   <div
+    v-if="chatItem.typ === 'Bot' ? chatItem.items.length > 0 : chatItem.prompt"
     class="flex p-3 mb-2 ml-2 rounded text-white"
     :class="{ 'bg-[#222222] rounded-xl overflow-scroll': chatItem.typ === 'Bot' }"
   >
