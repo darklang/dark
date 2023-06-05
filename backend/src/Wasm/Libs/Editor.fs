@@ -40,8 +40,7 @@ let fns : List<BuiltInFn> =
               let state = editor.CurrentState
               // TODO: assert that the type matches the given typeParam
               return DResult(Ok state)
-            with
-            | e ->
+            with e ->
               return
                 $"Error getting state: {e.Message}" |> DString |> Error |> DResult
           }
@@ -139,15 +138,14 @@ let fns : List<BuiltInFn> =
                 LibExecution.Execution.executeExpr state inputVars expr
 
               match result with
-              | DError (_source, err) -> return DResult(Error(DString err))
+              | DError(_source, err) -> return DResult(Error(DString err))
               | result ->
                 return
                   LibExecution.DvalReprDeveloper.toRepr result
                   |> DString
                   |> Ok
                   |> DResult
-            with
-            | e ->
+            with e ->
               let error = Exception.getMessages e |> String.concat " "
               return DResult(Error(DString($"Error parsing code: {error}")))
           }
