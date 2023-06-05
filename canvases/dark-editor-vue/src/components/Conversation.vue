@@ -43,6 +43,7 @@ const isPromptVisible = ref(false)
         <ConversationStep
           v-for="chatItem in state.chatHistory"
           :key="chatItem.id"
+          :isLoading="state.isLoading"
           :chatItem="chatItem"
           :codeSnippets="state.codeSnippets"
           :tasks="state.tasks"
@@ -52,6 +53,6 @@ const isPromptVisible = ref(false)
     </div>
 
     <!-- User Prompt Input at the bottom -->
-    <Prompt />
+    <Prompt :state="state" />
   </div>
 </template>

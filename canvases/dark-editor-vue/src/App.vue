@@ -8,6 +8,7 @@ import TasksAndActionsView from './views/TasksAndActionsView.vue'
 import CodeAndContextView from './views/CodeAndContextView.vue'
 
 let init: Model = {
+  isLoading: false,
   systemPrompt: '<system prompt here>!',
   chatHistory: [],
   codeSnippets: [],

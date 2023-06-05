@@ -111,7 +111,8 @@ type CodeSnippet =
   { id: String; code: String; eval: Option<String> }
 
 type Model =
-  { systemPrompt: String
+  { isLoading: Bool
+    systemPrompt: String
     chatHistory: List<ChatHistoryItem>
     codeSnippets: List<CodeSnippet>
     tasks : List<Task>
@@ -135,7 +136,8 @@ let update (model: Model) (msg: Msg) : Model =
   | UserGavePrompt userPrompt ->
     let newModel =
       Model
-        { systemPrompt = model.systemPrompt
+        { isLoading = true
+          systemPrompt = model.systemPrompt
           chatHistory = List.append model.chatHistory [ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userPrompt]
           codeSnippets = model.codeSnippets
           tasks = model.tasks
@@ -189,7 +191,8 @@ let update (model: Model) (msg: Msg) : Model =
       ]
 
       Model
-        { systemPrompt = model.systemPrompt
+        { isLoading = false
+          systemPrompt = model.systemPrompt
           chatHistory = List.append model.chatHistory newChatItemsItems
           codeSnippets = List.append model.codeSnippets newCodeSnippets
           tasks = List.append model.tasks newtasks
@@ -220,7 +223,8 @@ let update (model: Model) (msg: Msg) : Model =
                 otherSnippets
 
           Model
-            { systemPrompt = model.systemPrompt
+            { isLoading = false
+              systemPrompt = model.systemPrompt
               chatHistory = model.chatHistory
               codeSnippets = updatedCodeSnippets
               tasks = model.tasks
@@ -332,7 +336,8 @@ let initState =
     ]
 
     Model
-      { systemPrompt = String.fromBytes response.body
+      { isLoading = false
+        systemPrompt = String.fromBytes response.body
         chatHistory = chatHistory
         codeSnippets = [demoSnippet]
         tasks = demoTask
