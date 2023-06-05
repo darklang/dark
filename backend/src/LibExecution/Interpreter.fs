@@ -258,26 +258,20 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 match r with
                 | DRecord(_, m) when not (Map.containsKey k m) ->
                   return err id $"Unexpected field `{k}` in {typeStr}"
-                | DRecord(typeName, _) when recordMaybe typeName = None ->
-                  match typ with
-                  | None -> return err id $"There is no type named `{typeStr}`"
-                  | Some(CustomType.Enum _) ->
-                    return err id $"Expected a record but {typeStr} is an enum"
-                  | _ ->
-                    return
-                      err id $"Expected a record but {typeStr} is something else"
                 | DRecord(typeName, m) ->
                   match recordMaybe typeName with
                   | Some(expected1, expectedRest) ->
-                    let expectedFields =
+                    let field =
                       (expected1 :: expectedRest)
                       |> List.map (fun f -> f.name, f.typ)
                       |> Map
-                    let field = Map.find k expectedFields
+                      |> Map.find k
                     match TypeChecker.unify [ k ] types field v with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e -> return err id (TypeChecker.Error.toString e)
-                  | None -> return err id $"Unexpected case for {typeStr}"
+                  | None ->
+                    return
+                      err id $"Expected a record but {typeStr} is something else"
                 | _ -> return err id "Expected a record"
               })
             baseRecord
