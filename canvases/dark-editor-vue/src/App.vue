@@ -8,6 +8,7 @@ import TasksAndActionsView from './views/TasksAndActionsView.vue'
 import CodeAndContextView from './views/CodeAndContextView.vue'
 
 let init: Model = {
+  isLoading: false,
   systemPrompt: '<system prompt here>!',
   chatHistory: [],
   codeSnippets: [],
@@ -61,7 +62,7 @@ document.head.appendChild(darklangJSScript)
       <div class="w-2/5 overflow-auto pb-24">
         <ConversationView v-bind:state="state" />
       </div>
-      <div class="w-2/5 overflow-auto pb-24">
+      <div class="w-2/5 overflow-auto pb-32">
         <CodeAndContextView
           v-bind:state="state"
           :codeSnippets="state.codeSnippets"

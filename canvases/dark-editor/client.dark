@@ -66,7 +66,7 @@ let openAIcompletion (prompt: String): Result<String, String> =
   | Error e -> Error ("Couldn't serialize request" ++ e)
 
 
-let parseAndSerializeProgram (userProgram: String): String =
+let parseAndSerializeProgram (userProgram: String): Result<String, String> =
   let response =
     WASM.HttpClient.request
       "POST"
@@ -74,9 +74,11 @@ let parseAndSerializeProgram (userProgram: String): String =
       []
       (String.toBytes userProgram)
 
-  response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes
-
-
+  let statusCode = response |> rUnwrap |> (fun r -> r.statusCode)
+  match statusCode with
+  | 200 -> Ok (response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
+  | 400 -> Error (response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
+  | _ -> Error ("Unexpected response code: " ++ Int.toString statusCode)
 
 
 // TODO: in the prompt, include something like
@@ -109,7 +111,8 @@ type CodeSnippet =
   { id: String; code: String; eval: Option<String> }
 
 type Model =
-  { systemPrompt: String
+  { isLoading: Bool
+    systemPrompt: String
     chatHistory: List<ChatHistoryItem>
     codeSnippets: List<CodeSnippet>
     tasks : List<Task>
@@ -123,9 +126,24 @@ type Msg =
   | UserRequestedCodeEval of id: String * codeSnippet: String
 
 
+let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
+  let errMsg = "update the code snippet to fix " ++ "\n" ++ err ++ "\n" ++ "```" ++ codeSnippet ++"```"
+  update model (Msg.UserGavePrompt errMsg)
+
+
 let update (model: Model) (msg: Msg) : Model =
   match msg with
   | UserGavePrompt userPrompt ->
+    let newModel =
+      Model
+        { isLoading = true
+          systemPrompt = model.systemPrompt
+          chatHistory = List.append model.chatHistory [ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userPrompt]
+          codeSnippets = model.codeSnippets
+          tasks = model.tasks
+          actions = model.actions }
+    updateStateInJS  newModel
+
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
     let fullPrompt = model.systemPrompt ++ userPrompt
@@ -173,7 +191,8 @@ let update (model: Model) (msg: Msg) : Model =
       ]
 
       Model
-        { systemPrompt = model.systemPrompt
+        { isLoading = false
+          systemPrompt = model.systemPrompt
           chatHistory = List.append model.chatHistory newChatItemsItems
           codeSnippets = List.append model.codeSnippets newCodeSnippets
           tasks = List.append model.tasks newtasks
@@ -191,19 +210,32 @@ let update (model: Model) (msg: Msg) : Model =
     | Nothing -> log "couldn't find snippet"
     | Just snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
-      let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
+      match parsedAndSerialized with
+      | Ok parsedAndSerialized ->
+        let evalPgm = (WASM.Editor.evalUserProgram parsedAndSerialized)
 
-      let updatedCodeSnippets =
-        List.append
-          [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalResult }]
-          otherSnippets
+        match evalPgm with
+        | Ok evalPgm ->
+          evalPgm
+          let updatedCodeSnippets =
+            List.append
+                [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalPgm}]
+                otherSnippets
 
-      Model
-        { systemPrompt = model.systemPrompt
-          chatHistory = model.chatHistory
-          codeSnippets = updatedCodeSnippets
-          tasks = model.tasks
-          actions = model.actions }
+          Model
+            { isLoading = false
+              systemPrompt = model.systemPrompt
+              chatHistory = model.chatHistory
+              codeSnippets = updatedCodeSnippets
+              tasks = model.tasks
+              actions = model.actions }
+
+        | Error err ->
+          sendError model codeSnippet err
+
+      | Error err ->
+        sendError model codeSnippet err
+
 
 /// Single point of communicating to JS host
 ///
@@ -262,29 +294,29 @@ let initState =
 
     let demoTask = [
       Task { id = (String.random 5) |> rUnwrap
-             description = "Task: first task in progress"
+             description = "First task in progress"
              status = Status.InProgress};
 
       Task { id = (String.random 5) |> rUnwrap
-             description = "Task: second task to do"
+             description = "Second task to do"
              status = Status.Todo};
 
       Task { id = (String.random 5) |> rUnwrap
-             description = "Task: first task task done"
+             description = "Third task task done"
              status = Status.InProgress}
     ]
 
     let demoAction = [
       Action { id = (String.random 5) |> rUnwrap
-               description = "Action: first action"
+               description = "First action"
                status = Status.InProgress};
 
       Action { id = (String.random 5) |> rUnwrap
-               description = "Action: second action"
+               description = "Second action"
                status = Status.Todo};
 
       Action { id = (String.random 5) |> rUnwrap
-               description = "Action: third action"
+               description = "Third action"
                status = Status.InProgress}
     ]
 
@@ -298,15 +330,14 @@ let initState =
         [
           BotResponseItem.Text "OK - here's some code:"
           BotResponseItem.CodeSnippet demoSnippet.id
-          BotResponseItem.Text "And here are some tasks:"
           BotResponseItem.Tasks demoTask
-          BotResponseItem.Text "And here are some actions:"
           BotResponseItem.Actions demoAction
         ]
     ]
 
     Model
-      { systemPrompt = String.fromBytes response.body
+      { isLoading = false
+        systemPrompt = String.fromBytes response.body
         chatHistory = chatHistory
         codeSnippets = [demoSnippet]
         tasks = demoTask
