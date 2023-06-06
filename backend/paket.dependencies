@@ -18,9 +18,9 @@ nuget NodaTime.Serialization.SystemTextJson = 1.0.0
 nuget System.IO.Hashing 7.0.0
 
 // Binary Serialization
-nuget MessagePack = 2.4.59
-nuget MessagePack.NodaTime = 3.1.0
-nuget MessagePack.FSharpExtensions = 3.0.0
+nuget MessagePack = 2.5.108
+nuget MessagePack.NodaTime = 3.1.2
+nuget MessagePack.FSharpExtensions = 4.0.0
 
 // Parser
 nuget FSharp.Compiler.Service = 43.7.300
