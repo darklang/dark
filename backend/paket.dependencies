@@ -9,13 +9,13 @@ nuget Tablecloth.FSharp = 0.0.8-alpha1
 nuget Ply = 0.3.1
 nuget FSharpPlus = 1.4.1
 nuget FsRegEx = 0.7.2
-nuget FSharpx.Extras = 3.0.0
-nuget FSharp.Core = 7.0.200
+nuget FSharpx.Extras = 3.1.0
+nuget FSharp.Core = 7.0.300
 nuget Faithlife.Utility = 0.12.2
-nuget FSharp.SystemTextJson = 0.17.4
-nuget NodaTime = 3.1.6
+nuget FSharp.SystemTextJson = 1.1.23
+nuget NodaTime = 3.1.9
 nuget NodaTime.Serialization.SystemTextJson = 1.0.0
-nuget System.IO.Hashing 6.0.2
+nuget System.IO.Hashing 7.0.0
 
 // Binary Serialization
 nuget MessagePack = 2.4.59
@@ -23,7 +23,7 @@ nuget MessagePack.NodaTime = 3.1.0
 nuget MessagePack.FSharpExtensions = 3.0.0
 
 // Parser
-nuget FSharp.Compiler.Service = 43.7.200
+nuget FSharp.Compiler.Service = 43.7.300
 
 // Tests
 nuget Expecto = 9.0.4
