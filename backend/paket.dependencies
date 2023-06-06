@@ -33,9 +33,9 @@ nuget NReco.Logging.File = 1.1.6
 nuget SimpleBase = 4.0.0
 
 // Services
-nuget PusherServer = 4.6.1
-nuget Rollbar = 5.0.5-beta
-nuget Rollbar.NetCore.AspNet = 5.0.5-beta
+nuget PusherServer = 5.0.0
+nuget Rollbar = 5.2.0
+nuget Rollbar.NetCore.AspNet = 5.2.0
 nuget Microsoft.Extensions.Diagnostics.HealthChecks = 6.0.1
 nuget AspNetCore.HealthChecks.Npgsql = 6.0.1
 nuget LaunchDarkly.ServerSdk = 6.3.2
