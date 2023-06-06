@@ -82,6 +82,19 @@ module FQTypeName =
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
     { modules = modules; typ = typ; version = version }
 
+  let packageTypeName'
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (typ : string)
+    (version : int)
+    : PackageTypeName =
+    modules
+    |> NonEmptyList.toList
+    |> List.iter (assertRe "modName name must match" modNamePat)
+    assertRe "package function name must match" typeNamePat typ
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { owner = owner; modules = modules; typ = typ; version = version }
+
 
   module StdlibTypeName =
     let toString (s : StdlibTypeName) : string =
