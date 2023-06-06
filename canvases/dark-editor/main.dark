@@ -4,12 +4,14 @@ let _handler _req =
 
 [<HttpHandler("GET", "/")>]
 let _handler _req =
-  let filePath =  "dark-editor-vue/dist/index.html"
+  let filePath = "dark-editor-vue/dist/index.html"
   let file = Experiments.readFromCanvases filePath
+
   let body =
     match file with
-    | Ok f ->  f
+    | Ok f -> f
     | Error _ -> Bytes.empty
+
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
     (body)
     [ ("Content-Type", "text/html") ]
@@ -30,7 +32,8 @@ let _handler _req =
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders fileContents headers 200
 
-  | Error _e -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "Couldn't load asset") 400
+  | Error _e ->
+    PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "Couldn't load asset") 400
 
 // We're sharing the Worker script between this canvas and
 // dark-repl, and Worker scripts can't be loaded across
@@ -39,7 +42,9 @@ let _handler _req =
 // so let's assume JS content-type.
 [<HttpHandler("GET", "/static/:path")>]
 let _handler _req =
-  let body = (Experiments.readFromStaticDir $"{path}") |> Result.withDefault Bytes.empty
+  let body =
+    (Experiments.readFromStaticDir $"{path}") |> Result.withDefault Bytes.empty
+
   let headers = [ ("Content-type", "text/javascript") ]
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
 
@@ -47,15 +52,21 @@ let _handler _req =
 let _handler _req =
   match Experiments.readFromCanvases "dark-editor/client.dark" with
   | Ok sourceInBytes -> PACKAGE.Darklang.Stdlib.Http.response sourceInBytes 200
-  | Error _err -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "Couldn't load client.dark from disk") 500
+  | Error _err ->
+    PACKAGE.Darklang.Stdlib.Http.response
+      (String.toBytes "Couldn't load client.dark from disk")
+      500
 
 
 // TODO: remove once a parser can run in WASM runtime
 [<HttpHandler("POST", "/get-program-json")>]
 let _handler _req =
   let sourceInBytes = request.body
+
   let program =
-    Experiments.parseAndSerializeProgram (String.fromBytes sourceInBytes) "user-code.dark"
+    Experiments.parseAndSerializeProgram
+      (String.fromBytes sourceInBytes)
+      "user-code.dark"
 
   match program with
   | Ok program ->
@@ -63,18 +74,31 @@ let _handler _req =
     let fns = Option.withDefault (Dict.get program "fns") "[]"
     let exprs = Option.withDefault (Dict.get program "exprs") "[]"
 
-    let json = "{ \"types\": " ++ types ++ ", \"fns\": " ++ fns ++ ", \"exprs\": " ++ exprs ++ "}"
+    let json =
+      "{ \"types\": "
+      ++ types
+      ++ ", \"fns\": "
+      ++ fns
+      ++ ", \"exprs\": "
+      ++ exprs
+      ++ "}"
 
     PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (String.toBytes json)
-      [ ("content-type", "application-json")]
+      [ ("content-type", "application-json") ]
       200
 
-  | Error err -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes ("Couldn't parse the program \n" ++ err)) 400
+  | Error err ->
+    PACKAGE.Darklang.Stdlib.Http.response
+      (String.toBytes ("Couldn't parse the program \n" ++ err))
+      400
 
 
 [<HttpHandler("GET", "/system-prompt")>]
 let _handler _req =
   match Experiments.readFromCanvases "dark-editor/system-prompt.txt" with
-  | Ok prompt ->  PACKAGE.Darklang.Stdlib.Http.response prompt 200
-  | Error _e -> PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "Couldn't load prompt from disk") 500
+  | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200
+  | Error _e ->
+    PACKAGE.Darklang.Stdlib.Http.response
+      (String.toBytes "Couldn't load prompt from disk")
+      500

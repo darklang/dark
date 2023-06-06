@@ -2,164 +2,165 @@ module Darklang =
   module Stdlib =
     module Http =
 
-      type Response = {
-        statusCode : Int
-        headers : List<String * String>
-        body : Bytes
-      }
+      type Response =
+        { statusCode: Int
+          headers: List<String * String>
+          body: Bytes }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status <param code> and <param response> body.
-      let response (body : Bytes) (statusCode : Int) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let response
+        (body: Bytes)
+        (statusCode: Int)
+        : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = statusCode
+          { statusCode = statusCode
             headers = []
-            body = body
-          }
+            body = body }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status <param code>, <param response> body and
       /// <param headers>.
-      let responseWithHeaders (body : Bytes) (headers : List<String * String>) (statusCode : Int) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let responseWithHeaders
+        (body: Bytes)
+        (headers: List<String * String>)
+        (statusCode: Int)
+        : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = statusCode
+          { statusCode = statusCode
             headers = headers
-            body = body
-          }
+            body = body }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status 200 and <param response> body.
-      let success (body : Bytes) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let success (body: Bytes) : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = 200
+          { statusCode = 200
             headers = []
-            body = body
-          }
+            body = body }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status 200, <param response> body, with the
       /// Content-Type header set to "text/html; charset=utf-8".
-      let responseWithHtml (body : String) (statusCode : Int) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let responseWithHtml
+        (body: String)
+        (statusCode: Int)
+        : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = statusCode
+          { statusCode = statusCode
             headers = [ "Content-Type", "text/html; charset=utf-8" ]
-            body = body |> String.toBytes
-          }
+            body = body |> String.toBytes }
 
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status 200, <param response> body, with the
       /// Content-Type header set to "text/plain; charset=utf-8".
-      let responseWithText (text : String) (statusCode : Int) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let responseWithText
+        (text: String)
+        (statusCode: Int)
+        : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = statusCode
+          { statusCode = statusCode
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]
-            body = String.toBytes text
-          }
+            body = String.toBytes text }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status 200, <param response> body, with the
       /// Content-Type header set to "application/json".
-      let responseWithJson (json : String) (statusCode : Int) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let responseWithJson
+        (json: String)
+        (statusCode: Int)
+        : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = statusCode
+          { statusCode = statusCode
             headers = [ "Content-Type", "application/json" ]
-            body = String.toBytes json
-          }
+            body = String.toBytes json }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{302}} status code and redirect to <param url>.
-      let redirectTo (url : String) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let redirectTo (url: String) : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = 302
+          { statusCode = 302
             headers = [ "Location", url ]
-            body = Bytes.empty
-          }
+            body = Bytes.empty }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{400}} status code and <param response> body.
-      let badRequest (error : String) : PACKAGE.Darklang.Stdlib.Http.Response =
+      let badRequest (error: String) : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = 400
+          { statusCode = 400
             headers = []
-            body = String.toBytes error
-          }
+            body = String.toBytes error }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{404}} status code.
       let notFound () : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = 404
+          { statusCode = 404
             headers = []
-            body = Bytes.empty
-          }
+            body = Bytes.empty }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{401}} status code.
       let unauthorized () : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = 401
+          { statusCode = 401
             headers = []
-            body = Bytes.empty
-          }
+            body = Bytes.empty }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{403}} status code.
       let forbidden () : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
-          {
-            statusCode = 403
+          { statusCode = 403
             headers = []
-            body = Bytes.empty
-          }
+            body = Bytes.empty }
 
       type Cookie =
-        {
-          expires : DateTime
-          maxAge : Int
-          domain : String
-          path : String
-          secure : Bool
-          httpOnly : Bool
-          sameSite : String
-        }
+        { expires: DateTime
+          maxAge: Int
+          domain: String
+          path: String
+          secure: Bool
+          httpOnly: Bool
+          sameSite: String }
 
       /// Returns an HTTP Set-Cookie header <type (String*String)> suitable for use with <fn
       /// Http.responseWithHeaders>, given a cookie <param name>, a <type String>
       /// <param value> for it, and a <type Dict> of Set-Cookie <param params>
       /// ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}},
       /// and/or {{SameSite}}).
-      let cookie (name : String) (value : String) (cookie : Cookie) : Result<(String * String), String> =
-        if not (List.contains (String.toLowercase cookie.sameSite) [ "strict"; "lax"; "none" ]) then
+      let cookie
+        (name: String)
+        (value: String)
+        (cookie: Cookie)
+        : Result<(String * String), String> =
+        if
+          not (
+            List.contains
+              (String.toLowercase cookie.sameSite)
+              [ "strict"; "lax"; "none" ]
+          )
+        then
           Error "SameSite must be either \"Strict\" or \"Lax\" or \"None\""
         else
           let expires =
             let e = Cookie.expires
             $"{DateTime.dayOfWeek e}, {DateTime.day e} {DateTime.month e} {DateTime.year e} {DateTime.hour e}:{DateTime.minute e}:{DateTime.second} GMT"
+
           let cookie =
-            [
-              "Expires", expires
+            [ "Expires", expires
               "Max-Age", cookie.maxAge |> Int.toString
               "Domain", cookie.domain
               "Path", cookie.path
               "Secure", cookie.secure |> Bool.toString
               "HttpOnly", cookie.httpOnly |> Bool.toString
-              "SameSite", cookie.sameSite
-            ]
-            |> List.filterMap (fun (k, v) -> if v == "" then Nothing else Just (k, v))
+              "SameSite", cookie.sameSite ]
+            |> List.filterMap (fun (k, v) -> if v == "" then Nothing else Just(k, v))
             |> List.map (fun (k, v) -> k ++ "=" ++ v)
             |> String.join "; "
+
           if cookie == "" then
             Error "Cookie must have at least one parameter"
           else
-            Ok ("Set-Cookie", name ++ "=" ++ value ++ "; " ++ cookie)
+            Ok("Set-Cookie", name ++ "=" ++ value ++ "; " ++ cookie)
