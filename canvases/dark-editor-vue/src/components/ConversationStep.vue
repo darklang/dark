@@ -10,6 +10,7 @@ let props = defineProps<{
 
 <template>
   <div
+    v-if="chatItem.typ === 'Bot' ? chatItem.items.length > 0 : chatItem.prompt"
     class="flex p-3 mb-2 ml-2 rounded text-white"
     :class="{ 'bg-[#222222] rounded-xl overflow-scroll': chatItem.typ === 'Bot' }"
   >
@@ -25,16 +26,19 @@ let props = defineProps<{
       </p>
     </div>
 
-    <div class="p-3 flex-grow" v-if="chatItem.typ === 'Bot'">
+    <div class="pl-3 flex-grow" v-if="chatItem.typ === 'Bot'">
       <div v-for="(item, index) in chatItem.items">
-        <p v-if="item.typ === 'Text'">
-          {{ item.text }}
-        </p>
+        <pre class="whitespace-pre-wrap break-w text-sm" v-if="item.typ === 'Text'"
+          >{{ item.text }} </pre
+        >
       </div>
     </div>
 
-    <p class="p-3 flex-grow" v-else-if="chatItem.typ === 'User'">
-      {{ chatItem.prompt }}
-    </p>
+    <div
+      class="pl-3 flex items-center flex-grow"
+      v-else-if="chatItem.typ === 'User'"
+    >
+      <pre class="whitespace-pre-wrap break-w text-sm">{{ chatItem.prompt }}</pre>
+    </div>
   </div>
 </template>

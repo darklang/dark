@@ -33,6 +33,7 @@ export type ChatHistoryItem =
   | { typ: 'Bot'; id: string; items: BotResponseItem[] }
 
 export interface Model {
+  isLoading: boolean
   systemPrompt: string
   chatHistory: ChatHistoryItem[]
   codeSnippets: CodeSnippet[]
@@ -121,6 +122,7 @@ export function fromSerializedDarkModel(serializedDarkModel: string): Model {
   })
 
   return {
+    isLoading: source.isLoading,
     systemPrompt: source.systemPrompt,
     chatHistory: chatHistory,
     codeSnippets: codeSnippets,
