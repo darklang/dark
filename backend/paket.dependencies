@@ -56,8 +56,7 @@ nuget Npgsql.FSharp = 5.7.0
 nuget Npgsql = 7.0.4
 nuget Npgsql.NodaTime = 7.0.4
 nuget Sodium.Core = 1.3.3
-nuget Google.Protobuf = 3.23.2
-nuget Google.Cloud.PubSub.V1 = 2.10.0
+nuget Google.Cloud.PubSub.V1 = 3.5.1
 nuget Google.Cloud.Storage.V1 = 4.5.0
 
 // CanvasHack
