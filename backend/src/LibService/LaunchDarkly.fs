@@ -43,41 +43,57 @@ module Internal =
 
   // Internal functions to call LD. Should only be used from within
   let boolSetTestDefault (flagName : string) (default_ : bool) =
-    testData.Update(testData.Flag(flagName).ValueForAllUsers(LdValue.Of default_))
+    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
     |> ignore<Integrations.TestData>
 
   let intSetTestDefault (flagName : string) (default_ : int) =
-    testData.Update(testData.Flag(flagName).ValueForAllUsers(LdValue.Of default_))
+    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
     |> ignore<Integrations.TestData>
 
   let floatSetTestDefault (flagName : string) (default_ : float) =
-    testData.Update(testData.Flag(flagName).ValueForAllUsers(LdValue.Of default_))
+    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
     |> ignore<Integrations.TestData>
 
   let stringSetTestDefault (flagName : string) (default_ : string) =
-    testData.Update(testData.Flag(flagName).ValueForAllUsers(LdValue.Of default_))
+    testData.Update(testData.Flag(flagName).ValueForAll(LdValue.Of default_))
     |> ignore<Integrations.TestData>
 
-  let boolVar (flagName : string) (userSignifier : string) (default_ : bool) : bool =
-    client.Force().BoolVariation(flagName, User.WithKey userSignifier, default_)
+  let boolVar
+    (flagName : string)
+    (kind : ContextKind)
+    (contextName : string)
+    (default_ : bool)
+    : bool =
+    client.Force().BoolVariation(flagName, Context.New(kind, contextName), default_)
 
-  let intVar (flagName : string) (userSignifier : string) (default_ : int) : int =
-    client.Force().IntVariation(flagName, User.WithKey userSignifier, default_)
+  let intVar
+    (flagName : string)
+    (kind : ContextKind)
+    (contextName : string)
+    (default_ : int)
+    : int =
+    client.Force().IntVariation(flagName, Context.New(kind, contextName), default_)
 
   let floatVar
     (flagName : string)
-    (userSignifier : string)
+    (kind : ContextKind)
+    (contextName : string)
     (default_ : float)
     : float =
     // Note use of name Double here (C# double is an F# float)
-    client.Force().DoubleVariation(flagName, User.WithKey userSignifier, default_)
+    client
+      .Force()
+      .DoubleVariation(flagName, Context.New(kind, contextName), default_)
 
   let stringVar
     (flagName : string)
-    (userSignifier : string)
+    (kind : ContextKind)
+    (contextName : string)
     (default_ : string)
     : string =
-    client.Force().StringVariation(flagName, User.WithKey userSignifier, default_)
+    client
+      .Force()
+      .StringVariation(flagName, Context.New(kind, contextName), default_)
 
 
   // -------------
@@ -86,17 +102,18 @@ module Internal =
   // provide knobs to change how the system works remotely, for example, changing the
   // number of queue events to execute simulateously.
   // -------------
+  let configKind = ContextKind.Of "config"
   let boolConfig
     (name : string)
     (default_ : bool)
     (testDefault : bool)
     : unit -> bool =
     boolSetTestDefault name testDefault
-    fun () -> boolVar name "system" default_
+    fun () -> boolVar name configKind "system" default_
 
   let intConfig (name : string) (default_ : int) (testDefault : int) : unit -> int =
     intSetTestDefault name testDefault
-    fun () -> intVar name "system" default_
+    fun () -> intVar name configKind "system" default_
 
   let floatConfig
     (name : string)
@@ -104,7 +121,7 @@ module Internal =
     (testDefault : float)
     : unit -> float =
     floatSetTestDefault name testDefault
-    fun () -> floatVar name "system" default_
+    fun () -> floatVar name configKind "system" default_
 
   let stringConfig
     (name : string)
@@ -112,7 +129,7 @@ module Internal =
     (testDefault : string)
     : unit -> string =
     stringSetTestDefault name testDefault
-    fun () -> stringVar name "system" default_
+    fun () -> stringVar name configKind "system" default_
 
 
 
@@ -125,13 +142,16 @@ module Internal =
     // because it's user readable but it's not too hard to find a tlid id
     $"handler-{canvasID}-{tlid}"
 
+  let handlerKind = ContextKind.Of "handler"
+
   let handlerBool
     (name : string)
     (default_ : bool)
     (testDefault : bool)
     : CanvasID -> tlid -> bool =
     boolSetTestDefault name testDefault
-    fun canvasName tlid -> boolVar name (flagNameForHandler canvasName tlid) default_
+    fun canvasName tlid ->
+      boolVar name handlerKind (flagNameForHandler canvasName tlid) default_
 
   let handlerInt
     (name : string)
@@ -139,7 +159,8 @@ module Internal =
     (testDefault : int)
     : CanvasID -> tlid -> int =
     intSetTestDefault name testDefault
-    fun canvasName tlid -> intVar name (flagNameForHandler canvasName tlid) default_
+    fun canvasName tlid ->
+      intVar name handlerKind (flagNameForHandler canvasName tlid) default_
 
   let handlerFloat
     (name : string)
@@ -148,7 +169,7 @@ module Internal =
     : CanvasID -> tlid -> float =
     floatSetTestDefault name testDefault
     fun canvasName tlid ->
-      floatVar name (flagNameForHandler canvasName tlid) default_
+      floatVar name handlerKind (flagNameForHandler canvasName tlid) default_
 
   let handlerString
     (name : string)
@@ -157,12 +178,13 @@ module Internal =
     : CanvasID -> tlid -> string =
     stringSetTestDefault name testDefault
     fun canvasName tlid ->
-      stringVar name (flagNameForHandler canvasName tlid) default_
+      stringVar name handlerKind (flagNameForHandler canvasName tlid) default_
 
 
   // -------------
   // per-canvas values
   // -------------
+  let canvasKind = ContextKind.Of "canvas"
 
   let canvasBool
     (name : string)
@@ -170,7 +192,7 @@ module Internal =
     (testDefault : bool)
     : CanvasID -> bool =
     boolSetTestDefault name testDefault
-    fun canvasID -> boolVar name $"canvas-{canvasID}" default_
+    fun canvasID -> boolVar name canvasKind $"canvas-{canvasID}" default_
 
   let canvasInt
     (name : string)
@@ -178,7 +200,7 @@ module Internal =
     (testDefault : int)
     : CanvasID -> int =
     intSetTestDefault name testDefault
-    fun canvasID -> intVar name $"canvas-{canvasID}" default_
+    fun canvasID -> intVar name canvasKind $"canvas-{canvasID}" default_
 
   let canvasFloat
     (name : string)
@@ -186,7 +208,7 @@ module Internal =
     (testDefault : float)
     : CanvasID -> float =
     floatSetTestDefault name testDefault
-    fun canvasID -> floatVar name $"canvas-{canvasID}" default_
+    fun canvasID -> floatVar name canvasKind $"canvas-{canvasID}" default_
 
   let canvasString
     (name : string)
@@ -194,18 +216,19 @@ module Internal =
     (testDefault : string)
     : CanvasID -> string =
     stringSetTestDefault name testDefault
-    fun canvasID -> stringVar name $"canvas-{canvasID}" default_
+    fun canvasID -> stringVar name canvasKind $"canvas-{canvasID}" default_
 
   // -------------
   // per-service values
   // -------------
+  let serviceKind = ContextKind.Of "service"
   let serviceBool
     (name : string)
     (default_ : bool)
     (testDefault : bool)
     : string -> bool =
     boolSetTestDefault name testDefault
-    fun serviceName -> boolVar name $"service-{serviceName}" default_
+    fun serviceName -> boolVar name serviceKind $"service-{serviceName}" default_
 
   let serviceInt
     (name : string)
@@ -213,7 +236,7 @@ module Internal =
     (testDefault : int)
     : string -> int =
     intSetTestDefault name testDefault
-    fun serviceName -> intVar name $"service-{serviceName}" default_
+    fun serviceName -> intVar name serviceKind $"service-{serviceName}" default_
 
   let serviceFloat
     (name : string)
@@ -221,7 +244,7 @@ module Internal =
     (testDefault : float)
     : string -> float =
     floatSetTestDefault name testDefault
-    fun serviceName -> floatVar name $"service-{serviceName}" default_
+    fun serviceName -> floatVar name serviceKind serviceName default_
 
   let serviceString
     (name : string)
@@ -229,7 +252,7 @@ module Internal =
     (testDefault : string)
     : string -> string =
     stringSetTestDefault name testDefault
-    fun serviceName -> stringVar name $"service-{serviceName}" default_
+    fun serviceName -> stringVar name serviceKind $"service-{serviceName}" default_
 
 
 
