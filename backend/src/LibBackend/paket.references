@@ -1,6 +1,5 @@
 FSharp.Core
 Npgsql.FSharp
-Npgsql.NodaTime
 PusherServer
 System.Diagnostics.DiagnosticSource
 FsRegEx

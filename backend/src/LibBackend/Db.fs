@@ -5,7 +5,6 @@ open FSharp.Control.Tasks
 
 open Npgsql
 open Npgsql.FSharp
-open Npgsql.NodaTime
 
 open Prelude
 
@@ -13,20 +12,8 @@ module RT = LibExecution.RuntimeTypes
 
 module Sql =
 
-  /// Open a database [transaction] and run given fn against it
-  let withTransaction (f : unit -> Task<'a>) : Task<'a> =
-    task {
-      let connection = LibService.DBConnection.connect () |> Sql.createConnection
-      connection.Open()
-
-      let! transaction = connection.BeginTransactionAsync()
-      let! result = f ()
-      do! transaction.CommitAsync()
-      return result
-    }
-
   let query (sql : string) : Sql.SqlProps =
-    LibService.DBConnection.connect () |> Sql.query sql
+    LibService.DBConnection.dataSource |> Sql.fromDataSource |> Sql.query sql
 
   let executeRowOptionAsync
     (reader : RowReader -> 't)
@@ -241,7 +228,3 @@ let tableStats () : Task<List<TableStatsRow>> =
       rows = read.int64OrNone "rows" |> Tablecloth.Option.unwrap 0
       diskHuman = read.string "disk_human"
       rowsHuman = read.string "rows_human" })
-
-let init () : unit =
-  NpgsqlConnection.GlobalTypeMapper.UseNodaTime()
-  |> ignore<TypeMapping.INpgsqlTypeMapper>

@@ -46,7 +46,7 @@ let configureServices
   let healthChecksBuilder =
     services
       .AddHealthChecks()
-      .AddNpgSql(DBConnection.connectionString, tags = allProbes)
+      .AddNpgSql(DBConnection.dataSource.ConnectionString, tags = allProbes)
 
   healthChecks
   |> List.iter (fun hc ->

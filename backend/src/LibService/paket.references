@@ -11,5 +11,6 @@ OpenTelemetry.Instrumentation.Http
 Microsoft.Extensions.Diagnostics.HealthChecks
 AspNetCore.HealthChecks.Npgsql
 Npgsql.FSharp
+Npgsql.NodaTime
 Npgsql.OpenTelemetry
 LaunchDarkly.ServerSdk
