@@ -40,8 +40,7 @@ let fns : List<BuiltInFn> =
               let state = editor.CurrentState
               // TODO: assert that the type matches the given typeParam
               return DResult(Ok state)
-            with
-            | e ->
+            with e ->
               return
                 $"Error getting state: {e.Message}" |> DString |> Error |> DResult
           }
@@ -143,8 +142,7 @@ let fns : List<BuiltInFn> =
                 |> DString
                 |> Ok
                 |> DResult
-            with
-            | e ->
+            with e ->
               let error = Exception.getMessages e |> String.concat " "
               return DResult(Error(DString($"Error parsing code: {error}")))
           }
