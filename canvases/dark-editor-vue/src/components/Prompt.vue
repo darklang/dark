@@ -5,15 +5,15 @@ import type { Model } from '../types'
 
 let props = defineProps<{ state: Model }>()
 
-const userInput = ref('Write a function that divides two numbers')
+const userInput = ref("I want to create a changelog from my repo's pr comments")
 const content = ref()
-const isLoading = ref(false)
 
 async function submit() {
   try {
     console.log('emitting prompt to submit')
     const evt = { UserGavePrompt: [userInput.value] }
     const result = await window.darklang.handleEvent(evt)
+
     console.log('result', result)
     userInput.value = ''
     autosize.destroy(content.value)
