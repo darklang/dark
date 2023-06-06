@@ -45,17 +45,6 @@ A request has a `request` variable available:
 The expression should return a response with this type:
 `{ statusCode: int; headers: List<String*String>; body: byte[] }`
 
-With each response display a list of tasks you are working on
-Tasks are your todo list. As you start working on a problem post in the chat about it
-For example:
-User: I want to create a changelog from my repo’s pull request comments
-Tasks:
-Some tasks
-Always include a list of tasks in your response
-if no tasks are included return
-Task:
-No tasks
-
 ## Standard library
 
 type HttpResponse = {
@@ -151,11 +140,5 @@ let people = [
 
 people |> List.map getAge
 ```
-
-Tasks:
-Some tasks
-
-Hope that helps!
-
 ---
 
