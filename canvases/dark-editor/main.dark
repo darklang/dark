@@ -1,3 +1,11 @@
+let rUnwrap (result: Result<'a, 'b>): 'a =
+  match result with
+  | Ok s -> s
+  | Error e ->
+    log e // TODO: this won't work if non-string
+    alert "Expected OK, got Error - see log"
+
+
 [<HttpHandler("GET", "/openai-apikey-yikes")>]
 let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes OPENAI_API_KEY) 200
@@ -102,3 +110,28 @@ let _handler _req =
     PACKAGE.Darklang.Stdlib.Http.response
       (String.toBytes "Couldn't load prompt from disk")
       500
+
+[<HttpHandler("GET", "/this-canvas-id")>]
+let _handler _req =
+  let canvasId = DarkInternal.Canvas.darkEditorCanvasID ()
+
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+    (canvasId |> Uuid.toString |> String.toBytes)
+    [ ("Content-Type", "text/plain") ]
+    200
+
+
+// dark-exportable is `c622b6ab-f117-4c9b-826d-51ea2d175b18`
+[<HttpHandler("GET", "/export-canvas/:canvasId")>]
+let _handler _req =
+  let canvasId = canvasId |> Uuid.parse |> rUnwrap
+  match DarkInternal.Canvas.fullProgram canvasId with
+  | Ok program ->
+    let prettyTypes =
+      program.types
+      |> List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
+
+    PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+      (prettyTypes |> String.join "\n\n" |> String.toBytes)
+      [ ("Content-Type", "text/plain") ]
+      200
