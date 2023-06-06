@@ -165,7 +165,7 @@ module Records =
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42}) = RecordForUpdateMultipe {x = 42 ; y = 1; z = 3}
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11}) = RecordForUpdateMultipe {x = 42 ; y = 11; z = 3}
      // Invalid type and content
-     (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11; p = 10}) = Test.typeError "The updates list is longer than the record filedls list"
+     (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11; p = 10}) = Test.typeError "Unexpected field `p` in RecordForUpdateMultipe"
      (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with other = 2}) = Test.typeError "Unexpected field `other` in RecordForUpdate_v0"
      (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with y = "2"}) = Test.typeError "Expected a value of type `Int` but got a `String` in y"
 
