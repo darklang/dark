@@ -1,0 +1,401 @@
+module Darklang =
+  module Stdlib =
+
+    // TODO: maybe extract these IDs (common to RT and PT) out of this file
+    type ID = Int
+    type TLID = Int
+
+    module ProgramTypes =
+
+      /// Used to reference a type defined by a User, Standard Library module, or Package
+      module FQTypeName =
+        // /// A type written in F# and shipped in the executable.
+        // /// Module required for all but a few cases.
+        // type StdlibTypeName = { modules : List<string>; typ : string; version : int }
+
+        // TODO
+        // /// The name of a type in the package manager
+        // type PackageTypeName =
+        //   { owner : string
+        //     modules : NonEmptyList<string>
+        //     typ : string
+        //     version : int }
+
+        /// A Type written by a User in a Canvas
+        type UserTypeName =
+          {
+            /// The module in which the type is namespaced
+            modules: List<String>
+
+            /// The name of the user-defined type
+            typ: String
+
+            /// The version (0 or greater) of the type
+            version: Int
+          }
+
+        type T = User of PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.UserTypeName
+      // TODO: | Stdlib of StdlibTypeName
+      // TODO: | Package of PackageTypeName
+
+
+      // /// A Fully-Qualified Function Name
+      // /// Includes package, module, and version information where relevant.
+      // module FQFnName =
+      //   // /// Standard Library Function Name
+      //   // type StdlibFnName = { modules : List<String>; function_ : String; version : Int }
+
+      //   /// A Function written by a User in a Canvas
+      //   type UserFnName = { modules : List<String>; function_ : String; version : Int }
+
+      //   // /// A Function in the Package Manager
+      //   // type PackageFnName =
+      //   //   { owner : String
+      //   //     modules : NonEmptyList<String>
+      //   //     function_ : String
+      //   //     version : Int }
+
+      //   type T =
+      //     | User of UserFnName
+      //     // TODO: | Stdlib of StdlibFnName
+      //     // TODO: | Package of PackageFnName
+
+
+      /// Darklang's available types (int, List<T>, user-defined types, etc.)
+      type TypeReference = | TInt
+      // | TFloat
+      // | TBool
+      // | TUnit
+      // | TString
+      // // | TList of TypeReference
+      // // | TTuple of TypeReference * TypeReference * List<TypeReference>
+      // // | TDict of TypeReference
+      // // | TDB of TypeReference
+      // | TDateTime
+      // | TChar
+      // | TPassword
+      // | TUuid
+      // | TBytes
+      // // A named variable, eg `a` in `List<a>`, matches anything
+      // | TVariable of String // replaces TAny
+      // //| TFn of List<TypeReference> * TypeReference // replaces TLambda
+
+      // /// A type defined by a standard library module, a canvas/user, or a package
+      // /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
+      // /// `typeArgs` is the list of type arguments, if any
+      // | TCustomType of FQTypeName.T * typeArgs : List<TypeReference>
+
+      // // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
+      // // and the Option module defines the custom `Option` type
+      // | TOption of TypeReference
+
+      // // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
+      // // and the Result module defines the custom `Result` type
+      // | TResult of TypeReference * TypeReference
+
+
+      // type LetPattern =
+      //   | LPVariable of id * name : string
+      //   | LPTuple of
+      //     id *
+      //     first : LetPattern *
+      //     second : LetPattern *
+      //     theRest : List<LetPattern>
+
+
+      // /// Used for pattern matching in a match statement
+      // type MatchPattern =
+      //   | MPVariable of id * string
+      //   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
+      //   | MPInt of id * int64
+      //   | MPBool of id * bool
+      //   | MPChar of id * string
+      //   | MPString of id * string
+      //   | MPFloat of id * Sign * string * string
+      //   | MPUnit of id
+      //   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+      //   | MPList of id * List<MatchPattern>
+      //   | MPListCons of id * head : MatchPattern * tail : MatchPattern
+
+
+      // type BinaryOperation =
+      //   | BinOpAnd
+      //   | BinOpOr
+
+      // type InfixFnName =
+      //   | ArithmeticPlus
+      //   | ArithmeticMinus
+      //   | ArithmeticMultiply
+      //   | ArithmeticDivide
+      //   | ArithmeticModulo
+      //   | ArithmeticPower
+      //   | ComparisonGreaterThan
+      //   | ComparisonGreaterThanOrEqual
+      //   | ComparisonLessThan
+      //   | ComparisonLessThanOrEqual
+      //   | ComparisonEquals
+      //   | ComparisonNotEquals
+      //   | StringConcat
+
+      // type Infix = | InfixFnCall of InfixFnName | BinOp of BinaryOperation
+
+
+      // type StringSegment = | StringText of string | StringInterpolation of Expr
+
+
+      // type PipeExpr =
+      //   | EPipeVariable of id * string
+      //   | EPipeLambda of id * List<id * string> * Expr
+      //   | EPipeInfix of id * Infix * Expr
+      //   | EPipeFnCall of
+      //     id *
+      //     FQFnName.T *
+      //     typeArgs : List<TypeReference> *
+      //     args : List<Expr>
+      //   | EPipeEnum of
+      //     id *
+      //     typeName : FQTypeName.T *
+      //     caseName : string *
+      //     fields : List<Expr>
+
+      // module PipeExpr =
+      //   let toID (expr : PipeExpr) : id =
+      //     match expr with
+      //     | EPipeVariable (id, _)
+      //     | EPipeLambda (id, _, _)
+      //     | EPipeInfix (id, _, _)
+      //     | EPipeFnCall (id, _, _, _)
+      //     | EPipeEnum (id, _, _, _) -> id
+
+
+      /// Expressions - the main part of the language.
+      type Expr = EInt of PACKAGE.Darklang.Stdlib.ID * Int
+      // | EBool of id * bool
+      // | EString of id * List<StringSegment>
+      // /// A character is an Extended Grapheme Cluster (hence why we use a string). This
+      // /// is equivalent to one screen-visible "character" in Unicode.
+      // | EChar of id * string
+      // // Allow the user to have arbitrarily big numbers, even if they don't make sense as
+      // // floats. The float is split as we want to preserve what the user entered.
+      // // Strings are used as numbers lose the leading zeros (eg 7.00007)
+      // | EFloat of id * Sign * string * string
+      // | EUnit of id
+      // | ELet of id * LetPattern * Expr * Expr
+      // | EIf of id * Expr * Expr * Expr
+      // | EInfix of id * Infix * Expr * Expr
+      // // the id in the varname list is the analysis id, used to get a livevalue
+      // // from the analysis engine
+      // | ELambda of id * List<id * string> * Expr
+      // | EFieldAccess of id * Expr * string
+      // | EVariable of id * string
+      // | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+      // | EList of id * List<Expr>
+      // | EDict of id * List<string * Expr>
+      // | ETuple of id * Expr * Expr * List<Expr>
+      // | EPipe of id * Expr * PipeExpr * List<PipeExpr>
+
+      // | ERecord of id * FQTypeName.T * List<string * Expr>
+
+      // // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
+      // // as user-defined enums.
+      // //
+      // /// Given an Enum type of:
+      // ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
+      // /// , this is the expression
+      // ///   `C (1, "title")`
+      // /// represented as
+      // ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
+      // /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
+      // | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
+
+      // /// Supports `match` expressions
+      // /// ```fsharp
+      // /// match x + 2 with // arg
+      // /// // cases
+      // /// | pattern -> expr
+      // /// | pattern -> expr
+      // /// | ...
+      // /// ```
+      // | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
+
+
+      // module Expr =
+      //   let toID (expr : Expr) : id =
+      //     match expr with
+      //     | EInt (id, _)
+      //     | EBool (id, _)
+      //     | EString (id, _)
+      //     | EChar (id, _)
+      //     | EFloat (id, _, _, _)
+      //     | EUnit id
+      //     | ELet (id, _, _, _)
+      //     | EIf (id, _, _, _)
+      //     | EInfix (id, _, _, _)
+      //     | ELambda (id, _, _)
+      //     | EFieldAccess (id, _, _)
+      //     | EVariable (id, _)
+      //     | EFnCall (id, _, _, _)
+      //     | EList (id, _)
+      //     | EDict (id, _)
+      //     | ETuple (id, _, _, _)
+      //     | EPipe (id, _, _, _)
+      //     | ERecord (id, _, _)
+      //     | EEnum (id, _, _, _)
+      //     | EMatch (id, _, _) -> id
+
+
+
+
+      // // Used to mark whether a function/type has been deprecated, and if so,
+      // // details about possible replacements/alternatives, and reasoning
+      // type Deprecation<'name> =
+      //   | NotDeprecated
+
+      //   // The exact same thing is available under a new, preferred name
+      //   | RenamedTo of 'name
+
+      //   /// This has been deprecated and has a replacement we can suggest
+      //   | ReplacedBy of 'name
+
+      //   /// This has been deprecated and not replaced, provide a message for the user
+      //   | DeprecatedBecause of string
+
+
+      /// A stdlib-, user-, or package- defined type (an alias, record, or enum)
+      module CustomType =
+        // type RecordField = { name : string; typ : TypeReference; description : string }
+
+        // type EnumField =
+        //   { typ : TypeReference
+        //     label : Option<string>
+        //     description : string }
+
+        // type EnumCase = { name : string; fields : List<EnumField>; description : string }
+
+        type T =
+          /// Alias/abbreviation of an existing type with an alternative name, to capture some meaning
+          | Alias of PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
+
+      // /// `type MyRecord = { a : int; b : string }`
+      // | Record of firstField : RecordField * additionalFields : List<RecordField>
+
+      // /// `type MyEnum = A | B of int | C of int * (label: string)`
+      // | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+
+      // module Handler =
+      //   type CronInterval =
+      //     | EveryDay
+      //     | EveryWeek
+      //     | EveryFortnight
+      //     | EveryHour
+      //     | Every12Hours
+      //     | EveryMinute
+
+      //   type Spec =
+      //     | HTTP of route : string * method : string
+      //     | Worker of name : string
+      //     | Cron of name : string * interval : CronInterval
+      //     | REPL of name : string
+
+      //   type T = { tlid : tlid; ast : Expr; spec : Spec }
+
+
+      // module DB =
+      //   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
+
+
+      /// A type that a User defined within a Canvas
+      type UserType =
+        {
+          /// The toplevel identifier
+          tlid: Int // TODO: tlid should probably be an alias of TInt
+
+          /// Name
+          name: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.UserTypeName
+
+          /// The type definition (Alias, Record, Enum, etc.)
+          definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
+        }
+
+
+// module UserFunction =
+//   type Parameter = { name : string; typ : TypeReference; description : string }
+
+//   type T =
+//     { tlid : tlid
+//       name : FQFnName.UserFnName
+//       typeParams : List<string>
+//       parameters : List<Parameter>
+//       returnType : TypeReference
+//       description : string
+//       deprecated : Deprecation<FQFnName.T>
+//       body : Expr }
+
+
+// module Toplevel =
+//   type T =
+//     | TLHandler of Handler.T
+//     | TLDB of DB.T
+//     | TLFunction of UserFunction.T
+//     | TLType of UserType.T
+
+//   let toTLID (tl : T) : tlid =
+//     match tl with
+//     | TLHandler h -> h.tlid
+//     | TLDB db -> db.tlid
+//     | TLFunction f -> f.tlid
+//     | TLType t -> t.tlid
+
+
+// /// An Operation on a Canvas
+// ///
+// /// "Op" is an abbreviation for Operation,
+// /// and is preferred throughout code and documentation.
+// type Op =
+//   | SetExpr of tlid * id * Expr
+//   | SetHandler of Handler.T
+//   | SetFunction of UserFunction.T
+//   | SetType of UserType.T
+//   | CreateDB of tlid * string * TypeReference
+//   | RenameDB of tlid * string
+
+//   | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
+//   | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
+//   | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
+
+//   // CLEANUP this way of doing undo/redo is bad, should be per-user
+//   | TLSavepoint of tlid
+//   | UndoTL of tlid
+//   | RedoTL of tlid
+
+// type Oplist = List<Op>
+
+// type TLIDOplists = List<tlid * Oplist>
+
+// module Secret =
+//   type T = { name : string; value : string; version : int }
+
+// module PackageFn =
+//   type Parameter = { name : string; typ : TypeReference; description : string }
+
+//   type T =
+//     { tlid : tlid
+//       id : System.Guid
+//       name : FQFnName.PackageFnName
+//       body : Expr
+//       typeParams : List<string>
+//       parameters : List<Parameter>
+//       returnType : TypeReference
+//       description : string
+//       deprecated : Deprecation<FQFnName.T> }
+
+// module PackageType =
+//   type T =
+//     { tlid : tlid
+//       id : System.Guid
+//       name : FQTypeName.PackageTypeName
+//       // CLEANUP add type params
+//       definition : CustomType.T
+//       description : string
+//       deprecated : Deprecation<FQTypeName.T> }

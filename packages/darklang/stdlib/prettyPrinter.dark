@@ -1,0 +1,61 @@
+// TODO:
+//alias PT = PACKAGE.Darklang.Stdlib.ProgramTypes
+//alias RT = PACKAGE.Darklang.Stdlib.RuntimeTypes
+module Darklang =
+  module PrettyPrinter =
+    module ProgramTypes =
+      module FQTypeName =
+        let userTypeName
+          (u: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.UserTypeName)
+          : String =
+          // FUTURE points of decision:
+          // - to include the version or not?
+
+          match u.modules with
+          // TODO: handle non-empty list of modules,
+          // by ensuring that they're pretty-printed within the appropriate module?
+          | [] ->
+            if u.version == 0 then
+              u.typ
+            else
+              $"{u.typ}_v{Int.toString u.version}"
+
+      //let fQTypeName = ...
+
+      let typeReference
+        (t: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference)
+        : String =
+        match t with
+        // TODO: lots more cases
+        | TInt -> "Int"
+
+
+      // module CustomType =
+      //   let recordField (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.RecordField): String =
+      //     ...
+
+      let customType
+        (t: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T)
+        : String =
+        match t with
+        // TODO: handle record
+        // TODO: handle enums
+        | Alias typeRef ->
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference typeRef
+
+      let userType
+        (userType: PACKAGE.Darklang.Stdlib.ProgramTypes.UserType)
+        : String =
+        // (we ignore the tlid, I guess)
+
+        // FUTURE points of decision:
+        // - to newline or not to newline after `=`?
+
+        let namePart =
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQTypeName.userTypeName
+            userType.name
+
+        let defPart =
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.customType userType.definition
+
+        $"type {namePart} = {defPart}"

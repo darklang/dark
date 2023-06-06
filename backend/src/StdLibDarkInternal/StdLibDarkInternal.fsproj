@@ -18,6 +18,7 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Helpers/Permissions.fs" />
+    <Compile Include="Helpers/ProgramTypesToDarkTypes.fs" />
     <Compile Include="Libs/Canvases.fs" />
     <Compile Include="Libs/DBs.fs" />
     <Compile Include="Libs/Documentation.fs" />
