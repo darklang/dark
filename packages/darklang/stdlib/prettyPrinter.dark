@@ -15,7 +15,7 @@ module Darklang =
           // TODO: handle non-empty list of modules,
           // by ensuring that they're pretty-printed within the appropriate module?
           | [] ->
-            if u.version = 0 then
+            if u.version == 0 then
               u.typ
             else
               $"{u.typ}_v{Int.toString u.version}"
