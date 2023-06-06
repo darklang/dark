@@ -35,38 +35,7 @@ let fn (name : string) (version : int) : FQFnName.StdlibFnName =
 
 
 let types : List<BuiltInType> =
-  [ { name = typ "Meta" 0
-      typeParams = []
-      definition =
-        CustomType.Record({ name = "id"; typ = TUuid; description = "" }, [])
-      description = "Metadata about a canvas"
-      deprecated = NotDeprecated }
-
-
-    { name = typ "DB" 0
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "name"; typ = TString; description = "" },
-          [ { name = "tlid"; typ = TString; description = "" } ]
-        )
-      deprecated = NotDeprecated
-      description = "A database on a canvas" }
-
-
-    { name = typ "HttpHandler" 0
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "method"; typ = TString; description = "" },
-          [ { name = "route"; typ = TString; description = "" }
-            { name = "tlid"; typ = TString; description = "" } ]
-        )
-      deprecated = NotDeprecated
-      description = "An HTTP handler on a canvas" }
-
-
-    { name = typ "Program" 0
+  [ { name = typ "Program" 0
       typeParams = []
       definition =
         CustomType.Record(
