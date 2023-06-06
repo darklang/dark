@@ -6,12 +6,12 @@ type Command =
 
 let parseArguments (args: List<String>): Command =
   match args with
-  | ["--help"] -> Help
-  | ["--prompt"; prompt; scriptPath] -> Infer (prompt, scriptPath)
-  | [scriptPath] -> RunScript scriptPath
-  | _ -> Invalid
+  | ["--help"] -> Command.Help
+  | ["--prompt"; prompt; scriptPath] -> Command.Infer (prompt, scriptPath)
+  | [scriptPath] -> Command.RunScript scriptPath
+  | _ -> Command.Invalid
 
-let executeCommand (command: Command) : unit =
+let executeCommand (command: Command) : Unit =
   match command with
   | RunScript scriptPath ->
     let script = File.read scriptPath
