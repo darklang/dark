@@ -260,18 +260,23 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             (expected1 :: expectedRest) |> List.map (fun f -> f.name, f.typ) |> Map
           return!
             Ply.List.foldSequentially
-              (fun r (k, v) ->
+              (fun r (k, expr) ->
                 uply {
-                  let! v = eval state st v
-                  match r with
-                  | DRecord(_, m) when not (Map.containsKey k m) ->
+                  let! v = eval state st expr
+                  match r, k, v with
+                  | r, _, _ when Dval.isFake r -> return r
+                  | _, _, v when Dval.isFake v -> return v
+                  | _, "", _ -> return err id $"Empty key for value `{v}`"
+                  | DRecord(_, m), _, _ when not (Map.containsKey k m) ->
                     return err id $"Unexpected field `{k}` in {typeStr}"
-                  | DRecord(typeName, m) ->
+                  | DRecord(typeName, m), k, v ->
                     let field = Map.find k expectedFields
                     match TypeChecker.unify [ k ] types field v with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e -> return err id (TypeChecker.Error.toString e)
-                  | _ -> return err id "Expected a record"
+                  | _ ->
+                    return
+                      err id "Expected a record but {typeStr} is something else"
                 })
               baseRecord
               updates
