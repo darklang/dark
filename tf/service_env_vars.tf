@@ -34,18 +34,17 @@ variable "service_env_vars" {
     # Rollbar
     "DARK_CONFIG_ROLLBAR_ENABLED"          = "y"
     "DARK_CONFIG_ROLLBAR_ENVIRONMENT"      = "production"
-    "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" = "c7af77e991aa4edd80cf6a576c1e42f5"
-    # "#DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM" = "k8s"
+    "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" = "e0ce6a9975c7433598a31f13423fa4c3"
+    #"DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
 
     # Honeycomb
     "DARK_CONFIG_TELEMETRY_EXPORTER" = "honeycomb"
-    # "#DARK_CONFIG_HONEYCOMB_API_KEY"     = "k8s"
-    "DARK_CONFIG_HONEYCOMB_DATASET_NAME" = "kubernetes-bwd-ocaml"
+    # DARK_CONFIG_HONEYCOMB_API_KEY
+    "DARK_CONFIG_HONEYCOMB_DATASET_NAME" = "backend"
     "DARK_CONFIG_HONEYCOMB_API_ENDPOINT" = "https://api.honeycomb.io:443"
 
     # Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
-    # "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY"   = "k8s"
-    "DARK_CONFIG_LAUNCHDARKLY_CLIENT_SIDE_ID" = "627162f9b2bab01530ddc355"
+    # DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
 
     # Feature flag defaults
     "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT" = "sample-none"
@@ -53,21 +52,21 @@ variable "service_env_vars" {
     # DB
     "DARK_CONFIG_DB_DBNAME" = "postgres"
     "DARK_CONFIG_DB_HOST"   = "/cloudsql/balmy-ground-195100:us-west1:dark-west"
-    # DARK_CONFIG_DB_USER: k8s
-    # DARK_CONFIG_DB_PASSWORD: k8s
+    # DARK_CONFIG_DB_USER
+    # DARK_CONFIG_DB_PASSWORD
     "DARK_CONFIG_DB_POOL_SIZE" = "20"
 
     # Queue / pubsub
     "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = "balmy-ground-195100"
-    "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"        = "topic-queueworker-1"
-    "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME" = "subscription-queueworker-1"
+    "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"        = "topic-queue-ai"
+    "DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME" = "topic-queue-ai-sub"
     "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"      = "n"
-    # DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS: k8s
+    # DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS
 
     # Traces / cloud storage
-    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = "dark-traces"
+    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = "dark-traces-ai"
     "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET" = "n"
-    #DARK_CONFIG_TRACE_STORAGE_CREDENTIALS=k8s
+    # DARK_CONFIG_TRACE_STORAGE_CREDENTIALS
     "DARK_CONFIG_TRACE_STORAGE_BASE_URI" = "not-used"
 
     # Httpclient

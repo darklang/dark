@@ -64,7 +64,6 @@ DARK_CONFIG_HONEYCOMB_API_ENDPOINT=none
 # Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
 
 DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none
-DARK_CONFIG_LAUNCHDARKLY_CLIENT_SIDE_ID=62717e59de207a0d813c8337
 
 # Feature flag defaults
 
