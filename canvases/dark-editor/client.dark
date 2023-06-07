@@ -165,51 +165,36 @@ let update (model: Model) (msg: Msg) : Model =
     updateStateInJS newModel
 
     let getTasks =
-      WASM.HttpClient.request
+      (WASM.HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
         []
-        Bytes.empty
-
-
-    let tasksPrompt =
-      (getTasks |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
-      ++ "\n"
-      ++ userPrompt
-
-    let updatedModel =
-      match openAIcompletion tasksPrompt with
-      | Ok apiResponse ->
-        let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
-
-        let newtasks =
-          match taskIndex with
-          | Nothing -> []
-          | Just taskIndex ->
-            apiResponse
-            |> String.slice_v0 taskIndex (String.length apiResponse)
-            |> String.split "\n"
-            |> List.map (fun line ->
-              Task
-                { id = (String.random 5) |> rUnwrap
-                  description = line
-                  status = Status.Todo })
-
-        Model
-          { isLoading = false
-            systemPrompt = model.systemPrompt
-            chatHistory = model.chatHistory
-            codeSnippets = model.codeSnippets
-            tasks = List.append model.tasks newtasks
-            actions = model.actions }
-      | Error err -> log err
+        Bytes.empty)
+      |> rUnwrap
+      |> (fun r -> r.body)
+      |> String.fromBytes
+      |> String.append $"\n\n {userPrompt}"
 
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
     let fullPrompt = model.systemPrompt ++ userPrompt
 
-    match openAIcompletion fullPrompt with
-    | Ok apiResponse ->
+    match openAIcompletion getTasks, openAIcompletion fullPrompt with
+    | Ok apiResponseTasks, Ok apiResponse ->
+      let taskIndex = String.indexOf_v0 apiResponseTasks "Tasks:"
+
+      let newtasks =
+        match taskIndex with
+        | Nothing -> []
+        | Just taskIndex ->
+          apiResponseTasks
+          |> String.slice_v0 taskIndex (String.length apiResponseTasks)
+          |> String.split "\n"
+          |> List.map (fun line ->
+            Task
+              { id = (String.random 5) |> rUnwrap
+                description = line
+                status = Status.Todo })
 
       let (newCodeSnippets, botResponseParts) =
         (String.split (" " ++ apiResponse) "```")
@@ -248,19 +233,15 @@ let update (model: Model) (msg: Msg) : Model =
           systemPrompt = model.systemPrompt
           chatHistory = List.append model.chatHistory newChatItemsItems
           codeSnippets = List.append model.codeSnippets newCodeSnippets
-          tasks = updatedModel.tasks
+          tasks = List.append model.tasks newtasks
           actions = model.actions }
 
-    | Error err ->
-      log err
+    | Error err, _ -> log "error getting tasks " ++ err
+    | _, Error err -> log "error getting response " ++ err
+    | Error err1, Error err2 ->
+      log "error getting tasks and response " ++ err1 ++ " " ++ err2
 
-      Model
-        { isLoading = false
-          systemPrompt = model.systemPrompt
-          chatHistory = model.chatHistory
-          codeSnippets = model.codeSnippets
-          tasks = model.tasks
-          actions = model.actions }
+
 
   | UserRequestedCodeEval id codeSnippet ->
     // split this into 2 groups - the one we're updating, and the rest
