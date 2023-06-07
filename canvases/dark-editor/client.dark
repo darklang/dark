@@ -343,36 +343,10 @@ let initState =
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
           eval = Nothing }
 
-    let demoTask =
-      [ Task
-          { id = (String.random 5) |> rUnwrap
-            description = "First task in progress"
-            status = Status.InProgress }
-
-        Task
-          { id = (String.random 5) |> rUnwrap
-            description = "Second task to do"
-            status = Status.Todo }
-
-        Task
-          { id = (String.random 5) |> rUnwrap
-            description = "Third task task done"
-            status = Status.InProgress } ]
-
     let demoAction =
       [ Action
           { id = (String.random 5) |> rUnwrap
-            description = "First action"
-            status = Status.InProgress }
-
-        Action
-          { id = (String.random 5) |> rUnwrap
-            description = "Second action"
-            status = Status.Todo }
-
-        Action
-          { id = (String.random 5) |> rUnwrap
-            description = "Third action"
+            description = "Demo action"
             status = Status.InProgress } ]
 
     let chatHistory =
@@ -384,7 +358,6 @@ let initState =
           (rUnwrap (String.random 5))
           [ BotResponseItem.Text "OK - here's some code:"
             BotResponseItem.CodeSnippet demoSnippet.id
-            BotResponseItem.Tasks demoTask
             BotResponseItem.Actions demoAction ] ]
 
     Model
@@ -392,7 +365,7 @@ let initState =
         systemPrompt = String.fromBytes response.body
         chatHistory = chatHistory
         codeSnippets = [ demoSnippet ]
-        tasks = demoTask
+        tasks = []
         actions = demoAction }
 
   | Error err ->
