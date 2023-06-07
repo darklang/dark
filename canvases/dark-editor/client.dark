@@ -4,10 +4,24 @@ let log (s: String) : Unit =
   let _ = WASM.Editor.callJSFunction "console.log" [ s ]
   ()
 
+let logErr (s: String) : Unit =
+  let _ = WASM.Editor.callJSFunction "console.error" [ s ]
+  ()
+
 let rUnwrap (result: Result<'a, 'b>) : 'a =
   match result with
   | Ok s -> s
-  | Error e -> log e // TODO: this won't work if non-string
+  | Error e ->
+    // TODO: handle non-string errors with Json.serialize<'b>, or using RuntimeTypes somehow
+    // match Json.serialize<'b> e with
+    // | Ok serializedError ->
+    //   logErr (
+    //     "Couldn't unwrap Result - instead of an OK, got this Error: "
+    //     ++ serializedError
+    //   )
+    // | Error err -> logErr ("couldn't serialize error to log: " ++ err)
+
+    logErr ("Couldn't unwrap Result - instead of an OK, got this Error: " ++ e)
 
 
 // todo: throw this stuff into an OpenAI module?
@@ -130,6 +144,7 @@ type Model =
 
 // Update
 type Msg =
+  | LoadSystemPrompt
   | UserGavePrompt of prompt: String
   | UserRequestedCodeEval of id: String * codeSnippet: String
 
@@ -149,6 +164,28 @@ let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
 
 let update (model: Model) (msg: Msg) : Model =
   match msg with
+  | LoadSystemPrompt ->
+    let systemPrompt =
+      WASM.HttpClient.request
+        "get"
+        "http://dark-editor.dlio.localhost:11003/system-prompt"
+        []
+        Bytes.empty
+
+    match systemPrompt with
+    | Ok response ->
+      Model
+        { isLoading = model.isLoading
+          chatHistory = model.chatHistory
+          codeSnippets = model.codeSnippets
+          tasks = model.tasks
+          actions = model.actions
+
+          // CLEANUP: update this syntax to { model with systemPrompt = systemPrompt } when we can
+          systemPrompt = response.body |> String.fromBytes }
+    | Error err -> logErr "Couldn't load system prompt"
+
+
   | UserGavePrompt userPrompt ->
     let newModel =
       Model
@@ -164,7 +201,7 @@ let update (model: Model) (msg: Msg) : Model =
 
     updateStateInJS newModel
 
-    let getTasks =
+    let getTasksPrompt =
       (WASM.HttpClient.request
         "get"
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
@@ -179,7 +216,7 @@ let update (model: Model) (msg: Msg) : Model =
     // we have to deal with http calls and such in-line, like here
     let fullPrompt = model.systemPrompt ++ userPrompt
 
-    match openAIcompletion getTasks, openAIcompletion fullPrompt with
+    match openAIcompletion getTasksPrompt, openAIcompletion fullPrompt with
     | Ok apiResponseTasks, Ok apiResponse ->
       let taskIndex = String.indexOf_v0 apiResponseTasks "Tasks:"
 
@@ -240,7 +277,6 @@ let update (model: Model) (msg: Msg) : Model =
     | _, Error err -> log "error getting response " ++ err
     | Error err1, Error err2 ->
       log "error getting tasks and response " ++ err1 ++ " " ++ err2
-
 
 
   | UserRequestedCodeEval id codeSnippet ->
@@ -323,20 +359,8 @@ let handleEvent (evt: String) : Result<String, String> =
 
 
 // Init
-// (things to run on startup, before accepting any events
-//  the initial state is set to the result of the final expr)
-let systemPrompt =
-  WASM.HttpClient.request
-    "get"
-    "http://dark-editor.dlio.localhost:11003/system-prompt"
-    []
-    Bytes.empty
-
-1 + 2 // useless -- just to prove we can
-
-let initState =
-  match systemPrompt with
-  | Ok response ->
+let init () : Model =
+  let initState =
     let demoSnippet =
       CodeSnippet
         { id = (String.random 5) |> rUnwrap
@@ -362,24 +386,15 @@ let initState =
 
     Model
       { isLoading = false
-        systemPrompt = String.fromBytes response.body
+        systemPrompt = "Loading..."
         chatHistory = chatHistory
         codeSnippets = [ demoSnippet ]
         tasks = []
         actions = demoAction }
 
-  | Error err ->
-    Model
-      { systemPrompt = String.fromBytes "nope"
-        chatHistory = [] }
+  updateStateInJS initState
 
-updateStateInJS initState
-
-initState
-
-
-
-
+  initState
 
 
 
