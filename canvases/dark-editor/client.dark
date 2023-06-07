@@ -338,8 +338,6 @@ let updateStateInJS (newState: Model) : Result<Unit, String> =
 ///
 /// Listen for events from the JS host, and update the state accordingly.
 let handleEvent (evt: String) : Result<String, String> =
-  log ("handling event" ++ evt)
-
   match Json.parse<Msg> evt with
   | Ok msg ->
     match WASM.Editor.getState<Model> () with
