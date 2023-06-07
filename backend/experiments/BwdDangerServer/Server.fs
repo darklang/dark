@@ -28,7 +28,6 @@ module Account = LibBackend.Account
 module Canvas = LibBackend.Canvas
 module Routing = LibBackend.Routing
 module Pusher = LibBackend.Pusher
-module TI = LibBackend.TraceInputs
 
 module HttpMiddleware = HttpMiddleware.Http
 
@@ -337,9 +336,10 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           return ctx
 
         | None -> // vars didnt parse
-          FireAndForget.fireAndForgetTask "store-event" (fun () ->
-            let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
-            TI.storeEvent canvasID traceID desc request)
+          // TODO: reenable using CloudStorage
+          // FireAndForget.fireAndForgetTask "store-event" (fun () ->
+          //   let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          //   TI.storeEvent canvasID traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
 
@@ -348,18 +348,19 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
       // no matching route found - store as 404
       | [] ->
-        let! reqBody = getBody ctx
-        let reqHeaders = getHeadersWithoutMergingKeys ctx
-        let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
-        let! timestamp = TI.storeEvent canvasID traceID desc event
+        // let! reqBody = getBody ctx
+        // let reqHeaders = getHeadersWithoutMergingKeys ctx
+        // let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+        // TODO: reenable using CloudStorage
+        // let! timestamp = TI.storeEvent canvasID traceID desc event
 
         // CLEANUP: move pusher into storeEvent
         // Send to pusher - do not resolve task, send this into the ether
-        Pusher.push
-          ClientTypes2BackendTypes.Pusher.eventSerializer
-          canvasID
-          (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
-          None
+        // Pusher.push
+        //   ClientTypes2BackendTypes.Pusher.eventSerializer
+        //   canvasID
+        //   (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
+        //   None
 
         return! noHandlerResponse ctx
       | _ -> return! moreThanOneHandlerResponse ctx

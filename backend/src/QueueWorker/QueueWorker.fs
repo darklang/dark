@@ -16,7 +16,6 @@ module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module EQ = LibBackend.Queue
-module TI = LibBackend.TraceInputs
 module Execution = LibExecution.Execution
 module Pusher = LibBackend.Pusher
 module RealExecution = LibRealExecution.RealExecution
@@ -177,18 +176,21 @@ let processNotification
                   // they're probably emiting to a handler they haven't created yet.
                   // In this case, all they need to build is the trace. So just drop
                   // this event immediately.
-                  let! timestamp = TI.storeEvent c.id traceID desc event.value
-                  Pusher.push
-                    ClientTypes2BackendTypes.Pusher.eventSerializer
-                    c.id
-                    (Pusher.New404(
-                      event.module',
-                      event.name,
-                      event.modifier,
-                      timestamp,
-                      traceID
-                    ))
-                    None
+
+                  // TODO: reenable using CloudStorage
+                  // let! timestamp = TI.storeEvent c.id traceID desc event.value
+                  // Pusher.push
+                  //   ClientTypes2BackendTypes.Pusher.eventSerializer
+                  //   c.id
+                  //   (Pusher.New404(
+                  //     event.module',
+                  //     event.name,
+                  //     event.modifier,
+                  //     timestamp,
+                  //     traceID
+                  //   ))
+                  //   None
+
                   do! EQ.deleteEvent event
                   return! stop "MissingHandler" NoRetry
                 | Some h ->

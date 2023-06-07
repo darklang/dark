@@ -70,34 +70,6 @@ ON queue_events_v0 (canvas_id, module, name);
 
 
 CREATE TABLE IF NOT EXISTS
-trace_old_events_v0
-( trace_id UUID PRIMARY KEY -- TODO: is this right?
-, canvas_id UUID NOT NULL
-, module TEXT NOT NULL
-, path TEXT NOT NULL
-, modifier TEXT NOT NULL
-, timestamp TIMESTAMPTZ NOT NULL
-, value TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS
-idx_trace_old_events_v0_most_recent
-ON trace_old_events_v0
-(canvas_id, module, path, modifier, timestamp DESC);
-
-CREATE INDEX IF NOT EXISTS
-idx_trace_old_events_v0_traceid
-ON trace_old_events_v0
-(canvas_id, trace_id);
-
-CREATE INDEX IF NOT EXISTS
-idx_trace_old_events_v0_most_recent_with_text
-ON trace_old_events_v0
-(canvas_id, module, path text_pattern_ops, modifier, "timestamp" DESC);
-
-
-
-CREATE TABLE IF NOT EXISTS
 package_functions_v0
 -- IDs
 ( id UUID PRIMARY KEY
