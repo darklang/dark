@@ -13,7 +13,7 @@ let props = defineProps<{ state: Model }>()
     <div class="flex h-screen overflow-hidden">
       <div class="w-1/5 overflow-auto pb-24">
         <TasksAndActions
-          v-bind:state="state"
+          :state="props.state"
           :tasks="state.tasks"
           :actions="state.actions"
         />
@@ -22,7 +22,7 @@ let props = defineProps<{ state: Model }>()
         <Conversation :state="props.state" />
       </div>
       <div class="w-2/5 overflow-auto pb-32">
-        <CodeAndContext v-bind:state="state" :codeSnippets="state.codeSnippets" />
+        <CodeAndContext :state="props.state" :codeSnippets="state.codeSnippets" />
       </div>
     </div>
   </main>
