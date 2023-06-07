@@ -1,4 +1,4 @@
-let rUnwrap (result: Result<'a, 'b>): 'a =
+let rUnwrap (result: Result<'a, 'b>) : 'a =
   match result with
   | Ok s -> s
   | Error e ->
@@ -125,6 +125,7 @@ let _handler _req =
 [<HttpHandler("GET", "/export-canvas/:canvasId")>]
 let _handler _req =
   let canvasId = canvasId |> Uuid.parse |> rUnwrap
+
   match DarkInternal.Canvas.fullProgram canvasId with
   | Ok program ->
     let prettyTypes =
@@ -135,3 +136,13 @@ let _handler _req =
       (prettyTypes |> String.join "\n\n" |> String.toBytes)
       [ ("Content-Type", "text/plain") ]
       200
+
+
+[<HttpHandler("GET", "/task-creation-prompt")>]
+let _handler _req =
+  match Experiments.readFromCanvases "dark-editor/task-creation-prompt.txt" with
+  | Ok prompt -> PACKAGE.Darklang.Stdlib.Http.response prompt 200
+  | Error e ->
+    PACKAGE.Darklang.Stdlib.Http.response
+      (String.toBytes ("Couldn't load prompt from disk" ++ e))
+      500

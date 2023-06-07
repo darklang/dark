@@ -1,37 +1,36 @@
 // TODO: let ignore (z: ): Unit
 
-let alert (s: String): Unit =
-  let _ = WASM.Editor.callJSFunction "alert" [s]
+let log (s: String) : Unit =
+  let _ = WASM.Editor.callJSFunction "console.log" [ s ]
   ()
 
-let log (s: String): Unit =
-  let _ = WASM.Editor.callJSFunction "console.log" [s]
-  ()
-
-let rUnwrap (result: Result<'a, 'b>): 'a =
+let rUnwrap (result: Result<'a, 'b>) : 'a =
   match result with
   | Ok s -> s
-  | Error e ->
-    log e // TODO: this won't work if non-string
-    alert "Expected OK, got Error - see log"
+  | Error e -> log e // TODO: this won't work if non-string
 
 
 // todo: throw this stuff into an OpenAI module?
-type OpenAIChatCompletionRequestMessage =
-  { role: String; content: String }
+type OpenAIChatCompletionRequestMessage = { role: String; content: String }
+
 type OpenAIChatCompletionRequest =
   { model: String
     max_tokens: Int
     temperature: Float
-    messages : List<OpenAIChatCompletionRequestMessage> }
+    messages: List<OpenAIChatCompletionRequestMessage> }
 
 type OpenAIChatCompletionResponseChoiceMessage = { content: String }
-type OpenAIChatCompletionResponseChoice = { message: OpenAIChatCompletionResponseChoiceMessage }
-type OpenAIChatCompletionResponse = { choices: List<OpenAIChatCompletionResponseChoice> }
 
-let openAIcompletion (prompt: String): Result<String, String> =
+type OpenAIChatCompletionResponseChoice =
+  { message: OpenAIChatCompletionResponseChoiceMessage }
+
+type OpenAIChatCompletionResponse =
+  { choices: List<OpenAIChatCompletionResponseChoice> }
+
+let openAIcompletion (prompt: String) : Result<String, String> =
   let apiKey =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
+
     match WASM.HttpClient.request "get" url [] Bytes.empty with
     | Ok response -> response.body |> String.fromBytes
 
@@ -40,18 +39,21 @@ let openAIcompletion (prompt: String): Result<String, String> =
       { model = "gpt-3.5-turbo"
         max_tokens = 700
         temperature = 0.7
-        messages = [OpenAIChatCompletionRequestMessage {role = "user"; content = prompt}] }
+        messages =
+          [ OpenAIChatCompletionRequestMessage { role = "user"; content = prompt } ] }
 
   match Json.serialize<OpenAIChatCompletionRequest> openAIRequest with
   | Ok reqBody ->
     let headers =
-      [
-        ("authorization", "Bearer " ++ apiKey)
-        ("content-type", "application/json")
-      ]
+      [ ("authorization", "Bearer " ++ apiKey)
+        ("content-type", "application/json") ]
 
     let openAIResponse =
-      WASM.HttpClient.request "POST" "https://api.openai.com/v1/chat/completions" headers (String.toBytes reqBody)
+      WASM.HttpClient.request
+        "POST"
+        "https://api.openai.com/v1/chat/completions"
+        headers
+        (String.toBytes reqBody)
 
     match openAIResponse with
     | Ok r ->
@@ -60,13 +62,13 @@ let openAIcompletion (prompt: String): Result<String, String> =
         match List.head r.choices with
         | Just c -> Ok c.message.content
 
-        | Nothing -> Error ("No choices returned")
-      | Error err -> Error ("Couldn't parse open ai completino response - " ++ err)
-    | Error e -> Error ("OpenAI API request failed\n" ++ e)
-  | Error e -> Error ("Couldn't serialize request" ++ e)
+        | Nothing -> Error("No choices returned")
+      | Error err -> Error("Couldn't parse open ai completino response - " ++ err)
+    | Error e -> Error("OpenAI API request failed\n" ++ e)
+  | Error e -> Error("Couldn't serialize request" ++ e)
 
 
-let parseAndSerializeProgram (userProgram: String): Result<String, String> =
+let parseAndSerializeProgram (userProgram: String) : Result<String, String> =
   let response =
     WASM.HttpClient.request
       "POST"
@@ -75,10 +77,11 @@ let parseAndSerializeProgram (userProgram: String): Result<String, String> =
       (String.toBytes userProgram)
 
   let statusCode = response |> rUnwrap |> (fun r -> r.statusCode)
+
   match statusCode with
-  | 200 -> Ok (response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
-  | 400 -> Error (response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
-  | _ -> Error ("Unexpected response code: " ++ Int.toString statusCode)
+  | 200 -> Ok(response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
+  | 400 -> Error(response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
+  | _ -> Error("Unexpected response code: " ++ Int.toString statusCode)
 
 
 // TODO: in the prompt, include something like
@@ -92,10 +95,14 @@ type Status =
   | Done
 
 type Task =
-  { id: String; description: String; status: Status }
+  { id: String
+    description: String
+    status: Status }
 
 type Action =
-  { id: String; description: String; status: Status}
+  { id: String
+    description: String
+    status: Status }
 
 type BotResponseItem =
   | Text of text: String
@@ -108,16 +115,17 @@ type ChatHistoryItem =
   | BotResponse of id: String * items: List<BotResponseItem> // todo: add promptId to tie together with relevant UserPrompt
 
 type CodeSnippet =
-  { id: String; code: String; eval: Option<String> }
+  { id: String
+    code: String
+    eval: Option<String> }
 
 type Model =
   { isLoading: Bool
     systemPrompt: String
     chatHistory: List<ChatHistoryItem>
     codeSnippets: List<CodeSnippet>
-    tasks : List<Task>
-    actions: List<Action>
-    }
+    tasks: List<Task>
+    actions: List<Action> }
 
 
 // Update
@@ -127,7 +135,15 @@ type Msg =
 
 
 let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
-  let errMsg = "update the code snippet to fix " ++ "\n" ++ err ++ "\n" ++ "```" ++ codeSnippet ++"```"
+  let errMsg =
+    "update the code snippet to fix "
+    ++ "\n"
+    ++ err
+    ++ "\n"
+    ++ "```"
+    ++ codeSnippet
+    ++ "```"
+
   update model (Msg.UserGavePrompt errMsg)
 
 
@@ -138,32 +154,47 @@ let update (model: Model) (msg: Msg) : Model =
       Model
         { isLoading = true
           systemPrompt = model.systemPrompt
-          chatHistory = List.append model.chatHistory [ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userPrompt]
+          chatHistory =
+            List.append
+              model.chatHistory
+              [ ChatHistoryItem.UserPrompt (rUnwrap (String.random 5)) userPrompt ]
           codeSnippets = model.codeSnippets
           tasks = model.tasks
           actions = model.actions }
-    updateStateInJS  newModel
+
+    updateStateInJS newModel
+
+    let getTasks =
+      (WASM.HttpClient.request
+        "get"
+        "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
+        []
+        Bytes.empty)
+      |> rUnwrap
+      |> (fun r -> r.body)
+      |> String.fromBytes
+      |> String.append $"\n\n {userPrompt}"
 
     // I guess, until we have cmds or something,
     // we have to deal with http calls and such in-line, like here
     let fullPrompt = model.systemPrompt ++ userPrompt
 
-    match openAIcompletion fullPrompt with
-    | Ok apiResponse ->
+    match openAIcompletion getTasks, openAIcompletion fullPrompt with
+    | Ok apiResponseTasks, Ok apiResponse ->
+      let taskIndex = String.indexOf_v0 apiResponseTasks "Tasks:"
 
-      let taskIndex = String.indexOf_v0 apiResponse "Tasks:"
       let newtasks =
         match taskIndex with
         | Nothing -> []
         | Just taskIndex ->
-          apiResponse
-          |> String.slice_v0 taskIndex (String.length apiResponse)
+          apiResponseTasks
+          |> String.slice_v0 taskIndex (String.length apiResponseTasks)
           |> String.split "\n"
           |> List.map (fun line ->
-              Task {
-              id = (String.random 5) |> rUnwrap
-              description = line
-              status = Status.Todo})
+            Task
+              { id = (String.random 5) |> rUnwrap
+                description = line
+                status = Status.Todo })
 
       let (newCodeSnippets, botResponseParts) =
         (String.split (" " ++ apiResponse) "```")
@@ -175,20 +206,27 @@ let update (model: Model) (msg: Msg) : Model =
 
           if text == "" then
             acc
-          else
-            if i % 2 == 1 then
-              let snippetId = rUnwrap(String.random 5)
-              let updatedCodeSnippets = List.append codeSnippets [CodeSnippet { id = snippetId; code = text; eval = Nothing }]
-              let updatedResponseParts = List.append responseParts [BotResponseItem.CodeSnippet snippetId]
-              (updatedCodeSnippets, updatedResponseParts)
-            else
-              codeSnippets, (List.append responseParts [BotResponseItem.Text text])
-          )
+          else if i % 2 == 1 then
+            let snippetId = rUnwrap (String.random 5)
 
-      let newChatItemsItems = [
-        ChatHistoryItem.UserPrompt (rUnwrap(String.random 5)) userPrompt
-        ChatHistoryItem.BotResponse (rUnwrap(String.random 5)) botResponseParts
-      ]
+            let updatedCodeSnippets =
+              List.append
+                codeSnippets
+                [ CodeSnippet
+                    { id = snippetId
+                      code = text
+                      eval = Nothing } ]
+
+            let updatedResponseParts =
+              List.append responseParts [ BotResponseItem.CodeSnippet snippetId ]
+
+            (updatedCodeSnippets, updatedResponseParts)
+          else
+            codeSnippets, (List.append responseParts [ BotResponseItem.Text text ]))
+
+      let newChatItemsItems =
+        [ ChatHistoryItem.UserPrompt (rUnwrap (String.random 5)) userPrompt
+          ChatHistoryItem.BotResponse (rUnwrap (String.random 5)) botResponseParts ]
 
       Model
         { isLoading = false
@@ -196,10 +234,14 @@ let update (model: Model) (msg: Msg) : Model =
           chatHistory = List.append model.chatHistory newChatItemsItems
           codeSnippets = List.append model.codeSnippets newCodeSnippets
           tasks = List.append model.tasks newtasks
-          actions = model.actions
-          }
+          actions = model.actions }
 
-    | Error err -> alert err
+    | Error err, _ -> log "error getting tasks " ++ err
+    | _, Error err -> log "error getting response " ++ err
+    | Error err1, Error err2 ->
+      log "error getting tasks and response " ++ err1 ++ " " ++ err2
+
+
 
   | UserRequestedCodeEval id codeSnippet ->
     // split this into 2 groups - the one we're updating, and the rest
@@ -210,6 +252,7 @@ let update (model: Model) (msg: Msg) : Model =
     | Nothing -> log "couldn't find snippet"
     | Just snippetToUpdate ->
       let parsedAndSerialized = parseAndSerializeProgram codeSnippet
+
       match parsedAndSerialized with
       | Ok parsedAndSerialized ->
         let evalPgm = (WASM.Editor.evalUserProgram parsedAndSerialized)
@@ -217,10 +260,14 @@ let update (model: Model) (msg: Msg) : Model =
         match evalPgm with
         | Ok evalPgm ->
           evalPgm
+
           let updatedCodeSnippets =
             List.append
-                [CodeSnippet { id = snippetToUpdate.id; code = codeSnippet; eval = Just evalPgm}]
-                otherSnippets
+              [ CodeSnippet
+                  { id = snippetToUpdate.id
+                    code = codeSnippet
+                    eval = Just evalPgm } ]
+              otherSnippets
 
           Model
             { isLoading = false
@@ -230,31 +277,31 @@ let update (model: Model) (msg: Msg) : Model =
               tasks = model.tasks
               actions = model.actions }
 
-        | Error err ->
-          sendError model codeSnippet err
+        | Error err -> sendError model codeSnippet err
 
-      | Error err ->
-        sendError model codeSnippet err
+      | Error err -> sendError model codeSnippet err
 
 
 /// Single point of communicating to JS host
 ///
 /// Let the JS host know that the state has been updated,
 /// so that it can update the UI accordingly.
-let updateStateInJS (newState: Model): Result<Unit, String> =
+let updateStateInJS (newState: Model) : Result<Unit, String> =
   match Json.serialize<Model> newState with
   | Ok serialized ->
-    let _ = WASM.Editor.callJSFunction "self.receiveEvalResult" [serialized]
-    Ok ()
+    let _ = WASM.Editor.callJSFunction "self.receiveEvalResult" [ serialized ]
+    Ok()
   | Error err ->
-    let _ = WASM.Editor.callJSFunction "console.warn" ["Couldn't serialize - " ++ err]
+    let _ =
+      WASM.Editor.callJSFunction "console.warn" [ "Couldn't serialize - " ++ err ]
+
     Error "Couldn't serialize updated state"
 
 
 /// Single point of communication from JS host
 ///
 /// Listen for events from the JS host, and update the state accordingly.
-let handleEvent (evt: String): Result<String, String> =
+let handleEvent (evt: String) : Result<String, String> =
   match Json.parse<Msg> evt with
   | Ok msg ->
     match WASM.Editor.getState<Model> () with
@@ -272,16 +319,20 @@ let handleEvent (evt: String): Result<String, String> =
 
   | Error err ->
     log ("Couldn't get current state: " ++ err)
-    Error ("Couldn't parse raw msg: " ++ err)
+    Error("Couldn't parse raw msg: " ++ err)
 
 
 // Init
 // (things to run on startup, before accepting any events
 //  the initial state is set to the result of the final expr)
 let systemPrompt =
-  WASM.HttpClient.request "get" "http://dark-editor.dlio.localhost:11003/system-prompt" [] Bytes.empty
+  WASM.HttpClient.request
+    "get"
+    "http://dark-editor.dlio.localhost:11003/system-prompt"
+    []
+    Bytes.empty
 
-1+2 // useless -- just to prove we can
+1 + 2 // useless -- just to prove we can
 
 let initState =
   match systemPrompt with
@@ -292,62 +343,35 @@ let initState =
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
           eval = Nothing }
 
-    let demoTask = [
-      Task { id = (String.random 5) |> rUnwrap
-             description = "First task in progress"
-             status = Status.InProgress};
+    let demoAction =
+      [ Action
+          { id = (String.random 5) |> rUnwrap
+            description = "Demo action"
+            status = Status.InProgress } ]
 
-      Task { id = (String.random 5) |> rUnwrap
-             description = "Second task to do"
-             status = Status.Todo};
+    let chatHistory =
+      [ ChatHistoryItem.UserPrompt
+          (rUnwrap (String.random 5))
+          "Hello, I want a function that increments an integer!"
 
-      Task { id = (String.random 5) |> rUnwrap
-             description = "Third task task done"
-             status = Status.InProgress}
-    ]
-
-    let demoAction = [
-      Action { id = (String.random 5) |> rUnwrap
-               description = "First action"
-               status = Status.InProgress};
-
-      Action { id = (String.random 5) |> rUnwrap
-               description = "Second action"
-               status = Status.Todo};
-
-      Action { id = (String.random 5) |> rUnwrap
-               description = "Third action"
-               status = Status.InProgress}
-    ]
-
-    let chatHistory = [
-      ChatHistoryItem.UserPrompt
-        (rUnwrap(String.random 5))
-        "Hello, I want a function that increments an integer!"
-
-      ChatHistoryItem.BotResponse
-        (rUnwrap(String.random 5))
-        [
-          BotResponseItem.Text "OK - here's some code:"
-          BotResponseItem.CodeSnippet demoSnippet.id
-          BotResponseItem.Tasks demoTask
-          BotResponseItem.Actions demoAction
-        ]
-    ]
+        ChatHistoryItem.BotResponse
+          (rUnwrap (String.random 5))
+          [ BotResponseItem.Text "OK - here's some code:"
+            BotResponseItem.CodeSnippet demoSnippet.id
+            BotResponseItem.Actions demoAction ] ]
 
     Model
       { isLoading = false
         systemPrompt = String.fromBytes response.body
         chatHistory = chatHistory
-        codeSnippets = [demoSnippet]
-        tasks = demoTask
-        actions = demoAction
-      }
+        codeSnippets = [ demoSnippet ]
+        tasks = []
+        actions = demoAction }
 
   | Error err ->
     Model
       { systemPrompt = String.fromBytes "nope"
-        chatHistory = [ ] }
+        chatHistory = [] }
 
 updateStateInJS initState
 
