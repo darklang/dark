@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import type { text } from '@fortawesome/fontawesome-svg-core'
 import { ref, onMounted } from 'vue'
 import autosize from 'autosize'
+import type { Model } from '../types'
 
-const userInput = ref('Write a function that divides two numbers')
+let props = defineProps<{ state: Model }>()
+
+const userInput = ref("I want to create a changelog from my repo's pr comments")
 const content = ref()
-const isLoading = ref(false)
 
 async function submit() {
   try {
-    isLoading.value = true
     console.log('emitting prompt to submit')
     const evt = { UserGavePrompt: [userInput.value] }
     const result = await window.darklang.handleEvent(evt)
+
     console.log('result', result)
     userInput.value = ''
-    isLoading.value = false
     autosize.destroy(content.value)
     autosize(content.value)
     let contentTextarea = document.getElementById('content') as HTMLTextAreaElement
@@ -45,11 +45,11 @@ onMounted(() => autosize(content.value))
     ></textarea>
     <button
       @click="submit"
-      :class="{ 'opacity-50 cursor-not-allowed': isLoading }"
-      :disabled="isLoading"
+      :class="{ 'opacity-50 cursor-not-allowed': props.state.isLoading }"
+      :disabled="props.state.isLoading"
       class="absolute bottom-2 right-2 py-1 px-2 mx-2 rounded-md text-white bg-[#C56AE4] hover:bg-[#9f56b8]"
     >
-      <span v-if="!isLoading">send</span>
+      <span v-if="!props.state.isLoading">send</span>
       <span v-else class="flex">
         <fa icon="fa-spinner" class="animate-spin w-6 p-1" />
       </span>

@@ -1,3 +1,0 @@
-(// path params present: `functionId`
- let responseBody = "TODO"|> String.toBytes_v0
- Http.response responseBody 200)

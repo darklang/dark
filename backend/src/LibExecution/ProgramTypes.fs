@@ -44,20 +44,27 @@ module FQTypeName =
 
 
   let stdlibTypeName
-    (modul : string)
+    (modules : List<string>)
     (typ : string)
     (version : int)
     : StdlibTypeName =
-    if modul <> "" then assertRe "modName name must match" modNamePat modul
+    List.iter (assertRe "modName name must match" modNamePat) modules
     assertRe "stdlib type name must match" typeNamePat typ
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { modules = [ modul ]; typ = typ; version = version }
+    { modules = modules; typ = typ; version = version }
 
-  let userTypeName (modul : string) (typ : string) (version : int) : UserTypeName =
-    if modul <> "" then assertRe "modName name must match" modNamePat modul
+  let userTypeName
+    (modules : List<string>)
+    (typ : string)
+    (version : int)
+    : UserTypeName =
+    List.iter (assertRe "modName name must match" modNamePat) modules
     assertRe "stdlib type name must match" typeNamePat typ
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { modules = [ modul ]; typ = typ; version = version }
+    { modules = modules; typ = typ; version = version }
+
+  let userFqName (modules : List<string>) (typ : string) (version : int) : T =
+    User(userTypeName modules typ version)
 
 
 

@@ -242,8 +242,9 @@ let init (serviceName : string) : unit =
   print " Configured Telemetry"
 
 
-let honeycombOptions : HoneycombOptions =
+let honeycombOptions (serviceName : string) : HoneycombOptions =
   let options = HoneycombOptions()
+  options.ServiceName <- serviceName
   options.ApiKey <- Config.honeycombApiKey
   options.Dataset <- Config.honeycombDataset
   options.Endpoint <- Config.honeycombEndpoint
@@ -361,7 +362,7 @@ let addTelemetry
         b
         (fun b exporter ->
           match exporter with
-          | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions)
+          | Config.Honeycomb -> b.AddHoneycomb(honeycombOptions serviceName)
           | Config.Console -> b.AddConsoleExporter())
         Config.telemetryExporters
   |> fun b ->

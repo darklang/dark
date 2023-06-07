@@ -1,2 +1,0 @@
-(let _ = DarkInternal.deleteTrace traceId
- Http.response Bytes.empty 200)

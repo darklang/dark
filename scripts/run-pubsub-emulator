@@ -15,12 +15,12 @@ echo -e "Running PubSub emulator ${grey}($LOG)${reset}"
 # This is slow to start up, so if it's already loaded, don't restart
 if [[ $(pgrep --full 'cloud-pubsub-emulator-.*.jar') == "" ]] ; then
   gcloud beta emulators pubsub start \
-    --host-port=0.0.0.0:8085 \
+    --host-port=$PUBSUB_EMULATOR_HOST \
     > "$LOG" 2>&1 &
 fi
 
 # Pubsub takes ~1s to startup
-while ! curl --output /dev/null --silent --head http://0.0.0.0:8085 ; do
+while ! curl --output /dev/null --silent --head http://$PUBSUB_EMULATOR_HOST ; do
   sleep 0.3
   echo .
 done

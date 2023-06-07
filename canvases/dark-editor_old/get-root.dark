@@ -1,3 +1,0 @@
-(// TODO: DarkInternal::getDomains relevantCanvas
- let responseBody = "{ domains: [] }" |> String.toBytes_v0
- Http.response responseBody 200)

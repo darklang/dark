@@ -285,12 +285,11 @@ module Expr =
     | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Some(name, 0)
     | _ -> None
 
-  let parseEnum (enumName : string) : string =
+  let parseEnum (enumName : string) : Option<string> =
     // No version on the Enum case, that's on the type
     match enumName with
-    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name
-    | _ ->
-      Exception.raiseInternal "Bad format in enum names" [ "enumName", enumName ]
+    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
+    | _ -> None
 
   let parseTypeName (typeName : string) : string * int =
     match typeName with
@@ -525,20 +524,23 @@ module Expr =
       | Some(name, version) ->
         PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, [], [])
       | None ->
-        let enumName = parseEnum name
-        let typename =
-          List.last modules |> Exception.unwrapOptionInternal "empty list" []
-        let (typ, version) = parseTypeName typename
-        let modules = List.initial modules |> Option.unwrap []
-        PT.EEnum(
-          gid (),
-          PT.FQTypeName.User
-            { PT.FQTypeName.UserTypeName.modules = modules
-              typ = typ
-              version = version },
-          enumName,
-          []
-        )
+        match parseEnum name with
+        | Some enumName ->
+          let typename =
+            List.last modules |> Exception.unwrapOptionInternal "empty list" []
+          let (typ, version) = parseTypeName typename
+          let modules = List.initial modules |> Option.unwrap []
+          PT.EEnum(
+            gid (),
+            PT.FQTypeName.User
+              { PT.FQTypeName.UserTypeName.modules = modules
+                typ = typ
+                version = version },
+            enumName,
+            []
+          )
+        | None -> Exception.raiseInternal "invalid enum name" [ "name", name ]
+
 
     // Variable enums - Ok, Error, Nothing, and Just are handled elsewhere,
     // and Enums are expected to be fully qualified
@@ -782,15 +784,23 @@ module Expr =
       | PT.EPipe(id, arg1, arg2, rest) ->
         PT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
       | PT.EVariable(id, name) ->
-        // TODO: this could be an Enum too
-        let (name, version) =
-          parseFn name
-          |> Exception.unwrapOptionInternal
-            "invalid fn name"
-            [ "name", name; "ast", ast ]
-        PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ])
-
-
+        parseFn name
+        |> Option.map (fun (name, version) ->
+          PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ]))
+        |> Option.orElseWith (fun () ->
+          parseEnum name
+          |> Option.map (fun name ->
+            PT.EEnum(
+              id,
+              PT.FQTypeName.userFqName [] name 0,
+              name,
+              convertEnumArg arg
+            )))
+        |> Exception.unwrapOptionInternal
+          "Unsupported function call"
+          [ "fnCall expr", funcExpr
+            "converted specific fncall exp", c funcExpr
+            "argument", arg ]
       // Enums
       | PT.EEnum(id, typeName, caseName, fields) ->
         PT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)

@@ -4,14 +4,14 @@ type Command =
   | Infer of String
   | Invalid
 
-let parseArguments (args: List<String>): Command =
+let parseArguments (args: List<String>) : Command =
   match args with
-  | ["--help"] -> Help
-  | ["--prompt"; prompt; scriptPath] -> Infer (prompt, scriptPath)
-  | [scriptPath] -> RunScript scriptPath
+  | [ "--help" ] -> Help
+  | [ "--prompt"; prompt ] -> Infer prompt
+  | [ scriptPath ] -> RunScript scriptPath
   | _ -> Invalid
 
-let executeCommand (command: Command) : unit =
+let executeCommand (command: Command) : Unit =
   match command with
   | RunScript scriptPath ->
     let script = File.read scriptPath
@@ -19,20 +19,21 @@ let executeCommand (command: Command) : unit =
     ()
 
   | Help ->
-    let helpText = "Usage: darklang [options] [SCRIPT]
-Options:
--h, --help Show this help message and exit
---prompt PROMPT Infer a script from the given prompt using OpenAI"
+    let helpText =
+      "Usage: darklang [options] [SCRIPT] \
+                    Options: \
+                    -h, --help Show this help message and exit \
+                    --prompt PROMPT Infer a script from the given prompt using OpenAI"
+
     print helpText
 
-  | Infer (prompt, scriptPath) ->
-  // let script = System.IO.File.ReadAllText scriptPath
-  // Call OpenAI API with the prompt and script to generate a new script
-  // let generatedScript = callOpenAI(prompt, script)
-  // Execute the generated script here
-  ()
+  | Infer(prompt, scriptPath) ->
+    // let script = System.IO.File.ReadAllText scriptPath
+    // Call OpenAI API with the prompt and script to generate a new script
+    // let generatedScript = callOpenAI(prompt, script)
+    // Execute the generated script here
+    ()
 
-  | Invalid ->
-    print "Invalid command. Use --help for more information."
+  | Invalid -> print "Invalid command. Use --help for more information."
 
 args |> parseArguments |> executeCommand

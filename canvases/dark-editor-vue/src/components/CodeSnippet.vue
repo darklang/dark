@@ -58,7 +58,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex p-4 m-2 mt-6 bg-[#1C1C1C] rounded-2xl overflow-hidden relative">
+  <div class="flex p-4 m-2 bg-[#1C1C1C] rounded-2xl overflow-hidden relative">
     <div class="flex flex-col items-center mt-4 px-1">
       <button class="mb-3" @click="runCode">
         <fa icon="play" class="w-4 h-4 text-[#8f53ff]" />
