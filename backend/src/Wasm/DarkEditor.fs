@@ -15,10 +15,8 @@ open EvalHelpers
 let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 
 
-/// Source of the editor
-/// (types, functions, and exprs to run on start to set the initial value)
-type EditorSource =
-  { types : List<UserType.T>; fns : List<UserFunction.T>; exprs : List<Expr> }
+/// Source of the editor (types, functions)
+type EditorSource = { types : List<UserType.T>; fns : List<UserFunction.T> }
 
 
 let stdLib =
@@ -26,6 +24,18 @@ let stdLib =
     [ StdLibExecution.StdLib.contents; Wasm.StdLib.contents ]
     []
     []
+
+let ensureNonFakeDval (dv : Dval) : Result<Dval, string> =
+  match dv with
+  | DError(_source, err) ->
+    Error $"Error calling handleEvent with provided args: {err}"
+
+  | DIncomplete(_) -> Error $"handleError returned Incomplete"
+
+  | DFnVal(_) -> Error $"handleError returned DFnVal"
+
+  | result -> Ok dv
+
 
 /// Load the Darklang program that manages the state of and interactions with
 /// the JS side of the editor.
@@ -53,19 +63,29 @@ let LoadClient (canvasName : string) : Task<string> =
         return Json.Vanilla.deserialize<EditorSource> responseBody
       }
 
-    let expr = exprsCollapsedIntoOne clientSource.exprs
-
     let! initialState =
       let state = getStateForEval stdLib clientSource.types clientSource.fns
-      let inputVars = Map.empty
-      LibExecution.Execution.executeExpr state inputVars expr
+      Ply.toTask (
+        LibExecution.Interpreter.callFn
+          state
+          (gid ())
+          (FQFnName.User { modules = []; function_ = "init"; version = 0 })
+          []
+          [ DUnit ]
+      )
 
-    Libs.Editor.editor <-
-      { Types = clientSource.types
-        Functions = clientSource.fns
-        CurrentState = initialState }
+    match ensureNonFakeDval initialState with
+    | Ok result ->
+      Libs.Editor.editor <-
+        { Types = clientSource.types
+          Functions = clientSource.fns
+          CurrentState = initialState }
 
-    return LibExecution.DvalReprDeveloper.toRepr initialState
+      return LibExecution.DvalReprDeveloper.toRepr result
+
+    | Error err ->
+      WasmHelpers.callJSFunction "console.error" [ err ]
+      return err
   }
 
 
@@ -85,23 +105,9 @@ let HandleEvent (serializedEvent : string) : Task<string> =
           [ DString serializedEvent ]
       )
 
-    match result with
-    | DError(_source, err) ->
-      WasmHelpers.callJSFunction
-        "console.error"
-        [ $"Error calling handleEvent with provided args: {err}" ]
-      return "failed - see console.error"
-
-    | DIncomplete(_) ->
-      WasmHelpers.callJSFunction
-        "console.error"
-        [ $"handleError returned Incomplete" ]
-      return "failed - handleError returned Incomplete"
-
-    | DFnVal(_) ->
-      WasmHelpers.callJSFunction "console.error" [ $"handleError returned DFnVal" ]
-      return "failed - handleError returned DFnVal"
-
-    | result -> return LibExecution.DvalReprDeveloper.toRepr result
-
+    match ensureNonFakeDval result with
+    | Ok result -> return LibExecution.DvalReprDeveloper.toRepr result
+    | Error err ->
+      WasmHelpers.callJSFunction "console.error" [ err ]
+      return err
   }

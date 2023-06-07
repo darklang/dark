@@ -48,7 +48,7 @@ module Darklang =
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
-            headers = [ "Content-Type", "text/html; charset=utf-8" ]
+            headers = [ ("Content-Type", "text/html; charset=utf-8") ]
             body = body |> String.toBytes }
 
 
@@ -61,7 +61,7 @@ module Darklang =
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
-            headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+            headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
             body = String.toBytes text }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
@@ -73,7 +73,7 @@ module Darklang =
         : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = statusCode
-            headers = [ "Content-Type", "application/json" ]
+            headers = [ ("Content-Type", "application/json") ]
             body = String.toBytes json }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
@@ -81,7 +81,7 @@ module Darklang =
       let redirectTo (url: String) : PACKAGE.Darklang.Stdlib.Http.Response =
         PACKAGE.Darklang.Stdlib.Http.Response
           { statusCode = 302
-            headers = [ "Location", url ]
+            headers = [ ("Location", url) ]
             body = Bytes.empty }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
@@ -149,13 +149,13 @@ module Darklang =
             $"{DateTime.dayOfWeek e}, {DateTime.day e} {DateTime.month e} {DateTime.year e} {DateTime.hour e}:{DateTime.minute e}:{DateTime.second} GMT"
 
           let cookie =
-            [ "Expires", expires
-              "Max-Age", cookie.maxAge |> Int.toString
-              "Domain", cookie.domain
-              "Path", cookie.path
-              "Secure", cookie.secure |> Bool.toString
-              "HttpOnly", cookie.httpOnly |> Bool.toString
-              "SameSite", cookie.sameSite ]
+            [ ("Expires", expires)
+              ("Max-Age", cookie.maxAge |> Int.toString)
+              ("Domain", cookie.domain)
+              ("Path", cookie.path)
+              ("Secure", cookie.secure |> Bool.toString)
+              ("HttpOnly", cookie.httpOnly |> Bool.toString)
+              ("SameSite", cookie.sameSite) ]
             |> List.filterMap (fun (k, v) -> if v == "" then Nothing else Just(k, v))
             |> List.map (fun (k, v) -> k ++ "=" ++ v)
             |> String.join "; "

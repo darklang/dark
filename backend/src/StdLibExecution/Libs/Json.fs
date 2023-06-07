@@ -474,6 +474,10 @@ let fns : List<BuiltInFn> =
         (function
         | state, [ typeArg ], [ arg ] ->
 
+          // TODO: somehow collect list of TVariable -> TypeReference
+          // "'b = Int",
+          // so we can Json.serialize<'b>, if 'b is in the surrounding context
+
           try
             let types = ExecutionState.availableTypes state
             let response = writeJson (fun w -> serialize types w typeArg arg)

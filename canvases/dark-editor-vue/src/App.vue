@@ -41,6 +41,8 @@ darklangJSScript.addEventListener('load', async () => {
   // TODO: we don't need to expose this onace the logic in ResponseChat.vue is
   // ported to Dark.
   window.darklang = darklang
+
+  window.darklang.handleEvent({ LoadSystemPrompt: [] })
 })
 
 document.head.appendChild(darklangJSScript)
