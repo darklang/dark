@@ -218,13 +218,8 @@ let publisher : Lazy<Task<PublisherServiceApiClient>> =
           )
             .BuildAsync()
         | Some credentials ->
-          task {
-            let endpoint = PublisherServiceApiClient.DefaultEndpoint
-            let channel = Grpc.Core.Channel(endpoint, credentials)
-            let grpcClient = Publisher.PublisherClient(channel)
-            let settings = PublisherServiceApiSettings()
-            return PublisherServiceApiClientImpl(grpcClient, settings)
-          }
+          PublisherServiceApiClientBuilder(ChannelCredentials = credentials)
+            .BuildAsync()
 
 
       // Ensure the topic is created locally
@@ -261,13 +256,8 @@ let subscriber : Lazy<Task<SubscriberServiceApiClient>> =
           )
             .BuildAsync()
         | Some credentials ->
-          task {
-            let endpoint = SubscriberServiceApiClient.DefaultEndpoint
-            let channel = Grpc.Core.Channel(endpoint, credentials)
-            let grpcClient = Subscriber.SubscriberClient(channel)
-            let settings = SubscriberServiceApiSettings()
-            return SubscriberServiceApiClientImpl(grpcClient, settings)
-          }
+          SubscriberServiceApiClientBuilder(ChannelCredentials = credentials)
+            .BuildAsync()
 
 
       if Config.queuePubSubCreateTopic then

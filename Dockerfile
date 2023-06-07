@@ -317,7 +317,7 @@ RUN /home/dark/install-exe-file \
   --target=/usr/bin/cloud_sql_proxy
 
 # PubSub
-ENV PUBSUB_EMULATOR_HOST=0.0.0.0:8085
+ENV PUBSUB_EMULATOR_HOST=localhost:8085
 
 # GCS emulator
 RUN /home/dark/install-targz-file \

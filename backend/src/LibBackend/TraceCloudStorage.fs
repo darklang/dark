@@ -196,7 +196,8 @@ let getTraceData
 
     // Download compressed data
     use compressedStream = new MemoryStream()
-    do! client.DownloadObjectAsync(bucketName, name, compressedStream)
+    let! (_ : Google.Apis.Storage.v1.Data.Object) =
+      client.DownloadObjectAsync(bucketName, name, compressedStream)
     do! compressedStream.FlushAsync()
     compressedStream.Position <- 0L
 

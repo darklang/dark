@@ -49,7 +49,6 @@ type WaitForDB =
 let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
   task {
     print $"Initing LibBackend in {serviceName}"
-    Db.init ()
 
     match shouldWaitForDB with
     | WaitForDB -> do! _waitForDB ()
