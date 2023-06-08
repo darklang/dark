@@ -20,7 +20,7 @@ let stringify (e: CustomEnum) : String =
 [<HttpHandler("GET", "/")>]
 let _indexHandler _req =
   let respBody = String.toBytes "testing 123"
-  Http.response respBody 200
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
 [<HttpHandler("POST", "/stringify-enum")>]
@@ -31,7 +31,7 @@ let _stringifyEnumHandler (request) =
 
   let respBody = (stringify reqBody) |> String.toBytes_v0
 
-  Http.response respBody 200
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
 
@@ -52,11 +52,11 @@ let _handler _req =
     | Err e -> "fail"
 
 
-  Http.response respBody 200
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
 [<HttpHandler("GET", "/add-test")>]
 let _handler _req =
   let key = DB.generateKey_v0 ()
   let _ = DB.set (Test { id = 1; name = key }) key TestDB
-  Http.response Bytes.empty 200
+  PACKAGE.Darklang.Stdlib.Http.response Bytes.empty 200
