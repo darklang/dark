@@ -168,7 +168,7 @@ module Roundtrip =
     fetch (fun p -> p.datetime != ((DateTime.parse "2020-01-01T00:00:00Z") |> Test.unwrap)) = [otherSample ()]
     fetch (fun p -> p.datetime == ((DateTime.parse "2019-12-31T23:59:59Z") |> Test.unwrap)) = []
 
-    (fetch (fun p -> p.unit == ())) |> List.sortBy (fun v -> v.int) = [sample (), otherSample ()]
+    (fetch (fun p -> p.unit == ())) |> List.sortBy (fun v -> v.int) = [sample (); otherSample ()]
     fetch (fun p -> p.unit != ()) = []
 
     // Test equality for two different function results - this tests TVariable types, esp checking that we keep track of them correctly
