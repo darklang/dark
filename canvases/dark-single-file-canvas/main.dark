@@ -58,5 +58,5 @@ let _handler _req =
 [<HttpHandler("GET", "/add-test")>]
 let _handler _req =
   let key = DB.generateKey_v0 ()
-  let _ = DB.set (Task { id = 1; name = key }) key TestDB
+  let _ = DB.set (Test { id = 1; name = key }) key TestDB
   Http.response Bytes.empty 200
