@@ -449,7 +449,9 @@ module Expr =
         | _ -> [ expr ]
       PT.EList(id, seq |> seqAsList |> List.map c)
 
-    | SynExpr.ArrayOrListComputed(_, SynExpr.Tuple(_, first :: second :: theRest, _, _), _) ->
+    | SynExpr.ArrayOrListComputed(_,
+                                  SynExpr.Tuple(_, first :: second :: theRest, _, _),
+                                  _) ->
       PT.ETuple(id, c first, c second, List.map c theRest)
 
     | SynExpr.ArrayOrListComputed(_, expr, _) -> PT.EList(id, [ c expr ])
