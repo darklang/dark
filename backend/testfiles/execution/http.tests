@@ -57,29 +57,29 @@ PACKAGE.Darklang.Stdlib.Http.success (String.toBytes "test") =
 PACKAGE.Darklang.Stdlib.Http.responseWithHtml "test" 200 =
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
     (String.toBytes "test")
-    ["Content-Type", "text/html; charset=utf-8"]
+    [("Content-Type", "text/html; charset=utf-8")]
     200
 
 PACKAGE.Darklang.Stdlib.Http.responseWithText "test" 200 =
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
     (String.toBytes "test")
-    ["Content-Type", "text/plain; charset=utf-8"]
+    [("Content-Type", "text/plain; charset=utf-8")]
     200
 
 PACKAGE.Darklang.Stdlib.Http.responseWithJson "test" 200 =
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
     (String.toBytes "test")
-    ["Content-Type", "application/json"]
+    [("Content-Type", "application/json")]
     200
 
 (PACKAGE.Darklang.Stdlib.Http.redirectTo "") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ "Location", ""] 302
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "")] 302
 
 (PACKAGE.Darklang.Stdlib.Http.redirectTo "bad url") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ "Location", "bad url"] 302
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "bad url") ] 302
 
 (PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "http://someothersite.com") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ "Location", "http://someothersite.com"] 302
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "http://someothersite.com")] 302
 
 (PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "/relativeUrl") =
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ "Location", "/relativeUrl"] 302
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders Bytes.empty [ ("Location", "/relativeUrl") ] 302

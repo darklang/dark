@@ -41,8 +41,8 @@ Int.remainder_v0 -20 8 = Ok -4
 Int.remainder_v0 -20 -8 = Ok -4
 Int.remainder_v0 -15 6 = Ok -3
 Int.remainder_v0 5 0 = Error "`divisor` must be non-zero"
-List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v -4) = [ Ok -1, Ok 0, Ok -3, Ok -2, Ok -1, Ok 0, Ok 1, Ok 2, Ok 3, Ok 0, Ok 1 ]
-List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v 4) = [ Ok -1, Ok 0, Ok -3, Ok -2, Ok -1, Ok 0, Ok 1, Ok 2, Ok 3, Ok 0, Ok 1 ]
+List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v -4) = [ Ok -1; Ok 0; Ok -3; Ok -2; Ok -1; Ok 0; Ok 1; Ok 2; Ok 3; Ok 0; Ok 1 ]
+List.map_v0 (List.range_v0 -5 5) (fun v -> Int.remainder_v0 v 4) = [ Ok -1; Ok 0; Ok -3; Ok -2; Ok -1; Ok 0; Ok 1; Ok 2; Ok 3; Ok 0; Ok 1 ]
 
 Int.mod_v0 15 5 = 0
 Int.mod_v0 15 6 = 3
