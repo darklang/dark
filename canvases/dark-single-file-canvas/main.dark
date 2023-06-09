@@ -1,6 +1,9 @@
-type CustomEnum = A | B | C
+type CustomEnum =
+  | A
+  | B
+  | C
 
-let stringify (e: CustomEnum) =
+let stringify (e: CustomEnum) : String =
   match e with
   | A -> "eh"
   | B -> "bee"
@@ -17,30 +20,26 @@ let stringify (e: CustomEnum) =
 [<HttpHandler("GET", "/")>]
 let _indexHandler _req =
   let respBody = String.toBytes "testing 123"
-  Http.response respBody 200
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
 [<HttpHandler("POST", "/stringify-enum")>]
 let _stringifyEnumHandler (request) =
   // req body should be like { "A": [] }
-  let reqBody =
-    request.body
-    |> String.fromBytes_v0
-    |> Json.parse<CustomEnum>
+  let reqBody = request.body |> String.fromBytes_v0 |> Json.parse<CustomEnum>
   let reqBody = Result.withDefault_v0 reqBody B
 
   let respBody = (stringify reqBody) |> String.toBytes_v0
 
-  Http.response respBody 200
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
 
 
-type Test = {
-  id: Int
-  name: String
-}
-[<DB>] TestDB = Test
+type Test = { id: Int; name: String }
+
+[<DB>]
+type TestDB = Test
 
 [<HttpHandler("GET", "/get-tests")>]
 let _handler _req =
@@ -53,11 +52,11 @@ let _handler _req =
     | Err e -> "fail"
 
 
-  Http.response respBody 200
+  PACKAGE.Darklang.Stdlib.Http.response respBody 200
 
 
 [<HttpHandler("GET", "/add-test")>]
 let _handler _req =
   let key = DB.generateKey_v0 ()
-  let _ = DB.set { id = 1; name = key } key TestDB
-  Http.response Bytes.empty 200
+  let _ = DB.set (Test { id = 1; name = key }) key TestDB
+  PACKAGE.Darklang.Stdlib.Http.response Bytes.empty 200

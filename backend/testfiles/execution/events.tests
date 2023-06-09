@@ -6,15 +6,15 @@ type FruitRecord = {
 Test.getQueue_v0 "TestWorker" = []
 
 // emit works
-(let _ = emit "value" "TestWorker" in
- let queue = Test.getQueue_v0 "TestWorker" in
+(let _ = emit "value" "TestWorker"
+ let queue = Test.getQueue_v0 "TestWorker"
  queue) = ["\"value\""]
 
 // emit works with mixed values
-(let _ = emit "value" "TestWorker" in
- let _ = emit 1 "TestWorker" in
- let _ = emit (FruitRecord {fruits = ["apple", "banana"] }) "TestWorker" in
- let queue = Test.getQueue_v0 "TestWorker" in
+(let _ = emit "value" "TestWorker"
+ let _ = emit 1 "TestWorker"
+ let _ = emit (FruitRecord {fruits = ["apple"; "banana"] }) "TestWorker"
+ let queue = Test.getQueue_v0 "TestWorker"
  List.sort queue) =
    [
     "\"value\"";
