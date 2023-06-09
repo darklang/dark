@@ -21,7 +21,6 @@ let _handler _req =
     |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
-    Dict.fromListOverwritingDuplicates
       [
         ("Access-Control-Allow-Origin", incomingHost)
         ("Access-Control-Allow-Credentials", "true")
@@ -29,7 +28,7 @@ let _handler _req =
         ("Accept-Ranges", "bytes")
       ]
 
-  Http.responseWithHeaders body headers 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
 
 [<HttpHandler("GET", "/")>]
 let _indexHandler _req =
@@ -145,7 +144,7 @@ let _indexHandler _req =
 </html>
   """
 
-  Http.responseWithHeaders (String.toBytes body) (Dict.fromListOverwritingDuplicates [("Content-Type", "text/html")]) 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders (String.toBytes body) [("Content-Type", "text/html")] 200
 
 
 // TODO: this currently just returns 0, and I'm not sure why.
@@ -342,14 +341,12 @@ let _handler _req =
 
     match Json.serialize<PTUserFunction> userFn with
     | Ok serialized ->
-      let respHeaders =
-        Dict.fromListOverwritingDuplicates
-          [ ("content-type", "application/json") ]
+      let respHeaders = [ ("content-type", "application/json") ]
 
-      Http.responseWithHeaders (String.toBytes serialized) respHeaders 200
+      PACKAGE.Darklang.Stdlib.Http.responseWithHeaders (String.toBytes serialized) respHeaders 200
 
     | Error e ->
-      Http.responseWithHeaders (String.toBytes_v0 e) Dict.empty_v0 500
+      PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 500
 
   | Error e ->
-    Http.responseWithHeaders (String.toBytes_v0 e) Dict.empty_v0 400
+    PACKAGE.Darklang.Stdlib.Http.response (String.toBytes_v0 e) 400
