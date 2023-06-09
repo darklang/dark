@@ -42,11 +42,11 @@ module Disallowed =
 
     // Slower version
     ipStr.StartsWith("10.0.0.")
-    || ipStr.StartsWith("172.16.0.")
-    || ipStr.StartsWith("192.168.0.")
+    || ipStr.StartsWith("172.16.")
+    || ipStr.StartsWith("192.168.")
     || ipStr.StartsWith("169.254.") // covers Instance Metadata service
-    || ipStr.StartsWith("127.0.0.1")
-    || ipStr.StartsWith("0.0.0.0")
+    || ipStr.StartsWith("127.")
+    || ipStr = "0.0.0.0"
     || ipStr = "0"
 
   let bannedHost (host : string) =
@@ -66,7 +66,7 @@ module Disallowed =
     (not isIP)
     || ip.IsIPv6LinkLocal // ipv6 equivalent of 169.254.*
     || ip.IsIPv6SiteLocal // ipv6 equivalent of 10.*.*.*, 172.16.*.* and 192.168.*.*
-    || System.Net.IPAddress.IsLoopback ip
+    || System.Net.IPAddress.IsLoopback ip // 127.*
     || bannedIPv4Strings (string ip)
 
 
@@ -81,6 +81,31 @@ module Disallowed =
       || (eq k "X-Google-Metadata-Request" && eq v "True"))
     |> Option.isSome
 
+  let connectionFilter
+    (context : SocketsHttpConnectionContext)
+    (cancellationToken : System.Threading.CancellationToken)
+    : ValueTask<Stream> =
+    vtask {
+      try
+        // While this DNS call is expensive, it should be cached
+        let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
+        ips
+        |> Array.iter (fun ip ->
+          if bannedIp ip then Exception.raiseInternal "Could not connect" [])
+
+        let socket =
+          new System.Net.Sockets.Socket(
+            System.Net.Sockets.SocketType.Stream,
+            System.Net.Sockets.ProtocolType.Tcp
+          )
+        socket.NoDelay <- true
+
+        do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
+        return new System.Net.Sockets.NetworkStream(socket, true)
+      with :? System.ArgumentException ->
+        // Use this to hide more specific errors when looking at loopback
+        return Exception.raiseInternal "Could not connect" []
+    }
 
 
 module HttpClient =
@@ -107,27 +132,6 @@ module HttpClient =
 
   type HttpRequestResult = Result<HttpResult, HttpRequestError>
 
-  let private connectionFilter
-    (context : SocketsHttpConnectionContext)
-    (cancellationToken : System.Threading.CancellationToken)
-    : ValueTask<Stream> =
-    vtask {
-      let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
-      ips
-      |> Array.iter (fun ip ->
-        if Disallowed.bannedIp ip then
-          Exception.raiseInternal "Connection refused" [])
-
-      let socket =
-        new System.Net.Sockets.Socket(
-          System.Net.Sockets.SocketType.Stream,
-          System.Net.Sockets.ProtocolType.Tcp
-        )
-      socket.NoDelay <- true
-
-      do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
-      return new System.Net.Sockets.NetworkStream(socket, true)
-    }
 
   // There has been quite a history of .NET's HttpClient having problems,
   // including socket exhaustion and DNS results not expiring.
@@ -166,7 +170,7 @@ module HttpClient =
 
       // Users share the HttpClient, don't let them share cookies!
       UseCookies = false,
-      ConnectCallback = connectionFilter
+      ConnectCallback = Disallowed.connectionFilter
     )
 
   let private httpClient : HttpClient =
