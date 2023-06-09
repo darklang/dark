@@ -353,6 +353,9 @@ def mark(should, f):
   elif ("/backend/" in f) and ("/tests/" in f):
     should.backend_test = True
 
+  elif ("/packages/" in f) and (f.endswith(".dark")):
+    should.backend_quick_build = True
+
   elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]
     should.reload_backend_server = True

@@ -1,0 +1,7 @@
+module Darklang =
+  module Stdlib =
+    type Canvas =
+      { types: List<PACKAGE.Darklang.Stdlib.ProgramTypes.UserType.T>
+        dbs: List<PACKAGE.Darklang.Stdlib.ProgramTypes.DB.T>
+        fns: List<PACKAGE.Darklang.Stdlib.ProgramTypes.UserFunction.T>
+        handlers: List<PACKAGE.Darklang.Stdlib.ProgramTypes.Handler.T> }

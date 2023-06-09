@@ -1,0 +1,9 @@
+module Darklang =
+  module Stdlib =
+    type ID = Int
+
+    type TLID = Int
+
+    type Sign =
+      | Positive
+      | Negative

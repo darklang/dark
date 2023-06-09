@@ -226,7 +226,9 @@ type TypeReference =
   | TBytes
   // A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string // replaces TAny
-  | TFn of List<TypeReference> * TypeReference // replaces TLambda
+  | TFn of
+    List<TypeReference> *  // CLEANUP: NonEmptyList
+    TypeReference // replaces TLambda
 
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
