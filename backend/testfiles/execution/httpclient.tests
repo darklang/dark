@@ -76,12 +76,12 @@ module Disallowed =
 
   HttpClient.request "get" "http://127.0.0.17" [] Bytes.empty =
     Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://::ffff:7f00:11" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0:0:0:0:0:ffff:7f00:0011" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0000:0000:0000:0000:0000:ffff:7f00:0011" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:7f00:11]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:7f00:0011]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
 
   HttpClient.request "get" "http://127.255.174.17" [] Bytes.empty =
     Error "Bad URL: Invalid host"
@@ -93,32 +93,32 @@ module Disallowed =
     Error "Bad URL: Invalid host"
   HttpClient.request "get" "http://169.254.169.254" [] Bytes.empty =
     Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://::ffff:a9fe:a9fe" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0:0:0:0:0:ffff:a9fe:a9fe" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0000:0000:0000:0000:0000:ffff:a9fe:a9fe" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://169.254.0.0" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:a9fe:a9fe]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:a9fe:a9fe]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+  HttpClient.request "get" "http://169.254.0.0" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
 
   HttpClient.request "get" "http://172.16.0.1" [] Bytes.empty =
     Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://::ffff:ac10:1" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0:0:0:0:0:ffff:ac10:0001" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0000:0000:0000:0000:0000:ffff:ac10:0001" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:ac10:1]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:ac10:0001]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
 
   HttpClient.request "get" "http://192.168.1.1" [] Bytes.empty =
     Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://::ffff:c0a8:101" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0:0:0:0:0:ffff:c0a8:0101" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
-  //HttpClient.request "get" "http://0000:0000:0000:0000:0000:ffff:c0a8:0101" [] Bytes.empty =
-    //Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:c0a8:101]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:c0a8:0101]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
 
   // Check for sneaky banned urls - blocked via connection callback
   // 127.0.0.1
@@ -141,7 +141,6 @@ module Disallowed =
     "Bad URL: Invalid request"
 
 module BadSSL =
-
   HttpClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empty = Error "Name or service not known (thenonexistingurlforsure.com:80) Name or service not known"
   HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
 

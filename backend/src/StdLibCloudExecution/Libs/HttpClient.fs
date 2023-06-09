@@ -25,7 +25,7 @@ module Telemetry = LibService.Telemetry
 // 5. By removing all access for the cloud run service account (see iam.tf)
 module Disallowed =
   let bannedIPv4Strings (ipStr : string) : bool =
-    // This from ChatGPT so veruify this before using
+    // This from ChatGPT so verify this before using
     // let bytes = ipAddress.GetAddressBytes() |> Array.rev
     // let ipAsInt = System.BitConverter.ToUInt32(bytes, 0)
     // // Check the following private IP ranges:
@@ -60,14 +60,21 @@ module Disallowed =
 
 
   let bannedIp (ip : System.Net.IPAddress) : bool =
-    let isIP =
-      ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork
-      || ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6
-    (not isIP)
-    || ip.IsIPv6LinkLocal // ipv6 equivalent of 169.254.*
-    || ip.IsIPv6SiteLocal // ipv6 equivalent of 10.*.*.*, 172.16.*.* and 192.168.*.*
-    || System.Net.IPAddress.IsLoopback ip // 127.*
-    || bannedIPv4Strings (string ip)
+    let bannedIPv4 (ip : System.Net.IPAddress) : bool =
+      System.Net.IPAddress.IsLoopback ip // 127.*
+      || bannedIPv4Strings (string ip)
+
+    if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
+      if ip.IsIPv4MappedToIPv6 then
+        bannedIPv4 (ip.MapToIPv4())
+      else
+        ip.IsIPv6LinkLocal // ipv6 equivalent of 169.254.*
+        || ip.IsIPv6SiteLocal // ipv6 equivalent of 10.*.*.*, 172.16.*.* and 192.168.*.*
+        || System.Net.IPAddress.IsLoopback ip // 127.*
+    else if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
+      bannedIPv4 ip
+    else
+      true // not ipv4 or ipv6, so banned
 
 
   // Disallow headers that access the Instance Metadata service
