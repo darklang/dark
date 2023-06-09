@@ -1,11 +1,11 @@
 [<HttpHandler("GET", "/")>]
 let _handler _req =
-  Http.redirectTo "/assets/index.html"
+  PACKAGE.Darklang.Stdlib.Http.redirectTo "/assets/index.html"
 
 [<HttpHandler("GET", "/assets/:path")>]
 let _handler _req =
   let body =
-    (Experiments.readFromCanvases  ("dark-repl/assets/" ++ path))
+    (Experiments.readFromCanvases ("dark-repl/assets/" ++ path))
     |> Result.withDefault Bytes.empty
 
   let contentType =
@@ -20,18 +20,16 @@ let _handler _req =
     request.headers
     |> List.findFirst (fun t -> Tuple2.first t == "origin")
     |> Option.map (fun t -> Tuple2.second t)
-    |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
+    |> Option.withDefault
+      "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
-    Dict.fromListOverwritingDuplicates
-      [
-        ("Access-Control-Allow-Origin", incomingHost)
-        ("Access-Control-Allow-Credentials", "true")
-        ("Content-type", contentType)
-        ("Accept-Ranges", "bytes")
-      ]
+    [ ("Access-Control-Allow-Origin", incomingHost)
+      ("Access-Control-Allow-Credentials", "true")
+      ("Content-type", contentType)
+      ("Accept-Ranges", "bytes") ]
 
-  Http.responseWithHeaders body headers 200
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
 
 
 // We're sharing the Worker script between this canvas and
@@ -41,14 +39,18 @@ let _handler _req =
 // so let's assume JS content-type.
 [<HttpHandler("GET", "/static/:path")>]
 let _handler _req =
-  let body = (Experiments.readFromStaticDir $"{path}") |> Result.withDefault Bytes.empty
-  let headers = Dict.fromListOverwritingDuplicates [ ("Content-type", "text/javascript") ]
-  Http.responseWithHeaders body headers 200
+  let body =
+    (Experiments.readFromStaticDir $"{path}") |> Result.withDefault Bytes.empty
+
+  let headers = [ ("Content-type", "text/javascript") ]
+
+  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
 
 
 [<HttpHandler("POST", "/get-program-json")>]
 let _handler _req =
   let sourceInBytes = request.body
+
   let program =
     Experiments.parseAndSerializeProgram (String.fromBytes sourceInBytes) "code.dark"
 
@@ -58,12 +60,21 @@ let _handler _req =
     let fns = Option.withDefault (Dict.get program "fns") "[]"
     let exprs = Option.withDefault (Dict.get program "exprs") "[]"
 
-    let json = "{ \"types\": " ++ types ++ ", \"fns\": " ++ fns ++ ", \"exprs\": " ++ exprs ++ "}"
+    let json =
+      "{ \"types\": "
+      ++ types
+      ++ ", \"fns\": "
+      ++ fns
+      ++ ", \"exprs\": "
+      ++ exprs
+      ++ "}"
 
-    Http.responseWithHeaders
+    PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
       (String.toBytes json)
-      (Dict.fromListOverwritingDuplicates [ ("content-type","application-json")])
+      [ ("content-type", "application-json") ]
       200
 
-  | Error _err -> Http.response (String.toBytes "Couldn't parse the program") 400
-
+  | Error _err ->
+    PACKAGE.Darklang.Stdlib.Http.response
+      (String.toBytes "Couldn't parse the program")
+      400
