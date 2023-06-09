@@ -340,6 +340,18 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
   list
 
+let debuGArray (msg : string) (array : 'a[]) : unit =
+  if array.Length = 0 then
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+  else
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {array.Length}, ["
+    array |> Array.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}")
+    NonBlockingConsole.WriteLine $"])"
+
+let debugArray (msg : string) (array : 'a[]) : 'a[] =
+  debuGArray msg array
+  array
+
 let debuGMap (msg : string) (map : Map<'k, 'v>) : unit =
   NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {Map.count map}, ["
   map |> Map.iter (fun k v -> NonBlockingConsole.WriteLine $"  {k} -> {v}")
