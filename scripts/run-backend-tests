@@ -45,7 +45,6 @@ LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
-./scripts/run-httptunnel
 
 # Use random to avoid old items being in the pubsub queue. Use this instead of
 # $RANDOM as RANDOM is only 5 digits

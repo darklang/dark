@@ -69,9 +69,6 @@ variable "service_env_vars" {
     # DARK_CONFIG_TRACE_STORAGE_CREDENTIALS
     "DARK_CONFIG_TRACE_STORAGE_BASE_URI" = "not-used"
 
-    # Httpclient
-    "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL" = "socks5://tunnel2-service.darklang:1080"
-
     # Pusher
     # DARK_CONFIG_PUSHER_APP_ID: k8s
     # DARK_CONFIG_PUSHER_KEY: k8s
