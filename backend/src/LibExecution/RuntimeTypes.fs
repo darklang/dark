@@ -949,6 +949,7 @@ and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 and ProgramContext =
   { canvasID : CanvasID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
+    allowLocalHttpAccess : bool
     dbs : Map<string, DB.T>
     userFns : Map<FQFnName.UserFnName, UserFunction.T>
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>

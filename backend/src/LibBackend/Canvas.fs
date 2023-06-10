@@ -606,6 +606,7 @@ let toProgram (c : T) : RT.ProgramContext =
 
   { canvasID = c.id
     internalFnsAllowed = c.id = Config.allowedDarkInternalCanvasID
+    allowLocalHttpAccess = false
     userFns = userFns
     userTypes = userTypes
     dbs = dbs

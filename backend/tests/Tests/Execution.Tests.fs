@@ -30,7 +30,7 @@ let executionStateForPreview
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
     let canvasID = System.Guid.NewGuid()
-    let! state = executionStateFor canvasID false dbs types fns
+    let! state = executionStateFor canvasID false false dbs types fns
     let results, traceFn = Exe.traceDvals ()
 
     let state =
@@ -68,7 +68,7 @@ let testExecFunctionTLIDs : Test =
       testUserFn name [] [] (PT.TVariable "a") (PT.EInt(gid (), 5))
       |> PT2RT.UserFunction.toRT
     let fns = Map.ofList [ (fn.name, fn) ]
-    let! state = executionStateFor meta false Map.empty Map.empty fns
+    let! state = executionStateFor meta false false Map.empty Map.empty fns
 
     let tlids, traceFn = Exe.traceTLIDs ()
 

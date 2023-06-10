@@ -61,6 +61,7 @@ let execute
     let program : RT.ProgramContext =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
+        allowLocalHttpAccess = true
         userFns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)

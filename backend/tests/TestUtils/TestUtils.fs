@@ -150,6 +150,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
 let executionStateFor
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
+  (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   (userTypes : Map<RT.FQTypeName.UserTypeName, RT.UserType.T>)
   (userFunctions : Map<RT.FQFnName.UserFnName, RT.UserFunction.T>)
@@ -159,6 +160,7 @@ let executionStateFor
     let program : RT.ProgramContext =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
+        allowLocalHttpAccess = allowLocalHttpAccess
         userFns = userFunctions
         dbs = dbs
         userTypes = userTypes

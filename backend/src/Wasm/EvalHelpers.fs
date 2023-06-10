@@ -26,6 +26,7 @@ let getStateForEval
   let program : ProgramContext =
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
+      allowLocalHttpAccess = true
       dbs = Map.empty
       userFns = Map.fromListBy (fun fn -> fn.name) fns
       userTypes = Map.fromListBy (fun typ -> typ.name) types
