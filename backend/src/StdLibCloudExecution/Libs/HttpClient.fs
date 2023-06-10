@@ -23,7 +23,7 @@ module Telemetry = LibService.Telemetry
 // 3. via IP tables on the container (see TODO)
 // 4. via header for Instance Metadata service
 // 5. By removing all access for the cloud run service account (see iam.tf)
-module Disallowed =
+module LocalAccess =
   let bannedIPv4Strings (ipStr : string) : bool =
     // This from ChatGPT so verify this before using
     // let bytes = ipAddress.GetAddressBytes() |> Array.rev
@@ -152,43 +152,53 @@ module HttpClient =
   //
   // Note that the number of sockets was verified manually, with:
   // `sudo netstat -apn | grep _WAIT`
-  let private socketHandler : HttpMessageHandler =
-    new SocketsHttpHandler(
-      // Avoid DNS problems
-      PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
-      PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
-      ConnectTimeout = System.TimeSpan.FromSeconds 10.0,
+  let socketHandler (allowLocalConnections : bool) : HttpMessageHandler =
+    let handler =
+      new SocketsHttpHandler(
+        // Avoid DNS problems
+        PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
+        PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
+        ConnectTimeout = System.TimeSpan.FromSeconds 10.0,
 
-      // HttpClientTODO avail functions to compress/decompress with common
-      // compression algorithms (gzip, brottli, deflate)
-      //
-      // HttpClientTODO consider: is there any reason to think that ASP.NET
-      // does something fancy such that automatic .net httpclient -level
-      // decompression would be notably more efficient than doing so 'manually'
-      // via some function? There will certainly be more bytes passed around -
-      // probably not a big deal?
-      AutomaticDecompression = System.Net.DecompressionMethods.None,
+        // HttpClientTODO avail functions to compress/decompress with common
+        // compression algorithms (gzip, brottli, deflate)
+        //
+        // HttpClientTODO consider: is there any reason to think that ASP.NET
+        // does something fancy such that automatic .net httpclient -level
+        // decompression would be notably more efficient than doing so 'manually'
+        // via some function? There will certainly be more bytes passed around -
+        // probably not a big deal?
+        AutomaticDecompression = System.Net.DecompressionMethods.None,
 
-      // HttpClientTODO avail function that handles redirect behaviour
-      AllowAutoRedirect = false,
+        // HttpClientTODO avail function that handles redirect behaviour
+        AllowAutoRedirect = false,
 
-      // Don't add a RequestId header for opentelemetry
-      ActivityHeadersPropagator = null,
+        // Don't add a RequestId header for opentelemetry
+        ActivityHeadersPropagator = null,
 
-      // Users share the HttpClient, don't let them share cookies!
-      UseCookies = false,
-      ConnectCallback = Disallowed.connectionFilter
-    )
+        // Users share the HttpClient, don't let them share cookies!
+        UseCookies = false
+      )
+    if not allowLocalConnections then
+      handler.ConnectCallback <- LocalAccess.connectionFilter
+    handler
 
-  let private httpClient : HttpClient =
+
+  let private makeHttpClient (allowLocalConnections : bool) : HttpClient =
     new HttpClient(
-      socketHandler,
+      socketHandler allowLocalConnections,
       disposeHandler = false,
       Timeout = System.TimeSpan.FromSeconds 30.0,
       MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
 
-  let request (httpRequest : HttpRequest) : Task<HttpRequestResult> =
+  let private localAllowedHttpClient = makeHttpClient true
+  let private localDisallowedHttpClient = makeHttpClient false
+
+  let request
+    (localAccessAllowed : bool)
+    (httpRequest : HttpRequest)
+    : Task<HttpRequestResult> =
     task {
       use _ =
         Telemetry.child
@@ -199,9 +209,12 @@ module HttpClient =
 
 
         let host = uri.Host.Trim().ToLower()
-        if Disallowed.bannedHost host then
+        if not localAccessAllowed && LocalAccess.bannedHost host then
           return Error(BadUrl "Invalid host")
-        else if Disallowed.hasInstanceMetadataHeader httpRequest.headers then
+        else if
+          not localAccessAllowed
+          && LocalAccess.hasInstanceMetadataHeader httpRequest.headers
+        then
           return Error(BadUrl "Invalid request")
 
         // currently we only support http(s) requests
@@ -252,7 +265,11 @@ module HttpClient =
           // send request
           Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
           Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
-          use! response = httpClient.SendAsync req
+          use! response =
+            if localAccessAllowed then
+              localAllowedHttpClient.SendAsync req
+            else
+              localDisallowedHttpClient.SendAsync req
 
           Telemetry.addTags
             [ "response.status_code", response.StatusCode
@@ -353,7 +370,7 @@ let fns : List<BuiltInFn> =
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         (function
-        | _, _, [ DString method; DString uri; DList reqHeaders; DBytes reqBody ] ->
+        | state, _, [ DString method; DString uri; DList reqHeaders; DBytes reqBody ] ->
           let reqHeaders : Result<List<string * string>, HeaderError> =
             reqHeaders
             |> List.fold (Ok []) (fun agg item ->
@@ -386,7 +403,7 @@ let fns : List<BuiltInFn> =
                 { url = uri; method = method; headers = reqHeaders; body = reqBody }
 
               let! (response : HttpClient.HttpRequestResult) =
-                HttpClient.request request
+                HttpClient.request state.program.allowLocalHttpAccess request
 
               match response with
               | Ok response ->
