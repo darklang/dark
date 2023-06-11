@@ -42,7 +42,10 @@ let info () =
 // ---------------------
 
 let (stdlibFns, stdlibTypes) =
-  LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
+  LibExecution.StdLib.combine
+    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+    []
+    []
 
 
 let libraries : RT.Libraries =
