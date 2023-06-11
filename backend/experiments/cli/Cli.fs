@@ -43,7 +43,9 @@ let info () =
 
 let (stdlibFns, stdlibTypes) =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+    [ StdLibExecution.StdLib.contents
+      StdLibCli.StdLib.contents
+      StdLibCliInternal.Libs.Cli.contents ]
     []
     []
 
