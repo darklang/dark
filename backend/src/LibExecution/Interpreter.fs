@@ -267,7 +267,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   | r, _, _ when Dval.isFake r -> return r
                   | _, _, v when Dval.isFake v -> return v
                   | _, "", _ -> return err id $"Empty key for value `{v}`"
-                  | DRecord(_, m), _, _ when not (Map.containsKey k m) ->
+                  | _, _, _ when not (Map.containsKey k expectedFields) ->
                     return err id $"Unexpected field `{k}` in {typeStr}"
                   | DRecord(typeName, m), k, v ->
                     let field = Map.find k expectedFields
