@@ -881,7 +881,8 @@ and execFn
             let! result = eval state argsWithGlobals body
             return typeErrorOrValue types result
           | Error err ->
+            let fnStr = FQFnName.toString fnDesc
             let msg =
-              "Type error in function parameters: " + TypeChecker.Error.toString err
+              $"Type error calling function: {TypeChecker.Error.toString err}"
             return DError(sourceID, msg)
   }
