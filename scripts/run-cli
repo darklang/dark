@@ -16,6 +16,4 @@ do
   fi
 done
 
-shift
-
 "${EXE}" "$@"
