@@ -106,7 +106,7 @@ let t
          |> Map.ofList)
 
       let! (state : RT.ExecutionState) =
-        executionStateFor canvasID internalFnsAllowed rtDBs rtTypes rtFunctions
+        executionStateFor canvasID internalFnsAllowed false rtDBs rtTypes rtFunctions
       let state =
         { state with
             libraries =

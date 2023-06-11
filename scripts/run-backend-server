@@ -29,7 +29,6 @@ if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
 
 if [[ $(pgrep BwdDangerServer -c) -eq 0 ]]; then RUNNING=false; fi
-# TODO pubsub and tunnel
 
 
 if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
@@ -74,7 +73,6 @@ sudo pkill -f "BwdDangerServer" || true
 
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
-./scripts/run-httptunnel
 
 echo "Waiting for postgres"
 ./scripts/devcontainer/_wait-for-background-services postgresql

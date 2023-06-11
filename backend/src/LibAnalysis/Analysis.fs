@@ -50,6 +50,7 @@ module Eval =
       let program : RT.ProgramContext =
         { canvasID = System.Guid.NewGuid()
           internalFnsAllowed = false
+          allowLocalHttpAccess = true
           userFns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
           userTypes = request.userTypes |> List.map (fun t -> t.name, t) |> Map
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map

@@ -7,7 +7,7 @@ type DomainEvent = LibBackend.Pusher.Event
 let eventName event =
   match event with
   | DomainEvent.NewTrace _ -> "new_trace"
-  | DomainEvent.New404 _ -> "new_404"
+  // | DomainEvent.New404 _ -> "new_404"
   // | DomainEvent.AddOpV1 _ -> "v1/add_op"
   // | DomainEvent.AddOpPayloadTooBig _ -> "addOpTooBig" // This is so-far unused
   // | DomainEvent.UpdateWorkerStates _ -> "worker_state"
@@ -20,14 +20,14 @@ let eventPayload event =
       (LibExecution.AnalysisTypes.TraceID.toUUID traceID, tlids)
     Json.Vanilla.serialize payload
 
-  | DomainEvent.New404(module_, eventName, eventModifier, timestamp, traceID) ->
-    let payload : ClientTypes.Pusher.Payload.New404 =
-      (module_,
-       eventName,
-       eventModifier,
-       timestamp,
-       LibExecution.AnalysisTypes.TraceID.toUUID traceID)
-    Json.Vanilla.serialize payload
+  // | DomainEvent.New404(module_, eventName, eventModifier, timestamp, traceID) ->
+  //   let payload : ClientTypes.Pusher.Payload.New404 =
+  //     (module_,
+  //      eventName,
+  //      eventModifier,
+  //      timestamp,
+  //      LibExecution.AnalysisTypes.TraceID.toUUID traceID)
+  //   Json.Vanilla.serialize payload
 
   // | DomainEvent.AddOpV1 (params_, result) ->
   //   let payload : ClientTypes.Pusher.Payload.AddOpV1 =

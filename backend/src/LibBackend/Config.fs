@@ -29,12 +29,6 @@ let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
 
 let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
 
-// -------------------------
-// Kubernetes
-// -------------------------
-
-let httpclientProxyUrl = string "DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL"
-
 // --------------------
 // File security
 // --------------------

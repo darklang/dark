@@ -24,7 +24,6 @@ module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
 
-module TI = LibBackend.TraceInputs
 module TCS = LibBackend.TraceCloudStorage
 
 let p (code : string) : PT.Expr =

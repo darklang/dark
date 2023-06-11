@@ -64,7 +64,6 @@ DARK_CONFIG_HONEYCOMB_API_ENDPOINT=none
 # Launchdarkly - https://app.launchdarkly.com/settings/projects/default/environments
 
 DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none
-DARK_CONFIG_LAUNCHDARKLY_CLIENT_SIDE_ID=62717e59de207a0d813c8337
 
 # Feature flag defaults
 
@@ -94,9 +93,6 @@ DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET=y
 DARK_CONFIG_TRACE_STORAGE_CREDENTIALS=none
 DARK_CONFIG_TRACE_STORAGE_BASE_URI=http://localhost:4444/storage/v1/
 
-# Httpclient
-
-DARK_CONFIG_HTTPCLIENT_TUNNEL_PROXY_URL=socks5://localhost:1080
 
 # Pusher
 ## This account is the dark-dev-account pusher account, username

@@ -1,28 +1,31 @@
 // Most of the httpclient tests are in testfiles/httpclient.
 
-// -----------------------
+
 // Tests that don't use the internet
-// -----------------------
+module NoInternal =
+  HttpClient.formContentType_v0 = Dict {``Content-Type`` = "application/x-www-form-urlencoded"}
 
-HttpClient.formContentType_v0 = Dict {``Content-Type`` = "application/x-www-form-urlencoded"}
+  HttpClient.jsonContentType_v0 = Dict {``Content-Type`` = "application/json; charset=utf-8"}
 
-HttpClient.jsonContentType_v0 = Dict {``Content-Type`` = "application/json; charset=utf-8"}
+  HttpClient.plainTextContentType_v0 = Dict {``Content-Type`` = "text/plain; charset=utf-8"}
 
-HttpClient.plainTextContentType_v0 = Dict {``Content-Type`` = "text/plain; charset=utf-8"}
+  HttpClient.htmlContentType_v0 = Dict {``Content-Type`` = "text/html; charset=utf-8" }
 
-HttpClient.htmlContentType_v0 = Dict {``Content-Type`` = "text/html; charset=utf-8" }
+  HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = Dict { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
 
-HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = Dict { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
-
-HttpClient.basicAuth "username" "password" = Dict { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
-HttpClient.basicAuth "" "" = Dict { Authorization = "Basic Og==" }
-HttpClient.basicAuth "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
-HttpClient.basicAuth "" "-" = Dict { Authorization = "Basic Oi0=" }
-HttpClient.basicAuth ":" "" = Dict { Authorization = "Basic Ojo=" }
-HttpClient.basicAuth "" ":" = Dict { Authorization = "Basic Ojo=" }
+  HttpClient.basicAuth "username" "password" = Dict { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
+  HttpClient.basicAuth "" "" = Dict { Authorization = "Basic Og==" }
+  HttpClient.basicAuth "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
+  HttpClient.basicAuth "" "-" = Dict { Authorization = "Basic Oi0=" }
+  HttpClient.basicAuth ":" "" = Dict { Authorization = "Basic Ojo=" }
+  HttpClient.basicAuth "" ":" = Dict { Authorization = "Basic Ojo=" }
 
 
 // Tests that try to make requests to the internet
+
+// basic requests work
+((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
+((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
 
 // type errors for bad `headers` are OK
 HttpClient.request "get" "https://darklang.com" [1] Bytes.empty = Test.typeError_v0 "Expected request headers to be a `List<String*String>`, but got: 1"
@@ -42,19 +45,105 @@ HttpClient.request "put" "/just-a-path" [] Bytes.empty = Error "Bad URL: Unsuppo
 HttpClient.request "get" "" [] Bytes.empty = Error "Bad URL: Invalid URI"
 HttpClient.request "post" "{ ] nonsense ^#( :" [] Bytes.empty = Error "Bad URL: Invalid URI"
 
-// basic requests work
-((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
-((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
+// URLs we can't actually communicate with
+HttpClient.request "get" "http://google.com:79" [] Bytes.empty = Error "Request timed out"
 
-// URLs we can't actually communicacte with
-(match HttpClient.request "get" "http://localhost:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
-(match HttpClient.request "get" "http://127.0.0.1:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
-(match HttpClient.request "get" "http://0:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
-(match HttpClient.request "get" "http://0.0.0.0:79" [] Bytes.empty with | Error e -> e) = "The request was aborted. The response ended prematurely."
+// Check for banned urls in the host name
+module Disallowed =
 
-// bad ssl
-HttpClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empty = Error "The request was aborted. The response ended prematurely."
-HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
+  // TODO : check ipv6
+
+
+  HttpClient.request "get" "http://0.0.0.0" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://0" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[0:0:0:0:0:0:0:0]" [] Bytes.empty =
+    Error "Could not connect ([::]:80) Could not connect"
+
+  HttpClient.request "get" "localhost" [] Bytes.empty = Error "Bad URL: Invalid URI"
+  HttpClient.request "get" "http://localhost" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://127.0.0.1" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::1]" [] Bytes.empty =
+    Error "Could not connect ([::1]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:0:0:1]" [] Bytes.empty =
+    Error "Could not connect ([::1]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:0000:0000:0001]" [] Bytes.empty =
+    Error "Could not connect ([::1]:80) Could not connect"
+
+  HttpClient.request "get" "http://127.0.0.17" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:7f00:11]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:7f00:0011]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:127.0.0.17]:80) Could not connect"
+
+  HttpClient.request "get" "http://127.255.174.17" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+
+
+  HttpClient.request "get" "http://metadata.google.internal" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://metadata" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://169.254.169.254" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:a9fe:a9fe]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:a9fe:a9fe]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:169.254.169.254]:80) Could not connect"
+  HttpClient.request "get" "http://169.254.0.0" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+
+  HttpClient.request "get" "http://172.16.0.1" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:ac10:1]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:ac10:0001]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:172.16.0.1]:80) Could not connect"
+
+  HttpClient.request "get" "http://192.168.1.1" [] Bytes.empty =
+    Error "Bad URL: Invalid host"
+  HttpClient.request "get" "http://[::ffff:c0a8:101]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0:0:0:0:0:ffff:c0a8:0101]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+  HttpClient.request "get" "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]" [] Bytes.empty =
+    Error "Could not connect ([::ffff:192.168.1.1]:80) Could not connect"
+
+  // Check for sneaky banned urls - blocked via connection callback
+  // 127.0.0.1
+  HttpClient.request "get" "http://localtest.me" [] Bytes.empty = Error "Could not connect (localtest.me:80) Could not connect"
+  // 0.0.0.0
+  HttpClient.request "get" "http://c.cx" [] Bytes.empty = Error "Could not connect (c.cx:80) Could not connect"
+
+  // invalid headers
+  HttpClient.request "get" "http://google.com" [("Metadata-Flavor", "Google") ] Bytes.empty = Error
+    "Bad URL: Invalid request"
+  HttpClient.request "get" "http://google.com" [("metadata-flavor", "Google") ] Bytes.empty = Error
+    "Bad URL: Invalid request"
+  HttpClient.request "get" "http://google.com" [("Metadata-Flavor", "google") ] Bytes.empty = Error
+    "Bad URL: Invalid request"
+  HttpClient.request "get" "http://google.com" [("Metadata-Flavor", " Google ") ] Bytes.empty = Error
+    "Bad URL: Invalid request"
+  HttpClient.request "get" "http://google.com" [("X-Google-Metadata-Request", " True ") ] Bytes.empty = Error
+    "Bad URL: Invalid request"
+  HttpClient.request "get" "http://google.com" [(" x-Google-metaData-Request", " True ") ] Bytes.empty = Error
+    "Bad URL: Invalid request"
+
+module BadSSL =
+  HttpClient.request "get" "http://thenonexistingurlforsure.com" [] Bytes.empty = Error "Name or service not known (thenonexistingurlforsure.com:80) Name or service not known"
+  HttpClient.request "get" "https://self-signed.badssl.com" [] Bytes.empty = Error "The SSL connection could not be established, see inner exception. The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"
+
 
 // Basic request works including headers
 (let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap

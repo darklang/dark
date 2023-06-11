@@ -71,7 +71,7 @@ let testArguments : Test =
 
       let expr = S.eUserFn name [] []
       let fns = Map.ofList [ userFn.name, userFn ]
-      let! state = executionStateFor canvasID false Map.empty Map.empty fns
+      let! state = executionStateFor canvasID false false Map.empty Map.empty fns
       let! result = Exe.executeExpr state Map.empty expr
       return normalizeDvalResult result
     }

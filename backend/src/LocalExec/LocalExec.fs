@@ -33,11 +33,11 @@ let execute
   (mod' : Parser.CanvasV2.CanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
-
   task {
     let program : RT.ProgramContext =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
+        allowLocalHttpAccess = true
         userFns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)

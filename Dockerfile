@@ -430,13 +430,6 @@ RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1 \
   && ./emsdk activate latest
 ENV PATH "$PATH:/home/dark/emsdk/upstream/emscripten"
 
-#############
-# tunnel user
-#############
-RUN sudo adduser --disabled-password --gecos '' --gid ${gid} tunnel
-# Remove use_pty as it messes up `su tunnel` commands
-RUN sudo sed -i 's!Defaults\s\+use_pty!!' /etc/sudoers
-
 ############################
 # Environment
 ############################

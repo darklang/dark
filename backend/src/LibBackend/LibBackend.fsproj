@@ -27,7 +27,6 @@
     <Compile Include="UserDB.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
-    <Compile Include="TraceInputs.fs" />
     <Compile Include="TraceCloudStorage.fs" />
     <Compile Include="Op.fs" />
     <Compile Include="QueueSchedulingRules.fs" />
