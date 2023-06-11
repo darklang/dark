@@ -111,13 +111,17 @@ let main (args : string[]) =
     let result = execute mod' (Map [ "args", args ])
     NonBlockingConsole.wait ()
     match result.Result with
-    | RT.DError(_, msg) ->
+    | RT.DError(RT.SourceNone, msg) ->
       System.Console.WriteLine $"Error: {msg}"
+      1
+    | RT.DError(RT.SourceID(tlid, id), msg) ->
+      System.Console.WriteLine $"Error ({tlid}, {id}): {msg}"
       1
     | RT.DInt i -> (int i)
     | dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
-      System.Console.WriteLine "Error: main function must return an int"
+      System.Console.WriteLine
+        $"Error: main function must return an int (returned {output})"
       1
   with e ->
     printException "Error starting cli" [] e
