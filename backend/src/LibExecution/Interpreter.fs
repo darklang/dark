@@ -284,14 +284,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             return err id $"No field named {field} in {typeStr} record"
         | DDB _ ->
           let msg =
-            $"Attempting to access a field of something that isn't a record or dict, "
-            + "(it's a Datastore. Use DB. standard library functions to interact with Datastores)."
+            $"Attempting to access field '{field}' of a Datastore "
+            + "(use `DB.*` standard library functions to interact with Datastores. "
+            + "Field access only work with records)"
           return err id msg
         | _ when Dval.isFake obj -> return obj
         | _ ->
           let msg =
-            $"Attempting to access a field of something that isn't a record or dict, "
-            + $"(it's a {DvalReprDeveloper.dvalTypeName obj})."
+            $"Attempting to access field '{field}' of a "
+            + $"{DvalReprDeveloper.dvalTypeName obj} (field access only works with records)"
           return err id msg
 
 
@@ -881,7 +882,6 @@ and execFn
             let! result = eval state argsWithGlobals body
             return typeErrorOrValue types result
           | Error err ->
-            let fnStr = FQFnName.toString fnDesc
             let msg =
               $"Type error calling function: {TypeChecker.Error.toString err}"
             return DError(sourceID, msg)

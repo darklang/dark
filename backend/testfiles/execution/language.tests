@@ -299,15 +299,22 @@ module Enums =
      ([1;-2;5;3] |> ofList intCmp |> toList) ==
       ([3;5;-2;1] |> ofList intCmp |> toList)) = true
 
-
 module FieldAccess =
   type MyRecord = { col1: Int }
 
   (let x = MyRecord { col1 = 1 } in x.col1) = 1
-  (let x = MyRecord { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
-  (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError "No field named fieldName in MyRecord_v0 record"
-  (Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
-  (let x = 6 in x.fieldName) = Test.typeError_v0 "Attempting to access a field of something that isn't a record or dict, (it's a Int)."
+
+  module Errors =
+
+    (let x = MyRecord { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
+
+    (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError
+      "No field named fieldName in MyRecord_v0 record"
+
+    (Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
+
+    (let x = 6 in x.fieldName) = Test.typeError_v0
+      "Attempting to access field 'fieldName' of a Int (field access only works with records)"
 
 module Variable =
   myvar = Test.typeError_v0 "There is no variable named: myvar"
