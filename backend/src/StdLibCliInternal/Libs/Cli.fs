@@ -98,7 +98,10 @@ let types : List<BuiltInType> =
 let fns : List<BuiltInFn> =
   [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
       typeParams = []
-      parameters = [ Param.make "filename" TString ""; Param.make "code" TString "" ]
+      parameters =
+        [ Param.make "filename" TString ""
+          Param.make "code" TString ""
+          Param.make "symtable" (TDict TString) "" ]
       returnType =
         TResult(
           TInt,
@@ -107,7 +110,7 @@ let fns : List<BuiltInFn> =
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
-        | state, _, [ DString filename; DString code ] ->
+        | state, [], [ DString filename; DString code; DDict symtable ] ->
           uply {
 
             let err (msg : string) (metadata : List<string * string>) =
@@ -134,12 +137,10 @@ let fns : List<BuiltInFn> =
             try
               match parsed with
               | Ok mod' ->
-                let args = [||] |> Array.toList |> List.map DString |> DList
-                let! result = execute mod' (Map [ "args", args ])
-                match result with
+                match! execute state mod' symtable with
                 | DInt i -> return DResult(Ok(DInt i))
                 | DError(_, e) -> return err e []
-                | _ ->
+                | result ->
                   let asString = LibExecution.DvalReprDeveloper.toRepr result
                   return err $"Expected an integer" [ "actualValue", asString ]
               | Error e -> return e
