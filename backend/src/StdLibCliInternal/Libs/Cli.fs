@@ -14,9 +14,8 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
 let typ = FQTypeName.stdlibTypeName'
-let fn = FQFnName.stdlibFnName'
 
-let types : List<BuiltInType> = []
+let fn = FQFnName.stdlibFnName'
 
 let (stdlibFns, stdlibTypes) =
   LibExecution.StdLib.combine
@@ -30,7 +29,6 @@ let libraries : RT.Libraries =
     stdlibFns = stdlibFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
     packageFns = Map.empty
     packageTypes = Map.empty }
-
 
 
 
@@ -78,36 +76,70 @@ let execute
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
 
+let types : List<BuiltInType> =
+  [ { name = typ' [ "Cli" ] "ExecutionError" 0
+      description = "Result of Execution"
+      typeParams = []
+      definition =
+        CustomType.Record(
+          { name = "msg"; typ = TString; description = "The error message" },
+          [ { name = "metadata"
+              typ = TDict TString
+              description = "List of metadata as strings" } ]
+        )
+      deprecated = NotDeprecated } ]
+
 
 let fns : List<BuiltInFn> =
   [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
       typeParams = []
       parameters = [ Param.make "filename" TString ""; Param.make "code" TString "" ]
-      returnType = TResult(TInt, TString)
+      returnType =
+        TResult(
+          TInt,
+          TCustomType(FQTypeName.Stdlib(typ [ "Cli" ] "ExecutionError" 0), [])
+        )
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
         | state, _, [ DString filename; DString code ] ->
           uply {
-            let err msg = DResult(Error(DString msg))
+
+            let err (msg : string) (metadata : List<string * string>) =
+              let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
+              let fields = [ "msg", DString msg; "metadata", DDict metadata ]
+              DResult(
+                Error(
+                  DRecord(
+                    FQTypeName.Stdlib(typ [ "Cli" ] "ExecutionError" 0),
+                    Map fields
+                  )
+                )
+              )
+            let exnError (e : exn) : Dval =
+              let msg = Exception.getMessages e |> String.concat "\n"
+              let metadata =
+                Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
+              err msg metadata
             let parsed =
               try
                 Parser.CanvasV2.parse filename code |> Ok
               with e ->
-                let msg = Exception.getMessages e |> String.concat "\n"
-                Error $"Parse error:\n{msg}"
+                Error(exnError e)
             try
               match parsed with
               | Ok mod' ->
-                let args = [||] |> Array.toList |> List.map RT.DString |> RT.DList
+                let args = [||] |> Array.toList |> List.map DString |> DList
                 let! result = execute mod' (Map [ "args", args ])
                 match result with
                 | DInt i -> return DResult(Ok(DInt i))
-                | DError(_, e) -> return err e
-                | _ -> return LibExecution.DvalReprDeveloper.toRepr result |> err
-              | Error e -> return err e
+                | DError(_, e) -> return err e []
+                | _ ->
+                  let asString = LibExecution.DvalReprDeveloper.toRepr result
+                  return err $"Expected an integer" [ "actualValue", asString ]
+              | Error e -> return e
             with e ->
-              return Exception.getMessages e |> String.concat "\n" |> err
+              return exnError e
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

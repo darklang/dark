@@ -26,7 +26,8 @@ let executeCommand (command: Command) : Int =
       | Ok i -> i
       | Error e ->
         print $"Error executing script {scriptPath}"
-        print e
+        print e.msg
+        e.metadata |> Dict.iter (fun (k, v) -> print $"  {k}: {v}")
         1
 
 
