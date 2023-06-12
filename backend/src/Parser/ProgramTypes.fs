@@ -808,7 +808,9 @@ module Expr =
     | SynExpr.FromParseError _ as expr ->
       Exception.raiseInternal "There was a parser error parsing" [ "expr", expr ]
     | expr ->
-      Exception.raiseInternal "Unsupported expression" [ "ast", ast; "expr", expr ]
+      Exception.raiseInternal
+        "Unsupported expression in parser"
+        [ "ast", ast; "expr", expr ]
 
   let fromSynExpr (ast : SynExpr) : PT.Expr =
     try
