@@ -1,0 +1,10 @@
+// TODO:
+//alias PT = PACKAGE.Darklang.Stdlib.ProgramTypes
+//alias RT = PACKAGE.Darklang.Stdlib.RuntimeTypes
+
+module Darklang =
+  module PrettyPrinter =
+    let canvas (c: PACKAGE.Darklang.Stdlib.Canvas.T) : String =
+      // need to look at the names of all types and functions,
+      // and figure out module tree before actually printing stuff
+      "TODO"

@@ -1,0 +1,11 @@
+// TODO:
+//alias PT = PACKAGE.Darklang.Stdlib.ProgramTypes
+//alias RT = PACKAGE.Darklang.Stdlib.RuntimeTypes
+
+module Darklang =
+  module PrettyPrinter =
+
+    let sign (s: PACKAGE.Darklang.Stdlib.Sign) : String =
+      match s with
+      | Positive -> ""
+      | Negative -> "-"

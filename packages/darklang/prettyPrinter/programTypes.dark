@@ -4,13 +4,6 @@
 
 module Darklang =
   module PrettyPrinter =
-
-    let sign (s: PACKAGE.Darklang.Stdlib.Sign) : String =
-      match s with
-      | Positive -> ""
-      | Negative -> "-"
-
-
     module ProgramTypes =
 
       module FQTypeName =
@@ -743,10 +736,3 @@ module Darklang =
           PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.customType p.definition
 
         $"type {namePart} =\n  {defPart}"
-
-
-    module Canvas =
-      type T = Int
-
-    module Package =
-      type T = Int
