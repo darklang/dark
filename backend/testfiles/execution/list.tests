@@ -218,6 +218,7 @@ List.unique_v0 [1;1;1;1] = [ 1 ]
 List.unique_v0 [7;42;7;2;10] = [ 2; 7; 10; 42 ]
 List.unique_v0 [] = []
 List.unique_v0 [6;2.0] = Test.typeError "List.unique: Unable to sort list, perhaps the list elements are different types"
+// TODO: more tests, with values of more complex types
 
 List.unzip_v0 [(1,10);10;(3,30)] = Test.typeError_v0 "Expected `pairs` to be a tuple with exactly two values, but it was `10`. It is of type Int instead of `Tuple`"
 List.unzip_v0 [(1,10);(2,20);(3,30,40)] = Test.typeError_v0 "Expected `pairs` to be a tuple with exactly two values, but it was `(\n  3, 30, 40\n)`. It has length 3 but should have length 2"
