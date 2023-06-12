@@ -73,7 +73,12 @@ let execute
 
     let state = Exe.createState libraries tracing sendException notify 7UL program
 
-    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+    if mod'.exprs.Length = 1 then
+      return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+    else if mod'.exprs.Length = 0 then
+      return DError(SourceNone, "No expressions to execute")
+    else // mod'.exprs.Length > 1
+      return DError(SourceNone, "Multiple expressions to execute")
   }
 
 let types : List<BuiltInType> =
