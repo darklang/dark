@@ -48,6 +48,16 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return ()
     }
 
+  let recordMaybe (typeName : FQTypeName.T) =
+    let types = ExecutionState.availableTypes state
+    let rec inner (typeName : FQTypeName.T) =
+      match Types.find typeName types with
+      | Some(CustomType.Alias(TCustomType(innerTypeName, _))) -> inner innerTypeName
+      | Some(CustomType.Record(firstField, otherFields)) ->
+        Some(firstField, otherFields)
+      | Some(CustomType.Enum _) -> None
+      | _ -> None
+    inner typeName
 
   uply {
     match e with
@@ -185,15 +195,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let types = ExecutionState.availableTypes state
       let typ = Types.find typeName types
 
-      let rec recordMaybe (typeName : FQTypeName.T) =
-        match Types.find typeName types with
-        | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
-          recordMaybe innerTypeName
-        | Some(CustomType.Record(firstField, otherFields)) ->
-          Some(firstField, otherFields)
-        | Some(CustomType.Enum _) -> None
-        | _ -> None
-
       match recordMaybe typeName with
       | None ->
         match typ with
@@ -240,6 +241,46 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             return err id $"Missing key `{key}` in {typeStr}"
         | _ -> return result
 
+    | ERecordUpdate(id, baseRecord, updates) ->
+      let! baseRecord = eval state st baseRecord
+      match baseRecord with
+      | DRecord(typeName, _) ->
+        let typeStr = FQTypeName.toString typeName
+        let types = ExecutionState.availableTypes state
+        match recordMaybe typeName with
+        | None ->
+          let typ = Types.find typeName types
+          match typ with
+          | None -> return err id $"There is no type named `{typeStr}`"
+          | Some(CustomType.Enum _) ->
+            return err id $"Expected a record but {typeStr} is an enum"
+          | _ -> return err id $"Expected a record but {typeStr} is something else"
+        | Some(expected1, expectedRest) ->
+          let expectedFields =
+            (expected1 :: expectedRest) |> List.map (fun f -> f.name, f.typ) |> Map
+          return!
+            Ply.List.foldSequentially
+              (fun r (k, expr) ->
+                uply {
+                  let! v = eval state st expr
+                  match r, k, v with
+                  | r, _, _ when Dval.isFake r -> return r
+                  | _, _, v when Dval.isFake v -> return v
+                  | _, "", _ -> return err id $"Empty key for value `{v}`"
+                  | _, _, _ when not (Map.containsKey k expectedFields) ->
+                    return err id $"Unexpected field `{k}` in {typeStr}"
+                  | DRecord(typeName, m), k, v ->
+                    let field = Map.find k expectedFields
+                    match TypeChecker.unify [ k ] types field v with
+                    | Ok() -> return DRecord(typeName, Map.add k v m)
+                    | Error e -> return err id (TypeChecker.Error.toString e)
+                  | _ ->
+                    return
+                      err id "Expected a record but {typeStr} is something else"
+                })
+              baseRecord
+              updates
+      | _ -> return err id "Expected a record"
 
     | EDict(id, fields) ->
       return!

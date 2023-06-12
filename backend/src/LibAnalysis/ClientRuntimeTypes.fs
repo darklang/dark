@@ -350,6 +350,7 @@ module Expr =
     | EList of id * List<T>
     | ETuple of id * T * T * List<T>
     | ERecord of id * typeName : FQTypeName.T * fields : List<string * T>
+    | ERecordUpdate of id * record : T * updates : List<string * T>
     | EDict of id * List<string * T>
     | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<T>
     | EMatch of id * T * List<MatchPattern * T>
@@ -396,6 +397,8 @@ module Expr =
         FQTypeName.fromCT typeName,
         List.map (Tuple2.mapSecond r) fields
       )
+    | ERecordUpdate(id, record, updates) ->
+      RT.ERecordUpdate(id, r record, List.map (Tuple2.mapSecond r) updates)
     | EEnum(id, typeName, caseName, fields) ->
       RT.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map r fields)
     | EMatch(id, mexpr, pairs) ->
@@ -447,6 +450,8 @@ module Expr =
       ETuple(id, r first, r second, List.map r theRest)
     | RT.ERecord(id, typeName, fields) ->
       ERecord(id, FQTypeName.toCT typeName, List.map (Tuple2.mapSecond r) fields)
+    | RT.ERecordUpdate(id, record, updates) ->
+      ERecordUpdate(id, r record, List.map (Tuple2.mapSecond r) updates)
     | RT.EEnum(id, typeName, caseName, fields) ->
       EEnum(id, FQTypeName.toCT typeName, caseName, List.map r fields)
     | RT.EMatch(id, mexpr, pairs) ->

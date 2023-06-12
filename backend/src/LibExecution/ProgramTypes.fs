@@ -279,6 +279,7 @@ type Expr =
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
 
   | ERecord of id * FQTypeName.T * List<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
 
   // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.
@@ -342,6 +343,7 @@ module Expr =
     | ETuple(id, _, _, _)
     | EPipe(id, _, _, _)
     | ERecord(id, _, _)
+    | ERecordUpdate(id, _, _)
     | EEnum(id, _, _, _)
     | EMatch(id, _, _) -> id
 

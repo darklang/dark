@@ -317,6 +317,7 @@ type Expr =
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * FQTypeName.T * List<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EDict of id * List<string * Expr>
   | EEnum of id * FQTypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
@@ -507,6 +508,7 @@ module Expr =
     | EList(id, _)
     | ETuple(id, _, _, _)
     | ERecord(id, _, _)
+    | ERecordUpdate(id, _, _)
     | EDict(id, _)
     | EEnum(id, _, _, _)
     | EMatch(id, _, _)

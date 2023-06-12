@@ -356,6 +356,7 @@ type Expr =
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | ERecord of id * FQTypeName.T * List<string * Expr>
+  | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EDict of id * List<string * Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
   | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
@@ -414,6 +415,12 @@ module Expr =
         id,
         FQTypeName.fromCT typeName,
         fields |> List.map (fun (name, expr) -> (name, fromCT expr))
+      )
+    | ERecordUpdate(id, record, updates) ->
+      PT.ERecordUpdate(
+        id,
+        fromCT record,
+        updates |> List.map (fun (name, expr) -> (name, fromCT expr))
       )
     | EPipe(id, expr1, expr2, exprs) ->
       PT.EPipe(
@@ -488,6 +495,12 @@ module Expr =
         id,
         FQTypeName.toCT typeName,
         fields |> List.map (fun (name, expr) -> (name, toCT expr))
+      )
+    | PT.ERecordUpdate(id, record, updates) ->
+      ERecordUpdate(
+        id,
+        toCT record,
+        updates |> List.map (fun (name, expr) -> (name, toCT expr))
       )
     | PT.EPipe(id, expr1, expr2, exprs) ->
       EPipe(id, toCT expr1, pipeExprToCT expr2, List.map pipeExprToCT exprs)

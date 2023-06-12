@@ -612,6 +612,7 @@ let partiallyEvaluate
         | EList _
         | ETuple _
         | ERecord _
+        | ERecordUpdate _
         | EDict _
         | EEnum _
         | EMatch _
@@ -684,6 +685,17 @@ let partiallyEvaluate
                   fields
 
               return ERecord(id, typeName, fields)
+            | ERecordUpdate(id, record, updates) ->
+              let! updates =
+                Ply.List.mapSequentially
+                  (fun (name, expr) ->
+                    uply {
+                      let! expr = r expr
+                      return (name, expr)
+                    })
+                  updates
+              let! record = r record
+              return ERecordUpdate(id, record, updates)
             | EDict(id, fields) ->
               let! fields =
                 Ply.List.mapSequentially
