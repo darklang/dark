@@ -33,6 +33,7 @@ let libraries : RT.Libraries =
 
 
 let execute
+  (parentState : RT.ExecutionState)
   (mod' : Parser.CanvasV2.CanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
@@ -54,23 +55,8 @@ let execute
         secrets = [] }
 
     let tracing = Exe.noTracing RT.Real
-
-    let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
-      // let metadata = extraMetadata state @ metadata
-      // LibService.Rollbar.notify msg metadata
-      ()
-
-    let sendException
-      (_state : RT.ExecutionState)
-      (_metadata : Metadata)
-      (_exn : exn)
-      =
-      // let metadata = extraMetadata state @ metadata
-      // let person : LibService.Rollbar.Person =
-      //   Some { id = program.accountID; username = Some(username ()) }
-      // LibService.Rollbar.sendException person metadata exn
-      ()
-
+    let notify = parentState.notify
+    let sendException = parentState.reportException
     let state = Exe.createState libraries tracing sendException notify 7UL program
 
     if mod'.exprs.Length = 1 then
