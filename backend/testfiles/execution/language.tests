@@ -958,7 +958,7 @@ module UserDefined =
 
   module InvalidFnCalls =
     functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
-    stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in stringFn->key"
+    stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in stringFn->key"
     stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
@@ -994,7 +994,7 @@ module Packages =
   PACKAGE.Darklang.Test.returnsResultError () = Error false
 
   module Invalid =
-    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error in function parameters: Expected a value of type `String` but got a `Int` in Darklang.Test.stringFn->key"
+    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in Darklang.Test.stringFn->key"
     PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     PACKAGE.Darklang.Test.derrorFn "test" = Test.typeError "test"
 
