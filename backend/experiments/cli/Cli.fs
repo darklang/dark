@@ -114,11 +114,12 @@ let main (args : string[]) =
     initSerializers ()
     let mainFile = "/home/dark/app/backend/experiments/cli/cli.dark"
     let mod' = Parser.CanvasV2.parseFromFile mainFile
-    debuG "mod" mod'
+    // debuG "mod" mod'
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
     let result = execute mod' (Map [ "args", args ])
+    let result = result.Result
     NonBlockingConsole.wait ()
-    match result.Result with
+    match result with
     | RT.DError(RT.SourceNone, msg) ->
       System.Console.WriteLine $"Error: {msg}"
       1
