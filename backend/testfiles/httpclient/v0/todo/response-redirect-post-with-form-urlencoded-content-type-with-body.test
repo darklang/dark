@@ -15,7 +15,7 @@ Location: /v0/response-redirect-dest-post-with-form-urlencoded-content-type-with
 [test]
 (let response = (HttpClient.request "post" "http://URL" "body" {} {"Content-Type" = "application/x-www-form-urlencoded" }) |> Test.unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
- Record.set_v0 response "headers" respHeaders) =
+ {response with headers = respHeaders}) =
    HttpClient.Response
     { body = "Redirect destination reached"
       statusCode = 200

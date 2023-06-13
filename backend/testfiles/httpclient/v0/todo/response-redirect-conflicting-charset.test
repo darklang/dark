@@ -16,7 +16,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
 [test]
 (let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
- Record.set_v0 response "headers" respHeaders) =
+ {response with headers = respHeaders}) =
    HttpClient.Response
     { body = "Redirect destination reached"
       statusCode = 200

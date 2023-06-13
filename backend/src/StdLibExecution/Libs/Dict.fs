@@ -434,27 +434,6 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TYPESCLEANUP - just a quick hack since we don't have record setting syntax
-    { name = fn "Record" "set" 0
-      typeParams = []
-      parameters =
-        [ Param.make "record" (TVariable "a") ""
-          Param.make "key" TString ""
-          Param.make "val" varA "" ]
-      returnType = (TVariable "a")
-      description =
-        "Returns a copy of <param record> with the <param key> set to <param val>"
-      fn =
-        (function
-        | _, _, [ DRecord(typeName, o); DString k; v ] ->
-          Ply(DRecord(typeName, Map.add k v o))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-
     { name = fn "Dict" "set" 0
       typeParams = []
       parameters =
