@@ -1,9 +1,9 @@
 {
   "type": "external_account",
-  "audience": "//iam.googleapis.com/projects/118633020131/locations/global/workloadIdentityPools/circleci/providers/circleci",
+  "audience": "//iam.googleapis.com/projects/118633020131/locations/global/workloadIdentityPools/circleci-ai/providers/circleci-ai",
   "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
   "token_url": "https://sts.googleapis.com/v1/token",
-  "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/circleci-deployer@balmy-ground-195100.iam.gserviceaccount.com:generateAccessToken",
+  "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/circleci-deployer-ai@balmy-ground-195100.iam.gserviceaccount.com:generateAccessToken",
   "credential_source": {
     "file": "/home/dark/app/CIRCLE_OIDC_TOKEN_FILE",
     "format": {

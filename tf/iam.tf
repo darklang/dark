@@ -8,15 +8,28 @@
 ###################
 # General admin
 ###################
-resource "google_service_account" "circleci_deployer" {
-  account_id   = "circleci-deployer"
-  display_name = "CircleCI-deployer"
-  project      = local.project_name
-}
 
 ###################
 # Darklang AI
 ###################
+resource "google_service_account" "circleci_deployer-ai" {
+  account_id   = "circleci-deployer-ai"
+  display_name = "CircleCI deployer AI"
+  project      = local.project_name
+}
+resource "google_project_iam_member" "circleci_deployer-ai_member_object_viewer" {
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.circleci_deployer-ai.email}"
+  project = local.project_id
+
+  condition {
+    title       = "Limit to bucket"
+    description = "Only allow access to darklang downloads bucket"
+    # This expression was hard to find, you can't use '=='
+    expression = "resource.name.startsWith(\"projects/_/buckets/${google_storage_bucket.darklang_downloads.id}\")"
+  }
+}
+
 resource "google_service_account" "cloud_run_runner" {
   account_id   = "cloud-run-runner"
   description  = "For running darklang apps in cloud run"
@@ -89,6 +102,12 @@ resource "google_project_iam_member" "traces_storage_ai_member_object_viewer" {
 ###################
 # Darklang classic
 ###################
+resource "google_service_account" "circleci_deployer" {
+  account_id   = "circleci-deployer"
+  display_name = "CircleCI-deployer"
+  project      = local.project_name
+}
+
 resource "google_service_account" "dark_static_assets_tmp" {
   account_id   = "dark-static-assets-tmp"
   display_name = "dark-static-assets"
