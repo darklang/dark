@@ -1,25 +1,38 @@
 //#!/usr/bin/env darklang
 
-type DockerImageId = { imageId: String }
+type DockerImageID = { imageID: String }
 
 type DirectoryContents = { files: List<String> }
 
 type DockerBuildResponse = { id: String }
 
-let dockerfiles =
-  (Posix.readDir "containers/*")
-  |> List.filter (fun filePath -> String.endsWith ".Dockerfile" filePath)
+let unwrap (result: Result<String, 'a>) : String =
+  match result with
+  | Ok value -> value
+  | Error error -> ()
 
-let imageIds =
-  dockerfiles
-  |> List.map (fun dockerfile ->
-    let buildCommand = $"docker build -q -f {dockerfile} ."
-    let response = Posix.runCommandWithOutput buildCommand
-    let parsedResponse = Json.parse<DockerBuildResponse> (response)
-    { imageId = parsedResponse.id })
+let main () : Int =
 
-let jsonImageIds = Json.toString<List<DockerImageId>> (imageIds)
+  // let _ = (List.range 1 100) |> List.iter (fun i -> print (Int.toString i))
 
-let _ = Posix.writeFile "ids.json" (String.toBytes jsonImageIds)
+  let dockerfiles =
+    (Directory.list "containers")
+    |> List.filter (fun filePath -> String.endsWith ".Dockerfile" filePath)
 
-5
+  let imageIds =
+    dockerfiles
+    |> List.map (fun dockerfile ->
+      let buildCommand = $"docker build -q -f {dockerfile} ."
+      let response = Posix.runCommandWithOutput buildCommand
+      let parsedResponse = Json.parse<DockerBuildResponse> (response)
+      DockerImageID { imageID = parsedResponse.id })
+
+  let jsonImageIds = (Json.serialize<List<DockerImageId>> imageIds) |> unwrap
+
+  let _ = File.write (String.toBytes jsonImageIds) "ids.json"
+
+  let _ = print "done"
+
+  6
+
+main ()
