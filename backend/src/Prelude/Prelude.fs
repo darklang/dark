@@ -277,29 +277,39 @@ type NonBlockingConsole() =
   // background thread writes the output to Console.
 
   static let mQueue : BlockingCollection = new BlockingCollection()
+
+  // Use a lock so that wait() doesn't return until the thread has actually printed
+  // (it would finish once it was removed from the queue)
+  static let mLock : obj = obj ()
+
   static do
     let f () =
       while true do
-        try
-          let v = mQueue.Take()
-          System.Console.WriteLine(v)
-        with e ->
-          System.Console.WriteLine(
-            $"Exception in blocking queue thread: {e.Message}"
-          )
+        lock mLock (fun () ->
+          try
+            let mutable v = null
+            // Don't block (eg with `Take`) while holding the lock
+            if mQueue.TryTake(&v) then
+              System.Console.WriteLine(v)
+            else
+              System.Threading.Thread.Sleep 1 // 1ms
+          with e ->
+            System.Console.WriteLine(
+              $"Exception in blocking queue thread: {e.Message}"
+            ))
+
+
     // Background threads aren't supported in Blazor
     if not isWasm then
       let thread = System.Threading.Thread(f)
-      do
-        thread.IsBackground <- true
-        thread.Name <- "Prelude.NonBlockingConsole printer"
-        thread.Start()
+      thread.IsBackground <- true
+      thread.Name <- "Prelude.NonBlockingConsole printer"
+      thread.Start()
 
   static member wait() : unit =
-    while mQueue.Count >= 1 do
-      ()
-
-
+    let mutable shouldWait = true
+    while shouldWait do
+      lock mLock (fun () -> shouldWait <- mQueue.Count > 0)
 
   static member WriteLine(value : string) : unit =
     if isWasm then System.Console.WriteLine value else mQueue.Add(value)
