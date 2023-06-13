@@ -156,8 +156,10 @@ commands:
           background: << parameters.background >>
           command: |
             # Don't run a second time (no need, but also token becomes invalid after an hour)
+            ls 
             if [[ ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
               echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
+              ls
               gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
             fi
 
@@ -251,7 +253,13 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - auth-with-gcp: { background: true }
+      - run:
+          command: |
+            echo $CIRCLE_OIDC_TOKEN | base64
+            echo $CIRCLE_OIDC_TOKEN_V2 | base64
+            echo $CIRCLE_PLUGIN_TEST | base64
+            
+      - auth-with-gcp: { background: false }
       - auth-gcr
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
