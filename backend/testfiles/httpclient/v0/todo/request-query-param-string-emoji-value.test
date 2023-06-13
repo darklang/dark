@@ -19,7 +19,7 @@ Content-Length: LENGTH
 (let query = { emoji = "😭👨‍👩‍👧‍👦" }
  let response = (HttpClient.request "get" "http://URL" query {}) |> Test.unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
- Record.set_v0 response "headers" respHeaders) =
+ {response with headers = respHeaders}) =
    HttpClient.Response
     { body = "\"Hello back\""
       statusCode = 200

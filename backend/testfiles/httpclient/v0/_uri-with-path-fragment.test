@@ -15,7 +15,7 @@ Hello back
 [test]
 (let response = (HttpClient.request "get" "http://URL?q=5#row=5-👨‍👩‍👧‍👦" [] Bytes.empty) |> Test.unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
- Record.set_v0 response "headers" respHeaders) =
+ {response with headers = respHeaders}) =
    HttpClient.Response
     { statusCode = 200
       headers =

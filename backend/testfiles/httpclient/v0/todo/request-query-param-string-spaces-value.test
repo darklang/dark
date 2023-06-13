@@ -18,7 +18,7 @@ Content-Length: LENGTH
 (let query = { x = "with spaces" }
  let response = (HttpClient.request "get" "http://URL" query HttpClient.jsonContentType_v0) |> Test.unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
- Record.set_v0 response "headers" respHeaders) =
+ {response with headers = respHeaders}) =
    HttpClient.Response
     { body = "\"Hello back\""
       statusCode = 200
