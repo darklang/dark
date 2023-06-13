@@ -42,7 +42,12 @@ let info () =
 // ---------------------
 
 let (stdlibFns, stdlibTypes) =
-  LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
+  LibExecution.StdLib.combine
+    [ StdLibExecution.StdLib.contents
+      StdLibCli.StdLib.contents
+      StdLibCliInternal.Libs.Cli.contents ]
+    []
+    []
 
 
 let libraries : RT.Libraries =
@@ -93,7 +98,12 @@ let execute
 
     let state = Exe.createState libraries tracing sendException notify 7UL program
 
-    return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+    if mod'.exprs.Length = 1 then
+      return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
+    else if mod'.exprs.Length = 0 then
+      return RT.DError(RT.SourceNone, "No expressions to execute")
+    else // mod'.exprs.Length > 1
+      return RT.DError(RT.SourceNone, "Multiple expressions to execute")
   }
 
 let initSerializers () = ()
@@ -102,19 +112,25 @@ let initSerializers () = ()
 let main (args : string[]) =
   try
     initSerializers ()
-    let mainFile = "/home/dark/app/backend/experiments/cli/program.dark"
+    let mainFile = "/home/dark/app/backend/experiments/cli/cli.dark"
     let mod' = Parser.CanvasV2.parseFromFile mainFile
+    // debuG "mod" mod'
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
     let result = execute mod' (Map [ "args", args ])
+    let result = result.Result
     NonBlockingConsole.wait ()
-    match result.Result with
-    | RT.DError(_, msg) ->
+    match result with
+    | RT.DError(RT.SourceNone, msg) ->
       System.Console.WriteLine $"Error: {msg}"
+      1
+    | RT.DError(RT.SourceID(tlid, id), msg) ->
+      System.Console.WriteLine $"Error ({tlid}, {id}): {msg}"
       1
     | RT.DInt i -> (int i)
     | dval ->
       let output = LibExecution.DvalReprDeveloper.toRepr dval
-      System.Console.WriteLine "Error: main function must return an int"
+      System.Console.WriteLine
+        $"Error: main function must return an int (returned {output})"
       1
   with e ->
     printException "Error starting cli" [] e

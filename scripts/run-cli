@@ -3,8 +3,20 @@
 
 set -euo pipefail
 
+PUBLISHED=false
 
-EXE="backend/Build/out/Cli/Debug/net7.0/Cli"
+for i in "$@"
+do
+  case "${i}" in
+    --published) shift; PUBLISHED=true ;;
+  esac
+done
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  EXE="backend/Build/out/Cli/Release/net7.0/linux-x64/publish/Cli"
+else
+  EXE="backend/Build/out/Cli/Debug/net7.0/Cli"
+fi
 
 # if it hasn't been compiled yet, wait for it
 
@@ -16,4 +28,4 @@ do
   fi
 done
 
-"${EXE}" "${@}"
+"${EXE}" "$@"

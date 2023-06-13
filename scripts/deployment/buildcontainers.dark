@@ -1,0 +1,37 @@
+//#!/usr/bin/env darklang
+
+type DockerImageID = { imageID: String }
+
+type DirectoryContents = { files: List<String> }
+
+type DockerBuildResponse = { id: String }
+
+let unwrap (result: Result<String, 'a>) : String =
+  match result with
+  | Ok value -> value
+  | Error error -> ()
+
+let main () : Int =
+
+  let dockerfiles =
+    (Directory.list "containers")
+    |> List.map (fun directory -> Directory.list directory)
+    |> List.filter (fun filePath -> "Dockerfile" == filePath)
+
+  let imageIds =
+    dockerfiles
+    |> List.map (fun dockerfile ->
+      let buildCommand = $"docker build -q -f {dockerfile} ."
+      let response = Posix.runCommandWithOutput buildCommand
+      let parsedResponse = Json.parse<DockerBuildResponse> (response)
+      DockerImageID { imageID = parsedResponse.id })
+
+  let jsonImageIds = (Json.serialize<List<DockerImageId>> imageIds) |> unwrap
+
+  let _ = File.write (String.toBytes jsonImageIds) "ids.json"
+
+  let _ = print "done"
+
+  6
+
+main ()

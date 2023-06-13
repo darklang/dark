@@ -57,6 +57,11 @@ let argumentWasntType
   let expected = DvalReprDeveloper.typeName expected
   $"Expected `{paramName}` to be a `{expected}`, but it was `{actual}`"
 
+let resultWasntType (expected : TypeReference) (dv : Dval) : string =
+  let actual = DvalReprDeveloper.toRepr dv
+  let expected = DvalReprDeveloper.typeName expected
+  $"Expected result to be a `{expected}`, but it was `{actual}`"
+
 let typeErrorMsg
   (colName : string)
   (expected : TypeReference)

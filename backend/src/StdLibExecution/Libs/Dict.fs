@@ -241,6 +241,44 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "Dict" "iter" 0
+      typeParams = []
+      parameters =
+        [ Param.make "dict" (TDict varA) ""
+          Param.makeWithArgs
+            "fn"
+            (TFn([ TString; varA ], TUnit))
+            ""
+            [ "key"; "value" ] ]
+      returnType = TUnit
+      description =
+        "Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}."
+      fn =
+        (function
+        | state, _, [ DDict o; DFnVal b ] ->
+          uply {
+            let list = Map.toList o
+            do!
+              Ply.List.iterSequentially
+                (fun ((key, dv) : string * Dval) ->
+                  uply {
+                    match! Interpreter.applyFnVal state b [ DString key; dv ] with
+                    | DUnit -> return ()
+                    | dv ->
+                      if Dval.isFake dv then
+                        Errors.foundFakeDval dv
+                      else
+                        Exception.raiseCode (Errors.resultWasntType TUnit dv)
+                  })
+                list
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "Dict" "filter" 0
       typeParams = []
       parameters =
