@@ -176,7 +176,7 @@ jobs:
   # Build server binaries and run tests
   build-backend:
     executor: in-container
-    resource_class: xlarge
+    resource_class: large
     steps:
       - darkcheckout
       # Set the timestamp to the commit time. This allows timestamp-based build tools
