@@ -13,11 +13,10 @@ let unwrap (result: Result<String, 'a>) : String =
 
 let main () : Int =
 
-  // let _ = (List.range 1 100) |> List.iter (fun i -> print (Int.toString i))
-
   let dockerfiles =
     (Directory.list "containers")
-    |> List.filter (fun filePath -> String.endsWith ".Dockerfile" filePath)
+    |> List.map (fun directory -> Directory.list directory)
+    |> List.filter (fun filePath -> "Dockerfile" == filePath)
 
   let imageIds =
     dockerfiles
