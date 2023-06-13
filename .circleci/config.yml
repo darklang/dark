@@ -329,11 +329,6 @@ workflows:
       - push-assets-to-gcp:
           context:
             - gcp context
-          filters:
-            branches:
-              only: main
-          requires:
-            - build-backend
 
       - push-containers-to-gcp:
           context:
