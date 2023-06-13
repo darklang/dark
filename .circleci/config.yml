@@ -268,6 +268,7 @@ jobs:
       - darkcheckout
       - setup-app
       - auth-with-gcp: { background: false }
+      - run: gcloud config set account balmy-ground-195100
       - run: gcloud storage objects list gs://darklang-downloads/*
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
