@@ -85,16 +85,8 @@ let execute
       // LibService.Rollbar.notify msg metadata
       ()
 
-    let sendException
-      (_state : RT.ExecutionState)
-      (_metadata : Metadata)
-      (_exn : exn)
-      =
-      // let metadata = extraMetadata state @ metadata
-      // let person : LibService.Rollbar.Person =
-      //   Some { id = program.accountID; username = Some(username ()) }
-      // LibService.Rollbar.sendException person metadata exn
-      ()
+    let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+      printException "Internal error" metadata exn
 
     let state = Exe.createState libraries tracing sendException notify 7UL program
 
