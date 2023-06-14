@@ -82,8 +82,24 @@ module Shortcuts =
   let fn' = FQFnName.stdlibFnName'
   let fn = FQFnName.stdlibFnName
   let fnNoMod = FQFnName.stdlibFnName' []
+
   let typ = FQTypeName.stdlibTypeName
   let typ' = FQTypeName.stdlibTypeName'
+
+  let fqType (modules : List<string>) (typ : string) (version : int) : FQTypeName.T =
+    FQTypeName.Stdlib(typ' modules typ version)
+
+  let pkgTyp
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (typ : string)
+    (version : int)
+    : FQTypeName.T =
+    FQTypeName.Package
+      { owner = owner; modules = modules; typ = typ; version = version }
+
+
+
 
   let incorrectArgs = Errors.incorrectArgs
 

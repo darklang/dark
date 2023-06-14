@@ -6,6 +6,7 @@ module HttpMiddleware.Http
 
 open Prelude
 open LibExecution.VendoredTablecloth
+open LibExecution.StdLib.Shortcuts
 
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
@@ -15,14 +16,7 @@ let lowercaseHeaderKeys (headers : HttpHeaders.T) =
 
 module Request =
 
-  let typ =
-    RT.FQTypeName.Package(
-      RT.FQTypeName.packageTypeName'
-        "Darklang"
-        (NonEmptyList.ofList [ "Stdlib"; "Http" ])
-        "Request"
-        0
-    )
+  let typ = pkgTyp "Darklang" (NonEmptyList.ofList [ "Stdlib"; "Http" ]) "Request" 0
 
   let fromRequest
     (uri : string)
