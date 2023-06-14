@@ -776,10 +776,13 @@ and callFn
 
     let! result =
       uply {
-        match fn with
+        let fakeArg = List.tryFind Dval.isFake argvals
+
+        match fakeArg, fn with
+        | Some dv, _ -> return dv
         // Functions which aren't implemented in the client may have results
         // available, otherwise they just return incomplete.
-        | None ->
+        | None, None ->
           let fnRecord = (state.tlid, desc, callerID)
           let fnResult = state.tracing.loadFnResult fnRecord argvals
 
@@ -793,7 +796,7 @@ and callFn
             return
               DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
-        | Some fn ->
+        | None, Some fn ->
           // ensure we have the expected # of typeArguments _and_ arguments values
           let expectedTypeParamLength = List.length fn.typeParams
           let expectedArgLength = List.length fn.parameters
