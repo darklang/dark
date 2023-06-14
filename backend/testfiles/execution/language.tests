@@ -819,6 +819,10 @@ module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
   Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option.map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\""
 
+  // Check we get previous errors before later ones
+  (List.map_v0 [1;2;3;4;5] (fun x -> Test.typeError "X")) |> List.fakeFunction =
+    Test.typeError_v0 "X"
+
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }
   List.head (Test.typeError_v0 "test") = Test.typeError_v0 "test"
