@@ -12,6 +12,9 @@
 ###################
 # Darklang AI
 ###################
+# CLEANUP: we've manually granted the `circleci-ai` Workload Identity Pool
+# access to this (`circleci_deployer-ai`) service account,
+# but haven't yet figured out how to put this into terraform.
 resource "google_service_account" "circleci_deployer-ai" {
   account_id   = "circleci-deployer-ai"
   display_name = "CircleCI deployer AI"
