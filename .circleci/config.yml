@@ -158,7 +158,7 @@ commands:
             # Don't run a second time (no need, but also token becomes invalid after an hour)
             if [[ ! -f CIRCLE_OIDC_TOKEN_FILE ]]; then
               echo $CIRCLE_OIDC_TOKEN > CIRCLE_OIDC_TOKEN_FILE
-              gcloud auth login --cred-file .circleci/gcp-workload-identity-config.json
+              gcloud auth login --brief --cred-file .circleci/gcp-workload-identity-config.json
             fi
 
   auth-gcr:
