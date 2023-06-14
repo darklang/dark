@@ -13,7 +13,7 @@ open StdLib.Shortcuts
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "EnvVar" "get" 0
+  [ { name = fn "Environment" "get" 0
       typeParams = []
       parameters = [ Param.make "varName" TString "" ]
       returnType = TOption TString
@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "EnvVar" "getAll" 0
+    { name = fn "Environment" "getAll" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDict TString
