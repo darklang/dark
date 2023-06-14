@@ -76,7 +76,7 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DDB a, DDB b -> a = b
   | DEnum(a1, a2, a3), DEnum(b1, b2, b3) ->
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
-  // exhaustivenss check
+  // exhaustiveness check
   | DInt _, _
   | DFloat _, _
   | DBool _, _
