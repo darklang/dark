@@ -162,11 +162,7 @@ let rec serialize
           w.WritePropertyName caseName
           w.writeArray (fun () ->
             List.zip fieldDefs fields
-            |> List.iter (fun (fieldDef, fieldVal) ->
-              (try
-                r fieldDef fieldVal
-               with e ->
-                 raise e))))
+            |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
       | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
     | Some(CustomType.Record(firstField, additionalFields)) ->
