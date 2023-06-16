@@ -255,7 +255,11 @@ def reload_backend_server():
 
 def reload_packages():
   start = time.time()
-  return run_backend(start, "scripts/build/reload-packages")
+  if optimize:
+    configuration = " --published"
+  else:
+    configuration = ""
+  return run_backend(start, f"scripts/build/reload-packages {configuration}")
 
 
 class Should:

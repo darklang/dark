@@ -4,6 +4,7 @@
 set -euo pipefail
 
 PUBLISHED=false
+PUBLISHED_FLAG=
 RESTART=true
 
 for i in "$@"
@@ -11,6 +12,7 @@ do
   case "${i}" in
     --published)
     PUBLISHED=true
+    PUBLISHED_FLAG=$i
     shift
     ;;
   esac
@@ -21,6 +23,7 @@ do
     ;;
   esac
 done
+
 
 # If servers are running and we don't need to restart, then don't
 RUNNING=true
@@ -94,7 +97,7 @@ echo "Done waiting for compiled servers"
 
 echo "Running migrations"
 "${PRODEXEC_EXE}" migrations run > "$LOGS/migrations.log" 2>&1
-./scripts/build/reload-packages
+./scripts/build/reload-packages $PUBLISHED_FLAG $PUBLISHED_FLAG
 echo "Running bwdserver"
 "${BWDSERVER_EXE}" > "$LOGS/bwdserver.log" 2>&1 &
 echo "Running cronchecker"
