@@ -86,7 +86,10 @@ let fns : List<BuiltInFn> =
           uply {
             // TODO make async
             let contents =
-              System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
+              try
+                System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
+              with _ ->
+                []
             return List.map DString contents |> DList
           }
         | _ -> incorrectArgs ())

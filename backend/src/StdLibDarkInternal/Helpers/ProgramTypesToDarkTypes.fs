@@ -4,18 +4,14 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+open LibExecution.StdLib.Shortcuts
 
 let stdlibTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
   : FQTypeName.T =
-  FQTypeName.packageTypeName'
-    "Darklang"
-    (NonEmptyList.ofList ([ "Stdlib" ] @ submodules))
-    name
-    version
-  |> FQTypeName.Package
+  pkgTyp "Darklang" (NonEmptyList.ofList ([ "Stdlib" ] @ submodules)) name version
 
 let ptTyp
   (submodules : List<string>)
@@ -32,7 +28,6 @@ module Sign =
     match s with
     | Positive -> DEnum(stdlibTyp [] "Sign" 0, "Positive", [])
     | Negative -> DEnum(stdlibTyp [] "Sign" 0, "Negative", [])
-
 
 
 module FQTypeName =

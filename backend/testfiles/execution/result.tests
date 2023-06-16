@@ -5,6 +5,12 @@ Result.andThen (Ok 5) (fun x -> Ok (1 + x)) = Ok 6
 Result.andThen (Ok 8) (fun x -> Int.divide x 2) = Test.typeError_v0 "Expected `fn` to return a Result<'ok, 'err>, but it returned `4`"
 Result.andThen (Ok 5) (fun x -> true) = Test.typeError_v0 "Expected `fn` to return a Result<'ok, 'err>, but it returned `true`"
 
+PACKAGE.Darklang.Stdlib.Result.collect [Ok 5; Ok 6; Ok 7] = Ok [5; 6; 7]
+PACKAGE.Darklang.Stdlib.Result.collect [Ok 5; Error "test"; Ok 7] = Error "test"
+PACKAGE.Darklang.Stdlib.Result.collect [Ok 5; Error "test"; Error "test2"] = Error "test"
+PACKAGE.Darklang.Stdlib.Result.collect [Error "test"; Error "test2"] = Error "test"
+PACKAGE.Darklang.Stdlib.Result.collect [] = Ok []
+
 Result.fromOption (Just 6) "test" = Ok 6
 Result.fromOption Nothing "test" = Error "test"
 Result.fromOption (Just (Error "test")) "test" = Ok (Error "test")

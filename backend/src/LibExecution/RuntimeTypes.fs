@@ -72,28 +72,7 @@ module FQTypeName =
     : StdlibTypeName =
     stdlibTypeName' [ modul ] typ version
 
-  let userTypeName'
-    (modules : List<string>)
-    (typ : string)
-    (version : int)
-    : UserTypeName =
-    List.iter (assertRe "modName name must match" modNamePat) modules
-    assertRe "stdlib function name must match" typeNamePat typ
-    assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { modules = modules; typ = typ; version = version }
-
-  let packageTypeName'
-    (owner : string)
-    (modules : NonEmptyList<string>)
-    (typ : string)
-    (version : int)
-    : PackageTypeName =
-    modules
-    |> NonEmptyList.toList
-    |> List.iter (assertRe "modName name must match" modNamePat)
-    assertRe "package function name must match" typeNamePat typ
-    assert_ "version can't be negative" [ "version", version ] (version >= 0)
-    { owner = owner; modules = modules; typ = typ; version = version }
+  let fqStdlibTypeName (fqtn : StdlibTypeName) : T = Stdlib fqtn
 
 
   module StdlibTypeName =
@@ -163,6 +142,16 @@ module FQFnName =
     : StdlibFnName =
     stdlibFnName' [ modul ] function_ version
 
+  let fqStdlibFnName'
+    (modules : List<string>)
+    (function_ : string)
+    (version : int)
+    : T =
+    Stdlib(stdlibFnName' modules function_ version)
+
+  let fqStdlibFnName (modul : string) (function_ : string) (version : int) : T =
+    fqStdlibFnName' [ modul ] function_ version
+
   module StdlibFnName =
     let toString (s : StdlibFnName) : string =
       let name = s.modules @ [ s.function_ ] |> String.concat "."
@@ -175,8 +164,8 @@ module FQFnName =
 
   module PackageFnName =
     let toString (pkg : PackageFnName) : string =
-      let mn = pkg.modules |> Prelude.NonEmptyList.toList |> String.concat "."
-      let name = $"{pkg.owner}.{mn}.{pkg.function_}"
+      let mn = pkg.modules |> NonEmptyList.toList |> String.concat "."
+      let name = $"PACKAGE.{pkg.owner}.{mn}.{pkg.function_}"
       if pkg.version = 0 then name else $"{name}_v{pkg.version}"
 
   let toString (fqfnName : T) : string =

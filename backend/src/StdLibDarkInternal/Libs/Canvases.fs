@@ -23,12 +23,11 @@ let ptTyp
   (name : string)
   (version : int)
   : FQTypeName.T =
-  FQTypeName.packageTypeName'
+  pkgTyp
     "Darklang"
     (NonEmptyList.ofList ([ "Stdlib"; "ProgramTypes" ] @ submodules))
     name
     version
-  |> FQTypeName.Package
 
 let fn (name : string) (version : int) : FQFnName.StdlibFnName =
   FQFnName.stdlibFnName' modul name version
