@@ -164,8 +164,8 @@ module FQFnName =
 
   module PackageFnName =
     let toString (pkg : PackageFnName) : string =
-      let mn = pkg.modules |> Prelude.NonEmptyList.toList |> String.concat "."
-      let name = $"{pkg.owner}.{mn}.{pkg.function_}"
+      let mn = pkg.modules |> NonEmptyList.toList |> String.concat "."
+      let name = $"PACKAGE.{pkg.owner}.{mn}.{pkg.function_}"
       if pkg.version = 0 then name else $"{name}_v{pkg.version}"
 
   let toString (fqfnName : T) : string =
