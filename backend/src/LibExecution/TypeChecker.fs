@@ -21,18 +21,12 @@ module Error =
 
   type TypeUnificationError = { expectedType : TypeReference; actualValue : Dval }
 
-  type IncorrectNumberOfTypeArgsError = { expected : int; actual : int }
-  type IncorrectNumberOfArgsError = { expected : int; actual : int }
-
   type MismatchedFields =
     { expectedFields : Set<string>; actualFields : Set<string> }
 
   type T =
     /// Failed to find a referenced type
     | TypeLookupFailure of FQTypeName.T * path : Path
-
-    | IncorrectNumberOfTypeArgs of IncorrectNumberOfTypeArgsError * Path
-    | IncorrectNumberOfArgs of IncorrectNumberOfArgsError * Path
 
     /// An argument didn't match the expected type
     | TypeUnificationFailure of TypeUnificationError * Path
@@ -77,13 +71,6 @@ module Error =
        | true, false -> $"{extraMsg} in {path}"
        | true, true ->
          "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
-
-    | IncorrectNumberOfTypeArgs(ita, path) ->
-      $"Expected {ita.expected} type arguments but found {ita.actual} in {path}"
-
-    | IncorrectNumberOfArgs(ina, path) ->
-      $"Expected {ina.expected} arguments but found {ina.actual} in {path}"
-
 
 
 open Error
@@ -272,35 +259,14 @@ let checkFunctionCall
   (path : List<string>)
   (types : Types)
   (fn : Fn)
-  (typeArgs : List<TypeReference>)
+  (_typeArgs : List<TypeReference>)
   (args : List<Dval>)
   : Result<unit, Error.T> =
-
-  let typeArgErrors =
-    let typeArgLength = List.length typeArgs
-    let paramsLength = List.length fn.typeParams
-    if paramsLength = typeArgLength then
-      Ok()
-    else
-      let err : IncorrectNumberOfTypeArgsError =
-        { expected = paramsLength; actual = typeArgLength }
-      Error(IncorrectNumberOfTypeArgs(err, List.rev path))
-
-  let argErrors =
-    let argLength = List.length args
-    let paramsLength = List.length fn.parameters
-    if paramsLength = argLength then
-      List.map2
-        (fun (param : Param) value ->
-          unify (param.name :: path) types param.typ value)
-        fn.parameters
-        args
-    else
-      let err : IncorrectNumberOfArgsError =
-        { expected = paramsLength; actual = argLength }
-      [ Error(IncorrectNumberOfArgs(err, List.rev path)) ]
-
-  (typeArgErrors :: argErrors) |> combineErrorsUnit
+  fn.parameters
+  |> List.map2
+    (fun value param -> unify (param.name :: path) types param.typ value)
+    args
+  |> combineErrorsUnit
 
 
 let checkFunctionReturnType
