@@ -7,14 +7,7 @@ open RuntimeTypes
 
 /// Returns `Ok ()` if no errors, or `Error first` otherwise
 let combineErrorsUnit (l : List<Result<unit, 'err>>) : Result<unit, 'err> =
-  List.fold
-    (Ok())
-    (fun l r ->
-      match l, r with
-      | _, Ok() -> l
-      | Ok(), _ -> r
-      | Error _, Error _ -> l)
-    l
+  l |> Tablecloth.Result.values |> Result.map ignore<List<unit>>
 
 module Error =
   type Path = List<string>
