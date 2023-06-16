@@ -833,17 +833,6 @@ and execFn
   uply {
     let sourceID = SourceID(state.tlid, id) in
 
-    let typeErrorOrValue types result =
-      if Dval.isFake result then
-        result
-      else
-        let name = FQFnName.toString fnDesc
-        match TypeChecker.checkFunctionReturnType [ name ] types fn result with
-        | Ok() -> result
-        | Error err ->
-          let msg = $"Type error in return type: {TypeChecker.Error.toString err}"
-          DError(sourceID, msg)
-
     if
       state.tracing.realOrPreview = Preview
       && not state.onExecutionPath
@@ -902,6 +891,9 @@ and execFn
         let name = [ FQFnName.toString fnDesc ]
         let types = ExecutionState.availableTypes state
         match TypeChecker.checkFunctionCall name types fn typeArgs args with
+        | Error err ->
+          let msg = $"Type error calling function: {TypeChecker.Error.toString err}"
+          return DError(sourceID, msg)
         | Ok() ->
           state.tracing.traceTLID tlid
           let state = { state with tlid = tlid }
@@ -911,8 +903,14 @@ and execFn
             |> Map.ofList
             |> withGlobals state
           let! result = eval state args body
-          return typeErrorOrValue types result
-        | Error err ->
-          let msg = $"Type error calling function: {TypeChecker.Error.toString err}"
-          return DError(sourceID, msg)
+          if Dval.isFake result then
+            return result
+          else
+            let name = FQFnName.toString fnDesc
+            match TypeChecker.checkFunctionReturnType [ name ] types fn result with
+            | Error err ->
+              let msg =
+                $"Type error in return type: {TypeChecker.Error.toString err}"
+              return DError(sourceID, msg)
+            | Ok() -> return result
   }
