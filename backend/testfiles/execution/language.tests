@@ -1010,17 +1010,17 @@ module Packages =
   PACKAGE.Darklang.Test.returnsResultError () = Error false
 
   module Invalid =
-    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in Darklang.Test.stringFn->key"
-    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in PACKAGE.Darklang.Test.stringFn->key"
+    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "PACKAGE.Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     PACKAGE.Darklang.Test.derrorFn "test" = Test.typeError "test"
 
     (let _ = Test.setExpectedExceptionCount 1 in
      PACKAGE.Darklang.Test.throwsException ()) = Test.typeError "Unknown error"
 
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
 
 module TypeChecking =
