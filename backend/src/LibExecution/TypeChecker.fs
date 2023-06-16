@@ -22,6 +22,7 @@ module Error =
   type TypeUnificationError = { expectedType : TypeReference; actualValue : Dval }
 
   type IncorrectNumberOfTypeArgsError = { expected : int; actual : int }
+  type IncorrectNumberOfArgsError = { expected : int; actual : int }
 
   type MismatchedFields =
     { expectedFields : Set<string>; actualFields : Set<string> }
@@ -31,6 +32,7 @@ module Error =
     | TypeLookupFailure of FQTypeName.T * path : Path
 
     | IncorrectNumberOfTypeArgs of IncorrectNumberOfTypeArgsError * Path
+    | IncorrectNumberOfArgs of IncorrectNumberOfArgsError * Path
 
     /// An argument didn't match the expected type
     | TypeUnificationFailure of TypeUnificationError * Path
@@ -78,6 +80,9 @@ module Error =
 
     | IncorrectNumberOfTypeArgs(ita, path) ->
       $"Expected {ita.expected} type arguments but found {ita.actual} in {path}"
+
+    | IncorrectNumberOfArgs(ina, path) ->
+      $"Expected {ina.expected} arguments but found {ina.actual} in {path}"
 
 
 
@@ -268,41 +273,32 @@ let checkFunctionCall
   (types : Types)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
-  (args : DvalMap)
+  (args : List<Dval>)
   : Result<unit, Error.T> =
 
   let typeArgErrors =
-    let constraints = fn.typeParams
-
-    if List.length constraints <> List.length typeArgs then
-      Error(
-        IncorrectNumberOfTypeArgs(
-          { expected = List.length constraints; actual = List.length typeArgs },
-          List.rev path
-        )
-      )
-    else
+    let typeArgLength = List.length typeArgs
+    let paramsLength = List.length fn.typeParams
+    if paramsLength = typeArgLength then
       Ok()
+    else
+      let err : IncorrectNumberOfTypeArgsError =
+        { expected = paramsLength; actual = typeArgLength }
+      Error(IncorrectNumberOfTypeArgs(err, List.rev path))
 
   let argErrors =
-    let args = Map.toList args
-
-    let withParams : List<Param * Dval> =
-      List.map
-        (fun (argname, argval) ->
-          let parameter =
-            fn.parameters
-            |> List.find (fun (p : Param) -> p.name = argname)
-            |> Exception.unwrapOptionInternal
-              "Invalid parameter name"
-              [ "fn", fn.name; "argname", argname ]
-
-          (parameter, argval))
+    let argLength = List.length args
+    let paramsLength = List.length fn.parameters
+    if paramsLength = argLength then
+      List.map2
+        (fun (param : Param) value ->
+          unify (param.name :: path) types param.typ value)
+        fn.parameters
         args
-
-    withParams
-    |> List.map (fun (param, value) ->
-      unify (param.name :: path) types param.typ value)
+    else
+      let err : IncorrectNumberOfArgsError =
+        { expected = paramsLength; actual = argLength }
+      [ Error(IncorrectNumberOfArgs(err, List.rev path)) ]
 
   (typeArgErrors :: argErrors) |> combineErrorsUnit
 

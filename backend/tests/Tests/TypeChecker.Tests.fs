@@ -25,10 +25,9 @@ module S = TestUtils.RTShortcuts
 
 let testBasicTypecheckWorks : Test =
   let t
-    ((fn, args) : RT.FQFnName.StdlibFnName * List<string * RT.Dval>)
+    ((fn, args) : RT.FQFnName.StdlibFnName * List<RT.Dval>)
     : Task<Result<unit, TypeChecker.Error.T>> =
     task {
-      let args = Map.ofList args
       let! libraries = Lazy.force libraries
 
       let fn =
@@ -48,8 +47,8 @@ let testBasicTypecheckWorks : Test =
     (let intAdd : RT.FQFnName.StdlibFnName =
       { modules = [ "Int" ]; function_ = "add"; version = 0 }
 
-     [ (intAdd, [ ("a", RT.DInt 5L); ("b", RT.DInt 4L) ]), Ok()
-       ((intAdd, [ ("a", RT.DInt 5L); ("b", RT.DBool true) ]),
+     [ (intAdd, [ RT.DInt 5L; RT.DInt 4L ]), Ok()
+       ((intAdd, [ RT.DInt 5L; RT.DBool true ]),
         Error(
           TypeChecker.Error.TypeUnificationFailure(
             { expectedType = RT.TInt; actualValue = RT.DBool true },
