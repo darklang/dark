@@ -253,6 +253,11 @@ def reload_backend_server():
   return run_backend(start, runserver)
 
 
+def reload_packages():
+  start = time.time()
+  return run_backend(start, "scripts/build/reload-packages")
+
+
 class Should:
 
   def __init__(self):
@@ -263,6 +268,7 @@ class Should:
     self.backend_quick_build = False
     self.backend_full_build = False
     self.backend_test = False
+    self.reload_packages = False
     self.npm_install = False
     self.circleci_validate = False
     self.reload_backend_server = False
@@ -299,9 +305,13 @@ def execute(should):
 
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
+    should.reload_packages |= success
     should.copy_dark_wasm |= success
     should.backend_test |= success
     should.reload_backend_server |= success
+
+  if should.reload_packages:
+    if not reload_packages(): success = False
 
   if should.copy_dark_wasm:
     if not copy_dark_wasm(): success = False
@@ -354,7 +364,7 @@ def mark(should, f):
     should.backend_test = True
 
   elif ("/packages/" in f) and (f.endswith(".dark")):
-    should.backend_quick_build = True
+    should.reload_packages = True
 
   elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]

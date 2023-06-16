@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+grey="\033[1;30m"
+reset="\033[0m"
+
+TEST=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --test)
+    TEST=true
+    shift
+    ;;
+  esac
+done
+
+if [[ "$TEST" == "true" ]]; then
+  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
+else
+  LOG="${DARK_CONFIG_RUNDIR}/logs/test-package.log"
+fi
+
+
+# Note: doesn't support release/published
+LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
+
+echo -e "Loading packages ${grey}($LOG)${reset}"
+"${LOCALEXEC_EXE}" load-packages > $LOG 2>&1
