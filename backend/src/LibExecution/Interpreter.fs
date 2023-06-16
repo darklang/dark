@@ -765,61 +765,57 @@ and callFn
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, callerID)
+    let handleMissingFunction () : Dval =
+      // Functions which aren't implemented in the client may have results
+      // available, otherwise they just return incomplete.
+      let fnRecord = (state.tlid, desc, callerID)
+      let fnResult = state.tracing.loadFnResult fnRecord args
 
-    let fn =
-      match desc with
-      | FQFnName.Stdlib std ->
-        state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
-      | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
-      | FQFnName.Package pkg ->
-        state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
+      // TODO: in an old version, we executed the lambda with a fake value to
+      // give enough livevalues for the editor to autocomplete. It may be worth
+      // doing this again
+      match fnResult with
+      | Some(result, _ts) -> result
+      | None -> DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
-    let! result =
-      uply {
-        let fakeArg = List.tryFind Dval.isFake args
+    let checkArgsLength fn : Result<unit, string> =
+      let expectedTypeParamLength = List.length fn.typeParams
+      let expectedArgLength = List.length fn.parameters
 
-        match fakeArg, fn with
-        | Some dv, _ -> return dv
-        // Functions which aren't implemented in the client may have results
-        // available, otherwise they just return incomplete.
-        | None, None ->
-          let fnRecord = (state.tlid, desc, callerID)
-          let fnResult = state.tracing.loadFnResult fnRecord args
+      let actualTypeArgLength = List.length typeArgs
+      let actualArgLength = List.length args
 
-          // TODO: in an old version, we executed the lambda with a fake value to
-          // give enough livevalues for the editor to autocomplete. It may be worth
-          // doing this again
+      if
+        expectedTypeParamLength = actualTypeArgLength
+        && expectedArgLength = actualArgLength
+      then
+        Ok()
+      else
+        Error(
+          $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
+          + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
+        )
 
-          match fnResult with
-          | Some(result, _ts) -> return result
-          | None ->
-            return
-              DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
-        | None, Some fn ->
-          // ensure we have the expected # of typeArguments _and_ arguments values
-          let expectedTypeParamLength = List.length fn.typeParams
-          let expectedArgLength = List.length fn.parameters
+    match List.tryFind Dval.isFake args with
+    | Some fakeArg -> return fakeArg
+    | None ->
+      let fn =
+        match desc with
+        | FQFnName.Stdlib std ->
+          state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
+        | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
+        | FQFnName.Package pkg ->
+          state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
 
-          let actualTypeArgLength = List.length typeArgs
-          let actualArgLength = List.length args
-
-          let err errMsg = DError(sourceID, errMsg)
-
-          if
-            (expectedTypeParamLength = actualTypeArgLength)
-            && (expectedArgLength = actualArgLength)
-          then
-            return! execFn state desc callerID fn typeArgs args
-          else
-            return
-              err (
-                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
-                + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
-              )
-      }
-    return result
+      match fn with
+      | None -> return handleMissingFunction ()
+      | Some fn ->
+        match checkArgsLength fn with
+        | Error errMsg -> return (DError(sourceID, errMsg))
+        | Ok() -> return! execFn state desc callerID fn typeArgs args
   }
+
 
 
 and execFn
