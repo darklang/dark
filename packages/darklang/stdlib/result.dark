@@ -6,8 +6,9 @@ module Darklang =
       /// are an error, return the first error. Otherwise, return a list of all
       /// the Ok values.
       let collect (results: List<Result<T, E>>) : Result<List<T>, E> =
-        List.fold results (Ok []) (fun acc result ->
+        results
+        |> List.fold (Ok []) (fun acc result ->
           match (acc, result) with
-          | (Ok acc, Ok result) -> Ok(List.push result acc)
+          | (Ok acc, Ok result) -> Ok(List.pushBack acc result)
           | (Ok _, Error err) -> Error err
           | (Error err, _) -> Error err)
