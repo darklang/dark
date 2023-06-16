@@ -12,6 +12,7 @@ function ctrl_c() {
 
 LLDB=false
 PUBLISHED=false
+PUBLISHED_FLAG=
 
 EXPECTO_ARGS=()
 
@@ -19,7 +20,10 @@ for i in "$@"
 do
   case "${i}" in
     --lldb) LLDB=true ;;
-    --published) PUBLISHED=true ;;
+    --published)
+      PUBLISHED=true
+      PUBLISHED_FLAG=$i
+      ;;
     *) EXPECTO_ARGS+=("${i}");;
   esac
 done
@@ -73,7 +77,7 @@ DARK_CONFIG_DB_PASSWORD=darklang \
 DARK_CONFIG_ROLLBAR_ENABLED=n \
 DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
 DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
-./scripts/build/reload-packages --test
+./scripts/build/reload-packages --test $PUBLISHED_FLAG
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 
