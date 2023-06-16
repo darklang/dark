@@ -1,4 +1,4 @@
-﻿/// Interprets Dark expressions resulting in (tasks of) Dvals
+/// Interprets Dark expressions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
 open System.Threading.Tasks
@@ -226,7 +226,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                       match r with
                       | DRecord(typeName, m) ->
                         return DRecord(typeName, Map.add k v m)
-                      | _ -> return err id "Expected a record"
+                      | _ -> return err id "Expected a record in typecheck"
                     | Error e -> return err id (TypeChecker.Error.toString e)
               })
             (DRecord(typeName, Map.empty))
@@ -280,7 +280,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                 })
               baseRecord
               updates
-      | _ -> return err id "Expected a record"
+      | _ -> return err id "Expected a record in record update"
 
     | EDict(id, fields) ->
       return!

@@ -15,7 +15,14 @@ let lowercaseHeaderKeys (headers : HttpHeaders.T) =
 
 module Request =
 
-  let typ = RT.FQTypeName.Stdlib(RT.FQTypeName.stdlibTypeName "Http" "Request" 0)
+  let typ =
+    RT.FQTypeName.Package(
+      RT.FQTypeName.packageTypeName'
+        "Darklang"
+        (NonEmptyList.ofList [ "Stdlib"; "Http" ])
+        "Request"
+        0
+    )
 
   let fromRequest
     (uri : string)

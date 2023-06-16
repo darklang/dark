@@ -200,8 +200,9 @@ let fns : List<BuiltInFn> =
 
             let types =
               canvas.userTypes
-              |> Map.toList
-              |> List.map (fun (tlid, userType) -> PT2DT.UserType.toDT tlid userType)
+              |> Map.values
+              |> Seq.toList
+              |> List.map PT2DT.UserType.toDT
               |> DList
 
             // let dbs =
