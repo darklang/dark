@@ -732,7 +732,11 @@ module DB =
   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
 
 module UserType =
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
+  type T =
+    { tlid : tlid
+      name : FQTypeName.UserTypeName
+      typeParams : List<string>
+      definition : CustomType.T }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -779,7 +783,10 @@ module PackageFn =
       body : Expr }
 
 module PackageType =
-  type T = { name : FQTypeName.PackageTypeName; definition : CustomType.T }
+  type T =
+    { name : FQTypeName.PackageTypeName
+      typeParams : List<string>
+      definition : CustomType.T }
 
 
 // <summary>

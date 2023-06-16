@@ -19,6 +19,7 @@ module Darklang =
         { tlid: PACKAGE.Darklang.Stdlib.TLID
           id: Uuid
           name: PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageTypeName
+          typeParams: List<String>
           definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
           description: String
           deprecated:
@@ -35,6 +36,7 @@ module Darklang =
                 { owner = p.name.owner
                   typ = p.name.typ
                   version = p.name.version }
+            typeParams = p.typeParams
             definition = p.definition
             description = p.description
             deprecated = p.deprecated }
@@ -260,6 +262,7 @@ module Darklang =
                         modules = []
                         typ = t.name.typ
                         version = t.name.version }
+                  typeParams = t.typeParams
                   definition = t.definition
                   description = t.description
                   deprecated = t.deprecated }
@@ -319,7 +322,7 @@ module Darklang =
 
 
 
-    let packages (withPretty: Bool) (p: PACKAGE.Darklang.Stdlib.Packages) : String =
+    let packages (p: PACKAGE.Darklang.Stdlib.Packages) : String =
       let withOwnerStuffRepresentedAsRootLevelModule =
         PACKAGE.Darklang.Stdlib.Packages
           { types =
@@ -345,20 +348,6 @@ module Darklang =
 
       // CLEANUP make ordering 'better' in some way
 
-      let jsonPart =
-        match
-          Json.serialize<List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>>
-            modules
-        with
-        | Ok s -> s
-        | Error e -> e
-
-      let prettyPart =
-        if withPretty then
-          modules
-          |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
-          |> String.join "\n\n"
-        else
-          ""
-
-      $"// JSON\n{jsonPart}\n----------------\n// Pretty\n{prettyPart}"
+      modules
+      |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
+      |> String.join "\n\n"

@@ -105,6 +105,7 @@ let testUserRecordType
 
   { tlid = gid ()
     name = name
+    typeParams = []
     definition =
       PT.CustomType.Record(mapField firstField, List.map mapField additionalFields) }
 

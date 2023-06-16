@@ -493,6 +493,7 @@ module UserType =
       Map
         [ "tlid", DInt(int64 userType.tlid)
           "name", FQTypeName.UserTypeName.toDT userType.name
+          "typeParams", DList(List.map DString userType.typeParams)
           "definition", CustomType.toDT userType.definition ]
     )
 
@@ -541,6 +542,7 @@ module PackageType =
         [ "tlid", DInt(int64 p.tlid)
           "id", DUuid p.id
           "name", FQTypeName.PackageTypeName.toDT p.name
+          "typeParams", DList(List.map DString p.typeParams)
           "definition", CustomType.toDT p.definition
           "description", DString p.description
           "deprecated", Deprecation.toDT FQTypeName.toDT p.deprecated ]

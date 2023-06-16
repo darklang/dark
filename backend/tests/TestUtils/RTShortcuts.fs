@@ -124,4 +124,5 @@ let userTypeRecord
   : UserType.T =
   { tlid = gid ()
     name = { modules = modules; typ = name; version = version }
+    typeParams = []
     definition = customTypeRecord fields }

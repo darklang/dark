@@ -713,16 +713,22 @@ module DB =
       typ = TypeReference.toCT db.typ }
 
 module UserType =
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
+  type T =
+    { tlid : tlid
+      name : FQTypeName.UserTypeName
+      typeParams : List<string>
+      definition : CustomType.T }
 
   let fromCT (ut : T) : PT.UserType.T =
     { tlid = ut.tlid
       name = FQTypeName.UserTypeName.fromCT ut.name
+      typeParams = ut.typeParams
       definition = CustomType.fromCT ut.definition }
 
   let toCT (ut : PT.UserType.T) : T =
     { tlid = ut.tlid
       name = FQTypeName.UserTypeName.toCT ut.name
+      typeParams = ut.typeParams
       definition = CustomType.toCT ut.definition }
 
 
@@ -851,7 +857,7 @@ module PackageType =
     { tlid : tlid
       id : System.Guid
       name : FQTypeName.PackageTypeName
-      // CLEANUP add type params
+      typeParams : List<string>
       definition : CustomType.T
       description : string
       deprecated : Deprecation<FQTypeName.T> }
@@ -860,6 +866,7 @@ module PackageType =
     { tlid = pt.tlid
       id = pt.id
       name = FQTypeName.PackageTypeName.fromCT pt.name
+      typeParams = pt.typeParams
       definition = CustomType.fromCT pt.definition
       description = pt.description
       deprecated = Deprecation.fromCT FQTypeName.fromCT pt.deprecated }
@@ -868,6 +875,7 @@ module PackageType =
     { tlid = pt.tlid
       id = pt.id
       name = FQTypeName.PackageTypeName.toCT pt.name
+      typeParams = pt.typeParams
       definition = CustomType.toCT pt.definition
       description = pt.description
       deprecated = Deprecation.toCT FQTypeName.toCT pt.deprecated }

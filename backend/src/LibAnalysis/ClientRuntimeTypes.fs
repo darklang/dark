@@ -676,16 +676,22 @@ module DB =
       version = db.version }
 
 module UserType =
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
+  type T =
+    { tlid : tlid
+      name : FQTypeName.UserTypeName
+      typeParams : List<string>
+      definition : CustomType.T }
 
   let fromCT (userType : T) : RT.UserType.T =
     { tlid = userType.tlid
       name = FQTypeName.UserTypeName.fromCT userType.name
+      typeParams = userType.typeParams
       definition = CustomType.fromCT userType.definition }
 
   let toCT (userType : RT.UserType.T) : T =
     { tlid = userType.tlid
       name = FQTypeName.UserTypeName.toCT userType.name
+      typeParams = userType.typeParams
       definition = CustomType.toCT userType.definition }
 
 module UserFunction =

@@ -144,25 +144,30 @@ let rec serialize
       match dval with
       | DEnum(dTypeName, caseName, fields) ->
         let matchingCase =
-          (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
-        // TODO: handle 0 or 2+ cases
+          (firstCase :: additionalCases) |> List.filter (fun c -> c.name = caseName)
 
-        let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
-        // TODO: ensure that the field count is the same
+        match matchingCase with
+        | [] ->
+          Exception.raiseInternal $"Couldn't find matching case for {caseName}" []
+        | [ matchingCase ] ->
+          let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
 
-        if List.length fieldDefs <> List.length fields then
-          Exception.raiseInternal
-            $"Couldn't serialize Enum as incorrect # of fields provided"
-            [ "defs", fieldDefs
-              "fields", fields
-              "typeName", typeName
-              "caseName", caseName ]
+          if List.length fieldDefs <> List.length fields then
+            Exception.raiseInternal
+              $"Couldn't serialize Enum as incorrect # of fields provided"
+              [ "defs", fieldDefs
+                "fields", fields
+                "typeName", typeName
+                "caseName", caseName ]
 
-        w.writeObject (fun () ->
-          w.WritePropertyName caseName
-          w.writeArray (fun () ->
-            List.zip fieldDefs fields
-            |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+          w.writeObject (fun () ->
+            w.WritePropertyName caseName
+            w.writeArray (fun () ->
+              List.zip fieldDefs fields
+              |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+        | _ -> Exception.raiseInternal "Too many matching cases" []
+
+
       | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
     | Some(CustomType.Record(firstField, additionalFields)) ->
@@ -176,12 +181,14 @@ let rec serialize
           |> List.iter (fun (fieldName, dval) ->
             w.WritePropertyName fieldName
 
-            let matchingTypeReference =
-              fieldDefs
-              |> List.find (fun def -> def.name = fieldName)
-              |> fun def -> def.typ
+            let matchingFieldDef =
+              fieldDefs |> List.filter (fun def -> def.name = fieldName)
 
-            r matchingTypeReference dval))
+            match matchingFieldDef with
+            | [] -> Exception.raiseInternal "Couldn't find matching field" []
+            | [ matchingFieldDef ] -> r matchingFieldDef.typ dval
+            | _ -> Exception.raiseInternal "Too many matching fields" []))
+
       | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
       | _ -> Exception.raiseInternal "Expected a DRecord but got something else" []
 
@@ -416,11 +423,16 @@ let parse
           fieldDefs
           |> List.map (fun def ->
             let correspondingValue =
-              enumerated
-              // TODO: handle case where value isn't found for
-              // and maybe, if it's an Option<>al thing, don't complain
-              |> List.find (fun v -> v.Name = def.name)
-              |> fun field -> field.Value
+              let matchingFieldDef =
+                enumerated
+                // TODO: handle case where value isn't found for
+                // and maybe, if it's an Option<>al thing, don't complain
+                |> List.filter (fun v -> v.Name = def.name)
+
+              match matchingFieldDef with
+              | [] -> Exception.raiseInternal "Couldn't find matching field" []
+              | [ matchingFieldDef ] -> matchingFieldDef.Value
+              | _ -> Exception.raiseInternal "Too many matching fields" []
 
             let converted = convert def.typ correspondingValue
             (def.name, converted))
@@ -497,7 +509,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ typeArg ], [ arg ] ->
-
           // TODO: somehow collect list of TVariable -> TypeReference
           // "'b = Int",
           // so we can Json.serialize<'b>, if 'b is in the surrounding context

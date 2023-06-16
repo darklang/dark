@@ -412,8 +412,11 @@ module DB =
   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
 module UserType =
-  // CLEANUP: needs type arguments
-  type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
+  type T =
+    { tlid : tlid
+      name : FQTypeName.UserTypeName
+      typeParams : List<string>
+      definition : CustomType.T }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
@@ -490,7 +493,7 @@ module PackageType =
     { tlid : tlid
       id : System.Guid
       name : FQTypeName.PackageTypeName
-      // CLEANUP add type params
+      typeParams : List<string>
       definition : CustomType.T
       description : string
       deprecated : Deprecation<FQTypeName.T> }
