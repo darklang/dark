@@ -3342,6 +3342,9 @@
         "typ": "User",
         "version": 0
       },
+      "typeParams": [
+        "a"
+      ],
       "definition": [
         "Record",
         {

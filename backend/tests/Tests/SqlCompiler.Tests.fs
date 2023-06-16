@@ -33,7 +33,7 @@ let compile
     let userType : UserType.T =
       { tlid = gid ()
         name = typeName
-        typeParams = [] // TODO - not sure what this should be
+        typeParams = []
         definition = CustomType.Record(field, []) }
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQTypeName.User typeName, [])
