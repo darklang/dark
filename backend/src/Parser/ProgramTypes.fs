@@ -201,6 +201,34 @@ module TypeReference =
     | PT.TPassword -> typ
 
 
+module SimpleTypeArgs =
+  let fromSynTyparDecls (typeParams : Option<SynTyparDecls>) : List<string> =
+    match typeParams with
+    | None -> []
+    | Some typeParams ->
+      match typeParams with
+      | SynTyparDecls.PostfixList(decls, constraints, _) ->
+        match constraints with
+        | [] ->
+          decls
+          |> List.map (fun decl ->
+            let SynTyparDecl (_, decl) = decl
+
+            match decl with
+            | SynTyparDecl(_, SynTypar(name, TyparStaticReq.None, _)) -> name.idText
+            | _ ->
+              Exception.raiseInternal "Unsupported type parameter" [ "decl", decl ])
+        | _ ->
+          Exception.raiseInternal
+            "Unsupported constraints in function type arg declaration"
+            [ "constraints", constraints ]
+
+      | SynTyparDecls.PrefixList _
+      | SynTyparDecls.SinglePrefix _ ->
+        Exception.raiseInternal
+          "Unsupported type params of function declaration"
+          [ "typeParams", typeParams ]
+
 module LetPattern =
   let rec fromSynPat (pat : SynPat) : PT.LetPattern =
     let mapPat = fromSynPat
@@ -926,35 +954,7 @@ module Function =
       let typeParams =
         match typeArgPats with
         | None -> []
-        | Some(SynValTyparDecls(pats, _)) ->
-          match pats with
-          | None -> []
-          | Some typeParams ->
-            match typeParams with
-            | SynTyparDecls.PostfixList(decls, constraints, _) ->
-              match constraints with
-              | [] ->
-                decls
-                |> List.map (fun decl ->
-                  let SynTyparDecl (_, decl) = decl
-
-                  match decl with
-                  | SynTyparDecl(_, SynTypar(name, TyparStaticReq.None, _)) ->
-                    name.idText
-                  | _ ->
-                    Exception.raiseInternal
-                      "Unsupported type parameter"
-                      [ "decl", decl ])
-              | _ ->
-                Exception.raiseInternal
-                  "Unsupported constraints in function type arg declaration"
-                  [ "pat", pat; "constraints", constraints ]
-
-            | SynTyparDecls.PrefixList _
-            | SynTyparDecls.SinglePrefix _ ->
-              Exception.raiseInternal
-                "Unsupported type params of function declaration"
-                [ "pat", pat; "typeParams", typeParams ]
+        | Some(SynValTyparDecls(pats, _)) -> SimpleTypeArgs.fromSynTyparDecls pats
 
       let parameters =
         match argPats with
@@ -1124,31 +1124,41 @@ module CustomType =
     )
 
 
-  let fromSynTypeDefn (typeDef : SynTypeDefn) : (List<string> * PT.CustomType.T) =
+  let fromSynTypeDefn
+    (typeDef : SynTypeDefn)
+    : (List<string> * List<string> * PT.CustomType.T) =
     match typeDef with
-    | SynTypeDefn(SynComponentInfo(_, _params, _, ids, _, _, _, _),
+    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
                   SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
                                          _),
                   _,
                   _,
                   _,
                   _) ->
-      ids |> List.map string, PT.CustomType.Alias(TypeReference.fromSynType typ)
+      SimpleTypeArgs.fromSynTyparDecls typeParams,
+      ids |> List.map string,
+      PT.CustomType.Alias(TypeReference.fromSynType typ)
 
-    | SynTypeDefn(SynComponentInfo(_, _params, _, ids, _, _, _, _),
+    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
                   SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Record(_, fields, _),
                                          _),
                   _,
                   _,
                   _,
-                  _) -> ids |> List.map string, fromFields typeDef fields
+                  _) ->
+      SimpleTypeArgs.fromSynTyparDecls typeParams,
+      ids |> List.map string,
+      fromFields typeDef fields
 
-    | SynTypeDefn(SynComponentInfo(_, _params, _, ids, _, _, _, _),
+    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
                   SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Union(_, cases, _), _),
                   _,
                   _,
                   _,
-                  _) -> ids |> List.map string, fromCases typeDef cases
+                  _) ->
+      SimpleTypeArgs.fromSynTyparDecls typeParams,
+      ids |> List.map string,
+      fromCases typeDef cases
     | _ ->
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
@@ -1173,7 +1183,7 @@ module CustomType =
 
 module UserType =
   let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.UserType.T =
-    let (names, definition) = CustomType.fromSynTypeDefn typeDef
+    let (typeParamNames, names, definition) = CustomType.fromSynTypeDefn typeDef
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
@@ -1181,8 +1191,10 @@ module UserType =
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
     let modules = names |> List.initial |> Option.unwrap []
+
     { tlid = gid ()
       name = { typ = name; modules = modules; version = version }
+      typeParams = typeParamNames
       definition = definition }
 
   let resolveNames
@@ -1191,6 +1203,7 @@ module UserType =
     : PT.UserType.T =
     { tlid = t.tlid
       name = t.name
+      typeParams = t.typeParams
       definition = CustomType.resolveNames userTypes t.definition }
 
 module PackageType =
@@ -1199,7 +1212,7 @@ module PackageType =
     (modules : NonEmptyList<string>)
     (typeDef : SynTypeDefn)
     : PT.PackageType.T =
-    let (names, definition) = CustomType.fromSynTypeDefn typeDef
+    let (typeParmNames, names, definition) = CustomType.fromSynTypeDefn typeDef
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
@@ -1211,6 +1224,7 @@ module PackageType =
       name = { owner = owner; modules = modules; typ = name; version = version }
       description = ""
       deprecated = PT.NotDeprecated
+      typeParams = typeParmNames
       definition = definition }
 
   let resolveNames (f : PT.PackageType.T) : PT.PackageType.T =
@@ -1219,6 +1233,7 @@ module PackageType =
       name = f.name
       description = f.description
       deprecated = f.deprecated
+      typeParams = f.typeParams
       definition = CustomType.resolveNames Set.empty f.definition }
 
 

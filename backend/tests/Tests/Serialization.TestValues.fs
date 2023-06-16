@@ -649,6 +649,7 @@ module ProgramTypes =
   let userRecordType : PT.UserType.T =
     { tlid = 0UL
       name = { modules = []; typ = "User"; version = 0 }
+      typeParams = [ "a" ]
       definition =
         let firstField : PT.CustomType.RecordField =
           { name = "prop1"; typ = dtype; description = "desc1" }
@@ -657,6 +658,7 @@ module ProgramTypes =
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
       name = { modules = []; typ = "User"; version = 0 }
+      typeParams = [ "a" ]
       definition =
         PT.CustomType.Enum(
           { name = "caseA"; fields = []; description = "" },
@@ -692,6 +694,7 @@ module ProgramTypes =
           modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
           typ = "T"
           version = 0 }
+      typeParams = [ "a" ]
       definition =
         PT.CustomType.Enum(
           { name = "caseA"; fields = []; description = "" },

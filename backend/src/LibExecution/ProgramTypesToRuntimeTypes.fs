@@ -294,6 +294,7 @@ module UserType =
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
       name = FQTypeName.UserTypeName.toRT t.name
+      typeParams = t.typeParams
       definition = CustomType.toRT t.definition }
 
 module UserFunction =
@@ -336,4 +337,5 @@ module PackageFn =
 module PackageType =
   let toRT (t : PT.PackageType.T) : RT.PackageType.T =
     { name = FQTypeName.PackageTypeName.toRT t.name
+      typeParams = t.typeParams
       definition = CustomType.toRT t.definition }

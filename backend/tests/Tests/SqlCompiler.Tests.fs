@@ -31,7 +31,10 @@ let compile
     let field : CustomType.RecordField =
       { name = rowName; typ = rowType; description = "" }
     let userType : UserType.T =
-      { tlid = gid (); name = typeName; definition = CustomType.Record(field, []) }
+      { tlid = gid ()
+        name = typeName
+        typeParams = []
+        definition = CustomType.Record(field, []) }
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQTypeName.User typeName, [])
 

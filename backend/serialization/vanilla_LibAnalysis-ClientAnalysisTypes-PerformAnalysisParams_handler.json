@@ -2345,6 +2345,9 @@
           "typ": "User",
           "version": 0
         },
+        "typeParams": [
+          "a"
+        ],
         "definition": [
           "Record",
           {
@@ -2497,6 +2500,9 @@
           "typ": "User",
           "version": 0
         },
+        "typeParams": [
+          "a"
+        ],
         "definition": [
           "Enum",
           {
@@ -3970,6 +3976,9 @@
           "typ": "T",
           "version": 0
         },
+        "typeParams": [
+          "a"
+        ],
         "definition": [
           "Enum",
           {

@@ -145,32 +145,8 @@ let _handler _req =
 let _handler _req =
   let packages = DarkInternal.Packages.all ()
 
-  let skip =
-    match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "skip" with
-    | Nothing -> 0
-    | Just t ->
-      match Int.parse t with
-      | Ok i -> i
-      | Error _e -> 0 // TODO: err?
 
-  let take =
-    match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
-    | Nothing -> 10
-    | Just t ->
-      match Int.parse t with
-      | Ok i -> i
-      | Error _e -> 10 // TODO: err?
-
-  let packageFns = packages.fns |> List.drop skip |> List.take take
-
-  let packages = PACKAGE.Darklang.Stdlib.Packages { types = []; fns = packageFns }
-
-  let withPretty =
-    match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "pretty" with
-    | Nothing -> false
-    | Just t -> if t == "false" then false else true
-
-  let prettyPackages = PACKAGE.Darklang.PrettyPrinter.packages withPretty packages
+  let prettyPackages = PACKAGE.Darklang.PrettyPrinter.packages packages
 
   let result = prettyPackages
 

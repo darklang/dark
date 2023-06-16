@@ -340,6 +340,8 @@ module UserType =
       [<MessagePack.Key 1>]
       name : FQTypeName.UserTypeName
       [<MessagePack.Key 2>]
+      typeParams : List<string>
+      [<MessagePack.Key 3>]
       definition : CustomType.T }
 
 
@@ -412,12 +414,13 @@ module PackageType =
       id : System.Guid
       [<MessagePack.Key 2>]
       name : FQTypeName.PackageTypeName
-      // CLEANUP add type params
       [<MessagePack.Key 3>]
-      definition : CustomType.T
+      typeParams : List<string>
       [<MessagePack.Key 4>]
-      description : string
+      definition : CustomType.T
       [<MessagePack.Key 5>]
+      description : string
+      [<MessagePack.Key 6>]
       deprecated : Deprecation<FQTypeName.T> }
 
 

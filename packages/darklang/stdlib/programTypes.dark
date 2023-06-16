@@ -345,6 +345,11 @@ module Darklang =
           typeArgs: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference> *
           args: List<PACKAGE.Darklang.Stdlib.ProgramTypes.Expr>
 
+        | ERecordUpdate of
+          PACKAGE.Darklang.Stdlib.ID *
+          record: PACKAGE.Darklang.Stdlib.ProgramTypes.Expr *
+          updates: List<String * PACKAGE.Darklang.Stdlib.ProgramTypes.Expr>
+
 
       module Expr =
         let toID
@@ -371,6 +376,7 @@ module Darklang =
           | ERecord(id, _, _) -> id
           | EEnum(id, _, _, _) -> id
           | EMatch(id, _, _) -> id
+          | ERecordUpdate(id, _, _) -> id
 
 
       // Used to mark whether a function/type has been deprecated, and if so,
@@ -462,6 +468,8 @@ module Darklang =
           /// Name
           name: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.UserTypeName
 
+          typeParams: List<String>
+
           /// The type definition (Alias, Record, Enum, etc.)
           definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
         }
@@ -513,6 +521,7 @@ module Darklang =
           { tlid: PACKAGE.Darklang.Stdlib.TLID
             id: Uuid
             name: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.PackageTypeName
+            typeParams: List<String>
             definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
             description: String
             deprecated:

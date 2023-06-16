@@ -43,6 +43,7 @@ let queryableRoundtripsSuccessfullyInRecord
           Map
             [ typeName,
               { name = typeName
+                typeParams = []
                 tlid = 8UL
                 definition = S.customTypeRecord [ "field", fieldTyp ] } ] }
 
@@ -259,6 +260,7 @@ module Password =
                 [ typeName,
                   { tlid = 8UL
                     name = typeName
+                    typeParams = []
                     definition = S.customTypeRecord [ "x", RT.TPassword ] } ] }
 
 
