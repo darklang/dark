@@ -17,10 +17,10 @@ module Darklang =
           let fullForReference
             (p: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.StdlibTypeName)
             : String =
-            if u.version == 0 then
-              u.typ
+            if p.version == 0 then
+              p.typ
             else
-              $"{u.typ}_v{Int.toString u.version}"
+              $"{p.typ}_v{Int.toString p.version}"
 
 
         module PackageTypeName =
@@ -36,7 +36,7 @@ module Darklang =
           let fullForReference
             (p: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.PackageTypeName)
             : String =
-            let modulesPart = String.join " " p.modules
+            let modulesPart = String.join p.modules " "
             $"PACKAGE.{p.owner}.{modulesPart}.{p.typ}_v{Int.toString p.version}"
 
 
@@ -51,6 +51,7 @@ module Darklang =
                 u.typ
               else
                 $"{u.typ}_v{Int.toString u.version}"
+            | _ -> "(UserTypeName.atDefinition unexpected nonempty u.modules)"
 
           let fullForReference
             (u: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.UserTypeName)
@@ -98,10 +99,10 @@ module Darklang =
           let fullForReference
             (p: PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.StdlibFnName)
             : String =
-            if u.version == 0 then
-              u.function_
+            if p.version == 0 then
+              p.function_
             else
-              $"{u.function_}_v{Int.toString u.version}"
+              $"{p.function_}_v{Int.toString p.version}"
 
 
         module PackageFnName =
@@ -117,7 +118,7 @@ module Darklang =
           let fullForReference
             (p: PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.PackageFnName)
             : String =
-            let modulesPart = String.join " " p.modules
+            let modulesPart = String.join p.modules " "
             $"PACKAGE.{p.owner}.{modulesPart}.{p.function_}_v{Int.toString p.version}"
 
 
@@ -132,6 +133,7 @@ module Darklang =
                 u.function_
               else
                 $"{u.function_}_v{Int.toString u.version}"
+            | _ -> "(UserFnName.atDefinition unexpected nonempty u.modules)"
 
           let fullForReference
             (u: PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.UserFnName)
@@ -181,111 +183,140 @@ module Darklang =
         | TChar -> "Character"
         | TString -> "String"
         | TDateTime -> "DateTime"
-        | TUuid -> "UUID"
+        | TUuid -> "Uuid"
         | TBytes -> "Bytes"
         | TPassword -> "Password"
 
         | TList inner ->
-          $"List<{PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference inner}>"
+          $"List<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 
         | TTuple(first, second, theRest) ->
           (List.append [ first; second ] theRest)
           |> List.map (fun item ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference item)
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference item)
           |> String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
 
         | TOption inner ->
-          $"Option<{PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference inner}>"
+          $"Option<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 
         | TResult(ok, err) ->
-          $"Result<{PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference ok}, {PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference err}>"
+          $"Result<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference ok}, {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference err}>"
 
         | TDict inner ->
-          $"Dict<{PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference inner}>"
+          $"Dict<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 
         /// A type defined by a standard library module, a canvas/user, or a package
         /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
         /// `typeArgs` is the list of type arguments, if any
         | TCustomType(typ, args) ->
           let argsPart =
-            args
-            |> List.map (fun arg ->
-              PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference arg)
-            |> String.join ", "
+            match args with
+            | [] -> ""
+            | args ->
+              args
+              |> List.map (fun arg ->
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference arg)
+              |> String.join ", "
+              |> fun parts -> $"<{parts}>"
 
-          $"{PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference typ}<{argPart}>"
+          $"{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQTypeName.fullForReference typ}{argsPart}"
 
         | TDB inner ->
-          $"DB<{PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference inner}>"
+          $"DB<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 
         | TFn(args, ret) ->
           let argPart =
             args
             |> List.map (fun arg ->
-              PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference arg)
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference arg)
             |> String.join ", "
             |> fun parts -> "(" ++ parts ++ ")"
 
-          $"{argPart} -> {typeReference ret}"
+          $"{argPart} -> {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference ret}"
+        | _ ->
+          let s =
+            match
+              Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference> t
+            with
+            | Ok s -> s
+            | Error e -> "Err" ++ e
+
+          $"({s})"
+
+      let letPattern (lp: PACKAGE.Darklang.Stdlib.ProgramTypes.LetPattern) : String =
+        match lp with
+        | LPVariable(_id, name) -> name
+        | LPTuple(_id, first, second, theRest) ->
+          (List.append [ first; second ] theRest)
+          |> List.map (fun item ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.letPattern item)
+          |> String.join ", "
+          |> fun parts -> "(" ++ parts ++ ")"
 
       let matchPattern
         (mp: PACKAGE.Darklang.Stdlib.ProgramTypes.MatchPattern)
         : String =
         match mp with
         | MPVariable(_id, name) -> name
-        | MPUnit _id -> "()"
-        | MPBool(_id, b) -> Bool.toString b
-        | MPInt(_id, i) -> Int.toString i
-        | MPFloat(_id, sign, whole, remainder) ->
-          let wholePart = Int.toString whole
+        // | MPUnit _id -> "()"
+        // | MPBool(_id, b) -> Bool.toString b
+        // | MPInt(_id, i) -> Int.toString i
+        // | MPFloat(_id, sign, whole, remainder) ->
+        //   let wholePart = Int.toString whole
 
-          let remainderPart =
-            match remainder with
-            | None -> ""
-            | Some r -> $".{Int.toString r}"
+        //   let remainderPart =
+        //     match remainder with
+        //     | Nothing -> ""
+        //     | Just r -> $".{Int.toString r}"
 
-          $"{PACKAGE.Darklang.Stdlib.PrettyPrinter.sign sign}{wholePart}{remainderPart}"
+        //   $"{PACKAGE.Darklang.PrettyPrinter.sign sign}{wholePart}{remainderPart}"
 
-        | MPChar(_id, c) -> c
-        | MPString(_id, s) -> s
+        // | MPChar(_id, c) -> c
+        // | MPString(_id, s) -> s
 
         | MPList(_id, items) ->
           items
           |> List.map (fun item ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.matchPattern item)
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern item)
           |> String.join ", "
           |> fun parts -> "[" ++ parts ++ "]"
 
         | MPListCons(_id, head, tail) ->
           let headPart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.matchPattern head
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern head
 
           let tailPart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.matchPattern tail
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern tail
 
           $"{headPart} :: {tailPart}"
 
-        | MPTuple(_, first, second, theRest) ->
-          (List.append [ first; second ] theRest)
-          |> List.map (fun item ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.matchPattern item)
-          |> String.join ", "
-          |> fun parts -> "(" ++ parts ++ ")"
+        // | MPTuple(_, first, second, theRest) ->
+        //   (List.append [ first; second ] theRest)
+        //   |> List.map (fun item -> PACKAGE.Darklang.PrettyPrinter.matchPattern item)
+        //   |> String.join ", "
+        //   |> fun parts -> "(" ++ parts ++ ")"
 
         | MPEnum(_id, caseName, fieldPats) ->
           match fieldPats with
           | [] -> caseName
           | [ single ] ->
-            $"{caseName} {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.matchPattern single}"
+            $"{caseName} {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern single}"
           | fieldPats ->
             let fieldPart =
               fieldPats
-              |> List.map (fun (name, pat) ->
-                $"{name} = {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.matchPattern pat}")
+              |> List.map (fun pat ->
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern pat)
               |> String.join ", "
 
             $"{caseName} ({fieldPart})"
+          | _ -> "what"
+        | _ ->
+          match
+            Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.MatchPattern> mp
+          with
+          | Ok s -> $"TODO: {s}"
+          | Error e -> $"Error: {e}"
 
 
       let binaryOperation
@@ -320,12 +351,38 @@ module Darklang =
         | BinOp b -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.binaryOperation b
 
       let stringSegment
-        (atRoot: Bool)
         (s: PACKAGE.Darklang.Stdlib.ProgramTypes.StringSegment)
         : String =
-        "TODO"
+        // match s with
+        // | StringText text -> text
+        // | StringInterpolation expr ->
+        //   //$"{{{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr}}}"
+        "(TODO: string interpolation (sometimes fails because not string)"
 
       let pipeExpr (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr) : String =
+        // | EPipeVariable of PACKAGE.Darklang.Stdlib.ID * String
+
+        // | EPipeLambda of
+        //   PACKAGE.Darklang.Stdlib.ID *
+        //   List<PACKAGE.Darklang.Stdlib.ID * String> *
+        //   PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
+
+        // | EPipeInfix of
+        //   PACKAGE.Darklang.Stdlib.ID *
+        //   PACKAGE.Darklang.Stdlib.ProgramTypes.Infix *
+        //   PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
+
+        // | EPipeFnCall of
+        //   PACKAGE.Darklang.Stdlib.ID *
+        //   PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.T *
+        //   typeArgs: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference> *
+        //   args: List<PACKAGE.Darklang.Stdlib.ProgramTypes.Expr>
+
+        // | EPipeEnum of
+        //   PACKAGE.Darklang.Stdlib.ID *
+        //   typeName: PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.T *
+        //   caseName: String *
+        //   fields: List<PACKAGE.Darklang.Stdlib.ProgramTypes.Expr>
         "TODO"
 
       let expr (e: PACKAGE.Darklang.Stdlib.ProgramTypes.Expr) : String =
@@ -336,16 +393,16 @@ module Darklang =
 
         | EBool(_id, b) -> Bool.toString b
         | EInt(_id, i) -> Int.toString i
-        | EFloat(_id, sign, whole, remainder) ->
-          let signPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.sign sign
-          let wholePart = Int.toString whole
+        // | EFloat(_id, sign, whole, remainder) ->
+        //   let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
+        //   let wholePart = Int.toString whole
 
-          let remainderPart =
-            match remainder with
-            | None -> ""
-            | Some r -> $".{Int.toString r}"
+        //   let remainderPart =
+        //     match remainder with
+        //     | Nothing -> ""
+        //     | Just r -> $".{Int.toString r}"
 
-          $"{signPart}{wholePart}{remainderPart}"
+        //   $"{signPart}{wholePart}{remainderPart}"
 
         /// A character is an Extended Grapheme Cluster (hence why we use a string). This
         /// is equivalent to one screen-visible "character" in Unicode.
@@ -355,12 +412,12 @@ module Darklang =
           let inner =
             segments
             |> List.map (fun segment ->
-              PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.stringSegment
-                false
-                segment)
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.stringSegment segment)
             |> String.join ""
 
-          $"\"{inner}\""
+          // TODO: it doesn't always have to include the $ before
+          // (check if there are any string interpolation segments)
+          $"$\"{inner}\""
 
 
         // structures of data
@@ -368,7 +425,7 @@ module Darklang =
         | EList(_id, items) ->
           items
           |> List.map (fun item ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr item)
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr item)
           |> String.join "; "
           |> fun parts -> "[" ++ parts ++ "]"
 
@@ -376,32 +433,22 @@ module Darklang =
         //   PACKAGE.Darklang.Stdlib.ID *
         //   List<String * PACKAGE.Darklang.Stdlib.ProgramTypes.Expr>
 
-        | ETuple(_id, first, second, theRest) ->
-          (List.append [ first; second ] theRest)
-          |> List.map (fun item ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr item)
-          |> String.join ", "
-          |> fun parts -> "(" ++ parts ++ ")"
+        // | ETuple(_id, first, second, theRest) ->
+        //   (List.append [ first; second ] theRest)
+        //   |> List.map (fun item ->
+        //     PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr item)
+        //   |> String.join ", "
+        //   |> fun parts -> "(" ++ parts ++ ")"
 
-        | ERecord(_id, name, fields) ->
-          let fieldPart =
-            fields
-            |> List.map (fun (name, expr) ->
-              $"{name} = {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr expr}")
-            |> String.join ", "
+        // | ERecord(_id, name, fields) ->
+        //   let fieldPart =
+        //     fields
+        //     |> List.map (fun (name, expr) ->
+        //       $"{name} = {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr}")
+        //     |> String.join ", "
 
-          $"{name} {{ {fieldPart} }}"
+        //   $"{name} {{ {fieldPart} }}"
 
-        // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
-        // as user-defined enums.
-        //
-        /// Given an Enum type of:
-        ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
-        /// , this is the expression
-        ///   `C (1, "title")`
-        /// represented as
-        ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
-        /// TODO: the UserTypeName should eventually be a non-optional FQTypeName.
         | EEnum(_id, typeName, caseName, fields) ->
           match fields with
           | [] -> $"{typeName}.{caseName}"
@@ -409,7 +456,7 @@ module Darklang =
             let fieldPart =
               fields
               |> List.map (fun field ->
-                PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr field)
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr field)
               |> String.join ", "
 
             $"{typeName}.{caseName}({fieldPart})"
@@ -419,93 +466,92 @@ module Darklang =
 
         | ELet(_id, pattern, rhs, body) ->
           let patternPart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.matchPattern pattern
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.letPattern pattern
 
-          let rhsPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr rhs
-
-          let bodyPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr body
+          let rhsPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr rhs
+          let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
 
           $"let {patternPart} = {rhsPart} in {bodyPart}"
 
         | EFieldAccess(id, expr, fieldName) ->
-          let exprPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr expr
+          let exprPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr
 
-          // TODO: might need to wrap exprPart in parens
+          // TODO: only sometimes need to wrap exprPart in parens
 
-          $"{exprPart}.{fieldName}"
+          $"({exprPart}).{fieldName}"
 
-        | EVariable(id, name) -> name
+        | EVariable(_id, name) -> name
 
 
-        // control flow
+        // // control flow
 
         | EIf(id, cond, thenBranch, elseBranch) ->
-          let condPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr cond
+          let condPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr cond
 
-          let thenPart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr thenBranch
+          let thenPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr thenBranch
 
-          let elsePart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr elseBranch
+          let elsePart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr elseBranch
 
           $"if {condPart} then {thenPart} else {elsePart}"
 
         | EMatch(_id, arg, cases) ->
           let cases =
             cases
-            |> List.map (fun (pattern, body) ->
-              let patternPart =
-                PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.matchPattern
-                  pattern
+            |> List.map (fun pair ->
+              let (pattern, body) = pair
 
-              let bodyPart =
-                PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr body
+              let patternPart =
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.matchPattern pattern
+
+              let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
 
               $"| {patternPart} -> {bodyPart}")
 
-          let casesPart = String.join "\n" cases
+          let casesPart = String.join cases "\n"
 
-          let argPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr arg
+          let argPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr arg
 
           $"match {argPart} with \n{casesPart}"
 
 
-        // | EPipe of
-        //   PACKAGE.Darklang.Stdlib.ID *
-        //   PACKAGE.Darklang.Stdlib.ProgramTypes.Expr *
-        //   PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr *
-        //   List<PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr>
+        | EPipe(_id, expr, pipeExpr, otherPipeExprs) ->
+          // PACKAGE.Darklang.Stdlib.ID *
+          // PACKAGE.Darklang.Stdlib.ProgramTypes.Expr *
+          // PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr *
+          // List<PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr>
+          let exprPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr
+          $"{exprPart} |> "
 
 
-        // function calls
+        // // function calls
 
-        | EInfix(_id, infix, left, right) ->
-          let infixPart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.infix infix
+        // | EInfix(_id, infix, left, right) ->
+        //   let infixPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.infix infix
 
-          let leftPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr left
+        //   let leftPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr left
 
-          let rightPart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr right
+        //   let rightPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr right
 
-          // TODO: might need to wrap in parens
-          $"{leftPart} {infixPart} {rightPart}"
+        //   // TODO: might need to wrap in parens
+        //   $"{leftPart} {infixPart} {rightPart}"
 
-        | ELambda(_id, args, body) ->
-          let argsPart =
-            args |> String.join ", " |> (fun parts -> "(" ++ parts ++ ")")
+        // | ELambda(_id, args, body) ->
+        //   let argsPart =
+        //     args |> String.join ", " |> (fun parts -> "(" ++ parts ++ ")")
 
-          let bodyPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr body
+        //   let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
 
-          $"fun {argsPart} -> {bodyPart}"
+        //   $"fun {argsPart} -> {bodyPart}"
 
         | EFnCall(_id, fnName, typeArgs, args) ->
           let fnNamePart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.FQFnName.fullForReference fnName
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQFnName.fullForReference
+              fnName
 
           let argsPart =
             args
-            |> List.map (fun arg -> PACKAGE.Darklang.Stdlib.PrettyPrinter.expr arg)
+            |> List.map (fun arg ->
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr arg)
             |> String.join " "
 
           match typeArgs with
@@ -514,10 +560,14 @@ module Darklang =
             let typeArgsPart =
               typeArgs
               |> List.map (fun typeArg ->
-                PACKAGE.Darklang.Stdlib.PrettyPrinter.typeReference typeArg)
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference typeArg)
               |> String.join ", "
 
             $"{fnNamePart}<{typeArgsPart}> {argsPart}"
+        | _ ->
+          match Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.Expr> e with
+          | Ok s -> $"TODO: {s}"
+          | Error e -> $"Error: {e}"
 
       let deprecation<'name>
         (m: 'name -> String)
@@ -534,31 +584,31 @@ module Darklang =
           (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.RecordField)
           : String =
           // TODO: /// for description
-          $"{d.name} : {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference d.typ}"
+          $"{d.name} : {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference d.typ}"
 
         let enumField
           (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumField)
           : String =
           match d.label with
-          | None ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference d.typ
-          | Some label ->
-            $"{label} : {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference d.typ}"
+          | Nothing ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference d.typ
+          | Just label ->
+            $"{label}: {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference d.typ}"
 
         let enumCase
           (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumCase)
           : String =
           match d.fields with
-          | [] -> d.name
+          | [] -> "| " ++ d.name
           | fields ->
             let fieldPart =
               fields
               |> List.map (fun field ->
-                PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.CustomType.enumField
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.CustomType.enumField
                   field)
               |> String.join " * "
 
-            $"{d.name} of {fieldPart}"
+            $"| {d.name} of {fieldPart}"
 
 
       let customType
@@ -566,22 +616,25 @@ module Darklang =
         : String =
         match d with
         | Alias typeRef ->
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference typeRef
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference typeRef
 
         | Record(firstField, additionalFields) ->
-          (List.append [ firstField ] additionalFields)
-          |> List.map (fun field ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.CustomType.recordField
-              field)
-          |> String.join "; "
-          |> fun fields -> "{ " ++ fields ++ " }"
+          let fieldsPart =
+            (List.append [ firstField ] additionalFields)
+            |> List.map (fun field ->
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.CustomType.recordField
+                field)
+            |> String.join "\n"
+
+          "{\n" ++ (PACKAGE.Darklang.PrettyPrinter.indent fieldsPart) ++ "\n}"
 
         | Enum(firstCase, additionalCases) ->
+          let cases = List.append [ firstCase ] additionalCases
+
           cases
           |> List.map (fun case ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.CustomType.enumCase
-              case)
-          |> String.join " | "
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.CustomType.enumCase case)
+          |> String.join "\n"
 
 
       module Handler =
@@ -601,14 +654,14 @@ module Darklang =
           | HTTP(route, method) -> $"[<HttpHandler({method}, {route})>]"
           | Worker name -> $"[<Worker({name})>]"
           | Cron(name, interval) ->
-            $"[<Cron({name}, {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.Handler.cronInterval interval})>]"
+            $"[<Cron({name}, {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.Handler.cronInterval interval})>]"
           | REPL name -> $"[<REPL({name})>]"
 
       let handler (h: PACKAGE.Darklang.Stdlib.ProgramTypes.Handler.T) : String =
         let specPart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.Handler.spec h.spec
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.Handler.spec h.spec
 
-        $"{specPart}\nlet _handler _ignored =\n  {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr h.ast}"
+        $"{specPart}\nlet _handler _ignored =\n  {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr h.ast}"
 
 
       let db (db: PACKAGE.Darklang.Stdlib.ProgramTypes.DB.T) : String =
@@ -619,7 +672,7 @@ module Darklang =
             $"_v{Int.toString db.version}"
 
         let typPart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference db.typ
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference db.typ
 
         $"type {db.name}{versionPart} = {typPart}"
 
@@ -634,7 +687,7 @@ module Darklang =
         let defPart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.customType userType.definition
 
-        $"type {namePart} = {defPart}"
+        $"type {namePart} =\n{PACKAGE.Darklang.PrettyPrinter.indent defPart}"
 
 
       module UserFunction =
@@ -643,7 +696,7 @@ module Darklang =
           : String =
           // TODO: handle `description`
           let typPart =
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference p.typ
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.typ
 
           $"({p.name}: {typPart})"
 
@@ -653,23 +706,21 @@ module Darklang =
         // TODO: do something with description and deprecated
         // TODO: shouldn't there be modules here somewhere?
         let namePart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.FQFnName.userFnName
-            u.name
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQFnName.userFnName u.name
 
-        let typeParamsPart = String.join " " u.typeParams
+        let typeParamsPart = String.join u.typeParams " "
 
         let paramsPart =
           String.join
-            " "
             (List.map
-              PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.UserFunction.parameter
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.UserFunction.parameter
               u.parameters)
+            " "
 
         let retPart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference
-            u.returnType
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference u.returnType
 
-        let bodyPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr u.body
+        let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr u.body
         $"let {namePart} {typeParamsPart} {paramsPart} : {retPart} =\n  {bodyPart}"
 
       // module Toplevel =
@@ -691,12 +742,12 @@ module Darklang =
           (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.Parameter)
           : String =
           // TODO: /// for description
-          $"({p.name}: {PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference p.typ})"
+          $"({p.name}: {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.typ})"
 
       let packageFn (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T) : String =
         // TODO: handle `deprecated`, `description`
         let namePart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.FQFnName.packageFnName
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQFnName.PackageFnName.atDefinition
             p.name
 
         let typeParamPart =
@@ -711,15 +762,13 @@ module Darklang =
         let paramPart =
           p.parameters
           |> List.map (fun param ->
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.PackageFn.parameter
-              param)
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.PackageFn.parameter param)
           |> String.join " "
 
         let retPart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.typeReference
-            p.returnType
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.returnType
 
-        let bodyPart = PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.expr p.body
+        let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr p.body
 
         $"let {namePart}{typeParamPart} {paramPart} : {retPart} =\n  {bodyPart}"
 
@@ -729,10 +778,11 @@ module Darklang =
         : String =
         // TODO: take care of deprecated and description
         let namePart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.FQTypeName.packageTypeName
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQTypeName.PackageTypeName.atDefinition
             p.name
 
         let defPart =
-          PACKAGE.Darklang.Stdlib.PrettyPrinter.ProgramTypes.customType p.definition
+          (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.customType p.definition)
+          |> PACKAGE.Darklang.PrettyPrinter.indent
 
-        $"type {namePart} =\n  {defPart}"
+        $"type {namePart} =\n{defPart}"

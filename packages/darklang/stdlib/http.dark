@@ -1,6 +1,42 @@
 module Darklang =
   module Stdlib =
     module Http =
+      type Request =
+        { url: String
+          headers: List<String * String>
+          body: Bytes }
+
+      module Request =
+        let queryParams
+          (req: PACKAGE.Darklang.Stdlib.Http.Request)
+          : List<String * String> =
+          match req.url |> String.split "?" with
+          | [] -> []
+          | _ :: queryParts ->
+            (String.join queryParts "")
+            |> String.split "&"
+            |> List.map (fun param ->
+              match String.split param "=" with
+              | [ key; value ] -> (key, value)
+              | _ -> (param, ""))
+
+        let queryParam
+          (req: PACKAGE.Darklang.Stdlib.Http.Request)
+          (key: String)
+          : Option<String> =
+          let found =
+            (PACKAGE.Darklang.Stdlib.Http.Request.queryParams req)
+            |> List.filterMap (fun pair ->
+              match pair with
+              | (k, v) -> if k == key then Just v else Nothing
+              | _ -> Nothing)
+
+          match found with
+          | [] -> Nothing
+          | [ v ] -> Just v
+          // TODO: something else?
+          | items -> Just(String.join items ",")
+
 
       type Response =
         { statusCode: Int

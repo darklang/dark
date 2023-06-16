@@ -4,6 +4,14 @@
 
 module Darklang =
   module PrettyPrinter =
+    let indent (s: String) : String =
+      s
+      |> String.split "\n"
+      |> List.map (fun line ->
+        match line with
+        | "" -> ""
+        | line -> "  " ++ line)
+      |> String.join "\n"
 
     let sign (s: PACKAGE.Darklang.Stdlib.Sign) : String =
       match s with

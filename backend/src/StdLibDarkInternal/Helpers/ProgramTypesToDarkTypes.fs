@@ -68,10 +68,13 @@ module FQTypeName =
       )
 
   let toDT (u : PT.FQTypeName.T) : Dval =
-    match u with
-    | PT.FQTypeName.User u -> UserTypeName.toDT u
-    | PT.FQTypeName.Package u -> PackageTypeName.toDT u
-    | PT.FQTypeName.Stdlib u -> StdlibTypeName.toDT u
+    let caseName, fields =
+      match u with
+      | PT.FQTypeName.User u -> "User", [ UserTypeName.toDT u ]
+      | PT.FQTypeName.Package u -> "Package", [ PackageTypeName.toDT u ]
+      | PT.FQTypeName.Stdlib u -> "Stdlib", [ StdlibTypeName.toDT u ]
+
+    DEnum(ptTyp [ "FQTypeName" ] "T" 0, caseName, fields)
 
 
 module FQFnName =
@@ -107,10 +110,13 @@ module FQFnName =
       )
 
   let toDT (u : PT.FQFnName.T) : Dval =
-    match u with
-    | PT.FQFnName.User u -> UserFnName.toDT u
-    | PT.FQFnName.Package u -> PackageFnName.toDT u
-    | PT.FQFnName.Stdlib u -> StdlibFnName.toDT u
+    let caseName, fields =
+      match u with
+      | PT.FQFnName.User u -> "User", [ UserFnName.toDT u ]
+      | PT.FQFnName.Package u -> "Package", [ PackageFnName.toDT u ]
+      | PT.FQFnName.Stdlib u -> "Stdlib", [ StdlibFnName.toDT u ]
+
+    DEnum(ptTyp [ "FQFnName" ] "T" 0, caseName, fields)
 
 
 module TypeReference =
@@ -133,8 +139,7 @@ module TypeReference =
       | PT.TList inner -> "TList", [ toDT inner ]
 
       | PT.TTuple(first, second, theRest) ->
-        let all = [ first; second ] @ theRest
-        "TTuple", [ DList(List.map toDT all) ]
+        "TTuple", [ toDT first; toDT second; DList(List.map toDT theRest) ]
 
       | PT.TDict inner -> "TDict", [ toDT inner ]
 
@@ -154,8 +159,8 @@ module LetPattern =
       match p with
       | PT.LPVariable(id, name) -> "LPVariable", [ DInt(int64 id); DString name ]
       | PT.LPTuple(id, first, second, theRest) ->
-        let all = [ first; second ] @ theRest
-        "LPTuple", [ DInt(int64 id); DList(List.map toDT all) ]
+        "LPTuple",
+        [ DInt(int64 id); toDT first; toDT second; DList(List.map toDT theRest) ]
 
     DEnum(ptTyp [] "LetPattern" 0, name, fields)
 
@@ -179,12 +184,11 @@ module MatchPattern =
       | PT.MPListCons(id, head, tail) ->
         "MPListCons", [ DInt(int64 id); toDT head; toDT tail ]
       | PT.MPTuple(id, first, second, theRest) ->
-        let all = [ first; second ] @ theRest
-        "MPTuple", [ DInt(int64 id); DList(List.map toDT all) ]
+        "MPTuple",
+        [ DInt(int64 id); toDT first; toDT second; DList(List.map toDT theRest) ]
       | PT.MPEnum(id, caseName, fieldPats) ->
         "MPEnum",
         [ DInt(int64 id); DString caseName; DList(List.map toDT fieldPats) ]
-
 
     DEnum(ptTyp [] "MatchPattern" 0, name, fields)
 
@@ -424,24 +428,20 @@ module CustomType =
       )
 
   let toDT (d : PT.CustomType.T) : Dval =
-    match d with
-    | PT.CustomType.Alias typeRef ->
-      DEnum(ptTyp [ "CustomType" ] "T" 0, "Alias", [ TypeReference.toDT typeRef ])
+    let caseName, fields =
+      match d with
+      | PT.CustomType.Alias typeRef -> "Alias", [ TypeReference.toDT typeRef ]
 
-    | PT.CustomType.Record(firstField, additionalFields) ->
-      DEnum(
-        ptTyp [ "CustomType" ] "T" 0,
+      | PT.CustomType.Record(firstField, additionalFields) ->
         "Record",
         [ RecordField.toDT firstField
           DList(List.map RecordField.toDT additionalFields) ]
-      )
 
-    | PT.CustomType.Enum(firstCase, additionalCases) ->
-      DEnum(
-        ptTyp [ "CustomType" ] "T" 0,
+      | PT.CustomType.Enum(firstCase, additionalCases) ->
         "Enum",
         [ EnumCase.toDT firstCase; DList(List.map EnumCase.toDT additionalCases) ]
-      )
+
+    DEnum(ptTyp [ "CustomType" ] "T" 0, caseName, fields)
 
 module Handler =
   module CronInterval =
@@ -492,7 +492,6 @@ module DB =
 
 
 module UserType =
-  // TODO: why are we sneaking in tlid?
   let toDT (userType : PT.UserType.T) : Dval =
     DRecord(
       ptTyp [] "UserType" 0,
@@ -529,7 +528,7 @@ module UserFunction =
     )
 
 module Secret =
-  let toDT (s: PT.Secret.T) : Dval =
+  let toDT (s : PT.Secret.T) : Dval =
     DRecord(
       ptTyp [ "Secret" ] "T" 0,
       Map

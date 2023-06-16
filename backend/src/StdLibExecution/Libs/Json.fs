@@ -105,6 +105,14 @@ let rec serialize
         o)
 
   | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
+    let ts = t1 :: t2 :: trest
+    let ds = d1 :: d2 :: rest
+
+    if List.length ts <> List.length ds then
+      Exception.raiseInternal
+        $"Not sure what to do with mismatched tuple ({ds} doesn't match {ts})"
+        []
+
     let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
     w.writeArray (fun () -> List.iter (fun (t, d) -> r t d) zipped)
 
@@ -142,17 +150,30 @@ let rec serialize
         let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
         // TODO: ensure that the field count is the same
 
+        if List.length fieldDefs <> List.length fields then
+          Exception.raiseInternal
+            $"Couldn't serialize Enum as incorrect # of fields provided"
+            [ "defs", fieldDefs
+              "fields", fields
+              "typeName", typeName
+              "caseName", caseName ]
+
         w.writeObject (fun () ->
           w.WritePropertyName caseName
           w.writeArray (fun () ->
             List.zip fieldDefs fields
-            |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+            |> List.iter (fun (fieldDef, fieldVal) ->
+              (try
+                r fieldDef fieldVal
+               with e ->
+                 raise e))))
       | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
     | Some(CustomType.Record(firstField, additionalFields)) ->
       match dval with
-      | DRecord(recordTypeName, dvalMap) when recordTypeName = typeName ->
+      | DRecord(actualTypeName, dvalMap) when actualTypeName = typeName ->
         let fieldDefs = firstField :: additionalFields
+
         w.writeObject (fun () ->
           dvalMap
           |> Map.toList
@@ -377,9 +398,16 @@ let parse
           // TODO: handle 0 or 2+ matching cases
           let j = j.EnumerateArray() |> Seq.toList
           // TODO: handle when lists aren't of same len
+
+          if List.length matchingCase.fields <> List.length j then
+            Exception.raiseInternal
+              $"Couldn't parse Enum as incorrect # of fields provided"
+              []
+
           let mapped =
             List.zip matchingCase.fields j
             |> List.map (fun (typ, j) -> convert typ.typ j)
+
           DEnum(typeName, caseName, mapped)
 
         | _ -> Exception.raiseInternal "TODO" []

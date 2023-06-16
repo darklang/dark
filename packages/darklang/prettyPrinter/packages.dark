@@ -17,19 +17,32 @@ module Darklang =
 
       type ModulelessPackageType =
         { tlid: PACKAGE.Darklang.Stdlib.TLID
-          id: UUID
-          name:
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.Packages.ModulelessPackageTypeName
+          id: Uuid
+          name: PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageTypeName
           definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
           description: String
           deprecated:
             PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.T> }
 
+      let packageTypeWithoutModules
+        (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T)
+        : PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageType =
+        PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageType
+          { tlid = p.tlid
+            id = p.id
+            name =
+              PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageTypeName
+                { owner = p.name.owner
+                  typ = p.name.typ
+                  version = p.name.version }
+            definition = p.definition
+            description = p.description
+            deprecated = p.deprecated }
+
       type ModulelessPackageFn =
         { tlid: PACKAGE.Darklang.Stdlib.TLID
-          id: UUID
-          name:
-            PACKAGE.Darklang.Stdlib.PrettyPrinter.Packages.ModulelessPackageFnName
+          id: Uuid
+          name: PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageFnName
           body: PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
           typeParams: List<String>
           parameters: List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.Parameter>
@@ -38,29 +51,58 @@ module Darklang =
           deprecated:
             PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.T> }
 
+      let packageFnWithoutModules
+        (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
+        : PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageFn =
+        PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageFn
+          { tlid = p.tlid
+            id = p.id
+            name =
+              PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageFnName
+                { owner = p.name.owner
+                  function_ = p.name.function_
+                  version = p.name.version }
+            body = p.body
+            typeParams = p.typeParams
+            parameters = p.parameters
+            returnType = p.returnType
+            description = p.description
+            deprecated = p.deprecated }
+
       type Module =
         { name: String
-          types:
-            List<PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageTypeName>
-          fns: List<PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageFnName>
-          submodules: List<Module> }
+          types: List<PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageType>
+          fns: List<PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageFn>
+          submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> }
 
       let withType
         (ms: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>)
         (t: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T)
-        : PACKAGE.Darklang.PrettyPrinter.Packages.Module =
+        : List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> =
         match t.name.modules with
+        | [] ->
+          [ PACKAGE.Darklang.PrettyPrinter.Packages.Module
+              { name =
+                  (t.name
+                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQTypeName.PackageTypeName.fullForReference)
+                  ++ "has no modules"
+                types = []
+                fns = []
+                submodules = [] } ]
+
         | firstModuleNamePart :: submoduleNames ->
           // TODO: check if firstModuleNamePart is already in m
           let (foundModuleMaybe, otherModules) =
             ms |> List.partition (fun m -> m.name == firstModuleNamePart)
 
-          match foundModuleMaybe, submoduleNames with
+          match (foundModuleMaybe, submoduleNames) with
           | [], [] ->
             let newModule =
               PACKAGE.Darklang.PrettyPrinter.Packages.Module
                 { name = firstModuleNamePart
-                  types = [ t ] // TODO: transform to Moduleless variant
+                  types =
+                    [ PACKAGE.Darklang.PrettyPrinter.Packages.packageTypeWithoutModules
+                        t ]
                   fns = []
                   submodules = [] }
 
@@ -68,70 +110,43 @@ module Darklang =
 
           | [], submoduleNames ->
             let typeWithoutFirstModuleNamePartOfModule =
-              PACKAGE.Darklang.Stdlib.ProgramTypes.UserType.T
-                { tlid = t.tlid
-                  id = t.id
-                  name =
-                    PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFnName
-                      { owner = t.name.owner
-                        modules = submoduleNames
-                        typ = t.name.typ
-                        version = t.name.version }
-                  definition = t.definition
-                  description = t.description
-                  deprecated = t.deprecated }
+              { t with
+                  name = { t.name with modules = submoduleNames } }
 
             let newModuleWithSubmodule =
               PACKAGE.Darklang.PrettyPrinter.Packages.Module
                 { name = firstModuleNamePart
                   types = []
                   fns = []
-                  submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
+                  submodules =
+                    PACKAGE.Darklang.PrettyPrinter.Packages.withType
+                      []
+                      typeWithoutFirstModuleNamePartOfModule }
 
             List.append otherModules [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
-            // we're in the exact right module - just add the type
             let updatedModule =
-              PACKAGE.Darklang.PrettyPrinter.Packages.Module
-                { name = foundModule.name
-                  types = List.append foundModule.types [ t ]
-                  fns = foundModule.fns
-                  submodules = foundModule.submodules }
+              { foundModule with
+                  types =
+                    List.append
+                      foundModule.types
+                      [ PACKAGE.Darklang.PrettyPrinter.Packages.packageTypeWithoutModules
+                          t ] }
 
             List.append otherModules [ updatedModule ]
 
-          | [ foundModule ], otherParts ->
-            // we need to add this type to some new submodule
-            // of a new module we're adding
+          | [ foundModule ], submoduleNames ->
             let typeWithoutFirstModuleNamePartOfModule =
-              PACKAGE.Darklang.Stdlib.ProgramTypes.UserType.T
-                { tlid = t.tlid
-                  id = t.id
-                  name =
-                    PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFnName
-                      { owner = t.name.owner
-                        modules = submoduleNames
-                        typ = t.name.typ
-                        version = t.name.version }
-                  definition = t.definition
-                  description = t.description
-                  deprecated = t.deprecated }
-
-            let newModuleWithSubmodule =
-              PACKAGE.Darklang.PrettyPrinter.Packages.Module
-                { name = firstModuleNamePart
-                  types = []
-                  fns = []
-                  submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
+              { t with
+                  name = { t.name with modules = submoduleNames } }
 
             let updatedModule =
-              PACKAGE.Darklang.PrettyPrinter.Packages.Module
-                { name = foundModule.name
-                  types = foundModule.types
-                  fns = foundModule.fns
+              { foundModule with
                   submodules =
-                    List.append foundModule.submodules [ newModuleWithSubmodule ] }
+                    PACKAGE.Darklang.PrettyPrinter.Packages.withType
+                      foundModule.submodules
+                      typeWithoutFirstModuleNamePartOfModule }
 
             List.append otherModules [ updatedModule ]
 
@@ -139,9 +154,76 @@ module Darklang =
       let withFn
         (ms: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>)
         (f: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
-        : PACKAGE.Darklang.PrettyPrinter.Packages.Module =
-        // TODO
-        m
+        : List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> =
+        match f.name.modules with
+        | [] ->
+          [ PACKAGE.Darklang.PrettyPrinter.Packages.Module
+              { name =
+                  (f.name
+                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQFnName.PackageFnName.fullForReference)
+                  ++ "has no modules"
+                types = []
+                fns = []
+                submodules = [] } ]
+
+        | firstModuleNamePart :: submoduleNames ->
+          let (foundModuleMaybe, otherModules) =
+            ms |> List.partition (fun m -> m.name == firstModuleNamePart)
+
+          match (foundModuleMaybe, submoduleNames) with
+          | [], [] ->
+            let newModule =
+              PACKAGE.Darklang.PrettyPrinter.Packages.Module
+                { name = firstModuleNamePart
+                  types = []
+                  fns =
+                    [ PACKAGE.Darklang.PrettyPrinter.Packages.packageFnWithoutModules
+                        f ]
+                  submodules = [] }
+
+            List.append otherModules [ newModule ]
+
+          | [], submoduleNames ->
+            let fnWithoutFirstModuleNamePartOfModule =
+              { f with
+                  name = { f.name with modules = submoduleNames } }
+
+            let newModuleWithSubmodule =
+              PACKAGE.Darklang.PrettyPrinter.Packages.Module
+                { name = firstModuleNamePart
+                  types = []
+                  fns = []
+                  submodules =
+                    PACKAGE.Darklang.PrettyPrinter.Packages.withFn
+                      []
+                      fnWithoutFirstModuleNamePartOfModule }
+
+            List.append otherModules [ newModuleWithSubmodule ]
+
+          | [ foundModule ], [] ->
+            let updatedModule =
+              { foundModule with
+                  fns =
+                    List.append
+                      foundModule.fns
+                      [ PACKAGE.Darklang.PrettyPrinter.Packages.packageFnWithoutModules
+                          f ] }
+
+            List.append otherModules [ updatedModule ]
+
+          | [ foundModule ], submoduleNames ->
+            let fnWithoutFirstModuleNamePartOfModule =
+              { f with
+                  name = { f.name with modules = submoduleNames } }
+
+            let updatedModule =
+              { foundModule with
+                  submodules =
+                    PACKAGE.Darklang.PrettyPrinter.Packages.withFn
+                      foundModule.submodules
+                      fnWithoutFirstModuleNamePartOfModule }
+
+            List.append otherModules [ updatedModule ]
 
       let toModules
         (p: PACKAGE.Darklang.Stdlib.Packages)
@@ -149,34 +231,134 @@ module Darklang =
         let empty = []
 
         let modulesAfterTypes =
-          p.types
-          |> List.fold
-            (fun (modules, t) ->
-              PACKAGE.Darklang.PrettyPrinter.Packages.withType modules t)
-            empty
+          List.fold p.types empty (fun (modules, t) ->
+            PACKAGE.Darklang.PrettyPrinter.Packages.withType modules t)
 
         let modulesWithTypesAndFns =
-          p.fns
-          |> List.fold
-            (fun (modules, f) ->
-              PACKAGE.Darklang.PrettyPrinter.Packages.withFn modules f)
-            modulesAfterTypes
+          List.fold p.fns modulesAfterTypes (fun (modules, f) ->
+            PACKAGE.Darklang.PrettyPrinter.Packages.withFn modules f)
 
         modulesWithTypesAndFns
 
 
-    let packageModule
-      (indentSoFar: Int)
-      (m: PACKAGE.Darklang.PrettyPrinter.Packages.Module)
-      : String =
-      $"module {m.name} =\n  TODO: types\n TODO: fns\n TODO: submodules"
+    let packageModule (m: PACKAGE.Darklang.PrettyPrinter.Packages.Module) : String =
+      let headerPart = $"module {m.name} =\n"
+
+      let typesPart =
+        match m.types with
+        | [] -> Nothing
+        | types ->
+          m.types
+          |> List.map (fun t ->
+            let withEmptyModules =
+              PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T
+                { tlid = t.tlid
+                  id = t.id
+                  name =
+                    PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.PackageTypeName
+                      { owner = t.name.owner
+                        modules = []
+                        typ = t.name.typ
+                        version = t.name.version }
+                  definition = t.definition
+                  description = t.description
+                  deprecated = t.deprecated }
+
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType withEmptyModules)
+          |> String.join "\n\n"
+          |> Just
+
+      let fnsPart =
+        match m.fns with
+        | [] -> Nothing
+        | fns ->
+          m.fns
+          |> List.map (fun t ->
+            let withEmptyModules =
+              PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T
+                { tlid = t.tlid
+                  id = t.id
+                  name =
+                    PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.PackageFnName
+                      { owner = t.name.owner
+                        modules = []
+                        function_ = t.name.function_
+                        version = t.name.version }
+                  body = t.body
+                  typeParams = t.typeParams
+                  parameters = t.parameters
+                  returnType = t.returnType
+                  description = t.description
+                  deprecated = t.deprecated }
+
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn withEmptyModules)
+          |> String.join "\n\n"
+          |> Just
+
+      let submodulesPart =
+        match m.submodules with
+        | [] -> Nothing
+        | submodules ->
+          submodules
+          |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
+          |> String.join "\n\n"
+          |> Just
+
+      let parts =
+        [ typesPart; fnsPart; submodulesPart ] |> List.filterMap (fun s -> s)
+
+      match parts with
+      | [] ->
+        // CLEANUP: actually error
+        "Error - module defined somehow without parts"
+      | parts ->
+        let bodyPart =
+          (String.join parts "\n\n") |> PACKAGE.Darklang.PrettyPrinter.indent
+
+        $"module {m.name} =\n{bodyPart}"
 
 
-    let packages (p: PACKAGE.Darklang.Stdlib.Packages) : String =
-      let modules = PACKAGE.Darklang.PrettyPrinter.Packages.toModules p
+
+    let packages (withPretty: Bool) (p: PACKAGE.Darklang.Stdlib.Packages) : String =
+      let withOwnerStuffRepresentedAsRootLevelModule =
+        PACKAGE.Darklang.Stdlib.Packages
+          { types =
+              p.types
+              |> List.map (fun t ->
+                { t with
+                    name =
+                      { t.name with
+                          modules = List.append [ t.name.owner ] t.name.modules
+                          owner = "(redacted)" } })
+            fns =
+              p.fns
+              |> List.map (fun f ->
+                { f with
+                    name =
+                      { f.name with
+                          modules = List.append [ f.name.owner ] f.name.modules
+                          owner = "(redacted)" } }) }
+
+      let modules =
+        PACKAGE.Darklang.PrettyPrinter.Packages.toModules
+          withOwnerStuffRepresentedAsRootLevelModule
 
       // CLEANUP make ordering 'better' in some way
 
-      modules
-      |> List.map (fun m -> PACKAGE.Darklang.Stdlib.PrettyPrinter.packageModule 0 m)
-      |> String.concat "\n\n"
+      let jsonPart =
+        match
+          Json.serialize<List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>>
+            modules
+        with
+        | Ok s -> s
+        | Error e -> e
+
+      let prettyPart =
+        if withPretty then
+          modules
+          |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
+          |> String.join "\n\n"
+        else
+          ""
+
+      $"// JSON\n{jsonPart}\n----------------\n// Pretty\n{prettyPart}"

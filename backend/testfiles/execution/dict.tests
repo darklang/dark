@@ -16,6 +16,7 @@ Dict.fromListOverwritingDuplicates_v0 [(1,1)] = Test.typeError_v0 "Expected `key
 Dict.fromListOverwritingDuplicates_v0 [("a",1); 2; ("c",3)] = Test.typeError_v0 "All list items must be `(key, value)`"
 Dict.fromListOverwritingDuplicates_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
+// CLEANUP the first test here feels surprising - should it error or something?
 Dict.fromList_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = Nothing
 Dict.fromList_v0 [("a",1); ("b",2); ("c",3)] = Just (Dict { c = 3; b = 2; a = 1 })
 Dict.fromList_v0 [("Content-Length",0); ("Server", "dark") ] = Just (Dict {``Content-Length`` = 0; Server = "dark"})
