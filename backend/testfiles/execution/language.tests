@@ -351,12 +351,14 @@ module InterpolatedString =
 
 module FnCall =
   5 + 3 = 8
+  5 + true = Test.typeError_v0 "Int.add was expected to be called with a `Int` in b, but was actually called with true"
   5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
   (Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error"
   (Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
   "xx" ++ "yy" = "xxyy"
   (5 + (3)) = 8
   Int.add_v0 5 3 = 8
+  Int.add_v0 5 = Test.typeError_v0 "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
 
 module If =

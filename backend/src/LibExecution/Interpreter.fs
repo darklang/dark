@@ -1,4 +1,4 @@
-/// Interprets Dark expressions resulting in (tasks of) Dvals
+﻿/// Interprets Dark expressions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
 open System.Threading.Tasks
@@ -761,71 +761,61 @@ and callFn
   (callerID : id)
   (desc : FQFnName.T)
   (typeArgs : List<TypeReference>)
-  (argvals : List<Dval>)
+  (args : List<Dval>)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, callerID)
+    let handleMissingFunction () : Dval =
+      // Functions which aren't implemented in the client may have results
+      // available, otherwise they just return incomplete.
+      let fnRecord = (state.tlid, desc, callerID)
+      let fnResult = state.tracing.loadFnResult fnRecord args
 
-    let fn =
-      match desc with
-      | FQFnName.Stdlib std ->
-        state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
-      | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
-      | FQFnName.Package pkg ->
-        state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
+      // TODO: in an old version, we executed the lambda with a fake value to
+      // give enough livevalues for the editor to autocomplete. It may be worth
+      // doing this again
+      match fnResult with
+      | Some(result, _ts) -> result
+      | None -> DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
-    let! result =
-      uply {
-        let fakeArg = List.tryFind Dval.isFake argvals
+    let checkArgsLength fn : Result<unit, string> =
+      let expectedTypeParamLength = List.length fn.typeParams
+      let expectedArgLength = List.length fn.parameters
 
-        match fakeArg, fn with
-        | Some dv, _ -> return dv
-        // Functions which aren't implemented in the client may have results
-        // available, otherwise they just return incomplete.
-        | None, None ->
-          let fnRecord = (state.tlid, desc, callerID)
-          let fnResult = state.tracing.loadFnResult fnRecord argvals
+      let actualTypeArgLength = List.length typeArgs
+      let actualArgLength = List.length args
 
-          // TODO: in an old version, we executed the lambda with a fake value to
-          // give enough livevalues for the editor to autocomplete. It may be worth
-          // doing this again
+      if
+        expectedTypeParamLength = actualTypeArgLength
+        && expectedArgLength = actualArgLength
+      then
+        Ok()
+      else
+        Error(
+          $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
+          + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
+        )
 
-          match fnResult with
-          | Some(result, _ts) -> return result
-          | None ->
-            return
-              DError(sourceID, $"Function {FQFnName.toString desc} is not found")
 
-        | None, Some fn ->
-          // ensure we have the expected # of typeArguments _and_ arguments values
-          let expectedTypeParamLength = List.length fn.typeParams
-          let expectedArgLength = List.length fn.parameters
+    match List.tryFind Dval.isFake args with
+    | Some fakeArg -> return fakeArg
+    | None ->
+      let fn =
+        match desc with
+        | FQFnName.Stdlib std ->
+          state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
+        | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
+        | FQFnName.Package pkg ->
+          state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
 
-          let actualTypeArgLength = List.length typeArgs
-          let actualArgLength = List.length argvals
-
-          let err errMsg = DError(sourceID, errMsg)
-
-          if
-            (expectedTypeParamLength = actualTypeArgLength)
-            && (expectedArgLength = actualArgLength)
-          then
-
-            let args =
-              fn.parameters
-              |> List.map2 (fun dv p -> (p.name, dv)) argvals
-              |> Map.ofList
-
-            return! execFn state desc callerID fn typeArgs args
-          else
-            return
-              err (
-                $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
-                + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
-              )
-      }
-    return result
+      match fn with
+      | None -> return handleMissingFunction ()
+      | Some fn ->
+        match checkArgsLength fn with
+        | Error errMsg -> return (DError(sourceID, errMsg))
+        | Ok() -> return! execFn state desc callerID fn typeArgs args
   }
+
 
 
 and execFn
@@ -834,21 +824,10 @@ and execFn
   (id : id)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
-  (args : DvalMap)
+  (args : List<Dval>)
   : DvalTask =
   uply {
     let sourceID = SourceID(state.tlid, id) in
-
-    let typeErrorOrValue types result =
-      if Dval.isFake result then
-        result
-      else
-        let name = FQFnName.toString fnDesc
-        match TypeChecker.checkFunctionReturnType [ name ] types fn result with
-        | Ok() -> result
-        | Error err ->
-          let msg = $"Type error in return type: {TypeChecker.Error.toString err}"
-          DError(sourceID, msg)
 
     if
       state.tracing.realOrPreview = Preview
@@ -865,68 +844,69 @@ and execFn
             executingFnName = Some fnDesc
             callstack = Set.add fnDesc state.callstack }
 
-      // CLEANUP: why do we rebuild the arglist when we already had it before?
-      let arglist =
-        fn.parameters
-        |> List.map (fun (p : Param) -> p.name)
-        |> List.choose (fun key -> Map.tryFind key args)
-
-      let argsWithGlobals = withGlobals state args
-
       let fnRecord = (state.tlid, fnDesc, id) in
 
-      match List.tryFind Dval.isFake arglist with
-      | Some fake -> return fake
-      | None ->
-        match fn.fn with
-        | StdLib f ->
-          if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
-            match state.tracing.loadFnResult fnRecord arglist with
-            | Some(result, _ts) -> return result
-            | None -> return DIncomplete sourceID
-          else
-            let! result =
-              uply {
-                try
-                  return! f (state, typeArgs, arglist)
-                with e ->
-                  let context : Metadata =
-                    [ "fn", fnDesc; "args", arglist; "id", id ]
-                  return
-                    match e with
-                    | Errors.IncorrectArgs ->
-                      Errors.incorrectArgsToDError sourceID fn arglist
-                    | Errors.FakeDvalFound dv -> dv
-                    | (:? CodeException | :? GrandUserException) as e ->
-                      // There errors are created by us, within the libraries, so they are
-                      // safe to show to users (but not grandusers)
-                      Dval.errSStr sourceID e.Message
-                    | e ->
-                      // CLEANUP could we show the user the execution id here?
-                      state.reportException state context e
-                      // These are arbitrary errors, and could include sensitive
-                      // information, so best not to show it to the user. If we'd
-                      // like to show it to the user, we should catch it and give
-                      // them a known safe error.
-                      Dval.errSStr sourceID Exception.unknownErrorMessage
-              }
-            // there's no point storing data we'll never ask for
-            if fn.previewable <> Pure then
-              state.tracing.storeFnResult fnRecord arglist result
+      match fn.fn with
+      | StdLib f ->
+        if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
+          match state.tracing.loadFnResult fnRecord args with
+          | Some(result, _ts) -> return result
+          | None -> return DIncomplete sourceID
+        else
+          let! result =
+            uply {
+              try
+                return! f (state, typeArgs, args)
+              with e ->
+                let context : Metadata = [ "fn", fnDesc; "args", args; "id", id ]
+                return
+                  match e with
+                  | Errors.IncorrectArgs ->
+                    Errors.incorrectArgsToDError sourceID fn args
+                  | Errors.FakeDvalFound dv -> dv
+                  | (:? CodeException | :? GrandUserException) as e ->
+                    // There errors are created by us, within the libraries, so they are
+                    // safe to show to users (but not grandusers)
+                    Dval.errSStr sourceID e.Message
+                  | e ->
+                    // CLEANUP could we show the user the execution id here?
+                    state.reportException state context e
+                    // These are arbitrary errors, and could include sensitive
+                    // information, so best not to show it to the user. If we'd
+                    // like to show it to the user, we should catch it and give
+                    // them a known safe error.
+                    Dval.errSStr sourceID Exception.unknownErrorMessage
+            }
+          // there's no point storing data we'll never ask for
+          if fn.previewable <> Pure then
+            state.tracing.storeFnResult fnRecord args result
 
+          return result
+      | PackageFunction(tlid, body)
+      | UserFunction(tlid, body) ->
+        let name = [ FQFnName.toString fnDesc ]
+        let types = ExecutionState.availableTypes state
+        match TypeChecker.checkFunctionCall name types fn typeArgs args with
+        | Error err ->
+          let msg = $"Type error calling function: {TypeChecker.Error.toString err}"
+          return DError(sourceID, msg)
+        | Ok() ->
+          state.tracing.traceTLID tlid
+          let state = { state with tlid = tlid }
+          let args =
+            fn.parameters // Lengths are checked in checkFunctionCall
+            |> List.map2 (fun dv p -> (p.name, dv)) args
+            |> Map.ofList
+            |> withGlobals state
+          let! result = eval state args body
+          if Dval.isFake result then
             return result
-        | PackageFunction(tlid, body)
-        | UserFunction(tlid, body) ->
-          let name = [ FQFnName.toString fnDesc ]
-          let types = ExecutionState.availableTypes state
-          match TypeChecker.checkFunctionCall name types fn typeArgs args with
-          | Ok() ->
-            state.tracing.traceTLID tlid
-            let state = { state with tlid = tlid }
-            let! result = eval state argsWithGlobals body
-            return typeErrorOrValue types result
-          | Error err ->
-            let msg =
-              $"Type error calling function: {TypeChecker.Error.toString err}"
-            return DError(sourceID, msg)
+          else
+            let name = FQFnName.toString fnDesc
+            match TypeChecker.checkFunctionReturnType [ name ] types fn result with
+            | Error err ->
+              let msg =
+                $"Type error in return type: {TypeChecker.Error.toString err}"
+              return DError(sourceID, msg)
+            | Ok() -> return result
   }
