@@ -94,7 +94,7 @@ let incorrectArgsMsg (name : FnName.T) (p : Param) (actual : Dval) : string =
       ->
       let altfn = { b with modules = [ "Float" ] }
 
-      $". Try using {FQName.builtinToString altfn}, or use Float.truncate to truncate Floats to Ints."
+      $". Try using {FnName.builtinToString altfn}, or use Float.truncate to truncate Floats to Ints."
     | TInt, DString _, FQName.BuiltIn({ name = FnName.FnName name } as b) when
       (b.modules = [ "Int" ] && name = "add") || (b.modules = [] && name = "+")
       ->
