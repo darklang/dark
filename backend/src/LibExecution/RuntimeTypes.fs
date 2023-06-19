@@ -253,7 +253,8 @@ module FnName =
 
   let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
 
-  let isInternalFn (fnName : BuiltIn) : bool = fnName.modules.Head = "DarkInternal"
+  let isInternalFn (fnName : BuiltIn) : bool =
+    List.tryHead fnName.modules = Some "DarkInternal"
 
 
 module DarkDateTime =
