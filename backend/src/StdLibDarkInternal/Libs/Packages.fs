@@ -12,17 +12,20 @@ module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module PT2DT = ProgramTypes2DarkTypes
 
-let modul = [ "DarkInternal"; "Packages" ]
 
 let stdlibPackageTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : FQTypeName.T =
-  pkgTyp "Darklang" (NonEmptyList.ofList ([ "Stdlib" ] @ submodules)) name version
+  : TypeName.T =
+  TypeName.fqPackage
+    "Darklang"
+    (NonEmptyList.ofList ([ "Stdlib" ] @ submodules))
+    name
+    version
 
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
+let modules = [ "DarkInternal"; "Packages" ]
+let fn = fn modules
 
 
 let types : List<BuiltInType> = []

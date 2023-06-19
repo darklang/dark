@@ -26,8 +26,10 @@ type UserProgramSource =
 // this is client.dark, loaded and live, along with some current state
 let mutable editor : Editor = { Types = []; Functions = []; CurrentState = DUnit }
 
+let fn = fn [ "WASM"; "Editor" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn' [ "WASM"; "Editor" ] "getState" 0
+  [ { name = fn "getState" 0
       typeParams = [ "state" ]
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TResult(TVariable "a", TString)
@@ -50,7 +52,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn' [ "WASM"; "Editor" ] "setState" 0
+    { name = fn "setState" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "state" (TVariable "a") "" ]
       returnType = TResult(TVariable "a", TString)
@@ -69,7 +71,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn' [ "WASM"; "Editor" ] "callJSFunction" 0
+    { name = fn "callJSFunction" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
@@ -113,7 +115,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn' [ "WASM"; "Editor" ] "evalUserProgram" 0
+    { name = fn "evalUserProgram" 0
       typeParams = []
       parameters = [ Param.make "program" TString "" ]
       returnType = TResult(TString, TString)

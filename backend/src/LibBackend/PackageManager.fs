@@ -56,6 +56,7 @@ let writeBody (tlid : tlid) (expr : PT.Expr) : Task<unit> =
 let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
   fns
   |> Task.iterInParallel (fun fn ->
+    let (PT.FnName.FnName name) = fn.name.name
     Sql.query
       "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
@@ -64,7 +65,7 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
         "id", Sql.uuid fn.id
         "owner", Sql.string fn.name.owner
         "modules", Sql.string (fn.name.modules |> String.concat ".")
-        "fnname", Sql.string fn.name.function_
+        "fnname", Sql.string name
         "version", Sql.int fn.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageFn fn) ]
     |> Sql.executeStatementAsync)
@@ -72,6 +73,7 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
 let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
   types
   |> Task.iterInParallel (fun typ ->
+    let (PT.TypeName.TypeName name) = typ.name.name
     Sql.query
       "INSERT INTO package_types_v0 (tlid, id, owner, modules, typename, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @typename, @version, @definition)"
@@ -80,7 +82,7 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
         "id", Sql.uuid typ.id
         "owner", Sql.string typ.name.owner
         "modules", Sql.string (typ.name.modules |> String.concat ".")
-        "typename", Sql.string typ.name.typ
+        "typename", Sql.string name
         "version", Sql.int typ.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageType typ) ]
     |> Sql.executeStatementAsync)

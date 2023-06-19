@@ -26,7 +26,7 @@ let contents : LibExecution.StdLib.Contents =
     []
     []
 
-let packageFns : Lazy<Task<Map<RT.FQFnName.PackageFnName, RT.PackageFn.T>>> =
+let packageFns : Lazy<Task<Map<RT.FnName.Package, RT.PackageFn.T>>> =
   lazy
     (task {
       let! packages = PackageManager.allFunctions ()
@@ -34,11 +34,11 @@ let packageFns : Lazy<Task<Map<RT.FQFnName.PackageFnName, RT.PackageFn.T>>> =
       return
         packages
         |> List.map (fun (f : PT.PackageFn.T) ->
-          (f.name |> PT2RT.FQFnName.PackageFnName.toRT, PT2RT.PackageFn.toRT f))
+          (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
         |> Map.ofList
     })
 
-let packageTypes : Lazy<Task<Map<RT.FQTypeName.PackageTypeName, RT.PackageType.T>>> =
+let packageTypes : Lazy<Task<Map<RT.TypeName.Package, RT.PackageType.T>>> =
   lazy
     (task {
       let! packages = PackageManager.allTypes ()
@@ -46,7 +46,7 @@ let packageTypes : Lazy<Task<Map<RT.FQTypeName.PackageTypeName, RT.PackageType.T
       return
         packages
         |> List.map (fun (t : PT.PackageType.T) ->
-          (t.name |> PT2RT.FQTypeName.PackageTypeName.toRT, PT2RT.PackageType.toRT t))
+          (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
         |> Map.ofList
     })
 
@@ -63,8 +63,8 @@ let libraries : Lazy<Task<RT.Libraries>> =
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
       return
-        { stdlibTypes = types
-          stdlibFns = fns
+        { builtInTypes = types
+          builtInFns = fns
           packageFns = packageFns
           packageTypes = packageTypes }
     })
@@ -147,7 +147,7 @@ let reexecuteFunction
   (callerID : id)
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
-  (name : RT.FQFnName.T)
+  (name : RT.FnName.T)
   (typeArgs : List<RT.TypeReference>)
   (args : List<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =

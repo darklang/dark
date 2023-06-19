@@ -182,7 +182,7 @@ type HeaderError =
 
 let types : List<BuiltInType> =
   // TODO: put this into the WASM submodule
-  [ { name = typ "HttpClient" "Response" 0
+  [ { name = typ [ "HttpClient" ] "Response" 0
       typeParams = []
       definition =
         CustomType.Record(
@@ -194,7 +194,7 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn' [ "WASM"; "HttpClient" ] "request" 0
+  [ { name = fn [ "WASM"; "HttpClient" ] "request" 0
       typeParams = []
       parameters =
         [ Param.make "method" TString ""
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TBytes "" ]
       returnType =
         TResult(
-          TCustomType(FQTypeName.Stdlib(typ "HttpClient" "Response" 0), []),
+          TCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), []),
           TString
         )
       description =
@@ -260,9 +260,7 @@ let fns : List<BuiltInFn> =
                   |> DList
 
                 let typ =
-                  FQTypeName.Stdlib(
-                    FQTypeName.stdlibTypeName "HttpClient" "Response" 0
-                  )
+                  FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
 
                 return
                   [ ("statusCode", DInt(int64 response.statusCode))

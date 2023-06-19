@@ -226,8 +226,10 @@ let varC = TVariable "c"
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "List" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "List" "singleton" 0
+  [ { name = fn "singleton" 0
       typeParams = []
       parameters = [ Param.make "val" (TVariable "a") "" ]
       returnType = TList(TVariable "a")
@@ -241,7 +243,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "head" 0
+    { name = fn "head" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -257,7 +259,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "tail" 0
+    { name = fn "tail" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption(TList varA)
@@ -277,7 +279,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "empty" 0
+    { name = fn "empty" 0
       typeParams = []
       parameters = []
       returnType = TList varA
@@ -291,7 +293,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "push" 0
+    { name = fn "push" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
@@ -306,7 +308,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "pushBack" 0
+    { name = fn "pushBack" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TList varA
@@ -320,7 +322,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "last" 0
+    { name = fn "last" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -336,7 +338,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "reverse" 0
+    { name = fn "reverse" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
@@ -350,7 +352,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "findFirst" 0
+    { name = fn "findFirst" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -380,7 +382,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "member" 0
+    { name = fn "member" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "val" varA "" ]
       returnType = TBool
@@ -394,7 +396,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "repeat" 0
+    { name = fn "repeat" 0
       typeParams = []
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
       returnType = TResult(TList varA, TString)
@@ -417,7 +419,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "length" 0
+    { name = fn "length" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TInt
@@ -431,7 +433,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "range" 0
+    { name = fn "range" 0
       typeParams = []
       parameters =
         [ Param.make "lowest" TInt "First, smallest number in the list"
@@ -451,7 +453,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "fold" 0
+    { name = fn "fold" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) "The list of items to process one at a time"
@@ -484,7 +486,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "flatten" 0
+    { name = fn "flatten" 0
       typeParams = []
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
       returnType = TList varA
@@ -506,7 +508,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "interpose" 0
+    { name = fn "interpose" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "sep" varA "" ]
       returnType = TList varA
@@ -530,7 +532,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "interleave" 0
+    { name = fn "interleave" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
@@ -557,7 +559,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "uniqueBy" 0
+    { name = fn "uniqueBy" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -604,7 +606,7 @@ let fns : List<BuiltInFn> =
 
 
     // TODO: type check to ensure `varA` is "comparable"
-    { name = fn "List" "unique" 0
+    { name = fn "unique" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
@@ -633,7 +635,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "isEmpty" 0
+    { name = fn "isEmpty" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TBool
@@ -647,7 +649,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "sort" 0
+    { name = fn "sort" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
@@ -676,7 +678,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "sortBy" 0
+    { name = fn "sortBy" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -725,7 +727,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "sortByComparator" 0
+    { name = fn "sortByComparator" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -772,7 +774,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "append" 0
+    { name = fn "append" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varA) "" ]
@@ -789,7 +791,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "all" 0
+    { name = fn "all" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -833,7 +835,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "filter" 0
+    { name = fn "filter" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -882,7 +884,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "filterMap" 0
+    { name = fn "filterMap" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -939,7 +941,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "drop" 0
+    { name = fn "drop" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
@@ -956,7 +958,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "dropWhile" 0
+    { name = fn "dropWhile" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1005,7 +1007,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "take" 0
+    { name = fn "take" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
       returnType = TList varA
@@ -1022,7 +1024,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "takeWhile" 0
+    { name = fn "takeWhile" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1073,7 +1075,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "map" 0
+    { name = fn "map" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) "The list to be operated on"
@@ -1101,7 +1103,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "indexedMap" 0
+    { name = fn "indexedMap" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1132,7 +1134,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "map2shortest" 0
+    { name = fn "map2shortest" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""
@@ -1174,7 +1176,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "map2" 0
+    { name = fn "map2" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""
@@ -1216,7 +1218,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "zipShortest" 0
+    { name = fn "zipShortest" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
@@ -1253,7 +1255,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "zip" 0
+    { name = fn "zip" 0
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
@@ -1289,7 +1291,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "unzip" 0
+    { name = fn "unzip" 0
       typeParams = []
       parameters = [ Param.make "pairs" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TList(TList varA)
@@ -1333,7 +1335,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "getAt" 0
+    { name = fn "getAt" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
       returnType = TOption varA
@@ -1350,7 +1352,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "randomElement" 0
+    { name = fn "randomElement" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TOption varA
@@ -1374,7 +1376,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "groupByWithKey" 0
+    { name = fn "groupByWithKey" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1426,7 +1428,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "List" "partition" 0
+    { name = fn "partition" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
@@ -1476,7 +1478,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "List" "iter" 0
+    { name = fn "iter" 0
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""

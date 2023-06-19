@@ -500,8 +500,10 @@ let parse
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Json" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Json" "serialize" 0
+  [ { name = fn "serialize" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "arg" (TVariable "a") "" ]
       returnType = TResult(TString, TString)
@@ -524,7 +526,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Json" "parse" 0
+    { name = fn "parse" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
       returnType = TResult(TVariable "a", TString)

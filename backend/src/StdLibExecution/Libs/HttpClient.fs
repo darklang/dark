@@ -17,8 +17,10 @@ open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "HttpClient" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "HttpClient" "formContentType" 0
+  [ { name = fn "formContentType" 0
       typeParams = []
       parameters = []
       returnType = TDict TString
@@ -40,7 +42,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpClient" "jsonContentType" 0
+    { name = fn "jsonContentType" 0
       typeParams = []
       parameters = []
       returnType = TDict TString
@@ -62,7 +64,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpClient" "plainTextContentType" 0
+    { name = fn "plainTextContentType" 0
       typeParams = []
       parameters = []
       returnType = TDict TString
@@ -81,7 +83,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpClient" "htmlContentType" 0
+    { name = fn "htmlContentType" 0
       typeParams = []
       parameters = []
       returnType = TDict TString
@@ -100,7 +102,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "HttpClient" "bearerToken" 0
+    { name = fn "bearerToken" 0
       typeParams = []
       parameters = [ Param.make "token" TString "" ]
       returnType = TDict TString

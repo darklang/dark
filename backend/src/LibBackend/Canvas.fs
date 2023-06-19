@@ -592,14 +592,14 @@ let toProgram (c : T) : RT.ProgramContext =
     c.userFunctions
     |> Map.values
     |> List.map (fun f ->
-      (PT2RT.FQFnName.UserFnName.toRT f.name, PT2RT.UserFunction.toRT f))
+      (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
     |> Map.ofList
 
   let userTypes =
     c.userTypes
     |> Map.values
     |> List.map (fun t ->
-      (PT2RT.FQTypeName.UserTypeName.toRT t.name, PT2RT.UserType.toRT t))
+      (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
     |> Map.ofList
 
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
@@ -607,7 +607,7 @@ let toProgram (c : T) : RT.ProgramContext =
   { canvasID = c.id
     internalFnsAllowed = c.id = Config.allowedDarkInternalCanvasID
     allowLocalHttpAccess = false
-    userFns = userFns
-    userTypes = userTypes
+    fns = userFns
+    types = userTypes
     dbs = dbs
     secrets = secrets }

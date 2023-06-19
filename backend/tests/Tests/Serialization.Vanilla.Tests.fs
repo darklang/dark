@@ -325,8 +325,8 @@ module RoundtripTests =
       [ testRoundtripList
           "RT.FqFnName"
           V.RuntimeTypes.fqFnNames
-          CRT.FQFnName.toCT
-          CRT.FQFnName.fromCT
+          CRT.FnName.toCT
+          CRT.FnName.fromCT
           None
         testRoundtripList
           "RT.TypeReference"
@@ -366,8 +366,8 @@ module RoundtripTests =
       [ testRoundtripList
           "PT.FQFnName"
           V.ProgramTypes.fqFnNames
-          CPT.FQFnName.toCT
-          CPT.FQFnName.fromCT
+          CPT.FnName.toCT
+          CPT.FnName.fromCT
           None
         testRoundtripList
           "PT.MatchPattern"

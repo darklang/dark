@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module StdLibCli = StdLibCli.StdLib
 
-let (stdlibFns, stdlibTypes) =
+let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
     []
@@ -21,8 +21,8 @@ let (stdlibFns, stdlibTypes) =
 
 
 let libraries : RT.Libraries =
-  { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
-    stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
+  { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
+    builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
     packageFns = Map.empty
     packageTypes = Map.empty }
 
@@ -38,11 +38,11 @@ let execute
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
         allowLocalHttpAccess = true
-        userFns =
+        fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
           |> Map.fromListBy (fun fn -> fn.name)
-        userTypes =
+        types =
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Map.fromListBy (fun typ -> typ.name)

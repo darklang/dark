@@ -92,7 +92,7 @@ let t
       let rtTypes =
         types
         |> List.map (fun typ ->
-          PT2RT.FQTypeName.UserTypeName.toRT typ.name, PT2RT.UserType.toRT typ)
+          PT2RT.TypeName.UserProgram.toRT typ.name, PT2RT.UserType.toRT typ)
         |> Map.ofList
 
       let rtDBs =

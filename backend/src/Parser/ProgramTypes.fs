@@ -22,63 +22,63 @@ let (|Placeholder|_|) (input : PT.Expr) =
 let (|PipePlaceholder|_|) (input : PT.PipeExpr) =
   if input = pipePlaceholder then Some() else None
 
-module FQTypeName =
+module TypeName =
   let resolveNames
-    (userTypes : Set<PT.FQTypeName.UserTypeName>)
-    (name : PT.FQTypeName.T)
-    : PT.FQTypeName.T =
+    (userTypes : Set<PT.TypeName.UserProgram>)
+    (name : PT.TypeName.T)
+    : PT.TypeName.T =
     match name with
-    | PT.FQTypeName.Package _ -> name
-    | PT.FQTypeName.User n ->
+    | PT.FQName.Package _ -> name
+    | PT.FQName.UserProgram n ->
       match n.modules with
       | "PACKAGE" :: owner :: package :: rest ->
-        PT.FQTypeName.Package
+        PT.FQName.Package
           { owner = owner
             modules = NonEmptyList.ofList (package :: rest)
-            typ = n.typ
+            name = n.name
             version = n.version }
       | _ ->
         if Set.contains n userTypes then
-          PT.FQTypeName.User n
+          PT.FQName.UserProgram n
         else
-          PT.FQTypeName.Stdlib
-            { typ = n.typ; version = n.version; modules = n.modules }
-    | PT.FQTypeName.Stdlib n ->
-      let userName : PT.FQTypeName.UserTypeName =
-        { modules = n.modules; typ = n.typ; version = n.version }
+          PT.FQName.BuiltIn
+            { name = n.name; version = n.version; modules = n.modules }
+    | PT.FQName.BuiltIn n ->
+      let userName : PT.TypeName.UserProgram =
+        { modules = n.modules; name = n.name; version = n.version }
       if Set.contains userName userTypes then
-        PT.FQTypeName.User(userName)
+        PT.FQName.UserProgram(userName)
       else
-        PT.FQTypeName.Stdlib(n)
+        PT.FQName.BuiltIn(n)
 
-module FQFnName =
+module FnName =
   let resolveNames
-    (userFns : Set<PT.FQFnName.UserFnName>)
-    (name : PT.FQFnName.T)
-    : PT.FQFnName.T =
+    (userFns : Set<PT.FnName.UserProgram>)
+    (name : PT.FnName.T)
+    : PT.FnName.T =
     match name with
-    | PT.FQFnName.Package _ -> name
-    | PT.FQFnName.User n ->
+    | PT.FQName.Package _ -> name
+    | PT.FQName.UserProgram n ->
       match n.modules with
       | "PACKAGE" :: owner :: package :: rest ->
-        PT.FQFnName.Package
+        PT.FQName.Package
           { owner = owner
             modules = NonEmptyList.ofList (package :: rest)
-            function_ = n.function_
+            name = n.name
             version = n.version }
       | _ ->
         if Set.contains n userFns then
-          PT.FQFnName.User n
+          PT.FQName.UserProgram n
         else
-          PT.FQFnName.Stdlib
-            { function_ = n.function_; version = n.version; modules = n.modules }
-    | PT.FQFnName.Stdlib n ->
-      let userName : PT.FQFnName.UserFnName =
-        { modules = n.modules; function_ = n.function_; version = n.version }
+          PT.FQName.BuiltIn
+            { name = n.name; version = n.version; modules = n.modules }
+    | PT.FQName.BuiltIn n ->
+      let userName : PT.FnName.UserProgram =
+        { modules = n.modules; name = n.name; version = n.version }
       if Set.contains userName userFns then
-        PT.FQFnName.User(userName)
+        PT.FQName.UserProgram(userName)
       else
-        PT.FQFnName.Stdlib(n)
+        PT.FQName.BuiltIn(n)
 
 
 module TypeReference =
@@ -123,7 +123,8 @@ module TypeReference =
       PT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
     | modules, (name, version), args ->
       let tn =
-        PT.FQTypeName.User { modules = modules; typ = name; version = version }
+        PT.FQName.UserProgram
+          { modules = modules; name = PT.TypeName.TypeName name; version = version }
       PT.TCustomType(tn, List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : PT.TypeReference =
@@ -173,13 +174,13 @@ module TypeReference =
     | _ -> Exception.raiseInternal $"Unsupported type" [ "type", typ ]
 
   let rec resolveNames
-    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userTypes : Set<PT.TypeName.UserProgram>)
     (typ : PT.TypeReference)
     : PT.TypeReference =
     let c = resolveNames userTypes
     match typ with
     | PT.TCustomType(tn, args) ->
-      PT.TCustomType(FQTypeName.resolveNames userTypes tn, List.map c args)
+      PT.TCustomType(TypeName.resolveNames userTypes tn, List.map c args)
     | PT.TFn(args, ret) -> PT.TFn(List.map c args, c ret)
     | PT.TTuple(first, second, theRest) ->
       PT.TTuple(c first, c second, List.map c theRest)
@@ -455,15 +456,15 @@ module Expr =
     | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
       ident.idText = "op_UnaryNegation"
       ->
-      let name = PT.FQFnName.stdlibFqName [ "Int" ] "negate" 0
+      let name = PT.FnName.fqBuiltIn [ "Int" ] "negate" 0
       PT.EFnCall(id, name, [], [])
 
 
     // One word functions like `equals`
-    | SynExpr.Ident ident when Set.contains ident.idText PT.FQFnName.oneWordFunctions ->
+    | SynExpr.Ident ident when Set.contains ident.idText PT.FnName.oneWordFunctions ->
       match parseFn ident.idText with
       | Some(name, version) ->
-        PT.EFnCall(id, PT.FQFnName.stdlibFqName [] name version, [], [])
+        PT.EFnCall(id, PT.FnName.fqBuiltIn [] name version, [], [])
       | None -> PT.EVariable(id, ident.idText)
 
     // List literals
@@ -495,28 +496,22 @@ module Expr =
     | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Ok"; "Error" ]
       ->
-      let typeName =
-        PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
-
+      let typeName = PT.TypeName.fqBuiltIn [] "Result" 0
       PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Nothing"; "Just" ]
       ->
-      let typeName =
-        PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
-
+      let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
       PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
 
     // Enum values (EEnums)
     | SynExpr.Ident name when List.contains name.idText [ "Nothing"; "Just" ] ->
-      let typeName =
-        PT.FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
+      let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
       PT.EEnum(id, typeName, name.idText, [])
 
     | SynExpr.Ident name when List.contains name.idText [ "Ok"; "Error" ] ->
-      let typeName =
-        PT.FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
+      let typeName = PT.TypeName.fqBuiltIn [] "Result" 0
       PT.EEnum(id, typeName, name.idText, [])
 
     // Package manager function calls
@@ -526,11 +521,7 @@ module Expr =
       ->
       PT.EFnCall(
         gid (),
-        PT.FQFnName.packageFqName
-          "test"
-          (NonEmptyList.singleton "Test")
-          fnName.idText
-          0,
+        PT.FnName.fqPackage "test" (NonEmptyList.singleton "Test") fnName.idText 0,
         [],
         []
       )
@@ -552,7 +543,7 @@ module Expr =
 
       match parseFn name with
       | Some(name, version) ->
-        PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, [], [])
+        PT.EFnCall(gid (), PT.FnName.fqUserProgram modules name version, [], [])
       | None ->
         match parseEnum name with
         | Some enumName ->
@@ -562,10 +553,7 @@ module Expr =
           let modules = List.initial modules |> Option.unwrap []
           PT.EEnum(
             gid (),
-            PT.FQTypeName.User
-              { PT.FQTypeName.UserTypeName.modules = modules
-                typ = typ
-                version = version },
+            PT.TypeName.fqUserProgram modules typ version,
             enumName,
             []
           )
@@ -588,7 +576,7 @@ module Expr =
         |> Exception.unwrapOptionInternal
           "invalid fn name"
           [ "name", name.idText; "ast", ast ]
-      PT.EFnCall(gid (), PT.FQFnName.userFqName [] name version, typeArgs, [])
+      PT.EFnCall(gid (), PT.FnName.fqUserProgram [] name version, typeArgs, [])
 
     // e.g. `Module1.Module2.fnName<String>`
     | SynExpr.TypeApp(SynExpr.LongIdent(_,
@@ -614,7 +602,12 @@ module Expr =
         let typeArgs =
           typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-        PT.EFnCall(gid (), PT.FQFnName.userFqName modules name version, typeArgs, [])
+        PT.EFnCall(
+          gid (),
+          PT.FnName.fqUserProgram modules name version,
+          typeArgs,
+          []
+        )
 
       | _ ->
         // should never happen
@@ -784,8 +777,7 @@ module Expr =
       else
         // We use a user name here, and we'll resolve it in the post pass when we
         // have the types available
-        let typeName =
-          PT.FQTypeName.User({ modules = modules; typ = typ; version = version })
+        let typeName = PT.TypeName.fqUserProgram modules typ version
         PT.ERecord(id, typeName, fields)
 
     // Record update: {myRecord with x = 5 }
@@ -816,13 +808,13 @@ module Expr =
       | PT.EVariable(id, name) ->
         parseFn name
         |> Option.map (fun (name, version) ->
-          PT.EFnCall(id, PT.FQFnName.userFqName [] name version, [], [ c arg ]))
+          PT.EFnCall(id, PT.FnName.fqUserProgram [] name version, [], [ c arg ]))
         |> Option.orElseWith (fun () ->
           parseEnum name
           |> Option.map (fun name ->
             PT.EEnum(
               id,
-              PT.FQTypeName.userFqName [] name 0,
+              PT.TypeName.fqUserProgram [] name 0,
               name,
               convertEnumArg arg
             )))
@@ -865,8 +857,8 @@ module Expr =
   // and functions. It converts user types that are not in the list to Stdlib types.
   // TODO: we need some sort of unambiguous way to refer to user types
   let resolveNames
-    (userFunctions : Set<PT.FQFnName.UserFnName>)
-    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userFunctions : Set<PT.FnName.UserProgram>)
+    (userTypes : Set<PT.TypeName.UserProgram>)
     (e : PT.Expr)
     : PT.Expr =
     let resolvePipeExprNames =
@@ -879,9 +871,9 @@ module Expr =
           match parseFn name with
           | Some(name, version) ->
             if
-              Set.contains (PT.FQFnName.userFnName [] name version) userFunctions
+              Set.contains (PT.FnName.userProgram [] name version) userFunctions
             then
-              PT.EPipeFnCall(id, PT.FQFnName.userFqName [] name version, [], [])
+              PT.EPipeFnCall(id, PT.FnName.fqUserProgram [] name version, [], [])
             else
               e
           | None -> e
@@ -891,8 +883,8 @@ module Expr =
       identity
       resolvePipeExprNames
       identity
-      (FQTypeName.resolveNames userTypes)
-      (FQFnName.resolveNames userFunctions)
+      (TypeName.resolveNames userTypes)
+      (FnName.resolveNames userFunctions)
       identity
       identity
       e
@@ -989,7 +981,8 @@ module UserFunction =
   let fromSynBinding (b : SynBinding) : PT.UserFunction.T =
     let f = Function.fromSynBinding b
     { tlid = gid ()
-      name = { modules = []; function_ = f.name; version = f.version }
+
+      name = PT.FnName.userProgram [] f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -1000,8 +993,8 @@ module UserFunction =
       body = f.body }
 
   let resolveNames
-    (userFunctions : Set<PT.FQFnName.UserFnName>)
-    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userFunctions : Set<PT.FnName.UserProgram>)
+    (userTypes : Set<PT.TypeName.UserProgram>)
     (f : PT.UserFunction.T)
     : PT.UserFunction.T =
     { tlid = f.tlid
@@ -1026,8 +1019,7 @@ module PackageFn =
     let f = Function.fromSynBinding b
     { tlid = gid ()
       id = System.Guid.NewGuid()
-      name =
-        { owner = owner; modules = modules; function_ = f.name; version = f.version }
+      name = PT.FnName.package owner modules f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -1070,7 +1062,7 @@ module CustomType =
         | _ -> Exception.raiseInternal $"Unsupported enum case" [ "case", case ]
 
     let resolveNames
-      (userTypes : Set<PT.FQTypeName.UserTypeName>)
+      (userTypes : Set<PT.TypeName.UserProgram>)
       (t : PT.CustomType.EnumCase)
       : PT.CustomType.EnumCase =
       { name = t.name
@@ -1089,7 +1081,7 @@ module CustomType =
       | _ -> Exception.raiseInternal $"Unsupported field" [ "field", field ]
 
     let resolveNames
-      (userTypes : Set<PT.FQTypeName.UserTypeName>)
+      (userTypes : Set<PT.TypeName.UserProgram>)
       (t : PT.CustomType.RecordField)
       : PT.CustomType.RecordField =
       { name = t.name
@@ -1163,7 +1155,7 @@ module CustomType =
       Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
 
   let resolveNames
-    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userTypes : Set<PT.TypeName.UserProgram>)
     (t : PT.CustomType.T)
     : PT.CustomType.T =
     match t with
@@ -1193,12 +1185,12 @@ module UserType =
     let modules = names |> List.initial |> Option.unwrap []
 
     { tlid = gid ()
-      name = { typ = name; modules = modules; version = version }
+      name = PT.TypeName.userProgram modules name version
       typeParams = typeParamNames
       definition = definition }
 
   let resolveNames
-    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userTypes : Set<PT.TypeName.UserProgram>)
     (t : PT.UserType.T)
     : PT.UserType.T =
     { tlid = t.tlid
@@ -1221,7 +1213,7 @@ module PackageType =
       |> Expr.parseTypeName
     { tlid = gid ()
       id = System.Guid.NewGuid()
-      name = { owner = owner; modules = modules; typ = name; version = version }
+      name = PT.TypeName.package owner modules name version
       description = ""
       deprecated = PT.NotDeprecated
       typeParams = typeParmNames
@@ -1252,8 +1244,8 @@ let parseIgnoringUser (filename : string) (code : string) : PT.Expr =
   code |> initialParse filename |> Expr.resolveNames Set.empty Set.empty
 
 let parseRTExpr
-  (fns : Set<PT.FQFnName.UserFnName>)
-  (types : Set<PT.FQTypeName.UserTypeName>)
+  (fns : Set<PT.FnName.UserProgram>)
+  (types : Set<PT.TypeName.UserProgram>)
   (filename : string)
   (code : string)
   : LibExecution.RuntimeTypes.Expr =

@@ -34,12 +34,12 @@ let queryableRoundtripsSuccessfullyInRecord
   ) : bool =
 
   let typeName = S.userTypeName [] "MyType" 0
-  let record = RT.DRecord(RT.FQTypeName.User typeName, Map.ofList [ "field", dv ])
+  let record = RT.DRecord(RT.FQName.UserProgram typeName, Map.ofList [ "field", dv ])
   let typeRef = S.userTypeReference [] "MyType" 0
 
   let types : RT.Types =
     { RT.Types.empty with
-        userTypes =
+        userProgramTypes =
           Map
             [ typeName,
               { name = typeName
@@ -213,7 +213,7 @@ module Password =
         let typeName = S.userTypeName [] "MyType" 0
         let types =
           { RT.Types.empty with
-              userTypes =
+              userProgramTypes =
                 Map
                   [ typeName, S.userTypeRecord [] "MyType" 0 [ "x", RT.TPassword ] ] }
 
@@ -247,7 +247,7 @@ module Password =
       let typeName = S.userTypeName [] "MyType" 0
       let password =
         RT.DRecord(
-          RT.FQTypeName.User typeName,
+          RT.FQName.UserProgram typeName,
           Map.ofList [ "x", RT.DPassword(Password bytes) ]
         )
 
@@ -255,7 +255,7 @@ module Password =
 
       let availableTypes =
         { RT.Types.empty with
-            userTypes =
+            userProgramTypes =
               Map
                 [ typeName,
                   { tlid = 8UL

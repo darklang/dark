@@ -29,7 +29,7 @@ module Eval =
     results
     |> List.filterMap (fun (rFnName, rCallerID, hash, hashVersion, dval) ->
       if
-        RT.FQFnName.toString fnName = rFnName
+        RT.FnName.toString fnName = rFnName
         && callerID = rCallerID
         && hash = (Map.get hashVersion hashes
                    |> Exception.unwrapOptionInternal
@@ -51,12 +51,12 @@ module Eval =
         { canvasID = System.Guid.NewGuid()
           internalFnsAllowed = false
           allowLocalHttpAccess = true
-          userFns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
-          userTypes = request.userTypes |> List.map (fun t -> t.name, t) |> Map
+          fns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
+          types = request.userTypes |> List.map (fun t -> t.name, t) |> Map
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
           secrets = request.secrets }
 
-      let (stdlibFns, stdlibTypes) =
+      let (builtInFns, builtInTypes) =
         LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
 
       let packageFns = request.packageFns |> Map.fromListBy (fun fn -> fn.name)
@@ -64,8 +64,8 @@ module Eval =
 
 
       let libraries : RT.Libraries =
-        { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
-          stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
+        { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
+          builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
           packageFns = packageFns
           packageTypes = packageTypes }
 

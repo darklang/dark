@@ -69,7 +69,7 @@ let LoadClient (canvasName : string) : Task<string> =
         LibExecution.Interpreter.callFn
           state
           (gid ())
-          (FQFnName.User { modules = []; function_ = "init"; version = 0 })
+          (FnName.fqUserProgram [] "init" 0)
           []
           [ DUnit ]
       )
@@ -100,7 +100,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
         LibExecution.Interpreter.callFn
           state
           (gid ())
-          (FQFnName.User { modules = []; function_ = "handleEvent"; version = 0 })
+          (FnName.fqUserProgram [] "handleEvent" 0)
           []
           [ DString serializedEvent ]
       )

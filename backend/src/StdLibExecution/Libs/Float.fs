@@ -10,8 +10,10 @@ module Errors = LibExecution.Errors
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Float" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Float" "ceiling" 0
+  [ { name = fn "ceiling" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -25,7 +27,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "roundUp" 0
+    { name = fn "roundUp" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -39,7 +41,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "floor" 0
+    { name = fn "floor" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -58,7 +60,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "roundDown" 0
+    { name = fn "roundDown" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -78,7 +80,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "round" 0
+    { name = fn "round" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -92,7 +94,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "truncate" 0
+    { name = fn "truncate" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -107,7 +109,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "absoluteValue" 0
+    { name = fn "absoluteValue" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
@@ -122,7 +124,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "negate" 0
+    { name = fn "negate" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
@@ -136,7 +138,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "sqrt" 0
+    { name = fn "sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TFloat
@@ -150,7 +152,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "power" 0
+    { name = fn "power" 0
       typeParams = []
       parameters = [ Param.make "base" TFloat ""; Param.make "exponent" TFloat "" ]
       returnType = TFloat
@@ -164,7 +166,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "divide" 0
+    { name = fn "divide" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -178,7 +180,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "add" 0
+    { name = fn "add" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -192,7 +194,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "multiply" 0
+    { name = fn "multiply" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -206,7 +208,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "subtract" 0
+    { name = fn "subtract" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -220,7 +222,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "greaterThan" 0
+    { name = fn "greaterThan" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -234,7 +236,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "greaterThanOrEqualTo" 0
+    { name = fn "greaterThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -248,7 +250,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "lessThan" 0
+    { name = fn "lessThan" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -262,7 +264,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "lessThanOrEqualTo" 0
+    { name = fn "lessThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TBool
@@ -276,7 +278,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "sum" 0
+    { name = fn "sum" 0
       typeParams = []
       parameters = [ Param.make "a" (TList TFloat) "" ]
       returnType = TFloat
@@ -303,7 +305,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "min" 0
+    { name = fn "min" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -318,7 +320,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "max" 0
+    { name = fn "max" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat ""; Param.make "b" TFloat "" ]
       returnType = TFloat
@@ -333,7 +335,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "clamp" 0
+    { name = fn "clamp" 0
       typeParams = []
       parameters =
         [ Param.make "value" TFloat ""
@@ -368,7 +370,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "roundTowardsZero" 0
+    { name = fn "roundTowardsZero" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
@@ -382,7 +384,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Float" "parse" 0
+    { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TFloat, TString)
@@ -405,7 +407,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Float" "toString" 0
+    { name = fn "toString" 0
       typeParams = []
       parameters = [ Param.make "f" TFloat "" ]
       returnType = TString

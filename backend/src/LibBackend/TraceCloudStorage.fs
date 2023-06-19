@@ -97,7 +97,7 @@ let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
 
 let currentStorageVersion = 0
 
-type FunctionResultKey = tlid * RT.FQFnName.T * id * string
+type FunctionResultKey = tlid * RT.FnName.T * id * string
 type FunctionResultValue = RT.Dval * NodaTime.Instant
 
 
@@ -246,7 +246,7 @@ let storeToCloudStorage
         // TODO do we really want to parse and unparse fnName?
         tlid,
         id,
-        RT.FQFnName.toString fnName,
+        RT.FnName.toString fnName,
         LibExecution.DvalReprInternalHash.currentHashVersion,
         hash,
         dvalToRoundtrippable dval)

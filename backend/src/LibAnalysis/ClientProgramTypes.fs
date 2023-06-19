@@ -10,55 +10,153 @@ open Tablecloth
 
 module PT = LibExecution.ProgramTypes
 
-module FQTypeName =
+module FQName =
 
-  type StdlibTypeName = { modules : List<string>; typ : string; version : int }
+  type CTBuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
+  type CTUserProgram<'name> = { modules : List<string>; name : 'name; version : int }
+  type CTPackage<'name> =
+    { owner : string; modules : NonEmptyList<string>; name : 'name; version : int }
 
-  module StdlibTypeName =
-    let fromCT (t : StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
-      { modules = t.modules; typ = t.typ; version = t.version }
+  // Use the CT prefix to avoid name clashes with the final T enum
+  module CTBuiltIn =
+    let toCT
+      (f : 'ptName -> 'ctName)
+      (name : PT.FQName.BuiltIn<'ptName>)
+      : CTBuiltIn<'ctName> =
+      { modules = name.modules; name = f name.name; version = name.version }
 
-    let toCT (t : PT.FQTypeName.StdlibTypeName) : StdlibTypeName =
-      { modules = t.modules; typ = t.typ; version = t.version }
+    let fromCT
+      (f : 'ctName -> 'ptName)
+      (name : CTBuiltIn<'ctName>)
+      : PT.FQName.BuiltIn<'ptName> =
+      { modules = name.modules; name = f name.name; version = name.version }
+
+  module CTUserProgram =
+    let toCT
+      (f : 'ptName -> 'ctName)
+      (name : PT.FQName.UserProgram<'ptName>)
+      : CTUserProgram<'ctName> =
+      { modules = name.modules; name = f name.name; version = name.version }
+
+    let fromCT
+      (f : 'ctName -> 'ptName)
+      (name : CTUserProgram<'ctName>)
+      : PT.FQName.UserProgram<'ptName> =
+      { modules = name.modules; name = f name.name; version = name.version }
+
+  module CTPackage =
+    let toCT
+      (f : 'ptName -> 'ctName)
+      (name : PT.FQName.Package<'ptName>)
+      : CTPackage<'ctName> =
+      { owner = name.owner
+        modules = name.modules
+        name = f name.name
+        version = name.version }
+
+    let fromCT
+      (f : 'ctName -> 'ptName)
+      (name : CTPackage<'ctName>)
+      : PT.FQName.Package<'ptName> =
+      { owner = name.owner
+        modules = name.modules
+        name = f name.name
+        version = name.version }
+
+  type T<'name> =
+    | BuiltIn of CTBuiltIn<'name>
+    | UserProgram of CTUserProgram<'name>
+    | Package of CTPackage<'name>
 
 
-  type UserTypeName = { modules : List<string>; typ : string; version : int }
 
-  module UserTypeName =
-    let fromCT (u : UserTypeName) : PT.FQTypeName.UserTypeName =
-      { modules = u.modules; typ = u.typ; version = u.version }
+  let toCT (f : 'ptName -> 'ctName) (name : PT.FQName.T<'ptName>) : T<'ctName> =
+    match name with
+    | PT.FQName.BuiltIn name -> BuiltIn(CTBuiltIn.toCT f name)
+    | PT.FQName.UserProgram name -> UserProgram(CTUserProgram.toCT f name)
+    | PT.FQName.Package name -> Package(CTPackage.toCT f name)
 
-    let toCT (u : PT.FQTypeName.UserTypeName) : UserTypeName =
-      { modules = u.modules; typ = u.typ; version = u.version }
+  let fromCT (f : 'ctName -> 'ptName) (name : T<'ctName>) : PT.FQName.T<'ptName> =
+    match name with
+    | BuiltIn name -> PT.FQName.BuiltIn(CTBuiltIn.fromCT f name)
+    | UserProgram name -> PT.FQName.UserProgram(CTUserProgram.fromCT f name)
+    | Package name -> PT.FQName.Package(CTPackage.fromCT f name)
+
+module TypeName =
+  type Name = TypeName of string
+  type T = FQName.T<Name>
+  type BuiltIn = FQName.CTBuiltIn<Name>
+  type UserProgram = FQName.CTUserProgram<Name>
+  type Package = FQName.CTPackage<Name>
+
+  module CTBuiltIn =
+    let toCT (name : PT.TypeName.BuiltIn) : BuiltIn =
+      FQName.CTBuiltIn.toCT (fun (PT.TypeName.TypeName name) -> TypeName name) name
+
+    let fromCT (name : BuiltIn) : PT.TypeName.BuiltIn =
+      FQName.CTBuiltIn.fromCT (fun (TypeName name) -> PT.TypeName.TypeName name) name
+
+  module CTUserProgram =
+    let toCT (name : PT.TypeName.UserProgram) : UserProgram =
+      FQName.CTUserProgram.toCT
+        (fun (PT.TypeName.TypeName name) -> TypeName name)
+        name
+
+    let fromCT (name : UserProgram) : PT.TypeName.UserProgram =
+      FQName.CTUserProgram.fromCT
+        (fun (TypeName name) -> PT.TypeName.TypeName name)
+        name
+
+  module CTPackage =
+    let toCT (name : PT.TypeName.Package) : Package =
+      FQName.CTPackage.toCT (fun (PT.TypeName.TypeName name) -> TypeName name) name
+
+    let fromCT (name : Package) : PT.TypeName.Package =
+      FQName.CTPackage.fromCT (fun (TypeName name) -> PT.TypeName.TypeName name) name
+
+  let toCT (name : PT.TypeName.T) : T =
+    FQName.toCT (fun (PT.TypeName.TypeName name) -> TypeName name) name
+
+  let fromCT (name : T) : PT.TypeName.T =
+    FQName.fromCT (fun (TypeName name) -> PT.TypeName.TypeName name) name
 
 
-  type PackageTypeName =
-    { owner : string; modules : NonEmptyList<string>; typ : string; version : int }
-
-  module PackageTypeName =
-    let fromCT (t : PackageTypeName) : PT.FQTypeName.PackageTypeName =
-      { owner = t.owner; modules = t.modules; typ = t.typ; version = t.version }
-
-    let toCT (t : PT.FQTypeName.PackageTypeName) : PackageTypeName =
-      { owner = t.owner; modules = t.modules; typ = t.typ; version = t.version }
+module FnName =
+  type Name = FnName of string
+  type T = FQName.T<Name>
+  type BuiltIn = FQName.CTBuiltIn<Name>
+  type UserProgram = FQName.CTUserProgram<Name>
+  type Package = FQName.CTPackage<Name>
 
 
-  type T =
-    | Stdlib of StdlibTypeName
-    | User of UserTypeName
-    | Package of PackageTypeName
+  module CTBuiltIn =
+    let toCT (name : PT.FnName.BuiltIn) : BuiltIn =
+      FQName.CTBuiltIn.toCT (fun (PT.FnName.FnName name) -> FnName name) name
 
-  let fromCT (t : T) : PT.FQTypeName.T =
-    match t with
-    | Stdlib t -> PT.FQTypeName.Stdlib(StdlibTypeName.fromCT t)
-    | User u -> PT.FQTypeName.User(UserTypeName.fromCT u)
-    | Package p -> PT.FQTypeName.Package(PackageTypeName.fromCT p)
+    let fromCT (name : BuiltIn) : PT.FnName.BuiltIn =
+      FQName.CTBuiltIn.fromCT (fun (FnName name) -> PT.FnName.FnName name) name
 
-  let toCT (t : PT.FQTypeName.T) : T =
-    match t with
-    | PT.FQTypeName.Stdlib t -> Stdlib(StdlibTypeName.toCT t)
-    | PT.FQTypeName.User u -> User(UserTypeName.toCT u)
-    | PT.FQTypeName.Package p -> Package(PackageTypeName.toCT p)
+  module CTUserProgram =
+    let toCT (name : PT.FnName.UserProgram) : UserProgram =
+      FQName.CTUserProgram.toCT (fun (PT.FnName.FnName name) -> FnName name) name
+
+    let fromCT (name : UserProgram) : PT.FnName.UserProgram =
+      FQName.CTUserProgram.fromCT (fun (FnName name) -> PT.FnName.FnName name) name
+
+  module CTPackage =
+    let toCT (name : PT.FnName.Package) : Package =
+      FQName.CTPackage.toCT (fun (PT.FnName.FnName name) -> FnName name) name
+
+    let fromCT (name : Package) : PT.FnName.Package =
+      FQName.CTPackage.fromCT (fun (FnName name) -> PT.FnName.FnName name) name
+
+
+  let toCT (name : PT.FnName.T) : T =
+    FQName.toCT (fun (PT.FnName.FnName name) -> FnName name) name
+
+  let fromCT (name : T) : PT.FnName.T =
+    FQName.fromCT (fun (FnName name) -> PT.FnName.FnName name) name
+
 
 
 type TypeReference =
@@ -76,7 +174,7 @@ type TypeReference =
   | TPassword
   | TUuid
   | TOption of TypeReference
-  | TCustomType of FQTypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of TypeName.T * typeArgs : List<TypeReference>
   | TBytes
   | TResult of TypeReference * TypeReference
   | TVariable of string
@@ -101,7 +199,7 @@ module TypeReference =
     | TUuid -> PT.TUuid
     | TOption(t) -> PT.TOption(fromCT t)
     | TCustomType(t, typeArgs) ->
-      PT.TCustomType(FQTypeName.fromCT t, List.map fromCT typeArgs)
+      PT.TCustomType(TypeName.fromCT t, List.map fromCT typeArgs)
     | TBytes -> PT.TBytes
     | TResult(ok, err) -> PT.TResult(fromCT ok, fromCT err)
     | TVariable(name) -> PT.TVariable(name)
@@ -125,69 +223,11 @@ module TypeReference =
     | PT.TUuid -> TUuid
     | PT.TOption(t) -> TOption(toCT t)
     | PT.TCustomType(t, typeArgs) ->
-      TCustomType(FQTypeName.toCT t, List.map toCT typeArgs)
+      TCustomType(TypeName.toCT t, List.map toCT typeArgs)
     | PT.TBytes -> TBytes
     | PT.TResult(ok, err) -> TResult(toCT ok, toCT err)
     | PT.TVariable(name) -> TVariable(name)
     | PT.TFn(args, body) -> TFn(List.map toCT args, toCT body)
-
-
-module FQFnName =
-  type StdlibFnName = { modules : List<string>; function_ : string; version : int }
-
-  module StdlibFnName =
-    let fromCT (name : StdlibFnName) : PT.FQFnName.StdlibFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-    let toCT (name : PT.FQFnName.StdlibFnName) : StdlibFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-
-  type UserFnName = { modules : List<string>; function_ : string; version : int }
-
-  module UserFnName =
-    let fromCT (name : UserFnName) : PT.FQFnName.UserFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-    let toCT (name : PT.FQFnName.UserFnName) : UserFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-
-  type PackageFnName =
-    { owner : string
-      modules : NonEmptyList<string>
-      function_ : string
-      version : int }
-
-  module PackageFnName =
-    let fromCT (name : PackageFnName) : PT.FQFnName.PackageFnName =
-      { owner = name.owner
-        modules = name.modules
-        function_ = name.function_
-        version = name.version }
-
-    let toCT (name : PT.FQFnName.PackageFnName) : PackageFnName =
-      { owner = name.owner
-        modules = name.modules
-        function_ = name.function_
-        version = name.version }
-
-  type T =
-    | User of UserFnName
-    | Stdlib of StdlibFnName
-    | Package of PackageFnName
-
-  let fromCT (fqfn : T) : PT.FQFnName.T =
-    match fqfn with
-    | User u -> PT.FQFnName.User(UserFnName.fromCT u)
-    | Stdlib fn -> PT.FQFnName.Stdlib(StdlibFnName.fromCT fn)
-    | Package p -> PT.FQFnName.Package(PackageFnName.fromCT p)
-
-  let toCT (fqfn : PT.FQFnName.T) : T =
-    match fqfn with
-    | PT.FQFnName.User u -> User(UserFnName.toCT u)
-    | PT.FQFnName.Stdlib fn -> Stdlib(StdlibFnName.toCT fn)
-    | PT.FQFnName.Package p -> Package(PackageFnName.toCT p)
 
 
 type InfixFnName =
@@ -352,14 +392,14 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+  | EFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-  | ERecord of id * FQTypeName.T * List<string * Expr>
+  | ERecord of id * TypeName.T * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EDict of id * List<string * Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
-  | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
 
 and StringSegment =
@@ -370,16 +410,8 @@ and PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of
-    id *
-    FQFnName.T *
-    typeArgs : List<TypeReference> *
-    args : List<Expr>
-  | EPipeEnum of
-    id *
-    typeName : FQTypeName.T *
-    caseName : string *
-    fields : List<Expr>
+  | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+  | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
 
 module Expr =
   let rec fromCT (expr : Expr) : PT.Expr =
@@ -403,7 +435,7 @@ module Expr =
     | EFnCall(id, fnName, typeArgs, args) ->
       PT.EFnCall(
         id,
-        FQFnName.fromCT fnName,
+        FnName.fromCT fnName,
         List.map TypeReference.fromCT typeArgs,
         List.map fromCT args
       )
@@ -413,7 +445,7 @@ module Expr =
     | ERecord(id, typeName, fields) ->
       PT.ERecord(
         id,
-        FQTypeName.fromCT typeName,
+        TypeName.fromCT typeName,
         fields |> List.map (fun (name, expr) -> (name, fromCT expr))
       )
     | ERecordUpdate(id, record, updates) ->
@@ -436,7 +468,7 @@ module Expr =
         cases |> List.map (fun (pat, expr) -> (MatchPattern.fromCT pat, fromCT expr))
       )
     | EEnum(id, typeName, caseName, fields) ->
-      PT.Expr.EEnum(id, FQTypeName.fromCT typeName, caseName, List.map fromCT fields)
+      PT.Expr.EEnum(id, TypeName.fromCT typeName, caseName, List.map fromCT fields)
     | EDict(id, fields) ->
       PT.Expr.EDict(id, fields |> List.map (fun (key, value) -> (key, fromCT value)))
 
@@ -454,12 +486,12 @@ module Expr =
     | EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
-        FQFnName.fromCT fnName,
+        FnName.fromCT fnName,
         List.map TypeReference.fromCT typeArgs,
         List.map fromCT args
       )
     | EPipeEnum(id, typeName, caseName, fields) ->
-      PT.EPipeEnum(id, FQTypeName.fromCT typeName, caseName, List.map fromCT fields)
+      PT.EPipeEnum(id, TypeName.fromCT typeName, caseName, List.map fromCT fields)
 
   let rec toCT (expr : PT.Expr) : Expr =
     match expr with
@@ -483,7 +515,7 @@ module Expr =
     | PT.EFnCall(id, fnName, typeArgs, args) ->
       EFnCall(
         id,
-        FQFnName.toCT fnName,
+        FnName.toCT fnName,
         List.map TypeReference.toCT typeArgs,
         List.map toCT args
       )
@@ -493,7 +525,7 @@ module Expr =
     | PT.ERecord(id, typeName, fields) ->
       ERecord(
         id,
-        FQTypeName.toCT typeName,
+        TypeName.toCT typeName,
         fields |> List.map (fun (name, expr) -> (name, toCT expr))
       )
     | PT.ERecordUpdate(id, record, updates) ->
@@ -505,7 +537,7 @@ module Expr =
     | PT.EPipe(id, expr1, expr2, exprs) ->
       EPipe(id, toCT expr1, pipeExprToCT expr2, List.map pipeExprToCT exprs)
     | PT.EEnum(id, typeName, caseName, fields) ->
-      EEnum(id, FQTypeName.toCT typeName, caseName, List.map toCT fields)
+      EEnum(id, TypeName.toCT typeName, caseName, List.map toCT fields)
     | PT.EMatch(id, matchExpr, cases) ->
       EMatch(
         id,
@@ -532,12 +564,12 @@ module Expr =
     | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       EPipeFnCall(
         id,
-        FQFnName.toCT fnName,
+        FnName.toCT fnName,
         List.map TypeReference.toCT typeArgs,
         List.map toCT args
       )
     | PT.EPipeEnum(id, nameOpt, caseName, fields) ->
-      EPipeEnum(id, FQTypeName.toCT nameOpt, caseName, List.map toCT fields)
+      EPipeEnum(id, TypeName.toCT nameOpt, caseName, List.map toCT fields)
 
 module CustomType =
   type RecordField = { name : string; typ : TypeReference; description : string }
@@ -715,19 +747,19 @@ module DB =
 module UserType =
   type T =
     { tlid : tlid
-      name : FQTypeName.UserTypeName
+      name : TypeName.UserProgram
       typeParams : List<string>
       definition : CustomType.T }
 
   let fromCT (ut : T) : PT.UserType.T =
     { tlid = ut.tlid
-      name = FQTypeName.UserTypeName.fromCT ut.name
+      name = TypeName.CTUserProgram.fromCT ut.name
       typeParams = ut.typeParams
       definition = CustomType.fromCT ut.definition }
 
   let toCT (ut : PT.UserType.T) : T =
     { tlid = ut.tlid
-      name = FQTypeName.UserTypeName.toCT ut.name
+      name = TypeName.CTUserProgram.toCT ut.name
       typeParams = ut.typeParams
       definition = CustomType.toCT ut.definition }
 
@@ -746,32 +778,32 @@ module UserFunction =
 
   type T =
     { tlid : tlid
-      name : FQFnName.UserFnName
+      name : FnName.UserProgram
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
       description : string
-      deprecated : Deprecation<FQFnName.T>
+      deprecated : Deprecation<FnName.T>
       body : Expr }
 
   let fromCT (uf : T) : PT.UserFunction.T =
     { tlid = uf.tlid
-      name = FQFnName.UserFnName.fromCT uf.name
+      name = FnName.CTUserProgram.fromCT uf.name
       typeParams = uf.typeParams
       parameters = List.map Parameter.fromCT uf.parameters
       returnType = TypeReference.fromCT uf.returnType
       description = uf.description
-      deprecated = Deprecation.fromCT FQFnName.fromCT uf.deprecated
+      deprecated = Deprecation.fromCT FnName.fromCT uf.deprecated
       body = Expr.fromCT uf.body }
 
   let toCT (uf : PT.UserFunction.T) : T =
     { tlid = uf.tlid
-      name = FQFnName.UserFnName.toCT uf.name
+      name = FnName.CTUserProgram.toCT uf.name
       typeParams = uf.typeParams
       parameters = List.map Parameter.toCT uf.parameters
       returnType = TypeReference.toCT uf.returnType
       description = uf.description
-      deprecated = Deprecation.toCT FQFnName.toCT uf.deprecated
+      deprecated = Deprecation.toCT FnName.toCT uf.deprecated
       body = Expr.toCT uf.body }
 
 
@@ -820,62 +852,62 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toCT p.typ; description = p.description }
 
   type T =
-    { name : FQFnName.PackageFnName
+    { name : FnName.Package
       id : System.Guid
       body : Expr
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
       description : string
-      deprecated : Deprecation<FQFnName.T>
+      deprecated : Deprecation<FnName.T>
       tlid : tlid }
 
   let fromCT (fn : T) : PT.PackageFn.T =
-    { name = FQFnName.PackageFnName.fromCT fn.name
+    { name = FnName.CTPackage.fromCT fn.name
       id = fn.id
       body = Expr.fromCT fn.body
       typeParams = fn.typeParams
       parameters = List.map Parameter.fromCT fn.parameters
       returnType = TypeReference.fromCT fn.returnType
       description = fn.description
-      deprecated = Deprecation.fromCT FQFnName.fromCT fn.deprecated
+      deprecated = Deprecation.fromCT FnName.fromCT fn.deprecated
       tlid = fn.tlid }
 
   let toCT (fn : PT.PackageFn.T) : T =
-    { name = FQFnName.PackageFnName.toCT fn.name
+    { name = FnName.CTPackage.toCT fn.name
       id = fn.id
       body = Expr.toCT fn.body
       typeParams = fn.typeParams
       parameters = List.map Parameter.toCT fn.parameters
       returnType = TypeReference.toCT fn.returnType
       description = fn.description
-      deprecated = Deprecation.toCT FQFnName.toCT fn.deprecated
+      deprecated = Deprecation.toCT FnName.toCT fn.deprecated
       tlid = fn.tlid }
 
 module PackageType =
   type T =
     { tlid : tlid
       id : System.Guid
-      name : FQTypeName.PackageTypeName
+      name : TypeName.Package
       typeParams : List<string>
       definition : CustomType.T
       description : string
-      deprecated : Deprecation<FQTypeName.T> }
+      deprecated : Deprecation<TypeName.T> }
 
   let fromCT (pt : T) : PT.PackageType.T =
     { tlid = pt.tlid
       id = pt.id
-      name = FQTypeName.PackageTypeName.fromCT pt.name
+      name = TypeName.CTPackage.fromCT pt.name
       typeParams = pt.typeParams
       definition = CustomType.fromCT pt.definition
       description = pt.description
-      deprecated = Deprecation.fromCT FQTypeName.fromCT pt.deprecated }
+      deprecated = Deprecation.fromCT TypeName.fromCT pt.deprecated }
 
   let toCT (pt : PT.PackageType.T) : T =
     { tlid = pt.tlid
       id = pt.id
-      name = FQTypeName.PackageTypeName.toCT pt.name
+      name = TypeName.CTPackage.toCT pt.name
       typeParams = pt.typeParams
       definition = CustomType.toCT pt.definition
       description = pt.description
-      deprecated = Deprecation.toCT FQTypeName.toCT pt.deprecated }
+      deprecated = Deprecation.toCT TypeName.toCT pt.deprecated }

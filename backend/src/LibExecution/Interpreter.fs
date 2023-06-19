@@ -48,9 +48,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         return ()
     }
 
-  let recordMaybe (typeName : FQTypeName.T) =
+  let recordMaybe (typeName : TypeName.T) =
     let types = ExecutionState.availableTypes state
-    let rec inner (typeName : FQTypeName.T) =
+    let rec inner (typeName : TypeName.T) =
       match Types.find typeName types with
       | Some(CustomType.Alias(TCustomType(innerTypeName, _))) -> inner innerTypeName
       | Some(CustomType.Record(firstField, otherFields)) ->
@@ -191,7 +191,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | ERecord(id, typeName, fields) ->
-      let typeStr = FQTypeName.toString typeName
+      let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
       let typ = Types.find typeName types
 
@@ -245,7 +245,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let! baseRecord = eval state st baseRecord
       match baseRecord with
       | DRecord(typeName, _) ->
-        let typeStr = FQTypeName.toString typeName
+        let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
         match recordMaybe typeName with
         | None ->
@@ -304,7 +304,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let! args = Ply.List.mapSequentially (eval state st) exprs
 
       match fnTarget with
-      | FnName name -> return! callFn state id name typeArgs (Seq.toList args)
+      | FnTargetName name -> return! callFn state id name typeArgs (Seq.toList args)
       | FnTargetExpr e ->
         let! target = eval' state st e
         return! applyFn state target id args
@@ -321,7 +321,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           match Map.tryFind field o with
           | Some v -> return v
           | None ->
-            let typeStr = FQTypeName.toString typeName
+            let typeStr = TypeName.toString typeName
             return err id $"No field named {field} in {typeStr} record"
         | DDB _ ->
           let msg =
@@ -607,7 +607,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | EEnum(id, typeName, caseName, fields) ->
       match typeName with
-      | FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 }) ->
+      | FQName.BuiltIn({ modules = []
+                         name = TypeName.TypeName "Option"
+                         version = 0 }) ->
         match (caseName, fields) with
         | "Nothing", [] -> return DOption None
         | "Nothing", _ ->
@@ -618,7 +620,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | "Just", _ ->
           return err id $"Option.Just expects 1 argument but got {fields.Length}"
         | name, _ -> return err id $"Invalid name for enum {name}"
-      | FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 }) ->
+      | FQName.BuiltIn({ modules = []
+                         name = TypeName.TypeName "Result"
+                         version = 0 }) ->
         match (caseName, fields) with
         | "Ok", [ arg ] ->
           let! dv = eval state st arg
@@ -632,7 +636,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return err id $"Result.Error expects 1 argument but got {fields.Length}"
         | name, _ -> return err id $"Invalid name for enum {name}"
       | typeName ->
-        let typeStr = FQTypeName.toString typeName
+        let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
         match Types.find typeName types with
         | None -> return err id $"There is no type named `{typeStr}`"
@@ -759,7 +763,7 @@ and executeLambda
 and callFn
   (state : ExecutionState)
   (callerID : id)
-  (desc : FQFnName.T)
+  (desc : FnName.T)
   (typeArgs : List<TypeReference>)
   (args : List<Dval>)
   : DvalTask =
@@ -776,7 +780,7 @@ and callFn
       // doing this again
       match fnResult with
       | Some(result, _ts) -> result
-      | None -> DError(sourceID, $"Function {FQFnName.toString desc} is not found")
+      | None -> DError(sourceID, $"Function {FnName.toString desc} is not found")
 
     let checkArgsLength fn : Result<unit, string> =
       let expectedTypeParamLength = List.length fn.typeParams
@@ -792,7 +796,7 @@ and callFn
         Ok()
       else
         Error(
-          $"{FQFnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
+          $"{FnName.toString desc} has {expectedTypeParamLength} type parameters and {expectedArgLength} parameters, "
           + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
         )
 
@@ -802,10 +806,11 @@ and callFn
     | None ->
       let fn =
         match desc with
-        | FQFnName.Stdlib std ->
-          state.libraries.stdlibFns.TryFind std |> Option.map builtInFnToFn
-        | FQFnName.User u -> state.program.userFns.TryFind u |> Option.map userFnToFn
-        | FQFnName.Package pkg ->
+        | FQName.BuiltIn std ->
+          state.libraries.builtInFns.TryFind std |> Option.map builtInFnToFn
+        | FQName.UserProgram u ->
+          state.program.fns.TryFind u |> Option.map userFnToFn
+        | FQName.Package pkg ->
           state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
 
       match fn with
@@ -820,7 +825,7 @@ and callFn
 
 and execFn
   (state : ExecutionState)
-  (fnDesc : FQFnName.T)
+  (fnDesc : FnName.T)
   (id : id)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
@@ -847,7 +852,7 @@ and execFn
       let fnRecord = (state.tlid, fnDesc, id) in
 
       match fn.fn with
-      | StdLib f ->
+      | BuiltInFunction f ->
         if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
           match state.tracing.loadFnResult fnRecord args with
           | Some(result, _ts) -> return result
@@ -883,8 +888,8 @@ and execFn
 
           return result
       | PackageFunction(tlid, body)
-      | UserFunction(tlid, body) ->
-        let name = [ FQFnName.toString fnDesc ]
+      | UserProgramFunction(tlid, body) ->
+        let name = [ FnName.toString fnDesc ]
         let types = ExecutionState.availableTypes state
         match TypeChecker.checkFunctionCall name types fn typeArgs args with
         | Error err ->
@@ -902,7 +907,7 @@ and execFn
           if Dval.isFake result then
             return result
           else
-            let name = FQFnName.toString fnDesc
+            let name = FnName.toString fnDesc
             match TypeChecker.checkFunctionReturnType [ name ] types fn result with
             | Error err ->
               let msg =

@@ -40,106 +40,219 @@ module J = Prelude.Json
 module FQName =
 
   /// A name that is built into the runtime
-  type BuiltIn<'a> = { modules : List<string>; name : 'a; version : int }
+  type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
 
   /// Part of the user's program (eg canvas or cli)
-  type UserProgram<'a> = { modules : List<string>; name : 'a; version : int }
+  type UserProgram<'name> = { modules : List<string>; name : 'name; version : int }
 
   /// The name of a thing in the package manager
   // TODO: We plan to use UUIDs for this, but this is a placeholder
-  type Package<'a> = { modules : NonEmptyList<string>; name : 'a; version : int }
+  type Package<'name> =
+    { owner : string; modules : NonEmptyList<string>; name : 'name; version : int }
 
-  type T<'a> =
-    | BuiltIn of BuiltIn<'a>
-    | UserProgram of UserProgram<'a>
-    | Package of Package<'a>
+  type T<'name> =
+    | BuiltIn of BuiltIn<'name>
+    | UserProgram of UserProgram<'name>
+    | Package of Package<'name>
+
+  type NameValidator<'name> = 'name -> unit
+  type NamePrinter<'name> = 'name -> string
 
   // Lowercase starting letter for modules and users
-  let modulePattern = @"^[a-z][a-z0-9A-Z_]*$"
-  let assert' (modules : List<string>) (version : int) : unit =
+  let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
+  let assert'
+    (modules : List<string>)
+    (name : 'name)
+    (version : int)
+    (nameValidator : 'name -> unit)
+    : unit =
     List.iter (assertRe "modules name must match" modulePattern) modules
+    nameValidator name
     assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
-  let builtinToString (s : BuiltIn<'a>) (f : 'a -> string) : string =
+  let builtin
+    (nameValidator : NameValidator<'name>)
+    (modules : List<string>)
+    (name : 'name)
+    (version : int)
+    : BuiltIn<'name> =
+    assert' modules name version nameValidator
+    { modules = modules; name = name; version = version }
+
+  let fqBuiltIn
+    (nameValidator : NameValidator<'name>)
+    (modules : List<string>)
+    (name : 'name)
+    (version : int)
+    : T<'name> =
+    BuiltIn(builtin nameValidator modules name version)
+
+  let userProgram
+    (nameValidator : NameValidator<'name>)
+    (modules : List<string>)
+    (name : 'name)
+    (version : int)
+    : UserProgram<'name> =
+    assert' modules name version nameValidator
+    { modules = modules; name = name; version = version }
+
+  let fqUserProgram
+    (nameValidator : NameValidator<'name>)
+    (modules : List<string>)
+    (name : 'name)
+    (version : int)
+    : T<'name> =
+    UserProgram(userProgram nameValidator modules name version)
+
+  let package
+    (nameValidator : NameValidator<'name>)
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : 'name)
+    (version : int)
+    : Package<'name> =
+    assert' (NonEmptyList.toList modules) name version nameValidator
+    { owner = owner; modules = modules; name = name; version = version }
+
+  let fqPackage
+    (nameValidator : NameValidator<'name>)
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : 'name)
+    (version : int)
+    : T<'name> =
+    Package(package nameValidator owner modules name version)
+
+  let builtinToString (s : BuiltIn<'name>) (f : NamePrinter<'name>) : string =
     let name = s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let userProgramToString (s : UserProgram<'a>) (f : 'a -> string) : string =
+  let userProgramToString
+    (s : UserProgram<'name>)
+    (f : NamePrinter<'name>)
+    : string =
     let name = s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package<'a>) (f : 'a -> string) : string =
-    let name = NonEmptyList.toList s.modules @ [ f s.name ] |> String.concat "."
+  let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
+    let name =
+      [ s.owner ] @ NonEmptyList.toList s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let toString (fqfnName : T<'a>) (f : 'a -> string) : string =
-    match fqfnName with
-    | BuiltIn std -> builtinToString std f
+  let toString (name : T<'name>) (f : NamePrinter<'name>) : string =
+    match name with
+    | BuiltIn b -> builtinToString b f
     | UserProgram user -> userProgramToString user f
     | Package pkg -> packageToString pkg f
 
 module TypeName =
   type Name = TypeName of string
-  let pattern = @"^[A-Z][a-z0-9A-Z_]*$"
   type T = FQName.T<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
 
-  let assert' (modules : List<string>) (name : string) (version : int) : unit =
-    FQName.assert' modules version
+  let pattern = @"^[A-Z][a-z0-9A-Z_]*$"
+  let assert' (TypeName name : Name) : unit =
     assertRe "type name must match" pattern name
+  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
+    FQName.builtin assert' modules (TypeName name) version
 
-  let builtin (modules : List<string>) (name : string) (version : int) : T =
-    FQName.assert' modules version
-    FQName.BuiltIn { modules = modules; name = TypeName name; version = version }
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqBuiltIn assert' modules (TypeName name) version
 
-  let userProgram (modules : List<string>) (name : string) (version : int) : T =
-    FQName.assert' modules version
-    FQName.UserProgram { modules = modules; name = TypeName name; version = version }
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    FQName.userProgram assert' modules (TypeName name) version
 
-  let package (modules : NonEmptyList<string>) (name : string) (version : int) : T =
-    FQName.assert' (NonEmptyList.toList modules) version
-    FQName.Package { modules = modules; name = TypeName name; version = version }
+  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqUserProgram assert' modules (TypeName name) version
+
+  let package
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : Package =
+    FQName.package assert' owner modules (TypeName name) version
+
+  let fqPackage
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : T =
+    FQName.fqPackage assert' owner modules (TypeName name) version
+
+  let builtinToString (s : BuiltIn) : string =
+    FQName.builtinToString s (fun (TypeName name) -> name)
+
+  let userProgramToString (s : UserProgram) : string =
+    FQName.userProgramToString s (fun (TypeName name) -> name)
+
+  let packageToString (s : Package) : string =
+    FQName.packageToString s (fun (TypeName name) -> name)
+
+  let toString (name : T) : string =
+    FQName.toString name (fun (TypeName name) -> name)
 
 
 module FnName =
   type Name = FnName of string
+  type T = FQName.T<Name>
   type BuiltIn = FQName.BuiltIn<Name>
   type UserProgram = FQName.UserProgram<Name>
   type Package = FQName.Package<Name>
+
   let pattern = @"^[a-z][a-z0-9A-Z_]*$"
+  let assert' (FnName name : Name) : unit =
+    assertRe "Fn name must match" pattern name
 
-  let assert' (modules : List<string>) (name : string) (version : int) : unit =
-    List.iter (assertRe "modName name must match" FQName.modulePattern) modules
-    assertRe "stdlib function name must match" pattern name
-    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
+    FQName.builtin assert' modules (FnName name) version
 
-  type T = FQName.T<Name>
-  let builtin (modules : List<string>) (name : string) (version : int) : T =
-    assert' modules name version
-    FQName.BuiltIn { modules = modules; name = FnName name; version = version }
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqBuiltIn assert' modules (FnName name) version
 
-  let userProgram (modules : List<string>) (name : string) (version : int) : T =
-    assert' modules name version
-    FQName.UserProgram { modules = modules; name = FnName name; version = version }
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    FQName.userProgram assert' modules (FnName name) version
 
-  let package (modules : NonEmptyList<string>) (name : string) (version : int) : T =
-    assert' (NonEmptyList.toList modules) name version
-    FQName.Package { modules = modules; name = FnName name; version = version }
+  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqUserProgram assert' modules (FnName name) version
 
-  let isDBQueryFn (fnName : T) : bool =
-    match fnName with
-    | FQName.BuiltIn { modules = [ "DB" ]; name = FnName name } when
-      String.startsWith "query" name
-      ->
-      true
-    | _ -> false
+  let package
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : Package =
+    FQName.package assert' owner modules (FnName name) version
 
-  let isInternalFn (fnName : T) : bool =
-    match fnName with
-    | FQName.BuiltIn { modules = [ "DarkInternal" ] } -> true
-    | _ -> false
+  let fqPackage
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : T =
+    FQName.fqPackage assert' owner modules (FnName name) version
+
+  let builtinToString (s : BuiltIn) : string =
+    FQName.builtinToString s (fun (FnName name) -> name)
+  let userProgramToString (s : UserProgram) : string =
+    FQName.userProgramToString s (fun (FnName name) -> name)
+  let packageToString (s : Package) : string =
+    FQName.packageToString s (fun (FnName name) -> name)
+
+  let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
+
+  let isInternalFn (fnName : BuiltIn) : bool = fnName.modules.Head = "DarkInternal"
 
 
 module DarkDateTime =
@@ -280,7 +393,7 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and FnTarget =
-  | FnName of FnName.T
+  | FnTargetName of FnName.T
   | FnTargetExpr of Expr
 
 and MatchPattern =
@@ -990,9 +1103,9 @@ module Types =
   let find (name : TypeName.T) (types : Types) : Option<CustomType.T> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.stdlibTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.definition)
     | FQName.UserProgram user ->
-      Map.tryFind user types.userTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.definition)
     | FQName.Package pkg ->
       Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
 

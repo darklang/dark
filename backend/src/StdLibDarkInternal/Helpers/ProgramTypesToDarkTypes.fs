@@ -10,14 +10,14 @@ let stdlibTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
-  : FQTypeName.T =
-  pkgTyp "Darklang" (NonEmptyList.ofList ([ "Stdlib" ] @ submodules)) name version
+  : TypeName.T =
+  TypeName.fqPackage
+    "Darklang"
+    (NonEmptyList.ofList ([ "Stdlib" ] @ submodules))
+    name
+    version
 
-let ptTyp
-  (submodules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.T =
+let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
   stdlibTyp ("ProgramTypes" :: submodules) name version
 
 
@@ -30,88 +30,94 @@ module Sign =
     | Negative -> DEnum(stdlibTyp [] "Sign" 0, "Negative", [])
 
 
-module FQTypeName =
-  module StdlibTypeName =
-    let toDT (u : PT.FQTypeName.StdlibTypeName) : Dval =
+module TypeName =
+  module BuiltIn =
+    let toDT (u : PT.TypeName.BuiltIn) : Dval =
+      let (PT.TypeName.TypeName name) = u.name
       DRecord(
-        ptTyp [ "FQTypeName" ] "StdlibTypeName" 0,
+        ptTyp [ "TypeName" ] "BuiltIn" 0,
         Map
           [ "modules", DList(List.map DString u.modules)
-            "typ", DString u.typ
+            "typ", DString name
             "version", DInt u.version ]
       )
 
-  module UserTypeName =
-    let toDT (u : PT.FQTypeName.UserTypeName) : Dval =
+  module UserProgram =
+    let toDT (u : PT.TypeName.UserProgram) : Dval =
+      let (PT.TypeName.TypeName name) = u.name
       DRecord(
-        ptTyp [ "FQTypeName" ] "UserTypeName" 0,
+        ptTyp [ "TypeName" ] "UserProgram" 0,
         Map
           [ "modules", DList(List.map DString u.modules)
-            "typ", DString u.typ
+            "typ", DString name
             "version", DInt u.version ]
       )
 
-  module PackageTypeName =
-    let toDT (u : PT.FQTypeName.PackageTypeName) : Dval =
+  module Package =
+    let toDT (u : PT.TypeName.Package) : Dval =
+      let (PT.TypeName.TypeName name) = u.name
       DRecord(
-        ptTyp [ "FQTypeName" ] "PackageTypeName" 0,
+        ptTyp [ "TypeName" ] "Package" 0,
         Map
           [ "owner", DString u.owner
             "modules", DList(List.map DString (Seq.toList u.modules)) // CLEANUP alt. to seq.toList
-            "typ", DString u.typ
+            "typ", DString name
             "version", DInt u.version ]
       )
 
-  let toDT (u : PT.FQTypeName.T) : Dval =
+  let toDT (u : PT.TypeName.T) : Dval =
     let caseName, fields =
       match u with
-      | PT.FQTypeName.User u -> "User", [ UserTypeName.toDT u ]
-      | PT.FQTypeName.Package u -> "Package", [ PackageTypeName.toDT u ]
-      | PT.FQTypeName.Stdlib u -> "Stdlib", [ StdlibTypeName.toDT u ]
+      | PT.FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT u ]
+      | PT.FQName.Package u -> "Package", [ Package.toDT u ]
+      | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT u ]
 
-    DEnum(ptTyp [ "FQTypeName" ] "T" 0, caseName, fields)
+    DEnum(ptTyp [ "TypeName" ] "T" 0, caseName, fields)
 
 
-module FQFnName =
-  module StdlibFnName =
-    let toDT (u : PT.FQFnName.StdlibFnName) : Dval =
+module FnName =
+  module BuiltIn =
+    let toDT (u : PT.FnName.BuiltIn) : Dval =
+      let (PT.FnName.FnName name) = u.name
       DRecord(
-        ptTyp [ "FQFnName" ] "StdlibFnName" 0,
+        ptTyp [ "FnName" ] "BuiltIn" 0,
         Map
           [ "modules", DList(List.map DString u.modules)
-            "function_", DString u.function_
+            "name", DString name
             "version", DInt u.version ]
       )
 
-  module UserFnName =
-    let toDT (u : PT.FQFnName.UserFnName) : Dval =
+  module UserProgram =
+    let toDT (u : PT.FnName.UserProgram) : Dval =
+      let (PT.FnName.FnName name) = u.name
       DRecord(
-        ptTyp [ "FQFnName" ] "UserFnName" 0,
+        ptTyp [ "FnName" ] "UserProgram" 0,
         Map
           [ "modules", DList(List.map DString u.modules)
-            "function_", DString u.function_
+            "name", DString name
             "version", DInt u.version ]
       )
 
-  module PackageFnName =
-    let toDT (u : PT.FQFnName.PackageFnName) : Dval =
+  module Package =
+    let toDT (u : PT.FnName.Package) : Dval =
+      let (PT.FnName.FnName name) = u.name
       DRecord(
-        ptTyp [ "FQFnName" ] "PackageFnName" 0,
+        ptTyp [ "FnName" ] "Package" 0,
         Map
           [ "owner", DString u.owner
             "modules", DList(List.map DString (Seq.toList u.modules)) // CLEANUP alt. to seq.toList
-            "function_", DString u.function_
+            "name", DString name
             "version", DInt u.version ]
       )
 
-  let toDT (u : PT.FQFnName.T) : Dval =
+  let toDT (u : PT.FnName.T) : Dval =
     let caseName, fields =
       match u with
-      | PT.FQFnName.User u -> "User", [ UserFnName.toDT u ]
-      | PT.FQFnName.Package u -> "Package", [ PackageFnName.toDT u ]
-      | PT.FQFnName.Stdlib u -> "Stdlib", [ StdlibFnName.toDT u ]
+      | PT.FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT u ]
+      | PT.FQName.Package u -> "Package", [ Package.toDT u ]
+      | PT.FQName.BuiltIn u -> "Stdlib", [ BuiltIn.toDT u ]
 
-    DEnum(ptTyp [ "FQFnName" ] "T" 0, caseName, fields)
+    DEnum(ptTyp [ "FnName" ] "T" 0, caseName, fields)
 
 
 module TypeReference =
@@ -139,7 +145,7 @@ module TypeReference =
       | PT.TDict inner -> "TDict", [ toDT inner ]
 
       | PT.TCustomType(typeName, typeArgs) ->
-        "TCustomType", [ FQTypeName.toDT typeName; DList(List.map toDT typeArgs) ]
+        "TCustomType", [ TypeName.toDT typeName; DList(List.map toDT typeArgs) ]
 
       | PT.TDB inner -> "TDB", [ toDT inner ]
       | PT.TFn(args, ret) -> "TFn", [ DList(List.map toDT args); toDT ret ]
@@ -258,14 +264,14 @@ module PipeExpr =
       | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
         "EPipeFnCall",
         [ DInt(int64 id)
-          FQFnName.toDT fnName
+          FnName.toDT fnName
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map exprToDT args) ]
 
       | PT.EPipeEnum(id, typeName, caseName, fields) ->
         "EPipeEnum",
         [ DInt(int64 id)
-          FQTypeName.toDT typeName
+          TypeName.toDT typeName
           DString caseName
           DList(List.map exprToDT fields) ]
 
@@ -309,12 +315,12 @@ module Expr =
           fields
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
-        "ERecord", [ DInt(int64 id); FQTypeName.toDT name; DList(fields) ]
+        "ERecord", [ DInt(int64 id); TypeName.toDT name; DList(fields) ]
 
       | PT.EEnum(id, typeName, caseName, fields) ->
         "EEnum",
         [ DInt(int64 id)
-          FQTypeName.toDT typeName
+          TypeName.toDT typeName
           DString caseName
           DList(List.map toDT fields) ]
 
@@ -364,7 +370,7 @@ module Expr =
       | PT.EFnCall(id, name, typeArgs, args) ->
         "EFnCall",
         [ DInt(int64 id)
-          FQFnName.toDT name
+          FnName.toDT name
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map toDT args) ]
 
@@ -492,7 +498,7 @@ module UserType =
       ptTyp [] "UserType" 0,
       Map
         [ "tlid", DInt(int64 userType.tlid)
-          "name", FQTypeName.UserTypeName.toDT userType.name
+          "name", TypeName.UserProgram.toDT userType.name
           "typeParams", DList(List.map DString userType.typeParams)
           "definition", CustomType.toDT userType.definition ]
     )
@@ -514,13 +520,13 @@ module UserFunction =
       ptTyp [] "UserFunction" 0,
       Map
         [ "tlid", DInt(int64 userFn.tlid)
-          "name", FQFnName.UserFnName.toDT userFn.name
+          "name", FnName.UserProgram.toDT userFn.name
           "typeParams", DList(List.map DString userFn.typeParams)
           "parameters", DList(List.map Parameter.toDT userFn.parameters)
           "returnType", TypeReference.toDT userFn.returnType
           "body", Expr.toDT userFn.body
           "description", DString userFn.description
-          "deprecated", Deprecation.toDT FQFnName.toDT userFn.deprecated ]
+          "deprecated", Deprecation.toDT FnName.toDT userFn.deprecated ]
     )
 
 module Secret =
@@ -541,11 +547,11 @@ module PackageType =
       Map
         [ "tlid", DInt(int64 p.tlid)
           "id", DUuid p.id
-          "name", FQTypeName.PackageTypeName.toDT p.name
+          "name", TypeName.Package.toDT p.name
           "typeParams", DList(List.map DString p.typeParams)
           "definition", CustomType.toDT p.definition
           "description", DString p.description
-          "deprecated", Deprecation.toDT FQTypeName.toDT p.deprecated ]
+          "deprecated", Deprecation.toDT TypeName.toDT p.deprecated ]
     )
 
 
@@ -566,11 +572,11 @@ module PackageFn =
       Map
         [ "tlid", DInt(int64 p.tlid)
           "id", DUuid p.id
-          "name", FQFnName.PackageFnName.toDT p.name
+          "name", FnName.Package.toDT p.name
           "body", Expr.toDT p.body
           "typeParams", DList(List.map DString p.typeParams)
           "parameters", DList(List.map Parameter.toDT p.parameters)
           "returnType", TypeReference.toDT p.returnType
           "description", DString p.description
-          "deprecated", Deprecation.toDT FQFnName.toDT p.deprecated ]
+          "deprecated", Deprecation.toDT FnName.toDT p.deprecated ]
     )

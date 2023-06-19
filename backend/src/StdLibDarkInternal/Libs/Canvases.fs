@@ -13,24 +13,17 @@ module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module PT2DT = ProgramTypes2DarkTypes
 
-let modul = [ "DarkInternal"; "Canvas" ]
+let modules = [ "DarkInternal"; "Canvas" ]
 
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' modul name version
+let typ = typ modules
+let fn = fn modules
 
-let ptTyp
-  (submodules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.T =
-  pkgTyp
+let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
+  TypeName.fqPackage
     "Darklang"
     (NonEmptyList.ofList ([ "Stdlib"; "ProgramTypes" ] @ submodules))
     name
     version
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
 
 
 let types : List<BuiltInType> =
@@ -44,11 +37,11 @@ let types : List<BuiltInType> =
               description = "All typed defined within this canvas" }
 
             // { name = "dbs"
-            //   typ = TList(TCustomType(FQTypeName.Stdlib(typ "DB" 0), []))
+            //   typ = TList(TCustomType(FQName.BuiltIn(typ "DB" 0), []))
             //   description = "" }
 
             // { name = "httpHandlers"
-            //   typ = TList(TCustomType(FQTypeName.Stdlib(typ "HttpHandler" 0), []))
+            //   typ = TList(TCustomType(FQName.BuiltIn(typ "HttpHandler" 0), []))
             //   description = "" }
             ]
         )
@@ -187,8 +180,7 @@ let fns : List<BuiltInFn> =
     { name = fn "fullProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType =
-        TResult(TCustomType(FQTypeName.Stdlib(typ "Program" 0), []), TString)
+      returnType = TResult(TCustomType(FQName.BuiltIn(typ "Program" 0), []), TString)
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
@@ -231,7 +223,7 @@ let fns : List<BuiltInFn> =
             //   |> DList
 
             return
-              DRecord(FQTypeName.Stdlib(typ "Program" 0), Map [ "types", types ])
+              DRecord(FQName.BuiltIn(typ "Program" 0), Map [ "types", types ])
               |> Ok
               |> DResult
           }

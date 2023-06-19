@@ -284,8 +284,10 @@ let varA = TVariable "a"
 
 let types : List<BuiltInType> = []
 
+let fn = fn []
+
 let fns : List<BuiltInFn> =
-  [ { name = fnNoMod "equals" 0
+  [ { name = fn "equals" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
@@ -301,7 +303,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fnNoMod "notEquals" 0
+    { name = fn "notEquals" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool

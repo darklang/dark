@@ -9,86 +9,100 @@ module ST = SerializedTypes
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-module FQTypeName =
-  module StdlibTypeName =
-    let toST (s : PT.FQTypeName.StdlibTypeName) : ST.FQTypeName.StdlibTypeName =
-      { modules = s.modules; typ = s.typ; version = s.version }
+module TypeName =
 
-    let toPT (s : ST.FQTypeName.StdlibTypeName) : PT.FQTypeName.StdlibTypeName =
-      { modules = s.modules; typ = s.typ; version = s.version }
+  module BuiltIn =
+    let toST (b : PT.TypeName.BuiltIn) : ST.TypeName.BuiltIn =
+      let (PT.TypeName.TypeName name) = b.name
+      { modules = b.modules; name = name; version = b.version }
 
-  module UserTypeName =
-    let toST (u : PT.FQTypeName.UserTypeName) : ST.FQTypeName.UserTypeName =
-      { modules = u.modules; typ = u.typ; version = u.version }
+    let toPT (b : ST.TypeName.BuiltIn) : PT.TypeName.BuiltIn =
+      { modules = b.modules
+        name = PT.TypeName.TypeName b.name
+        version = b.version }
 
-    let toPT (u : ST.FQTypeName.UserTypeName) : PT.FQTypeName.UserTypeName =
-      { modules = u.modules; typ = u.typ; version = u.version }
+  module UserProgram =
+    let toST (u : PT.TypeName.UserProgram) : ST.TypeName.UserProgram =
+      let (PT.TypeName.TypeName name) = u.name
+      { modules = u.modules; name = name; version = u.version }
 
-  module PackageTypeName =
-    let toST (p : PT.FQTypeName.PackageTypeName) : ST.FQTypeName.PackageTypeName =
+    let toPT (u : ST.TypeName.UserProgram) : PT.TypeName.UserProgram =
+      { modules = u.modules
+        name = PT.TypeName.TypeName u.name
+        version = u.version }
+
+  module Package =
+    let toST (p : PT.TypeName.Package) : ST.TypeName.Package =
+      let (PT.TypeName.TypeName name) = p.name
       { owner = p.owner
         modules = { head = p.modules.Head; tail = p.modules.Tail }
-        typ = p.typ
+        name = name
         version = p.version }
 
-    let toPT (p : ST.FQTypeName.PackageTypeName) : PT.FQTypeName.PackageTypeName =
+    let toPT (p : ST.TypeName.Package) : PT.TypeName.Package =
       { owner = p.owner
         modules = { Head = p.modules.head; Tail = p.modules.tail }
-        typ = p.typ
+        name = PT.TypeName.TypeName p.name
         version = p.version }
 
+  let toST (fqtn : PT.TypeName.T) : ST.TypeName.T =
+    match fqtn with
+    | PT.FQName.BuiltIn s -> ST.TypeName.BuiltIn(BuiltIn.toST s)
+    | PT.FQName.UserProgram u -> ST.TypeName.UserProgram(UserProgram.toST u)
+    | PT.FQName.Package p -> ST.TypeName.Package(Package.toST p)
 
-  let toST (t : PT.FQTypeName.T) : ST.FQTypeName.T =
-    match t with
-    | PT.FQTypeName.Stdlib s -> ST.FQTypeName.Stdlib(StdlibTypeName.toST s)
-    | PT.FQTypeName.User u -> ST.FQTypeName.User(UserTypeName.toST u)
-    | PT.FQTypeName.Package p -> ST.FQTypeName.Package(PackageTypeName.toST p)
-
-  let toPT (t : ST.FQTypeName.T) : PT.FQTypeName.T =
-    match t with
-    | ST.FQTypeName.Stdlib s -> PT.FQTypeName.Stdlib(StdlibTypeName.toPT s)
-    | ST.FQTypeName.User u -> PT.FQTypeName.User(UserTypeName.toPT u)
-    | ST.FQTypeName.Package p -> PT.FQTypeName.Package(PackageTypeName.toPT p)
-
-module FQFnName =
-  module PackageFnName =
-    let toST (name : PT.FQFnName.PackageFnName) : ST.FQFnName.PackageFnName =
-      { owner = name.owner
-        modules = { head = name.modules.Head; tail = name.modules.Tail }
-        function_ = name.function_
-        version = name.version }
-
-    let toPT (name : ST.FQFnName.PackageFnName) : PT.FQFnName.PackageFnName =
-      { owner = name.owner
-        modules = { Head = name.modules.head; Tail = name.modules.tail }
-        function_ = name.function_
-        version = name.version }
-
-  module StdlibFnName =
-    let toST (name : PT.FQFnName.StdlibFnName) : ST.FQFnName.StdlibFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-    let toPT (name : ST.FQFnName.StdlibFnName) : PT.FQFnName.StdlibFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-  module UserFnName =
-    let toST (name : PT.FQFnName.UserFnName) : ST.FQFnName.UserFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-    let toPT (name : ST.FQFnName.UserFnName) : PT.FQFnName.UserFnName =
-      { modules = name.modules; function_ = name.function_; version = name.version }
-
-  let toST (fqfn : PT.FQFnName.T) : ST.FQFnName.T =
+  let toPT (fqfn : ST.TypeName.T) : PT.TypeName.T =
     match fqfn with
-    | PT.FQFnName.User u -> ST.FQFnName.User(UserFnName.toST u)
-    | PT.FQFnName.Stdlib fn -> ST.FQFnName.Stdlib(StdlibFnName.toST fn)
-    | PT.FQFnName.Package p -> ST.FQFnName.Package(PackageFnName.toST p)
+    | ST.TypeName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
+    | ST.TypeName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
+    | ST.TypeName.Package p -> PT.FQName.Package(Package.toPT p)
 
-  let toPT (fqfn : ST.FQFnName.T) : PT.FQFnName.T =
+
+
+module FnName =
+
+  module BuiltIn =
+    let toST (b : PT.FnName.BuiltIn) : ST.FnName.BuiltIn =
+      let (PT.FnName.FnName name) = b.name
+      { modules = b.modules; name = name; version = b.version }
+
+    let toPT (b : ST.FnName.BuiltIn) : PT.FnName.BuiltIn =
+      { modules = b.modules; name = PT.FnName.FnName b.name; version = b.version }
+
+  module UserProgram =
+    let toST (u : PT.FnName.UserProgram) : ST.FnName.UserProgram =
+      let (PT.FnName.FnName name) = u.name
+      { modules = u.modules; name = name; version = u.version }
+
+    let toPT (u : ST.FnName.UserProgram) : PT.FnName.UserProgram =
+      { modules = u.modules; name = PT.FnName.FnName u.name; version = u.version }
+
+  module Package =
+    let toST (p : PT.FnName.Package) : ST.FnName.Package =
+      let (PT.FnName.FnName name) = p.name
+      { owner = p.owner
+        modules = { head = p.modules.Head; tail = p.modules.Tail }
+        name = name
+        version = p.version }
+
+    let toPT (p : ST.FnName.Package) : PT.FnName.Package =
+      { owner = p.owner
+        modules = { Head = p.modules.head; Tail = p.modules.tail }
+        name = PT.FnName.FnName p.name
+        version = p.version }
+
+  let toST (fqfn : PT.FnName.T) : ST.FnName.T =
     match fqfn with
-    | ST.FQFnName.Stdlib fn -> PT.FQFnName.Stdlib(StdlibFnName.toPT fn)
-    | ST.FQFnName.User fn -> PT.FQFnName.User(UserFnName.toPT fn)
-    | ST.FQFnName.Package p -> PT.FQFnName.Package(PackageFnName.toPT p)
+    | PT.FQName.BuiltIn s -> ST.FnName.BuiltIn(BuiltIn.toST s)
+    | PT.FQName.UserProgram u -> ST.FnName.UserProgram(UserProgram.toST u)
+    | PT.FQName.Package p -> ST.FnName.Package(Package.toST p)
+
+  let toPT (fqfn : ST.FnName.T) : PT.FnName.T =
+    match fqfn with
+    | ST.FnName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.toPT s)
+    | ST.FnName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
+    | ST.FnName.Package p -> PT.FQName.Package(Package.toPT p)
+
 
 module InfixFnName =
   let toST (name : PT.InfixFnName) : ST.InfixFnName =
@@ -142,7 +156,7 @@ module TypeReference =
     | PT.TUuid -> ST.TUuid
     | PT.TOption typ -> ST.TOption(toST typ)
     | PT.TCustomType(t, typeArgs) ->
-      ST.TCustomType(FQTypeName.toST t, List.map toST typeArgs)
+      ST.TCustomType(TypeName.toST t, List.map toST typeArgs)
     | PT.TBytes -> ST.TBytes
     | PT.TResult(okType, errType) -> ST.TResult(toST okType, toST errType)
     | PT.TVariable(name) -> ST.TVariable(name)
@@ -167,7 +181,7 @@ module TypeReference =
     | ST.TUuid -> PT.TUuid
     | ST.TOption typ -> PT.TOption(toPT typ)
     | ST.TCustomType(t, typeArgs) ->
-      PT.TCustomType(FQTypeName.toPT t, List.map toPT typeArgs)
+      PT.TCustomType(TypeName.toPT t, List.map toPT typeArgs)
     | ST.TBytes -> PT.TBytes
     | ST.TResult(okType, errType) -> PT.TResult(toPT okType, toPT errType)
     | ST.TVariable(name) -> PT.TVariable(name)
@@ -253,7 +267,7 @@ module Expr =
     | PT.EFnCall(id, name, typeArgs, args) ->
       ST.EFnCall(
         id,
-        FQFnName.toST name,
+        FnName.toST name,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
@@ -270,11 +284,7 @@ module Expr =
     | PT.ETuple(id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
     | PT.ERecord(id, typeName, fields) ->
-      ST.ERecord(
-        id,
-        FQTypeName.toST typeName,
-        List.map (Tuple2.mapSecond toST) fields
-      )
+      ST.ERecord(id, TypeName.toST typeName, List.map (Tuple2.mapSecond toST) fields)
     | PT.ERecordUpdate(id, record, updates) ->
       ST.ERecordUpdate(
         id,
@@ -284,7 +294,7 @@ module Expr =
     | PT.EPipe(pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, pipeExprToST expr2, List.map pipeExprToST rest)
     | PT.EEnum(id, typeName, caseName, fields) ->
-      ST.EEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
+      ST.EEnum(id, TypeName.toST typeName, caseName, List.map toST fields)
     | PT.EMatch(id, mexpr, cases) ->
       ST.EMatch(
         id,
@@ -309,12 +319,12 @@ module Expr =
     | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       ST.EPipeFnCall(
         id,
-        FQFnName.toST fnName,
+        FnName.toST fnName,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
     | PT.EPipeEnum(id, typeName, caseName, fields) ->
-      ST.EPipeEnum(id, FQTypeName.toST typeName, caseName, List.map toST fields)
+      ST.EPipeEnum(id, TypeName.toST typeName, caseName, List.map toST fields)
 
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
@@ -329,7 +339,7 @@ module Expr =
     | ST.EFnCall(id, name, typeArgs, args) ->
       PT.EFnCall(
         id,
-        FQFnName.toPT name,
+        FnName.toPT name,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
@@ -342,11 +352,7 @@ module Expr =
     | ST.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
     | ST.ERecord(id, typeName, fields) ->
-      PT.ERecord(
-        id,
-        FQTypeName.toPT typeName,
-        List.map (Tuple2.mapSecond toPT) fields
-      )
+      PT.ERecord(id, TypeName.toPT typeName, List.map (Tuple2.mapSecond toPT) fields)
     | ST.ERecordUpdate(id, record, updates) ->
       PT.ERecordUpdate(
         id,
@@ -356,7 +362,7 @@ module Expr =
     | ST.EPipe(pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
     | ST.EEnum(id, typeName, caseName, exprs) ->
-      PT.EEnum(id, FQTypeName.toPT typeName, caseName, List.map toPT exprs)
+      PT.EEnum(id, TypeName.toPT typeName, caseName, List.map toPT exprs)
     | ST.EMatch(id, mexpr, pairs) ->
       PT.EMatch(
         id,
@@ -381,12 +387,12 @@ module Expr =
     | ST.EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
-        FQFnName.toPT fnName,
+        FnName.toPT fnName,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
     | ST.EPipeEnum(id, typeName, caseName, fields) ->
-      PT.EPipeEnum(id, FQTypeName.toPT typeName, caseName, List.map toPT fields)
+      PT.EPipeEnum(id, TypeName.toPT typeName, caseName, List.map toPT fields)
 
 module Deprecation =
   type Deprecation<'name> =
@@ -534,13 +540,13 @@ module DB =
 module UserType =
   let toST (t : PT.UserType.T) : ST.UserType.T =
     { tlid = t.tlid
-      name = FQTypeName.UserTypeName.toST t.name
+      name = TypeName.UserProgram.toST t.name
       typeParams = t.typeParams
       definition = CustomType.toST t.definition }
 
   let toPT (t : ST.UserType.T) : PT.UserType.T =
     { tlid = t.tlid
-      name = FQTypeName.UserTypeName.toPT t.name
+      name = TypeName.UserProgram.toPT t.name
       typeParams = t.typeParams
       definition = CustomType.toPT t.definition }
 
@@ -554,22 +560,22 @@ module UserFunction =
 
   let toST (f : PT.UserFunction.T) : ST.UserFunction.T =
     { tlid = f.tlid
-      name = FQFnName.UserFnName.toST f.name
+      name = FnName.UserProgram.toST f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toST f.parameters
       returnType = TypeReference.toST f.returnType
       description = f.description
-      deprecated = Deprecation.toST FQFnName.toST f.deprecated
+      deprecated = Deprecation.toST FnName.toST f.deprecated
       body = Expr.toST f.body }
 
   let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
     { tlid = f.tlid
-      name = FQFnName.UserFnName.toPT f.name
+      name = FnName.UserProgram.toPT f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toPT f.parameters
       returnType = TypeReference.toPT f.returnType
       description = f.description
-      deprecated = Deprecation.toPT FQFnName.toPT f.deprecated
+      deprecated = Deprecation.toPT FnName.toPT f.deprecated
       body = Expr.toPT f.body }
 
 module Toplevel =
@@ -628,22 +634,22 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
   let toST (fn : PT.PackageFn.T) : ST.PackageFn.T =
-    { name = FQFnName.PackageFnName.toST fn.name
+    { name = FnName.Package.toST fn.name
       parameters = List.map Parameter.toST fn.parameters
       returnType = TypeReference.toST fn.returnType
       description = fn.description
-      deprecated = Deprecation.toST FQFnName.toST fn.deprecated
+      deprecated = Deprecation.toST FnName.toST fn.deprecated
       body = Expr.toST fn.body
       typeParams = fn.typeParams
       id = fn.id
       tlid = fn.tlid }
 
   let toPT (fn : ST.PackageFn.T) : PT.PackageFn.T =
-    { name = FQFnName.PackageFnName.toPT fn.name
+    { name = FnName.Package.toPT fn.name
       parameters = List.map Parameter.toPT fn.parameters
       returnType = TypeReference.toPT fn.returnType
       description = fn.description
-      deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
+      deprecated = Deprecation.toPT FnName.toPT fn.deprecated
       body = Expr.toPT fn.body
       typeParams = fn.typeParams
       id = fn.id
@@ -651,19 +657,19 @@ module PackageFn =
 
 module PackageType =
   let toST (pt : PT.PackageType.T) : ST.PackageType.T =
-    { name = FQTypeName.PackageTypeName.toST pt.name
+    { name = TypeName.Package.toST pt.name
       description = pt.description
       typeParams = pt.typeParams
       definition = CustomType.toST pt.definition
-      deprecated = Deprecation.toST FQTypeName.toST pt.deprecated
+      deprecated = Deprecation.toST TypeName.toST pt.deprecated
       id = pt.id
       tlid = pt.tlid }
 
   let toPT (pt : ST.PackageType.T) : PT.PackageType.T =
-    { name = FQTypeName.PackageTypeName.toPT pt.name
+    { name = TypeName.Package.toPT pt.name
       description = pt.description
       typeParams = pt.typeParams
       definition = CustomType.toPT pt.definition
-      deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated
+      deprecated = Deprecation.toPT TypeName.toPT pt.deprecated
       id = pt.id
       tlid = pt.tlid }

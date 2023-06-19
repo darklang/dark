@@ -16,7 +16,12 @@ let lowercaseHeaderKeys (headers : HttpHeaders.T) =
 
 module Request =
 
-  let typ = pkgTyp "Darklang" (NonEmptyList.ofList [ "Stdlib"; "Http" ]) "Request" 0
+  let typ =
+    RT.TypeName.fqPackage
+      "Darklang"
+      (NonEmptyList.ofList [ "Stdlib"; "Http" ])
+      "Request"
+      0
 
   let fromRequest
     (uri : string)
@@ -40,11 +45,10 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DRecord(RT.FQTypeName.Package { owner = "Darklang"
-                                         modules = { Head = "Stdlib"
-                                                     Tail = [ "Http" ] }
-                                         typ = "Response"
-                                         version = 0 },
+    | RT.DRecord(RT.FQName.Package { owner = "Darklang"
+                                     modules = { Head = "Stdlib"; Tail = [ "Http" ] }
+                                     name = RT.TypeName.TypeName "Response"
+                                     version = 0 },
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       let code = Map.get "statusCode" fields

@@ -26,8 +26,8 @@ let compile
   task {
     let canvasID = System.Guid.NewGuid()
 
-    let typeName : FQTypeName.UserTypeName =
-      { modules = []; typ = "MyType"; version = 0 }
+    let typeName : TypeName.UserProgram =
+      { modules = []; name = TypeName.TypeName "MyType"; version = 0 }
     let field : CustomType.RecordField =
       { name = rowName; typ = rowType; description = "" }
     let userType : UserType.T =
@@ -36,7 +36,7 @@ let compile
         typeParams = []
         definition = CustomType.Record(field, []) }
     let userTypes = Map [ typeName, userType ]
-    let typeReference = TCustomType(FQTypeName.User typeName, [])
+    let typeReference = TCustomType(FQName.UserProgram typeName, [])
 
     let! state = executionStateFor canvasID false false Map.empty userTypes Map.empty
 

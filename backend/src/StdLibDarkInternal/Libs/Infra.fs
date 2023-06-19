@@ -10,14 +10,9 @@ open LibExecution.StdLib.Shortcuts
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
-let modul = [ "DarkInternal"; "Infra" ]
-
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' modul name version
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
-
+let modules = [ "DarkInternal"; "Infra" ]
+let typ = typ modules
+let fn = fn modules
 
 
 let types : List<BuiltInType> =
@@ -69,7 +64,7 @@ let fns : List<BuiltInFn> =
     { name = fn "getAndLogTableSizes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TDict(stdlibTypeRef "DarkInternal" "TableSize" 0)
+      returnType = TDict(stdlibTypeRef [ "DarkInternal" ] "TableSize" 0)
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
@@ -99,7 +94,7 @@ human-readable data."
                   ("rows", ts.rows)
                   ("disk_human", ts.diskHuman)
                   ("rows_human", ts.rowsHuman) ])
-            let typeName = FQTypeName.Stdlib(typ "TableSize" 0)
+            let typeName = FQName.BuiltIn(typ "TableSize" 0)
             return
               tableStats
               |> List.map (fun ts ->

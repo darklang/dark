@@ -22,7 +22,7 @@ open TestUtils.TestUtils
 
 let hardToRepresentTests =
   let execute
-    ((fn, args) : PT.FQFnName.StdlibFnName * List<RT.Dval>)
+    ((fn, args) : PT.FnName.BuiltIn * List<RT.Dval>)
     (expected : RT.Dval)
     : Task<bool> =
     task {
@@ -31,7 +31,7 @@ let hardToRepresentTests =
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
       let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
-      let ast = PT.EFnCall(gid (), PT.FQFnName.Stdlib fn, [], fnArgList)
+      let ast = PT.EFnCall(gid (), PT.FQName.BuiltIn fn, [], fnArgList)
 
       let symtable = Map.ofList args
 
@@ -42,7 +42,7 @@ let hardToRepresentTests =
       return Expect.dvalEquality availableTypes actual expected
     }
 
-  let fnName mod_ function_ version = PT.FQFnName.stdlibFnName mod_ function_ version
+  let fnName mod_ function_ version = PT.FnName.builtIn mod_ function_ version
 
   // These are hard to represent in .tests files, usually because of FakeDval behaviour
   testMany2Task
@@ -123,11 +123,11 @@ let oldFunctionsAreDeprecated =
     let counts = ref Map.empty
 
     let! (libraries : RT.Libraries) = Lazy.force libraries
-    let fns = libraries.stdlibFns |> Map.values
+    let fns = libraries.builtInFns |> Map.values
 
     fns
     |> List.iter (fun fn ->
-      let key = RT.FQFnName.StdlibFnName.toString { fn.name with version = 0 }
+      let key = RT.FnName.builtinToString { fn.name with version = 0 }
 
       if fn.deprecated = RT.NotDeprecated then
         counts.Value <-
@@ -149,14 +149,13 @@ let oldTypesAreDeprecated =
     let counts = ref Map.empty
 
     let! (libraries : RT.Libraries) = Lazy.force libraries
-    let types = libraries.stdlibTypes |> Map.values
+    let types = libraries.builtInTypes |> Map.values
 
     types
-    |> List.iter (fun type_ ->
-      let key =
-        RT.FQTypeName.StdlibTypeName.toString { type_.name with version = 0 }
+    |> List.iter (fun typ ->
+      let key = RT.TypeName.builtinToString { typ.name with version = 0 }
 
-      if type_.deprecated = RT.NotDeprecated then
+      if typ.deprecated = RT.NotDeprecated then
         counts.Value <-
           Map.update
             key

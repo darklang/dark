@@ -13,11 +13,8 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-let typ = FQTypeName.stdlibTypeName'
 
-let fn = FQFnName.stdlibFnName'
-
-let (stdlibFns, stdlibTypes) =
+let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
     []
@@ -25,8 +22,8 @@ let (stdlibFns, stdlibTypes) =
 
 
 let libraries : RT.Libraries =
-  { stdlibTypes = stdlibTypes |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
-    stdlibFns = stdlibFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
+  { builtInTypes = builtInTypes |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
+    builtInFns = builtInFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
     packageFns = Map.empty
     packageTypes = Map.empty }
 
@@ -43,11 +40,11 @@ let execute
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
         allowLocalHttpAccess = true
-        userFns =
+        fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
           |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
-        userTypes =
+        types =
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
@@ -68,7 +65,7 @@ let execute
   }
 
 let types : List<BuiltInType> =
-  [ { name = typ' [ "Cli" ] "ExecutionError" 0
+  [ { name = typ [ "Cli" ] "ExecutionError" 0
       description = "Result of Execution"
       typeParams = []
       definition =
@@ -91,7 +88,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TResult(
           TInt,
-          TCustomType(FQTypeName.Stdlib(typ [ "Cli" ] "ExecutionError" 0), [])
+          TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
         )
       description = "Parses and executes arbitrary Dark code"
       fn =
@@ -105,7 +102,7 @@ let fns : List<BuiltInFn> =
               DResult(
                 Error(
                   DRecord(
-                    FQTypeName.Stdlib(typ [ "Cli" ] "ExecutionError" 0),
+                    FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0),
                     Map fields
                   )
                 )
