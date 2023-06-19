@@ -103,7 +103,8 @@ module FQName =
 
   let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
     let name =
-      [ s.owner ] @ NonEmptyList.toList s.modules @ [ f s.name ] |> String.concat "."
+      [ "PACKAGE"; s.owner ] @ NonEmptyList.toList s.modules @ [ f s.name ]
+      |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let toString (name : T<'name>) (f : NamePrinter<'name>) : string =
