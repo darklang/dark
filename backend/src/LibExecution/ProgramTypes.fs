@@ -204,12 +204,6 @@ module FnName =
 
   let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
 
-  let isInternalFn (fnName : T) : bool =
-    match fnName with
-    // TODO: this isn't right
-    | FQName.BuiltIn { modules = [ "DarkInternal" ] } -> true
-    | _ -> false
-
 
   let oneWordFunctions =
     Set
