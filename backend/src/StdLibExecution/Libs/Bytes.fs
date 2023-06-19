@@ -10,8 +10,10 @@ open System.Text.RegularExpressions
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Bytes" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Bytes" "empty" 0
+  [ { name = fn "empty" 0
       typeParams = []
       parameters = []
       returnType = TBytes
@@ -25,7 +27,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "base64Decode" 0
+    { name = fn "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -68,7 +70,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "base64Encode" 0
+    { name = fn "base64Encode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
@@ -89,7 +91,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "hexEncode" 0
+    { name = fn "hexEncode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
@@ -118,7 +120,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "length" 0
+    { name = fn "length" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TInt

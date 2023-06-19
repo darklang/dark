@@ -11,7 +11,7 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "HttpClient" "basicAuth" 0
+  [ { name = fn [ "HttpClient" ] "basicAuth" 0
       typeParams = []
       parameters =
         [ Param.make "username" TString ""; Param.make "password" TString "" ]

@@ -23,7 +23,7 @@ module Darklang =
           definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
           description: String
           deprecated:
-            PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.T> }
+            PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> }
 
       let packageTypeWithoutModules
         (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T)
@@ -51,7 +51,7 @@ module Darklang =
           returnType: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
           description: String
           deprecated:
-            PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.T> }
+            PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.T> }
 
       let packageFnWithoutModules
         (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
@@ -86,7 +86,7 @@ module Darklang =
           [ PACKAGE.Darklang.PrettyPrinter.Packages.Module
               { name =
                   (t.name
-                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQTypeName.PackageTypeName.fullForReference)
+                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []
@@ -162,7 +162,7 @@ module Darklang =
           [ PACKAGE.Darklang.PrettyPrinter.Packages.Module
               { name =
                   (f.name
-                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQFnName.PackageFnName.fullForReference)
+                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []
@@ -257,7 +257,7 @@ module Darklang =
                 { tlid = t.tlid
                   id = t.id
                   name =
-                    PACKAGE.Darklang.Stdlib.ProgramTypes.FQTypeName.PackageTypeName
+                    PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
                       { owner = t.name.owner
                         modules = []
                         typ = t.name.typ
@@ -282,7 +282,7 @@ module Darklang =
                 { tlid = t.tlid
                   id = t.id
                   name =
-                    PACKAGE.Darklang.Stdlib.ProgramTypes.FQFnName.PackageFnName
+                    PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
                       { owner = t.name.owner
                         modules = []
                         function_ = t.name.function_

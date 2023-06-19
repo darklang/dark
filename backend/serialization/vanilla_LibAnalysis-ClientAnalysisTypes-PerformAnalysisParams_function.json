@@ -7,7 +7,10 @@
       "tlid": 0,
       "name": {
         "modules": [],
-        "function_": "User",
+        "name": [
+          "FnName",
+          "User"
+        ],
         "version": 0
       },
       "typeParams": [
@@ -112,12 +115,15 @@
               [
                 "TCustomType",
                 [
-                  "User",
+                  "UserProgram",
                   {
                     "modules": [
                       "Mod"
                     ],
-                    "typ": "name",
+                    "name": [
+                      "TypeName",
+                      "name"
+                    ],
                     "version": 0
                   }
                 ],
@@ -251,12 +257,15 @@
           [
             "TCustomType",
             [
-              "User",
+              "UserProgram",
               {
                 "modules": [
                   "Mod"
                 ],
-                "typ": "name",
+                "name": [
+                  "TypeName",
+                  "name"
+                ],
                 "version": 0
               }
             ],
@@ -467,12 +476,15 @@
                             "EFnCall",
                             898531080,
                             [
-                              "Stdlib",
+                              "BuiltIn",
                               {
                                 "modules": [
                                   "Int"
                                 ],
-                                "function_": "toString",
+                                "name": [
+                                  "FnName",
+                                  "toString"
+                                ],
                                 "version": 0
                               }
                             ],
@@ -527,12 +539,15 @@
                               [
                                 "TCustomType",
                                 [
-                                  "User",
+                                  "UserProgram",
                                   {
                                     "modules": [
                                       "Mod"
                                     ],
-                                    "typ": "User",
+                                    "name": [
+                                      "TypeName",
+                                      "User"
+                                    ],
                                     "version": 0
                                   }
                                 ],
@@ -545,12 +560,15 @@
                               [
                                 "TCustomType",
                                 [
-                                  "Stdlib",
+                                  "BuiltIn",
                                   {
                                     "modules": [
                                       "Mod"
                                     ],
-                                    "typ": "User",
+                                    "name": [
+                                      "TypeName",
+                                      "User"
+                                    ],
                                     "version": 0
                                   }
                                 ],
@@ -572,7 +590,10 @@
                                         "Mod2"
                                       ]
                                     },
-                                    "typ": "Pack",
+                                    "name": [
+                                      "TypeName",
+                                      "Pack"
+                                    ],
                                     "version": 0
                                   }
                                 ],
@@ -724,12 +745,15 @@
                                 "EFnCall",
                                 173079901,
                                 [
-                                  "Stdlib",
+                                  "BuiltIn",
                                   {
                                     "modules": [
                                       "Int"
                                     ],
-                                    "function_": "add",
+                                    "name": [
+                                      "FnName",
+                                      "add"
+                                    ],
                                     "version": 0
                                   }
                                 ],
@@ -783,13 +807,16 @@
                             "ERecord",
                             109539183,
                             [
-                              "User",
+                              "UserProgram",
                               {
                                 "modules": [
                                   "dark",
                                   "stdlib"
                                 ],
-                                "typ": "NonEmptyList",
+                                "name": [
+                                  "TypeName",
+                                  "NonEmptyList"
+                                ],
                                 "version": 0
                               }
                             ],
@@ -828,10 +855,13 @@
                                   "EEnum",
                                   567764301,
                                   [
-                                    "Stdlib",
+                                    "BuiltIn",
                                     {
                                       "modules": [],
-                                      "typ": "Result",
+                                      "name": [
+                                        "TypeName",
+                                        "Result"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -841,10 +871,13 @@
                                       "EEnum",
                                       646107057,
                                       [
-                                        "Stdlib",
+                                        "BuiltIn",
                                         {
                                           "modules": [],
-                                          "typ": "Result",
+                                          "name": [
+                                            "TypeName",
+                                            "Result"
+                                          ],
                                           "version": 0
                                         }
                                       ],
@@ -854,10 +887,13 @@
                                           "EEnum",
                                           689802831,
                                           [
-                                            "Stdlib",
+                                            "BuiltIn",
                                             {
                                               "modules": [],
-                                              "typ": "Option",
+                                              "name": [
+                                                "TypeName",
+                                                "Option"
+                                              ],
                                               "version": 0
                                             }
                                           ],
@@ -867,10 +903,13 @@
                                               "EEnum",
                                               957916875,
                                               [
-                                                "Stdlib",
+                                                "BuiltIn",
                                                 {
                                                   "modules": [],
-                                                  "typ": "Option",
+                                                  "name": [
+                                                    "TypeName",
+                                                    "Option"
+                                                  ],
                                                   "version": 0
                                                 }
                                               ],
@@ -928,12 +967,15 @@
                                   "EFnCall",
                                   203239466,
                                   [
-                                    "Stdlib",
+                                    "BuiltIn",
                                     {
                                       "modules": [
                                         "Mod"
                                       ],
-                                      "function_": "function",
+                                      "name": [
+                                        "FnName",
+                                        "function"
+                                      ],
                                       "version": 2
                                     }
                                   ],
@@ -1336,7 +1378,10 @@
         "tlid": 0,
         "name": {
           "modules": [],
-          "function_": "User",
+          "name": [
+            "FnName",
+            "User"
+          ],
           "version": 0
         },
         "typeParams": [
@@ -1441,12 +1486,15 @@
                 [
                   "TCustomType",
                   [
-                    "User",
+                    "UserProgram",
                     {
                       "modules": [
                         "Mod"
                       ],
-                      "typ": "name",
+                      "name": [
+                        "TypeName",
+                        "name"
+                      ],
                       "version": 0
                     }
                   ],
@@ -1580,12 +1628,15 @@
             [
               "TCustomType",
               [
-                "User",
+                "UserProgram",
                 {
                   "modules": [
                     "Mod"
                   ],
-                  "typ": "name",
+                  "name": [
+                    "TypeName",
+                    "name"
+                  ],
                   "version": 0
                 }
               ],
@@ -1796,12 +1847,15 @@
                               "EFnCall",
                               898531080,
                               [
-                                "Stdlib",
+                                "BuiltIn",
                                 {
                                   "modules": [
                                     "Int"
                                   ],
-                                  "function_": "toString",
+                                  "name": [
+                                    "FnName",
+                                    "toString"
+                                  ],
                                   "version": 0
                                 }
                               ],
@@ -1856,12 +1910,15 @@
                                 [
                                   "TCustomType",
                                   [
-                                    "User",
+                                    "UserProgram",
                                     {
                                       "modules": [
                                         "Mod"
                                       ],
-                                      "typ": "User",
+                                      "name": [
+                                        "TypeName",
+                                        "User"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -1874,12 +1931,15 @@
                                 [
                                   "TCustomType",
                                   [
-                                    "Stdlib",
+                                    "BuiltIn",
                                     {
                                       "modules": [
                                         "Mod"
                                       ],
-                                      "typ": "User",
+                                      "name": [
+                                        "TypeName",
+                                        "User"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -1901,7 +1961,10 @@
                                           "Mod2"
                                         ]
                                       },
-                                      "typ": "Pack",
+                                      "name": [
+                                        "TypeName",
+                                        "Pack"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -2053,12 +2116,15 @@
                                   "EFnCall",
                                   173079901,
                                   [
-                                    "Stdlib",
+                                    "BuiltIn",
                                     {
                                       "modules": [
                                         "Int"
                                       ],
-                                      "function_": "add",
+                                      "name": [
+                                        "FnName",
+                                        "add"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -2112,13 +2178,16 @@
                               "ERecord",
                               109539183,
                               [
-                                "User",
+                                "UserProgram",
                                 {
                                   "modules": [
                                     "dark",
                                     "stdlib"
                                   ],
-                                  "typ": "NonEmptyList",
+                                  "name": [
+                                    "TypeName",
+                                    "NonEmptyList"
+                                  ],
                                   "version": 0
                                 }
                               ],
@@ -2157,10 +2226,13 @@
                                     "EEnum",
                                     567764301,
                                     [
-                                      "Stdlib",
+                                      "BuiltIn",
                                       {
                                         "modules": [],
-                                        "typ": "Result",
+                                        "name": [
+                                          "TypeName",
+                                          "Result"
+                                        ],
                                         "version": 0
                                       }
                                     ],
@@ -2170,10 +2242,13 @@
                                         "EEnum",
                                         646107057,
                                         [
-                                          "Stdlib",
+                                          "BuiltIn",
                                           {
                                             "modules": [],
-                                            "typ": "Result",
+                                            "name": [
+                                              "TypeName",
+                                              "Result"
+                                            ],
                                             "version": 0
                                           }
                                         ],
@@ -2183,10 +2258,13 @@
                                             "EEnum",
                                             689802831,
                                             [
-                                              "Stdlib",
+                                              "BuiltIn",
                                               {
                                                 "modules": [],
-                                                "typ": "Option",
+                                                "name": [
+                                                  "TypeName",
+                                                  "Option"
+                                                ],
                                                 "version": 0
                                               }
                                             ],
@@ -2196,10 +2274,13 @@
                                                 "EEnum",
                                                 957916875,
                                                 [
-                                                  "Stdlib",
+                                                  "BuiltIn",
                                                   {
                                                     "modules": [],
-                                                    "typ": "Option",
+                                                    "name": [
+                                                      "TypeName",
+                                                      "Option"
+                                                    ],
                                                     "version": 0
                                                   }
                                                 ],
@@ -2257,12 +2338,15 @@
                                     "EFnCall",
                                     203239466,
                                     [
-                                      "Stdlib",
+                                      "BuiltIn",
                                       {
                                         "modules": [
                                           "Mod"
                                         ],
-                                        "function_": "function",
+                                        "name": [
+                                          "FnName",
+                                          "function"
+                                        ],
                                         "version": 2
                                       }
                                     ],
@@ -2628,7 +2712,10 @@
         "tlid": 0,
         "name": {
           "modules": [],
-          "typ": "User",
+          "name": [
+            "TypeName",
+            "User"
+          ],
           "version": 0
         },
         "typeParams": [
@@ -2734,12 +2821,15 @@
                 [
                   "TCustomType",
                   [
-                    "User",
+                    "UserProgram",
                     {
                       "modules": [
                         "Mod"
                       ],
-                      "typ": "name",
+                      "name": [
+                        "TypeName",
+                        "name"
+                      ],
                       "version": 0
                     }
                   ],
@@ -2783,7 +2873,10 @@
         "tlid": 0,
         "name": {
           "modules": [],
-          "typ": "User",
+          "name": [
+            "TypeName",
+            "User"
+          ],
           "version": 0
         },
         "typeParams": [
@@ -2897,12 +2990,15 @@
                       [
                         "TCustomType",
                         [
-                          "User",
+                          "UserProgram",
                           {
                             "modules": [
                               "Mod"
                             ],
-                            "typ": "name",
+                            "name": [
+                              "TypeName",
+                              "name"
+                            ],
                             "version": 0
                           }
                         ],
@@ -2958,7 +3054,10 @@
               "Int64"
             ]
           },
-          "function_": "mod",
+          "name": [
+            "FnName",
+            "mod"
+          ],
           "version": 0
         },
         "id": "31d72f73-0f99-5a9b-949c-b95705ae7c4d",
@@ -3133,12 +3232,15 @@
                               "EFnCall",
                               898531080,
                               [
-                                "Stdlib",
+                                "BuiltIn",
                                 {
                                   "modules": [
                                     "Int"
                                   ],
-                                  "function_": "toString",
+                                  "name": [
+                                    "FnName",
+                                    "toString"
+                                  ],
                                   "version": 0
                                 }
                               ],
@@ -3193,12 +3295,15 @@
                                 [
                                   "TCustomType",
                                   [
-                                    "User",
+                                    "UserProgram",
                                     {
                                       "modules": [
                                         "Mod"
                                       ],
-                                      "typ": "User",
+                                      "name": [
+                                        "TypeName",
+                                        "User"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -3211,12 +3316,15 @@
                                 [
                                   "TCustomType",
                                   [
-                                    "Stdlib",
+                                    "BuiltIn",
                                     {
                                       "modules": [
                                         "Mod"
                                       ],
-                                      "typ": "User",
+                                      "name": [
+                                        "TypeName",
+                                        "User"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -3238,7 +3346,10 @@
                                           "Mod2"
                                         ]
                                       },
-                                      "typ": "Pack",
+                                      "name": [
+                                        "TypeName",
+                                        "Pack"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -3390,12 +3501,15 @@
                                   "EFnCall",
                                   173079901,
                                   [
-                                    "Stdlib",
+                                    "BuiltIn",
                                     {
                                       "modules": [
                                         "Int"
                                       ],
-                                      "function_": "add",
+                                      "name": [
+                                        "FnName",
+                                        "add"
+                                      ],
                                       "version": 0
                                     }
                                   ],
@@ -3449,13 +3563,16 @@
                               "ERecord",
                               109539183,
                               [
-                                "User",
+                                "UserProgram",
                                 {
                                   "modules": [
                                     "dark",
                                     "stdlib"
                                   ],
-                                  "typ": "NonEmptyList",
+                                  "name": [
+                                    "TypeName",
+                                    "NonEmptyList"
+                                  ],
                                   "version": 0
                                 }
                               ],
@@ -3494,10 +3611,13 @@
                                     "EEnum",
                                     567764301,
                                     [
-                                      "Stdlib",
+                                      "BuiltIn",
                                       {
                                         "modules": [],
-                                        "typ": "Result",
+                                        "name": [
+                                          "TypeName",
+                                          "Result"
+                                        ],
                                         "version": 0
                                       }
                                     ],
@@ -3507,10 +3627,13 @@
                                         "EEnum",
                                         646107057,
                                         [
-                                          "Stdlib",
+                                          "BuiltIn",
                                           {
                                             "modules": [],
-                                            "typ": "Result",
+                                            "name": [
+                                              "TypeName",
+                                              "Result"
+                                            ],
                                             "version": 0
                                           }
                                         ],
@@ -3520,10 +3643,13 @@
                                             "EEnum",
                                             689802831,
                                             [
-                                              "Stdlib",
+                                              "BuiltIn",
                                               {
                                                 "modules": [],
-                                                "typ": "Option",
+                                                "name": [
+                                                  "TypeName",
+                                                  "Option"
+                                                ],
                                                 "version": 0
                                               }
                                             ],
@@ -3533,10 +3659,13 @@
                                                 "EEnum",
                                                 957916875,
                                                 [
-                                                  "Stdlib",
+                                                  "BuiltIn",
                                                   {
                                                     "modules": [],
-                                                    "typ": "Option",
+                                                    "name": [
+                                                      "TypeName",
+                                                      "Option"
+                                                    ],
                                                     "version": 0
                                                   }
                                                 ],
@@ -3594,12 +3723,15 @@
                                     "EFnCall",
                                     203239466,
                                     [
-                                      "Stdlib",
+                                      "BuiltIn",
                                       {
                                         "modules": [
                                           "Mod"
                                         ],
-                                        "function_": "function",
+                                        "name": [
+                                          "FnName",
+                                          "function"
+                                        ],
                                         "version": 2
                                       }
                                     ],
@@ -4060,12 +4192,15 @@
                 [
                   "TCustomType",
                   [
-                    "User",
+                    "UserProgram",
                     {
                       "modules": [
                         "Mod"
                       ],
-                      "typ": "name",
+                      "name": [
+                        "TypeName",
+                        "name"
+                      ],
                       "version": 0
                     }
                   ],
@@ -4199,12 +4334,15 @@
             [
               "TCustomType",
               [
-                "User",
+                "UserProgram",
                 {
                   "modules": [
                     "Mod"
                   ],
-                  "typ": "name",
+                  "name": [
+                    "TypeName",
+                    "name"
+                  ],
                   "version": 0
                 }
               ],
@@ -4259,7 +4397,10 @@
               "Int64"
             ]
           },
-          "typ": "T",
+          "name": [
+            "TypeName",
+            "T"
+          ],
           "version": 0
         },
         "typeParams": [
@@ -4373,12 +4514,15 @@
                       [
                         "TCustomType",
                         [
-                          "User",
+                          "UserProgram",
                           {
                             "modules": [
                               "Mod"
                             ],
-                            "typ": "name",
+                            "name": [
+                              "TypeName",
+                              "name"
+                            ],
                             "version": 0
                           }
                         ],

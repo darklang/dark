@@ -8,15 +8,10 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-let modul = [ "DarkInternal"; "Documentation" ]
+let modules = [ "DarkInternal"; "Documentation" ]
 
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' modul name version
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
-
-
+let typ = typ modules
+let fn = fn modules
 
 
 
@@ -47,22 +42,22 @@ let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(FQTypeName.Stdlib(typ "Function" 0), []))
+      returnType = TList(TCustomType(FQName.BuiltIn(typ "Function" 0), []))
       description =
         "Returns a list of Function records, representing the functions available in the standard library. Does not return DarkInternal functions"
       fn =
         (function
         | state, _, [ DUnit ] ->
           let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
-          state.libraries.stdlibFns
+          state.libraries.builtInFns
           |> Map.toList
           |> List.filter (fun (key, data) ->
-            (not (FQFnName.isInternalFn key)) && data.deprecated = NotDeprecated)
+            (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
           |> List.map (fun (key, data) ->
-            let typeName = FQTypeName.Stdlib(typ "Function" 0)
+            let typeName = TypeName.fqBuiltIn modules "Function" 0
             let alist =
               let returnType = typeNameToStr data.returnType
-              let paramTypeName = FQTypeName.Stdlib(typ "Parameter" 0)
+              let paramTypeName = TypeName.fqBuiltIn modules "Parameter" 0
               let parameters =
                 data.parameters
                 |> List.map (fun p ->
@@ -70,7 +65,7 @@ let fns : List<BuiltInFn> =
                     paramTypeName
                     [ ("name", DString p.name)
                       ("type", DString(typeNameToStr p.typ)) ])
-              [ ("name", DString(FQFnName.StdlibFnName.toString key))
+              [ ("name", DString(FnName.builtinToString key))
                 ("documentation", DString data.description)
                 ("parameters", DList parameters)
                 ("returnType", DString returnType) ]

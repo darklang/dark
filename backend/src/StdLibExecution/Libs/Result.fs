@@ -20,8 +20,10 @@ let varC = TVariable "c"
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Result" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Result" "map" 0
+  [ { name = fn "map" 0
       typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -49,7 +51,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "mapError" 0
+    { name = fn "mapError" 0
       typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -77,7 +79,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "withDefault" 0
+    { name = fn "withDefault" 0
       typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -98,7 +100,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "fromOption" 0
+    { name = fn "fromOption" 0
       typeParams = []
       parameters =
         [ Param.make "option" (TOption(varOk)) ""; Param.make "error" varErr "" ]
@@ -117,7 +119,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "toOption" 0
+    { name = fn "toOption" 0
       typeParams = []
       parameters = [ Param.make "result" (TResult(varOk, varErr)) "" ]
       returnType = TOption varB
@@ -134,7 +136,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "map2" 0
+    { name = fn "map2" 0
       typeParams = []
       parameters =
         [ Param.make "result1" (TResult(varA, varErr)) ""
@@ -165,7 +167,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Result" "andThen" 0
+    { name = fn "andThen" 0
       typeParams = []
       parameters =
         [ Param.make "result" (TResult(varOk, varErr)) ""

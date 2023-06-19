@@ -9,14 +9,10 @@ open LibExecution.StdLib.Shortcuts
 
 module Canvas = LibBackend.Canvas
 
-let modul = [ "DarkInternal"; "Canvas"; "Domain" ]
+let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
 
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' modul name version
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
-
+let typ = typ modules
+let fn = fn modules
 
 
 let types : List<BuiltInType> = []

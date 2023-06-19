@@ -29,11 +29,11 @@ type Sign = Prelude.Sign
 // The follow changes appear to be safe:
 // - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
 // - renaming a variant in an Enum (even if that variant is used)
-// - rename a field in a record (does not have the be the last field, don't change the keys of other fields)
-// - remove a field from a record (keep the other fields in the right place)
+// - rename a field in a record (does not have to be the last field, don't change the keys of other fields)
+// - remove a field from a record (do not change the index of the other fields)
 // - adding a variant at the end of an Enum
 //
-// The following changes appear to be unsafe (and will require migrating data):
+// The following changes appear to be unsafe (and would require migrating data):
 // - adding a new variant to an Enum that is not at the end
 // - removing a variant in an Enum that is not at the end
 // - reorder variants in an Enum
@@ -53,87 +53,83 @@ type NonEmptyList<'a> =
     tail : List<'a> }
 
 
-/// Used to reference a type defined by a User, Standard Library module, or Package
-module FQTypeName =
+module TypeName =
+  // We avoid type trickery here, to ensure we understand changes in format
+
   [<MessagePack.MessagePackObject>]
-  type StdlibTypeName =
+  type BuiltIn =
     { [<MessagePack.Key 0>]
       modules : List<string>
       [<MessagePack.Key 1>]
-      typ : string
+      name : string
       [<MessagePack.Key 2>]
       version : int }
 
-  /// A type written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
-  type UserTypeName =
+  type UserProgram =
     { [<MessagePack.Key 0>]
       modules : List<string>
       [<MessagePack.Key 1>]
-      typ : string
+      name : string
       [<MessagePack.Key 2>]
       version : int }
 
-  /// The name of a type in the package manager
   [<MessagePack.MessagePackObject>]
-  type PackageTypeName =
+  type Package =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
       modules : NonEmptyList<string>
       [<MessagePack.Key 2>]
-      typ : string
+      name : string
       [<MessagePack.Key 3>]
       version : int }
 
   [<MessagePack.MessagePackObject>]
   type T =
-    | Stdlib of StdlibTypeName
-    | User of UserTypeName
-    | Package of PackageTypeName
+    | BuiltIn of BuiltIn
+    | UserProgram of UserProgram
+    | Package of Package
 
-/// A Fully-Qualified Function Name
-/// Includes package, module, and version information where relevant.
-module FQFnName =
+module FnName =
+  // We avoid type trickery here, to ensure we understand changes in format
 
-  /// Standard Library Function Name
   [<MessagePack.MessagePackObject>]
-  type StdlibFnName =
+  type BuiltIn =
     { [<MessagePack.Key 0>]
       modules : List<string>
       [<MessagePack.Key 1>]
-      function_ : string
+      name : string
       [<MessagePack.Key 2>]
       version : int }
 
-  /// A UserFunction is a function written by a Developer in their canvas
   [<MessagePack.MessagePackObject>]
-  type UserFnName =
+  type UserProgram =
     { [<MessagePack.Key 0>]
       modules : List<string>
       [<MessagePack.Key 1>]
-      function_ : string
+      name : string
       [<MessagePack.Key 2>]
       version : int }
 
-
-  /// The name of a function in the package manager
   [<MessagePack.MessagePackObject>]
-  type PackageFnName =
+  type Package =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
       modules : NonEmptyList<string>
       [<MessagePack.Key 2>]
-      function_ : string
+      name : string
       [<MessagePack.Key 3>]
       version : int }
 
   [<MessagePack.MessagePackObject>]
   type T =
-    | User of UserFnName
-    | Stdlib of StdlibFnName
-    | Package of PackageFnName
+    | BuiltIn of BuiltIn
+    | UserProgram of UserProgram
+    | Package of Package
+
+
 
 [<MessagePack.MessagePackObject>]
 type TypeReference =
@@ -150,7 +146,7 @@ type TypeReference =
   | TPassword
   | TUuid
   | TOption of TypeReference
-  | TCustomType of typeName : FQTypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of typeName : TypeName.T * typeArgs : List<TypeReference>
   | TBytes
   | TResult of TypeReference * TypeReference
   | TVariable of string
@@ -219,12 +215,12 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FQFnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+  | EFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
-  | ERecord of id * typeName : FQTypeName.T * fields : List<string * Expr>
+  | ERecord of id * typeName : TypeName.T * fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
-  | EEnum of id * typeName : FQTypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
@@ -238,16 +234,8 @@ and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of
-    id *
-    FQFnName.T *
-    typeArgs : List<TypeReference> *
-    args : List<Expr>
-  | EPipeEnum of
-    id *
-    typeName : FQTypeName.T *
-    caseName : string *
-    fields : List<Expr>
+  | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+  | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
 
 [<MessagePack.MessagePackObject>]
 type Deprecation<'name> =
@@ -338,7 +326,7 @@ module UserType =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : FQTypeName.UserTypeName
+      name : TypeName.UserProgram
       [<MessagePack.Key 2>]
       typeParams : List<string>
       [<MessagePack.Key 3>]
@@ -360,7 +348,7 @@ module UserFunction =
     { [<MessagePack.Key 0>]
       tlid : tlid
       [<MessagePack.Key 1>]
-      name : FQFnName.UserFnName
+      name : FnName.UserProgram
       [<MessagePack.Key 2>]
       typeParams : List<string>
       [<MessagePack.Key 3>]
@@ -370,7 +358,7 @@ module UserFunction =
       [<MessagePack.Key 5>]
       description : string
       [<MessagePack.Key 6>]
-      deprecated : Deprecation<FQFnName.T>
+      deprecated : Deprecation<FnName.T>
       [<MessagePack.Key 7>]
       body : Expr }
 
@@ -391,7 +379,7 @@ module PackageFn =
       [<MessagePack.Key 1>]
       id : System.Guid
       [<MessagePack.Key 2>]
-      name : FQFnName.PackageFnName
+      name : FnName.Package
       [<MessagePack.Key 3>]
       body : Expr
       [<MessagePack.Key 4>]
@@ -403,7 +391,7 @@ module PackageFn =
       [<MessagePack.Key 7>]
       description : string
       [<MessagePack.Key 8>]
-      deprecated : Deprecation<FQFnName.T> }
+      deprecated : Deprecation<FnName.T> }
 
 module PackageType =
   [<MessagePack.MessagePackObject>]
@@ -413,7 +401,7 @@ module PackageType =
       [<MessagePack.Key 1>]
       id : System.Guid
       [<MessagePack.Key 2>]
-      name : FQTypeName.PackageTypeName
+      name : TypeName.Package
       [<MessagePack.Key 3>]
       typeParams : List<string>
       [<MessagePack.Key 4>]
@@ -421,7 +409,7 @@ module PackageType =
       [<MessagePack.Key 5>]
       description : string
       [<MessagePack.Key 6>]
-      deprecated : Deprecation<FQTypeName.T> }
+      deprecated : Deprecation<TypeName.T> }
 
 
 module Toplevel =

@@ -83,26 +83,24 @@ let incorrectArgs () = raise IncorrectArgs
 
 let intInfixFns = Set [ "+"; "-"; "*"; ">"; ">="; "<="; "<"; "^"; "%" ]
 
-let incorrectArgsMsg (name : FQFnName.T) (p : Param) (actual : Dval) : string =
+let incorrectArgsMsg (name : FnName.T) (p : Param) (actual : Dval) : string =
   let actualRepr = DvalReprDeveloper.toRepr actual
   let expectedTypeRepr = DvalReprDeveloper.typeName p.typ
 
   let conversionMsg =
     match p.typ, actual, name with
-    | TInt, DFloat _, FQFnName.Stdlib std when
-      std.modules = [ "Int" ]
-      || (std.modules = [] && Set.contains std.function_ intInfixFns)
+    | TInt, DFloat _, FQName.BuiltIn({ name = FnName.FnName name } as b) when
+      b.modules = [ "Int" ] || (b.modules = [] && Set.contains name intInfixFns)
       ->
-      let altfn = { std with modules = [ "Float" ] }
+      let altfn = { b with modules = [ "Float" ] }
 
-      $". Try using {FQFnName.StdlibFnName.toString altfn}, or use Float.truncate to truncate Floats to Ints."
-    | TInt, DString _, FQFnName.Stdlib std when
-      (std.modules = [ "Int" ] && std.function_ = "add")
-      || (std.modules = [] && std.function_ = "+")
+      $". Try using {FnName.builtinToString altfn}, or use Float.truncate to truncate Floats to Ints."
+    | TInt, DString _, FQName.BuiltIn({ name = FnName.FnName name } as b) when
+      (b.modules = [ "Int" ] && name = "add") || (b.modules = [] && name = "+")
       ->
       ". Use ++ to concatenate"
     | _ -> ""
-  $"{FQFnName.toString name} was expected to be called with a `{expectedTypeRepr}`"
+  $"{FnName.toString name} was expected to be called with a `{expectedTypeRepr}`"
   + $" in {p.name}, but was actually called with {actualRepr}"
   + conversionMsg
 
@@ -113,7 +111,7 @@ let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>)
   if paramLength <> argLength then
     (Dval.errSStr
       source
-      ($"{FQFnName.toString fn.name} has {paramLength} parameters,"
+      ($"{FnName.toString fn.name} has {paramLength} parameters,"
        + $" but here was called with {argLength} arguments."))
 
   else
@@ -125,7 +123,7 @@ let incorrectArgsToDError (source : DvalSource) (fn : Fn) (argList : List<Dval>)
     | [] ->
       Dval.errSStr
         source
-        $"unknown error calling {FQFnName.toString fn.name}, with args {argList} and params {fn.parameters}"
+        $"unknown error calling {FnName.toString fn.name}, with args {argList} and params {fn.parameters}"
     | (p, actual) :: _ ->
       let msg = incorrectArgsMsg fn.name p actual
       Dval.errSStr source msg

@@ -13,7 +13,7 @@ open StdLib.Shortcuts
 let types : List<BuiltInType> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fnNoMod "print" 0
+  [ { name = fn [] "print" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fnNoMod "debug" 0
+    { name = fn [] "debug" 0
       typeParams = []
       parameters =
         [ Param.make "value" (TVariable "a") "The value to be printed."

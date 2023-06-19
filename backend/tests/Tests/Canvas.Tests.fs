@@ -65,7 +65,7 @@ let testHttpOplistLoadsUserTypes =
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     let typ =
       testUserRecordType
-        ({ modules = []; typ = "test-tipe"; version = 0 })
+        ({ modules = []; name = PT.TypeName.TypeName "test-tipe"; version = 0 })
         ("age", PT.TInt)
         []
 

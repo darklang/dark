@@ -14,11 +14,11 @@ let getStateForEval
   let packageTypes = Map.empty // TODO
 
   let libraries : Libraries =
-    let stdlibFns, stdlibTypes = stdlib
+    let builtInFns, builtInTypes = stdlib
 
-    { stdlibTypes = stdlibTypes |> List.map (fun typ -> typ.name, typ) |> Map
+    { builtInTypes = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
 
-      stdlibFns = stdlibFns |> List.map (fun fn -> fn.name, fn) |> Map
+      builtInFns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
 
       packageFns = packageFns
       packageTypes = packageTypes }
@@ -28,8 +28,8 @@ let getStateForEval
       internalFnsAllowed = true
       allowLocalHttpAccess = true
       dbs = Map.empty
-      userFns = Map.fromListBy (fun fn -> fn.name) fns
-      userTypes = Map.fromListBy (fun typ -> typ.name) types
+      fns = Map.fromListBy (fun fn -> fn.name) fns
+      types = Map.fromListBy (fun typ -> typ.name) types
       secrets = List.empty }
 
   { libraries = libraries

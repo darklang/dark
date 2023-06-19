@@ -64,7 +64,7 @@ let executeExpr
 let executeFunction
   (state : RT.ExecutionState)
   (callerID : id)
-  (name : RT.FQFnName.T)
+  (name : RT.FnName.T)
   (typeArgs : List<RT.TypeReference>)
   (args : List<RT.Dval>)
   : Task<RT.Dval> =

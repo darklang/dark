@@ -12,8 +12,10 @@ open StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Directory" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Directory" "current" 0
+  [ { name = fn "current" 0
       typeParams = []
       parameters = [ Param.make "" TUnit "" ]
       returnType = TString
@@ -30,7 +32,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "Directory" "create" 0
+    { name = fn "create" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TUnit, TString)
@@ -53,7 +55,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Directory" "delete" 0
+    { name = fn "delete" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TUnit, TString)
@@ -75,7 +77,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Directory" "list" 0
+    { name = fn "list" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TList TString

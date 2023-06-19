@@ -16,8 +16,10 @@ let varB = TVariable "b"
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Dict" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Dict" "singleton" 0
+  [ { name = fn "singleton" 0
       typeParams = []
       parameters = [ Param.make "key" TString ""; Param.make "value" varA "" ]
       returnType = TDict varA
@@ -32,7 +34,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "size" 0
+    { name = fn "size" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TInt
@@ -46,7 +48,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "keys" 0
+    { name = fn "keys" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList TString)
@@ -67,7 +69,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "values" 0
+    { name = fn "values" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList varA)
@@ -83,7 +85,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "toList" 0
+    { name = fn "toList" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList(TTuple(varA, varB, [])))
@@ -102,7 +104,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "fromListOverwritingDuplicates" 0
+    { name = fn "fromListOverwritingDuplicates" 0
       typeParams = []
       parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TDict varA
@@ -135,7 +137,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "fromList" 0
+    { name = fn "fromList" 0
       typeParams = []
       parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
       returnType = TOption(TDict varB)
@@ -173,7 +175,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "get" 0
+    { name = fn "get" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TOption varA
@@ -189,7 +191,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "member" 0
+    { name = fn "member" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TBool
@@ -205,7 +207,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "map" 0
+    { name = fn "map" 0
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -241,7 +243,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "iter" 0
+    { name = fn "iter" 0
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -279,7 +281,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "filter" 0
+    { name = fn "filter" 0
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -333,7 +335,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "filterMap" 0
+    { name = fn "filterMap" 0
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict varA) ""
@@ -390,7 +392,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "empty" 0
+    { name = fn "empty" 0
       typeParams = []
       parameters = []
       returnType = TDict varA
@@ -404,7 +406,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "isEmpty" 0
+    { name = fn "isEmpty" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TBool
@@ -418,7 +420,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "merge" 0
+    { name = fn "merge" 0
       typeParams = []
       parameters =
         [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
@@ -434,7 +436,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "set" 0
+    { name = fn "set" 0
       typeParams = []
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
@@ -452,7 +454,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Dict" "remove" 0
+    { name = fn "remove" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TDict varA

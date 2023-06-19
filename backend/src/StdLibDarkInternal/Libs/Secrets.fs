@@ -10,14 +10,10 @@ open LibExecution.StdLib.Shortcuts
 module Secret = LibBackend.Secret
 
 
-let modul = [ "DarkInternal"; "Canvas"; "Secret" ]
+let modules = [ "DarkInternal"; "Canvas"; "Secret" ]
 
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' modul name version
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
-
+let typ = typ modules
+let fn = fn modules
 
 let types : List<BuiltInType> =
   [ { name = typ "Secret" 0
@@ -29,23 +25,21 @@ let types : List<BuiltInType> =
             { name = "version"; typ = TInt; description = "" } ]
         )
       description = "A secret"
-      deprecated = NotDeprecated }
-
-    ]
+      deprecated = NotDeprecated } ]
 
 
 let fns : List<BuiltInFn> =
   [ { name = fn "getAll" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList(TCustomType(FQTypeName.Stdlib(typ "Secret" 0), []))
+      returnType = TList(TCustomType(FQName.BuiltIn(typ "Secret" 0), []))
       description = "Get all secrets in the canvas"
       fn =
         (function
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
-            let typeName = FQTypeName.Stdlib(typ "Secret" 0)
+            let typeName = FQName.BuiltIn(typ "Secret" 0)
             return
               secrets
               |> List.map (fun s ->

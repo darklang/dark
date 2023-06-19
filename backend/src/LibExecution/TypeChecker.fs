@@ -19,7 +19,7 @@ module Error =
 
   type T =
     /// Failed to find a referenced type
-    | TypeLookupFailure of FQTypeName.T * path : Path
+    | TypeLookupFailure of TypeName.T * path : Path
 
     /// An argument didn't match the expected type
     | TypeUnificationFailure of TypeUnificationError * Path
@@ -30,7 +30,7 @@ module Error =
   let toString (e : T) : string =
     match e with
     | TypeLookupFailure(typeName, path) ->
-      let lookupString = FQTypeName.toString typeName
+      let lookupString = TypeName.toString typeName
       let path = path |> String.concat "->"
       $"Type {lookupString} could not be found in {path}"
 

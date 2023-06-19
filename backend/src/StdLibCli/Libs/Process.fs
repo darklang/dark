@@ -11,7 +11,7 @@ module StdLib = LibExecution.StdLib
 open StdLib.Shortcuts
 
 let types : List<BuiltInType> =
-  [ { name = typ "Process" "Result" 0
+  [ { name = typ [ "Process" ] "Result" 0
       description = "An error that occurred while running a process."
       typeParams = []
       definition =
@@ -23,13 +23,13 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Process" "run" 0
+  [ { name = fn [ "Process" ] "run" 0
       description = "Runs a process, return exitCode, stdout and stderr"
       typeParams = []
       parameters =
         [ Param.make "command" TString "The command to run"
           Param.make "input" TString "The input to the command" ]
-      returnType = stdlibTypeRef "Process" "Result" 0
+      returnType = stdlibTypeRef [ "Process" ] "Result" 0
       fn =
         (function
         | _, _, [ DString command ] ->
@@ -50,7 +50,7 @@ let fns : List<BuiltInFn> =
           p.WaitForExit()
 
           DRecord(
-            fqType [ "Process" ] "Error" 0,
+            TypeName.fqBuiltIn [ "Process" ] "Error" 0,
             Map
               [ ("exitCode", DInt(p.ExitCode))
                 ("stdout", DString(stdout))

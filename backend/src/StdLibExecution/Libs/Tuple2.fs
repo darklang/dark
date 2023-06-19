@@ -11,8 +11,10 @@ module StdLib = LibExecution.StdLib
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Tuple2" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Tuple2" "create" 0
+  [ { name = fn "create" 0
       typeParams = []
       parameters =
         [ Param.make "first" (TVariable "a") ""
@@ -28,7 +30,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple2" "first" 0
+    { name = fn "first" 0
       typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
@@ -43,7 +45,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple2" "second" 0
+    { name = fn "second" 0
       typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
@@ -58,7 +60,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple2" "swap" 0
+    { name = fn "swap" 0
       typeParams = []
       parameters =
         [ Param.make "tuple" (TTuple(TVariable "a", TVariable "b", [])) "" ]
@@ -73,7 +75,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple2" "mapFirst" 0
+    { name = fn "mapFirst" 0
       typeParams = []
       parameters =
         [ Param.makeWithArgs
@@ -97,7 +99,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple2" "mapSecond" 0
+    { name = fn "mapSecond" 0
       typeParams = []
       parameters =
         [ Param.makeWithArgs
@@ -121,7 +123,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple2" "mapBoth" 0
+    { name = fn "mapBoth" 0
       typeParams = []
       parameters =
         [ Param.makeWithArgs

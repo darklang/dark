@@ -21,9 +21,9 @@ do
 done
 
 if [[ "$TEST" == "true" ]]; then
-  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
+  LOG="${DARK_CONFIG_RUNDIR}/logs/test-packages.log"
 else
-  LOG="${DARK_CONFIG_RUNDIR}/logs/test-package.log"
+  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
 fi
 
 

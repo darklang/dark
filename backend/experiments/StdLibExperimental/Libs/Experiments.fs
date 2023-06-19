@@ -78,8 +78,10 @@ module RestrictedFileIO =
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Experiments" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Experiments" "parseAndExecuteExpr" 0
+  [ { name = fn "parseAndExecuteExpr" 0
       typeParams = []
       parameters =
         [ Param.make "code" TString ""; Param.make "userInputs" (TDict TString) "" ]
@@ -126,7 +128,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Experiments" "parseAndSerializeExpr" 0
+    { name = fn "parseAndSerializeExpr" 0
       typeParams = []
       parameters = [ Param.make "code" TString "" ]
       returnType = TResult(TString, TString)
@@ -148,7 +150,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Experiments" "parseAndSerializeProgram" 0
+    { name = fn "parseAndSerializeProgram" 0
       typeParams = []
       parameters = [ Param.make "code" TString ""; Param.make "filename" TString "" ]
       returnType = TResult(TDict TString, TString)
@@ -188,7 +190,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Experiments" "readFromStaticDir" 0
+    { name = fn "readFromStaticDir" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -213,7 +215,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Experiments" "readFromCanvases" 0
+    { name = fn "readFromCanvases" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TBytes, TString)

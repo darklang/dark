@@ -21,8 +21,10 @@ let fnAToB = Param.makeWithArgs "fn" (TFn([ varA ], varB)) "" [ "val" ]
 
 let types : List<BuiltInType> = []
 
+let fn = fn [ "Option" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Option" "map" 0
+  [ { name = fn "map" 0
       typeParams = []
       parameters = [ optionA; fnAToB ]
       returnType = TOption varB
@@ -48,7 +50,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Option" "map2" 0
+    { name = fn "map2" 0
       typeParams = []
       parameters =
         [ Param.make "option1" (TOption varA) ""
@@ -79,7 +81,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Option" "andThen" 0
+    { name = fn "andThen" 0
       typeParams = []
       parameters =
         [ optionA
@@ -113,7 +115,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Option" "withDefault" 0
+    { name = fn "withDefault" 0
       typeParams = []
       parameters = [ optionA; Param.make "default" varA "" ]
       returnType = varA

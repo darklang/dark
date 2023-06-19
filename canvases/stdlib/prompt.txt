@@ -5,7 +5,7 @@ The standard library functions are written in F#, and use a standard format. Her
 some examples:
 
 ```
-{ name = fn "List" "isEmpty" 0
+{ name = fn "isEmpty" 0
   typeParams = []
   parameters = [ Param.make "list" (TList varA) "" ]
   returnType = TBool
@@ -20,7 +20,7 @@ some examples:
 ```
 
 ```
-{ name = fn "Result" "withDefault" 0
+{ name = fn "withDefault" 0
   typeParams = []
   parameters =
     [ Param.make "result" (TResult(varOk, varErr)) ""
@@ -42,7 +42,7 @@ some examples:
 ```
 
 ```
-{ name = fn "String" "foreach" 0
+{ name = fn "foreach" 0
   typeParams = []
   parameters =
     [ Param.make "s" TStr ""
@@ -84,7 +84,7 @@ some examples:
 ```
 
 ```
-{ name = fn "DB" "getMany" 0
+{ name = fn "getMany" 0
   typeParams = []
   parameters = [ keysParam; tableParam ]
   returnType = TOption varA
@@ -150,7 +150,7 @@ type DType =
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of FQTypeName.T * typeArgs : List<DType>
+  | TCustomType of TypeName.T * typeArgs : List<DType>
 
   // TODO: remove all of thse in favor of TCustomType
   // Enums
@@ -225,7 +225,7 @@ and [<NoComparison>] Dval =
   | DUuid of System.Guid
   | DBytes of byte array
 
-  | DRecord (* FQTypeName.T * *)  of DvalMap
+  | DRecord (* TypeName.T * *)  of DvalMap
   | DDict of DvalMap
 
   // TODO: merge DOption and DResult into DConstructor once the Option and Result types
@@ -235,7 +235,7 @@ and [<NoComparison>] Dval =
 
   // TODO: consider renaming - this is a _value_ so it's already been "Constructed"
   | DEnum of
-    typeName : FQTypeName.T *
+    typeName : TypeName.T *
     caseName : string *
     fields : List<Dval>
 ```
