@@ -54,10 +54,10 @@ let fns : List<BuiltInFn> =
           |> List.filter (fun (key, data) ->
             (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)
           |> List.map (fun (key, data) ->
-            let typeName = FQName.BuiltIn(typ "Function" 0)
+            let typeName = TypeName.fqBuiltIn modules "Function" 0
             let alist =
               let returnType = typeNameToStr data.returnType
-              let paramTypeName = FQName.BuiltIn(typ "Parameter" 0)
+              let paramTypeName = TypeName.fqBuiltIn modules "Parameter" 0
               let parameters =
                 data.parameters
                 |> List.map (fun p ->
