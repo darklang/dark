@@ -86,19 +86,8 @@ let deserializePackageFn (uuid : System.Guid) (data : byte[]) : PT.PackageFn.T =
     |> PT2ST.PackageFn.toPT)
 
 
-let serializeOplist (tlid : tlid) (oplist : PT.Oplist) : byte[] =
-  wrapSerializationException (string tlid) (fun () ->
-    let v = List.map PT2ST.Op.toST oplist
-    MessagePack.MessagePackSerializer.Serialize(v, optionsWithZip))
-
-
-let deserializeOplist (tlid : tlid) (data : byte[]) : PT.Oplist =
-  wrapSerializationException (string tlid) (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithZip)
-    |> List.filterMap PT2ST.Op.toPT)
-
 module Test =
-  let serializeOplistToJson (tlid : tlid) (oplist : PT.Oplist) : string =
-    wrapSerializationException (string tlid) (fun () ->
-      let v = List.map PT2ST.Op.toST oplist
+  let serializeToplevelToJson (tl : PT.Toplevel) : string =
+    wrapSerializationException (string tl.id) (fun () ->
+      let v = List.map PT2ST.Toplevel.toST tl
       MessagePack.MessagePackSerializer.SerializeToJson(v, optionsWithZip))

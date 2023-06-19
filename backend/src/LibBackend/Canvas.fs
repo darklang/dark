@@ -86,10 +86,8 @@ let getOwner (id : CanvasID) : Task<UserID> =
 /// <remarks>
 /// This includes just a subset of the key program data. It is rare that all of
 /// the data for a canvas will be loaded. In addition, there is other canvas
-/// data which is meaningful, such as CORS info, oplists, creation date. These
-/// can be fetched separately. (Oplists in particular are omitted as it can be
-/// very tricky to pass this data around safely (esp in regards to loading and
-/// saving).)
+/// data which is meaningful, such as CORS info, creation date. These
+/// can be fetched separately. 
 /// </remarks>
 type T =
   { id : CanvasID
@@ -218,45 +216,9 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
   { c with dbs = applyToMap tlid f c.dbs }
 
 
-// -------------------------
-// Build
-// -------------------------
-let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
-  try
-    match op with
-    | PT.SetHandler h -> setHandler h c
-    | PT.CreateDB(tlid, name, typ) ->
-      if name = "" then Exception.raiseEditor "DB must have a name"
-      let db = UserDB.create tlid name typ
-      setDB db c
-    | PT.SetExpr(_tlid, _id, _e) ->
-      // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
-      // applyToAllToplevels (TL.set_expr id e) tlid c
-      c
-    | PT.DeleteTL tlid -> deleteToplevel tlid c
-    | PT.SetFunction user_fn -> setFunction user_fn c
-    | PT.DeleteFunction tlid -> deleteFunction tlid c
-    | PT.TLSavepoint _ -> c
-    | PT.UndoTL _
-    | PT.RedoTL _ ->
-      Exception.raiseInternal
-        "Undo/Redo op should have been preprocessed out!"
-        [ "op", op ]
-    | PT.RenameDB(tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
-    | PT.SetType t -> setType t c
-    | PT.DeleteType tlid -> deleteType tlid c
-  with e ->
-    // Log here so we have context, but then re-raise
-    let tags = [ ("op", string op :> obj) ]
-    Telemetry.addException tags (InternalException("apply_op", e))
-    e.Reraise()
-
 
 // NOTE: If you add a new verification here, please ensure all places that
 // load canvases/apply ops correctly load the requisite data.
-//
-// See `Op.RequiredContext` for how we determine which ops need what other
-// context to be loaded to appropriately verify.
 let verify (c : T) : T =
   let dupedNames =
     c.dbs
@@ -270,13 +232,6 @@ let verify (c : T) : T =
   | dupes ->
     let dupes = String.concat "," dupes
     Exception.raiseInternal $"Duplicate DB names: {dupes}" []
-
-
-let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
-  let oldops = List.map (fun op -> (false, op)) oldops
-  let newops = List.map (fun op -> (true, op)) newops
-  let reducedOps = Undo.preprocess (oldops @ newops)
-  List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
 
 // -------------------------
@@ -295,11 +250,7 @@ let empty (id : CanvasID) =
     deletedUserTypes = Map.empty
     secrets = Map.empty }
 
-// DOES NOT LOAD OPS FROM DB
-let fromOplist (id : CanvasID) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
-  empty id |> addOps oldOps newOps |> verify
-
-let loadFrom
+et loadFrom
   (loadAmount : Serialize.LoadAmount)
   (id : CanvasID)
   (tlids : List<tlid>)
@@ -311,15 +262,6 @@ let loadFrom
       // load
       let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs id tlids
 
-      let fastLoadedTLIDs = List.map PT.Toplevel.toTLID fastLoadedTLs
-
-      let notLoadedTLIDs =
-        List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
-
-      // canvas initialized via the normal loading path with the non-fast loaded tlids
-      // loaded traditionally via the oplist
-      let! uncachedOplists = Serialize.loadOplists loadAmount id notLoadedTLIDs
-      let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
       let c = empty id
 
       let! secrets = Secret.getCanvasSecrets id
@@ -328,7 +270,6 @@ let loadFrom
       return
         { c with secrets = secrets }
         |> addToplevels fastLoadedTLs
-        |> addOps uncachedOplists []
         |> verify
     with e when not (LD.knownBroken id) ->
       let tags = [ "tlids", tlids :> obj; "loadAmount", loadAmount ]
@@ -434,9 +375,9 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith deletedUserType
 
 let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
-  // CLEANUP: set deleted column in toplevel_oplists to be not nullable
+  // CLEANUP: set deleted column in toplevels_v0 to be not nullable
   Sql.query
-    "DELETE from toplevel_oplists_v0
+    "DELETE from toplevels_v0
       WHERE canvas_id = @canvasID
         AND tlid = @tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
@@ -447,14 +388,14 @@ let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
 /// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
   (id : CanvasID)
-  (oplists : List<tlid * PT.Oplist * PT.Toplevel.T * Deleted>)
+  (toplevels : List<tlid * PT.Toplevel.T * Deleted>)
   : Task<unit> =
   try
     // Use ops rather than just set of toplevels, because toplevels may
     // have been deleted or undone, and therefore not appear, but it's
     // important to record them.
-    oplists
-    |> Task.iterInParallel (fun (tlid, oplist, tl, deleted) ->
+    toplevels
+    |> Task.iterInParallel (fun (tlid, tl, deleted) ->
       task {
         let string2option (s : string) : Option<string> =
           if s = "" then None else Some s
@@ -491,8 +432,7 @@ let saveTLIDs
           else
             None, None, None
 
-        let serializedOplist = BinarySerialization.serializeOplist tlid oplist
-        let serializedOplistCache = BinarySerialization.serializeToplevel tl
+        let serializedToplevel = BinarySerialization.serializeToplevel tl
 
         let deleted =
           match deleted with
@@ -501,12 +441,12 @@ let saveTLIDs
 
         return!
           Sql.query
-            "INSERT INTO toplevel_oplists_v0
+            "INSERT INTO toplevels_v0
                     (canvas_id, tlid, digest, tipe, name, module, modifier,
-                     deleted, oplist, oplist_cache)
+                     deleted, data)
                     VALUES (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
                             @module, @modifier, @deleted,
-                            @oplist, @oplistCache)
+                            @data)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET digest = @digest,
                         tipe = @typ::toplevel_type,
@@ -514,8 +454,7 @@ let saveTLIDs
                         module = @module,
                         modifier = @modifier,
                         deleted = @deleted,
-                        oplist = @oplist,
-                        oplist_cache = @oplistCache"
+                        data = @data"
           |> Sql.parameters
             [ "canvasID", Sql.uuid id
               "tlid", Sql.id tlid
@@ -525,8 +464,7 @@ let saveTLIDs
               "module", Sql.stringOrNone module_
               "modifier", Sql.stringOrNone modifier
               "deleted", Sql.bool deleted
-              "oplist", Sql.bytea serializedOplist
-              "oplistCache", Sql.bytea serializedOplistCache ]
+              "data", Sql.bytea serializedToplevel ]
           |> Sql.executeStatementAsync
       })
   with e ->
@@ -556,7 +494,7 @@ let loadDomainsHealthCheck
                   [ "domain", hostname ]
                   id
               let _canvas =
-                Serialize.loadOplists Serialize.IncludeDeletedToplevels id
+                Serialize.loadToplevels Serialize.IncludeDeletedToplevels id
               return healthy
             with _ ->
               return

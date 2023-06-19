@@ -28,11 +28,9 @@
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="TraceCloudStorage.fs" />
-    <Compile Include="Op.fs" />
     <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />
     <Compile Include="Secret.fs" />
-    <Compile Include="Undo.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="Queue.fs" />
     <Compile Include="Cron.fs" />

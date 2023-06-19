@@ -86,52 +86,6 @@ let testHttpOplistLoadsUserTypes =
     Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
   }
 
-let testUndoTooFarDoesntBreak =
-  testTask "undo too far doesnt break" {
-    let! canvasID = initializeTestCanvas "undo too far doesnt break"
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (handler.tlid,
-           [ PT.SetHandler handler
-             PT.UndoTL handler.tlid
-             PT.UndoTL handler.tlid
-             PT.UndoTL handler.tlid ],
-           PT.Toplevel.TLHandler handler,
-           Canvas.NotDeleted) ]
-
-    let! (c2 : Canvas.T) =
-      Canvas.loadHttpHandlers
-        canvasID
-        (PTParser.Handler.Spec.toName handler.spec)
-        (PTParser.Handler.Spec.toModifier handler.spec)
-
-    Expect.equal c2.handlers[handler.tlid] handler "handler is not loaded"
-
-    // In addition, check that the row is formatted correctly in the DB. We expect
-    // name, module, and modifier to be null because otherwise they can be found by
-    // Http searches
-    let! dbRow =
-      Sql.query
-        "SELECT name, module, modifier, deleted
-         FROM toplevel_oplists_v0
-         WHERE canvas_id = @canvasID
-           AND tlid = @tlid"
-      |> Sql.parameters
-        [ "canvasID", Sql.uuid canvasID; "tlid", Sql.tlid handler.tlid ]
-      |> Sql.executeRowAsync (fun read ->
-        read.stringOrNone "name",
-        read.stringOrNone "module",
-        read.stringOrNone "modifier",
-        read.boolOrNone "deleted")
-
-    Expect.equal
-      dbRow
-      (Some "/path", Some "HTTP_BASIC", Some "GET", Some false)
-      "Row should be there"
-  }
-
 
 
 
@@ -391,28 +345,6 @@ let testCanvasVerificationNoError =
       Expect.equal false true "should verify"
   }
 
-let testCanvasVerificationUndoRenameDupedName =
-  testTask "canvas verification undo rename duped name" {
-    let! canvasID = initializeTestCanvas "canvas-verification-undo-rename-duped-name"
-    let dbid1, dbid2 = gid (), gid ()
-    let ops1 =
-      [ PT.CreateDB(dbid1, "Books", PT.TInt)
-        PT.TLSavepoint dbid1
-        PT.DeleteTL dbid1
-        PT.CreateDB(dbid2, "Books", PT.TString) ]
-    let ops2 = ops1 @ [ PT.UndoTL dbid1 ]
-    try
-      Canvas.empty canvasID |> Canvas.addOps [] ops1 |> ignore<Canvas.T>
-    with _ ->
-      Expect.equal false true "should initially verify"
-
-    try
-      Canvas.empty canvasID |> Canvas.addOps [] ops2 |> ignore<Canvas.T>
-      Expect.equal false true "should not verify anymore"
-    with _ ->
-      ()
-  }
-
 
 let tests =
   testList
@@ -422,7 +354,6 @@ let tests =
       testHttpOplistLoadsUserTypes
       testHttpLoadIgnoresDeletedFns
       testHttpLoadIgnoresDeletedHandler
-      testUndoTooFarDoesntBreak
       testDbRename
       testSetHandlerAfterDelete
       testSetFunctionAfterDelete
@@ -431,4 +362,4 @@ let tests =
       testCanvasVerificationDuplicationCreationOffDisk
       testCanvasVerificationDuplicationRenaming
       testCanvasVerificationNoError
-      testCanvasVerificationUndoRenameDupedName ]
+    ]

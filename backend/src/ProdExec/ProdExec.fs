@@ -177,7 +177,7 @@ let initSerializers () =
   // one-off types used internally
   // we probably don't need most of these, but it's key that ProdExec doesn't ever
   // fail, so we're extra-cautious, and include _everything_.
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"

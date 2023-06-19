@@ -593,38 +593,6 @@ module Toplevel =
     | ST.Toplevel.TLFunction f -> PT.Toplevel.TLFunction(UserFunction.toPT f)
     | ST.Toplevel.TLType ut -> PT.Toplevel.TLType(UserType.toPT ut)
 
-module Op =
-  let toST (op : PT.Op) : ST.Op =
-    match op with
-    | PT.SetHandler(handler) -> ST.SetHandler(Handler.toST handler)
-    | PT.CreateDB(tlid, name, typ) -> ST.CreateDB(tlid, name, TypeReference.toST typ)
-    | PT.DeleteTL tlid -> ST.DeleteTL tlid
-    | PT.SetFunction fn -> ST.SetFunction(UserFunction.toST fn)
-    | PT.UndoTL tlid -> ST.UndoTL tlid
-    | PT.RedoTL tlid -> ST.RedoTL tlid
-    | PT.SetExpr(tlid, id, e) -> ST.SetExpr(tlid, id, Expr.toST e)
-    | PT.TLSavepoint tlid -> ST.TLSavepoint tlid
-    | PT.DeleteFunction tlid -> ST.DeleteFunction tlid
-    | PT.RenameDB(tlid, string) -> ST.RenameDB(tlid, string)
-    | PT.SetType tipe -> ST.SetType(UserType.toST tipe)
-    | PT.DeleteType tlid -> ST.DeleteType tlid
-
-  let toPT (op : ST.Op) : Option<PT.Op> =
-    match op with
-    | ST.SetHandler(handler) -> Some(PT.SetHandler(Handler.toPT handler))
-    | ST.CreateDB(tlid, name, typ) ->
-      Some(PT.CreateDB(tlid, name, TypeReference.toPT typ))
-    | ST.DeleteTL tlid -> Some(PT.DeleteTL tlid)
-    | ST.SetFunction fn -> Some(PT.SetFunction(UserFunction.toPT fn))
-    | ST.UndoTL tlid -> Some(PT.UndoTL tlid)
-    | ST.RedoTL tlid -> Some(PT.RedoTL tlid)
-    | ST.SetExpr(tlid, id, e) -> Some(PT.SetExpr(tlid, id, Expr.toPT e))
-    | ST.TLSavepoint tlid -> Some(PT.TLSavepoint tlid)
-    | ST.DeleteFunction tlid -> Some(PT.DeleteFunction tlid)
-    | ST.RenameDB(tlid, string) -> Some(PT.RenameDB(tlid, string))
-    | ST.SetType tipe -> Some(PT.SetType(UserType.toPT tipe))
-    | ST.DeleteType tlid -> Some(PT.DeleteType tlid)
-
 module PackageFn =
   module Parameter =
     let toST (p : PT.PackageFn.Parameter) : ST.PackageFn.Parameter =

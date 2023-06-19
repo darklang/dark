@@ -28,7 +28,7 @@ type CronScheduleData = Serialize.CronScheduleData
 
 // TODO: this is a query per cron handler. Might be worth seeing (later) if a we
 // could do this better with a join in the initial query that gets all cron
-// handlers from toplevel_oplists.
+// handlers from `toplevels`.
 let lastRanAt (cron : CronScheduleData) : Task<Option<NodaTime.Instant>> =
   Sql.query
     "SELECT ran_at
@@ -153,7 +153,7 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
     | None -> return false
   }
 
-/// Iterates through every (non-deleted) cron `toplevel_oplist`
+/// Iterates through every (non-deleted) cron toplevel
 /// and checks to see if it should be executed, enqueuing
 /// work to execute it if necessary.
 let checkAndScheduleWorkForAllCrons () : Task<unit> =
