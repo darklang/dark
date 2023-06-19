@@ -21,7 +21,20 @@ let types : List<BuiltInType> = []
 let fn = fn [ "String" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "foreach" 0
+  [ { name = fn "isEmpty" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TBool
+      description = "Returns {{true}} if <param s> is the empty string {{\"\"}}"
+      fn =
+        (function
+        | _, _, [ DString s ] -> Ply(DBool(s = ""))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+    { name = fn "foreach" 0
       typeParams = []
       parameters =
         [ Param.make "s" TString ""
