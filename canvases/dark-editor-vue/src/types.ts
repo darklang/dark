@@ -39,6 +39,7 @@ export interface Model {
   codeSnippets: CodeSnippet[]
   tasks: Task[]
   actions: Action[]
+  functions: string[]
 }
 
 // -- parse the internal model based on however Dark stuff is serialized --
@@ -128,5 +129,6 @@ export function fromSerializedDarkModel(serializedDarkModel: string): Model {
     codeSnippets: codeSnippets,
     tasks: tasks,
     actions: actions,
+    functions: source.functions,
   }
 }

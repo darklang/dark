@@ -3,7 +3,8 @@ import { ref } from 'vue'
 
 import { fromSerializedDarkModel, type Model } from './types'
 import Header from './components/Header.vue'
-import ConversationView from './views/ConversationView.vue'
+// import ConversationView from './views/ConversationView.vue'
+import MainView from './views/MainView.vue'
 
 let init: Model = {
   isLoading: false,
@@ -12,6 +13,7 @@ let init: Model = {
   codeSnippets: [],
   tasks: [],
   actions: [],
+  functions: [],
 }
 
 // Set initial state; listen for state updates from Dark
@@ -51,6 +53,7 @@ document.head.appendChild(darklangJSScript)
 <template>
   <div class="h-screen overflow-hidden">
     <Header />
-    <ConversationView v-bind:state="state" />
+    <!-- <ConversationView v-bind:state="state" /> -->
+    <MainView v-bind:state="state" />
   </div>
 </template>
