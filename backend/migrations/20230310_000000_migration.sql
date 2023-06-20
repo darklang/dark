@@ -162,7 +162,7 @@ CREATE TYPE toplevel_type AS
 ENUM ('handler', 'db', 'user_function', 'user_tipe');
 
 CREATE TABLE IF NOT EXISTS
-toplevel_v0
+toplevels_v0
 ( canvas_id UUID NOT NULL
 , tlid INTEGER NOT NULL
 , digest CHAR(32) NOT NULL

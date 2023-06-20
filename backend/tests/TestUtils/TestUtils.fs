@@ -227,24 +227,10 @@ let executionStateFor
 /// Saves and reloads the canvas for the Toplevels
 let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
   task {
-    let descs =
-      tls
-      |> List.map (fun tl ->
-        let tlid = PT.Toplevel.toTLID tl
-
-        let op =
-          match tl with
-          | PT.Toplevel.TLHandler h -> PT.SetHandler h
-          | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
-
-        (tlid, [ op ], tl, Canvas.NotDeleted))
-
+    let descs = tls |> List.map (fun tl -> (tl, LibBackend.Serialize.NotDeleted))
     do! Canvas.saveTLIDs canvasID descs
     return! Canvas.loadAll canvasID
   }
-
-
-
 
 
 

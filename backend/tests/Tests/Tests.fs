@@ -54,8 +54,7 @@ let main (args : string array) : int =
         Tests.VanillaSerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
-        Tests.StorageTraces.tests
-        Tests.Undo.tests ]
+        Tests.StorageTraces.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token

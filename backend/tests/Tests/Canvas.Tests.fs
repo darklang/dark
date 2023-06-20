@@ -25,43 +25,32 @@ let parse (code : string) : PT.Expr =
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
     let! canvasID = initializeTestCanvas "db_oplist_roundtrip"
-
     let db = testDB "myDB" PT.TInt
-    let oplist =
-      [ PT.UndoTL db.tlid; PT.RedoTL db.tlid; PT.UndoTL db.tlid; PT.RedoTL db.tlid ]
+    let tl = PT.Toplevel.TLDB db
 
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (db.tlid, oplist, PT.Toplevel.TLDB db, Canvas.NotDeleted) ]
-    let! ops = Serialize.loadOplists Serialize.LiveToplevels canvasID [ db.tlid ]
-    Expect.equal ops [ (db.tlid, oplist) ] "db oplist roundtrip"
+    do! Canvas.saveTLIDs canvasID [ (tl, Serialize.NotDeleted) ]
+    let! tls = Serialize.loadToplevels canvasID [ db.tlid ]
+    Expect.equal tls [ Serialize.NotDeleted, tl ] "db oplist roundtrip"
   }
 
 
 let testHttpOplistRoundtrip =
   testTask "test http oplist roundtrip" {
     let! canvasID = initializeTestCanvas "http_oplist_roundtrip"
-
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
-    let oplist = [ PT.SetHandler handler ]
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (handler.tlid, oplist, PT.Toplevel.TLHandler handler, Canvas.NotDeleted) ]
-    let! (c2 : Canvas.T) =
+    let h = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
+    do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
+    let! (c : Canvas.T) =
       Canvas.loadHttpHandlers
         canvasID
-        (PTParser.Handler.Spec.toName handler.spec)
-        (PTParser.Handler.Spec.toModifier handler.spec)
-    Expect.equal (c2.handlers[handler.tlid]) handler "Handlers should be equal"
+        (PTParser.Handler.Spec.toName h.spec)
+        (PTParser.Handler.Spec.toModifier h.spec)
+    Expect.equal (c.handlers[h.tlid]) h "Handlers should be equal"
   }
 
 
 let testHttpOplistLoadsUserTypes =
   testTask "httpOplistLoadsUserTypes" {
     let! canvasID = initializeTestCanvas "http_oplist_loads_user_tipes"
-
     let handler = testHttpRouteHandler "/path" "GET" (PT.EInt(gid (), 5L))
     let typ =
       testUserRecordType
@@ -72,11 +61,8 @@ let testHttpOplistLoadsUserTypes =
     do!
       Canvas.saveTLIDs
         canvasID
-        [ (handler.tlid,
-           [ PT.SetHandler handler ],
-           PT.Toplevel.TLHandler handler,
-           Canvas.NotDeleted)
-          (typ.tlid, [ PT.SetType typ ], PT.Toplevel.TLType typ, Canvas.NotDeleted) ]
+        [ (PT.Toplevel.TLHandler handler, Serialize.NotDeleted)
+          (PT.Toplevel.TLType typ, Serialize.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
       Canvas.loadHttpHandlers
@@ -96,10 +82,7 @@ let testHttpLoadIgnoresDeletedHandler =
     do!
       Canvas.saveTLIDs
         canvasID
-        [ (handler.tlid,
-           [ PT.SetHandler handler; PT.DeleteTL handler.tlid ],
-           PT.Toplevel.TLHandler handler,
-           Canvas.Deleted) ]
+        [ (PT.Toplevel.TLHandler handler, Serialize.Deleted) ]
 
     let! (c2 : Canvas.T) =
       Canvas.loadHttpHandlers
@@ -115,7 +98,7 @@ let testHttpLoadIgnoresDeletedHandler =
     let! dbRow =
       Sql.query
         "SELECT name, module, modifier, deleted
-         FROM toplevel_oplists_v0
+         FROM toplevels_v0
          WHERE canvas_id = @canvasID
            AND tlid = @tlid"
       |> Sql.parameters
@@ -140,23 +123,14 @@ let testHttpLoadIgnoresDeletedFns =
     do!
       Canvas.saveTLIDs
         canvasID
-        [ (handler.tlid,
-           [ PT.SetHandler handler ],
-           PT.Toplevel.TLHandler handler,
-           Canvas.NotDeleted)
-          (f.tlid, [ PT.SetFunction f ], PT.Toplevel.TLFunction f, Canvas.NotDeleted) ]
+        [ (PT.Toplevel.TLHandler handler, Serialize.NotDeleted)
+          (PT.Toplevel.TLFunction f, Serialize.NotDeleted) ]
     // TLIDs are saved in parallel, so do them in separate calls
     do!
       Canvas.saveTLIDs
         canvasID
-        [ (f.tlid,
-           [ PT.DeleteFunction f.tlid ],
-           PT.Toplevel.TLFunction f,
-           Canvas.Deleted)
-          (fNew.tlid,
-           [ PT.SetFunction fNew ],
-           PT.Toplevel.TLFunction fNew,
-           Canvas.NotDeleted) ]
+        [ (PT.Toplevel.TLFunction f, Serialize.Deleted)
+          (PT.Toplevel.TLFunction fNew, Serialize.NotDeleted) ]
 
     let! (c2 : Canvas.T) =
       Canvas.loadHttpHandlers
@@ -169,17 +143,6 @@ let testHttpLoadIgnoresDeletedFns =
     Expect.equal c2.userFunctions[fNew.tlid] fNew "later func is loaded"
   }
 
-
-let testDbRename =
-  testTask "DB rename" {
-    let! canvasID = initializeTestCanvas "db-rename"
-
-    let dbID = gid ()
-    let ops = [ PT.CreateDB(dbID, "Books", PT.TString); PT.RenameDB(dbID, "BsCode") ]
-    let canvas = Canvas.fromOplist canvasID [] ops
-    Expect.equal canvas.dbs[dbID].name "BsCode" "Datastore is created"
-  }
-
 let testSetHandlerAfterDelete =
   testTask "handler set after delete" {
     let! canvasID = initializeTestCanvas "set-handlder-after-delete"
@@ -187,34 +150,27 @@ let testSetHandlerAfterDelete =
     let e2 = (parse "5 + 2")
     let h1 = testHttpRouteHandler "/path" "GET" e1
     let h2 = testHttpRouteHandler "/path" "GET" e2
-    let op1 = PT.SetHandler h1
-    let op2 = PT.DeleteTL h1.tlid
-    let op3 = PT.SetHandler h2
 
     // Just the deleted handler
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (h1.tlid, [ op1; op2 ], PT.Toplevel.TLHandler h1, Canvas.Deleted) ]
+    do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h1, Serialize.Deleted) ]
 
-    let! (c2 : Canvas.T) = Canvas.loadAll canvasID
+    let! (c1 : Canvas.T) = Canvas.loadAll canvasID
 
-    Expect.equal c2.deletedHandlers[h1.tlid] h1 "deleted in deleted"
-    Expect.equal c2.deletedHandlers.Count 1 "only deleted in deleted"
-    Expect.equal c2.handlers.Count 0 "deleted not in handlers"
+    Expect.equal (c1.deletedHandlers.TryFind h1.tlid) (Some h1) "deleted in deleted"
+    Expect.equal c1.deletedHandlers.Count 1 "only deleted in deleted"
+    Expect.equal c1.handlers.Count 0 "deleted not in handlers"
+
 
     // And the new one (the deleted is still there)
     do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (h2.tlid, [ op3 ], PT.Toplevel.TLHandler h2, Canvas.NotDeleted) ]
+      Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h2, Serialize.NotDeleted) ]
 
-    let! (c3 : Canvas.T) = Canvas.loadAll canvasID
+    let! (c2 : Canvas.T) = Canvas.loadAll canvasID
 
-    Expect.equal c3.deletedHandlers[h1.tlid] h1 "deleted still in deleted"
-    Expect.equal c3.deletedHandlers.Count 1 "only deleted still in deleted"
-    Expect.equal c3.handlers[h2.tlid] h2 "live is in handlers"
-    Expect.equal c3.handlers.Count 1 "only live is in handlers"
+    Expect.equal (c2.deletedHandlers.TryFind h1.tlid) (Some h1) "deleted in deleted"
+    Expect.equal c2.deletedHandlers.Count 1 "only deleted still in deleted"
+    Expect.equal (c2.handlers.TryFind h2.tlid) (Some h2) "live is in handlers"
+    Expect.equal c2.handlers.Count 1 "only live is in handlers"
   }
 
 let testSetFunctionAfterDelete =
@@ -222,129 +178,53 @@ let testSetFunctionAfterDelete =
     let! canvasID = initializeTestCanvas "db-set-function-after-delete"
     let f1 = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "5 + 3")
     let f2 = testUserFn "testfn" [] [] (PT.TVariable "a") (parse "6 + 4")
-    let op1 = PT.SetFunction f1
-    let op2 = PT.DeleteFunction f1.tlid
-    let op3 = PT.SetFunction f2
 
     // Just the deleted handler
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (f1.tlid, [ op1; op2 ], PT.Toplevel.TLFunction f1, Canvas.Deleted) ]
+    do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLFunction f1, Serialize.Deleted) ]
 
-    let! (c2 : Canvas.T) = Canvas.loadAll canvasID
+    let! (c1 : Canvas.T) = Canvas.loadAll canvasID
 
-    Expect.equal c2.deletedUserFunctions[f1.tlid] f1 "deleted in deleted"
-    Expect.equal c2.deletedUserFunctions.Count 1 "only deleted in deleted"
-    Expect.equal c2.userFunctions.Count 0 "deleted not in handlers"
+    Expect.equal
+      (c1.deletedUserFunctions.TryFind f1.tlid)
+      (Some f1)
+      "deleted in deleted"
+    Expect.equal c1.deletedUserFunctions.Count 1 "only deleted in deleted"
+    Expect.equal c1.userFunctions.Count 0 "deleted not present"
 
     // And the new one (the deleted is still there)
     do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (f2.tlid, [ op3 ], PT.Toplevel.TLFunction f2, Canvas.NotDeleted) ]
+      Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLFunction f2, Serialize.NotDeleted) ]
 
-    let! (c3 : Canvas.T) = Canvas.loadAll canvasID
+    let! (c2 : Canvas.T) = Canvas.loadAll canvasID
 
-    Expect.equal c3.deletedUserFunctions[f1.tlid] f1 "deleted still in deleted"
-    Expect.equal c3.deletedUserFunctions.Count 1 "only deleted still in deleted"
-    Expect.equal c3.userFunctions[f2.tlid] f2 "live is in handlers"
-    Expect.equal c3.userFunctions.Count 1 "only live is in handlers"
+    Expect.equal
+      (c2.deletedUserFunctions.TryFind f1.tlid)
+      (Some f1)
+      "deleted still in deleted"
+    Expect.equal c2.deletedUserFunctions.Count 1 "only deleted still in deleted"
+    Expect.equal (c2.userFunctions.TryFind f2.tlid) (Some f2) "live is present"
+    Expect.equal c2.userFunctions.Count 1 "only live is present"
   }
 
 
 let testLoadAllDBs =
   testTask "load all dbs" {
     let! canvasID = initializeTestCanvas "load-all-dbs"
-    let dbid1, dbid2, dbid3 = gid (), gid (), gid ()
     let typ = PT.TString
-    let ops1 = [ PT.CreateDB(dbid1, "Books", typ); PT.DeleteTL dbid1 ]
-    let ops2 = [ PT.CreateDB(dbid2, "Books2", typ) ]
-    let ops3 = [ PT.CreateDB(dbid3, "Books3", typ) ]
-    let c1 = Canvas.empty canvasID |> Canvas.addOps (ops1 @ ops2 @ ops3) []
+    let db1 : PT.DB.T = { tlid = gid (); name = "Books"; version = 0; typ = typ }
+    let db2 : PT.DB.T = { tlid = gid (); name = "Books2"; version = 0; typ = typ }
+    let db3 : PT.DB.T = { tlid = gid (); name = "Books3"; version = 0; typ = typ }
     do!
       Canvas.saveTLIDs
         canvasID
-        [ (dbid1, ops1, PT.Toplevel.TLDB c1.deletedDBs[dbid1], Canvas.Deleted)
-          (dbid2, ops2, PT.Toplevel.TLDB c1.dbs[dbid2], Canvas.NotDeleted)
-          (dbid3, ops3, PT.Toplevel.TLDB c1.dbs[dbid3], Canvas.NotDeleted) ]
+        [ (PT.Toplevel.TLDB db1, Serialize.Deleted)
+          (PT.Toplevel.TLDB db2, Serialize.NotDeleted)
+          (PT.Toplevel.TLDB db3, Serialize.NotDeleted) ]
 
-    let! (c2 : Canvas.T) = Canvas.loadAll canvasID
-    let ids = Map.values c2.dbs |> List.map (fun db -> db.tlid) |> Set
-    Expect.equal ids (Set [ dbid2; dbid3 ]) "Loaded only undeleted dbs"
+    let! (c : Canvas.T) = Canvas.loadAll canvasID
+    let ids = Map.values c.dbs |> List.map (fun db -> db.tlid) |> Set
+    Expect.equal ids (Set [ db2.tlid; db3.tlid ]) "Loaded only undeleted dbs"
   }
-
-
-let testCanvasVerificationDuplicationCreation =
-  testTask "canvas verification duplication creation" {
-    let! canvasID = initializeTestCanvas "canvas-verification-duplication-creation"
-    let dbID1, dbID2 = gid (), gid ()
-    let ops =
-      [ PT.CreateDB(dbID1, "Books", PT.TString)
-        PT.CreateDB(dbID2, "Books", PT.TInt) ]
-    try
-      Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
-      Expect.equal false true "should not verify"
-    with _ ->
-      ()
-  }
-
-let testCanvasVerificationDuplicationCreationOffDisk =
-  testTask "canvas verification duplication creation off disk" {
-    let! canvasID =
-      initializeTestCanvas "canvas-verification-duplication-creation-off-disk"
-
-    let dbID1, dbID2 = gid (), gid ()
-    // same name
-    let ops1 = [ PT.CreateDB(dbID1, "Books", PT.TInt) ]
-    let ops2 = [ PT.CreateDB(dbID2, "Books", PT.TBool) ]
-    let c1 = Canvas.empty canvasID |> Canvas.addOps (ops1 @ ops2) []
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (dbID1, ops1, PT.Toplevel.TLDB c1.dbs[dbID1], Canvas.NotDeleted)
-          (dbID2, ops2, PT.Toplevel.TLDB c1.dbs[dbID2], Canvas.NotDeleted) ]
-
-    // CLEANUP: i'm not sure that it works or that it tests what it's supposed to test
-    try
-      let! (_ : Canvas.T) =
-        match LibBackend.Op.requiredContextToValidateOplist ops2 with
-        | LibBackend.Op.NoContext -> Canvas.loadTLIDs canvasID [ dbID2 ]
-        | LibBackend.Op.AllDatastores -> Canvas.loadAll canvasID
-
-      Expect.equal false true "should not verify"
-    with _ ->
-      ()
-  }
-
-let testCanvasVerificationDuplicationRenaming =
-  testTask "canvas verification duplication renaming" {
-    let! canvasID = initializeTestCanvas "canvas-verification-duplication-renaming"
-    let dbid1, dbid2 = gid (), gid ()
-    let ops =
-      [ PT.CreateDB(dbid1, "Books", PT.TString)
-        PT.CreateDB(dbid2, "Books2", PT.TInt)
-        PT.RenameDB(dbid2, "Books") ]
-    try
-      Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
-      Expect.equal false true "should not verify"
-    with _ ->
-      ()
-  }
-
-let testCanvasVerificationNoError =
-  testTask "canvas verification no error" {
-    let! canvasID = initializeTestCanvas "canvas-verification-no-error"
-    let dbid1, dbid2 = gid (), gid ()
-    let ops =
-      [ PT.CreateDB(dbid1, "Books", PT.TString)
-        PT.CreateDB(dbid2, "Books2", PT.TInt) ]
-    try
-      Canvas.empty canvasID |> Canvas.addOps [] ops |> ignore<Canvas.T>
-    with _ ->
-      Expect.equal false true "should verify"
-  }
-
 
 let tests =
   testList
@@ -354,12 +234,6 @@ let tests =
       testHttpOplistLoadsUserTypes
       testHttpLoadIgnoresDeletedFns
       testHttpLoadIgnoresDeletedHandler
-      testDbRename
       testSetHandlerAfterDelete
       testSetFunctionAfterDelete
-      testLoadAllDBs
-      testCanvasVerificationDuplicationCreation
-      testCanvasVerificationDuplicationCreationOffDisk
-      testCanvasVerificationDuplicationRenaming
-      testCanvasVerificationNoError
-    ]
+      testLoadAllDBs ]

@@ -9,7 +9,6 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
-module Op = LibBackend.Op
 module C = LibBackend.Canvas
 
 let initSerializers () = ()
@@ -61,35 +60,23 @@ let seedCanvasV2 (canvasName : string) =
     let! ownerID = LibBackend.Account.createUser ()
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
-    let ops =
+    let tls =
       let modul = Parser.CanvasV2.parseFromFile $"{canvasDir}/{config.Main}.dark"
 
-      let types = modul.types |> List.map PT.Op.SetType
-      let fns = modul.fns |> List.map PT.Op.SetFunction
+      let types = modul.types |> List.map PT.Toplevel.TLType
+      let fns = modul.fns |> List.map PT.Toplevel.TLFunction
 
       let handlers =
         modul.handlers
         |> List.map (fun (spec, ast) ->
-          PT.Op.SetHandler({ tlid = gid (); ast = ast; spec = spec }))
+          PT.Toplevel.TLHandler { tlid = gid (); ast = ast; spec = spec })
 
-      let dbs =
-        modul.dbs |> List.map (fun db -> PT.CreateDB(db.tlid, db.name, db.typ))
+      let dbs = modul.dbs |> List.map PT.Toplevel.TLDB
 
-      let createSavepoint = PT.Op.TLSavepoint(gid ())
+      (types @ dbs @ fns @ handlers)
+      |> List.map (fun tl -> tl, LibBackend.Serialize.NotDeleted)
 
-      [ createSavepoint ] @ types @ dbs @ fns @ handlers
-
-    let canvasWithTopLevels = C.fromOplist canvasID [] ops
-
-    let oplists =
-      ops
-      |> Op.oplist2TLIDOplists
-      |> List.filterMap (fun (tlid, oplists) ->
-        match Map.get tlid (C.toplevels canvasWithTopLevels) with
-        | Some tl -> Some(tlid, oplists, tl, C.NotDeleted)
-        | None -> None)
-
-    do! C.saveTLIDs canvasID oplists
+    do! C.saveTLIDs canvasID tls
 
 
     // now that the canvas has been seeded, load any secrets in a .secrets file

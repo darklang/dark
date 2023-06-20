@@ -738,20 +738,4 @@ module ProgramTypes =
       List.map PT.Toplevel.TLType userTypes ]
     |> List.concat
 
-  let oplist : PT.Oplist =
-    let id = 923832423UL
-    let tlid = 94934534UL
-    [ PT.SetHandler(Handler.http)
-      PT.CreateDB(tlid, "name", PT.TFloat)
-      PT.DeleteTL tlid
-      PT.SetFunction(userFunction)
-      PT.UndoTL tlid
-      PT.RedoTL tlid
-      PT.SetExpr(tlid, id, expr)
-      PT.TLSavepoint tlid
-      PT.DeleteFunction tlid
-      PT.RenameDB(tlid, "newname")
-      PT.SetType(userRecordType)
-      PT.DeleteType tlid ]
-
   let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }

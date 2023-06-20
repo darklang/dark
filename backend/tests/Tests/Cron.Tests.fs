@@ -34,12 +34,7 @@ let testCronSanity =
     let! canvasID = initializeTestCanvas "cron-sanity"
 
     let h = testCron "test" PT.Handler.EveryDay (p " 5 + 3")
-    let oplists = [ PT.SetHandler h ]
-
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (h.tlid, oplists, PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
+    do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = canvasID
@@ -58,10 +53,7 @@ let testCronJustRan =
 
     let h = testCron "test" PT.Handler.EveryDay (p "5 + 3")
 
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (h.tlid, [ PT.SetHandler h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted) ]
+    do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
       { canvasID = canvasID

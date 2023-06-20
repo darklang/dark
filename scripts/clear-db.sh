@@ -21,12 +21,14 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM traces_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM user_data_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM cron_records_v0 WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM toplevel_oplists_v0 WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM toplevels_v0 WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases_v0 WHERE id = '$cid';";
   SCRIPT+="DELETE FROM secrets_v0 WHERE canvas_id = '$cid';";
 done
 
 SCRIPT+="DELETE FROM package_functions_v0 WHERE author_id IN (SELECT id FROM accounts_v0
+WHERE username = 'test_admin');";
+SCRIPT+="DELETE FROM package_types_v0 WHERE author_id IN (SELECT id FROM accounts_v0
 WHERE username = 'test_admin');";
 
 run_sql "$SCRIPT";

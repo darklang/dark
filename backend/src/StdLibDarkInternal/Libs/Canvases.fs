@@ -118,8 +118,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID; DInt tlid ] ->
           uply {
             let tlid = uint64 tlid
-            let! c =
-              Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasID [ tlid ]
+            let! c = Canvas.loadFrom canvasID [ tlid ]
             if
               Map.containsKey tlid c.deletedHandlers
               || Map.containsKey tlid c.deletedDBs

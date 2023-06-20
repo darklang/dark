@@ -86,8 +86,7 @@ let getOwner (id : CanvasID) : Task<UserID> =
 /// <remarks>
 /// This includes just a subset of the key program data. It is rare that all of
 /// the data for a canvas will be loaded. In addition, there is other canvas
-/// data which is meaningful, such as CORS info, creation date. These
-/// can be fetched separately. 
+/// data which is meaningful, such as creation date. These can be fetched separately.
 /// </remarks>
 type T =
   { id : CanvasID
@@ -95,25 +94,36 @@ type T =
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
-    // TODO: no separate fields for deleted, combine them
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
     deletedUserFunctions : Map<tlid, PT.UserFunction.T>
     deletedUserTypes : Map<tlid, PT.UserType.T>
     secrets : Map<string, PT.Secret.T> }
 
-let addToplevel (tl : PT.Toplevel.T) (c : T) : T =
+let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
   let tlid = PT.Toplevel.toTLID tl
 
-  match tl with
-  | PT.Toplevel.TLHandler h -> { c with handlers = Map.add tlid h c.handlers }
-  | PT.Toplevel.TLDB db -> { c with dbs = Map.add tlid db c.dbs }
-  | PT.Toplevel.TLType t -> { c with userTypes = Map.add tlid t c.userTypes }
-  | PT.Toplevel.TLFunction f ->
+  match deleted, tl with
+  | Serialize.NotDeleted, PT.Toplevel.TLHandler h ->
+    { c with handlers = Map.add tlid h c.handlers }
+  | Serialize.NotDeleted, PT.Toplevel.TLDB db ->
+    { c with dbs = Map.add tlid db c.dbs }
+  | Serialize.NotDeleted, PT.Toplevel.TLType t ->
+    { c with userTypes = Map.add tlid t c.userTypes }
+  | Serialize.NotDeleted, PT.Toplevel.TLFunction f ->
     { c with userFunctions = Map.add tlid f c.userFunctions }
 
-let addToplevels (tls : PT.Toplevel.T list) (canvas : T) : T =
-  List.fold canvas (fun c tl -> addToplevel tl c) tls
+  | Serialize.Deleted, PT.Toplevel.TLHandler h ->
+    { c with deletedHandlers = Map.add tlid h c.deletedHandlers }
+  | Serialize.Deleted, PT.Toplevel.TLDB db ->
+    { c with deletedDBs = Map.add tlid db c.deletedDBs }
+  | Serialize.Deleted, PT.Toplevel.TLType t ->
+    { c with deletedUserTypes = Map.add tlid t c.deletedUserTypes }
+  | Serialize.Deleted, PT.Toplevel.TLFunction f ->
+    { c with deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
+
+let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : T =
+  List.fold canvas (fun c (deleted, tl) -> addToplevel deleted tl c) tls
 
 let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   let map f l = Map.map f l |> Map.toSeq
@@ -250,53 +260,45 @@ let empty (id : CanvasID) =
     deletedUserTypes = Map.empty
     secrets = Map.empty }
 
-et loadFrom
-  (loadAmount : Serialize.LoadAmount)
-  (id : CanvasID)
-  (tlids : List<tlid>)
-  : Task<T> =
+let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
     try
-      Telemetry.addTags [ "tlids", tlids; "loadAmount", loadAmount ]
+      Telemetry.addTags [ "tlids", tlids ]
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs id tlids
+      let! tls = Serialize.loadToplevels id tlids
 
       let c = empty id
 
       let! secrets = Secret.getCanvasSecrets id
       let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
 
-      return
-        { c with secrets = secrets }
-        |> addToplevels fastLoadedTLs
-        |> verify
+      return { c with secrets = secrets } |> addToplevels tls |> verify
     with e when not (LD.knownBroken id) ->
-      let tags = [ "tlids", tlids :> obj; "loadAmount", loadAmount ]
+      let tags = [ "tlids", tlids :> obj ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
   }
 
 let loadAll (id : CanvasID) : Task<T> =
   task {
-    let! tlids = Serialize.fetchAllTLIDs id
-    return! loadFrom Serialize.IncludeDeletedToplevels id tlids
+    let! tlids = Serialize.fetchAllIncludingDeletedTLIDs id
+    return! loadFrom id tlids
   }
 
 let loadHttpHandlers (id : CanvasID) (path : string) (method : string) : Task<T> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP id path method
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
-let loadTLIDs (id : CanvasID) (tlids : tlid list) : Task<T> =
-  loadFrom Serialize.LiveToplevels id tlids
+let loadTLIDs (id : CanvasID) (tlids : tlid list) : Task<T> = loadFrom id tlids
 
 
 let loadTLIDsWithContext (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
     let! context = Serialize.fetchRelevantTLIDsForExecution id
     let tlids = tlids @ context
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 let loadForEventV2
@@ -307,63 +309,60 @@ let loadForEventV2
   : Task<T> =
   task {
     let! tlids = Serialize.fetchRelevantTLIDsForEvent id module' name modifier
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 let loadAllDBs (id : CanvasID) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs id
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 /// Returns a best guess at all workers (excludes what it knows not to be a worker)
 let loadAllWorkers (id : CanvasID) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllWorkers id
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 let loadTLIDsWithDBs (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs id
-    return! loadFrom Serialize.LiveToplevels id (tlids @ dbTLIDs)
+    return! loadFrom id (tlids @ dbTLIDs)
   }
 
-type Deleted =
-  | Deleted
-  | NotDeleted
-
-let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
+let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T> =
   let handler () =
     Map.tryFind tlid c.handlers
-    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLHandler h))
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLHandler h))
 
   let deletedHandler () =
     Map.tryFind tlid c.deletedHandlers
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLHandler h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLHandler h))
 
   let db () =
-    Map.tryFind tlid c.dbs |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLDB h))
+    Map.tryFind tlid c.dbs
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLDB h))
 
   let deletedDB () =
     Map.tryFind tlid c.deletedDBs
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLDB h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLDB h))
 
   let userFunction () =
     Map.tryFind tlid c.userFunctions
-    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLFunction h))
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLFunction h))
 
   let deletedUserFunction () =
     Map.tryFind tlid c.deletedUserFunctions
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLFunction h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLFunction h))
 
   let userType () =
     Map.tryFind tlid c.userTypes
-    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLType h))
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLType h))
 
   let deletedUserType () =
     Map.tryFind tlid c.deletedUserTypes
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLType h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLType h))
 
   handler ()
   |> Option.orElseWith deletedHandler
@@ -373,6 +372,8 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith deletedUserFunction
   |> Option.orElseWith userType
   |> Option.orElseWith deletedUserType
+
+
 
 let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
   // CLEANUP: set deleted column in toplevels_v0 to be not nullable
@@ -388,17 +389,19 @@ let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
 /// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
   (id : CanvasID)
-  (toplevels : List<tlid * PT.Toplevel.T * Deleted>)
+  (toplevels : List<PT.Toplevel.T * Serialize.Deleted>)
   : Task<unit> =
   try
     // Use ops rather than just set of toplevels, because toplevels may
     // have been deleted or undone, and therefore not appear, but it's
     // important to record them.
     toplevels
-    |> Task.iterInParallel (fun (tlid, tl, deleted) ->
+    |> Task.iterInParallel (fun (tl, deleted) ->
       task {
         let string2option (s : string) : Option<string> =
           if s = "" then None else Some s
+
+        let tlid = PT.Toplevel.toTLID tl
 
         let routingNames =
           match tl with
@@ -424,7 +427,7 @@ let saveTLIDs
 
         let (module_, name, modifier) =
           // Only save info used to find handlers when the handler has not been deleted
-          if deleted = NotDeleted then
+          if deleted = Serialize.NotDeleted then
             match routingNames with
             | Some(module_, name, modifier) ->
               (string2option module_, string2option name, string2option modifier)
@@ -436,8 +439,8 @@ let saveTLIDs
 
         let deleted =
           match deleted with
-          | Deleted -> true
-          | NotDeleted -> false
+          | Serialize.Deleted -> true
+          | Serialize.NotDeleted -> false
 
         return!
           Sql.query
@@ -445,8 +448,7 @@ let saveTLIDs
                     (canvas_id, tlid, digest, tipe, name, module, modifier,
                      deleted, data)
                     VALUES (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
-                            @module, @modifier, @deleted,
-                            @data)
+                            @module, @modifier, @deleted, @data)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET digest = @digest,
                         tipe = @typ::toplevel_type,
@@ -493,8 +495,7 @@ let loadDomainsHealthCheck
                   "canvas host healthcheck probe"
                   [ "domain", hostname ]
                   id
-              let _canvas =
-                Serialize.loadToplevels Serialize.IncludeDeletedToplevels id
+              let _canvas = Serialize.loadToplevels id
               return healthy
             with _ ->
               return

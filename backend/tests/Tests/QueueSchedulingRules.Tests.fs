@@ -33,8 +33,7 @@ let testGetWorkerSchedulesForCanvas =
 
     do!
       ([ apple; banana; cherry ]
-       |> List.map (fun h ->
-         (h.tlid, [ PT.Op.SetHandler h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
+       |> List.map (fun h -> (PT.Toplevel.TLHandler h, Serialize.NotDeleted))
        |> Canvas.saveTLIDs canvasID)
 
     do! EQ2.pauseWorker canvasID "apple"

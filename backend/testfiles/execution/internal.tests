@@ -130,10 +130,3 @@ module Queue =
   // TODO: DarkInternal.Infra.SchedulingRule.list
   [] = []
 
-
-
-
-
-module Ops =
-  // getOpsForToplevel returns empty list for nonexistant TL
-  (Test.getCanvasID ()) |> DarkInternal.Canvas.getOpsForToplevel_v0 0 = []

@@ -27,31 +27,22 @@ module RoundtripTests =
         |> (=) tl)
       (List.map (fun x -> x, true) Values.ProgramTypes.toplevels)
 
-  let oplistRoundtripTest =
-    test "roundtrip oplists" {
-      let actual =
-        Values.ProgramTypes.oplist
-        |> BinarySerialization.serializeOplist 0UL
-        |> BinarySerialization.deserializeOplist 0UL
-      Expect.equal actual Values.ProgramTypes.oplist ""
-    }
-
 module ConsistentSerializationTests =
   type Format =
     { name : string
-      serializer : PT.Oplist -> byte array
-      deserializer : byte array -> PT.Oplist
-      prettyPrinter : Option<PT.Oplist -> string>
+      serializer : List<PT.Toplevel.T> -> byte array
+      deserializer : byte array -> List<PT.Toplevel.T>
+      prettyPrinter : Option<List<PT.Toplevel.T> -> string>
       prefix : string
       suffix : string
       prettyPrinterSuffix : string }
 
   let formats =
     [ { name = "BinarySerialization"
-        serializer = BinarySerialization.serializeOplist 0UL
-        deserializer = BinarySerialization.deserializeOplist 0UL
-        prettyPrinter = Some(BinarySerialization.Test.serializeOplistToJson 0UL)
-        prefix = "oplist-binary"
+        serializer = BinarySerialization.serializeToplevels "test"
+        deserializer = BinarySerialization.deserializeToplevels "test"
+        prettyPrinter = Some(BinarySerialization.Test.serializeToplevelsToJson)
+        prefix = "toplevels-binary"
         suffix = ".bin"
         prettyPrinterSuffix = ".json" } ]
 
@@ -69,7 +60,7 @@ module ConsistentSerializationTests =
   let generateTestFiles () : unit =
     formats
     |> List.iter (fun f ->
-      let output = f.serializer Values.ProgramTypes.oplist
+      let output = f.serializer Values.ProgramTypes.toplevels
 
       let sha1 =
         System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan output)
@@ -80,7 +71,7 @@ module ConsistentSerializationTests =
 
       f.prettyPrinter
       |> Option.tap (fun s ->
-        let jsonData = s Values.ProgramTypes.oplist
+        let jsonData = s Values.ProgramTypes.toplevels
         File.writefile Config.Serialization (nameFor f true sha1) jsonData
         File.writefile Config.Serialization (nameFor f true "latest") jsonData))
 
@@ -92,12 +83,12 @@ module ConsistentSerializationTests =
         |> Option.tap (fun s ->
           let expected =
             File.readfile Config.Serialization (nameFor f true "latest")
-          let actual = s Values.ProgramTypes.oplist
+          let actual = s Values.ProgramTypes.toplevels
           Expect.equal actual expected "check generates the same json")
 
         // Check that the generated binary data matches what we have saved. This ensures
         // the format has not changed.
-        let actual = f.serializer Values.ProgramTypes.oplist
+        let actual = f.serializer Values.ProgramTypes.toplevels
         let expected =
           File.readfileBytes Config.Serialization (nameFor f false "latest")
         Expect.equal actual expected "check can read the saved file"
@@ -110,7 +101,7 @@ module ConsistentSerializationTests =
             File.readfileBytes Config.Serialization filename |> f.deserializer
           Expect.equal
             actual
-            Values.ProgramTypes.oplist
+            Values.ProgramTypes.toplevels
             "deserialize should  match latest format")
       })
 
@@ -124,5 +115,4 @@ let tests =
   testList
     "Binary Serialization"
     [ RoundtripTests.toplevelRoundtripTest
-      RoundtripTests.oplistRoundtripTest
       testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]

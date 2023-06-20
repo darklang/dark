@@ -30,27 +30,33 @@ type LoadAmount =
   | LiveToplevels
   | IncludeDeletedToplevels
 
-let loadOnlyCachedTLIDs
+type Deleted =
+  | Deleted
+  | NotDeleted
+
+let loadToplevels
   (canvasID : CanvasID)
   (tlids : List<tlid>)
-  : Task<List<PT.Toplevel.T>> =
+  : Task<List<Deleted * PT.Toplevel.T>> =
   task {
     let! data =
       Sql.query
-        "SELECT tlid, data FROM toplevels_v0
+        "SELECT tlid, data, deleted FROM toplevels_v0
           WHERE canvas_id = @canvasID
           AND tlid = ANY (@tlids)
-          AND deleted IS FALSE
           AND (
               ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type))
               OR tipe = 'user_function'::toplevel_type
               OR tipe = 'user_tipe'::toplevel_type)"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-      |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "data"))
+      |> Sql.executeAsync (fun read ->
+        (read.tlid "tlid", read.bytea "data", read.bool "deleted"))
 
     return
       data
-      |> List.map (fun (tlid, tl) -> BinarySerialization.deserializeToplevel tlid tl)
+      |> List.map (fun (tlid, tl, deleted) ->
+        let isDeleted = if deleted then Deleted else NotDeleted
+        (isDeleted, BinarySerialization.deserializeToplevel tlid tl))
   }
 
 
@@ -129,11 +135,10 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
-let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
+let fetchAllIncludingDeletedTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-     WHERE canvas_id = @canvasID
-       AND deleted is NOT NULL"
+     WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
