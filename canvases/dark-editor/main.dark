@@ -159,3 +159,26 @@ let _handler _req =
   let result = prettyPackages
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+
+// to delete once PACKAGE.Darklang.PrettyPrinter.packages packages errors are resolved
+[<HttpHandler("GET", "/all-functions")>]
+let _handler _req =
+  let functions =
+    """
+    let rUnwrap (result: Result<'a, 'b>) : 'a =
+      match result with
+      | Ok s -> s
+      | Error e ->
+        log e // TODO: this won't work if non-string
+        alert "Expected OK, got Error - see log"
+
+    let log (s: String) : Unit =
+      let _ = WASM.Editor.callJSFunction "console.log" [ s ]
+      ()
+
+    let logErr (s: String) : Unit =
+      let _ = WASM.Editor.callJSFunction "console.error" [ s ]
+      ()
+    """
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes functions) 200
