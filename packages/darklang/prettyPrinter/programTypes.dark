@@ -796,11 +796,10 @@ module Darklang =
         let typeParamsPart = String.join u.typeParams " "
 
         let paramsPart =
-          String.join
-            (List.map
-              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.UserFunction.parameter
-              u.parameters)
-            " "
+          String.join (
+            List.map u.parameters (fun p ->
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.UserFunction.parameter p)
+          )
 
         let retPart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference u.returnType
