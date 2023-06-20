@@ -121,14 +121,41 @@ let _handler _req =
 // TODO, move this to a `/scripts/deployment/data-backup.dark`
 // to be called like `.../data-backup export --test`
 
-[<HttpHandler("GET", "/this-canvas-id")>]
+[<HttpHandler("GET", "/export-this-canvas")>]
 let _handler _req =
   let canvasId = DarkInternal.Canvas.darkEditorCanvasID ()
 
-  PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-    (canvasId |> Uuid.toString |> String.toBytes)
-    [ ("Content-Type", "text/plain") ]
-    200
+  let take =
+    match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "take" with
+    | Nothing -> 100
+    | Just take -> take |> Int.parse |> rUnwrap
+
+  let drop =
+    match PACKAGE.Darklang.Stdlib.Http.Request.queryParam request "drop" with
+    | Nothing -> 0
+    | Just drop -> drop |> Int.parse |> rUnwrap
+
+  match DarkInternal.Canvas.fullProgram canvasId with
+  | Ok program ->
+    let prettyTypes =
+      program.types
+      |> List.drop drop
+      |> List.take take
+      |> List.map (fun t -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType t)
+      |> String.join "\n\n"
+
+    let prettyFns =
+      program.fns
+      |> List.map (fun fn ->
+        PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userFunction fn)
+      |> String.join "\n\n"
+
+    let response = prettyTypes ++ "\n------------------\n" ++ prettyFns
+
+    PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+      (response |> String.toBytes)
+      [ ("Content-Type", "text/plain") ]
+      200
 
 
 // dark-exportable is `c622b6ab-f117-4c9b-826d-51ea2d175b18`
