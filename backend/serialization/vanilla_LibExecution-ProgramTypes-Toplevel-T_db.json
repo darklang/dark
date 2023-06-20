@@ -1,0 +1,23 @@
+[
+  "TLDB",
+  {
+    "tlid": 0,
+    "name": "User",
+    "version": 0,
+    "typ": [
+      "TCustomType",
+      [
+        "UserProgram",
+        {
+          "modules": [],
+          "name": [
+            "TypeName",
+            "User"
+          ],
+          "version": 0
+        }
+      ],
+      []
+    ]
+  }
+]

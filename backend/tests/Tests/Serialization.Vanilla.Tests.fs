@@ -89,7 +89,21 @@ module PersistedSerializations =
           (V.RuntimeTypes.dval
            |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT)
 
-        v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
+        v<List<LibExecution.ProgramTypes.Toplevel.T>>
+          "complete"
+          V.ProgramTypes.toplevels
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "httphandler"
+          (PT.Toplevel.TLHandler V.ProgramTypes.Handler.http)
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "db"
+          (PT.Toplevel.TLDB V.ProgramTypes.userDB)
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "function"
+          (PT.Toplevel.TLFunction V.ProgramTypes.userFunction)
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "recordtype"
+          (PT.Toplevel.TLType V.ProgramTypes.userRecordType)
         v<CPT.Handler.T> "simple" (CPT.Handler.toCT V.ProgramTypes.Handler.http)
 
         // ------------------

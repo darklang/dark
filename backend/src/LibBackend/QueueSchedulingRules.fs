@@ -114,7 +114,7 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
     let! states =
       Sql.query
         "SELECT name
-         FROM toplevel_oplists_v0 T
+         FROM toplevels_v0 T
          WHERE canvas_id = @canvasID
            AND tipe = 'handler'
            AND module = 'WORKER'"

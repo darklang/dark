@@ -118,8 +118,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID; DInt tlid ] ->
           uply {
             let tlid = uint64 tlid
-            let! c =
-              Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasID [ tlid ]
+            let! c = Canvas.loadFrom canvasID [ tlid ]
             if
               Map.containsKey tlid c.deletedHandlers
               || Map.containsKey tlid c.deletedDBs
@@ -139,30 +138,6 @@ let fns : List<BuiltInFn> =
     // ---------------------
     // Programs
     // ---------------------
-    { name = fn "getOpsForToplevel" 0
-      typeParams = []
-      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
-      returnType = TList TString
-      description = "Returns all ops for a tlid in the given canvas"
-      fn =
-        (function
-        | _, _, [ DUuid canvasID; DInt tlid ] ->
-          uply {
-            let tlid = uint64 tlid
-            let! ops =
-              let loadAmount = Serialize.LoadAmount.IncludeDeletedToplevels
-              Serialize.loadOplists loadAmount canvasID [ tlid ]
-
-            match ops with
-            | [ (_tlid, ops) ] -> return ops |> List.map (string >> DString) |> DList
-            | _ -> return DList []
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "darkEditorCanvasID" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

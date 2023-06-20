@@ -1,0 +1,164 @@
+[
+  "TLType",
+  {
+    "tlid": 0,
+    "name": {
+      "modules": [],
+      "name": [
+        "TypeName",
+        "User"
+      ],
+      "version": 0
+    },
+    "typeParams": [
+      "a"
+    ],
+    "definition": [
+      "Record",
+      {
+        "name": "prop1",
+        "typ": [
+          "TTuple",
+          [
+            "TList",
+            [
+              "TDict",
+              [
+                "TDB",
+                [
+                  "TOption",
+                  [
+                    "TResult",
+                    [
+                      "TInt"
+                    ],
+                    [
+                      "TFn",
+                      [
+                        [
+                          "TFloat"
+                        ]
+                      ],
+                      [
+                        "TUnit"
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ],
+          [
+            "TInt"
+          ],
+          [
+            [
+              "TFloat"
+            ],
+            [
+              "TBool"
+            ],
+            [
+              "TUnit"
+            ],
+            [
+              "TString"
+            ],
+            [
+              "TList",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TTuple",
+              [
+                "TInt"
+              ],
+              [
+                "TString"
+              ],
+              []
+            ],
+            [
+              "TDict",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TDB",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TDateTime"
+            ],
+            [
+              "TChar"
+            ],
+            [
+              "TPassword"
+            ],
+            [
+              "TUuid"
+            ],
+            [
+              "TOption",
+              [
+                "TInt"
+              ]
+            ],
+            [
+              "TCustomType",
+              [
+                "UserProgram",
+                {
+                  "modules": [
+                    "Mod"
+                  ],
+                  "name": [
+                    "TypeName",
+                    "name"
+                  ],
+                  "version": 0
+                }
+              ],
+              []
+            ],
+            [
+              "TBytes"
+            ],
+            [
+              "TResult",
+              [
+                "TInt"
+              ],
+              [
+                "TString"
+              ]
+            ],
+            [
+              "TVariable",
+              "v"
+            ],
+            [
+              "TFn",
+              [
+                [
+                  "TInt"
+                ]
+              ],
+              [
+                "TInt"
+              ]
+            ]
+          ]
+        ],
+        "description": "desc1"
+      },
+      []
+    ]
+  }
+]

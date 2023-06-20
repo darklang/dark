@@ -419,29 +419,3 @@ module Toplevel =
     | TLDB of DB.T
     | TLFunction of UserFunction.T
     | TLType of UserType.T
-
-/// An Operation on a Canvas
-///
-/// "Op" is an abbreviation for Operation,
-/// and is preferred throughout code and documentation.
-[<MessagePack.MessagePackObject>]
-type Op =
-  | SetExpr of tlid * id * Expr
-  | SetHandler of Handler.T
-  | SetFunction of UserFunction.T
-  | SetType of UserType.T
-  | CreateDB of tlid * string * TypeReference
-  | RenameDB of tlid * string
-
-  | DeleteTL of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | DeleteFunction of tlid // CLEANUP move Deletes to API calls instead of Ops
-  | DeleteType of tlid // CLEANUP move Deletes to API calls instead of Ops
-
-  // CLEANUP this way of doing undo/redo is bad, should be per-user
-  | TLSavepoint of tlid
-  | UndoTL of tlid
-  | RedoTL of tlid
-
-
-[<MessagePack.MessagePackObject>]
-type Oplist = List<Op>

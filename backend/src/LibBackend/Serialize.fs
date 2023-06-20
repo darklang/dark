@@ -30,83 +30,33 @@ type LoadAmount =
   | LiveToplevels
   | IncludeDeletedToplevels
 
-// Load oplists for anything that wasn't cached.
-// TLs might not be returned from the materialized view/fast loader/cache if:
-//  a) they have no materialized view (probably not possible anymore!)
-//  b) they are deleted, because the cache query filters out deleted items
-//  c) the deserializers for the cache version are broken (due to a binary version
-//  change!)
-let loadOplists
-  (loadAmount : LoadAmount)
+type Deleted =
+  | Deleted
+  | NotDeleted
+
+let loadToplevels
   (canvasID : CanvasID)
   (tlids : List<tlid>)
-  : Task<List<tlid * PT.Oplist>> =
-  if tlids = [] then
-    // optimization for the common case where we found everything before
-    Task.FromResult []
-  else
-    let query =
-      // Deleted can be null is which case it is DeletedForever
-      match loadAmount with
-      | LiveToplevels ->
-        "SELECT tlid, oplist FROM toplevel_oplists_v0
-            WHERE canvas_id = @canvasID
-              AND tlid = ANY(@tlids)
-              AND deleted IS FALSE"
-      | IncludeDeletedToplevels ->
-        // IS NOT NULL just skipped DeletedForever
-        "SELECT tlid, oplist FROM toplevel_oplists_v0
-            WHERE canvas_id = @canvasID
-              AND tlid = ANY(@tlids)
-              AND deleted IS NOT NULL"
-
-    Sql.query query
-    |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-    |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist"))
-    |> Task.bind (fun list ->
-      list
-      |> Task.mapWithConcurrency 2 (fun (tlid, oplist) ->
-        task { return (tlid, BinarySerialization.deserializeOplist tlid oplist) }))
-
-
-// This is a special `load_*` function that specifically loads toplevels via the
-// `oplist_cache` column on `toplevel_oplists`. This column stores a
-// binary-serialized representation of the toplevel after the oplist is applied. This
-// should be much faster because we don't have to ship the full oplist across the
-// network from Postgres, and similarly they don't have to apply the full history of
-// the canvas in memory before they can execute the code.
-/// Loads all cached top-levels given
-let loadOnlyCachedTLIDs
-  (canvasID : CanvasID)
-  (tlids : List<tlid>)
-  : Task<List<PT.Toplevel.T>> =
+  : Task<List<Deleted * PT.Toplevel.T>> =
   task {
-    // We specifically only load where `deleted` IS FALSE (even though the column is
-    // nullable). This means we will not load undeleted handlers from the cache if
-    // we've never written their `deleted` state. This is less efficient, but still
-    // correct, as they'll still be loaded via their oplist.
-    // CLEANUP: the situation described below is no longer possible and the data has
-    // been cleaned.
-    // It avoids loading deleted handlers that have had their cached version written
-    // but never their deleted state, which could be true for some handlers that were
-    // touched between the addition of the `oplist_cache` column and the addition of
-    // the `deleted` column.
     let! data =
       Sql.query
-        "SELECT tlid, oplist_cache FROM toplevel_oplists_v0
+        "SELECT tlid, data, deleted FROM toplevels_v0
           WHERE canvas_id = @canvasID
           AND tlid = ANY (@tlids)
-          AND deleted IS FALSE
           AND (
               ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type))
               OR tipe = 'user_function'::toplevel_type
               OR tipe = 'user_tipe'::toplevel_type)"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
-      |> Sql.executeAsync (fun read -> (read.tlid "tlid", read.bytea "oplist_cache"))
+      |> Sql.executeAsync (fun read ->
+        (read.tlid "tlid", read.bytea "data", read.bool "deleted"))
 
     return
       data
-      |> List.map (fun (tlid, tl) -> BinarySerialization.deserializeToplevel tlid tl)
+      |> List.map (fun (tlid, tl, deleted) ->
+        let isDeleted = if deleted then Deleted else NotDeleted
+        (isDeleted, BinarySerialization.deserializeToplevel tlid tl))
   }
 
 
@@ -119,7 +69,7 @@ let fetchReleventTLIDsForHTTP
   // pattern matching to solve our routing.
   Sql.query
     "SELECT tlid
-     FROM toplevel_oplists_v0
+     FROM toplevels_v0
      WHERE canvas_id = @canvasID
        AND (((module = 'HTTP' OR module = 'HTTP_BASIC')
              AND @path like name
@@ -134,7 +84,7 @@ let fetchReleventTLIDsForHTTP
 
 let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists_v0
+    "SELECT tlid FROM toplevels_v0
       WHERE canvas_id = @canvasID
       AND tipe <> 'handler'::toplevel_type
       AND deleted IS FALSE"
@@ -148,7 +98,7 @@ let fetchRelevantTLIDsForEvent
   (modifier : string)
   : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists_v0
+    "SELECT tlid FROM toplevels_v0
       WHERE canvas_id = @canvasID
         AND ((module = @space
               AND name = @name
@@ -165,7 +115,7 @@ let fetchRelevantTLIDsForEvent
 
 let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists_v0
+    "SELECT tlid FROM toplevels_v0
      WHERE canvas_id = @canvasID
        AND tipe = 'db'::toplevel_type
        AND deleted IS FALSE"
@@ -174,7 +124,7 @@ let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
 
 let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists_v0
+    "SELECT tlid FROM toplevels_v0
      WHERE canvas_id = @canvasID
        AND tipe = 'handler'::toplevel_type
        AND module <> 'CRON'
@@ -185,17 +135,16 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
-let fetchAllTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
+let fetchAllIncludingDeletedTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists_v0
-     WHERE canvas_id = @canvasID
-       AND deleted is NOT NULL"
+    "SELECT tlid FROM toplevels_v0
+     WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
-    "SELECT tlid FROM toplevel_oplists_v0
+    "SELECT tlid FROM toplevels_v0
      WHERE canvas_id = @canvasID
        AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
@@ -218,13 +167,13 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
     "SELECT canvas_id,
                   tlid,
                   modifier,
-                  toplevel_oplists_v0.name as handler_name
-       FROM toplevel_oplists_v0
-       JOIN canvases_v0 ON toplevel_oplists_v0.canvas_id = canvases_v0.id
+                  toplevels_v0.name as handler_name
+       FROM toplevels_v0
+       JOIN canvases_v0 ON toplevels_v0.canvas_id = canvases_v0.id
       WHERE module = 'CRON'
         AND modifier IS NOT NULL
         AND modifier <> ''
-        AND toplevel_oplists_v0.name IS NOT NULL
+        AND toplevels_v0.name IS NOT NULL
         AND deleted IS FALSE"
   |> Sql.executeAsync (fun read ->
     let interval = read.string "modifier"

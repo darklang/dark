@@ -43,7 +43,7 @@ module TraceID =
     // epoch) and 80 bits of randomness. Unlike ULIDs, we don't require monotonically
     // increasing values in the same millisecond, so we ignore that part.  We invert
     // the timestamp so that it's lexicographically ordered in reverse (that is, when
-    // we sort it lexicographically, ther most recent traces will be first).
+    // we sort it lexicographically, the most recent traces will be first).
     let bytes = Array.zeroCreate<byte> 16
     let timestampSpan = System.Span<byte>(bytes, 0, 6)
     let randomSpan = System.Span<byte>(bytes, 6, 10)
