@@ -139,7 +139,8 @@ type Model =
     chatHistory: List<ChatHistoryItem>
     codeSnippets: List<CodeSnippet>
     tasks: List<Task>
-    actions: List<Action> }
+    actions: List<Action>
+    functions: List<String> }
 
 
 // Update
@@ -180,6 +181,7 @@ let update (model: Model) (msg: Msg) : Model =
           codeSnippets = model.codeSnippets
           tasks = model.tasks
           actions = model.actions
+          functions = model.functions
 
           // CLEANUP: update this syntax to { model with systemPrompt = systemPrompt } when we can
           systemPrompt = response.body |> String.fromBytes }
@@ -197,7 +199,8 @@ let update (model: Model) (msg: Msg) : Model =
               [ ChatHistoryItem.UserPrompt (rUnwrap (String.random 5)) userPrompt ]
           codeSnippets = model.codeSnippets
           tasks = model.tasks
-          actions = model.actions }
+          actions = model.actions
+          functions = model.functions }
 
     updateStateInJS newModel
 
@@ -271,7 +274,8 @@ let update (model: Model) (msg: Msg) : Model =
           chatHistory = List.append model.chatHistory newChatItemsItems
           codeSnippets = List.append model.codeSnippets newCodeSnippets
           tasks = List.append model.tasks newtasks
-          actions = model.actions }
+          actions = model.actions
+          functions = model.functions }
 
     | Error err, _ -> log "error getting tasks " ++ err
     | _, Error err -> log "error getting response " ++ err
@@ -311,7 +315,8 @@ let update (model: Model) (msg: Msg) : Model =
               chatHistory = model.chatHistory
               codeSnippets = updatedCodeSnippets
               tasks = model.tasks
-              actions = model.actions }
+              actions = model.actions
+              functions = model.functions }
 
         | Error err -> sendError model codeSnippet err
 
@@ -384,13 +389,31 @@ let init () : Model =
             BotResponseItem.CodeSnippet demoSnippet.id
             BotResponseItem.Actions demoAction ] ]
 
+    let getFnList =
+      let response =
+        WASM.HttpClient.request
+          "GET"
+          "http://dark-editor.dlio.localhost:11003/all-functions"
+          []
+          Bytes.empty
+
+      match response with
+      | Ok response ->
+        log "got response"
+        response.body |> String.fromBytes |> String.split "\n\n"
+
+      | Error err -> "Error getting response: " ++ err
+
+
+
     Model
       { isLoading = false
         systemPrompt = "Loading..."
         chatHistory = chatHistory
         codeSnippets = [ demoSnippet ]
         tasks = []
-        actions = demoAction }
+        actions = demoAction
+        functions = getFnList }
 
   updateStateInJS initState
 
