@@ -172,6 +172,11 @@ let fns : List<BuiltInFn> =
               |> DList
 
             let fns =
+              canvas.userFunctions
+              |> Map.values
+              |> Seq.toList
+              |> List.map PT2DT.UserFunction.toDT
+              |> DList
             // let dbs =
             //   Map.values canvas.dbs
             //   |> Seq.toList
