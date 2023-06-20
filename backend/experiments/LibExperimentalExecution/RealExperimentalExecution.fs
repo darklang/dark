@@ -22,7 +22,8 @@ let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
-      StdLibExperimental.StdLib.contents ]
+      StdLibExperimental.StdLib.contents
+      StdLibDarkInternal.StdLib.contents ]
     []
     []
 
