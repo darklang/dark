@@ -190,7 +190,10 @@ let rec serialize
             | _ -> Exception.raiseInternal "Too many matching fields" []))
 
       | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
-      | _ -> Exception.raiseInternal "Expected a DRecord but got something else" []
+      | _ ->
+        Exception.raiseInternal
+          "Expected a DRecord but got something else"
+          [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]
 
     | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
 
