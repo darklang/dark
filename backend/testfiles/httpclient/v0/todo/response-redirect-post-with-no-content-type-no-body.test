@@ -13,7 +13,7 @@ Location: /v0/response-redirect-dest-post-with-no-content-type-no-body
 
 
 [test]
-(let response = (HttpClient.request "post" "http://URL" "" [] Bytes.empty) |> Test.unwrap
+(let response = (HttpClient.request "post" "http://URL" "" [] Bytes.empty) |> unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response

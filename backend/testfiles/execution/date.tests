@@ -1,5 +1,5 @@
 let d (datestr:String) : DateTime =
-  (DateTime.parse datestr) |> Test.unwrap
+  (DateTime.parse datestr) |> unwrap
 
 let p (datestr:String) : Result<DateTime, String> =
   (DateTime.parse datestr) |> Result.map (fun x -> DateTime.toString_v0 x)

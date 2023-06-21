@@ -214,7 +214,9 @@ module FnName =
         "emit"
         "emit_v0"
         "print"
-        "print_v0" ]
+        "print_v0"
+        "unwrap"
+        "unwrap_v0" ]
 
 
 type LetPattern =
