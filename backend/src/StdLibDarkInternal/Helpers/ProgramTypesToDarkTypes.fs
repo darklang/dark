@@ -29,95 +29,88 @@ module Sign =
     | Positive -> DEnum(stdlibTyp [] "Sign" 0, "Positive", [])
     | Negative -> DEnum(stdlibTyp [] "Sign" 0, "Negative", [])
 
-
-module TypeName =
+module FQName =
   module BuiltIn =
-    let toDT (u : PT.TypeName.BuiltIn) : Dval =
-      let (PT.TypeName.TypeName name) = u.name
+    let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.BuiltIn<'name>) : Dval =
       DRecord(
-        ptTyp [ "TypeName" ] "BuiltIn" 0,
+        ptTyp [ "FQName" ] "BuiltIn" 0,
         Map
           [ "modules", DList(List.map DString u.modules)
-            "typ", DString name
+            "name", nameMapper u.name
             "version", DInt u.version ]
       )
+
+  module UserProgram =
+    let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.UserProgram<'name>) : Dval =
+      DRecord(
+        ptTyp [ "FQName" ] "UserProgram" 0,
+        Map
+          [ "modules", DList(List.map DString u.modules)
+            "name", nameMapper u.name
+            "version", DInt u.version ]
+      )
+
+  module Package =
+    let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.Package<'name>) : Dval =
+      DRecord(
+        ptTyp [ "FQName" ] "Package" 0,
+        Map
+          [ "owner", DString u.owner
+            "modules", DList(List.map DString (NonEmptyList.toList u.modules)) // CLEANUP source is a NonEmptyList
+            "name", nameMapper u.name
+            "version", DInt u.version ]
+      )
+
+  let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.T<'name>) : Dval =
+    let caseName, fields =
+      match u with
+      | PT.FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT nameMapper u ]
+      | PT.FQName.Package u -> "Package", [ Package.toDT nameMapper u ]
+      | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT nameMapper u ]
+
+    DEnum(ptTyp [ "FQName" ] "T" 0, caseName, fields)
+
+module TypeName =
+  module Name =
+    let toDT (u : PT.TypeName.Name) : Dval =
+      let caseName, fields =
+        match u with
+        | PT.TypeName.TypeName name -> "TypeName", [ DString name ]
+
+      DEnum(ptTyp [ "TypeName" ] "Name" 0, caseName, fields)
+
+  module BuiltIn =
+    let toDT (u : PT.TypeName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
 
   module UserProgram =
     let toDT (u : PT.TypeName.UserProgram) : Dval =
-      let (PT.TypeName.TypeName name) = u.name
-      DRecord(
-        ptTyp [ "TypeName" ] "UserProgram" 0,
-        Map
-          [ "modules", DList(List.map DString u.modules)
-            "typ", DString name
-            "version", DInt u.version ]
-      )
+      FQName.UserProgram.toDT Name.toDT u
 
   module Package =
-    let toDT (u : PT.TypeName.Package) : Dval =
-      let (PT.TypeName.TypeName name) = u.name
-      DRecord(
-        ptTyp [ "TypeName" ] "Package" 0,
-        Map
-          [ "owner", DString u.owner
-            "modules", DList(List.map DString (Seq.toList u.modules)) // CLEANUP alt. to seq.toList
-            "typ", DString name
-            "version", DInt u.version ]
-      )
+    let toDT (u : PT.TypeName.Package) : Dval = FQName.Package.toDT Name.toDT u
 
-  let toDT (u : PT.TypeName.T) : Dval =
-    let caseName, fields =
-      match u with
-      | PT.FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT u ]
-      | PT.FQName.Package u -> "Package", [ Package.toDT u ]
-      | PT.FQName.BuiltIn u -> "BuiltIn", [ BuiltIn.toDT u ]
-
-    DEnum(ptTyp [ "TypeName" ] "T" 0, caseName, fields)
+  let toDT (u : PT.TypeName.T) : Dval = FQName.toDT Name.toDT u
 
 
 module FnName =
+  module Name =
+    let toDT (u : PT.FnName.Name) : Dval =
+      let caseName, fields =
+        match u with
+        | PT.FnName.FnName name -> "FnName", [ DString name ]
+
+      DEnum(ptTyp [ "FnName" ] "Name" 0, caseName, fields)
+
   module BuiltIn =
-    let toDT (u : PT.FnName.BuiltIn) : Dval =
-      let (PT.FnName.FnName name) = u.name
-      DRecord(
-        ptTyp [ "FnName" ] "BuiltIn" 0,
-        Map
-          [ "modules", DList(List.map DString u.modules)
-            "name", DString name
-            "version", DInt u.version ]
-      )
+    let toDT (u : PT.FnName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
 
   module UserProgram =
-    let toDT (u : PT.FnName.UserProgram) : Dval =
-      let (PT.FnName.FnName name) = u.name
-      DRecord(
-        ptTyp [ "FnName" ] "UserProgram" 0,
-        Map
-          [ "modules", DList(List.map DString u.modules)
-            "name", DString name
-            "version", DInt u.version ]
-      )
+    let toDT (u : PT.FnName.UserProgram) : Dval = FQName.UserProgram.toDT Name.toDT u
 
   module Package =
-    let toDT (u : PT.FnName.Package) : Dval =
-      let (PT.FnName.FnName name) = u.name
-      DRecord(
-        ptTyp [ "FnName" ] "Package" 0,
-        Map
-          [ "owner", DString u.owner
-            "modules", DList(List.map DString (Seq.toList u.modules)) // CLEANUP alt. to seq.toList
-            "name", DString name
-            "version", DInt u.version ]
-      )
+    let toDT (u : PT.FnName.Package) : Dval = FQName.Package.toDT Name.toDT u
 
-  let toDT (u : PT.FnName.T) : Dval =
-    let caseName, fields =
-      match u with
-      | PT.FQName.UserProgram u -> "UserProgram", [ UserProgram.toDT u ]
-      | PT.FQName.Package u -> "Package", [ Package.toDT u ]
-      | PT.FQName.BuiltIn u -> "Stdlib", [ BuiltIn.toDT u ]
-
-    DEnum(ptTyp [ "FnName" ] "T" 0, caseName, fields)
+  let toDT (u : PT.FnName.T) : Dval = FQName.toDT Name.toDT u
 
 
 module TypeReference =
@@ -192,8 +185,6 @@ module MatchPattern =
         [ DInt(int64 id); DString caseName; DList(List.map toDT fieldPats) ]
 
     DEnum(ptTyp [] "MatchPattern" 0, name, fields)
-
-
 
 module BinaryOperation =
   let toDT (b : PT.BinaryOperation) : Dval =

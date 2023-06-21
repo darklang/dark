@@ -18,7 +18,7 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let contents : LibExecution.StdLib.Contents =
+let builtins : LibExecution.StdLib.Contents =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
@@ -26,7 +26,7 @@ let contents : LibExecution.StdLib.Contents =
     []
     []
 
-let packageFns : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
+let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
   (task {
     let! packages = PackageManager.allFunctions ()
 
@@ -37,7 +37,7 @@ let packageFns : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
       |> Map.ofList
   })
 
-let packageTypes : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
+let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
   (task {
     let! packages = PackageManager.allTypes ()
 
@@ -48,23 +48,24 @@ let packageTypes : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
       |> Map.ofList
   })
 
-let libraries : Task<RT.Libraries> =
-  (task {
-    let! packageFns = packageFns
-    let! packageTypes = packageTypes
+let libraries () : Task<RT.Libraries> =
+  task {
+    let! packageFns = packageFns ()
+    let! packageTypes = packageTypes ()
 
-    let fns = contents |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
-    let types = contents |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
+    let builtinFns = builtins |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
+    let builtinTypes =
+      builtins |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
 
     // TODO: this keeps a cached version so we're not loading them all the time.
     // Of course, this won't be up to date if we add more functions. This should be
     // some sort of LRU cache.
     return
-      { builtInTypes = types
-        builtInFns = fns
+      { builtInTypes = builtinTypes
+        builtInFns = builtinFns
         packageFns = packageFns
         packageTypes = packageTypes }
-  })
+  }
 
 let createState
   (traceID : AT.TraceID.T)
@@ -74,7 +75,7 @@ let createState
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let! libraries = libraries
+    let! libraries = libraries ()
 
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
@@ -169,6 +170,6 @@ let reexecuteFunction
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =
   task {
-    let! (_ : RT.Libraries) = libraries
+    let! (_ : RT.Libraries) = libraries ()
     return ()
   }
