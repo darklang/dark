@@ -220,12 +220,20 @@ Json.serialize<Uuid> "" = Error "Can't currently serialize this type/value combi
 // TODO: demonstrate _more_ nesting
 
 // Lists
+type Person = { Name: String; Age: Int }
+type MyString = String
+
 Json.serialize<List<Int>> [] = Ok "[]"
 Json.parse<List<Int>> "[]" = Ok []
 Json.serialize<List<Int>> [1; 2; 3] = Ok "[1,2,3]"
 Json.parse<List<Int>> "[1,2,3]" = Ok [1; 2; 3]
 Json.serialize<List<List<List<Int>>>> [[[1; 2; 3]; [4; 5; 6]]; [[7; 8]; [9; 0]]] = Ok "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]"
 Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]" = Ok [[[1;2;3];[4;5;6]];[[7;8];[9;0]]]
+Json.parse<List<Dict<String>>> """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = Ok [ Dict{ name = "Alice"; role = "admin" }; Dict{ name = "Bob"; role = "user" }; Dict{ name = "Charlie"; role = "user" }]
+Json.serialize<List<Dict<String>>> [ Dict{ name = "Alice"; role = "admin" }; Dict{ name = "Bob"; role = "user" }; Dict{ name = "Charlie"; role = "user" }] = Ok """[{"name":"Alice","role":"admin"},{"name":"Bob","role":"user"},{"name":"Charlie","role":"user"}]"""
+Json.parse<List<Person>> """[{"Name": "Alice", "Age": 42}, {"Name": "Bob", "Age": 27}, {"Name": "Charlie", "Age": 99}]""" = Ok [ Person { Name = "Alice"; Age = 42 }; Person { Name = "Bob"; Age = 27 }; Person { Name = "Charlie"; Age = 99 } ]
+Json.serialize<List<Person>> [ Person { Name = "Alice"; Age = 42 }; Person { Name = "Bob"; Age = 27 }; Person { Name = "Charlie"; Age = 99 } ] = Ok """[{"Age":42,"Name":"Alice"},{"Age":27,"Name":"Bob"},{"Age":99,"Name":"Charlie"}]"""
+Json.parse<List<Dict<MyString>>> """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = Ok [ Dict{ name = "Alice"; role = "admin" }; Dict{ name = "Bob"; role = "user" }; Dict{ name = "Charlie"; role = "user" }]
 
 // not proper lists
 Json.serialize<List<Int>> [1, 2, "three"] = Error "Can't currently serialize this type/value combination"
@@ -233,6 +241,7 @@ Json.parse<List<Int>> "[1, 2, \"three\"]" = Error "Can't currently parse this ty
 Json.parse<List<Int>> "[1, 2, ]" = Error "not JSON"
 //Json.serialize<List<List<List<Int>>>> [[[1, 2, 3], [4, 5.5, 6]], [[7, 8], [9, 0]]] = Error "Can't currently parse this type/value combination"
 //Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Error "Can't currently parse this type/value combination"
+Json.parse<List<Dict<Int>>> """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = Error "Can't currently parse this type/value combination"
 
 
 // Tuples
@@ -271,6 +280,11 @@ Json.parse<Result<Int, String>> "{\"Error\":\"err message\"}" = Ok (Error "err m
 // Json.parse<???>
 // so let's ignore them for now, and focus on Records defined as "Custom types"
 
+Json.serialize<Dict<String>> (Dict.singleton "a" "b") = Ok """{"a":"b"}"""
+Json.parse<Dict<String>> """{"a":"b"}""" = Ok (Dict.singleton "a" "b")
+Json.serialize<Dict<String>> (Dict { a = "b"; c = "d" }) = Ok """{"a":"b","c":"d"}"""
+Json.parse<Dict<String>> """{"a":"b","c":"d"}""" = Ok (Dict { a = "b"; c = "d" })
+Json.parse<Dict<Int>> """{1:"b",2:"d"}""" = Error "not JSON"
 
 // Unsupported stuff:
 // - TDB
