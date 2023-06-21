@@ -337,12 +337,7 @@ let fns : List<BuiltInFn> =
           uply {
             match res with
             | Ok value -> return value
-            | Error e ->
-              return
-                (DError(
-                  SourceNone,
-                  ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
-                ))
+            | Error e -> return (DError(SourceNone, DvalReprDeveloper.toRepr e))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
