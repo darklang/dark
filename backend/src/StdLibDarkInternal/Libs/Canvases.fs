@@ -204,7 +204,10 @@ let fns : List<BuiltInFn> =
             //   |> DList
 
             return
-              DRecord(FQName.BuiltIn(typ "Program" 0), Map [ "types", types ])
+              DRecord(
+                FQName.BuiltIn(typ "Program" 0),
+                Map [ "types", types; "fns", fns ]
+              )
               |> Ok
               |> DResult
           }
