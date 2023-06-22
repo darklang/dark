@@ -851,67 +851,73 @@ and execFn
 
       let fnRecord = (state.tlid, fnDesc, id) in
 
-      match fn.fn with
-      | BuiltInFunction f ->
-        if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
-          match state.tracing.loadFnResult fnRecord args with
-          | Some(result, _ts) -> return result
-          | None -> return DIncomplete sourceID
-        else
-          let! result =
-            uply {
-              try
-                return! f (state, typeArgs, args)
-              with e ->
-                let context : Metadata = [ "fn", fnDesc; "args", args; "id", id ]
-                return
-                  match e with
-                  | Errors.IncorrectArgs ->
-                    Errors.incorrectArgsToDError sourceID fn args
-                  | Errors.FakeDvalFound dv -> dv
-                  | (:? CodeException | :? GrandUserException) as e ->
-                    // There errors are created by us, within the libraries, so they are
-                    // safe to show to users (but not grandusers)
-                    Dval.errSStr sourceID e.Message
-                  | e ->
-                    // CLEANUP could we show the user the execution id here?
-                    state.reportException state context e
-                    // These are arbitrary errors, and could include sensitive
-                    // information, so best not to show it to the user. If we'd
-                    // like to show it to the user, we should catch it and give
-                    // them a known safe error.
-                    Dval.errSStr sourceID Exception.unknownErrorMessage
-            }
-          // there's no point storing data we'll never ask for
-          if fn.previewable <> Pure then
-            state.tracing.storeFnResult fnRecord args result
+      let name = FnName.toString fnDesc
+      let types = ExecutionState.availableTypes state
+      match TypeChecker.checkFunctionCall types fn typeArgs args with
+      | Error err ->
+        let msg = TypeChecker.Error.toString err
+        return DError(sourceID, msg)
+      | Ok() ->
 
+        let! result =
+          match fn.fn with
+          | BuiltInFunction f ->
+            if state.tracing.realOrPreview = Preview && fn.previewable <> Pure then
+              match state.tracing.loadFnResult fnRecord args with
+              | Some(result, _ts) -> Ply result
+              | None -> Ply(DIncomplete sourceID)
+            else
+              uply {
+                let! result =
+                  uply {
+                    try
+                      return! f (state, typeArgs, args)
+                    with e ->
+                      let context : Metadata =
+                        [ "fn", fnDesc; "args", args; "id", id ]
+                      match e with
+                      | Errors.IncorrectArgs ->
+                        return Errors.incorrectArgsToDError sourceID fn args
+                      | Errors.FakeDvalFound dv -> return dv
+                      | (:? CodeException | :? GrandUserException) as e ->
+                        // There errors are created by us, within the libraries, so they are
+                        // safe to show to users (but not grandusers)
+                        return Dval.errSStr sourceID e.Message
+                      | e ->
+                        // TODO could we show the user the execution id here?
+                        state.reportException state context e
+                        // These are arbitrary errors, and could include sensitive
+                        // information, so best not to show it to the user. If we'd
+                        // like to show it to the user, we should catch it and give
+                        // them a known safe error.
+                        return Dval.errSStr sourceID Exception.unknownErrorMessage
+                  }
+
+                // there's no point storing data we'll never ask for
+                if fn.previewable <> Pure then
+                  state.tracing.storeFnResult fnRecord args result
+
+                return result
+              }
+
+          | PackageFunction(tlid, body)
+          | UserProgramFunction(tlid, body) ->
+            state.tracing.traceTLID tlid
+            let state = { state with tlid = tlid }
+            let args =
+              fn.parameters // Lengths are checked in checkFunctionCall
+              |> List.map2 (fun dv p -> (p.name, dv)) args
+              |> Map.ofList
+              |> withGlobals state
+            eval state args body
+
+        if Dval.isFake result then
           return result
-      | PackageFunction(tlid, body)
-      | UserProgramFunction(tlid, body) ->
-        let name = [ FnName.toString fnDesc ]
-        let types = ExecutionState.availableTypes state
-        match TypeChecker.checkFunctionCall name types fn typeArgs args with
-        | Error err ->
-          let msg = $"Type error calling function: {TypeChecker.Error.toString err}"
-          return DError(sourceID, msg)
-        | Ok() ->
-          state.tracing.traceTLID tlid
-          let state = { state with tlid = tlid }
-          let args =
-            fn.parameters // Lengths are checked in checkFunctionCall
-            |> List.map2 (fun dv p -> (p.name, dv)) args
-            |> Map.ofList
-            |> withGlobals state
-          let! result = eval state args body
-          if Dval.isFake result then
-            return result
-          else
-            let name = FnName.toString fnDesc
-            match TypeChecker.checkFunctionReturnType [ name ] types fn result with
-            | Error err ->
-              let msg =
-                $"Type error in return type: {TypeChecker.Error.toString err}"
-              return DError(sourceID, msg)
-            | Ok() -> return result
+        else
+          let name = FnName.toString fnDesc
+          match TypeChecker.checkFunctionReturnType types fn result with
+          | Error err ->
+            let msg = $"Type error in return type: {TypeChecker.Error.toString err}"
+            return DError(sourceID, msg)
+          | Ok() -> return result
   }
