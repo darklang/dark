@@ -321,7 +321,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "unwrap" 0
       typeParams = []
-      parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
+      parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
       returnType = TVariable "a"
       description =
         "Unwrap an Option or Result, returning the value or a DError if Nothing"

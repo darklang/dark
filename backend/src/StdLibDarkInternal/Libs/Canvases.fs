@@ -89,7 +89,7 @@ let fns : List<BuiltInFn> =
     { name = fn "owner" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TString
+      returnType = TUuid
       description = "Get the owner of a canvas"
       fn =
         (function
