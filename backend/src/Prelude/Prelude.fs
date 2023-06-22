@@ -841,6 +841,13 @@ module String =
   let replace (old : string) (newStr : string) (s : string) : string =
     s.Replace(old, newStr)
 
+  /// Adds 'a' or 'an' (the indefinite article) in front of a string, based on
+  /// whether it begins with a vowel
+  let articleFor (nextWord : string) : string =
+    if nextWord = "" then ""
+    else if Set.contains nextWord.[0] (Set [ 'a'; 'e'; 'i'; 'o'; 'u' ]) then "an"
+    else "a"
+
 
 module Map =
   let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
