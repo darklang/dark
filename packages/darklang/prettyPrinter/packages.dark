@@ -7,12 +7,12 @@ module Darklang =
     module Packages =
       type ModulelessPackageTypeName =
         { owner: String
-          typ: String
+          name: 'name
           version: Int }
 
       type ModulelessPackageFnName =
         { owner: String
-          function_: String
+          name: 'name
           version: Int }
 
       type ModulelessPackageType =
@@ -34,7 +34,7 @@ module Darklang =
             name =
               PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageTypeName
                 { owner = p.name.owner
-                  typ = p.name.typ
+                  name = p.name.name
                   version = p.name.version }
             typeParams = p.typeParams
             definition = p.definition
@@ -62,7 +62,7 @@ module Darklang =
             name =
               PACKAGE.Darklang.PrettyPrinter.Packages.ModulelessPackageFnName
                 { owner = p.name.owner
-                  function_ = p.name.function_
+                  name = p.name.name
                   version = p.name.version }
             body = p.body
             typeParams = p.typeParams
@@ -86,7 +86,7 @@ module Darklang =
           [ PACKAGE.Darklang.PrettyPrinter.Packages.Module
               { name =
                   (t.name
-                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.fullForReference)
+                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []
@@ -162,7 +162,7 @@ module Darklang =
           [ PACKAGE.Darklang.PrettyPrinter.Packages.Module
               { name =
                   (f.name
-                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.fullForReference)
+                   |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []
@@ -260,7 +260,7 @@ module Darklang =
                     PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
                       { owner = t.name.owner
                         modules = []
-                        typ = t.name.typ
+                        name = t.name.name
                         version = t.name.version }
                   typeParams = t.typeParams
                   definition = t.definition
@@ -285,7 +285,7 @@ module Darklang =
                     PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
                       { owner = t.name.owner
                         modules = []
-                        function_ = t.name.function_
+                        name = t.name.name
                         version = t.name.version }
                   body = t.body
                   typeParams = t.typeParams
@@ -344,12 +344,8 @@ module Darklang =
         PACKAGE.Darklang.PrettyPrinter.Packages.toModules
           withOwnerStuffRepresentedAsRootLevelModule
 
-      "what about here 7"
 
-// CLEANUP make ordering 'better' in some way
-
-// modules
-// |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
-// |> String.join "\n\n"
-
-//"we got here"
+      // CLEANUP make ordering 'better' in some way
+      modules
+      |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
+      |> String.join "\n\n"
