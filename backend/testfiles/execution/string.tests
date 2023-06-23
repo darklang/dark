@@ -590,6 +590,6 @@ String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱
 String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = Nothing
 
 
-// Check that foreach executes the right number of times
+// Check that map executes the right number of times
 (let v = String.map "a string" (fun x -> let _ = Test.incrementSideEffectCounter_v0 false in 'c') in
  (v, Test.sideEffectCount_v0 ())) = ("cccccccc", 8)
