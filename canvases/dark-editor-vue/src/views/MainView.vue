@@ -6,14 +6,14 @@ const props = defineProps<{
   state: Model
 }>()
 
-let showTextArea = ref(false)
-let currentFunction = ref('')
-function displayTextarea() {
-  showTextArea.value = !showTextArea.value
-}
+let currentFunctions = ref([] as string[])
+let clickedFunctions = new Set<string>()
+
 function ShowFunction(functionItem: string) {
-  showTextArea.value = true
-  currentFunction.value = functionItem
+  if (!clickedFunctions.has(functionItem)) {
+    clickedFunctions.add(functionItem)
+    currentFunctions.value.push(functionItem)
+  }
 }
 </script>
 
@@ -49,15 +49,20 @@ function ShowFunction(functionItem: string) {
         </div>
       </div>
 
-      <div v-if="showTextArea" class="p-2 m-2 rounded bg-[#3a3a3a] w-2/5 h-fit">
-        <h2 class="font-semibold">Function</h2>
-        <textarea
-          v-model="currentFunction"
-          class="text-white bg-transparent w-full outline-none h-auto"
-          placeholder="Enter function here"
-        ></textarea>
+      <div class="w-2/5 flex flex-col h-fit">
+        <div
+          class="p-2 m-2 rounded bg-[#3a3a3a]"
+          v-for="(currentFunction, index) in currentFunctions"
+          :key="index"
+        >
+          <h2 class="font-semibold">Function</h2>
+          <textarea
+            v-model="currentFunctions[index]"
+            class="text-white bg-transparent w-full outline-none h-auto"
+            placeholder="Enter function here"
+          ></textarea>
+        </div>
       </div>
-
       <div class="w-2/5">
         <h1>REPL</h1>
       </div>
