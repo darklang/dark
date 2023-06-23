@@ -137,6 +137,10 @@ let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
 /// When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (FakeDvalFound dv)
 
+/// ---------------
+/// Error pretty printing
+/// CLEANUP: should be moved into Dark code ASAP, and we should return error types instead
+/// ---------------
 /// Segments allow us to build error messages where the UI and CLI can both
 /// decorate/link to the sources in a native way
 type ErrorSegment =
@@ -183,7 +187,8 @@ module ErrorSegment =
 
 type ErrorOutput =
   { summary : List<ErrorSegment>
-    explanation : List<ErrorSegment>
+    // Summary can be used on its own or concatenated with extraExplanation
+    extraExplanation : List<ErrorSegment>
     actual : List<ErrorSegment>
     expected : List<ErrorSegment> }
 
@@ -206,23 +211,17 @@ let toSegments (e : Error) : ErrorOutput =
         Ordinal(paramIndex + 1)
         String " argument ("
         ParamName parameter.name
-        String ") should be a "
+        String ") should be "
+        IndefiniteArticle
         TypeReference parameter.typ ]
 
-    let explanation =
-      [ String "The "
-        Ordinal(paramIndex + 1)
-        String " argument of "
-        FunctionName fnName
-        String " should be "
-        IndefiniteArticle
-        TypeReference parameter.typ
-        String ". However, "
+    let extraExplanation =
+      [ String ". However, "
         IndefiniteArticle
         TypeOfValue argument
         String " ("
         InlineValue argument
-        String ") was passed instead" ]
+        String ") was passed instead." ]
 
     let actual =
       [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
@@ -243,20 +242,19 @@ let toSegments (e : Error) : ErrorOutput =
       @ comment
 
     { summary = summary
-      explanation = explanation
+      extraExplanation = extraExplanation
       actual = actual
       expected = expected }
   | _ ->
     { summary = [ String "TODO: support formatting this error message" ]
-      explanation = [ String(string e) ]
+      extraExplanation = [ String(string e) ]
       actual = []
       expected = [] }
 
 let toString (e : Error) : string =
   let s = toSegments e
-  let summary = ErrorSegment.toString s.summary
-  let explanation = ErrorSegment.toString s.explanation
+  let explanation = ErrorSegment.toString (s.summary @ s.extraExplanation)
   let actual = ErrorSegment.toString s.actual
   let expected = ErrorSegment.toString s.expected
 
-  $"{summary}\n\n{explanation}\n\nExpected: {expected}\n\nActual: {actual}"
+  $"{explanation}\n\nExpected: {expected}\nActual: {actual}"
