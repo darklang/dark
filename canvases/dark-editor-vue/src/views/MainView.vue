@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, defineProps } from 'vue'
 import type { Model } from '../types'
+import Function from '@/components/Function.vue'
 
 const props = defineProps<{
   state: Model
@@ -49,22 +50,15 @@ function ShowFunction(functionItem: string) {
         </div>
       </div>
 
-      <div class="w-2/5 flex flex-col h-fit">
+      <div class="flex flex-col h-full overflow-y-scroll pb-28">
         <div
           class="p-2 m-2 rounded bg-[#3a3a3a]"
           v-for="(currentFunction, index) in currentFunctions"
           :key="index"
         >
-          <h2 class="font-semibold">Function</h2>
-          <textarea
-            v-model="currentFunctions[index]"
-            class="text-white bg-transparent w-full outline-none h-auto"
-            placeholder="Enter function here"
-          ></textarea>
+          <p class="text-[#eeeeee] text-sm">function-name-v</p>
+          <Function v-model="currentFunctions[index]" />
         </div>
-      </div>
-      <div class="w-2/5">
-        <h1>REPL</h1>
       </div>
     </div>
   </main>
