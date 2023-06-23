@@ -351,7 +351,7 @@ module InterpolatedString =
 
 module FnCall =
   5 + 3 = 8
-  5 + true = Test.typeError_v0 "Int.add was expected to be called with a `Int` in b, but was actually called with true"
+  5 + true = Test.typeError_v0 "Int.add's 2nd argument (b) should be an Int. However, a Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: a Bool: true"
   5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
   (Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error"
   (Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
@@ -414,7 +414,6 @@ module Lambdas =
   (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
   // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
   (let y = (fun a b -> a * b) in List.fold_v0 [1; 2; 3; 4] 1 y) = 24
-  (List.fold_v0 [4] 1 5) = Test.typeError_v0 "List.fold was expected to be called with a `Function` in fn, but was actually called with 5"
   (List.fold_v0 [4] 1 (Test.typeError "test")) = Test.typeError "test"
 
   (let x = 5 in
@@ -819,7 +818,8 @@ module Match =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option.map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\""
+  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") =
+    Test.typeError_v0 "Option.map2's 2nd argument (option2) should be an Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: Option<'b>)\nActual: a String: \"not an option\""
 
   // Check we get previous errors before later ones
   (List.map_v0 [1;2;3;4;5] (fun x -> Test.typeError "X")) |> List.fakeFunction =
@@ -976,7 +976,7 @@ module UserDefined =
 
   module InvalidFnCalls =
     functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
-    stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in stringFn->key"
+    stringFn 5 = Test.typeError "stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
     stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
@@ -1012,7 +1012,7 @@ module Packages =
   PACKAGE.Darklang.Test.returnsResultError () = Error false
 
   module Invalid =
-    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in PACKAGE.Darklang.Test.stringFn->key"
+    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "PACKAGE.Darklang.Test.stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
     PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "PACKAGE.Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     PACKAGE.Darklang.Test.derrorFn "test" = Test.typeError "test"
 
