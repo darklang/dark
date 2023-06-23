@@ -136,3 +136,127 @@ let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
 
 /// When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (FakeDvalFound dv)
+
+/// Segments allow us to build error messages where the UI and CLI can both
+/// decorate/link to the sources in a native way
+type ErrorSegment =
+  | String of string
+  | Int of int
+  | Ordinal of int // 1st, 2nd, etc
+  | FunctionName of FnName.T
+  | Description of string // description from StdLib description fields. Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
+  | ParamName of string
+  | TypeName of TypeName.T
+  | TypeReference of TypeReference
+  | TypeOfValue of Dval
+  | IndefiniteArticle // "a" or "an"
+  | InlineValue of Dval // possibly shortened
+  | FullValue of Dval
+
+module ErrorSegment =
+  let toString (list : List<ErrorSegment>) : string =
+    list
+    |> List.rev
+    |> List.fold
+      (fun prevSegments segment ->
+        let newSegment =
+          match segment with
+          | String s -> s
+          | Int i -> string i
+          | Ordinal i -> String.toOrdinal i
+          | IndefiniteArticle ->
+            match List.tryHead prevSegments with
+            | None -> ""
+            | Some prev -> String.articleFor prev + " "
+          | FunctionName fn -> FnName.toString fn
+          | Description d -> d
+          | ParamName p -> p
+          | TypeName t -> TypeName.toString t
+          | TypeReference t -> DvalReprDeveloper.typeName t
+          | TypeOfValue dv -> DvalReprDeveloper.dvalTypeName dv
+          | InlineValue dv ->
+            DvalReprDeveloper.toRepr dv |> String.truncateWithElipsis 10
+          | FullValue dv -> DvalReprDeveloper.toRepr dv
+        newSegment :: prevSegments)
+      []
+    |> String.concat ""
+
+type ErrorOutput =
+  { summary : List<ErrorSegment>
+    explanation : List<ErrorSegment>
+    actual : List<ErrorSegment>
+    expected : List<ErrorSegment> }
+
+type Error = TypeError of TypeChecker.Error
+module TCK = TypeChecker
+
+let toSegments (e : Error) : ErrorOutput =
+  match e with
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.FunctionCallParameter(fnName,
+                                                                 parameter,
+                                                                 paramIndex,
+                                                                 location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ FunctionName fnName
+        String "'s "
+        Ordinal(paramIndex + 1)
+        String " argument ("
+        ParamName parameter.name
+        String ") should be a "
+        TypeReference parameter.typ ]
+
+    let explanation =
+      [ String "The "
+        Ordinal(paramIndex + 1)
+        String " argument of "
+        FunctionName fnName
+        String " should be "
+        IndefiniteArticle
+        TypeReference parameter.typ
+        String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead" ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // (json : string) // parameter
+    let comment =
+      if "" (* TODO parameter.comment*) = "" then
+        []
+      else
+        [ String " // "; Description "" (*parameter.comment*) ]
+    let expected =
+      [ String "("
+        ParamName parameter.name
+
+        String ": "
+        TypeReference parameter.typ
+        String ")" ]
+      @ comment
+
+    { summary = summary
+      explanation = explanation
+      actual = actual
+      expected = expected }
+  | _ ->
+    { summary = [ String "TODO: support formatting this error message" ]
+      explanation = [ String(string e) ]
+      actual = []
+      expected = [] }
+
+let toString (e : Error) : string =
+  let s = toSegments e
+  let summary = ErrorSegment.toString s.summary
+  let explanation = ErrorSegment.toString s.explanation
+  let actual = ErrorSegment.toString s.actual
+  let expected = ErrorSegment.toString s.expected
+
+  $"{summary}\n\n{explanation}\n\nExpected: {expected}\n\nActual: {actual}"

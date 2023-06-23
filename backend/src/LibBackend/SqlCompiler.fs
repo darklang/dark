@@ -145,7 +145,8 @@ let typecheckDval
   (dval : Dval)
   (expectedType : TypeReference)
   =
-  match TypeChecker.unify [ name ] types expectedType dval with
+  let context = TypeChecker.SqlVarExpression(name, dval, expectedType, None)
+  match TypeChecker.unify context types expectedType dval with
   | Ok() -> ()
   | Error err -> error $"Incorrect type in {name}: {err}"
 

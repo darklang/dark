@@ -830,6 +830,7 @@ module String =
     else
       str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
+
   let lengthInEgcs (s : string) : int =
     System.Globalization.StringInfo(s).LengthInTextElements
 
@@ -844,9 +845,23 @@ module String =
   /// Adds 'a' or 'an' (the indefinite article) in front of a string, based on
   /// whether it begins with a vowel
   let articleFor (nextWord : string) : string =
+    let vowels = Set [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
     if nextWord = "" then ""
-    else if Set.contains nextWord.[0] (Set [ 'a'; 'e'; 'i'; 'o'; 'u' ]) then "an"
+    else if Set.contains nextWord.[0] vowels then "an"
     else "a"
+
+  let toOrdinal (n : int) : string =
+    let suffix =
+      match n % 10 with
+      | 1 -> "st"
+      | 2 -> "nd"
+      | 3 -> "rd"
+      | _ -> "th"
+
+    string n + suffix
+
+  let truncateWithElipsis (maxLen : int) (s : string) : string =
+    if s.Length <= maxLen then s else s.Substring(0, maxLen - 3) + "..."
 
 
 module Map =

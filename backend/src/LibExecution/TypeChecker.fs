@@ -9,71 +9,68 @@ open RuntimeTypes
 let combineErrorsUnit (l : List<Result<unit, 'err>>) : Result<unit, 'err> =
   l |> Tablecloth.Result.values |> Result.map ignore<List<unit>>
 
-module Error =
-  type Path = List<string>
-
-  type TypeUnificationError = { expectedType : TypeReference; actualValue : Dval }
-
-  type MismatchedFields =
-    { expectedFields : Set<string>; actualFields : Set<string> }
-
-  type T =
-    /// Failed to find a referenced type
-    | TypeLookupFailure of TypeName.T * path : Path
-
-    /// An argument didn't match the expected type
-    | TypeUnificationFailure of TypeUnificationError * Path
-
-    | MismatchedRecordFields of MismatchedFields * Path
-
-
-  let toString (e : T) : string =
-    match e with
-    | TypeLookupFailure(typeName, path) ->
-      let lookupString = TypeName.toString typeName
-      let path = path |> String.concat "->"
-      $"Type {lookupString} could not be found in {path}"
-
-    | TypeUnificationFailure(uf, path) ->
-      let expected = DvalReprDeveloper.typeName uf.expectedType
-      let actual = DvalReprDeveloper.dvalTypeName uf.actualValue
-      let path = path |> String.concat "->"
-      $"Expected a value of type `{expected}` but got a `{actual}` in {path}"
-
-    | MismatchedRecordFields(mrf, path) ->
-      let expected = mrf.expectedFields
-      let actual = mrf.actualFields
-      // More or less wholesale from User_db's type checker
-      let missingFields = Set.difference expected actual in
-      let extraFields = Set.difference actual expected in
-
-      let missingMsg =
-        "Expected but did not find: ["
-        + (missingFields |> Set.toList |> String.concat ", ")
-        + "]"
-
-      let extraMsg =
-        "Found but did not expect: ["
-        + (extraFields |> Set.toList |> String.concat ", ")
-        + "]"
-
-      let path = path |> String.concat "->"
-      (match (Set.isEmpty missingFields, Set.isEmpty extraFields) with
-       | false, false -> $"{missingMsg} & {extraMsg} in {path}"
-       | false, true -> $"{missingMsg} in {path}"
-       | true, false -> $"{extraMsg} in {path}"
-       | true, true ->
-         "Type checker error! Deduced expected fields from type and actual fields in value did not match, but could not find any examples!")
+type Location = Option<tlid * id>
+type Context =
+  | FunctionCallParameter of
+    fnName : FnName.T *
+    parameter : Param *
+    paramIndex : int *
+    // caller : Option<tlid * id> * // TODO add caller
+    location : Location
+  | FunctionCallResult of
+    fnName : FnName.T *
+    // caller : Option<tlid * id> * // TODO add caller
+    location : Location
+  | RecordField of
+    recordTypeName : TypeName.T *
+    fieldName : string *
+    location : Location
+  | EnumField of
+    definition : CustomType.EnumField *
+    caseName : string *
+    location : Location
+  | SqlVarExpression of
+    name : string *
+    actualValue : Dval *
+    expectedType : TypeReference *
+    location : Location
+  | DBSchemaType of
+    name : string *
+    actualValue : Dval *
+    expectedType : TypeReference *
+    location : Location
 
 
-open Error
+module Context =
+  let toLocation (c : Context) : Location =
+    match c with
+    | FunctionCallParameter(_, _, _, location) -> location
+    | FunctionCallResult(_, location) -> location
+    | RecordField(_, _, location) -> location
+    | EnumField(_, _, location) -> location
+    | SqlVarExpression(_, _, _, location) -> location
+    | DBSchemaType(_, _, _, location) -> location
+
+
+type Error =
+  | MismatchedRecordFields of
+    extraFieldsInActualValue : Set<string> *
+    missingFields : Set<string> *
+    Context
+  | ValueNotExpectedType of
+    actualValue : Dval *
+    expectedType : TypeReference *
+    Context
+  | TypeDoesntExist of TypeName.T * Context
+
+
 
 let rec unify
-  (path : List<string>)
+  (context : Context)
   (types : Types)
   (expected : TypeReference)
   (value : Dval)
-  : Result<unit, Error.T> =
+  : Result<unit, Error> =
   let resolvedType = getTypeReferenceFromAlias types expected
   match (resolvedType, value) with
   // Any should be removed, but we currently allow it as a param type
@@ -107,44 +104,34 @@ let rec unify
   | TCustomType(typeName, typeArgs), value ->
 
     match Types.find typeName types with
-    | None -> Error(TypeLookupFailure(typeName, List.rev path))
+    | None -> Error(TypeDoesntExist(typeName, context))
     | Some ut ->
-      let err =
-        Error(
-          TypeUnificationFailure(
-            { expectedType = expected; actualValue = value },
-            List.rev path
-          )
-        )
+      let err = Error(ValueNotExpectedType(value, resolvedType, context))
 
       match ut, value with
       | CustomType.Alias aliasType, _ ->
         let resolvedAliasType = getTypeReferenceFromAlias types aliasType
-        unify path types resolvedAliasType value
+        unify context types resolvedAliasType value
 
       | CustomType.Record(firstField, additionalFields), DRecord(tn, dmap) ->
         let aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
         match aliasedType with
         | TCustomType(concreteTn, typeArgs) ->
           if concreteTn <> typeName then
-            Error(
-              TypeUnificationFailure(
-                { expectedType = expected; actualValue = value },
-                List.rev path
-              )
-            )
+            Error(ValueNotExpectedType(value, aliasedType, context))
           else
-            unifyRecordFields path types (firstField :: additionalFields) dmap
+            unifyRecordFields
+              concreteTn
+              context
+              types
+              (firstField :: additionalFields)
+              dmap
         | _ -> err
 
       | CustomType.Enum(firstCase, additionalCases), DEnum(tn, caseName, valFields) ->
+        // TODO: deal with aliased type?
         if tn <> typeName then
-          Error(
-            TypeUnificationFailure(
-              { expectedType = expected; actualValue = value },
-              List.rev path
-            )
-          )
+          Error(ValueNotExpectedType(value, resolvedType, context))
         else
           let matchingCase : Option<CustomType.EnumCase> =
             firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
@@ -155,7 +142,9 @@ let rec unify
             if List.length case.fields = List.length valFields then
               List.zip case.fields valFields
               |> List.map (fun (expected, actual) ->
-                unify (case.name :: path) types expected.typ actual)
+                let context =
+                  EnumField(expected, case.name, Context.toLocation context)
+                unify context types expected.typ actual)
               |> combineErrorsUnit
             else
               err
@@ -181,22 +170,17 @@ let rec unify
   | TDB _, _
   | TBytes, _
   | TOption _, _
-  | TResult _, _ ->
-    Error(
-      TypeUnificationFailure(
-        { expectedType = expected; actualValue = value },
-        List.rev path
-      )
-    )
+  | TResult _, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
 
 
 
 and unifyRecordFields
-  (path : List<string>)
+  (recordType : TypeName.T)
+  (context : Context)
   (types : Types)
   (defs : List<CustomType.RecordField>)
   (values : DvalMap)
-  : Result<unit, Error.T> =
+  : Result<unit, Error> =
   let completeDefinition =
     defs
     |> List.filterMap (fun (d : CustomType.RecordField) ->
@@ -207,25 +191,22 @@ and unifyRecordFields
   let valueNames = values |> Map.keys |> Set.ofList
 
   if defNames = valueNames then
+    let location = Context.toLocation context
     values
     |> Map.toList
     |> List.map (fun (fieldName, fieldValue) ->
-      unify
-        (fieldName :: path)
-        types
-        (Map.get fieldName completeDefinition
-         |> Exception.unwrapOptionInternal
-           "field name missing from type"
-           [ "fieldName", fieldName ])
-        fieldValue)
+      let context = RecordField(recordType, fieldName, location)
+      let fieldDef =
+        Map.get fieldName completeDefinition
+        |> Exception.unwrapOptionInternal
+          "field name missing from type"
+          [ "fieldName", fieldName ]
+      unify context types fieldDef fieldValue)
     |> combineErrorsUnit
   else
-    Error(
-      MismatchedRecordFields(
-        { expectedFields = defNames; actualFields = valueNames },
-        List.rev path
-      )
-    )
+    let extraFields = Set.difference valueNames defNames
+    let missingFields = Set.difference defNames valueNames
+    Error(MismatchedRecordFields(extraFields, missingFields, context))
 
 
 // TODO: there are missing type checks around type arguments that we should backfill.
@@ -249,24 +230,24 @@ and unifyRecordFields
 // These will involve updates in both `checkFunctionCall` and `checkFunctionReturnType`.
 
 let checkFunctionCall
-  (path : List<string>)
   (types : Types)
   (fn : Fn)
   (_typeArgs : List<TypeReference>)
   (args : List<Dval>)
-  : Result<unit, Error.T> =
+  : Result<unit, Error> =
   fn.parameters
-  |> List.map2
-    (fun value param -> unify (param.name :: path) types param.typ value)
+  |> List.mapi2
+    (fun i value param ->
+      let context = FunctionCallParameter(fn.name, param, i, None)
+      unify context types param.typ value)
     args
   |> combineErrorsUnit
 
 
 let checkFunctionReturnType
-  (path : List<string>)
   (types : Types)
   (fn : Fn)
   (result : Dval)
-  : Result<unit, Error.T> =
-
-  unify ("result" :: path) types fn.returnType result
+  : Result<unit, Error> =
+  let context = FunctionCallResult(fn.name, None)
+  unify context types fn.returnType result
