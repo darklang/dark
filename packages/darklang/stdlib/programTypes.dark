@@ -27,25 +27,68 @@ module Darklang =
 
         type T<'name> =
           | BuiltIn of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<'name>
-          | UserProgram of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<'name>
+          | UserProgram of
+            PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<'name>
           | Package of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<'name>
+
+        type NamePrinter<'name> = 'name -> String
+
+
+        let builtinToString (s: BuiltIn<'name>) (f: NamePrinter<'name>) : String =
+          let name = s.modules |> List.append [ f s.name ] |> String.join "."
+          if s.version == 0 then name else $"{name}_v{s.version}"
+
+        let userProgramToString
+          (s: UserProgram<'name>)
+          (f: NamePrinter<'name>)
+          : String =
+          let name = s.modules |> List.append [ f s.name ] |> String.join "."
+          if s.version == 0 then name else $"{name}_v{s.version}"
+
+        let packageToString (s: Package<'name>) (f: NamePrinter<'name>) : String =
+          let name =
+            [ "PACKAGE"; s.owner ] |> List.append [ f s.name ] |> String.join "."
+
+          if s.version == 0 then name else $"{name}_v{s.version}"
+
+        let toString (name: T<'name>) (f: NamePrinter<'name>) : String =
+          match name with
+          | BuiltIn b -> builtinToString b f
+          | UserProgram user -> userProgramToString user f
+          | Package pkg -> packageToString pkg f
 
 
       module TypeName =
         type Name = TypeName of String
         type T = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<Name>
         type BuiltIn = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<Name>
-        type UserProgram = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+
+        type UserProgram =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+
         type Package = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<Name>
 
+        let toString
+          (name: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T)
+          : String =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.toString
+            name
+            (fun (TypeName n) -> n)
 
       module FnName =
         type Name = FnName of String
         type T = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<Name>
         type BuiltIn = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<Name>
-        type UserProgram = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+
+        type UserProgram =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+
         type Package = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<Name>
 
+        let toString (name: T) : String =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.toString
+            name
+            (fun (FnName n) -> n)
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
       type TypeReference =
