@@ -31,7 +31,7 @@ module Pusher = LibBackend.Pusher
 
 module HttpMiddleware = HttpMiddleware.Http
 
-module RealExe = LibExperimentalExecution.RealExperimentalExecution
+module RealExe = LibRealExecution.RealExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -500,10 +500,13 @@ let main _ =
   try
     let name = "BwdDangerServer"
     print "Starting BwdDangerServer"
+
+    LibRealExecution.RealExecution.additionalStdlib <- StdLib.contents
+
     initSerializers ()
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibExperimentalExecution.Init.init name).Result
+    (LibRealExecution.Init.init name).Result
 
     run ()
     // CLEANUP I suspect this isn't called

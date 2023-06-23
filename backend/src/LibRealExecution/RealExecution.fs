@@ -18,16 +18,19 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let builtins : LibExecution.StdLib.Contents =
+let mutable additionalStdlib : LibExecution.StdLib.Contents = [], []
+
+let builtins () : LibExecution.StdLib.Contents =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
-      StdLibDarkInternal.StdLib.contents ]
+      additionalStdlib ]
     []
     []
 
-let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
-  (task {
+
+let packageFns (): Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
+  task {
     let! packages = PackageManager.allFunctions ()
 
     return
@@ -35,10 +38,11 @@ let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
       |> List.map (fun (f : PT.PackageFn.T) ->
         (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
       |> Map.ofList
-  })
+
+  }
 
 let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
-  (task {
+  task {
     let! packages = PackageManager.allTypes ()
 
     return
@@ -46,13 +50,14 @@ let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
       |> List.map (fun (t : PT.PackageType.T) ->
         (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
       |> Map.ofList
-  })
+  }
 
 let libraries () : Task<RT.Libraries> =
   task {
     let! packageFns = packageFns ()
     let! packageTypes = packageTypes ()
 
+    let builtins = builtins()
     let builtinFns = builtins |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
     let builtinTypes =
       builtins |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)

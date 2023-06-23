@@ -1,4 +1,4 @@
-module StdLibExperimental.StdLib
+module BwdDangerServer.StdLib
 
 open Prelude
 module StdLib = LibExecution.StdLib

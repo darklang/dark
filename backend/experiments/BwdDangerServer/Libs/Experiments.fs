@@ -1,4 +1,4 @@
-module StdLibExperimental.Libs.Experiments
+module BwdDangerServer.Libs.Experiments
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -81,7 +81,7 @@ let types : List<BuiltInType> = []
 let fn = fn [ "Experiments" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Experiments" "parseAndSerializeProgram" 0
+  [ { name = fn "parseAndSerializeProgram" 0
       typeParams = []
       parameters = [ Param.make "code" TString ""; Param.make "filename" TString "" ]
       returnType = TResult(TDict TString, TString)

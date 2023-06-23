@@ -16,15 +16,17 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Libs/Experiments.fs" />
+    <Compile Include="StdLib.fs" />
     <Compile Include="Server.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../LibExperimentalExecution/LibExperimentalExecution.fsproj" />
+    <ProjectReference Include="../../src/Parser/Parser.fsproj" />
+    <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../../src/HttpMiddleware/HttpMiddleware.fsproj" />
     <ProjectReference Include="../../src/ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
-    <ProjectReference Include="../StdLibExperimental/StdLibExperimental.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
