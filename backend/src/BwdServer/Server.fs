@@ -267,7 +267,9 @@ let canonicalizeURL (toHttps : bool) (url : string) =
 exception NotFoundException of msg : string with
   override this.Message = this.msg
 
-
+let config : RT.Config =
+  { allowLocalHttpAccess = false
+    httpclientTimeoutInMs = LibBackend.Config.httpclientTimeoutInMs }
 
 /// ---------------
 /// Handle builtwithdark request
@@ -328,9 +330,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! (result, _) =
             RealExe.executeHandler
               ClientTypes2BackendTypes.Pusher.eventSerializer
-              canvasID
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
+              config
               traceID
               inputVars
               (RealExe.InitialExecution(desc, "request", request))

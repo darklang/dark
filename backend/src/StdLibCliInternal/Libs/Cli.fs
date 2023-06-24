@@ -36,10 +36,11 @@ let execute
   : Task<RT.Dval> =
 
   task {
-    let program : ProgramContext =
+    let config : Config =
+      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+    let program : Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        allowLocalHttpAccess = true
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
@@ -54,7 +55,8 @@ let execute
     let tracing = Exe.noTracing RT.Real
     let notify = parentState.notify
     let sendException = parentState.reportException
-    let state = Exe.createState libraries tracing sendException notify 7UL program
+    let state =
+      Exe.createState libraries tracing sendException notify 7UL program config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])

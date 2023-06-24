@@ -1010,11 +1010,13 @@ and LoadFnResult = FunctionRecord -> List<Dval> -> Option<Dval * NodaTime.Instan
 
 and StoreFnResult = FunctionRecord -> Dval list -> Dval -> unit
 
+/// Per-runtime configuration allowing different settings for eg cloud, test, CLI
+and Config = { allowLocalHttpAccess : bool; httpclientTimeoutInMs : int }
+
 /// Every part of a user's program
-and ProgramContext =
+and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
-    allowLocalHttpAccess : bool
     dbs : Map<string, DB.T>
     fns : Map<FnName.UserProgram, UserFunction.T>
     types : Map<TypeName.UserProgram, UserType.T>
@@ -1052,7 +1054,8 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 and ExecutionState =
   { libraries : Libraries
     tracing : Tracing
-    program : ProgramContext
+    program : Program
+    config : Config
     test : TestContext
 
     // Called to report exceptions

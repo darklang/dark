@@ -34,11 +34,13 @@ let createState
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
   (tlid : tlid)
-  (program : RT.ProgramContext)
+  (program : RT.Program)
+  (config : RT.Config)
   : RT.ExecutionState =
   { libraries = libraries
     tracing = tracing
     program = program
+    config = config
     test = noTestContext
     reportException = reportException
     notify = notify

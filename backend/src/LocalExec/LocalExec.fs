@@ -34,10 +34,12 @@ let execute
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let program : RT.ProgramContext =
+    let config : RT.Config =
+      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+
+    let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        allowLocalHttpAccess = true
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
@@ -68,7 +70,14 @@ let execute
         $"Exception: {exn.Message}\nMetadata:\n{metadata}\nStacktrace:\n{exn.StackTrace}"
 
     let state =
-      Exe.createState libraries tracing sendException notify defaultTLID program
+      Exe.createState
+        libraries
+        tracing
+        sendException
+        notify
+        defaultTLID
+        program
+        config
 
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }

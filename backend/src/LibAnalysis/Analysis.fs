@@ -47,10 +47,12 @@ module Eval =
 
   let runAnalysis (request : AT.AnalysisRequest) : Task<AT.AnalysisResults> =
     task {
-      let program : RT.ProgramContext =
+      let config : RT.Config =
+        { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
+
+      let program : RT.Program =
         { canvasID = System.Guid.NewGuid()
           internalFnsAllowed = false
-          allowLocalHttpAccess = true
           fns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
           types = request.userTypes |> List.map (fun t -> t.name, t) |> Map
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
@@ -85,6 +87,7 @@ module Eval =
           RT.consoleNotifier
           request.tlid
           program
+          config
 
       let inputVars = Map request.traceData.input
       let! (_result : RT.Dval) = Exe.executeExpr state inputVars request.expr

@@ -62,6 +62,8 @@ let triggerCrons = bool "DARK_CONFIG_TRIGGER_CRONS"
 // Stop my fans from spinning
 let pauseBetweenCronsInMs = int "DARK_CONFIG_PAUSE_BETWEEN_CRONS"
 
+let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
+
 
 // -------------------------
 // Rollbar

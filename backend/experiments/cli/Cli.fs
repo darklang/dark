@@ -63,10 +63,11 @@ let execute
   : Task<RT.Dval> =
 
   task {
-    let program : RT.ProgramContext =
+    let config : RT.Config =
+      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+    let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        allowLocalHttpAccess = true
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
@@ -88,7 +89,8 @@ let execute
     let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
       printException "Internal error" metadata exn
 
-    let state = Exe.createState libraries tracing sendException notify 7UL program
+    let state =
+      Exe.createState libraries tracing sendException notify 7UL program config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
