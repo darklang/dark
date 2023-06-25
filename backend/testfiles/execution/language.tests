@@ -93,7 +93,8 @@ module Alias =
   type EmployeeCredential = UserCredential
   let getUserID(credential:UserCredential) : Id = credential |> Tuple2.second
   getUserID(("Alice", "EMP123")) = "EMP123"
-  getUserID(("Alice", 123)) = Test.typeError "Type error in return type: Expected a value of type `String` but got a `Int` in getUserID->result"
+  getUserID(("Alice", 123)) =
+    Test.typeError "getUserID's return value should be an Id. However, an Int (123) was returned instead.\n\nExpected: Id\nActual: an Int: 123"
 
   type UserProfile = { credential: UserCredential; name: String; role: UserRole }
   type EmployeeProfile = UserProfile

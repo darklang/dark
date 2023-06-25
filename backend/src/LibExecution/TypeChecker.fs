@@ -19,6 +19,7 @@ type Context =
     location : Location
   | FunctionCallResult of
     fnName : FnName.T *
+    returnType : TypeReference *
     // caller : Option<tlid * id> * // TODO add caller
     location : Location
   | RecordField of
@@ -47,7 +48,7 @@ module Context =
   let toLocation (c : Context) : Location =
     match c with
     | FunctionCallParameter(_, _, _, location) -> location
-    | FunctionCallResult(_, location) -> location
+    | FunctionCallResult(_, _, location) -> location
     | RecordField(_, _, location) -> location
     | EnumField(_, _, _, _, location) -> location
     | SqlVarExpression(_, _, _, location) -> location
@@ -251,5 +252,5 @@ let checkFunctionReturnType
   (fn : Fn)
   (result : Dval)
   : Result<unit, Error> =
-  let context = FunctionCallResult(fn.name, None)
+  let context = FunctionCallResult(fn.name, fn.returnType, None)
   unify context types fn.returnType result

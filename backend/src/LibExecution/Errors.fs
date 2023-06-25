@@ -254,6 +254,39 @@ let toSegments (e : Error) : ErrorOutput =
       expected = expected }
   | TypeError(TCK.ValueNotExpectedType(argument,
                                        expected,
+                                       TCK.FunctionCallResult(fnName,
+                                                              returnType,
+                                                              location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ FunctionName fnName
+        String "'s return value should be "
+        IndefiniteArticle
+        TypeReference returnType ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was returned instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // Option<String>
+    let expected = [ TypeReference returnType ]
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
                                        TCK.EnumField(enumType,
                                                      fieldDef,
                                                      caseName,
