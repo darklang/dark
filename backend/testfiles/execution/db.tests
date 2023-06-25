@@ -238,7 +238,7 @@ module SetDoesUpsert =
 module SetCharUpserts =
   (let old = DB.set (Z { x = 'a' }) "a" ZDB in
    let newval = DB.set (Z { x = 'b' }) "a" ZDB in
-   DB.getAllWithKeys ZDB) = Dict { a = X { x = 'b' } }
+   DB.getAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
 
 
 
