@@ -1292,6 +1292,24 @@ module Ply =
         (Ply initial)
         list
 
+    let foldSequentiallyWithIndex
+      (f : int -> 'state -> 'a -> Ply<'state>)
+      (initial : 'state)
+      (list : List<'a>)
+      : Ply<'state> =
+      List.fold
+        (fun (accum : (Ply<int * 'state>)) (arg : 'a) ->
+          uply {
+            let! (i, state) = accum
+            let! result = f i state arg
+            return (i + 1, result)
+          })
+        (Ply((0, initial)))
+        list
+      |> map Tablecloth.Tuple2.second
+
+
+
     let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =
       list
       |> foldSequentially

@@ -205,7 +205,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
       | Some(typename, expected) ->
-        let expectedFields = expected |> List.map (fun f -> f.name, f.typ) |> Map
+        let expectedFields = expected |> List.map (fun f -> f.name, f) |> Map
         let! result =
           Ply.List.foldSequentially
             (fun r (k, expr) ->
@@ -222,8 +222,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     return v
                   else
                     let field = Map.find k expectedFields
-                    let context = TypeChecker.RecordField(typeName, k, None)
-                    match TypeChecker.unify context types field v with
+                    let context = TypeChecker.RecordField(typeName, field, None)
+                    match TypeChecker.unify context types field.typ v with
                     | Ok() ->
                       match r with
                       | DRecord(typeName, m) ->
@@ -259,7 +259,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
         | Some(typeName, expected) ->
-          let expectedFields = expected |> List.map (fun f -> f.name, f.typ) |> Map
+          let expectedFields = expected |> List.map (fun f -> f.name, f) |> Map
           return!
             Ply.List.foldSequentially
               (fun r (k, expr) ->
@@ -273,8 +273,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                     return err id $"Unexpected field `{k}` in {typeStr}"
                   | DRecord(typeName, m), k, v ->
                     let field = Map.find k expectedFields
-                    let context = TypeChecker.RecordField(typeName, k, None)
-                    match TypeChecker.unify context types field v with
+                    let context = TypeChecker.RecordField(typeName, field, None)
+                    match TypeChecker.unify context types field.typ v with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
@@ -660,8 +660,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               let fields = List.zip case.fields fields
               return!
-                Ply.List.foldSequentially
-                  (fun r ((enumField : CustomType.EnumField), expr) ->
+                Ply.List.foldSequentiallyWithIndex
+                  (fun i r ((enumField : CustomType.EnumField), expr) ->
                     uply {
                       if Dval.isFake r then
                         do! preview st expr
@@ -672,7 +672,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                           return v
                         else
                           let context =
-                            TypeChecker.EnumField(enumField, case.name, None)
+                            TypeChecker.EnumField(
+                              typeName,
+                              enumField,
+                              case.name,
+                              i,
+                              None
+                            )
                           match TypeChecker.unify context types enumField.typ v with
                           | Ok() ->
                             match r with

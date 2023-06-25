@@ -54,8 +54,9 @@ module Alias =
   // simple alias
   type Id = String
   type Something = { ID : Id; Data : String }
-  Something { ID = 2; Data = "test" } = Test.typeError "Expected a value of type `String` but got a `Int` in ID"
   Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
+  Something { ID = 2; Data = "test" } =
+    Test.typeError "Something's ID field should be an Id. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
 
   // record alias
   type Person = { name: String }
@@ -139,7 +140,7 @@ module Records =
   Cols2 { col1 = 2 } = Test.typeError "Missing key `col2` in Cols2_v0"
   Cols2 { col1 = 2; other = 3 } = Test.typeError "Unexpected field `other` in Cols2_v0"
   Cols2 { col1 = 2; col2 = 3; col3 = 4 } = Test.typeError "Unexpected field `col3` in Cols2_v0"
-  Cols1 { col1 = "" } = Test.typeError "Expected a value of type `Int` but got a `String` in col1"
+  Cols1 { col1 = "" } = Test.typeError "Cols1's col1 field should be an Int. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
 
   // Invalid type
   MyNonExistantType { col1 = 2 } = Test.typeError "There is no type named `MyNonExistantType_v0`"
@@ -166,8 +167,10 @@ module Records =
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11}) = RecordForUpdateMultipe {x = 42 ; y = 11; z = 3}
      // Invalid type and content
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11; p = 10}) = Test.typeError "Unexpected field `p` in RecordForUpdateMultipe"
-     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with other = 2}) = Test.typeError "Unexpected field `other` in RecordForUpdate_v0"
-     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with y = "2"}) = Test.typeError "Expected a value of type `Int` but got a `String` in y"
+     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with other = 2}) =
+       Test.typeError "Unexpected field `other` in RecordForUpdate_v0"
+     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with y = "2"}) =
+       Test.typeError "RecordForUpdate's y field should be an Int. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""
 
 module Enums =
   Nothing = Nothing
@@ -194,7 +197,8 @@ module Enums =
       // (match MyEnum.C "test" with | C -> v) = Test.typeError "TODO"
       // (match MyEnum.C "test" with | D -> "ok" | C _ -> v) = Test.typeError "TODO"
       // (match MyEnum.C "test" with | 5 -> "ok" | C _ -> v) = Test.typeError "TODO"
-      (MyEnum.C 5) = Test.typeError "Expected a value of type `String` but got a `Int` in C"
+      (MyEnum.C 5) =
+        Test.typeError "MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
 
 
   module Simple =
@@ -224,9 +228,14 @@ module Enums =
     (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1)) = false
     (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
-    EnumOfMixedCases.X 1 = Test.typeError "Expected a value of type `String` but got a `Int` in X"
-    EnumOfMixedCases.Y "test" = Test.typeError "Expected a value of type `Int` but got a `String` in Y"
-    EnumOfMixedCases.Z 1 = Test.typeError "Case `Z` expected 2 fields but got 1"
+    EnumOfMixedCases.X 1 =
+      Test.typeError "EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 1"
+    EnumOfMixedCases.Y "test" =
+      Test.typeError "EnumOfMixedCases.Y's 1st argument (i) should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: (i: Int)\nActual: a String: \"test\""
+    EnumOfMixedCases.Z 1 =
+      Test.typeError "Case `Z` expected 2 fields but got 1"
+    // Test ordering of evaluation
+    EnumOfMixedCases.Z(Test.typeError "1", Test.typeError "2") = Test.typeError "1"
 
     (let values = [EnumOfMixedCases.W;
                    EnumOfMixedCases.X "testX";

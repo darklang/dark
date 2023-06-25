@@ -23,11 +23,13 @@ type Context =
     location : Location
   | RecordField of
     recordTypeName : TypeName.T *
-    fieldName : string *
+    fieldDef : CustomType.RecordField *
     location : Location
   | EnumField of
+    enumTypeName : TypeName.T *
     definition : CustomType.EnumField *
     caseName : string *
+    paramIndex : int *  // nth argument to the enum constructor
     location : Location
   | SqlVarExpression of
     name : string *
@@ -47,7 +49,7 @@ module Context =
     | FunctionCallParameter(_, _, _, location) -> location
     | FunctionCallResult(_, location) -> location
     | RecordField(_, _, location) -> location
-    | EnumField(_, _, location) -> location
+    | EnumField(_, _, _, _, location) -> location
     | SqlVarExpression(_, _, _, location) -> location
     | DBSchemaType(_, _, _, location) -> location
 
@@ -141,9 +143,9 @@ let rec unify
           | Some case ->
             if List.length case.fields = List.length valFields then
               List.zip case.fields valFields
-              |> List.map (fun (expected, actual) ->
+              |> List.mapi (fun i (expected, actual) ->
                 let context =
-                  EnumField(expected, case.name, Context.toLocation context)
+                  EnumField(tn, expected, case.name, i, Context.toLocation context)
                 unify context types expected.typ actual)
               |> combineErrorsUnit
             else
@@ -184,7 +186,7 @@ and unifyRecordFields
   let completeDefinition =
     defs
     |> List.filterMap (fun (d : CustomType.RecordField) ->
-      if d.name = "" then None else Some(d.name, d.typ))
+      if d.name = "" then None else Some(d.name, d))
     |> Map.ofList
 
   let defNames = completeDefinition |> Map.keys |> Set.ofList
@@ -195,13 +197,13 @@ and unifyRecordFields
     values
     |> Map.toList
     |> List.map (fun (fieldName, fieldValue) ->
-      let context = RecordField(recordType, fieldName, location)
       let fieldDef =
         Map.get fieldName completeDefinition
         |> Exception.unwrapOptionInternal
           "field name missing from type"
           [ "fieldName", fieldName ]
-      unify context types fieldDef fieldValue)
+      let context = RecordField(recordType, fieldDef, location)
+      unify context types fieldDef.typ fieldValue)
     |> combineErrorsUnit
   else
     let extraFields = Set.difference valueNames defNames
