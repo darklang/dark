@@ -158,6 +158,7 @@ type ErrorSegment =
   | TypeReference of TypeReference
   | TypeOfValue of Dval
   | FieldName of string // records and enums
+  | DBName of string
   // Dvals
   | InlineValue of Dval // possibly shortened to be shown inline
   | FullValue of Dval
@@ -184,8 +185,12 @@ module ErrorSegment =
           | TypeReference t -> DvalReprDeveloper.typeName t
           | TypeOfValue dv -> DvalReprDeveloper.dvalTypeName dv
           | FieldName f -> f
+          | DBName db -> db
           | InlineValue dv ->
-            DvalReprDeveloper.toRepr dv |> String.truncateWithElipsis 10
+            DvalReprDeveloper.toRepr dv
+            |> String.truncateWithElipsis 10
+            |> String.splitOnNewline
+            |> String.concat ""
           | FullValue dv -> DvalReprDeveloper.toRepr dv
         newSegment :: prevSegments)
       []
@@ -384,6 +389,40 @@ let toSegments (e : Error) : ErrorOutput =
       extraExplanation = extraExplanation
       actual = actual
       expected = expected }
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.DBSchemaType(dbName,
+                                                        expectedType,
+                                                        location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ String "DB "
+        DBName dbName
+        String "'s value should be "
+        IndefiniteArticle
+        TypeReference expectedType ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // String
+    let expected = [ TypeReference expectedType ]
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
   | _ ->
     { summary = [ String "TODO: support formatting this error message" ]
       extraExplanation = [ String(string e) ]

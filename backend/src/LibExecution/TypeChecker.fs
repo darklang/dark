@@ -39,7 +39,6 @@ type Context =
     location : Location
   | DBSchemaType of
     name : string *
-    actualValue : Dval *
     expectedType : TypeReference *
     location : Location
 
@@ -52,7 +51,7 @@ module Context =
     | RecordField(_, _, location) -> location
     | EnumField(_, _, _, _, location) -> location
     | SqlVarExpression(_, _, _, location) -> location
-    | DBSchemaType(_, _, _, location) -> location
+    | DBSchemaType(_, _, location) -> location
 
 
 type Error =

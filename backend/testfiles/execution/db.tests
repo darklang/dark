@@ -227,7 +227,7 @@ module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
   // (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0 "Found but did not expect: [y]"
   (DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Test.typeError_v0
-    "Expected a value of type `X_v0` but got a `XY_v0` in XDB"
+    "DB XDB's value should be a X. However, a XY (XY {  ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
 module SetDoesUpsert =
