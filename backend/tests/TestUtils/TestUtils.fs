@@ -160,7 +160,7 @@ let executionStateFor
     let! domains = Canvas.domainsForCanvasID canvasID
     let config : RT.Config =
       // Short timeout so that tests using the timeout complete quickly
-      { allowLocalHttpAccess = allowLocalHttpAccess; httpclientTimeoutInMs = 3000 }
+      { allowLocalHttpAccess = allowLocalHttpAccess; httpclientTimeoutInMs = 5000 }
 
     let program : RT.Program =
       { canvasID = canvasID
