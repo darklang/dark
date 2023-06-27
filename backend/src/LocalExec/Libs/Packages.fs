@@ -65,6 +65,7 @@ let fns : List<BuiltInFn> =
             do!
               Sql.query "DELETE FROM package_functions_v0"
               |> Sql.executeStatementAsync
+            do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
             return DUnit
           }
         | _ -> incorrectArgs ()
