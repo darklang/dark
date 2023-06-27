@@ -14,6 +14,7 @@ let init: Model = {
   tasks: [],
   actions: [],
   functions: [],
+  types: [],
 }
 
 // Set initial state; listen for state updates from Dark

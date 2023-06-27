@@ -140,7 +140,8 @@ type Model =
     codeSnippets: List<CodeSnippet>
     tasks: List<Task>
     actions: List<Action>
-    functions: List<String> }
+    functions: List<String>
+    types: List<String> }
 
 
 // Update
@@ -182,6 +183,7 @@ let update (model: Model) (msg: Msg) : Model =
           tasks = model.tasks
           actions = model.actions
           functions = model.functions
+          types = model.types
 
           // CLEANUP: update this syntax to { model with systemPrompt = systemPrompt } when we can
           systemPrompt = response.body |> String.fromBytes }
@@ -200,7 +202,8 @@ let update (model: Model) (msg: Msg) : Model =
           codeSnippets = model.codeSnippets
           tasks = model.tasks
           actions = model.actions
-          functions = model.functions }
+          functions = model.functions
+          types = model.types }
 
     updateStateInJS newModel
 
@@ -275,7 +278,8 @@ let update (model: Model) (msg: Msg) : Model =
           codeSnippets = List.append model.codeSnippets newCodeSnippets
           tasks = List.append model.tasks newtasks
           actions = model.actions
-          functions = model.functions }
+          functions = model.functions
+          types = model.types }
 
     | Error err, _ -> log "error getting tasks " ++ err
     | _, Error err -> log "error getting response " ++ err
@@ -316,7 +320,8 @@ let update (model: Model) (msg: Msg) : Model =
               codeSnippets = updatedCodeSnippets
               tasks = model.tasks
               actions = model.actions
-              functions = model.functions }
+              functions = model.functions
+              types = model.types }
 
         | Error err -> sendError model codeSnippet err
 
@@ -393,7 +398,23 @@ let init () : Model =
       let response =
         WASM.HttpClient.request
           "GET"
-          "http://dark-editor.dlio.localhost:11003/all-functions"
+          "http://dark-editor.dlio.localhost:11003/all-canvas-functions"
+          []
+          Bytes.empty
+
+      match response with
+      | Ok response ->
+        log "got response"
+        response.body |> String.fromBytes |> String.split "\n\n"
+
+      | Error err -> "Error getting response: " ++ err
+
+
+    let getTypeList =
+      let response =
+        WASM.HttpClient.request
+          "GET"
+          "http://dark-editor.dlio.localhost:11003/all-canvas-types"
           []
           Bytes.empty
 
@@ -413,7 +434,8 @@ let init () : Model =
         codeSnippets = [ demoSnippet ]
         tasks = []
         actions = demoAction
-        functions = getFnList }
+        functions = getFnList
+        types = getTypeList }
 
   updateStateInJS initState
 

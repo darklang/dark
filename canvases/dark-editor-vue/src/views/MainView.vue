@@ -2,18 +2,24 @@
 import { ref, defineProps } from 'vue'
 import type { Model } from '../types'
 import Function from '@/components/Function.vue'
+import Repl from '@/components/Repl.vue'
 
 const props = defineProps<{
   state: Model
 }>()
 
-let currentFunctions = ref([] as string[])
-let clickedFunctions = new Set<string>()
+let functionsList = ref(new Set<string>())
+let typesList = ref(new Set<string>())
 
-function ShowFunction(functionItem: string) {
-  if (!clickedFunctions.has(functionItem)) {
-    clickedFunctions.add(functionItem)
-    currentFunctions.value.push(functionItem)
+function getFunctions(functionItem: string) {
+  if (!functionsList.value.has(functionItem)) {
+    functionsList.value.add(functionItem)
+  }
+}
+
+function getTypes(typeItem: string) {
+  if (!typesList.value.has(typeItem)) {
+    typesList.value.add(typeItem)
   }
 }
 </script>
@@ -26,9 +32,14 @@ function ShowFunction(functionItem: string) {
         <div class="p-2 m-2 rounded bg-[#3a3a3a]">
           <h2 class="font-semibold">Types</h2>
           <ul class="text-[#9ea4ac] text-sm">
-            <li>type-one</li>
-            <li>type-two</li>
-            <li>type-three</li>
+            <li
+              class="text-[#9ea4ac] text-sm cursor-pointer"
+              v-for="(typeItem, index) in state.types"
+              :key="index"
+              @click="getTypes(typeItem)"
+            >
+              {{ typeItem }}
+            </li>
           </ul>
         </div>
         <div class="p-2 m-2 rounded bg-[#3a3a3a]">
@@ -38,7 +49,7 @@ function ShowFunction(functionItem: string) {
               class="text-[#9ea4ac] text-sm cursor-pointer"
               v-for="(functionItem, index) in state.functions"
               :key="index"
-              @click="ShowFunction(functionItem)"
+              @click="getFunctions(functionItem)"
             >
               {{ functionItem }}
             </li>
@@ -53,12 +64,25 @@ function ShowFunction(functionItem: string) {
       <div class="flex flex-col h-full overflow-y-scroll pb-28">
         <div
           class="p-2 m-2 rounded bg-[#3a3a3a]"
-          v-for="(currentFunction, index) in currentFunctions"
+          v-for="(currentFunction, index) in functionsList"
           :key="index"
         >
           <p class="text-[#eeeeee] text-sm">function-name-v</p>
-          <Function v-model="currentFunctions[index]" />
+          <Function :modelValue="currentFunction" />
         </div>
+
+        <div
+          class="p-2 m-2 rounded bg-[#3a3a3a]"
+          v-for="(currentType, index) in typesList"
+          :key="index"
+        >
+          <p class="text-[#eeeeee] text-sm">type-name</p>
+          <Function :modelValue="currentType" />
+        </div>
+      </div>
+
+      <div>
+        <Repl :snippet="state.codeSnippets[0]" />
       </div>
     </div>
   </main>
