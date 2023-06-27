@@ -1,5 +1,5 @@
 /// Standard libraries for Files
-module StdLibCli.Libs.File
+module StdLibCLI.Libs.File
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

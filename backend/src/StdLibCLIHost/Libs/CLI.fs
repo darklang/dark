@@ -1,6 +1,6 @@
 /// StdLib functions for building the CLI
-/// (as opposed to functions needed by Cli programs, which are in StdLibCli)
-module StdLibCliInternal.Libs.Cli
+/// (as opposed to functions needed by Cli programs, which are in StdLibCLI)
+module StdLibCLIHost.Libs.CLI
 
 open System.Threading.Tasks
 
@@ -12,24 +12,27 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module StdLib = LibExecution.StdLib
 
 
-let (builtInFns, builtInTypes) =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
-    []
-    []
 
+let libraries (extraStdlibForUserPrograms : StdLib.Contents) : RT.Libraries =
+  let (builtInFns, builtInTypes) =
+    LibExecution.StdLib.combine
+      [ StdLibExecution.StdLib.contents
+        StdLibCLI.StdLib.contents
+        extraStdlibForUserPrograms ]
+      []
+      []
 
-let libraries : RT.Libraries =
   { builtInTypes = builtInTypes |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
     builtInFns = builtInFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
     packageFns = Map.empty
     packageTypes = Map.empty }
 
 
-
 let execute
+  (extraStdlibForUserPrograms : StdLib.Contents)
   (parentState : RT.ExecutionState)
   (mod' : Parser.CanvasV2.CanvasModule)
   (symtable : Map<string, RT.Dval>)
@@ -56,7 +59,14 @@ let execute
     let notify = parentState.notify
     let sendException = parentState.reportException
     let state =
-      Exe.createState libraries tracing sendException notify 7UL program config
+      Exe.createState
+        (libraries extraStdlibForUserPrograms)
+        tracing
+        sendException
+        notify
+        7UL
+        program
+        config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
@@ -80,8 +90,8 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated } ]
 
 
-let fns : List<BuiltInFn> =
-  [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
+let fns (extraStdlibForUserPrograms : StdLib.Contents) : List<BuiltInFn> =
+  [ { name = fn [ "CLI" ] "parseAndExecuteScript" 0
       typeParams = []
       parameters =
         [ Param.make "filename" TString ""
@@ -90,39 +100,42 @@ let fns : List<BuiltInFn> =
       returnType =
         TResult(
           TInt,
-          TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+          TCustomType(FQName.BuiltIn(typ [ "CLI" ] "ExecutionError" 0), [])
         )
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
         | state, [], [ DString filename; DString code; DDict symtable ] ->
           uply {
-
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
               let fields = [ "msg", DString msg; "metadata", DDict metadata ]
+
               DResult(
                 Error(
                   DRecord(
-                    FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0),
+                    FQName.BuiltIn(typ [ "CLI" ] "ExecutionError" 0),
                     Map fields
                   )
                 )
               )
+
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
               err msg metadata
+
             let parsed =
               try
                 Parser.CanvasV2.parse filename code |> Ok
               with e ->
                 Error(exnError e)
+
             try
               match parsed with
               | Ok mod' ->
-                match! execute state mod' symtable with
+                match! execute extraStdlibForUserPrograms state mod' symtable with
                 | DInt i -> return DResult(Ok(DInt i))
                 | DError(_, e) -> return err e []
                 | result ->
@@ -137,4 +150,5 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents (extraStdlibForUserPrograms : StdLib.Contents) =
+  (fns extraStdlibForUserPrograms, types)

@@ -1,7 +1,7 @@
 /// StdLib functions that are part of running the CLI
 ///
 /// Aggregates functions in other modules
-module StdLibCliInternal.StdLib
+module StdLibCLIHost.StdLib
 
 open System.Threading.Tasks
 
@@ -21,4 +21,8 @@ let typeRenames : StdLib.TypeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents = StdLib.combine [ Libs.Cli.contents ] fnRenames typeRenames
+let contents (extraStdlibForUserPrograms : StdLib.Contents) =
+  StdLib.combine
+    [ Libs.CLI.contents extraStdlibForUserPrograms ]
+    fnRenames
+    typeRenames

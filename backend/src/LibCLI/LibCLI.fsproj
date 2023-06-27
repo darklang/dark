@@ -1,4 +1,3 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
@@ -9,17 +8,21 @@
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../Prelude/Prelude.fsproj" />
-    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
-    <ProjectReference Include="../Parser/Parser.fsproj" />
-  </ItemGroup>
+
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Libs/Cli.fs" />
-    <Compile Include="StdLib.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../Parser/Parser.fsproj" />
+    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../StdLibCLI/StdLibCLI.fsproj" />
+    <ProjectReference Include="../StdLibCLIHost/StdLibCLIHost.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="LibCLI.fs" />
+  </ItemGroup>
 </Project>
