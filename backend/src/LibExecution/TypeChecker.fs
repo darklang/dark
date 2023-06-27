@@ -32,11 +32,7 @@ type Context =
     caseName : string *
     paramIndex : int *  // nth argument to the enum constructor
     location : Location
-  | SqlVarExpression of
-    name : string *
-    actualValue : Dval *
-    expectedType : TypeReference *
-    location : Location
+  | DBQueryVariable of varName : string * location : Location
   | DBSchemaType of
     name : string *
     expectedType : TypeReference *
@@ -50,7 +46,7 @@ module Context =
     | FunctionCallResult(_, _, location) -> location
     | RecordField(_, _, location) -> location
     | EnumField(_, _, _, _, location) -> location
-    | SqlVarExpression(_, _, _, location) -> location
+    | DBQueryVariable(_, location) -> location
     | DBSchemaType(_, _, location) -> location
 
 

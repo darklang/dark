@@ -158,7 +158,9 @@ type ErrorSegment =
   | TypeReference of TypeReference
   | TypeOfValue of Dval
   | FieldName of string // records and enums
+  // Variables
   | DBName of string
+  | VarName of string
   // Dvals
   | InlineValue of Dval // possibly shortened to be shown inline
   | FullValue of Dval
@@ -186,6 +188,7 @@ module ErrorSegment =
           | TypeOfValue dv -> DvalReprDeveloper.dvalTypeName dv
           | FieldName f -> f
           | DBName db -> db
+          | VarName v -> v
           | InlineValue dv ->
             DvalReprDeveloper.toRepr dv
             |> String.truncateWithElipsis 10
@@ -422,6 +425,44 @@ let toSegments (e : Error) : ErrorOutput =
       extraExplanation = extraExplanation
       actual = actual
       expected = expected }
+
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.DBQueryVariable(varName, location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ VarName varName
+        String " should be "
+        IndefiniteArticle
+        TypeReference expected ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // (varName : string) // some description
+    let expected =
+      [ String "("
+        VarName varName
+
+        String ": "
+        TypeReference expected
+        String ")" ]
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
 
   | _ ->
     { summary = [ String "TODO: support formatting this error message" ]

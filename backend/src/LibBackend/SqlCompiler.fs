@@ -145,10 +145,10 @@ let typecheckDval
   (dval : Dval)
   (expectedType : TypeReference)
   =
-  let context = TypeChecker.SqlVarExpression(name, dval, expectedType, None)
+  let context = TypeChecker.DBQueryVariable(name, None)
   match TypeChecker.unify context types expectedType dval with
   | Ok() -> ()
-  | Error err -> error $"Incorrect type in {name}: {err}"
+  | Error err -> error (Errors.toString (Errors.TypeError err))
 
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only

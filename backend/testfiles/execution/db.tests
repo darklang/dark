@@ -481,6 +481,10 @@ module FindAll =
                                                                                       "Rachel"
                                                                                       "Ross" ]
 
+  (let x = "not int"
+   friends (fun p -> p.height > x)) = Test.sqlError
+    "variable x should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (variable x: Int)\nActual: a String: \"not int\""
+
   // lambda doesnt return a bool
   friendsError (fun p -> "x") = Test.sqlError
     "Incorrect type in String \"x\", expected Bool, but got a String"
