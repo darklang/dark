@@ -149,6 +149,7 @@ type Msg =
   | LoadSystemPrompt
   | UserGavePrompt of prompt: String
   | UserRequestedCodeEval of id: String * codeSnippet: String
+  | CodeEval of code: String
 
 
 let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
@@ -326,6 +327,37 @@ let update (model: Model) (msg: Msg) : Model =
         | Error err -> sendError model codeSnippet err
 
       | Error err -> sendError model codeSnippet err
+
+  | CodeEval code ->
+    let parsedAndSerialized = parseAndSerializeProgram code
+
+    match parsedAndSerialized with
+    | Ok parsedAndSerialized ->
+      let evalPgm = (WASM.Editor.evalUserProgram parsedAndSerialized)
+
+      match evalPgm with
+      | Ok evalPgm ->
+        evalPgm
+
+        let codeSnippet =
+          CodeSnippet
+            { id = "evaluated-program"
+              code = code
+              eval = Just evalPgm }
+
+        Model
+          { isLoading = false
+            systemPrompt = model.systemPrompt
+            chatHistory = model.chatHistory
+            codeSnippets = [ codeSnippet ]
+            tasks = model.tasks
+            actions = model.actions
+            functions = model.functions
+            types = model.types }
+
+      | Error err -> log "couldn't eval program"
+
+    | Error err -> log "couldn't parse and serialize program"
 
 
 /// Single point of communicating to JS host

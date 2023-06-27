@@ -6,10 +6,10 @@ import 'codemirror/theme/yonce.css'
 import 'codemirror/mode/javascript/javascript.js'
 
 const props = defineProps({
-  modelValue: String,
+  content: String,
 })
 
-const emits = defineEmits(['update:modelValue'])
+const emits = defineEmits(['update:content'])
 
 let textarea = ref(null) as any
 let editor = null as any
@@ -30,12 +30,12 @@ onMounted(() => {
     viewportMargin: Infinity,
   })
 
-  editor.setValue(props.modelValue)
+  editor.setValue(props.content)
   updateEditorSize(editor)
 
   editor.on('changes', () => {
     const value = editor.getValue()
-    emits('update:modelValue', value)
+    emits('update:content', value)
     updateEditorSize(editor)
   })
 })

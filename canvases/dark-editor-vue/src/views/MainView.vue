@@ -68,7 +68,7 @@ function getTypes(typeItem: string) {
           :key="index"
         >
           <p class="text-[#eeeeee] text-sm">function-name-v</p>
-          <Function :modelValue="currentFunction" />
+          <Function :content="currentFunction" />
         </div>
 
         <div
@@ -77,12 +77,17 @@ function getTypes(typeItem: string) {
           :key="index"
         >
           <p class="text-[#eeeeee] text-sm">type-name</p>
-          <Function :modelValue="currentType" />
+          <Function :content="currentType" />
         </div>
       </div>
 
-      <div>
-        <Repl :snippet="state.codeSnippets[0]" />
+      <div class="w-1/2">
+        <div
+          v-if="state.codeSnippets.length > 0"
+          class="p-2 m-2 rounded bg-[#3a3a3a]"
+        >
+          <Repl :code="state.codeSnippets[0]" />
+        </div>
       </div>
     </div>
   </main>
