@@ -23,7 +23,7 @@ type CliOptions =
   | ListPackages
 
 let usage () : String =
-  "Usage: InternalCLI [options]
+  "Usage: dark-internal ./scripts/import-packages.dark load-packages [options]
 
     Options:
       -h, --help     Show this help message and exit

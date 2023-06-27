@@ -19,7 +19,7 @@ LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
 
 echo -e "Loading packages ${grey}($LOG)${reset}"
 if [[ "$PUBLISHED" == "true" ]]; then
-  ./scripts/run-cli-internal --published ./scripts/run-package-import.dark load-packages > $LOG 2>&1
+  ./scripts/run-cli-internal --published ./scripts/import-packages.dark load-packages > $LOG 2>&1
 else
-  ./scripts/run-cli-internal ./scripts/run-package-import.dark load-packages > $LOG 2>&1
+  ./scripts/run-cli-internal ./scripts/import-packages.dark load-packages > $LOG 2>&1
 fi
