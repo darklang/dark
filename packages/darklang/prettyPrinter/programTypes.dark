@@ -968,7 +968,7 @@ module Darklang =
         let bodyPart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr p.body
 
-        $"let {namePart}{typeParamPart} {paramPart} : {retPart} =\n{bodyPart}"
+        $"let {namePart}{typeParamPart} {paramPart} : {retPart} =\n{PACKAGE.Darklang.PrettyPrinter.indent bodyPart}"
 
 
       let packageType
