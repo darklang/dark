@@ -52,6 +52,7 @@ module Context =
 
 type Error =
   | MismatchedRecordFields of
+    typeName : TypeName.T *
     extraFieldsInActualValue : Set<string> *
     missingFields : Set<string> *
     Context
@@ -204,7 +205,7 @@ and unifyRecordFields
   else
     let extraFields = Set.difference valueNames defNames
     let missingFields = Set.difference defNames valueNames
-    Error(MismatchedRecordFields(extraFields, missingFields, context))
+    Error(MismatchedRecordFields(recordType, extraFields, missingFields, context))
 
 
 // TODO: there are missing type checks around type arguments that we should backfill.

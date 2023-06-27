@@ -463,12 +463,41 @@ let toSegments (e : Error) : ErrorOutput =
       actual = actual
       expected = expected }
 
+  | TypeError(TCK.MismatchedRecordFields(typeName, extra, missing, _)) ->
+    // Perhaps this should be an internal error as this shouldn't be possible
+    let summary = [ TypeName typeName; String "'s has incorrect fields" ]
 
-  | _ ->
-    { summary = [ String "TODO: support formatting this error message" ]
-      extraExplanation = [ String(string e) ]
-      actual = []
-      expected = [] }
+    let extraExplanation = []
+    let actual =
+      [ String "Extra fields were found: " ]
+      @ (extra
+         |> Set.toList
+         |> List.map (fun name -> FieldName name)
+         |> Tablecloth.List.intersperse (String ", "))
+    let expected =
+      [ String "Some fields were found: " ]
+      @ (missing
+         |> Set.toList
+         |> List.map (fun name -> FieldName name)
+         |> Tablecloth.List.intersperse (String ", "))
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | TypeError(TCK.TypeDoesntExist(typeName, _)) ->
+    // Perhaps this should be an internal error as this shouldn't be possible
+    let summary = [ TypeName typeName; String " doesn't exist" ]
+
+    let extraExplanation = []
+    let actual = []
+    let expected = []
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
 
 let toString (e : Error) : string =
   let s = toSegments e
