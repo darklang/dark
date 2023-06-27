@@ -1,4 +1,4 @@
-module LocalExec.Libs.Packages
+module InternalCLI.Libs.Packages
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -14,7 +14,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> =
-  [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
+  [ { name = typ [ "InternalCLI"; "Packages" ] "Function" 0
       description = "The name of a package function"
       typeParams = []
       definition =
@@ -33,7 +33,9 @@ let types : List<BuiltInType> =
               description = "The version of the function" } ]
         )
       deprecated = NotDeprecated }
-    { name = typ [ "LocalExec"; "Packages" ] "Type" 0
+
+
+    { name = typ [ "InternalCLI"; "Packages" ] "Type" 0
       description = "The name of a package type"
       typeParams = []
       definition =
@@ -50,10 +52,8 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated } ]
 
 
-
-
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec"; "Packages" ] "clear" 0
+  [ { name = fn [ "InternalCLI"; "Packages" ] "clear" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUnit
@@ -74,7 +74,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "LocalExec"; "Packages" ] "parseAndSave" 0
+    { name = fn [ "InternalCLI"; "Packages" ] "parseAndSave" 0
       typeParams = []
       parameters =
         [ Param.make "package source" TString "The source code of the package"
@@ -96,13 +96,13 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
+    { name = fn [ "InternalCLI"; "Packages" ] "listFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
           TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0),
+            FQName.BuiltIn(typ [ "InternalCLI"; "Packages" ] "Function" 0),
             []
           )
         )
@@ -124,7 +124,9 @@ let fns : List<BuiltInFn> =
                 packages
                 |> List.map (fun (owner, fnname, modules, version) ->
                   DRecord(
-                    FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Function" 0),
+                    FQName.BuiltIn(
+                      typ [ "InternalCLI"; "Packages" ] "Function" 0
+                    ),
                     Map(
                       [ ("owner", DString owner)
                         ("modules",
@@ -141,12 +143,15 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn [ "LocalExec"; "Packages" ] "listTypes" 0
+    { name = fn [ "InternalCLI"; "Packages" ] "listTypes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
-          TCustomType(FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0), [])
+          TCustomType(
+            FQName.BuiltIn(typ [ "InternalCLI"; "Packages" ] "Type" 0),
+            []
+          )
         )
       description = "List all package types"
       fn =
@@ -166,7 +171,7 @@ let fns : List<BuiltInFn> =
                 packages
                 |> List.map (fun (owner, typename, modules, version) ->
                   DRecord(
-                    FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Type" 0),
+                    FQName.BuiltIn(typ [ "InternalCLI"; "Packages" ] "Type" 0),
                     Map(
                       [ ("owner", DString owner)
                         ("modules",
@@ -181,4 +186,5 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
 let contents : LibExecution.StdLib.Contents = (fns, types)

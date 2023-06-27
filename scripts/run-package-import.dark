@@ -14,7 +14,7 @@ let loadFile (filename: String) : Unit =
   |> File.read
   |> unwrap
   |> String.fromBytes
-  |> LocalExec.Packages.parseAndSave filename
+  |> InternalCLI.Packages.parseAndSave filename
   |> unwrap
 
 type CliOptions =
@@ -23,7 +23,7 @@ type CliOptions =
   | ListPackages
 
 let usage () : String =
-  "Usage: LocalExec [options]
+  "Usage: InternalCLI [options]
 
     Options:
       -h, --help     Show this help message and exit
@@ -31,18 +31,19 @@ let usage () : String =
       list-packages  List packages
   "
 
-let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
+let printPackageFunction (p: InternalCLI.Packages.Function) : Unit =
   let modules = p.modules |> String.join "."
   print $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
-let printPackageType (p: LocalExec.Packages.Type) : Unit =
+let printPackageType (p: InternalCLI.Packages.Type) : Unit =
   let modules = p.modules |> String.join "."
   print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
 let printPackages () : Unit =
-  let functions = LocalExec.Packages.listFunctions ()
+  let functions = InternalCLI.Packages.listFunctions ()
   functions |> List.iter (fun p -> printPackageFunction p)
-  let types = LocalExec.Packages.listTypes ()
+
+  let types = InternalCLI.Packages.listTypes ()
   types |> List.iter (fun p -> printPackageType p)
 
 
@@ -61,7 +62,7 @@ let main (args: List<String>) : Int =
     print (usage ())
     0
   | Ok LoadPackages ->
-    LocalExec.Packages.clear ()
+    InternalCLI.Packages.clear ()
     let files = listPackageFiles "/home/dark/app/packages"
 
     do

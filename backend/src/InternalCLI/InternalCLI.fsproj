@@ -11,18 +11,22 @@
     <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="paket.references" />
-    <Compile Include="Libs/Packages.fs" />
-    <Compile Include="StdLib.fs" />
-    <Compile Include="LocalExec.fs" />
-  </ItemGroup>
+
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../../src/Parser/Parser.fsproj" />
-    <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../../src/StdLibCLI/StdLibCLI.fsproj" />
+    <ProjectReference Include="../Parser/Parser.fsproj" />
+    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../StdLibCLI/StdLibCLI.fsproj" />
+    <ProjectReference Include="../LibCLI/LibCLI.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <Compile Include="Libs/Packages.fs" />
+    <Compile Include="StdLib.fs" />
+    <Compile Include="InternalCLI.fs" />
+  </ItemGroup>
 </Project>

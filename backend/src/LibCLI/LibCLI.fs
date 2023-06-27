@@ -13,6 +13,7 @@ module Exe = LibExecution.Execution
 module StdLib = LibExecution.StdLib
 module StdLibCLI = StdLibCLI.StdLib
 
+let defaultTLID = 7UL
 
 type DarkCLIConfig =
   {
@@ -52,6 +53,9 @@ let execute
     { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
 
   task {
+    let config: RT.Config =
+      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -94,7 +98,7 @@ let execute
         tracing
         sendException
         notify
-        7UL
+        defaultTLID
         program
         config
 
@@ -105,6 +109,40 @@ let execute
     else // mod'.exprs.Length > 1
       return RT.DError(RT.SourceNone, "Multiple expressions to execute")
   }
+let sourceOf
+  (tlid : tlid)
+  (id : id)
+  (modul : Parser.CanvasV2.CanvasModule)
+  : string =
+  let ast =
+    if tlid = defaultTLID then
+      Some modul.exprs[0]
+    else
+      modul.fns
+      |> List.find (fun fn -> fn.tlid = tlid)
+      |> Option.map (fun fn -> fn.body)
+
+  let mutable result = "unknown"
+
+  ast
+  |> Option.tap (fun e ->
+    LibExecution.ProgramTypesAst.preTraversal
+      (fun expr ->
+        if PT.Expr.toID expr = id then result <- string expr
+        expr)
+      (fun pipeExpr ->
+        if PT.PipeExpr.toID pipeExpr = id then result <- string pipeExpr
+        pipeExpr)
+      identity
+      identity
+      identity
+      identity
+      identity
+      e
+    |> ignore<PT.Expr>)
+
+  result
+
 
 let initSerializers () = ()
 
@@ -133,6 +171,7 @@ let main (config : DarkCLIConfig) (args : string[]) =
       1
     | RT.DError(RT.SourceID(tlid, id), msg) ->
       System.Console.WriteLine $"Error ({tlid}, {id}): {msg}"
+      System.Console.WriteLine $"Failure at: {sourceOf tlid id mod'}"
       1
     | RT.DInt i -> (int i)
     | dval ->
@@ -141,5 +180,5 @@ let main (config : DarkCLIConfig) (args : string[]) =
         $"Error: main function must return an int (returned {output})"
       1
   with e ->
-    printException "Error starting Darklang CLI" [] e
+    printException $"Error starting {config.name}" [] e
     1

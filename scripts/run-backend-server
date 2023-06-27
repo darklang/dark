@@ -44,7 +44,7 @@ if [[ "$PUBLISHED" == "true" ]]; then
   CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net7.0/linux-x64/publish"
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net7.0/linux-x64/publish"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Release/net7.0/linux-x64/publish"
-  LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish"
+  LOCALEXEC_BINPATH="backend/Build/out/InternalCLI/Release/net7.0/linux-x64/publish"
 
   BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Release/net7.0/linux-x64/publish"
 else
@@ -52,7 +52,7 @@ else
   CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net7.0"
   QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net7.0"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Debug/net7.0"
-  LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Debug/net7.0"
+  LOCALEXEC_BINPATH="backend/Build/out/InternalCLI/Debug/net7.0"
 
   BWDDANGERSERVER_BINPATH="backend/Build/out/BwdDangerServer/Debug/net7.0"
 fi
@@ -63,7 +63,7 @@ BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
 CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
 QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 PRODEXEC_EXE="${PRODEXEC_BINPATH}/ProdExec"
-LOCALEXEC_EXE="${LOCALEXEC_BINPATH}/LocalExec"
+LOCALEXEC_EXE="${LOCALEXEC_BINPATH}/InternalCLI"
 
 BWDDANGERSERVER_EXE="${BWDDANGERSERVER_BINPATH}/BwdDangerServer"
 

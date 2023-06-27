@@ -62,7 +62,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BwdDangerServer", "experime
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Wasm", "src\Wasm\Wasm.fsproj", "{5990939C-7E7B-4CFA-86FF-44CA5756498A}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LocalExec", "src\LocalExec\LocalExec.fsproj", "{FC9D3B85-2CD6-4A5C-B853-BCE770F76FC6}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "InternalCLI", "src\InternalCLI\InternalCLI.fsproj", "{FC9D3B85-2CD6-4A5C-B853-BCE770F76FC6}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCLI", "src\StdLibCLI\StdLibCLI.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
 EndProject

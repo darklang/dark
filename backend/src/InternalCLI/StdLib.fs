@@ -1,5 +1,5 @@
 /// Include libraries here that we would not want to even be possible from other environments
-module LocalExec.StdLib
+module InternalCLI.StdLib
 
 open Prelude
 module StdLib = LibExecution.StdLib

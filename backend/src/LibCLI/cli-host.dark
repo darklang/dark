@@ -22,7 +22,7 @@ let executeCommand (command: Command) : Int =
     | Ok script ->
       let script = String.fromBytes script
 
-      match Cli.parseAndExecuteScript scriptPath script (Dict { args = args }) with
+      match CLI.parseAndExecuteScript scriptPath script (Dict { args = args }) with
       | Ok i -> i
       | Error e ->
         print $"Error executing script {scriptPath}"

@@ -20,9 +20,19 @@ done
 ./scripts/run-cloud-storage-emulator
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish/LocalExec"
+  EXE="backend/Build/out/InternalCLI/Release/net7.0/linux-x64/publish/InternalCLI"
 else
-  EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
+  EXE="backend/Build/out/InternalCLI/Debug/net7.0/InternalCLI"
 fi
+
+# if it hasn't been compiled yet, wait for it
+
+for ((i=1;i<=1000;i++));
+do
+  if [[ ! -f "${EXE}" ]]; then
+    echo "Waiting for compiled binary"
+    sleep 0.01
+  fi
+done
 
 "${EXE}" "$@"
