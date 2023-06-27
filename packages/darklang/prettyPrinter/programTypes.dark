@@ -20,12 +20,10 @@ module Darklang =
               | [] -> ""
               | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
 
-            let namePart = t.name
-
             let versionPart =
               if t.version == 0 then "" else $"_v{Int.toString t.version}"
-
-            $"{modulesPart}{namePart}{versionPart}"
+            // TODO: name should be a string
+            $"{modulesPart}{t.name}{versionPart}"
 
 
         module UserProgram =
@@ -38,6 +36,7 @@ module Darklang =
               let versionPart =
                 if u.version == 0 then "" else $"_v{Int.toString u.version}"
 
+              //TODO: name should be a string
               $"{u.name}{versionPart}"
             | _ -> "(UserTypeName.atDefinition unexpected nonempty u.modules)"
 
@@ -59,6 +58,7 @@ module Darklang =
             let versionPart =
               if p.version == 0 then "" else $"_v{Int.toString p.version}"
 
+            //TODO: name should be a string
             $"{p.name}{versionPart}"
 
           let fullForReference
@@ -98,28 +98,6 @@ module Darklang =
 
 
       module TypeName =
-        module Name =
-          let atDefinition
-            (t: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Name)
-            : String =
-            "why are you trying to print a stdlib type name _definition_?"
-
-          let fullForReference
-            (t: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Name)
-            : String =
-            let modulesPart =
-              match t.modules with
-              | [] -> ""
-              | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
-
-            //TODO this should be a string
-            let namePart = t.name
-
-            let versionPart =
-              if t.version == 0 then "" else $"_v{Int.toString t.version}"
-
-            $"{modulesPart}{namePart}{versionPart}"
-
         module BuiltIn =
           let atDefinition
             (t: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.BuiltIn)
@@ -133,13 +111,12 @@ module Darklang =
               | [] -> ""
               | modules -> modules |> String.join "." |> (fun parts -> $"{parts}.")
 
-            //TODO this should be a string
-            let namePart = t.name
-
             let versionPart =
               if t.version == 0 then "" else $"_v{Int.toString t.version}"
 
-            $"{modulesPart}{namePart}{versionPart}"
+            match t.name with
+            | TypeName name ->
+              $"{modulesPart}{name}{versionPart}"
 
         module UserProgram =
           let atDefinition
@@ -152,8 +129,7 @@ module Darklang =
                 if u.version == 0 then "" else $"_v{Int.toString u.version}"
 
               match u.name with
-              | TypeName name ->
-                $"{name}{versionPart}"
+              | TypeName name -> $"{name}{versionPart}"
             | _ -> "(UserTypeName.atDefinition unexpected nonempty u.modules)"
 
           let fullForReference
@@ -162,7 +138,8 @@ module Darklang =
             let versionPart =
               if u.version == 0 then "" else $"_v{Int.toString u.version}"
 
-            $"{u.name}{versionPart}"
+            match u.name with
+            | TypeName name -> $"{name}{versionPart}"
 
 
         module Package =
@@ -173,7 +150,8 @@ module Darklang =
             let versionPart =
               if p.version == 0 then "" else $"_v{Int.toString p.version}"
 
-            $"{p.name}{versionPart}"
+            match p.name with
+            | TypeName name -> $"{name}{versionPart}"
 
           let fullForReference
             (p: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Package)
@@ -183,7 +161,8 @@ module Darklang =
             let versionPart =
               if p.version == 0 then "" else $"_v{Int.toString p.version}"
 
-            $"PACKAGE.{p.owner}.{modulesPart}.{p.name}{versionPart}"
+            match p.name with
+            | TypeName name -> $"PACKAGE.{p.owner}.{modulesPart}.{name}{versionPart}"
 
 
         let atDefinition
@@ -193,13 +172,12 @@ module Darklang =
           | BuiltIn b ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.BuiltIn.atDefinition
               b
-          | UserProgram u -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.UserProgram.atDefinition
+          | UserProgram u ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.UserProgram.atDefinition
               u
-          | Package p -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.atDefinition
+          | Package p ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.atDefinition
               p
-          | Stdlib s ->
-            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.BuiltIn.fullForReference
-              s
 
         let fullForReference
           (t: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T)
@@ -208,9 +186,11 @@ module Darklang =
           | BuiltIn b ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.BuiltIn.fullForReference
               b
-          | UserProgram u -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.UserProgram.fullForReference
+          | UserProgram u ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.UserProgram.fullForReference
               u
-          | Package p -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference
+          | Package p ->
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.fullForReference
               p
 
 
@@ -885,6 +865,7 @@ module Darklang =
       let userType
         (userType: PACKAGE.Darklang.Stdlib.ProgramTypes.UserType)
         : String =
+        //don't change userType.name here
         let namePart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.UserProgram.atDefinition
             userType.name
@@ -912,6 +893,7 @@ module Darklang =
           let typPart =
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.typ
 
+          // Don't change p.name here it is already a string
           $"({p.name}: {typPart})"
 
       let userFunction
@@ -956,12 +938,14 @@ module Darklang =
           (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.Parameter)
           : String =
           // TODO: /// for description
+          //name is already a string
           $"({p.name}: {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.typ})"
 
       let packageFn (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T) : String =
         // TODO: handle `deprecated`, `description`
         let namePart =
-          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.userFnName p.name
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.Package.atDefinition
+            p.name
 
         let typeParamPart =
           match p.typeParams with
@@ -981,9 +965,10 @@ module Darklang =
         let retPart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.returnType
 
-        let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr p.body
+        let bodyPart =
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr p.body
 
-        $"let {namePart}{typeParamPart} {paramPart} : {retPart} =\n{PACKAGE.Darklang.PrettyPrinter.indent bodyPart}"
+        $"let {namePart}{typeParamPart} {paramPart} : {retPart} =\n{bodyPart}"
 
 
       let packageType
@@ -991,7 +976,7 @@ module Darklang =
         : String =
         // TODO: take care of deprecated and description
         let namePart =
-          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FQName.Package.atDefinition
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.Package.atDefinition
             p.name
 
         let typeParamPart =
