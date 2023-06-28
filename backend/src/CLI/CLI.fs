@@ -31,13 +31,11 @@ let info () =
 // ---------------------
 // Execution
 // ---------------------
-let extraStdlib = [], []
-
 [<EntryPoint>]
 let main (args : string[]) =
   let config : LibCLI.Main.DarkCLIConfig =
     { name = "Darklang CLI"
-      extraStdlibForUserPrograms = extraStdlib
+      extraStdlibForUserPrograms = [], []
       allowInternalDarkFunctions = false }
 
   LibCLI.Main.main config args

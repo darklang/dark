@@ -262,7 +262,7 @@ exception NotFoundException of msg : string with
 
 
 let config : RT.Config =
-  { allowLocalHttpAccess = true; httpclientTimeoutInMs = 10000 }
+  { allowLocalHttpAccess = false; httpclientTimeoutInMs = 10000 }
 
 
 /// ---------------

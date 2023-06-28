@@ -41,7 +41,7 @@ let execute
 
   task {
     let config : Config =
-      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 10000 }
 
     let program : Program =
       { canvasID = System.Guid.NewGuid()
@@ -79,7 +79,7 @@ let execute
   }
 
 let types : List<BuiltInType> =
-  [ { name = typ [ "Cli" ] "ExecutionError" 0
+  [ { name = typ [ "CLI" ] "ExecutionError" 0
       description = "Result of Execution"
       typeParams = []
       definition =
