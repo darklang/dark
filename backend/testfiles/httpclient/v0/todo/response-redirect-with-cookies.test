@@ -15,7 +15,7 @@ Location: /v0/response-redirect-dest-with-cookies
 
 [test]
 (let reqHeaders = { Cookie = "yummy_cookie=choco; tasty_cookie=strawberry" }
- let response = (HttpClient.request "get" "http://URL" {} reqHeaders) |> Test.unwrap
+ let response = (HttpClient.request "get" "http://URL" {} reqHeaders) |> unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response

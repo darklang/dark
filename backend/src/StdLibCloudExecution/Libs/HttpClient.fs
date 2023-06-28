@@ -197,6 +197,7 @@ module HttpClient =
 
   let request
     (localAccessAllowed : bool)
+    (timeoutInMs : int)
     (httpRequest : HttpRequest)
     : Task<HttpRequestResult> =
     task {
@@ -265,11 +266,16 @@ module HttpClient =
           // send request
           Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
           Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
+
+          // Allow timeout
+          let cancellationToken =
+            (new System.Threading.CancellationTokenSource(timeoutInMs)).Token
+
           use! response =
             if localAccessAllowed then
-              localAllowedHttpClient.SendAsync req
+              localAllowedHttpClient.SendAsync(req, cancellationToken)
             else
-              localDisallowedHttpClient.SendAsync req
+              localDisallowedHttpClient.SendAsync(req, cancellationToken)
 
           Telemetry.addTags
             [ "response.status_code", response.StatusCode
@@ -403,7 +409,10 @@ let fns : List<BuiltInFn> =
                 { url = uri; method = method; headers = reqHeaders; body = reqBody }
 
               let! (response : HttpClient.HttpRequestResult) =
-                HttpClient.request state.program.allowLocalHttpAccess request
+                HttpClient.request
+                  state.config.allowLocalHttpAccess
+                  state.config.httpclientTimeoutInMs
+                  request
 
               match response with
               | Ok response ->

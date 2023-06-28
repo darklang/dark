@@ -201,13 +201,17 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
+                    let config : RT.Config =
+                      { allowLocalHttpAccess = false
+                        httpclientTimeoutInMs =
+                          LibBackend.Config.httpclientTimeoutInMs }
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
                       RealExecution.executeHandler
                         ClientTypes2BackendTypes.Pusher.eventSerializer
-                        c.id
                         (PT2RT.Handler.toRT h)
                         program
+                        config
                         traceID
                         (Map [ "event", event.value ])
                         (RealExecution.InitialExecution(

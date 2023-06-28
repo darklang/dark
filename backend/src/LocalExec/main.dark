@@ -1,21 +1,21 @@
-let listDirectoryRecursive (dir : String) : List<String> =
+let listDirectoryRecursive (dir: String) : List<String> =
   let contents = Directory.list dir
   let (files, dirs) = contents |> List.partition (fun x -> File.isNormal x)
   let nested = dirs |> List.map (fun d -> listDirectoryRecursive d) |> List.flatten
   dirs |> List.append files |> List.append nested
 
-let listPackageFiles (dir : String) : List<String> =
+let listPackageFiles (dir: String) : List<String> =
   dir
   |> listDirectoryRecursive
   |> List.filter (fun x -> x |> String.endsWith ".dark")
 
-let loadFile (filename : String) : Unit =
+let loadFile (filename: String) : Unit =
   filename
   |> File.read
-  |> Test.unwrap
+  |> unwrap
   |> String.fromBytes
   |> LocalExec.Packages.parseAndSave filename
-  |> Test.unwrap
+  |> unwrap
 
 type CliOptions =
   | Help
@@ -31,46 +31,49 @@ let usage () : String =
       list-packages  List packages
   "
 
-let printPackageFunction (p : LocalExec.Packages.Function) : Unit =
+let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> String.join "."
   print $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
-let printPackageType (p : LocalExec.Packages.Type) : Unit =
+let printPackageType (p: LocalExec.Packages.Type) : Unit =
   let modules = p.modules |> String.join "."
   print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
 let printPackages () : Unit =
-  let functions = LocalExec.Packages.listFunctions()
+  let functions = LocalExec.Packages.listFunctions ()
   functions |> List.iter (fun p -> printPackageFunction p)
-  let types = LocalExec.Packages.listTypes()
+  let types = LocalExec.Packages.listTypes ()
   types |> List.iter (fun p -> printPackageType p)
 
 
-let parseArgs (args : List<String>) : Result<CliOptions, String> =
+let parseArgs (args: List<String>) : Result<CliOptions, String> =
   match args with
   | [] -> Ok CliOptions.Help
-  | ["-h"] -> Ok CliOptions.Help
-  | ["--help"] -> Ok CliOptions.Help
-  | ["load-packages"] -> Ok CliOptions.LoadPackages
-  | ["list-packages"]  -> Ok CliOptions.ListPackages
+  | [ "-h" ] -> Ok CliOptions.Help
+  | [ "--help" ] -> Ok CliOptions.Help
+  | [ "load-packages" ] -> Ok CliOptions.LoadPackages
+  | [ "list-packages" ] -> Ok CliOptions.ListPackages
   | _ -> Error "Invalid arguments"
 
-let main (args : List<String>) : Int =
+let main (args: List<String>) : Int =
   match parseArgs args with
   | Ok Help ->
     print (usage ())
     0
   | Ok LoadPackages ->
-    LocalExec.Packages.clear()
+    LocalExec.Packages.clear ()
     let files = listPackageFiles "/home/dark/app/packages"
-    do List.iter files (fun f ->
-      print $"Loading {f}"
-      loadFile f)
+
+    do
+      List.iter files (fun f ->
+        print $"Loading {f}"
+        loadFile f)
+
     print "Done loading packages"
-    printPackages()
+    printPackages ()
     0
   | Ok ListPackages ->
-    printPackages()
+    printPackages ()
     0
   | Error msg ->
     print ("Error: " ++ msg)

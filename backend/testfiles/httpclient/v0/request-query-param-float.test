@@ -12,7 +12,7 @@ Content-Length: LENGTH
 
 
 [test]
-(let response = (HttpClient.request "get" "http://URL?f=5.7&n=-0.0&l=1231325345345345.34534534634634634" [] Bytes.empty) |> Test.unwrap
+(let response = (HttpClient.request "get" "http://URL?f=5.7&n=-0.0&l=1231325345345345.34534534634634634" [] Bytes.empty) |> unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response

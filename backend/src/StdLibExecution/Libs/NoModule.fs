@@ -319,6 +319,32 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "unwrap" 0
+      typeParams = []
+      parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
+      returnType = TVariable "a"
+      description =
+        "Unwrap an Option or Result, returning the value or a DError if Nothing"
+      fn =
+        (function
+        | _, _, [ DOption opt ] ->
+          uply {
+            match opt with
+            | Some value -> return value
+            | None -> return (DError(SourceNone, "Nothing"))
+          }
+        | _, _, [ DResult res ] ->
+          uply {
+            match res with
+            | Ok value -> return value
+            | Error e -> return (DError(SourceNone, DvalReprDeveloper.toRepr e))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     // { name = fn "AWS" "urlencode" 0
     //   typeParams = []
     //   parameters = [ Param.make "str" TString "" ]

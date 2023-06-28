@@ -50,9 +50,12 @@ let rec set
   let id = System.Guid.NewGuid()
 
   let types = RT.ExecutionState.availableTypes state
-  match LibExecution.TypeChecker.unify [ db.name ] types db.typ dv with
+  // CLEANUP: the caller should do this type check instead, but we haven't
+  // implemented nested types in the DB yet
+  let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ, None)
+  match LibExecution.TypeChecker.unify context types db.typ dv with
   | Error err ->
-    let msg = LibExecution.TypeChecker.Error.toString err
+    let msg = Errors.toString (Errors.TypeError err)
     Exception.raiseCode msg
   | Ok _ -> ()
 

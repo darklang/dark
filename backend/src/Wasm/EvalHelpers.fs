@@ -23,10 +23,11 @@ let getStateForEval
       packageFns = packageFns
       packageTypes = packageTypes }
 
-  let program : ProgramContext =
+  let config : Config = { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
+
+  let program : Program =
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
-      allowLocalHttpAccess = true
       dbs = Map.empty
       fns = Map.fromListBy (fun fn -> fn.name) fns
       types = Map.fromListBy (fun typ -> typ.name) types
@@ -35,6 +36,7 @@ let getStateForEval
   { libraries = libraries
     tracing = LibExecution.Execution.noTracing Real
     program = program
+    config = config
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter
     notify = consoleNotifier

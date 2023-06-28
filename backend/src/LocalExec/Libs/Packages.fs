@@ -179,58 +179,5 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn [ "Debug" ] "inspect" 0
-      typeParams = []
-      parameters =
-        [ Param.make "var" (TVariable "value") ""; Param.make "msg" TString "" ]
-      returnType = TVariable "value"
-      description =
-        "Prints the value into stdout, and returns the value. The output format is not stable and should not be relied upon"
-      fn =
-        (function
-        | _, _, [ v; DString msg ] ->
-          print $"{msg}: {LibExecution.DvalReprDeveloper.toRepr v}"
-          Ply v
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-    { name = fn [ "Test" ] "unwrap" 0
-      typeParams = []
-      parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
-      returnType = TVariable "a"
-      description =
-        "Unwrap an Option or Result, returning the value or a DError if Nothing"
-      fn =
-        (function
-        | _, _, [ DOption opt ] ->
-          uply {
-            match opt with
-            | Some value -> return value
-            | None -> return (DError(SourceNone, "Nothing"))
-          }
-        | _, _, [ DResult res ] ->
-          uply {
-            match res with
-            | Ok value -> return value
-            | Error e ->
-              return
-                (DError(
-                  SourceNone,
-                  ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
-                ))
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-
-    ]
-
+      deprecated = NotDeprecated } ]
 let contents : LibExecution.StdLib.Contents = (fns, types)

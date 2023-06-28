@@ -97,7 +97,7 @@ let fns : List<BuiltInFn> =
         //  Experiments.parseAndExecuteExpr "1 + 2" Dict.empty_v0 = Ok "3"
         //  Experiments.parseAndExecuteExpr "a" { a = 3 } = Ok "3"
         //  Experiments.parseAndExecuteExpr """let a = 3 in a + b""" { b = 2 } = Ok "5"
-        //  //Experiments.parseAndExecuteExpr """(HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Test.unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200
+        //  //Experiments.parseAndExecuteExpr """(HttpClient.request "get" "https://example.com" [] Bytes.empty) |> unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200
 
         function
         | state, _, [ DString code; DDict userInputs ] ->

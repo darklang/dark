@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "foreach" 0
+    { name = fn "map" 0
       typeParams = []
       parameters =
         [ Param.make "s" TString ""

@@ -146,7 +146,7 @@ module BadSSL =
 
 
 // Basic request works including headers
-(let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> Test.unwrap
+(let response = (HttpClient.request "get" "https://httpbin.org/status/200" [] Bytes.empty) |> unwrap
  let respHeaders = response.headers |> List.filter(fun h -> Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response

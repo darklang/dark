@@ -136,3 +136,373 @@ let removedFunction (state : ExecutionState) (fnName : string) : DvalTask =
 
 /// When you have a fakeval, you typically just want to return it.
 let foundFakeDval (dv : Dval) : 'a = raise (FakeDvalFound dv)
+
+/// ---------------
+/// Error pretty printing
+/// CLEANUP: should be moved into Dark code ASAP, and we should return error types instead
+/// ---------------
+/// Segments allow us to build error messages where the UI and CLI can both
+/// decorate/link to the sources in a native way
+type ErrorSegment =
+  // Basic types
+  | String of string
+  | Int of int
+  | Ordinal of int // 1st, 2nd, etc
+  | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
+  // Functions
+  | FunctionName of FnName.T
+  | Description of string // description from StdLib description fields. Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
+  | ParamName of string
+  // Types
+  | TypeName of TypeName.T
+  | TypeReference of TypeReference
+  | TypeOfValue of Dval
+  | FieldName of string // records and enums
+  // Variables
+  | DBName of string
+  | VarName of string
+  // Dvals
+  | InlineValue of Dval // possibly shortened to be shown inline
+  | FullValue of Dval
+
+module ErrorSegment =
+  let toString (list : List<ErrorSegment>) : string =
+    list
+    |> List.rev
+    |> List.fold
+      (fun prevSegments segment ->
+        let newSegment =
+          match segment with
+          | String s -> s
+          | Int i -> string i
+          | Ordinal i -> String.toOrdinal i
+          | IndefiniteArticle ->
+            match List.tryHead prevSegments with
+            | None -> ""
+            | Some prev -> String.articleFor prev + " "
+          | FunctionName fn -> FnName.toString fn
+          | Description d -> d
+          | ParamName p -> p
+          | TypeName t -> TypeName.toString t
+          | TypeReference t -> DvalReprDeveloper.typeName t
+          | TypeOfValue dv -> DvalReprDeveloper.dvalTypeName dv
+          | FieldName f -> f
+          | DBName db -> db
+          | VarName v -> v
+          | InlineValue dv ->
+            DvalReprDeveloper.toRepr dv
+            |> String.truncateWithElipsis 10
+            |> String.splitOnNewline
+            |> String.concat ""
+          | FullValue dv -> DvalReprDeveloper.toRepr dv
+        newSegment :: prevSegments)
+      []
+    |> String.concat ""
+
+type ErrorOutput =
+  { summary : List<ErrorSegment>
+    // Summary can be used on its own or concatenated with extraExplanation
+    extraExplanation : List<ErrorSegment>
+    actual : List<ErrorSegment>
+    expected : List<ErrorSegment> }
+
+type Error = TypeError of TypeChecker.Error
+module TCK = TypeChecker
+
+let toSegments (e : Error) : ErrorOutput =
+  match e with
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.FunctionCallParameter(fnName,
+                                                                 parameter,
+                                                                 paramIndex,
+                                                                 location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ FunctionName fnName
+        String "'s "
+        Ordinal(paramIndex + 1)
+        String " argument ("
+        ParamName parameter.name
+        String ") should be "
+        IndefiniteArticle
+        TypeReference parameter.typ ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // (json : string) // some description
+    let comment =
+      if "" (* TODO parameter.comment*) = "" then
+        []
+      else
+        [ String " // "; Description "" (*parameter.comment*) ]
+    let expected =
+      [ String "("
+        ParamName parameter.name
+
+        String ": "
+        TypeReference parameter.typ
+        String ")" ]
+      @ comment
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.FunctionCallResult(fnName,
+                                                              returnType,
+                                                              location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ FunctionName fnName
+        String "'s return value should be "
+        IndefiniteArticle
+        TypeReference returnType ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was returned instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // Option<String>
+    let expected = [ TypeReference returnType ]
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.EnumField(enumType,
+                                                     fieldDef,
+                                                     caseName,
+                                                     paramIndex,
+                                                     location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let fieldName =
+      match fieldDef.label with
+      | None -> []
+      | Some l -> [ String "("; FieldName l; String ") " ]
+    let summary =
+      [ TypeName enumType
+        String "."
+        FieldName caseName
+        String "'s "
+        Ordinal(paramIndex + 1)
+        String " argument " ]
+      @ fieldName
+      @ [ String "should be "; IndefiniteArticle; TypeReference fieldDef.typ ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // (_unnamed : string) // some description
+    let comment =
+      if fieldDef.description = "" then
+        []
+      else
+        [ String " // "; Description fieldDef.description ]
+    let expected =
+      let paramName =
+        match fieldDef.label with
+        | None -> "_unnamed"
+        | Some l -> l
+      [ String "("
+        ParamName paramName
+        String ": "
+        TypeReference fieldDef.typ
+        String ")" ]
+      @ comment
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.RecordField(recordType, fieldDef, location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ TypeName recordType
+        String "'s "
+        FieldName fieldDef.name
+        String " field " ]
+      @ [ String "should be "; IndefiniteArticle; TypeReference fieldDef.typ ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // ({ name : string; ... }) // some description
+    let comment =
+      if fieldDef.description = "" then
+        []
+      else
+        [ String " // "; Description fieldDef.description ]
+    let expected =
+      [ String "({ "
+        FieldName fieldDef.name
+        String ": "
+        TypeReference fieldDef.typ
+        String "; ... })" ]
+      @ comment
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.DBSchemaType(dbName,
+                                                        expectedType,
+                                                        location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ String "DB "
+        DBName dbName
+        String "'s value should be "
+        IndefiniteArticle
+        TypeReference expectedType ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // String
+    let expected = [ TypeReference expectedType ]
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | TypeError(TCK.ValueNotExpectedType(argument,
+                                       expected,
+                                       TCK.DBQueryVariable(varName, location))) ->
+
+    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+    let summary =
+      [ VarName varName
+        String " should be "
+        IndefiniteArticle
+        TypeReference expected ]
+
+    let extraExplanation =
+      [ String ". However, "
+        IndefiniteArticle
+        TypeOfValue argument
+        String " ("
+        InlineValue argument
+        String ") was passed instead." ]
+
+    let actual =
+      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
+
+    // format:
+    // (varName : string) // some description
+    let expected =
+      [ String "("
+        VarName varName
+
+        String ": "
+        TypeReference expected
+        String ")" ]
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | TypeError(TCK.MismatchedRecordFields(typeName, extra, missing, _)) ->
+    // Perhaps this should be an internal error as this shouldn't be possible
+    let summary = [ TypeName typeName; String "'s has incorrect fields" ]
+
+    let extraExplanation = []
+    let actual =
+      [ String "Extra fields were found: " ]
+      @ (extra
+         |> Set.toList
+         |> List.map (fun name -> FieldName name)
+         |> Tablecloth.List.intersperse (String ", "))
+    let expected =
+      [ String "Some fields were found: " ]
+      @ (missing
+         |> Set.toList
+         |> List.map (fun name -> FieldName name)
+         |> Tablecloth.List.intersperse (String ", "))
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | TypeError(TCK.TypeDoesntExist(typeName, _)) ->
+    // Perhaps this should be an internal error as this shouldn't be possible
+    let summary = [ TypeName typeName; String " doesn't exist" ]
+
+    let extraExplanation = []
+    let actual = []
+    let expected = []
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+let toString (e : Error) : string =
+  let s = toSegments e
+  let explanation = ErrorSegment.toString (s.summary @ s.extraExplanation)
+  let actual = ErrorSegment.toString s.actual
+  let expected = ErrorSegment.toString s.expected
+
+  $"{explanation}\n\nExpected: {expected}\nActual: {actual}"

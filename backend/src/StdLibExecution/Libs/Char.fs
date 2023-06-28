@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "toString" 0
       typeParams = []
-      parameters = [ Param.make "c" TInt "" ]
+      parameters = [ Param.make "c" TChar "" ]
       returnType = TString
       description = "Stringify <param c>"
       fn =

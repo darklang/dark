@@ -158,10 +158,13 @@ let executionStateFor
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
-    let program : RT.ProgramContext =
+    let config : RT.Config =
+      // Short timeout so that tests using the timeout complete quickly
+      { allowLocalHttpAccess = allowLocalHttpAccess; httpclientTimeoutInMs = 5000 }
+
+    let program : RT.Program =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
-        allowLocalHttpAccess = allowLocalHttpAccess
         fns = userFunctions
         types = userTypes
         dbs = dbs
@@ -220,6 +223,7 @@ let executionStateFor
         notifier
         (id 7)
         program
+        config
     let state = { state with test = testContext }
     return state
   }

@@ -519,7 +519,7 @@ let healthCheck : LibService.Kubernetes.HealthCheck =
     probeTypes = [ LibService.Kubernetes.Startup ] }
 
 
-let toProgram (c : T) : RT.ProgramContext =
+let toProgram (c : T) : RT.Program =
 
   let dbs =
     c.dbs
@@ -545,7 +545,6 @@ let toProgram (c : T) : RT.ProgramContext =
 
   { canvasID = c.id
     internalFnsAllowed = c.id = Config.allowedDarkInternalCanvasID
-    allowLocalHttpAccess = false
     fns = userFns
     types = userTypes
     dbs = dbs

@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "canvasID" TUuid ""
           Param.make "name" TString ""
           Param.make "value" TString ""
-          Param.make "version" TString "" ]
+          Param.make "version" TInt "" ]
       returnType = TResult(TUnit, TString)
       description = "Add a secret"
       fn =

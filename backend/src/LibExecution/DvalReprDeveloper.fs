@@ -73,10 +73,8 @@ let rec dvalTypeName (dv : Dval) : string =
 /// message, etc. Redacts passwords.
 ///
 /// Customers should not come to rely on this format. Do not use in stdlib fns
-/// or other places a developer could rely on it (i.e. telemery and error
+/// or other places a developer could rely on it (i.e. telemetry and error
 /// messages are OK)
-///
-/// This should be kept sync with client Runtime.toRepr
 let toRepr (dv : Dval) : string =
   let rec toRepr_ (indent : int) (dv : Dval) : string =
     let makeSpaces len = "".PadRight(len, ' ')

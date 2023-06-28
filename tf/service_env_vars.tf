@@ -25,6 +25,9 @@ variable "service_env_vars" {
     "DARK_CONFIG_TRIGGER_CRONS"         = "y"
     "DARK_CONFIG_PAUSE_BETWEEN_CRONS"   = "0"
 
+    # Http
+    "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS" = "10000"
+
     # Serialization
     "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA" = "n"
 
