@@ -610,7 +610,6 @@ module Darklang =
           let firstPipePart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr firstPipeExpr
 
           let otherPipeParts =
-            // PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr otherPipeExprs
             otherPipeExprs
             |> List.map (fun (pipeExpr) -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr )
             |> String.join " |> "
