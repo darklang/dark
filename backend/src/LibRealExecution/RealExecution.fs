@@ -24,6 +24,7 @@ let builtins () : LibExecution.StdLib.Contents =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
+      StdLibDarkInternal.StdLib.contents
       additionalStdlib ]
     []
     []
