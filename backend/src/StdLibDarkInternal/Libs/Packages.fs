@@ -34,7 +34,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "all" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(stdlibPackageTyp [ "Packages" ] "Type" 0, [])
+      returnType = TCustomType(stdlibPackageTyp [] "Packages" 0, [])
       description = "List all package types and functions"
       fn =
         function
