@@ -400,7 +400,8 @@ module Darklang =
         | EPipeVariable(_id, varName) -> varName
 
         | EPipeLambda(_id, args, body) ->
-          let argsPart = String.join args " "
+          let argsPart =
+            args |> List.map (fun pair -> Tuple2.second pair) |> String.join " "
           let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
           $"fun {argsPart} -> {bodyPart}"
 
@@ -599,13 +600,26 @@ module Darklang =
           $"match {argPart} with \n{casesPart}"
 
 
-        | EPipe(_id, expr, pipeExpr, otherPipeExprs) ->
+        | EPipe(_id, expr, firstPipeExpr, otherPipeExprs) ->
           // PACKAGE.Darklang.Stdlib.ID *
           // PACKAGE.Darklang.Stdlib.ProgramTypes.Expr *
           // PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr *
           // List<PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr>
           let exprPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr
-          $"{exprPart} |> TODO"
+
+          let firstPipePart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr firstPipeExpr
+
+          let otherPipeParts =
+            // PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr otherPipeExprs
+            otherPipeExprs
+            |> List.map (fun (pipeExpr) -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr )
+            |> String.join " |> "
+
+          let pipesPart =
+            if otherPipeParts == "" then firstPipePart
+            else $"{firstPipePart} |> {otherPipeParts}"
+
+          $"{exprPart} |> {pipesPart}"
 
 
         // function calls
