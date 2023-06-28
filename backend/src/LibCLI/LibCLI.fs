@@ -52,7 +52,7 @@ let execute
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
 
-  let config: RT.Config =
+  let config : RT.Config =
     { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
 
   task {

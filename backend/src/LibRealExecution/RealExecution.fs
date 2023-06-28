@@ -57,7 +57,7 @@ let libraries () : Task<RT.Libraries> =
     let! packageFns = packageFns ()
     let! packageTypes = packageTypes ()
 
-    let builtins = builtins()
+    let builtins = builtins ()
     let builtinFns = builtins |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
     let builtinTypes =
       builtins |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
