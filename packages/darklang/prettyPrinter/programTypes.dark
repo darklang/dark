@@ -865,7 +865,6 @@ module Darklang =
       let userType
         (userType: PACKAGE.Darklang.Stdlib.ProgramTypes.UserType)
         : String =
-        //don't change userType.name here
         let namePart =
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeName.UserProgram.atDefinition
             userType.name
@@ -893,7 +892,6 @@ module Darklang =
           let typPart =
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.typ
 
-          // Don't change p.name here it is already a string
           $"({p.name}: {typPart})"
 
       let userFunction
@@ -938,7 +936,6 @@ module Darklang =
           (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.Parameter)
           : String =
           // TODO: /// for description
-          //name is already a string
           $"({p.name}: {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference p.typ})"
 
       let packageFn (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T) : String =
