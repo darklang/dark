@@ -139,7 +139,9 @@ type Model =
     chatHistory: List<ChatHistoryItem>
     codeSnippets: List<CodeSnippet>
     tasks: List<Task>
-    actions: List<Action> }
+    actions: List<Action>
+    functions: List<String>
+    types: List<String> }
 
 
 // Update
@@ -147,6 +149,7 @@ type Msg =
   | LoadSystemPrompt
   | UserGavePrompt of prompt: String
   | UserRequestedCodeEval of id: String * codeSnippet: String
+  | CodeEval of code: String
 
 
 let sendError (model: Model) (codeSnippet: String) (err: String) : Model =
@@ -180,6 +183,8 @@ let update (model: Model) (msg: Msg) : Model =
           codeSnippets = model.codeSnippets
           tasks = model.tasks
           actions = model.actions
+          functions = model.functions
+          types = model.types
 
           // CLEANUP: update this syntax to { model with systemPrompt = systemPrompt } when we can
           systemPrompt = response.body |> String.fromBytes }
@@ -197,7 +202,9 @@ let update (model: Model) (msg: Msg) : Model =
               [ ChatHistoryItem.UserPrompt (rUnwrap (String.random 5)) userPrompt ]
           codeSnippets = model.codeSnippets
           tasks = model.tasks
-          actions = model.actions }
+          actions = model.actions
+          functions = model.functions
+          types = model.types }
 
     updateStateInJS newModel
 
@@ -271,7 +278,9 @@ let update (model: Model) (msg: Msg) : Model =
           chatHistory = List.append model.chatHistory newChatItemsItems
           codeSnippets = List.append model.codeSnippets newCodeSnippets
           tasks = List.append model.tasks newtasks
-          actions = model.actions }
+          actions = model.actions
+          functions = model.functions
+          types = model.types }
 
     | Error err, _ -> log "error getting tasks " ++ err
     | _, Error err -> log "error getting response " ++ err
@@ -311,11 +320,44 @@ let update (model: Model) (msg: Msg) : Model =
               chatHistory = model.chatHistory
               codeSnippets = updatedCodeSnippets
               tasks = model.tasks
-              actions = model.actions }
+              actions = model.actions
+              functions = model.functions
+              types = model.types }
 
         | Error err -> sendError model codeSnippet err
 
       | Error err -> sendError model codeSnippet err
+
+  | CodeEval code ->
+    let parsedAndSerialized = parseAndSerializeProgram code
+
+    match parsedAndSerialized with
+    | Ok parsedAndSerialized ->
+      let evalPgm = (WASM.Editor.evalUserProgram parsedAndSerialized)
+
+      match evalPgm with
+      | Ok evalPgm ->
+        evalPgm
+
+        let codeSnippet =
+          CodeSnippet
+            { id = "evaluated-program"
+              code = code
+              eval = Just evalPgm }
+
+        Model
+          { isLoading = false
+            systemPrompt = model.systemPrompt
+            chatHistory = model.chatHistory
+            codeSnippets = [ codeSnippet ]
+            tasks = model.tasks
+            actions = model.actions
+            functions = model.functions
+            types = model.types }
+
+      | Error err -> log "couldn't eval program"
+
+    | Error err -> log "couldn't parse and serialize program"
 
 
 /// Single point of communicating to JS host
@@ -384,13 +426,48 @@ let init () : Model =
             BotResponseItem.CodeSnippet demoSnippet.id
             BotResponseItem.Actions demoAction ] ]
 
+    let getFnList =
+      let response =
+        WASM.HttpClient.request
+          "GET"
+          "http://dark-editor.dlio.localhost:11003/all-canvas-functions"
+          []
+          Bytes.empty
+
+      match response with
+      | Ok response ->
+        log "got response"
+        response.body |> String.fromBytes |> String.split "\n\n"
+
+      | Error err -> "Error getting response: " ++ err
+
+
+    let getTypeList =
+      let response =
+        WASM.HttpClient.request
+          "GET"
+          "http://dark-editor.dlio.localhost:11003/all-canvas-types"
+          []
+          Bytes.empty
+
+      match response with
+      | Ok response ->
+        log "got response"
+        response.body |> String.fromBytes |> String.split "\n\n"
+
+      | Error err -> "Error getting response: " ++ err
+
+
+
     Model
       { isLoading = false
         systemPrompt = "Loading..."
         chatHistory = chatHistory
         codeSnippets = [ demoSnippet ]
         tasks = []
-        actions = demoAction }
+        actions = demoAction
+        functions = getFnList
+        types = getTypeList }
 
   updateStateInJS initState
 

@@ -1,72 +1,57 @@
 module Darklang =
   module Stdlib =
     module ProgramTypes =
+      /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
+      /// or a Package module.
+      module FQName =
 
-      /// Used to reference a type defined by a User, Standard Library module, or Package
-      module FQTypeName =
-        /// A type written in F# and shipped in the executable.
-        /// Module required for all but a few cases.
-        type StdlibTypeName =
+        /// A name that is built into the runtime
+        type BuiltIn<'name> =
           { modules: List<String>
-            typ: String
+            name: 'name
             version: Int }
 
-        /// A type in the package manager
-        type PackageTypeName =
+        /// Part of the user's program (eg canvas or cli)
+        type UserProgram<'name> =
+          { modules: List<String>
+            name: 'name
+            version: Int }
+
+        /// The name of a thing in the package manager
+        // TODO: We plan to use UUIDs for this, but this is a placeholder
+        type Package<'name> =
           { owner: String
-            modules: List<String> // CLEANUP this is a nonemptylist internally
-            typ: String
-            version: Int }
-
-        /// A type written by a User in a Canvas
-        type UserTypeName =
-          {
-            /// The module in which the type is namespaced
             modules: List<String>
-
-            /// The name of the user-defined type
-            typ: String
-
-            /// The version (0 or greater) of the type
-            version: Int
-          }
-
-        type T =
-          | User of PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.UserProgram
-          | Stdlib of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn
-          | Package of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
-
-
-      /// A Fully-Qualified Function Name
-      /// Includes package, module, and version information where relevant.
-      module FQFnName =
-        /// Standard Library Function Name
-        type StdlibFnName =
-          { modules: List<String>
-            function_: String
+            name: 'name
             version: Int }
 
-        /// A Function written by a User in a Canvas
-        type UserFnName =
-          { modules: List<String>
-            function_: String
-            version: Int }
+        type T<'name> =
+          | BuiltIn of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<'name>
+          | UserProgram of
+            PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<'name>
+          | Package of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<'name>
 
-        /// A Function in the Package Manager
-        type PackageFnName =
-          {
-            owner: String
-            /// CLEANUP: was NonEmptyList<String> in F#
-            modules: List<String>
-            function_: String
-            version: Int
-          }
 
-        type T =
-          | User of PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.UserProgram
-          | Stdlib of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn
-          | Package of PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
 
+      module TypeName =
+        type Name = TypeName of String
+        type T = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<Name>
+        type BuiltIn = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<Name>
+
+        type UserProgram =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+
+        type Package = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<Name>
+
+      module FnName =
+        type Name = FnName of String
+        type T = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<Name>
+        type BuiltIn = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<Name>
+
+        type UserProgram =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+
+        type Package = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<Name>
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
       type TypeReference =
@@ -519,7 +504,7 @@ module Darklang =
         type T =
           { tlid: PACKAGE.Darklang.Stdlib.TLID
             id: Uuid
-            name: PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
+            name: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Package
             typeParams: List<String>
             definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
             description: String

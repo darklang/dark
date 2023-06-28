@@ -22,49 +22,47 @@ let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
-      StdLibExperimental.StdLib.contents ]
+      StdLibExperimental.StdLib.contents
+      StdLibDarkInternal.StdLib.contents ]
     []
     []
 
 
-let packageFns : Lazy<Task<Map<RT.FnName.Package, RT.PackageFn.T>>> =
-  lazy
-    (task {
-      let! packages = PackageManager.allFunctions ()
+let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
+  (task {
+    let! packages = PackageManager.allFunctions ()
 
-      return
-        packages
-        |> List.map (fun (f : PT.PackageFn.T) ->
-          (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-        |> Map.ofList
-    })
+    return
+      packages
+      |> List.map (fun (f : PT.PackageFn.T) ->
+        (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
+      |> Map.ofList
+  })
 
-let packageTypes : Lazy<Task<Map<RT.TypeName.Package, RT.PackageType.T>>> =
-  lazy
-    (task {
-      let! packages = PackageManager.allTypes ()
+let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
+  (task {
+    let! packages = PackageManager.allTypes ()
 
-      return
-        packages
-        |> List.map (fun (t : PT.PackageType.T) ->
-          (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-        |> Map.ofList
-    })
+    return
+      packages
+      |> List.map (fun (t : PT.PackageType.T) ->
+        (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
+      |> Map.ofList
+  })
 
-let libraries : Lazy<Task<RT.Libraries>> =
-  lazy
-    (task {
-      let! packageFns = Lazy.force packageFns
-      let! packageTypes = Lazy.force packageTypes
-      // TODO: this keeps a cached version so we're not loading them all the time.
-      // Of course, this won't be up to date if we add more functions. This should be
-      // some sort of LRU cache.
-      return
-        { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
-          builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
-          packageFns = packageFns
-          packageTypes = packageTypes }
-    })
+let libraries () : Task<RT.Libraries> =
+  (task {
+    let! packageFns = packageFns ()
+    let! packageTypes = packageTypes ()
+    // TODO: this keeps a cached version so we're not loading them all the time.
+    // Of course, this won't be up to date if we add more functions. This should be
+    // some sort of LRU cache.
+    return
+      { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
+        builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
+        packageFns = packageFns
+        packageTypes = packageTypes }
+  })
 
 let createState
   (traceID : AT.TraceID.T)
@@ -74,7 +72,7 @@ let createState
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let! libraries = Lazy.force libraries
+    let! libraries = libraries ()
 
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
@@ -168,6 +166,6 @@ let reexecuteFunction
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =
   task {
-    let! (_ : RT.Libraries) = Lazy.force libraries
+    let! (_ : RT.Libraries) = libraries ()
     return ()
   }

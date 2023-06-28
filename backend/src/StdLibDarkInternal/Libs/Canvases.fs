@@ -171,6 +171,12 @@ let fns : List<BuiltInFn> =
               |> List.map PT2DT.UserType.toDT
               |> DList
 
+            let fns =
+              canvas.userFunctions
+              |> Map.values
+              |> Seq.toList
+              |> List.map PT2DT.UserFunction.toDT
+              |> DList
             // let dbs =
             //   Map.values canvas.dbs
             //   |> Seq.toList
@@ -198,7 +204,10 @@ let fns : List<BuiltInFn> =
             //   |> DList
 
             return
-              DRecord(FQName.BuiltIn(typ "Program" 0), Map [ "types", types ])
+              DRecord(
+                FQName.BuiltIn(typ "Program" 0),
+                Map [ "types", types; "fns", fns ]
+              )
               |> Ok
               |> DResult
           }
