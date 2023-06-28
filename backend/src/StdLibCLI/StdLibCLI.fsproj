@@ -18,9 +18,9 @@
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
-    <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/Parser/Parser.fsproj" />
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../Parser/Parser.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
