@@ -21,8 +21,11 @@ let typeRenames : StdLib.TypeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-let contents (extraStdlibForUserPrograms : StdLib.Contents) =
+let contents
+  (extraStdlibForUserPrograms : StdLib.Contents)
+  (allowInternalDarkFunctions : bool)
+  =
   StdLib.combine
-    [ Libs.CLI.contents extraStdlibForUserPrograms ]
+    [ Libs.CLI.contents extraStdlibForUserPrograms allowInternalDarkFunctions ]
     fnRenames
     typeRenames

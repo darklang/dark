@@ -29,7 +29,7 @@ let builtins () : LibExecution.StdLib.Contents =
     []
 
 
-let packageFns (): Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
+let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
   task {
     let! packages = PackageManager.allFunctions ()
 

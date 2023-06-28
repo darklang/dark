@@ -1,0 +1,156 @@
+//#!/usr/bin/env darklang-internal
+
+// We do not currently have a database in production that we can safely rely on
+// between deploys. This script is a temporary solution to backup packages and
+// canvases before a deploy, and restore them after a deploy.
+//
+// A companion canvas exists in `dark-classic`, at `dark-ai-backup`, which contains:
+// - a simple data store of `Exports`
+//   roughly: `{ canvases: List<String>; packages: String; timestamp: Date }`
+// - an endpoint to export to (`POST /save-export`)
+// - an endpoint to import from (`GET /latest-export`)
+
+let unwrap (result: Result<String, 'a>) : String =
+  match result with
+  | Ok value -> value
+  | Error error ->
+    // TODO: ensure this actually fails
+    // (it should because of the type signature conflicting with the return type)
+    ()
+
+type CanvasExport = { name: String; content: String }
+
+type DataExport =
+  {
+    /// One big pretty-printed collection of all the nested package modules
+    packages: String
+
+    canvases: List<CanvasExport>
+  }
+
+type ImportResults =
+  {
+    /// List of top-level modules imported
+    packagesImported: List<String>
+
+    canvasesImported: List<String>
+  }
+
+let gatherDataToExport () : Result<DataExport, String> =
+  let packages = DarkInternal.Packages.all ()
+  let canvases = [] // TODO: something like DarkInternal.Canvases.all ()
+
+  let prettyPackages = PACKAGE.Darklang.PrettyPrinter.packages packages
+
+  let prettyCanvases =
+    canvases
+    |> List.map (fun canvas ->
+      CanvasExport
+        { name = canvas.name
+          content = PACKAGE.Darklang.PrettyPrinter.canvas canvas })
+
+  (DataExport
+    { packages = prettyPackages
+      canvases = prettyCanvases })
+  |> Ok
+
+let export (unit: Unit) : Result<Unit, String> =
+  print "gathering data to export"
+  let data = (gatherDataToExport ()) |> unwrap
+
+  print "serializing data to export"
+  let json = (Json.serialize<DataExport> data) |> unwrap
+
+  print "exporting data to `dark-ai-backup`"
+
+  let response =
+    (HttpClient.request
+      "POST"
+      "http://dark-ai-backup.builtwithdark.com/save-export"
+      [ ("Content-Type", "application/json") ]
+      (String.toBytes json))
+    |> unwrap
+
+  // TODO: ensure 200 OK
+
+  print "done export"
+
+  Ok()
+
+let import () : Result<ImportResults, String> =
+  print "fetching latest export from `dark-ai-backup`"
+
+  let response =
+    (HttpClient.request
+      "GET"
+      "http://dark-ai-backup.builtwithdark.com/latest-export"
+      [ ("Accept", "application/json") ]
+      Bytes.empty)
+    |> unwrap
+
+  print "deserializing response from `dark-ai-backup`"
+  let deserialized = (Json.parse<DataExport> response) |> unwrap
+
+  print "parsing and importing packages"
+
+  let packageImportResults =
+    DarkInternal.Packages.parseAndImport deserialized.Packages
+
+    List.fold packageImportResults (Ok []) (fun acc result ->
+      match acc with
+      | Error error -> Error error
+      | Ok acc ->
+        let result = DarkInternal.Packages.parseAndImport package
+
+        match result with
+        | Ok _ -> Ok(List.append acc [ package.name ])
+        | Error error -> Error error)
+
+
+  print "parsing and importing canvases"
+  // List of results -- hopefully List of OKs
+  let canvasImportResults =
+    List.fold canvasImportResults (Ok []) (fun acc result ->
+      match acc with
+      | Error error -> Error error
+      | Ok acc ->
+        let result = DarkInternal.Canvas.parseAndImport canvas
+
+        match result with
+        | Ok _ -> Ok(List.append acc [ canvas.name ])
+        | Error error -> Error error)
+
+  print "handling results"
+
+  match (packageImportResults, canvasImportResults) with
+  | (Ok packages, Ok canvases) ->
+    (ImportResults
+      { packagesImported = packages
+        canvasesImported = canvases })
+    |> Ok
+  | (Error error, _) -> Error error
+  | (_, Error error) -> Error error
+
+
+let main (args: List<String>) : Int =
+  match args with
+  | [ "export" ] ->
+    match export () with
+    | Ok _ -> 0
+    | Error error ->
+      print error
+      1
+
+  | [ "import" ] ->
+    match import () with
+    | Ok _ -> 0
+    | Error error ->
+      print error
+      1
+  | _ ->
+    print
+      "Usage: ./scripts/run-cli-internal ./scripts/deployment/sync-packages-and-canvases.dark [export|import]"
+
+    1
+
+main args

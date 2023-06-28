@@ -33,6 +33,7 @@ let libraries (extraStdlibForUserPrograms : StdLib.Contents) : RT.Libraries =
 
 let execute
   (extraStdlibForUserPrograms : StdLib.Contents)
+  (allowInternalDarkFunctions : bool)
   (parentState : RT.ExecutionState)
   (mod' : Parser.CanvasV2.CanvasModule)
   (symtable : Map<string, RT.Dval>)
@@ -41,9 +42,10 @@ let execute
   task {
     let config : Config =
       { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+
     let program : Program =
       { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
+        internalFnsAllowed = allowInternalDarkFunctions
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
@@ -90,7 +92,10 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated } ]
 
 
-let fns (extraStdlibForUserPrograms : StdLib.Contents) : List<BuiltInFn> =
+let fns
+  (extraStdlibForUserPrograms : StdLib.Contents)
+  (allowInternalDarkFunctions : bool)
+  : List<BuiltInFn> =
   [ { name = fn [ "CLI" ] "parseAndExecuteScript" 0
       typeParams = []
       parameters =
@@ -126,16 +131,23 @@ let fns (extraStdlibForUserPrograms : StdLib.Contents) : List<BuiltInFn> =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
               err msg metadata
 
-            let parsed =
+            let parsedScript =
               try
                 Parser.CanvasV2.parse filename code |> Ok
               with e ->
                 Error(exnError e)
 
             try
-              match parsed with
+              match parsedScript with
               | Ok mod' ->
-                match! execute extraStdlibForUserPrograms state mod' symtable with
+                match!
+                  execute
+                    extraStdlibForUserPrograms
+                    allowInternalDarkFunctions
+                    state
+                    mod'
+                    symtable
+                with
                 | DInt i -> return DResult(Ok(DInt i))
                 | DError(_, e) -> return err e []
                 | result ->
@@ -150,5 +162,8 @@ let fns (extraStdlibForUserPrograms : StdLib.Contents) : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents (extraStdlibForUserPrograms : StdLib.Contents) =
-  (fns extraStdlibForUserPrograms, types)
+let contents
+  (extraStdlibForUserPrograms : StdLib.Contents)
+  (allowInternalDarkFunctions : bool)
+  : StdLib.Contents =
+  (fns extraStdlibForUserPrograms allowInternalDarkFunctions, types)

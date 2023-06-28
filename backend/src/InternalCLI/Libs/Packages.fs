@@ -124,9 +124,7 @@ let fns : List<BuiltInFn> =
                 packages
                 |> List.map (fun (owner, fnname, modules, version) ->
                   DRecord(
-                    FQName.BuiltIn(
-                      typ [ "InternalCLI"; "Packages" ] "Function" 0
-                    ),
+                    FQName.BuiltIn(typ [ "InternalCLI"; "Packages" ] "Function" 0),
                     Map(
                       [ ("owner", DString owner)
                         ("modules",
@@ -148,10 +146,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
         TList(
-          TCustomType(
-            FQName.BuiltIn(typ [ "InternalCLI"; "Packages" ] "Type" 0),
-            []
-          )
+          TCustomType(FQName.BuiltIn(typ [ "InternalCLI"; "Packages" ] "Type" 0), [])
         )
       description = "List all package types"
       fn =

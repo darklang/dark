@@ -21,7 +21,11 @@ let main (args : string[]) : int =
   // run the CLI
   let config : LibCLI.Main.DarkCLIConfig =
     { name = "Darklang Internal CLI"
-      extraStdlibForUserPrograms = InternalCLI.StdLib.contents
+      extraStdlibForUserPrograms =
+        LibExecution.StdLib.combine
+          [ InternalCLI.StdLib.contents; StdLibDarkInternal.StdLib.contents ]
+          []
+          []
       allowInternalDarkFunctions = true }
 
   LibCLI.Main.main config args

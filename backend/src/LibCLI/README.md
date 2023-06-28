@@ -10,13 +10,16 @@
 
 ## Structure
 
-- LibCli
+- LibCLI
   - stdlib fns and types for filesystem and other posix stuff
   - print to stdout (and stderr?)
   - read stdin (start processing once it closes)
   - Directory.\*
   - File.\*
-- cli
-  - binary that runs dark programs, compiled with libcli
+- CLI
+  - binary that runs dark programs, compiled with LibCLI
+- InternalCLI
+  - binary that runs dark programs, compiled with LibCLI
+  - has access to additional "internal" Dark types/fns (e.g. access to add packages)
 - prompt.txt
   - used in addition to the user prompt

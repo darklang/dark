@@ -21,6 +21,7 @@
     <ProjectReference Include="../Parser/Parser.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../StdLibCLI/StdLibCLI.fsproj" />
+    <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
     <ProjectReference Include="../LibCLI/LibCLI.fsproj" />
   </ItemGroup>
 
