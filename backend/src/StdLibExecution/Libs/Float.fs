@@ -341,7 +341,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "value" TFloat ""
           Param.make "limitA" TFloat ""
           Param.make "limitB" TFloat "" ]
-      returnType = TResult(TFloat, TString)
+      returnType = TypeReference.result TFloat TString
       description =
         "If <param value> is within the range given by <param limitA> and <param
          limitB>, returns <param value>.
@@ -358,12 +358,11 @@ let fns : List<BuiltInFn> =
           if System.Double.IsNaN a || System.Double.IsNaN b then
             "clamp requires arguments to be valid numbers"
             |> DString
-            |> Error
-            |> DResult
+            |> Dval.resultError
             |> Ply
           else
             let min, max = if a < b then (a, b) else (b, a)
-            Math.Clamp(v, min, max) |> DFloat |> Ok |> DResult |> Ply
+            Math.Clamp(v, min, max) |> DFloat |> Dval.resultOk |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -387,19 +386,18 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TResult(TFloat, TString)
+      returnType = TypeReference.result TFloat TString
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
         (function
         | _, _, [ DString s ] ->
           (try
-            float (s) |> DFloat |> Ok |> DResult |> Ply
+            float (s) |> DFloat |> Dval.resultOk |> Ply
            with e ->
              "Expected a String representation of an IEEE float"
              |> DString
-             |> Error
-             |> DResult
+             |> Dval.resultError
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

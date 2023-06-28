@@ -57,65 +57,6 @@ let hardToRepresentTests =
            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EUnit 1UL }
          ) ]),
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
-      true
-
-      (fnName [ "Result" ] "fromOption" 0,
-       [ RT.DOption(
-           Some(
-             RT.DFnVal(
-               RT.Lambda
-                 { parameters = []
-                   symtable = Map.empty
-                   body = RT.EFloat(84932785UL, -9.223372037e+18) }
-             )
-           )
-         )
-         RT.DString "s" ]),
-      (RT.DResult(
-        Ok(
-          RT.DFnVal(
-            RT.Lambda
-              { parameters = []
-                symtable = Map.empty
-                body = RT.EFloat(84932785UL, -9.223372037e+18) }
-          )
-        )
-      )),
-      true
-
-      (fnName [ "Result" ] "fromOption" 0,
-       [ RT.DOption(
-           Some(
-             RT.DFnVal(
-               RT.Lambda
-                 { parameters = []
-                   symtable = Map.empty
-                   body =
-                     RT.EMatch(
-                       gid (),
-                       RT.EUnit(gid ()),
-                       [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
-                     ) }
-             )
-           )
-         )
-         RT.DString "s" ]),
-
-      RT.DResult(
-        Ok(
-          RT.DFnVal(
-            RT.Lambda
-              { parameters = []
-                symtable = Map.empty
-                body =
-                  RT.EMatch(
-                    gid (),
-                    RT.EUnit(gid ()),
-                    [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
-                  ) }
-          )
-        )
-      ),
       true ]
 
 let oldFunctionsAreDeprecated =

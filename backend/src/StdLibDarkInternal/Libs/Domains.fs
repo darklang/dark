@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
     { name = fn "toCanvasID" 0
       typeParams = []
       parameters = [ Param.make "domain" TString "" ]
-      returnType = TResult(TUuid, TString)
+      returnType = TypeReference.result TUuid TString
       description = "Returns the canvasID for a domain if it exists"
       fn =
         (function
@@ -47,8 +47,8 @@ let fns : List<BuiltInFn> =
           uply {
             let! name = Canvas.canvasIDForDomain domain
             match name with
-            | Some name -> return DResult(Ok(DUuid name))
-            | None -> return DResult(Error(DString "Canvas not found"))
+            | Some name -> return Dval.resultOk (DUuid name)
+            | None -> return Dval.resultError (DString "Canvas not found")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

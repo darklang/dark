@@ -539,7 +539,7 @@ let testMatchPreview : Test =
         "ok: y"
         (let typeName = TypeName.fqBuiltIn [] "Result" 0
          eEnum typeName "Ok" [ eStr "y" ])
-        [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DString "y"))))
+        [ (pOkVarOkId, "ok pat 2", er (Dval.resultOk (DString "y")))
           (pOkVarVarId, "var pat", er (DString "y"))
           (okVarRhsId, "rhs", er (DString "ok: y"))
           (okVarRhsVarId, "rhs", er (DString "y"))

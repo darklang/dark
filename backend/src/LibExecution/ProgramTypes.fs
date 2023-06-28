@@ -300,10 +300,6 @@ type TypeReference =
   // and the Option module defines the custom `Option` type
   | TOption of TypeReference
 
-  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
-  // and the Result module defines the custom `Result` type
-  | TResult of TypeReference * TypeReference
-
 
 /// Expressions - the main part of the language.
 type Expr =

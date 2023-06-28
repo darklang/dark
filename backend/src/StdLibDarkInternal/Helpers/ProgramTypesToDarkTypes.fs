@@ -143,7 +143,6 @@ module TypeReference =
       | PT.TDB inner -> "TDB", [ toDT inner ]
       | PT.TFn(args, ret) -> "TFn", [ DList(List.map toDT args); toDT ret ]
       | PT.TOption inner -> "TOption", [ toDT inner ]
-      | PT.TResult(ok, err) -> "TResult", [ toDT ok; toDT err ]
 
     DEnum(ptTyp [] "TypeReference" 0, name, fields)
 

@@ -113,7 +113,6 @@ let rec preTraversal
     | TCustomType(name, trs) -> TCustomType(fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
     | TOption tr -> TOption(f tr)
-    | TResult(tr1, tr2) -> TResult(f tr1, f tr2)
     | TFn(trs, tr) -> TFn(List.map f trs, f tr)
 
   let f =

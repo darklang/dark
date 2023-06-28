@@ -66,12 +66,6 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
     | None, None -> true
     | Some _, None
     | None, Some _ -> false
-  | DResult a, DResult b ->
-    match a, b with
-    | Ok a, Ok b
-    | Error a, Error b -> equals a b
-    | Ok _, Error _
-    | Error _, Ok _ -> false
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
   | DEnum(a1, a2, a3), DEnum(b1, b2, b3) ->
@@ -92,7 +86,6 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DPassword _, _
   | DUuid _, _
   | DOption _, _
-  | DResult _, _
   | DBytes _, _
   | DDB _, _
   | DEnum _, _
@@ -333,11 +326,20 @@ let fns : List<BuiltInFn> =
             | Some value -> return value
             | None -> return (DError(SourceNone, "Nothing"))
           }
-        | _, _, [ DResult res ] ->
+        | _,
+          _,
+          [ DEnum(FQName.Package({ owner = "Darklang"
+                                   modules = { Head = "Stdlib"; Tail = [ "Result" ] }
+                                   name = TypeName.TypeName "Result"
+                                   version = 0 }),
+                  caseName,
+                  [ value ]) ] ->
           uply {
-            match res with
-            | Ok value -> return value
-            | Error e -> return (DError(SourceNone, DvalReprDeveloper.toRepr e))
+            match caseName with
+            | "Ok" -> return value
+            | "Error" ->
+              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
+            | _ -> return (DError(SourceNone, "Invalid Result"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

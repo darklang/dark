@@ -79,7 +79,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "package source" TString "The source code of the package"
           Param.make "filename" TString "Used for error message" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TUnit
       description = "Parse a package and save it to the database"
       fn =
         function
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
             let packages = Parser.Package.parse path contents
             do! LibBackend.PackageManager.savePackageFunctions packages.fns
             do! LibBackend.PackageManager.savePackageTypes packages.types
-            return DResult(Ok(DUnit))
+            return DUnit
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

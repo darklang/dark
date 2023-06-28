@@ -136,14 +136,6 @@ let rec private toJsonV0
     w.writeObject (fun () ->
       w.WritePropertyName "Just"
       writeDval oType dv)
-  | TResult(okType, _), DResult(Ok dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Ok"
-      writeDval okType dv)
-  | TResult(_, errType), DResult(Error dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Error"
-      writeDval errType dv)
   | TFn _, DFnVal _
   | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
   // exhaustiveness checking
@@ -162,7 +154,6 @@ let rec private toJsonV0
   | TTuple _, _
   | TBytes, _
   | TOption _, _
-  | TResult _, _
   | TVariable _, _ // CLEANUP: pass the map of variable names in
   | TDB _, _
   | TFn _, _ ->
@@ -242,7 +233,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
 
     | TBytes _, _ -> Exception.raiseInternal "Not supported yet" []
     | TOption _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TResult _, _ -> Exception.raiseInternal "Not supported yet" []
     | TFn _, _ -> Exception.raiseInternal "Not supported yet" []
     | TDB _, _ -> Exception.raiseInternal "Not supported yet" []
     | TVariable _, _ -> Exception.raiseInternal "Not supported yet" []
@@ -289,7 +279,6 @@ module Test =
     | DRecord _ // TYPESCLEANUP
     | DBytes _
     | DOption _
-    | DResult _
 
     // Maybe never support
     | DFnVal _

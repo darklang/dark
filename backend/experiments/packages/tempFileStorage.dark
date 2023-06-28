@@ -1,0 +1,27 @@
+// thin wrapper around `File` experimental stdlib
+// I suppose this basically just extends it
+module TempFileStorage
+
+// TODO: migrate some of this to LocalStorage
+type PathToFile = JustFileName of String
+
+let uploadFile
+  (data: Bytes)
+  : PACKAGE.Darklang.Stdlib.Result.Result<PathToFile, String> =
+  let fileName = String.random 10
+
+  match File.write data fileName with
+  | Ok() -> JustFileName fileName
+  | Error err -> err
+
+let getFileContents
+  (file: PathToFile)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Bytes, String> =
+  match file with
+  | JustFileName fileName -> File.read fileName
+
+let deleteFile
+  (file: PathToFile)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
+  match file with
+  | JustFileName fileName -> File.delete fileName

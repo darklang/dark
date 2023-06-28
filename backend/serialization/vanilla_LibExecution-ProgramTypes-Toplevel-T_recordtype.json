@@ -28,20 +28,14 @@
                 [
                   "TOption",
                   [
-                    "TResult",
+                    "TFn",
                     [
-                      "TInt"
+                      [
+                        "TFloat"
+                      ]
                     ],
                     [
-                      "TFn",
-                      [
-                        [
-                          "TFloat"
-                        ]
-                      ],
-                      [
-                        "TUnit"
-                      ]
+                      "TUnit"
                     ]
                   ]
                 ]
@@ -129,15 +123,6 @@
             ],
             [
               "TBytes"
-            ],
-            [
-              "TResult",
-              [
-                "TInt"
-              ],
-              [
-                "TString"
-              ]
             ],
             [
               "TVariable",

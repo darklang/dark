@@ -97,7 +97,6 @@ let rec unify
 
   // TYPESCLEANUP - fold these cases all into TCustomType
   | TOption _, DOption _ -> Ok()
-  | TResult _, DResult _ -> Ok()
 
   // TYPESCLEANUP: handle typeArgs
   | TCustomType(typeName, typeArgs), value ->
@@ -168,8 +167,7 @@ let rec unify
   | TChar, _
   | TDB _, _
   | TBytes, _
-  | TOption _, _
-  | TResult _, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
+  | TOption _, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
 
 
 

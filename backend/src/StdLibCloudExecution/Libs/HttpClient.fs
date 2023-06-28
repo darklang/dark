@@ -366,10 +366,9 @@ let fns : List<BuiltInFn> =
           Param.make "headers" headersType ""
           Param.make "body" TBytes "" ]
       returnType =
-        TResult(
-          TCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), []),
+        TypeReference.result
+          (TCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), []))
           TString
-        )
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
         the response is wrapped in {{ Ok }} if a response was successfully
@@ -434,33 +433,32 @@ let fns : List<BuiltInFn> =
                     ("headers", responseHeaders)
                     ("body", DBytes response.body) ]
                   |> Dval.record typ
-                  |> Ok
-                  |> DResult
+                  |> Dval.resultOk
 
               | Error(HttpClient.BadUrl details) ->
                 // TODO: include a DvalSource rather than SourceNone
-                return DResult(Error(DString $"Bad URL: {details}"))
+                return Dval.resultError (DString $"Bad URL: {details}")
 
               | Error(HttpClient.Timeout) ->
-                return DResult(Error(DString $"Request timed out"))
+                return Dval.resultError (DString $"Request timed out")
 
               | Error(HttpClient.NetworkError) ->
-                return DResult(Error(DString $"Network error"))
+                return Dval.resultError (DString $"Network error")
 
               | Error(HttpClient.Other details) ->
-                return DResult(Error(DString details))
+                return Dval.resultError (DString details)
             }
 
           | Error reqHeadersErr, _ ->
             uply {
               match reqHeadersErr with
-              | BadInput details -> return DResult(Error(DString details))
+              | BadInput details -> return Dval.resultError (DString details)
               | TypeMismatch details -> return DError(SourceNone, details)
             }
 
           | _, None ->
             let error = "Expected valid HTTP method (e.g. 'get' or 'POST')"
-            uply { return DResult(Error(DString error)) }
+            uply { return Dval.resultError (DString error) }
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

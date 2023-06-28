@@ -363,11 +363,7 @@ module Expect =
     | DBytes _
     | DOption None
     | DFloat _ -> true
-
-    | DResult(Ok v)
-    | DResult(Error v)
     | DOption(Some v) -> check v
-
     | DList vs -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
@@ -502,8 +498,7 @@ module Expect =
     | TVariable(_), _
     | TFn(_, _), _
     | TCustomType(_, _), _
-    | TOption(_), _
-    | TResult(_, _), _ ->
+    | TOption(_), _ ->
       if actual <> expected then errorFn path (string actual) (string expected)
 
 
@@ -678,8 +673,6 @@ module Expect =
         ()
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
         error path
-    | DResult(Ok l), DResult(Ok r) -> de ("Ok" :: path) l r
-    | DResult(Error l), DResult(Error r) -> de ("Error" :: path) l r
     | DOption(Some l), DOption(Some r) -> de ("Just" :: path) l r
     | DDateTime l, DDateTime r ->
       // Two dates can be the same millisecond and not be equal if they don't
@@ -757,7 +750,6 @@ module Expect =
     | DEnum _, _
     | DList _, _
     | DTuple _, _
-    | DResult _, _
     | DOption _, _
     | DString _, _
     | DInt _, _
@@ -836,8 +828,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DResult(Error v)
-    | DResult(Ok v)
     | DOption(Some v) -> visit v
     | DOption None
     | DString _
@@ -1077,11 +1067,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("option2", DOption(Some(Dval.int 15)), TOption TInt)
     ("option3", DOption(Some(DString "a string")), TOption TString)
     ("character", DChar "s", TChar)
-    ("result", DResult(Ok(Dval.int 15)), TResult(TInt, TString))
-    ("result2",
-     DResult(Error(DList [ DString "supported" ])),
-     TResult(TInt, TList TString))
-    ("result3", DResult(Ok(DString "a string")), TResult(TString, TBool))
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
@@ -1101,8 +1086,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
      TTuple(TInt, TInt, [ TUnit ]))
     ("tupleWithError",
-     DTuple(Dval.int 1, DResult(Error(DString "error")), []),
-     TTuple(TInt, TResult(TInt, TString), [])) ]
+     DTuple(Dval.int 1, Dval.resultError (DString "error"), []),
+     TTuple(TInt, TypeReference.result TInt TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =
   (List.map (fun (k, v) -> k, DInt v, TInt) interestingInts

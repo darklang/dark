@@ -227,13 +227,7 @@ and [<NoComparison>] Dval =
 
   | DRecord (* TypeName.T * *)  of DvalMap
   | DDict of DvalMap
-
-  // TODO: merge DOption and DResult into DConstructor once the Option and Result types
-  // are defined in the Option and Result modules of the standard library
   | DOption of Option<Dval>
-  | DResult of Result<Dval, Dval>
-
-  // TODO: consider renaming - this is a _value_ so it's already been "Constructed"
   | DEnum of
     typeName : TypeName.T *
     caseName : string *

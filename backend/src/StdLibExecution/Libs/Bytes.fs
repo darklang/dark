@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
     { name = fn "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TResult(TBytes, TString)
+      returnType = TypeReference.result TBytes TString
       description =
         "Base64 decodes a string. Works with both the URL-safe and standard Base64
          alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
@@ -49,21 +49,20 @@ let fns : List<BuiltInFn> =
 
           if s = "" then
             // This seems like we should allow it
-            [||] |> DBytes |> Ok |> DResult |> Ply
+            [||] |> DBytes |> Dval.resultOk |> Ply
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
-            "Not a valid base64 string" |> DString |> Error |> DResult |> Ply
+            "Not a valid base64 string" |> DString |> Dval.resultError |> Ply
           else
             try
               s
               |> base64FromUrlEncoded
               |> Convert.FromBase64String
               |> DBytes
-              |> Ok
-              |> DResult
+              |> Dval.resultOk
               |> Ply
             with e ->
-              Ply(DResult(Error(DString("Not a valid base64 string"))))
+              Ply(Dval.resultError (DString("Not a valid base64 string")))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

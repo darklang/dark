@@ -121,14 +121,6 @@ let rec serialize
     w.writeObject (fun () ->
       w.WritePropertyName "Just"
       r oType dv)
-  | TResult(okType, _), DResult(Ok dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Ok"
-      r okType dv)
-  | TResult(_, errType), DResult(Error dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Error"
-      r errType dv)
 
   | TCustomType(typeName, _typeArgs), dval ->
     // TODO: try find exactly one matching type
@@ -226,7 +218,6 @@ let rec serialize
   | TVariable _, _
   | TCustomType _, _
   | TOption _, _
-  | TResult _, _
   | TDict _, _ ->
     Exception.raiseInternal
       "Can't currently serialize this type/value combination"
@@ -368,15 +359,6 @@ let parse
       | None -> DOption None
     | TOption oType, v -> convert oType j |> Some |> DOption
 
-    | TResult(okType, errType), JsonValueKind.Object ->
-      let objFields =
-        j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-
-      match (Map.tryFind "Ok" objFields, Map.tryFind "Error" objFields) with
-      | (Some vOk, None) -> DResult(Ok(convert okType vOk))
-      | (None, Some vError) -> DResult(Error(convert errType vError))
-      | _ -> Exception.raiseInternal "Invalid result object" []
-
     | TDict tDict, JsonValueKind.Object ->
       j.EnumerateObject()
       |> Seq.map (fun jp -> (jp.Name, convert tDict jp.Value))
@@ -479,7 +461,6 @@ let parse
     | TVariable _, _
     | TCustomType _, _
     | TOption _, _
-    | TResult _, _
     | TDict _, _ ->
       Exception.raiseInternal
         "Can't currently parse this type/value combination"
@@ -509,7 +490,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "serialize" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "arg" (TVariable "a") "" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
@@ -521,9 +502,9 @@ let fns : List<BuiltInFn> =
           try
             let types = ExecutionState.availableTypes state
             let response = writeJson (fun w -> serialize types w typeArg arg)
-            Ply(DResult(Ok(DString response)))
+            Ply(Dval.resultOk (DString response))
           with ex ->
-            Ply(DResult(Error(DString ex.Message)))
+            Ply(Dval.resultError (DString ex.Message))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -532,7 +513,7 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
-      returnType = TResult(TVariable "a", TString)
+      returnType = TypeReference.result (TVariable "a") TString
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
@@ -540,8 +521,8 @@ let fns : List<BuiltInFn> =
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state
           match parse types typeArg arg with
-          | Ok v -> Ply(DResult(Ok v))
-          | Error e -> Ply(DResult(Error(DString e)))
+          | Ok v -> Ply(Dval.resultOk v)
+          | Error e -> Ply(Dval.resultError (DString e))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

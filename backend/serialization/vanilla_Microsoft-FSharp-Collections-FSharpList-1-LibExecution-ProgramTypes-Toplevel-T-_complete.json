@@ -305,15 +305,6 @@
                                 "TBytes"
                               ],
                               [
-                                "TResult",
-                                [
-                                  "TBool"
-                                ],
-                                [
-                                  "TString"
-                                ]
-                              ],
-                              [
                                 "TVariable",
                                 "test"
                               ],
@@ -1342,15 +1333,6 @@
                               ],
                               [
                                 "TBytes"
-                              ],
-                              [
-                                "TResult",
-                                [
-                                  "TBool"
-                                ],
-                                [
-                                  "TString"
-                                ]
                               ],
                               [
                                 "TVariable",
@@ -2386,15 +2368,6 @@
                                 "TBytes"
                               ],
                               [
-                                "TResult",
-                                [
-                                  "TBool"
-                                ],
-                                [
-                                  "TString"
-                                ]
-                              ],
-                              [
                                 "TVariable",
                                 "test"
                               ],
@@ -3425,15 +3398,6 @@
                                 "TBytes"
                               ],
                               [
-                                "TResult",
-                                [
-                                  "TBool"
-                                ],
-                                [
-                                  "TString"
-                                ]
-                              ],
-                              [
                                 "TVariable",
                                 "test"
                               ],
@@ -4211,20 +4175,14 @@
                   [
                     "TOption",
                     [
-                      "TResult",
+                      "TFn",
                       [
-                        "TInt"
+                        [
+                          "TFloat"
+                        ]
                       ],
                       [
-                        "TFn",
-                        [
-                          [
-                            "TFloat"
-                          ]
-                        ],
-                        [
-                          "TUnit"
-                        ]
+                        "TUnit"
                       ]
                     ]
                   ]
@@ -4314,15 +4272,6 @@
                 "TBytes"
               ],
               [
-                "TResult",
-                [
-                  "TInt"
-                ],
-                [
-                  "TString"
-                ]
-              ],
-              [
                 "TVariable",
                 "v"
               ],
@@ -4353,20 +4302,14 @@
               [
                 "TOption",
                 [
-                  "TResult",
+                  "TFn",
                   [
-                    "TInt"
+                    [
+                      "TFloat"
+                    ]
                   ],
                   [
-                    "TFn",
-                    [
-                      [
-                        "TFloat"
-                      ]
-                    ],
-                    [
-                      "TUnit"
-                    ]
+                    "TUnit"
                   ]
                 ]
               ]
@@ -4454,15 +4397,6 @@
           ],
           [
             "TBytes"
-          ],
-          [
-            "TResult",
-            [
-              "TInt"
-            ],
-            [
-              "TString"
-            ]
           ],
           [
             "TVariable",
@@ -4786,15 +4720,6 @@
                               ],
                               [
                                 "TBytes"
-                              ],
-                              [
-                                "TResult",
-                                [
-                                  "TBool"
-                                ],
-                                [
-                                  "TString"
-                                ]
                               ],
                               [
                                 "TVariable",
@@ -5547,20 +5472,14 @@
                   [
                     "TOption",
                     [
-                      "TResult",
+                      "TFn",
                       [
-                        "TInt"
+                        [
+                          "TFloat"
+                        ]
                       ],
                       [
-                        "TFn",
-                        [
-                          [
-                            "TFloat"
-                          ]
-                        ],
-                        [
-                          "TUnit"
-                        ]
+                        "TUnit"
                       ]
                     ]
                   ]
@@ -5650,15 +5569,6 @@
                 "TBytes"
               ],
               [
-                "TResult",
-                [
-                  "TInt"
-                ],
-                [
-                  "TString"
-                ]
-              ],
-              [
                 "TVariable",
                 "v"
               ],
@@ -5719,20 +5629,14 @@
                         [
                           "TOption",
                           [
-                            "TResult",
+                            "TFn",
                             [
-                              "TInt"
+                              [
+                                "TFloat"
+                              ]
                             ],
                             [
-                              "TFn",
-                              [
-                                [
-                                  "TFloat"
-                                ]
-                              ],
-                              [
-                                "TUnit"
-                              ]
+                              "TUnit"
                             ]
                           ]
                         ]
@@ -5820,15 +5724,6 @@
                     ],
                     [
                       "TBytes"
-                    ],
-                    [
-                      "TResult",
-                      [
-                        "TInt"
-                      ],
-                      [
-                        "TString"
-                      ]
                     ],
                     [
                       "TVariable",

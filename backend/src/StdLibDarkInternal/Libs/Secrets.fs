@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
           Param.make "name" TString ""
           Param.make "value" TString ""
           Param.make "version" TInt "" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TypeReference.result TUnit TString
       description = "Add a secret"
       fn =
         (function
@@ -92,9 +92,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! Secret.insert canvasID name value (int version)
-              return DResult(Ok DUnit)
+              return Dval.resultOk DUnit
             with _ ->
-              return DResult(Error(DString "Error inserting secret"))
+              return Dval.resultError (DString "Error inserting secret")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

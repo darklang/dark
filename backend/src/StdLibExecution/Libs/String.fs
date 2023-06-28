@@ -399,7 +399,7 @@ let fns : List<BuiltInFn> =
     { name = fn "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description =
         "Base64 decodes a string. The returned value is wrapped in {{Result}}.
          Works with both the URL-safe and standard Base64
@@ -410,8 +410,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s ] ->
-          let errPipe e = e |> DString |> Error |> DResult |> Ply
-          let okPipe r = r |> DString |> Ok |> DResult |> Ply
+          let errPipe e = e |> DString |> Dval.resultError |> Ply
+          let okPipe r = r |> DString |> Dval.resultOk |> Ply
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -471,7 +471,7 @@ let fns : List<BuiltInFn> =
     { name = fn "random" 0
       typeParams = []
       parameters = [ Param.make "length" TInt "" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description =
         "Generate a <type String> of length <param length> from random characters"
       fn =
@@ -481,8 +481,7 @@ let fns : List<BuiltInFn> =
             dv
             |> Errors.argumentWasnt "positive" "length"
             |> DString
-            |> Error
-            |> DResult
+            |> Dval.resultError
             |> Ply
           else
             let randomString length =
@@ -498,7 +497,7 @@ let fns : List<BuiltInFn> =
               |> List.map string
               |> String.concat ""
 
-            randomString (int l) |> DString |> Ok |> DResult |> Ply
+            randomString (int l) |> DString |> Dval.resultOk |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -784,7 +783,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TString ""
           Param.make "padWith" TString ""
           Param.make "goalLength" TInt "" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description =
         "If <param string> is shorter than <param goalLength> characters, returns a
          copy of <param string> starting with enough copies of <param padWith> for the
@@ -794,8 +793,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s; DString padWith as dv; DInt l ] ->
-          let errPipe e = e |> DString |> Error |> DResult |> Ply
-          let okPipe r = r |> DString |> Ok |> DResult |> Ply
+          let errPipe e = e |> DString |> Dval.resultError |> Ply
+          let okPipe r = r |> DString |> Dval.resultOk |> Ply
           if String.lengthInEgcs padWith <> 1 then
             Errors.argumentWasnt "1 character long" "padWith" dv |> errPipe
           else
@@ -823,7 +822,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "string" TString ""
           Param.make "padWith" TString ""
           Param.make "goalLength" TInt "" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description =
         "If <param string> is shorter than <param goalLength> characters, returns a
          copy of <param string> ending with enough copies of <param padWith> for the
@@ -834,8 +833,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString s; DString padWith as dv; DInt l ] ->
-          let errPipe e = e |> DString |> Error |> DResult |> Ply
-          let okPipe r = r |> DString |> Ok |> DResult |> Ply
+          let errPipe e = e |> DString |> Dval.resultError |> Ply
+          let okPipe r = r |> DString |> Dval.resultOk |> Ply
           if String.lengthInEgcs padWith <> 1 then
             Errors.argumentWasnt "1 character long" "padWith" dv |> errPipe
           else

@@ -198,11 +198,11 @@ let fns : List<BuiltInFn> =
     { name = fn "okWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
-      returnType = TResult(varA, varB)
+      returnType = TypeReference.result varA varB
       description = "Returns a DError in an OK"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -212,11 +212,11 @@ let fns : List<BuiltInFn> =
     { name = fn "errorWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
-      returnType = TResult(varA, varB)
+      returnType = TypeReference.result varA varB
       description = "Returns a DError in a Result.Error"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -226,7 +226,7 @@ let fns : List<BuiltInFn> =
     { name = fn "deleteUser" 0
       typeParams = []
       parameters = [ Param.make "username" TString "" ]
-      returnType = TResult(TUnit, varB)
+      returnType = TypeReference.result TUnit varB
       description = "Delete a user (test only)"
       fn =
         (function
@@ -374,17 +374,27 @@ let fns : List<BuiltInFn> =
             | Some value -> return value
             | None -> return (DError(SourceNone, "Nothing"))
           }
-        | _, _, [ DResult res ] ->
-          uply {
-            match res with
-            | Ok value -> return value
-            | Error e ->
-              return
-                (DError(
-                  SourceNone,
-                  ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
-                ))
-          }
+        // | _,
+        //   _,
+        //   [ DEnum(FQName.Package({ owner = "Darklang"
+        //                            modules = NonEmptyList.ofList [ "Stdlib"
+        //                                                            "Result" ]
+        //                            name = "Result"
+        //                            version = 0 }),
+        //           caseName,
+        //           [ res ]) ] -> res
+
+        //   uply {
+        //     match caseName with
+        //     | "Ok" value -> return value
+        //     | "Error" e ->
+        //       return
+        //         (DError(
+        //           SourceNone,
+        //           ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
+        //         ))
+        //     | _ -> return (DError(SourceNone, "Invalid Result"))
+        // }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -1,36 +1,28 @@
 // Should match testfiles/execution/languages.tests -> UserDefined
 module Darklang =
   module Test =
-    let stringFn (key:String) : String =
-      key ++ " appended string"
+    let stringFn (key: String) : String = key ++ " appended string"
 
-    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a =
-      JSON.parse<'a> arg
+    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = JSON.parse<'a> arg
 
     let twoStringFn (str1: String) (str2: String) : String =
       str1 ++ " appended " ++ str2
 
-    let returnsInt () : Int =
-      5
+    let returnsInt () : Int = 5
 
-    let returnsString () : String =
-      "string"
+    let returnsString () : String = "string"
 
-    let returnsOptionJust () : Option<Int> =
-      Just 5
+    let returnsOptionJust () : Option<Int> = Just 5
 
-    let returnsOptionNothing () : Option<'a> =
-      Nothing
+    let returnsOptionNothing () : Option<'a> = Nothing
 
-    let returnsResultOk () : Result<Int, String> =
-      Ok 5
+    let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
+      PACKAGE.Darklang.Stdlib.Result.Ok 5
 
-    let returnsResultError () : Result<Char, Bool> =
-      Error false
+    let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<Char, Bool> =
+      PACKAGE.Darklang.Stdlib.Result.Error false
 
     let throwsException () : DateTime =
       Test.raiseException "throwsException message"
 
-    let derrorFn (msg:String) : String =
-      msg ++ Test.typeError_v0 msg
-
+    let derrorFn (msg: String) : String = msg ++ Test.typeError_v0 msg

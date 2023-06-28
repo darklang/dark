@@ -88,10 +88,9 @@ let fns : List<BuiltInFn> =
           Param.make "code" TString ""
           Param.make "symtable" (TDict TString) "" ]
       returnType =
-        TResult(
-          TInt,
-          TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
-        )
+        TypeReference.result
+          TInt
+          (TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), []))
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
@@ -100,13 +99,8 @@ let fns : List<BuiltInFn> =
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
               let fields = [ "msg", DString msg; "metadata", DDict metadata ]
-              DResult(
-                Error(
-                  DRecord(
-                    FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0),
-                    Map fields
-                  )
-                )
+              Dval.resultError (
+                DRecord(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), Map fields)
               )
 
             let exnError (e : exn) : Dval =
@@ -125,7 +119,7 @@ let fns : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
-                | DInt i -> return DResult(Ok(DInt i))
+                | DInt i -> return Dval.resultOk (DInt i)
                 | DError(_, e) -> return err e []
                 | result ->
                   let asString = LibExecution.DvalReprDeveloper.toRepr result

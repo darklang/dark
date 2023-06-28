@@ -295,7 +295,6 @@ type TypeReference =
   | TVariable of string
   | TCustomType of TypeName.T * typeArgs : List<TypeReference> // CLEANUP check all uses
   | TOption of TypeReference // CLEANUP remove
-  | TResult of TypeReference * TypeReference // CLEANUP remove
   | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
@@ -314,7 +313,6 @@ type TypeReference =
       | TDB t -> isConcrete t
       | TCustomType(_, ts) -> List.forall isConcrete ts
       | TOption t -> isConcrete t
-      | TResult(t1, t2) -> isConcrete t1 && isConcrete t2
       | TDict t -> isConcrete t
       // exhaustiveness
       | TUnit
@@ -329,7 +327,16 @@ type TypeReference =
       | TPassword -> true
     isConcrete this
 
-
+module TypeReference =
+  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
+    TCustomType(
+      TypeName.fqPackage
+        "Darklang"
+        (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+        "Result"
+        0,
+      [ t1; t2 ]
+    )
 
 
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
@@ -481,10 +488,9 @@ and [<NoComparison>] Dval =
 
   | DDict of DvalMap
 
-  // TODO: merge DOption and DResult into DEnum once the Option and Result types
+  // TODO: merge DOption into DEnum once the Option and Result types
   // are defined in the Option and Result modules of the standard library
   | DOption of Option<Dval>
-  | DResult of Result<Dval, Dval>
 
   | DRecord of TypeName.T * DvalMap
   | DEnum of TypeName.T * caseName : string * List<Dval>
@@ -658,9 +664,7 @@ module Dval =
     | DFnVal(Lambda l), TFn(parameters, _) ->
       List.length parameters = List.length l.parameters
     | DOption None, TOption _ -> true
-    | DOption(Some v), TOption t
-    | DResult(Ok v), TResult(t, _) -> typeMatches t v
-    | DResult(Error v), TResult(_, t) -> typeMatches t v
+    | DOption(Some v), TOption t -> typeMatches t v
 
     | DRecord(typeName, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
@@ -695,7 +699,6 @@ module Dval =
     | DRecord _, _
     | DFnVal _, _
     | DOption _, _
-    | DResult _, _
     | DEnum _, _ -> false
 
 
@@ -757,12 +760,19 @@ module Dval =
       fields
 
 
+  let resultType =
+    TypeName.fqPackage
+      "Darklang"
+      (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+      "Result"
+      0
 
-  let resultOk (dv : Dval) : Dval = if isFake dv then dv else DResult(Ok dv)
+  let resultOk (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(resultType, "Ok", [ dv ])
+  let resultError (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(resultType, "Error", [ dv ])
 
-  let resultError (dv : Dval) : Dval = if isFake dv then dv else DResult(Error dv)
-
-  // Wraps in a DResult after checking that the value is not a fakeval
+  // Wraps in a Result after checking that the value is not a fakeval
   let result (dv : Result<Dval, Dval>) : Dval =
     match dv with
     | Ok dv -> resultOk dv

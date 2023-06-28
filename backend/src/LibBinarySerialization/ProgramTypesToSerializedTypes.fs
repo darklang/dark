@@ -158,7 +158,6 @@ module TypeReference =
     | PT.TCustomType(t, typeArgs) ->
       ST.TCustomType(TypeName.toST t, List.map toST typeArgs)
     | PT.TBytes -> ST.TBytes
-    | PT.TResult(okType, errType) -> ST.TResult(toST okType, toST errType)
     | PT.TVariable(name) -> ST.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
       ST.TFn(List.map toST paramTypes, toST returnType)
@@ -183,7 +182,6 @@ module TypeReference =
     | ST.TCustomType(t, typeArgs) ->
       PT.TCustomType(TypeName.toPT t, List.map toPT typeArgs)
     | ST.TBytes -> PT.TBytes
-    | ST.TResult(okType, errType) -> PT.TResult(toPT okType, toPT errType)
     | ST.TVariable(name) -> PT.TVariable(name)
     | ST.TFn(paramTypes, returnType) ->
       PT.TFn(List.map toPT paramTypes, toPT returnType)

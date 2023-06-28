@@ -79,7 +79,7 @@ module Darklang =
         | TDict of PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
 
         /// A type defined by a standard library module, a canvas/user, or a package
-        /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
+        /// e.g. `PACKAGE.Darklang.Stdlib.Result.Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
         /// `typeArgs` is the list of type arguments, if any
         | TCustomType of
           PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T *
@@ -92,10 +92,6 @@ module Darklang =
           PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
 
         | TOption of PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
-
-        | TResult of
-          PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference *
-          PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
 
 
       type LetPattern =
@@ -225,7 +221,7 @@ module Darklang =
           String *
           String
 
-        /// A character is an Extended Grapheme Cluster (hence why we use a string). This
+        /// A character is an Extended Grapheme Cluster (hence why we use a String). This
         /// is equivalent to one screen-visible "character" in Unicode.
         | EChar of PACKAGE.Darklang.Stdlib.ID * String
 
@@ -259,7 +255,7 @@ module Darklang =
         // as user-defined enums.
         //
         /// Given an Enum type of:
-        ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
+        ///   `type MyEnum = A | B of int | C of int * (label: String) | D of MyEnum`
         /// , this is the expression
         ///   `C (1, "title")`
         /// represented as
@@ -399,13 +395,13 @@ module Darklang =
           /// Alias/abbreviation of an existing type with an alternative name, to capture some meaning
           | Alias of PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
 
-          /// `type MyRecord = { a : int; b : string }`
+          /// `type MyRecord = { a : int; b : String }`
           | Record of
             firstField: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.RecordField *
             additionalFields:
               List<PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.RecordField>
 
-          /// `type MyEnum = A | B of int | C of int * (label: string)`
+          /// `type MyEnum = A | B of int | C of int * (label: String)`
           | Enum of
             firstCase: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumCase *
             additionalCases:

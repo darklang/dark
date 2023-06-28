@@ -53,7 +53,6 @@ let rec dvalToSql
   | _, DDict _ // CLEANUP allow
   | _, DPassword _ // CLEANUP allow
   | _, DOption _ // CLEANUP allow
-  | _, DResult _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
   | _, DEnum _ // TODO: revisit
   | _, DRecord _

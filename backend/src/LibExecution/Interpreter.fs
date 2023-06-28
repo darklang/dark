@@ -405,9 +405,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           match (caseName, fieldPats, dv) with
           | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
 
-          | "Just", [ p ], DOption(Some v)
-          | "Ok", [ p ], DResult(Ok v)
-          | "Error", [ p ], DResult(Error v) ->
+          | "Just", [ p ], DOption(Some v) ->
             let (passes, newVars, traces) = checkPattern v p
 
             if passes then
@@ -416,9 +414,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               false, newVars, traceIncompleteWithArgs id [ p ] @ traces
 
           // Trace this with incompletes to avoid type errors
-          | "Just", [ p ], _
-          | "Ok", [ p ], _
-          | "Error", [ p ], _ ->
+          | "Just", [ p ], _ ->
             let pID = MatchPattern.toID p
             let (_, newVars, traces) = checkPattern (incomplete pID) p
             false, newVars, traceIncompleteWithArgs id [] @ traces

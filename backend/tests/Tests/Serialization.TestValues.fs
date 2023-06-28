@@ -62,7 +62,6 @@ module RuntimeTypes =
         [ RT.TBool ]
       )
       RT.TBytes
-      RT.TResult(RT.TBool, RT.TString)
       RT.TVariable "test"
       RT.TFn([ RT.TBool ], RT.TBool) ]
 
@@ -265,7 +264,6 @@ module ProgramTypes =
         [ PT.TBool ]
       )
       PT.TBytes
-      PT.TResult(PT.TBool, PT.TString)
       PT.TVariable "test"
       PT.TFn([ PT.TBool ], PT.TBool) ]
 
@@ -586,7 +584,7 @@ module ProgramTypes =
     PT.TTuple(
       PT.TList(
         PT.TDict(
-          PT.TDB(PT.TOption(PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit))))
+          PT.TDB(PT.TOption(PT.TFn([ PT.TFloat ], PT.TUnit)))
         )
       ),
       PT.TInt,
@@ -609,7 +607,6 @@ module ProgramTypes =
           []
         )
         PT.TBytes
-        PT.TResult(PT.TInt, PT.TString)
         PT.TVariable "v"
         PT.TFn([ PT.TInt ], PT.TInt) ]
     )

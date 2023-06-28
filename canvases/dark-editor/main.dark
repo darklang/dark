@@ -1,4 +1,4 @@
-let rUnwrap (result: Result<'a, 'b>) : 'a =
+let rUnwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'b>) : 'a =
   match result with
   | Ok s -> s
   | Error e ->
@@ -47,7 +47,8 @@ let _handler _req =
 [<HttpHandler("GET", "/static/:path")>]
 let _handler _req =
   let body =
-    (Experiments.readFromStaticDir $"{path}") |> Result.withDefault Bytes.empty
+    (Experiments.readFromStaticDir $"{path}")
+    |> PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
 
   let headers = [ ("Content-type", "text/javascript") ]
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200

@@ -35,7 +35,7 @@ let fns : List<BuiltInFn> =
     { name = fn "create" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TypeReference.result TUnit TString
       description =
         "Creates a new directory at the specified <param path>. If the directory already exists, no action is taken. Returns a Result type indicating success or failure."
       fn =
@@ -45,9 +45,9 @@ let fns : List<BuiltInFn> =
             try
               System.IO.Directory.CreateDirectory(path)
               |> ignore<System.IO.DirectoryInfo>
-              return DResult(Ok DUnit)
+              return Dval.resultOk DUnit
             with e ->
-              return DResult(Error(DString e.Message))
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -58,7 +58,7 @@ let fns : List<BuiltInFn> =
     { name = fn "delete" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TypeReference.result TUnit TString
       description =
         "Deletes the directory at the specified <param path>. If <param recursive> is set to true, it will delete the directory and its contents. If set to false (default), it will only delete an empty directory. Returns a Result type indicating success or failure."
       fn =
@@ -67,9 +67,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               System.IO.Directory.Delete(path, false)
-              return DResult(Ok DUnit)
+              return Dval.resultOk DUnit
             with e ->
-              return DResult(Error(DString e.Message))
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

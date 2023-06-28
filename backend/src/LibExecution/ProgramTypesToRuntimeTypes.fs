@@ -55,7 +55,6 @@ module TypeReference =
     | PT.TCustomType(typeName, typArgs) ->
       RT.TCustomType(TypeName.toRT typeName, List.map toRT typArgs)
     | PT.TBytes -> RT.TBytes
-    | PT.TResult(okType, errType) -> RT.TResult(toRT okType, toRT errType)
     | PT.TVariable(name) -> RT.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
       RT.TFn(List.map toRT paramTypes, toRT returnType)

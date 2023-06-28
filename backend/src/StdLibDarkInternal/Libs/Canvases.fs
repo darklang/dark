@@ -155,7 +155,10 @@ let fns : List<BuiltInFn> =
     { name = fn "fullProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TResult(TCustomType(FQName.BuiltIn(typ "Program" 0), []), TString)
+      returnType =
+        TypeReference.result
+          (TCustomType(FQName.BuiltIn(typ "Program" 0), []))
+          TString
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
@@ -208,8 +211,7 @@ let fns : List<BuiltInFn> =
                 FQName.BuiltIn(typ "Program" 0),
                 Map [ "types", types; "fns", fns ]
               )
-              |> Ok
-              |> DResult
+              |> Dval.resultOk
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

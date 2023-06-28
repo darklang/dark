@@ -27,20 +27,14 @@
                 [
                   "TOption",
                   [
-                    "TResult",
+                    "TFn",
                     [
-                      "TInt"
+                      [
+                        "TFloat"
+                      ]
                     ],
                     [
-                      "TFn",
-                      [
-                        [
-                          "TFloat"
-                        ]
-                      ],
-                      [
-                        "TUnit"
-                      ]
+                      "TUnit"
                     ]
                   ]
                 ]
@@ -130,15 +124,6 @@
               "TBytes"
             ],
             [
-              "TResult",
-              [
-                "TInt"
-              ],
-              [
-                "TString"
-              ]
-            ],
-            [
               "TVariable",
               "v"
             ],
@@ -169,20 +154,14 @@
             [
               "TOption",
               [
-                "TResult",
+                "TFn",
                 [
-                  "TInt"
+                  [
+                    "TFloat"
+                  ]
                 ],
                 [
-                  "TFn",
-                  [
-                    [
-                      "TFloat"
-                    ]
-                  ],
-                  [
-                    "TUnit"
-                  ]
+                  "TUnit"
                 ]
               ]
             ]
@@ -270,15 +249,6 @@
         ],
         [
           "TBytes"
-        ],
-        [
-          "TResult",
-          [
-            "TInt"
-          ],
-          [
-            "TString"
-          ]
         ],
         [
           "TVariable",
@@ -602,15 +572,6 @@
                             ],
                             [
                               "TBytes"
-                            ],
-                            [
-                              "TResult",
-                              [
-                                "TBool"
-                              ],
-                              [
-                                "TString"
-                              ]
                             ],
                             [
                               "TVariable",

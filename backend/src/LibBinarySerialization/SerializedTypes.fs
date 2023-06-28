@@ -148,7 +148,6 @@ type TypeReference =
   | TOption of TypeReference
   | TCustomType of typeName : TypeName.T * typeArgs : List<TypeReference>
   | TBytes
-  | TResult of TypeReference * TypeReference
   | TVariable of string
   | TFn of List<TypeReference> * TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
