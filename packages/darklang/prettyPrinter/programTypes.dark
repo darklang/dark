@@ -13,6 +13,7 @@ module Darklang =
             "why are you trying to print a stdlib type name _definition_?"
 
           let fullForReference
+            (nameToString: 'name -> String)
             (t: PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn)
             : String =
             let modulesPart =
@@ -22,13 +23,14 @@ module Darklang =
 
             let versionPart =
               if t.version == 0 then "" else $"_v{Int.toString t.version}"
-            // TODO: name should be a string
-            $"{modulesPart}{t.name}{versionPart}"
+
+            $"{modulesPart}{nameToString t.name}{versionPart}"
 
 
         module UserProgram =
           let atDefinition
             // TODO: take in just typ and version - modules should have already been dealt with
+            (nameToString: 'name -> String)
             (u: PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram)
             : String =
             match u.modules with
@@ -36,32 +38,32 @@ module Darklang =
               let versionPart =
                 if u.version == 0 then "" else $"_v{Int.toString u.version}"
 
-              //TODO: name should be a string
-              $"{u.name}{versionPart}"
+              $"{nameToString u.name}{versionPart}"
             | _ -> "(UserTypeName.atDefinition unexpected nonempty u.modules)"
 
           let fullForReference
+            (nameToString: 'name -> String)
             (u: PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram)
             : String =
             let versionPart =
               if u.version == 0 then "" else $"_v{Int.toString u.version}"
 
-            //TODO: name should be a string
-            $"{u.name}{versionPart}"
+            $"{nameToString u.name}{versionPart}"
 
 
         module Package =
           let atDefinition
             // TODO: take in just owner, typ, and version - modules should have already been dealt with
+            (nameToString: 'name -> String)
             (p: PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package)
             : String =
             let versionPart =
               if p.version == 0 then "" else $"_v{Int.toString p.version}"
 
-            //TODO: name should be a string
-            $"{p.name}{versionPart}"
+            $"{nameToString p.name}{versionPart}"
 
           let fullForReference
+            (nameToString: 'name -> String)
             (p: PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package)
             : String =
             let modulesPart = String.join p.modules "."
@@ -69,8 +71,7 @@ module Darklang =
             let versionPart =
               if p.version == 0 then "" else $"_v{Int.toString p.version}"
 
-            //TODO name should be a string
-            $"PACKAGE.{p.owner}.{modulesPart}.{p.name}{versionPart}"
+            $"PACKAGE.{p.owner}.{modulesPart}.{nameToString p.name}{versionPart}"
 
 
         let atDefinition
