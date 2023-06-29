@@ -146,7 +146,7 @@ let makeTest versionName filename =
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
       let! state =
-        executionStateFor canvasID false true Map.empty Map.empty Map.empty
+        executionStateFor canvasID false true Map.empty Map.empty Map.empty Map.empty
 
       // Parse the Dark code
       let test =
@@ -158,7 +158,7 @@ let makeTest versionName filename =
         |> Parser.TestModule.parseSingleTestFromFile "httpclient.tests.fs"
       let actualCode =
         test.actual
-        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty
+        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty Set.empty
         |> PT2RT.Expr.toRT
 
       // Run the handler (call the HTTP client)
@@ -181,7 +181,7 @@ let makeTest versionName filename =
 
       let expectedCode =
         test.expected
-        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty
+        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty Set.empty
         |> PT2RT.Expr.toRT
       let! expected = Exe.executeExpr state Map.empty expectedCode
       let types = RT.Types.empty

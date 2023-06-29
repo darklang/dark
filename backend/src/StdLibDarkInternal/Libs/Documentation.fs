@@ -17,9 +17,6 @@ let fn (name : string) (version : int) : FQFnName.StdlibFnName =
   FQFnName.stdlibFnName' modul name version
 
 
-
-
-
 let types : List<BuiltInType> =
   [ { name = typ "Function" 0
       typeParams = []
@@ -42,6 +39,7 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated
       description = "A function parameter" } ]
 
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
@@ -82,4 +80,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

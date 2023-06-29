@@ -80,6 +80,36 @@ module FQFnName =
       else
         PT.FQFnName.Stdlib(n)
 
+module FQConstantName =
+  let resolveNames
+    (userConstants : Set<PT.FQConstantName.UserConstantName>)
+    (name : PT.FQConstantName.T)
+    : PT.FQConstantName.T =
+
+    match name with
+    | PT.FQConstantName.Package _ -> name
+    | PT.FQConstantName.User n ->
+      match n.modules with
+      | "PACKAGE" :: owner :: package :: rest ->
+        PT.FQConstantName.Package
+          { owner = owner
+            modules = NonEmptyList.ofList (package :: rest)
+            constant = n.constant
+            version = n.version }
+      | _ ->
+        if Set.contains n userConstants then
+          PT.FQConstantName.User n
+        else
+          PT.FQConstantName.Stdlib
+            { constant = n.constant; version = n.version; modules = n.modules }
+    | PT.FQConstantName.Stdlib n ->
+      let userName : PT.FQConstantName.UserConstantName =
+        { modules = n.modules; constant = n.constant; version = n.version }
+      if Set.contains userName userConstants then
+        PT.FQConstantName.User(userName)
+      else
+        PT.FQConstantName.Stdlib(n)
+
 
 module TypeReference =
 
@@ -839,6 +869,7 @@ module Expr =
   let resolveNames
     (userFunctions : Set<PT.FQFnName.UserFnName>)
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userConstants : Set<PT.FQConstantName.UserConstantName>)
     (e : PT.Expr)
     : PT.Expr =
     let resolvePipeExprNames =
@@ -865,6 +896,7 @@ module Expr =
       identity
       (FQTypeName.resolveNames userTypes)
       (FQFnName.resolveNames userFunctions)
+      (FQConstantName.resolveNames userConstants)
       identity
       identity
       e
@@ -1002,6 +1034,7 @@ module UserFunction =
   let resolveNames
     (userFunctions : Set<PT.FQFnName.UserFnName>)
     (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userConstants : Set<PT.FQConstantName.UserConstantName>)
     (f : PT.UserFunction.T)
     : PT.UserFunction.T =
     { tlid = f.tlid
@@ -1014,8 +1047,22 @@ module UserFunction =
       returnType = TypeReference.resolveNames userTypes f.returnType
       description = f.description
       deprecated = f.deprecated
-      body = Expr.resolveNames userFunctions userTypes f.body }
+      body = Expr.resolveNames userFunctions userTypes userConstants f.body }
 
+module UserConstant =
+
+  let resolveNames
+    (userFunctions : Set<PT.FQFnName.UserFnName>)
+    (userTypes : Set<PT.FQTypeName.UserTypeName>)
+    (userConstants : Set<PT.FQConstantName.UserConstantName>)
+    (c : PT.UserConstant.T)
+    : PT.UserConstant.T =
+    { tlid = c.tlid
+      name = c.name
+      typ = TypeReference.resolveNames userTypes c.typ
+      description = c.description
+      deprecated = c.deprecated
+      body = Expr.resolveNames userFunctions userTypes userConstants c.body }
 
 module PackageFn =
   let fromSynBinding
@@ -1049,7 +1096,7 @@ module PackageFn =
       returnType = TypeReference.resolveNames Set.empty f.returnType
       description = f.description
       deprecated = f.deprecated
-      body = Expr.resolveNames Set.empty Set.empty f.body }
+      body = Expr.resolveNames Set.empty Set.empty Set.empty f.body }
 
 
 module CustomType =
@@ -1234,15 +1281,16 @@ let initialParse (filename : string) (code : string) : PT.Expr =
 
 // Shortcut function for tests that ignore user functions and types
 let parseIgnoringUser (filename : string) (code : string) : PT.Expr =
-  code |> initialParse filename |> Expr.resolveNames Set.empty Set.empty
+  code |> initialParse filename |> Expr.resolveNames Set.empty Set.empty Set.empty
 
 let parseRTExpr
   (fns : Set<PT.FQFnName.UserFnName>)
   (types : Set<PT.FQTypeName.UserTypeName>)
+  (constants : Set<PT.FQConstantName.UserConstantName>)
   (filename : string)
   (code : string)
   : LibExecution.RuntimeTypes.Expr =
   code
   |> initialParse filename
-  |> Expr.resolveNames fns types
+  |> Expr.resolveNames fns types constants
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT

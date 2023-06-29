@@ -198,6 +198,72 @@ module FQFnName =
   let isInternalFn (name : StdlibFnName) : bool =
     List.tryHead name.modules = Some "DarkInternal"
 
+/// A Fully-Qualified Constant Name
+/// Includes package, module, and version information where relevant.
+module FQConstantName =
+  /// Standard Library Constant Name
+  type StdlibConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  /// A UserConstan is a constant written by a Developer in their canvas
+  type UserConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  /// The name of a constant in the package manager
+  type PackageConstantName =
+    { owner : string
+      modules : NonEmptyList<string>
+      constant : string
+      version : int }
+
+  type T =
+    | User of UserConstantName // stub
+    | Stdlib of StdlibConstantName
+    | Package of PackageConstantName // stub
+
+  let modNamePat = @"^[A-Z][a-z0-9A-Z_]*$"
+
+  /// Same as PTParser.FQFnName.fnNamePat
+  let constantNamePat = @"^([a-z][a-z0-9A-Z_]*|[-+><&|!=^%/*]{1,2})$"
+
+  let stdlibConstantName'
+    (modules : List<string>)
+    (constant : string)
+    (version : int)
+    : StdlibConstantName =
+    List.iter (assertRe "modName name must match" modNamePat) modules
+    assertRe "stdlib constant name must match" constantNamePat constant
+    assert_ "version can't be negative" [ "version", version ] (version >= 0)
+    { modules = modules; constant = constant; version = version }
+
+  let stdlibConstantName
+    (modul : string)
+    (constant : string)
+    (version : int)
+    : StdlibConstantName =
+    stdlibConstantName' [ modul ] constant version
+
+  module StdlibConstantName =
+    let toString (s : StdlibConstantName) : string =
+      let name = s.modules @ [ s.constant ] |> String.concat "."
+      if s.version = 0 then name else $"{name}_v{s.version}"
+
+  module UserConstantName =
+    let toString (u : UserConstantName) : string =
+      let name = u.modules @ [ u.constant ] |> String.concat "."
+      if u.version = 0 then name else $"{name}_v{u.version}"
+
+  module PackageConstantName =
+    let toString (pkg : PackageConstantName) : string =
+      let mn = pkg.modules |> Prelude.NonEmptyList.toList |> String.concat "."
+      let name = $"{pkg.owner}.{mn}.{pkg.constant}"
+      if pkg.version = 0 then name else $"{name}_v{pkg.version}"
+
+  let toString (fqConstantName : T) : string =
+    match fqConstantName with
+    | User name -> UserConstantName.toString name
+    | Stdlib std -> StdlibConstantName.toString std
+    | Package pkg -> PackageConstantName.toString pkg
 
 module DarkDateTime =
   open NodaTime
@@ -285,7 +351,7 @@ type Expr =
   | EChar of id * string
   | EFloat of id * double
   | EUnit of id
-
+  | EConstant of id * FQConstantName.T
   // <summary>
   // Composed of binding pattern, the expression to create bindings for,
   // and the expression that follows, where the bound values are available
@@ -498,6 +564,7 @@ module Expr =
     | EChar(id, _)
     | EBool(id, _)
     | EUnit id
+    | EConstant(id, _)
     | EFloat(id, _)
     | EVariable(id, _)
     | EFieldAccess(id, _, _)
@@ -745,6 +812,13 @@ module DB =
 module UserType =
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
 
+module UserConstant =
+  type T =
+    { tlid : tlid
+      name : FQConstantName.UserConstantName
+      typ : TypeReference
+      body : Expr }
+
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
 
@@ -762,6 +836,7 @@ module Toplevel =
     | TLDB of DB.T
     | TLFunction of UserFunction.T
     | TLType of UserType.T
+    | TLConstant of UserConstant.T
 
   let toTLID (tl : T) : tlid =
     match tl with
@@ -769,6 +844,7 @@ module Toplevel =
     | TLDB db -> db.tlid
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
+    | TLConstant c -> c.tlid
 
 module Secret =
   type T = { name : string; value : string }
@@ -792,6 +868,12 @@ module PackageFn =
 module PackageType =
   type T = { name : FQTypeName.PackageTypeName; definition : CustomType.T }
 
+module PackageConstant =
+  type T =
+    { tlid : tlid
+      name : FQConstantName.PackageConstantName
+      typ : TypeReference
+      body : Expr }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.
@@ -884,6 +966,15 @@ type BuiltInType =
     description : string
     deprecated : Deprecation<FQTypeName.StdlibTypeName> }
 
+type BuiltInConstant =
+  { name : FQConstantName.StdlibConstantName
+    returnType : TypeReference
+    description : string
+    previewable : Previewable
+    deprecated : Deprecation<FQConstantName.StdlibConstantName>
+    sqlSpec : SqlSpec
+    constant : DvalTask }
+
 // A built-in standard library function
 type BuiltInFn =
   { name : FQFnName.StdlibFnName
@@ -955,6 +1046,7 @@ and ProgramContext =
     dbs : Map<string, DB.T>
     userFns : Map<FQFnName.UserFnName, UserFunction.T>
     userTypes : Map<FQTypeName.UserTypeName, UserType.T>
+    userConstants : Map<FQConstantName.UserConstantName, UserConstant.T>
     secrets : List<Secret.T> }
 
 /// Set of callbacks used to trace the interpreter, and other context needed to run code
@@ -977,9 +1069,11 @@ and TestContext =
 and Libraries =
   { stdlibTypes : Map<FQTypeName.StdlibTypeName, BuiltInType>
     stdlibFns : Map<FQFnName.StdlibFnName, BuiltInFn>
+    stdlibConstants : Map<FQConstantName.StdlibConstantName, BuiltInConstant>
 
     packageFns : Map<FQFnName.PackageFnName, PackageFn.T>
-    packageTypes : Map<FQTypeName.PackageTypeName, PackageType.T> }
+    packageTypes : Map<FQTypeName.PackageTypeName, PackageType.T>
+    packageConstants : Map<FQConstantName.PackageConstantName, PackageConstant.T> }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 

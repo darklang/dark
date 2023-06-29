@@ -11,6 +11,7 @@ module Interpreter = LibExecution.Interpreter
 
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Tuple3" "create" 0
@@ -214,4 +215,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

@@ -225,6 +225,14 @@ let varB = TVariable "b"
 let varC = TVariable "c"
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> =
+  [ { name = constant "List" "empty" 0
+      returnType = TList varA
+      description = "Returns an empty list"
+      constant = Ply(DList [])
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "List" "singleton" 0
@@ -275,21 +283,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
-
-
-    { name = fn "List" "empty" 0
-      typeParams = []
-      parameters = []
-      returnType = TList varA
-      description = "Returns an empty list"
-      fn =
-        (function
-        | _, _, [] -> Ply(DList [])
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated }
-
 
     { name = fn "List" "push" 0
       typeParams = []
@@ -1508,4 +1501,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

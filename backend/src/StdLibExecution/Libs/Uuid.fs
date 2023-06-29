@@ -9,6 +9,7 @@ open Prelude
 open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Uuid" "generate" 0
@@ -66,4 +67,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

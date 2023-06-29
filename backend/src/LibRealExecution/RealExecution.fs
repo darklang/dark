@@ -50,14 +50,31 @@ let packageTypes : Lazy<Task<Map<RT.FQTypeName.PackageTypeName, RT.PackageType.T
         |> Map.ofList
     })
 
+let packageConstants
+  : Lazy<Task<Map<RT.FQConstantName.PackageConstantName, RT.PackageConstant.T>>> =
+  lazy
+    (task {
+      let! packages = PackageManager.allConstants ()
+
+      return
+        packages
+        |> List.map (fun (c : PT.PackageConstant.T) ->
+          (c.name |> PT2RT.FQConstantName.PackageConstantName.toRT,
+           PT2RT.PackageConstant.toRT c))
+        |> Map.ofList
+    })
+
 let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     (task {
       let! packageFns = Lazy.force packageFns
       let! packageTypes = Lazy.force packageTypes
+      let! packageConstants = Lazy.force packageConstants
 
-      let fns = contents |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
-      let types = contents |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
+      let (fns, types, constants) = contents
+      let fns = fns |> Map.fromListBy (fun fn -> fn.name)
+      let types = types |> Map.fromListBy (fun typ -> typ.name)
+      let constants = constants |> Map.fromListBy (fun c -> c.name)
 
       // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
@@ -65,8 +82,10 @@ let libraries : Lazy<Task<RT.Libraries>> =
       return
         { stdlibTypes = types
           stdlibFns = fns
+          stdlibConstants = constants
           packageFns = packageFns
-          packageTypes = packageTypes }
+          packageTypes = packageTypes
+          packageConstants = packageConstants }
     })
 
 let createState

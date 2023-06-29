@@ -135,6 +135,49 @@ module FQFnName =
     | Stdlib of StdlibFnName
     | Package of PackageFnName
 
+/// A Fully-Qualified Constant Name
+/// Includes package, module, and version information where relevant.
+module FQConstantName =
+  /// Standard Library Constant Name
+  [<MessagePack.MessagePackObject>]
+  type StdlibConstantName =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      constant : string
+      [<MessagePack.Key 2>]
+      version : int }
+
+  /// A UserConstan is a constant written by a Developer in their canvas
+  [<MessagePack.MessagePackObject>]
+  type UserConstantName =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      constant : string
+      [<MessagePack.Key 2>]
+      version : int }
+
+  /// The name of a constant in the package manager
+  [<MessagePack.MessagePackObject>]
+  type PackageConstantName =
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
+      modules : NonEmptyList<string>
+      [<MessagePack.Key 2>]
+      constant : string
+      [<MessagePack.Key 3>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    | User of UserConstantName // stub
+    | Stdlib of StdlibConstantName
+    | Package of PackageConstantName // stub
+
+
+
 [<MessagePack.MessagePackObject>]
 type TypeReference =
   | TInt
@@ -214,6 +257,7 @@ type Expr =
   | EChar of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
+  | EConstant of id * FQConstantName.T
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | ELambda of id * List<id * string> * Expr
@@ -342,6 +386,21 @@ module UserType =
       [<MessagePack.Key 2>]
       definition : CustomType.T }
 
+module UserConstant =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      name : FQConstantName.UserConstantName
+      [<MessagePack.Key 2>]
+      typ : TypeReference
+      [<MessagePack.Key 3>]
+      description : string
+      [<MessagePack.Key 4>]
+      deprecated : Deprecation<FQConstantName.T>
+      [<MessagePack.Key 5>]
+      body : Expr }
 
 module UserFunction =
   [<MessagePack.MessagePackObject>]
@@ -420,6 +479,23 @@ module PackageType =
       [<MessagePack.Key 5>]
       deprecated : Deprecation<FQTypeName.T> }
 
+module PackageConstant =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      id : System.Guid
+      [<MessagePack.Key 2>]
+      name : FQConstantName.PackageConstantName
+      [<MessagePack.Key 3>]
+      body : Expr
+      [<MessagePack.Key 4>]
+      typ : TypeReference
+      [<MessagePack.Key 5>]
+      description : string
+      [<MessagePack.Key 6>]
+      deprecated : Deprecation<FQConstantName.T> }
 
 module Toplevel =
   [<MessagePack.MessagePackObject>]
@@ -428,6 +504,7 @@ module Toplevel =
     | TLDB of DB.T
     | TLFunction of UserFunction.T
     | TLType of UserType.T
+    | TLConstant of UserConstant.T
 
 /// An Operation on a Canvas
 ///

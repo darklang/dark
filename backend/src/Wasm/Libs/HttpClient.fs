@@ -302,4 +302,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let constants : List<BuiltInConstant> = []
+
+let contents = (fns, types, constants)

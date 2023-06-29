@@ -97,11 +97,13 @@ type T =
     dbs : Map<tlid, PT.DB.T>
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
+    userConstants : Map<tlid, PT.UserConstant.T>
     // TODO: no separate fields for deleted, combine them
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
     deletedUserFunctions : Map<tlid, PT.UserFunction.T>
     deletedUserTypes : Map<tlid, PT.UserType.T>
+    deletedUserConstants : Map<tlid, PT.UserType.T>
     secrets : Map<string, PT.Secret.T> }
 
 let addToplevel (tl : PT.Toplevel.T) (c : T) : T =
@@ -113,6 +115,8 @@ let addToplevel (tl : PT.Toplevel.T) (c : T) : T =
   | PT.Toplevel.TLType t -> { c with userTypes = Map.add tlid t c.userTypes }
   | PT.Toplevel.TLFunction f ->
     { c with userFunctions = Map.add tlid f c.userFunctions }
+  | PT.Toplevel.TLConstant ct ->
+    { c with userConstants = Map.add tlid ct c.userConstants }
 
 let addToplevels (tls : PT.Toplevel.T list) (canvas : T) : T =
   List.fold canvas (fun c tl -> addToplevel tl c) tls
@@ -289,10 +293,12 @@ let empty (id : CanvasID) =
     dbs = Map.empty
     userFunctions = Map.empty
     userTypes = Map.empty
+    userConstants = Map.empty
     deletedHandlers = Map.empty
     deletedDBs = Map.empty
     deletedUserFunctions = Map.empty
     deletedUserTypes = Map.empty
+    deletedUserConstants = Map.empty
     secrets = Map.empty }
 
 // DOES NOT LOAD OPS FROM DB
@@ -479,6 +485,7 @@ let saveTLIDs
               )
           | PT.Toplevel.TLDB _
           | PT.Toplevel.TLType _
+          | PT.Toplevel.TLConstant _
           | PT.Toplevel.TLFunction _ -> None
 
         let (module_, name, modifier) =
@@ -602,6 +609,13 @@ let toProgram (c : T) : RT.ProgramContext =
       (PT2RT.FQTypeName.UserTypeName.toRT t.name, PT2RT.UserType.toRT t))
     |> Map.ofList
 
+  let userConstants =
+    c.userConstants
+    |> Map.values
+    |> List.map (fun c ->
+      (PT2RT.FQConstantName.UserConstantName.toRT c.name, PT2RT.UserConstant.toRT c))
+    |> Map.ofList
+
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
   { canvasID = c.id
@@ -609,5 +623,6 @@ let toProgram (c : T) : RT.ProgramContext =
     allowLocalHttpAccess = false
     userFns = userFns
     userTypes = userTypes
+    userConstants = userConstants
     dbs = dbs
     secrets = secrets }

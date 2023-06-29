@@ -190,6 +190,66 @@ module FQFnName =
     | PT.FQFnName.Package p -> Package(PackageFnName.toCT p)
 
 
+module FQConstantName =
+  type StdlibConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  module StdlibConstantName =
+    let fromCT (name : StdlibConstantName) : PT.FQConstantName.StdlibConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+    let toCT (name : PT.FQConstantName.StdlibConstantName) : StdlibConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+
+  type UserConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  module UserConstantName =
+    let fromCT (name : UserConstantName) : PT.FQConstantName.UserConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+    let toCT (name : PT.FQConstantName.UserConstantName) : UserConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+
+  type PackageConstantName =
+    { owner : string
+      modules : NonEmptyList<string>
+      constant : string
+      version : int }
+
+  module PackageConstantName =
+    let fromCT (name : PackageConstantName) : PT.FQConstantName.PackageConstantName =
+      { owner = name.owner
+        modules = name.modules
+        constant = name.constant
+        version = name.version }
+
+    let toCT (name : PT.FQConstantName.PackageConstantName) : PackageConstantName =
+      { owner = name.owner
+        modules = name.modules
+        constant = name.constant
+        version = name.version }
+
+  type T =
+    | User of UserConstantName
+    | Stdlib of StdlibConstantName
+    | Package of PackageConstantName
+
+  let fromCT (fqConstant : T) : PT.FQConstantName.T =
+    match fqConstant with
+    | User u -> PT.FQConstantName.User(UserConstantName.fromCT u)
+    | Stdlib constant -> PT.FQConstantName.Stdlib(StdlibConstantName.fromCT constant)
+    | Package p -> PT.FQConstantName.Package(PackageConstantName.fromCT p)
+
+  let toCT (fqConstant : PT.FQConstantName.T) : T =
+    match fqConstant with
+    | PT.FQConstantName.User u -> User(UserConstantName.toCT u)
+    | PT.FQConstantName.Stdlib constant -> Stdlib(StdlibConstantName.toCT constant)
+    | PT.FQConstantName.Package p -> Package(PackageConstantName.toCT p)
+
+
 type InfixFnName =
   | ArithmeticPlus
   | ArithmeticMinus
@@ -346,6 +406,7 @@ type Expr =
   | EChar of id * string
   | EFloat of id * Sign * string * string
   | EUnit of id
+  | EConstant of id * FQConstantName.T
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
@@ -390,6 +451,7 @@ module Expr =
     | EChar(id, c) -> PT.EChar(id, c)
     | EFloat(id, sign, whole, frac) -> PT.EFloat(id, sign, whole, frac)
     | EUnit(id) -> PT.EUnit(id)
+    | EConstant(id, name) -> PT.EConstant(id, FQConstantName.fromCT name)
     | ELet(id, pat, expr, body) ->
       PT.ELet(id, LetPattern.fromCT pat, fromCT expr, fromCT body)
     | EIf(id, cond, ifExpr, thenExpr) ->
@@ -469,6 +531,7 @@ module Expr =
     | PT.EChar(id, c) -> EChar(id, c)
     | PT.EFloat(id, sign, whole, frac) -> EFloat(id, sign, whole, frac)
     | PT.EUnit(id) -> EUnit(id)
+    | PT.EConstant(id, name) -> EConstant(id, FQConstantName.toCT name)
     | PT.ELet(id, pat, expr, body) ->
       ELet(id, LetPattern.toCT pat, toCT expr, toCT body)
     | PT.EIf(id, cond, ifExpr, thenExpr) ->
@@ -726,6 +789,31 @@ module UserType =
       definition = CustomType.toCT ut.definition }
 
 
+module UserConstant =
+  type T =
+    { tlid : tlid
+      name : FQConstantName.UserConstantName
+      typ : TypeReference
+      description : string
+      deprecated : Deprecation<FQConstantName.T>
+      body : Expr }
+
+  let fromCT (uc : T) : PT.UserConstant.T =
+    { tlid = uc.tlid
+      name = FQConstantName.UserConstantName.fromCT uc.name
+      typ = TypeReference.fromCT uc.typ
+      description = uc.description
+      deprecated = Deprecation.fromCT FQConstantName.fromCT uc.deprecated
+      body = Expr.fromCT uc.body }
+
+  let toCT (uc : PT.UserConstant.T) : T =
+    { tlid = uc.tlid
+      name = FQConstantName.UserConstantName.toCT uc.name
+      typ = TypeReference.toCT uc.typ
+      description = uc.description
+      deprecated = Deprecation.toCT FQConstantName.toCT uc.deprecated
+      body = Expr.toCT uc.body }
+
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
@@ -774,6 +862,7 @@ type Toplevel =
   | TLDB of DB.T
   | TLFunction of UserFunction.T
   | TLType of UserType.T
+  | TLConstant of UserConstant.T
 
 module Toplevel =
   let fromCT (tl : Toplevel) : PT.Toplevel.T =
@@ -782,6 +871,7 @@ module Toplevel =
     | TLDB db -> PT.Toplevel.TLDB(DB.fromCT db)
     | TLFunction uf -> PT.Toplevel.TLFunction(UserFunction.fromCT uf)
     | TLType ut -> PT.Toplevel.TLType(UserType.fromCT ut)
+    | TLConstant c -> PT.Toplevel.TLConstant(UserConstant.fromCT c)
 
   let toCT (tl : PT.Toplevel.T) : Toplevel =
     match tl with
@@ -789,7 +879,7 @@ module Toplevel =
     | PT.Toplevel.TLDB db -> TLDB(DB.toCT db)
     | PT.Toplevel.TLFunction uf -> TLFunction(UserFunction.toCT uf)
     | PT.Toplevel.TLType ut -> TLType(UserType.toCT ut)
-
+    | PT.Toplevel.TLConstant c -> TLConstant(UserConstant.toCT c)
 
 type Secret = { name : string; value : string; version : int }
 
@@ -800,6 +890,34 @@ module Secret =
   let toCT (s : PT.Secret.T) : Secret =
     { name = s.name; value = s.value; version = s.version }
 
+
+module PackageConstant =
+  type T =
+    { name : FQConstantName.PackageConstantName
+      id : System.Guid
+      body : Expr
+      typ : TypeReference
+      description : string
+      deprecated : Deprecation<FQConstantName.T>
+      tlid : tlid }
+
+  let fromCT (c : T) : PT.PackageConstant.T =
+    { name = FQConstantName.PackageConstantName.fromCT c.name
+      id = c.id
+      body = Expr.fromCT c.body
+      typ = TypeReference.fromCT c.typ
+      description = c.description
+      deprecated = Deprecation.fromCT FQConstantName.fromCT c.deprecated
+      tlid = c.tlid }
+
+  let toCT (c : PT.PackageConstant.T) : T =
+    { name = FQConstantName.PackageConstantName.toCT c.name
+      id = c.id
+      body = Expr.toCT c.body
+      typ = TypeReference.toCT c.typ
+      description = c.description
+      deprecated = Deprecation.toCT FQConstantName.toCT c.deprecated
+      tlid = c.tlid }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }

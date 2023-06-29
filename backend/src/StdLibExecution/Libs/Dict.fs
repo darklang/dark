@@ -15,6 +15,14 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> =
+  [ { name = constant "Dict" "empty" 0
+      returnType = TDict varA
+      description = "Returns an empty dictionary"
+      constant = Ply(DDict Map.empty)
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Dict" "singleton" 0
@@ -389,21 +397,6 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-
-    { name = fn "Dict" "empty" 0
-      typeParams = []
-      parameters = []
-      returnType = TDict varA
-      description = "Returns an empty dictionary"
-      fn =
-        (function
-        | _, _, [] -> Ply(DDict Map.empty)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "Dict" "isEmpty" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
@@ -466,4 +459,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

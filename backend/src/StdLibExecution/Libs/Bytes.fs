@@ -9,23 +9,17 @@ open LibExecution.StdLib.Shortcuts
 open System.Text.RegularExpressions
 
 let types : List<BuiltInType> = []
-
-let fns : List<BuiltInFn> =
-  [ { name = fn "Bytes" "empty" 0
-      typeParams = []
-      parameters = []
+let constants : List<BuiltInConstant> =
+  [ { name = constant "Bytes" "empty" 0
       returnType = TBytes
       description = "Returns an empty list of bytes"
-      fn =
-        (function
-        | _, _, [] -> DBytes [||] |> Ply
-        | _ -> incorrectArgs ())
+      constant = DBytes [||] |> Ply
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated } ]
 
-
-    { name = fn "Bytes" "base64Decode" 0
+let fns : List<BuiltInFn> =
+  [ { name = fn "Bytes" "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -131,4 +125,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

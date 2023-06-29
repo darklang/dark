@@ -53,21 +53,27 @@ module Eval =
           allowLocalHttpAccess = true
           userFns = request.userFns |> List.map (fun fn -> fn.name, fn) |> Map
           userTypes = request.userTypes |> List.map (fun t -> t.name, t) |> Map
+          userConstants =
+            request.userConstants |> List.map (fun c -> c.name, c) |> Map
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
           secrets = request.secrets }
 
-      let (stdlibFns, stdlibTypes) =
+      let (stdlibFns, stdlibTypes, stdLibConstants) =
         LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
 
       let packageFns = request.packageFns |> Map.fromListBy (fun fn -> fn.name)
       let packageTypes = request.packageTypes |> Map.fromListBy (fun typ -> typ.name)
-
+      let packageConstants =
+        request.packageConstants |> Map.fromListBy (fun constant -> constant.name)
 
       let libraries : RT.Libraries =
         { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
           stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
+          stdlibConstants =
+            stdLibConstants |> Map.fromListBy (fun constant -> constant.name)
           packageFns = packageFns
-          packageTypes = packageTypes }
+          packageTypes = packageTypes
+          packageConstants = packageConstants }
 
       let results, traceDvalFn = Exe.traceDvals ()
       let functionResults = request.traceData.functionResults

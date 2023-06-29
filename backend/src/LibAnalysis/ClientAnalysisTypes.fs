@@ -46,8 +46,10 @@ type HandlerAnalysisParam =
     dbs : List<CPT.DB.T>
     userFns : list<CPT.UserFunction.T>
     userTypes : list<CPT.UserType.T>
+    userConstants : list<CPT.UserConstant.T>
     packageFns : list<CPT.PackageFn.T>
     packageTypes : list<CPT.PackageType.T>
+    packageConstants : list<CPT.PackageConstant.T>
     secrets : list<CPT.Secret> }
 
 type FunctionAnalysisParam =
@@ -59,8 +61,10 @@ type FunctionAnalysisParam =
     dbs : List<CPT.DB.T>
     userFns : list<CPT.UserFunction.T>
     userTypes : list<CPT.UserType.T>
+    userConstants : list<CPT.UserConstant.T>
     packageFns : list<CPT.PackageFn.T>
     packageTypes : list<CPT.PackageType.T>
+    packageConstants : list<CPT.PackageConstant.T>
     secrets : list<CPT.Secret> }
 
 type PerformAnalysisParams =
@@ -96,10 +100,12 @@ module AnalysisRequest =
   let fromCT (ar : PerformAnalysisParams) : AT.AnalysisRequest =
     let mapUserFn = CPT.UserFunction.fromCT >> PT2RT.UserFunction.toRT
     let mapUserType = CPT.UserType.fromCT >> PT2RT.UserType.toRT
+    let mapUserConstant = CPT.UserConstant.fromCT >> PT2RT.UserConstant.toRT
     let mapUserDB = CPT.DB.fromCT >> PT2RT.DB.toRT
     let mapExpr = CPT.Expr.fromCT >> PT2RT.Expr.toRT
     let mapPackageFn = CPT.PackageFn.fromCT >> PT2RT.PackageFn.toRT
     let mapPackageType = CPT.PackageType.fromCT >> PT2RT.PackageType.toRT
+    let mapPackageConstant = CPT.PackageConstant.fromCT >> PT2RT.PackageConstant.toRT
     let mapUserSecret = CPT.Secret.fromCT >> PT2RT.Secret.toRT
 
     match ar with
@@ -111,10 +117,12 @@ module AnalysisRequest =
         traceID = AT.TraceID.fromUUID ah.traceID
         userFns = List.map mapUserFn ah.userFns
         userTypes = List.map mapUserType ah.userTypes
+        userConstants = List.map mapUserConstant ah.userConstants
         dbs = List.map mapUserDB ah.dbs
         expr = mapExpr ah.handler.ast
         packageFns = List.map mapPackageFn ah.packageFns
         packageTypes = List.map mapPackageType ah.packageTypes
+        packageConstants = List.map mapPackageConstant ah.packageConstants
         secrets = List.map mapUserSecret ah.secrets }
 
     | AnalyzeFunction af ->
@@ -125,10 +133,12 @@ module AnalysisRequest =
         traceID = AT.TraceID.fromUUID af.traceID
         userFns = List.map mapUserFn af.userFns
         userTypes = List.map mapUserType af.userTypes
+        userConstants = List.map mapUserConstant af.userConstants
         dbs = List.map mapUserDB af.dbs
         expr = mapExpr af.func.body
         packageFns = List.map mapPackageFn af.packageFns
         packageTypes = List.map mapPackageType af.packageTypes
+        packageConstants = List.map mapPackageConstant af.packageConstants
         secrets = List.map mapUserSecret af.secrets }
 
 

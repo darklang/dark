@@ -19,6 +19,7 @@ let rec preTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   | EBool _
   | EUnit _
   | EChar _
+  | EConstant _
   | EFloat _ -> expr
   | ELet(id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
   | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, r cond, r ifexpr, r elseexpr)
@@ -51,6 +52,7 @@ let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
     | EChar _
     | EBool _
     | EUnit _
+    | EConstant _
     | EFloat _ -> expr
     | ELet(id, pat, rhs, next) -> ELet(id, pat, r rhs, r next)
     | EApply(id, fn, typeArgs, exprs) -> EApply(id, fn, typeArgs, List.map r exprs)

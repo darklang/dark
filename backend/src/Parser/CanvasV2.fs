@@ -13,11 +13,13 @@ type CanvasModule =
   { types : List<PT.UserType.T>
     fns : List<PT.UserFunction.T>
     dbs : List<PT.DB.T>
+    constants : List<PT.UserConstant.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<PT.Handler.Spec * PT.Expr>
     exprs : List<PT.Expr> }
 
-let emptyModule = { types = []; fns = []; dbs = []; handlers = []; exprs = [] }
+let emptyModule =
+  { types = []; fns = []; dbs = []; constants = []; handlers = []; exprs = [] }
 
 
 /// Extracts the parts we care about from an F# attribute
@@ -188,13 +190,29 @@ let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
 let postProcessModule (m : CanvasModule) : CanvasModule =
   let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
   let userTypeNames = m.types |> List.map (fun t -> t.name) |> Set
-  let fixExpr = ProgramTypes.Expr.resolveNames userFnNames userTypeNames
+  let userConstantNames = m.constants |> List.map (fun c -> c.name) |> Set
+
+  let fixExpr =
+    ProgramTypes.Expr.resolveNames userFnNames userTypeNames userConstantNames
   { handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixExpr expr))
     exprs = m.exprs |> List.map fixExpr
     fns =
       m.fns
-      |> List.map (ProgramTypes.UserFunction.resolveNames userFnNames userTypeNames)
+      |> List.map (
+        ProgramTypes.UserFunction.resolveNames
+          userFnNames
+          userTypeNames
+          userConstantNames
+      )
     types = m.types |> List.map (ProgramTypes.UserType.resolveNames userTypeNames)
+    constants =
+      m.constants
+      |> List.map (
+        ProgramTypes.UserConstant.resolveNames
+          userFnNames
+          userTypeNames
+          userConstantNames
+      )
     dbs =
       m.dbs
       |> List.map (fun db ->

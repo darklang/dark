@@ -41,7 +41,7 @@ let info () =
 // Execution
 // ---------------------
 
-let (stdlibFns, stdlibTypes) =
+let (stdlibFns, stdlibTypes, stdlibConstants) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCli.StdLib.contents
@@ -53,8 +53,11 @@ let (stdlibFns, stdlibTypes) =
 let libraries : RT.Libraries =
   { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
     stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
+    stdlibConstants =
+      stdlibConstants |> Map.fromListBy (fun constant -> constant.name)
     packageFns = Map.empty
-    packageTypes = Map.empty }
+    packageTypes = Map.empty
+    packageConstants = Map.empty }
 
 
 let execute
@@ -75,6 +78,11 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Map.fromListBy (fun typ -> typ.name)
+        userConstants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Map.fromListBy (fun c -> c.name)
+
         dbs = Map.empty
         secrets = [] }
 

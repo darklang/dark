@@ -48,5 +48,5 @@ let contents =
       Libs.Workers.contents ]
     fnRenames
     typeRenames
-  |> (fun (fns, types) ->
-    (fns |> List.map (fun f -> { f with fn = internalFn f.fn }), types))
+  |> (fun (fns, types, constants) ->
+    (fns |> List.map (fun f -> { f with fn = internalFn f.fn }), types, constants))

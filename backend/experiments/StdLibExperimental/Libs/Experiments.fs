@@ -77,6 +77,7 @@ module RestrictedFileIO =
 
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "Experiments" "parseAndExecuteExpr" 0
@@ -104,6 +105,7 @@ let fns : List<BuiltInFn> =
             // CLEANUP: the parser won't work with user fns or types
             let expr =
               Parser.ProgramTypes.parseRTExpr
+                Set.empty
                 Set.empty
                 Set.empty
                 "experiment.fs"
@@ -237,4 +239,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents : LibExecution.StdLib.Contents = (fns, types)
+let contents : LibExecution.StdLib.Contents = (fns, types, constants)

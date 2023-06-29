@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module StdLibCli = StdLibCli.StdLib
 
-let (stdlibFns, stdlibTypes) =
+let (stdlibFns, stdlibTypes, stdlibConstants) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
     []
@@ -23,8 +23,10 @@ let (stdlibFns, stdlibTypes) =
 let libraries : RT.Libraries =
   { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
     stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
+    stdlibConstants = stdlibConstants |> Map.fromListBy (fun c -> c.name)
     packageFns = Map.empty
-    packageTypes = Map.empty }
+    packageTypes = Map.empty
+    packageConstants = Map.empty }
 
 let defaultTLID = 7UL
 
@@ -46,6 +48,10 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Map.fromListBy (fun typ -> typ.name)
+        userConstants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Map.fromListBy (fun c -> c.name)
         dbs = Map.empty
         secrets = [] }
 
@@ -95,6 +101,7 @@ let sourceOf
       (fun pipeExpr ->
         if PT.PipeExpr.toID pipeExpr = id then result <- string pipeExpr
         pipeExpr)
+      identity
       identity
       identity
       identity

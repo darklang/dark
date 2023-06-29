@@ -235,5 +235,6 @@ let fns : List<BuiltInFn> =
 
 
     ]
+let constants : List<BuiltInConstant> = []
 
-let contents : LibExecution.StdLib.Contents = (fns, types)
+let contents : LibExecution.StdLib.Contents = (fns, types, constants)

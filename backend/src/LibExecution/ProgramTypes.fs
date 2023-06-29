@@ -165,6 +165,43 @@ module FQFnName =
   let userFqName (modules : List<string>) (function_ : string) (version : int) : T =
     User(userFnName modules function_ version)
 
+/// A Fully-Qualified Constant Name
+/// Includes package, module, and version information where relevant.
+module FQConstantName =
+  /// Standard Library Constant Name
+  type StdlibConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  /// A UserConstant is a constant written by a Developer in their canvas
+  type UserConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  /// The name of a constant in the package manager
+  type PackageConstantName =
+    { owner : string
+      modules : NonEmptyList<string>
+      constant : string
+      version : int }
+
+  type T =
+    | User of UserConstantName
+    | Stdlib of StdlibConstantName
+    | Package of PackageConstantName
+
+  /// Used in a transformation from fn with the empty args list to constant
+  let fromFnName (name : FQFnName.T) : T =
+    match name with
+    | FQFnName.T.User f ->
+      User { modules = f.modules; constant = f.function_; version = f.version }
+    | FQFnName.T.Stdlib f ->
+      Stdlib { modules = f.modules; constant = f.function_; version = f.version }
+    | FQFnName.T.Package f ->
+      Package
+        { owner = f.owner
+          modules = f.modules
+          constant = f.function_
+          version = f.version }
+
 
 type LetPattern =
   | LPVariable of id * name : string
@@ -264,6 +301,7 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
   | EUnit of id
+  | EConstant of id * FQConstantName.T
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
@@ -331,6 +369,7 @@ module Expr =
     | EChar(id, _)
     | EFloat(id, _, _, _)
     | EUnit id
+    | EConstant(id, _)
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
@@ -415,6 +454,15 @@ module UserType =
   // CLEANUP: needs type arguments
   type T = { tlid : tlid; name : FQTypeName.UserTypeName; definition : CustomType.T }
 
+module UserConstant =
+  type T =
+    { tlid : tlid
+      name : FQConstantName.UserConstantName
+      typ : TypeReference
+      description : string
+      deprecated : Deprecation<FQConstantName.T>
+      body : Expr }
+
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
@@ -434,6 +482,7 @@ module Toplevel =
     | TLDB of DB.T
     | TLFunction of UserFunction.T
     | TLType of UserType.T
+    | TLConstant of UserConstant.T
 
   let toTLID (tl : T) : tlid =
     match tl with
@@ -441,6 +490,7 @@ module Toplevel =
     | TLDB db -> db.tlid
     | TLFunction f -> f.tlid
     | TLType t -> t.tlid
+    | TLConstant c -> c.tlid
 
 
 /// An Operation on a Canvas
@@ -470,6 +520,16 @@ type TLIDOplists = List<tlid * Oplist>
 
 module Secret =
   type T = { name : string; value : string; version : int }
+
+module PackageConstant =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : FQConstantName.PackageConstantName
+      body : Expr
+      typ : TypeReference
+      description : string
+      deprecated : Deprecation<FQConstantName.T> }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }

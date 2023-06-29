@@ -252,6 +252,7 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
   (fns : Map<FQFnName.StdlibFnName, BuiltInFn>)
+  (constants : Map<FQConstantName.StdlibConstantName, BuiltInConstant>)
   (types : Types)
   (symtable : DvalMap)
   (paramName : string)
@@ -260,10 +261,24 @@ let rec lambdaToSql
   (expr : Expr)
   : string * List<string * SqlValue> * TypeReference =
   let lts (expectedType : TypeReference) (expr : Expr) =
-    lambdaToSql fns types symtable paramName dbTypeRef expectedType expr
+    lambdaToSql fns constants types symtable paramName dbTypeRef expectedType expr
 
   let (sql, vars, actualType) =
     match expr with
+    | EConstant(_, (FQConstantName.Stdlib name as fqName)) ->
+      let nameStr = FQConstantName.toString fqName
+      match Map.get name constants with
+      | Some c ->
+        typecheck nameStr c.returnType expectedType
+        let random = randomString 8
+        let newname = $"{nameStr}_{random}"
+        // let! constant = c.constant
+        let (sqlValue, actualType) = dvalToSql expectedType c.constant.Result
+        $"(@{newname})", [ newname, sqlValue ], actualType
+      | None ->
+        error
+          $"Only builtin constants can be used in queries right now; {nameStr} is not a builtin constant"
+
     | EApply(_, FnName(FQFnName.Stdlib name as fqName), [], args) ->
       let nameStr = FQFnName.toString fqName
       match Map.get name fns with
@@ -603,6 +618,7 @@ let partiallyEvaluate
         | EFloat _
         | EBool _
         | EUnit _
+        | EConstant _
         | EChar _
         | ELet _
         | EIf _
@@ -634,6 +650,7 @@ let partiallyEvaluate
             | EChar _
             | EBool _
             | EUnit _
+            | EConstant _
             | EFloat _ -> return expr
             | ELet(id, pat, rhs, next) ->
               let! rhs = r rhs
@@ -754,6 +771,7 @@ let compileLambda
     let sql, vars, _expectedType =
       lambdaToSql
         state.libraries.stdlibFns
+        state.libraries.stdlibConstants
         types
         symtable
         paramName

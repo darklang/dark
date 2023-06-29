@@ -56,6 +56,7 @@ let types : List<BuiltInType> =
       deprecated = NotDeprecated
       description = "A program on a canvas" } ]
 
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "list" 0
@@ -240,4 +241,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

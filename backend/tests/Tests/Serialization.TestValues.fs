@@ -667,6 +667,15 @@ module ProgramTypes =
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
 
+  let userConstant : PT.UserConstant.T =
+    { tlid = 0UL
+      name = { modules = []; constant = "Pi"; version = 0 }
+      typ = PT.TFloat
+      description = "constant description"
+      deprecated = PT.DeprecatedBecause "some reason"
+      body = expr }
+
+  let userConstants : List<PT.UserConstant.T> = [ userConstant ]
 
   // TODO: serialize stdlib types?
   // (also make sure we roundtrip test them)
@@ -702,6 +711,19 @@ module ProgramTypes =
       id = uuid
       description = "test"
       deprecated = PT.NotDeprecated
+      tlid = tlid }
+
+  let packageConstant : PT.PackageConstant.T =
+    { name =
+        { owner = "dark"
+          modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
+          constant = "Pi"
+          version = 0 }
+      body = expr
+      typ = dtype
+      description = "test"
+      deprecated = PT.NotDeprecated
+      id = uuid
       tlid = tlid }
 
   let toplevels : List<PT.Toplevel.T> =

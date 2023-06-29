@@ -15,10 +15,12 @@ type T =
   { types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
+    constants : List<PT.UserConstant.T>
     modules : List<string * T>
     tests : List<Test> }
 
-let empty = { types = []; dbs = []; fns = []; modules = []; tests = [] }
+let empty =
+  { types = []; dbs = []; fns = []; constants = []; modules = []; tests = [] }
 
 
 module UserDB =
@@ -81,6 +83,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
         { types = parent.types
           fns = parent.fns
           dbs = parent.dbs
+          constants = parent.constants
           modules = []
           tests = [] }
         (fun m decl ->
@@ -117,11 +120,13 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
         decls
     let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
     let typeNames = m.types |> List.map (fun t -> t.name) |> Set
-    let fixup = ProgramTypes.Expr.resolveNames fnNames typeNames
+    let constantNames = m.constants |> List.map (fun c -> c.name) |> Set
+    let fixup = ProgramTypes.Expr.resolveNames fnNames typeNames constantNames
     { fns = m.fns |> List.map (fun fn -> { fn with body = fixup fn.body })
       types = m.types
       dbs = m.dbs
       modules = m.modules
+      constants = m.constants
       tests =
         m.tests
         |> List.map (fun test ->

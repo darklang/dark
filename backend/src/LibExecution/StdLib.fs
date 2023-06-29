@@ -9,7 +9,7 @@ type TypeRenames = List<FQTypeName.StdlibTypeName * FQTypeName.StdlibTypeName>
 type FnRenames = List<FQFnName.StdlibFnName * FQFnName.StdlibFnName>
 
 /// All Libs should expose `contents`, which is a list of all the types and functions it provides
-type Contents = List<BuiltInFn> * List<BuiltInType>
+type Contents = List<BuiltInFn> * List<BuiltInType> * List<BuiltInConstant>
 
 
 // To cut down on the amount of code, when we rename a function and make no other
@@ -71,16 +71,18 @@ let combine
   (fnRenames : FnRenames)
   (typeRenames : TypeRenames)
   : Contents =
-  let (fns, types) = List.unzip libs
+  let (fns, types, constants) = List.unzip3 libs
   fns |> List.concat |> List.iter checkFn
   (fns |> List.concat |> renameFunctions fnRenames,
-   types |> List.concat |> renameTypes typeRenames)
+   types |> List.concat |> renameTypes typeRenames,
+   constants |> List.concat)
 
 
 
 module Shortcuts =
   let fn' = FQFnName.stdlibFnName'
   let fn = FQFnName.stdlibFnName
+  let constant = FQConstantName.stdlibConstantName
   let fnNoMod = FQFnName.stdlibFnName' []
   let typ = FQTypeName.stdlibTypeName
   let typ' = FQTypeName.stdlibTypeName'

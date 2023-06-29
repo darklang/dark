@@ -120,7 +120,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     task {
 
-      let (fns, types) =
+      let (fns, types, constants) =
         LibExecution.StdLib.combine
           [ LibTest.contents
             LibRealExecution.RealExecution.contents
@@ -140,11 +140,20 @@ let libraries : Lazy<Task<RT.Libraries>> =
           (t.name |> PT2RT.FQTypeName.PackageTypeName.toRT, PT2RT.PackageType.toRT t))
         |> Map.ofList
 
+      let! packageConstants = LibBackend.PackageManager.allConstants ()
+      let packageConstants =
+        packageConstants
+        |> List.map (fun (c : PT.PackageConstant.T) ->
+          (c.name |> PT2RT.FQConstantName.PackageConstantName.toRT,
+           PT2RT.PackageConstant.toRT c))
+        |> Map.ofList
       return
         { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
           stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
+          stdlibConstants = constants |> Map.fromListBy (fun c -> c.name)
           packageFns = packageFns
-          packageTypes = packageTypes }
+          packageTypes = packageTypes
+          packageConstants = packageConstants }
     }
 
 let executionStateFor
@@ -154,6 +163,7 @@ let executionStateFor
   (dbs : Map<string, RT.DB.T>)
   (userTypes : Map<RT.FQTypeName.UserTypeName, RT.UserType.T>)
   (userFunctions : Map<RT.FQFnName.UserFnName, RT.UserFunction.T>)
+  (userConstants : Map<RT.FQConstantName.UserConstantName, RT.UserConstant.T>)
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
@@ -164,6 +174,7 @@ let executionStateFor
         userFns = userFunctions
         dbs = dbs
         userTypes = userTypes
+        userConstants = userConstants
         secrets = [] }
 
     let testContext : RT.TestContext =
@@ -549,6 +560,7 @@ module Expect =
       List.iter2 checkSegment s s'
     | EChar(_, v), EChar(_, v')
     | EVariable(_, v), EVariable(_, v') -> check path v v'
+    | EConstant(_, name), EConstant(_, name') -> check path name name'
     | EInt(_, v), EInt(_, v') -> check path v v'
     | EFloat(_, v), EFloat(_, v') -> check path v v'
     | EBool(_, v), EBool(_, v') -> check path v v'
@@ -638,6 +650,7 @@ module Expect =
     | EString _, _
     | EChar _, _
     | EVariable _, _
+    | EConstant _, _
     | EBool _, _
     | EFloat _, _
     | ELet _, _

@@ -164,8 +164,12 @@ module PersistedSerializations =
                 [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
               userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
+              userConstants =
+                List.map CPT.UserConstant.toCT V.ProgramTypes.userConstants
               packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
               packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
+              packageConstants =
+                [ V.ProgramTypes.packageConstant |> CPT.PackageConstant.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 1 } ] })
         v<CAT.PerformAnalysisParams>
           "function"
@@ -181,8 +185,12 @@ module PersistedSerializations =
                 [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
               userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
               userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
+              userConstants =
+                List.map CPT.UserConstant.toCT V.ProgramTypes.userConstants
               packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
               packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
+              packageConstants =
+                [ V.ProgramTypes.packageConstant |> CPT.PackageConstant.toCT ]
               secrets = [ { name = "z"; value = "y"; version = 2 } ] })
 
 

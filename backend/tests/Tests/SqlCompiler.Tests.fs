@@ -15,7 +15,12 @@ module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
 let p (code : string) : Expr =
-  Parser.ProgramTypes.parseRTExpr Set.empty Set.empty "sqlcompiler.tests.fs" code
+  Parser.ProgramTypes.parseRTExpr
+    Set.empty
+    Set.empty
+    Set.empty
+    "sqlcompiler.tests.fs"
+    code
 
 let compile
   (symtable : DvalMap)
@@ -35,7 +40,8 @@ let compile
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQTypeName.User typeName, [])
 
-    let! state = executionStateFor canvasID false false Map.empty userTypes Map.empty
+    let! state =
+      executionStateFor canvasID false false Map.empty userTypes Map.empty Map.empty
 
     try
       let! sql, args = C.compileLambda state symtable paramName typeReference expr
@@ -126,6 +132,7 @@ let inlineWorksAtRoot =
       Parser.ProgramTypes.parseRTExpr
         Set.empty
         Set.empty
+        Set.empty
         "test.fs"
         "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
@@ -152,7 +159,14 @@ let partialEvaluation =
       task {
         let canvasID = System.Guid.NewGuid()
         let! state =
-          executionStateFor canvasID false false Map.empty Map.empty Map.empty
+          executionStateFor
+            canvasID
+            false
+            false
+            Map.empty
+            Map.empty
+            Map.empty
+            Map.empty
         let expr = p expr
         let result = C.partiallyEvaluate state "x" (Map vars) expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result

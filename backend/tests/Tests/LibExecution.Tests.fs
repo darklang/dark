@@ -77,6 +77,7 @@ let t
   (dbs : List<PT.DB.T>)
   (types : List<PT.UserType.T>)
   (functions : List<PT.UserFunction.T>)
+  (constants : List<PT.UserConstant.T>)
   (workers : List<string>)
   : Test =
   testTask $"line{lineNumber}" {
@@ -105,8 +106,22 @@ let t
            (fn.name, fn))
          |> Map.ofList)
 
+      let rtConstants =
+        (constants
+         |> List.map (fun c ->
+           let c = PT2RT.UserConstant.toRT c
+           (c.name, c))
+         |> Map.ofList)
+
       let! (state : RT.ExecutionState) =
-        executionStateFor canvasID internalFnsAllowed false rtDBs rtTypes rtFunctions
+        executionStateFor
+          canvasID
+          internalFnsAllowed
+          false
+          rtDBs
+          rtTypes
+          rtFunctions
+          rtConstants
       let state =
         { state with
             libraries =
@@ -182,6 +197,7 @@ let fileTests () : Test =
             modul.dbs
             modul.types
             modul.fns
+            modul.constants
             [])
 
       if List.isEmpty tests && List.isEmpty nestedModules then

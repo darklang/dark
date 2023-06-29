@@ -90,6 +90,65 @@ module FQFnName =
     | ST.FQFnName.User fn -> PT.FQFnName.User(UserFnName.toPT fn)
     | ST.FQFnName.Package p -> PT.FQFnName.Package(PackageFnName.toPT p)
 
+
+module FQConstantName =
+  module PackageConstantName =
+    let toST
+      (name : PT.FQConstantName.PackageConstantName)
+      : ST.FQConstantName.PackageConstantName =
+      { owner = name.owner
+        modules = { head = name.modules.Head; tail = name.modules.Tail }
+        constant = name.constant
+        version = name.version }
+
+    let toPT
+      (name : ST.FQConstantName.PackageConstantName)
+      : PT.FQConstantName.PackageConstantName =
+      { owner = name.owner
+        modules = { Head = name.modules.head; Tail = name.modules.tail }
+        constant = name.constant
+        version = name.version }
+
+  module StdlibConstantName =
+    let toST
+      (name : PT.FQConstantName.StdlibConstantName)
+      : ST.FQConstantName.StdlibConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+    let toPT
+      (name : ST.FQConstantName.StdlibConstantName)
+      : PT.FQConstantName.StdlibConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+  module UserConstantName =
+    let toST
+      (name : PT.FQConstantName.UserConstantName)
+      : ST.FQConstantName.UserConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+    let toPT
+      (name : ST.FQConstantName.UserConstantName)
+      : PT.FQConstantName.UserConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+  let toST (fqConstant : PT.FQConstantName.T) : ST.FQConstantName.T =
+    match fqConstant with
+    | PT.FQConstantName.User u -> ST.FQConstantName.User(UserConstantName.toST u)
+    | PT.FQConstantName.Stdlib constant ->
+      ST.FQConstantName.Stdlib(StdlibConstantName.toST constant)
+    | PT.FQConstantName.Package p ->
+      ST.FQConstantName.Package(PackageConstantName.toST p)
+
+  let toPT (fqConstant : ST.FQConstantName.T) : PT.FQConstantName.T =
+    match fqConstant with
+    | ST.FQConstantName.Stdlib constant ->
+      PT.FQConstantName.Stdlib(StdlibConstantName.toPT constant)
+    | ST.FQConstantName.User constant ->
+      PT.FQConstantName.User(UserConstantName.toPT constant)
+    | ST.FQConstantName.Package p ->
+      PT.FQConstantName.Package(PackageConstantName.toPT p)
+
+
 module InfixFnName =
   let toST (name : PT.InfixFnName) : ST.InfixFnName =
     match name with
@@ -248,6 +307,7 @@ module Expr =
     | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool(id, b) -> ST.EBool(id, b)
     | PT.EUnit id -> ST.EUnit id
+    | PT.EConstant(id, name) -> ST.EConstant(id, FQConstantName.toST name)
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
     | PT.EFnCall(id, name, typeArgs, args) ->
@@ -324,6 +384,7 @@ module Expr =
     | ST.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool(id, b) -> PT.EBool(id, b)
     | ST.EUnit id -> PT.EUnit id
+    | ST.EConstant(id, name) -> PT.EConstant(id, FQConstantName.toPT name)
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EFnCall(id, name, typeArgs, args) ->
@@ -570,6 +631,23 @@ module UserFunction =
       deprecated = Deprecation.toPT FQFnName.toPT f.deprecated
       body = Expr.toPT f.body }
 
+module UserConstant =
+  let toST (c : PT.UserConstant.T) : ST.UserConstant.T =
+    { tlid = c.tlid
+      name = FQConstantName.UserConstantName.toST c.name
+      typ = TypeReference.toST c.typ
+      description = c.description
+      deprecated = Deprecation.toST FQConstantName.toST c.deprecated
+      body = Expr.toST c.body }
+
+  let toPT (c : ST.UserConstant.T) : PT.UserConstant.T =
+    { tlid = c.tlid
+      name = FQConstantName.UserConstantName.toPT c.name
+      typ = TypeReference.toPT c.typ
+      description = c.description
+      deprecated = Deprecation.toPT FQConstantName.toPT c.deprecated
+      body = Expr.toPT c.body }
+
 module Toplevel =
   let toST (tl : PT.Toplevel.T) : ST.Toplevel.T =
     match tl with
@@ -577,6 +655,7 @@ module Toplevel =
     | PT.Toplevel.TLDB db -> ST.Toplevel.TLDB(DB.toST db)
     | PT.Toplevel.TLFunction f -> ST.Toplevel.TLFunction(UserFunction.toST f)
     | PT.Toplevel.TLType ut -> ST.Toplevel.TLType(UserType.toST ut)
+    | PT.Toplevel.TLConstant c -> ST.Toplevel.TLConstant(UserConstant.toST c)
 
   let toPT (tl : ST.Toplevel.T) : PT.Toplevel.T =
     match tl with
@@ -584,6 +663,7 @@ module Toplevel =
     | ST.Toplevel.TLDB db -> PT.Toplevel.TLDB(DB.toPT db)
     | ST.Toplevel.TLFunction f -> PT.Toplevel.TLFunction(UserFunction.toPT f)
     | ST.Toplevel.TLType ut -> PT.Toplevel.TLType(UserType.toPT ut)
+    | ST.Toplevel.TLConstant c -> PT.Toplevel.TLConstant(UserConstant.toPT c)
 
 module Op =
   let toST (op : PT.Op) : ST.Op =
@@ -663,3 +743,22 @@ module PackageType =
       deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated
       id = pt.id
       tlid = pt.tlid }
+
+module PackageConstant =
+  let toST (pc : PT.PackageConstant.T) : ST.PackageConstant.T =
+    { tlid = pc.tlid
+      id = pc.id
+      name = FQConstantName.PackageConstantName.toST pc.name
+      body = Expr.toST pc.body
+      typ = TypeReference.toST pc.typ
+      description = pc.description
+      deprecated = Deprecation.toST FQConstantName.toST pc.deprecated }
+
+  let toPT (pc : ST.PackageConstant.T) : PT.PackageConstant.T =
+    { tlid = pc.tlid
+      id = pc.id
+      name = FQConstantName.PackageConstantName.toPT pc.name
+      body = Expr.toPT pc.body
+      typ = TypeReference.toPT pc.typ
+      description = pc.description
+      deprecated = Deprecation.toPT FQConstantName.toPT pc.deprecated }

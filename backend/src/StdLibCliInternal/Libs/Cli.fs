@@ -17,18 +17,21 @@ let typ = FQTypeName.stdlibTypeName'
 
 let fn = FQFnName.stdlibFnName'
 
-let (stdlibFns, stdlibTypes) =
+let (stdlibFns, stdlibTypes, stdlibConstants) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
     []
     []
 
-
+// TODO: think about add constants
 let libraries : RT.Libraries =
   { stdlibTypes = stdlibTypes |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
     stdlibFns = stdlibFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
+    stdlibConstants =
+      stdlibConstants |> Tablecloth.Map.fromListBy (fun constant -> constant.name)
     packageFns = Map.empty
-    packageTypes = Map.empty }
+    packageTypes = Map.empty
+    packageConstants = Map.empty }
 
 
 
@@ -51,6 +54,10 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
+        userConstants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
         dbs = Map.empty
         secrets = [] }
 
@@ -138,4 +145,5 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let constants : List<BuiltInConstant> = []
+let contents = (fns, types, constants)

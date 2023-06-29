@@ -89,7 +89,20 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EFloat(_id, value) -> return DFloat value
     | EUnit _id -> return DUnit
     | EChar(_id, s) -> return DChar s
-
+    | EConstant(id, name) ->
+      match name with
+      | FQConstantName.User c ->
+        match state.program.userConstants.TryFind c with
+        | None -> return err id $"There is no constant named: {name}"
+        | Some constant -> return! eval' state st constant.body
+      | FQConstantName.Stdlib c ->
+        match state.libraries.stdlibConstants.TryFind c with
+        | None -> return err id $"There is no constant named: {name}"
+        | Some constant -> return! constant.constant
+      | FQConstantName.Package c ->
+        match state.libraries.packageConstants.TryFind c with
+        | None -> return err id $"There is no constant named: {name}"
+        | Some constant -> return! eval' state st constant.body
     | ELet(id, pattern, rhs, body) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
       let traceIncompleteWithArgs id argPatterns =

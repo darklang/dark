@@ -18,7 +18,7 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let (stdlibFns, stdlibTypes) =
+let (stdlibFns, stdlibTypes, stdlibConstants) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
@@ -51,19 +51,36 @@ let packageTypes : Lazy<Task<Map<RT.FQTypeName.PackageTypeName, RT.PackageType.T
         |> Map.ofList
     })
 
+let packageConstants
+  : Lazy<Task<Map<RT.FQConstantName.PackageConstantName, RT.PackageConstant.T>>> =
+  lazy
+    (task {
+      let! packages = PackageManager.allConstants ()
+
+      return
+        packages
+        |> List.map (fun (c : PT.PackageConstant.T) ->
+          (c.name |> PT2RT.FQConstantName.PackageConstantName.toRT,
+           PT2RT.PackageConstant.toRT c))
+        |> Map.ofList
+    })
+
 let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     (task {
       let! packageFns = Lazy.force packageFns
       let! packageTypes = Lazy.force packageTypes
+      let! packageConstants = Lazy.force packageConstants
       // TODO: this keeps a cached version so we're not loading them all the time.
       // Of course, this won't be up to date if we add more functions. This should be
       // some sort of LRU cache.
       return
         { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
           stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
+          stdlibConstants = stdlibConstants |> Map.fromListBy (fun c -> c.name)
           packageFns = packageFns
-          packageTypes = packageTypes }
+          packageTypes = packageTypes
+          packageConstants = packageConstants }
     })
 
 let createState

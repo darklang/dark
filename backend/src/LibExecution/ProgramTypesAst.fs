@@ -25,6 +25,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EChar _
   | EUnit _
   | EVariable _
+  | EConstant _
   | EFloat _ -> expr
   | ELet(id, pat, rhs, next) -> ELet(id, pat, f rhs, f next)
   | EString(id, strs) ->
@@ -41,8 +42,8 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe(id, expr1, expr2, exprs) ->
     EPipe(id, f expr1, traversePipeExpr expr2, List.map traversePipeExpr exprs)
-  | EFnCall(id, name, typeArgs, exprs) ->
-    EFnCall(id, name, typeArgs, List.map f exprs)
+  | EFnCall(id, name, _, []) -> EConstant(id, FQConstantName.fromFnName name)
+  | EFnCall(id, name, typeArgs, args) -> EFnCall(id, name, typeArgs, List.map f args)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)
   | EList(id, exprs) -> EList(id, List.map f exprs)
   | EDict(id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)
@@ -67,6 +68,7 @@ let rec preTraversal
   (typeRefFn : TypeReference -> TypeReference)
   (fqtnFn : FQTypeName.T -> FQTypeName.T)
   (fqfnFn : FQFnName.T -> FQFnName.T)
+  (fqctFn : FQConstantName.T -> FQConstantName.T)
   (letPatternFn : LetPattern -> LetPattern)
   (matchPatternFn : MatchPattern -> MatchPattern)
   (expr : Expr)
@@ -123,6 +125,7 @@ let rec preTraversal
       typeRefFn
       fqtnFn
       fqfnFn
+      fqctFn
       letPatternFn
       matchPatternFn
 
@@ -146,6 +149,7 @@ let rec preTraversal
   | EBool _
   | EChar _
   | EUnit _
+  | EConstant _
   | EVariable _
   | EFloat _ -> expr
   | EString(id, strs) ->
@@ -168,6 +172,8 @@ let rec preTraversal
       preTraversalPipeExpr expr2,
       List.map preTraversalPipeExpr exprs
     )
+  | EFnCall(id, name, _, []) ->
+    EConstant(id, name |> FQConstantName.fromFnName |> fqctFn)
   | EFnCall(id, name, typeArgs, args) ->
     EFnCall(id, fqfnFn name, List.map preTraversalTypeRef typeArgs, List.map f args)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)

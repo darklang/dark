@@ -53,7 +53,8 @@ let testUndo : Test =
     let exe (ops : PT.Oplist) =
       task {
         let c = Canvas.fromOplist meta [] ops
-        let! state = executionStateFor meta false false Map.empty Map.empty Map.empty
+        let! state =
+          executionStateFor meta false false Map.empty Map.empty Map.empty Map.empty
         let h =
           Map.get tlid c.handlers
           |> Exception.unwrapOptionInternal "missing handler" [ "tlid", tlid ]

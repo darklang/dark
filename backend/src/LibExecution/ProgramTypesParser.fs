@@ -80,4 +80,5 @@ module Toplevel =
     | PT.Toplevel.TLDB _ -> "db"
     | PT.Toplevel.TLHandler _ -> "handler"
     | PT.Toplevel.TLFunction _ -> "user_function"
-    | PT.Toplevel.TLType _ -> "user_tipe"
+    | PT.Toplevel.TLType _ -> "user_tipe" // t`i`pe typo?
+    | PT.Toplevel.TLConstant _ -> "user_constant"

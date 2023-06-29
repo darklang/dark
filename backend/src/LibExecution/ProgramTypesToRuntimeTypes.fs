@@ -77,6 +77,36 @@ module FQFnName =
     | PT.FQFnName.User u -> RT.FQFnName.User(UserFnName.toRT u)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(PackageFnName.toRT p)
 
+module FQConstantName =
+  module PackageConstantName =
+    let toRT
+      (name : PT.FQConstantName.PackageConstantName)
+      : RT.FQConstantName.PackageConstantName =
+      { owner = name.owner
+        modules = name.modules
+        constant = name.constant
+        version = name.version }
+
+  module StdlibConstantName =
+    let toRT
+      (name : PT.FQConstantName.StdlibConstantName)
+      : RT.FQConstantName.StdlibConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+  module UserConstantName =
+    let toRT
+      (name : PT.FQConstantName.UserConstantName)
+      : RT.FQConstantName.UserConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+  let toRT (fqConstant : PT.FQConstantName.T) : RT.FQConstantName.T =
+    match fqConstant with
+    | PT.FQConstantName.Stdlib constant ->
+      RT.FQConstantName.Stdlib(StdlibConstantName.toRT constant)
+    | PT.FQConstantName.User u -> RT.FQConstantName.User(UserConstantName.toRT u)
+    | PT.FQConstantName.Package p ->
+      RT.FQConstantName.Package(PackageConstantName.toRT p)
+
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =
     match name with
@@ -134,6 +164,7 @@ module Expr =
       RT.EFloat(id, makeFloat sign whole fraction)
     | PT.EBool(id, b) -> RT.EBool(id, b)
     | PT.EUnit id -> RT.EUnit id
+    | PT.EConstant(id, name) -> RT.EConstant(id, FQConstantName.toRT name)
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
     | PT.EFnCall(id, fnName, typeArgs, args) ->
@@ -296,6 +327,13 @@ module UserType =
       name = FQTypeName.UserTypeName.toRT t.name
       definition = CustomType.toRT t.definition }
 
+module UserConstant =
+  let toRT (c : PT.UserConstant.T) : RT.UserConstant.T =
+    { tlid = c.tlid
+      name = FQConstantName.UserConstantName.toRT c.name
+      typ = TypeReference.toRT c.typ
+      body = Expr.toRT c.body }
+
 module UserFunction =
   module Parameter =
     let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
@@ -316,6 +354,7 @@ module Toplevel =
     | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
     | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT f)
     | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT t)
+    | PT.Toplevel.TLConstant c -> RT.Toplevel.TLConstant(UserConstant.toRT c)
 
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T = { name = s.name; value = s.value }
@@ -337,3 +376,10 @@ module PackageType =
   let toRT (t : PT.PackageType.T) : RT.PackageType.T =
     { name = FQTypeName.PackageTypeName.toRT t.name
       definition = CustomType.toRT t.definition }
+
+module PackageConstant =
+  let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
+    { tlid = c.tlid
+      name = FQConstantName.PackageConstantName.toRT c.name
+      typ = TypeReference.toRT c.typ
+      body = Expr.toRT c.body }

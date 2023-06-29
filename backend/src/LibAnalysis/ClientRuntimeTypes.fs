@@ -117,6 +117,64 @@ module FQFnName =
     | RT.FQFnName.User u -> User(UserFnName.toCT u)
     | RT.FQFnName.Package p -> Package(PackageFnName.toCT p)
 
+module FQConstantName =
+  type UserConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  module UserConstantName =
+    let fromCT (name : UserConstantName) : RT.FQConstantName.UserConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+    let toCT (name : RT.FQConstantName.UserConstantName) : UserConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+  type PackageConstantName =
+    { owner : string
+      modules : NonEmptyList<string>
+      constant : string
+      version : int }
+
+  module PackageConstantName =
+    let fromCT (name : PackageConstantName) : RT.FQConstantName.PackageConstantName =
+      { owner = name.owner
+        modules = name.modules
+        constant = name.constant
+        version = name.version }
+
+    let toCT (name : RT.FQConstantName.PackageConstantName) : PackageConstantName =
+      { owner = name.owner
+        modules = name.modules
+        constant = name.constant
+        version = name.version }
+
+
+  type StdlibConstantName =
+    { modules : List<string>; constant : string; version : int }
+
+  module StdlibConstantName =
+    let fromCT (name : StdlibConstantName) : RT.FQConstantName.StdlibConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+    let toCT (name : RT.FQConstantName.StdlibConstantName) : StdlibConstantName =
+      { modules = name.modules; constant = name.constant; version = name.version }
+
+
+  type T =
+    | User of UserConstantName
+    | Stdlib of StdlibConstantName
+    | Package of PackageConstantName
+
+  let fromCT (fqConstant : T) : RT.FQConstantName.T =
+    match fqConstant with
+    | Stdlib constant -> RT.FQConstantName.Stdlib(StdlibConstantName.fromCT constant)
+    | User u -> RT.FQConstantName.User(UserConstantName.fromCT u)
+    | Package p -> RT.FQConstantName.Package(PackageConstantName.fromCT p)
+
+  let toCT (fqConstant : RT.FQConstantName.T) : T =
+    match fqConstant with
+    | RT.FQConstantName.Stdlib constant -> Stdlib(StdlibConstantName.toCT constant)
+    | RT.FQConstantName.User u -> User(UserConstantName.toCT u)
+    | RT.FQConstantName.Package p -> Package(PackageConstantName.toCT p)
 
 type TypeReference =
   | TInt
@@ -341,6 +399,7 @@ module Expr =
     | EChar of id * string
     | EFloat of id * double
     | EUnit of id
+    | EConstant of id * FQConstantName.T
     | ELet of id * LetPattern * T * T
     | EIf of id * T * T * T
     | ELambda of id * List<id * string> * T
@@ -373,9 +432,9 @@ module Expr =
     | EInt(id, num) -> RT.EInt(id, num)
     | EString(id, segment) -> RT.EString(id, List.map stringSegmentToRT segment)
     | EFloat(id, f) -> RT.EFloat(id, f)
-
     | EBool(id, b) -> RT.EBool(id, b)
     | EUnit id -> RT.EUnit id
+    | EConstant(id, name) -> RT.EConstant(id, FQConstantName.fromCT name)
     | EVariable(id, var) -> RT.EVariable(id, var)
     | EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, r obj, fieldname)
     | ELambda(id, vars, body) -> RT.ELambda(id, vars, r body)
@@ -430,9 +489,9 @@ module Expr =
     | RT.EInt(id, num) -> EInt(id, num)
     | RT.EString(id, str) -> EString(id, List.map stringSegmentToCT str)
     | RT.EFloat(id, f) -> EFloat(id, f)
-
     | RT.EBool(id, b) -> EBool(id, b)
     | RT.EUnit id -> EUnit id
+    | RT.EConstant(id, name) -> EConstant(id, FQConstantName.toCT name)
     | RT.EVariable(id, var) -> EVariable(id, var)
     | RT.EFieldAccess(id, obj, fieldname) -> EFieldAccess(id, r obj, fieldname)
     | RT.ELambda(id, vars, body) -> ELambda(id, vars, r body)

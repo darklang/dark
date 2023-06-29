@@ -9,19 +9,22 @@ let getStateForEval
   (stdlib : LibExecution.StdLib.Contents)
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
+  (constants : List<UserConstant.T>)
+
   : ExecutionState =
   let packageFns = Map.empty // TODO
   let packageTypes = Map.empty // TODO
+  let packageConstants = Map.empty // TODO
 
   let libraries : Libraries =
-    let stdlibFns, stdlibTypes = stdlib
+    let stdlibFns, stdlibTypes, stdlibConstants = stdlib
 
     { stdlibTypes = stdlibTypes |> List.map (fun typ -> typ.name, typ) |> Map
-
       stdlibFns = stdlibFns |> List.map (fun fn -> fn.name, fn) |> Map
-
+      stdlibConstants = stdlibConstants |> List.map (fun c -> c.name, c) |> Map
       packageFns = packageFns
-      packageTypes = packageTypes }
+      packageTypes = packageTypes
+      packageConstants = packageConstants }
 
   let program : ProgramContext =
     { canvasID = CanvasID.Empty
@@ -30,6 +33,7 @@ let getStateForEval
       dbs = Map.empty
       userFns = Map.fromListBy (fun fn -> fn.name) fns
       userTypes = Map.fromListBy (fun typ -> typ.name) types
+      userConstants = Map.fromListBy (fun c -> c.name) constants
       secrets = List.empty }
 
   { libraries = libraries

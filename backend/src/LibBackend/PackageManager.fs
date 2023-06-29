@@ -86,6 +86,22 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
     |> Sql.executeStatementAsync)
 
 
+let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
+  constants
+  |> Task.iterInParallel (fun c ->
+    Sql.query
+      "INSERT INTO package_constants_v0 (tlid, id, owner, modules, fnname, version, definition)
+       VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
+    |> Sql.parameters
+      [ "tlid", Sql.tlid c.tlid
+        "id", Sql.uuid c.id
+        "owner", Sql.string c.name.owner
+        "modules", Sql.string (c.name.modules |> String.concat ".")
+        "constantname", Sql.string c.name.constant
+        "version", Sql.int c.name.version
+        "definition", Sql.bytea (BinarySerialization.serializePackageConstant c) ]
+    |> Sql.executeStatementAsync)
+
 
 // ------------------
 // Fetching
@@ -114,4 +130,17 @@ let allTypes () : Task<List<PT.PackageType.T>> =
       types
       |> List.map (fun (id, def) ->
         BinarySerialization.deserializePackageType id def)
+  }
+
+let allConstants () : Task<List<PT.PackageConstant.T>> =
+  task {
+    let! constants =
+      Sql.query "SELECT id, definition FROM package_constants_v0"
+      |> Sql.parameters []
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytea "definition"))
+
+    return
+      constants
+      |> List.map (fun (id, def) ->
+        BinarySerialization.deserializePackageConstant id def)
   }

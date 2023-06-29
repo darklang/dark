@@ -9,6 +9,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> = []
+let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "HttpClient" "basicAuth" 0
@@ -37,4 +38,4 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)
