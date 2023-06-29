@@ -1,5 +1,5 @@
 /// StdLib functions for building the CLI
-/// (as opposed to functions needed by CLI programs, which are in StdLibCli)
+/// (as opposed to functions needed by CLI programs, which are in StdLibCLI)
 module CLI.Libs.CLI
 
 open System.Threading.Tasks
@@ -16,7 +16,7 @@ module Exe = LibExecution.Execution
 
 let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+    [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents ]
     []
     []
 

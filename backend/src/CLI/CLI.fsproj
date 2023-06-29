@@ -55,7 +55,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../Parser/Parser.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
+    <ProjectReference Include="../StdLibCLI/StdLibCLI.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

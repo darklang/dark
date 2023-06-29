@@ -1,4 +1,4 @@
-module Cli.Main
+module CLI.Main
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -10,7 +10,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module StdLibCli = StdLibCli.StdLib
+module StdLibCLI = StdLibCLI.StdLib
 
 // ---------------------
 // Version information
@@ -29,7 +29,7 @@ open System.Reflection
 let info () =
   let buildAttributes =
     Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // This reads values created during the build in Cli.fsproj
+  // This reads values created during the build in CLI.fsproj
   // It doesn't feel like this is how it's supposed to be used, but it works. But
   // what if we wanted more than two parameters?
   let buildDate = buildAttributes.Key
@@ -44,7 +44,7 @@ let info () =
 let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
-      StdLibCli.StdLib.contents
+      StdLibCLI.StdLib.contents
       CLI.StdLib.contents ]
     []
     []

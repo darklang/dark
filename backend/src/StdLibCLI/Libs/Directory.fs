@@ -1,5 +1,5 @@
 /// Standard libraries for Directories
-module StdLibCli.Libs.Directory
+module StdLibCLI.Libs.Directory
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

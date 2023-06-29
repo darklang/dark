@@ -11,7 +11,7 @@
     <ProjectReference Include="../../src/Parser/Parser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../../src/StdLibCli/StdLibCli.fsproj" />
+    <ProjectReference Include="../../src/StdLibCLI/StdLibCLI.fsproj" />
     <ProjectReference Include="../../src/LibRealExecution/LibRealExecution.fsproj" />
     <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
   </ItemGroup>
