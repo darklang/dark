@@ -322,7 +322,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -357,6 +357,10 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
+and FnTarget =
+  | FnTargetName of FnName.T
+  | FnTargetExpr of Expr
+
 and PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
@@ -379,7 +383,7 @@ module Expr =
     | ELambda(id, _, _)
     | EFieldAccess(id, _, _)
     | EVariable(id, _)
-    | EFnCall(id, _, _, _)
+    | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)

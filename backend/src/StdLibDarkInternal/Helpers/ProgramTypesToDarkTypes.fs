@@ -357,10 +357,17 @@ module Expr =
 
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
-      | PT.EFnCall(id, name, typeArgs, args) ->
-        "EFnCall",
+      | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
+        "EApply",
         [ DInt(int64 id)
-          FnName.toDT name
+          DEnum(ptTyp [] "FnTarget" 0, "FnTargetName", [ FnName.toDT name ])
+          DList(List.map TypeReference.toDT typeArgs)
+          DList(List.map toDT args) ]
+
+      | PT.EApply(id, PT.FnTargetExpr expr, typeArgs, args) ->
+        "EApply",
+        [ DInt(int64 id)
+          DEnum(ptTyp [] "FnTarget" 0, "FnTargetExpr", [ toDT expr ])
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map toDT args) ]
 

@@ -41,8 +41,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe(id, expr1, expr2, exprs) ->
     EPipe(id, f expr1, traversePipeExpr expr2, List.map traversePipeExpr exprs)
-  | EFnCall(id, name, typeArgs, exprs) ->
-    EFnCall(id, name, typeArgs, List.map f exprs)
+  | EApply(id, name, typeArgs, exprs) -> EApply(id, name, typeArgs, List.map f exprs)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)
   | EList(id, exprs) -> EList(id, List.map f exprs)
   | EDict(id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)
@@ -167,8 +166,20 @@ let rec preTraversal
       preTraversalPipeExpr expr2,
       List.map preTraversalPipeExpr exprs
     )
-  | EFnCall(id, name, typeArgs, args) ->
-    EFnCall(id, fqfnFn name, List.map preTraversalTypeRef typeArgs, List.map f args)
+  | EApply(id, FnTargetName name, typeArgs, args) ->
+    EApply(
+      id,
+      FnTargetName(fqfnFn name),
+      List.map preTraversalTypeRef typeArgs,
+      List.map f args
+    )
+  | EApply(id, FnTargetExpr name, typeArgs, args) ->
+    EApply(
+      id,
+      FnTargetExpr(f name),
+      List.map preTraversalTypeRef typeArgs,
+      List.map f args
+    )
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)
   | EList(id, exprs) -> EList(id, List.map f exprs)
   | EDict(id, pairs) -> EDict(id, List.map (fun (k, v) -> (k, f v)) pairs)

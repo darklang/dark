@@ -171,20 +171,23 @@
                           "EIf",
                           46231874,
                           [
-                            "EFnCall",
+                            "EApply",
                             898531080,
                             [
-                              "BuiltIn",
-                              {
-                                "modules": [
-                                  "Int"
-                                ],
-                                "name": [
-                                  "FnName",
-                                  "toString"
-                                ],
-                                "version": 0
-                              }
+                              "FnTargetName",
+                              [
+                                "BuiltIn",
+                                {
+                                  "modules": [
+                                    "Int"
+                                  ],
+                                  "name": [
+                                    "FnName",
+                                    "toString"
+                                  ],
+                                  "version": 0
+                                }
+                              ]
                             ],
                             [
                               [
@@ -431,20 +434,23 @@
                                 "y"
                               ],
                               [
-                                "EFnCall",
+                                "EApply",
                                 173079901,
                                 [
-                                  "BuiltIn",
-                                  {
-                                    "modules": [
-                                      "Int"
-                                    ],
-                                    "name": [
-                                      "FnName",
-                                      "add"
-                                    ],
-                                    "version": 0
-                                  }
+                                  "FnTargetName",
+                                  [
+                                    "BuiltIn",
+                                    {
+                                      "modules": [
+                                        "Int"
+                                      ],
+                                      "name": [
+                                        "FnName",
+                                        "add"
+                                      ],
+                                      "version": 0
+                                    }
+                                  ]
                                 ],
                                 [],
                                 [
@@ -653,20 +659,23 @@
                                 "EMatch",
                                 889712088,
                                 [
-                                  "EFnCall",
+                                  "EApply",
                                   203239466,
                                   [
-                                    "BuiltIn",
-                                    {
-                                      "modules": [
-                                        "Mod"
-                                      ],
-                                      "name": [
-                                        "FnName",
-                                        "function"
-                                      ],
-                                      "version": 2
-                                    }
+                                    "FnTargetName",
+                                    [
+                                      "BuiltIn",
+                                      {
+                                        "modules": [
+                                          "Mod"
+                                        ],
+                                        "name": [
+                                          "FnName",
+                                          "function"
+                                        ],
+                                        "version": 2
+                                      }
+                                    ]
                                   ],
                                   [],
                                   []
@@ -1201,20 +1210,23 @@
                           "EIf",
                           46231874,
                           [
-                            "EFnCall",
+                            "EApply",
                             898531080,
                             [
-                              "BuiltIn",
-                              {
-                                "modules": [
-                                  "Int"
-                                ],
-                                "name": [
-                                  "FnName",
-                                  "toString"
-                                ],
-                                "version": 0
-                              }
+                              "FnTargetName",
+                              [
+                                "BuiltIn",
+                                {
+                                  "modules": [
+                                    "Int"
+                                  ],
+                                  "name": [
+                                    "FnName",
+                                    "toString"
+                                  ],
+                                  "version": 0
+                                }
+                              ]
                             ],
                             [
                               [
@@ -1461,20 +1473,23 @@
                                 "y"
                               ],
                               [
-                                "EFnCall",
+                                "EApply",
                                 173079901,
                                 [
-                                  "BuiltIn",
-                                  {
-                                    "modules": [
-                                      "Int"
-                                    ],
-                                    "name": [
-                                      "FnName",
-                                      "add"
-                                    ],
-                                    "version": 0
-                                  }
+                                  "FnTargetName",
+                                  [
+                                    "BuiltIn",
+                                    {
+                                      "modules": [
+                                        "Int"
+                                      ],
+                                      "name": [
+                                        "FnName",
+                                        "add"
+                                      ],
+                                      "version": 0
+                                    }
+                                  ]
                                 ],
                                 [],
                                 [
@@ -1683,20 +1698,23 @@
                                 "EMatch",
                                 889712088,
                                 [
-                                  "EFnCall",
+                                  "EApply",
                                   203239466,
                                   [
-                                    "BuiltIn",
-                                    {
-                                      "modules": [
-                                        "Mod"
-                                      ],
-                                      "name": [
-                                        "FnName",
-                                        "function"
-                                      ],
-                                      "version": 2
-                                    }
+                                    "FnTargetName",
+                                    [
+                                      "BuiltIn",
+                                      {
+                                        "modules": [
+                                          "Mod"
+                                        ],
+                                        "name": [
+                                          "FnName",
+                                          "function"
+                                        ],
+                                        "version": 2
+                                      }
+                                    ]
                                   ],
                                   [],
                                   []
@@ -2234,20 +2252,23 @@
                           "EIf",
                           46231874,
                           [
-                            "EFnCall",
+                            "EApply",
                             898531080,
                             [
-                              "BuiltIn",
-                              {
-                                "modules": [
-                                  "Int"
-                                ],
-                                "name": [
-                                  "FnName",
-                                  "toString"
-                                ],
-                                "version": 0
-                              }
+                              "FnTargetName",
+                              [
+                                "BuiltIn",
+                                {
+                                  "modules": [
+                                    "Int"
+                                  ],
+                                  "name": [
+                                    "FnName",
+                                    "toString"
+                                  ],
+                                  "version": 0
+                                }
+                              ]
                             ],
                             [
                               [
@@ -2494,20 +2515,23 @@
                                 "y"
                               ],
                               [
-                                "EFnCall",
+                                "EApply",
                                 173079901,
                                 [
-                                  "BuiltIn",
-                                  {
-                                    "modules": [
-                                      "Int"
-                                    ],
-                                    "name": [
-                                      "FnName",
-                                      "add"
-                                    ],
-                                    "version": 0
-                                  }
+                                  "FnTargetName",
+                                  [
+                                    "BuiltIn",
+                                    {
+                                      "modules": [
+                                        "Int"
+                                      ],
+                                      "name": [
+                                        "FnName",
+                                        "add"
+                                      ],
+                                      "version": 0
+                                    }
+                                  ]
                                 ],
                                 [],
                                 [
@@ -2716,20 +2740,23 @@
                                 "EMatch",
                                 889712088,
                                 [
-                                  "EFnCall",
+                                  "EApply",
                                   203239466,
                                   [
-                                    "BuiltIn",
-                                    {
-                                      "modules": [
-                                        "Mod"
-                                      ],
-                                      "name": [
-                                        "FnName",
-                                        "function"
-                                      ],
-                                      "version": 2
-                                    }
+                                    "FnTargetName",
+                                    [
+                                      "BuiltIn",
+                                      {
+                                        "modules": [
+                                          "Mod"
+                                        ],
+                                        "name": [
+                                          "FnName",
+                                          "function"
+                                        ],
+                                        "version": 2
+                                      }
+                                    ]
                                   ],
                                   [],
                                   []
@@ -3264,20 +3291,23 @@
                           "EIf",
                           46231874,
                           [
-                            "EFnCall",
+                            "EApply",
                             898531080,
                             [
-                              "BuiltIn",
-                              {
-                                "modules": [
-                                  "Int"
-                                ],
-                                "name": [
-                                  "FnName",
-                                  "toString"
-                                ],
-                                "version": 0
-                              }
+                              "FnTargetName",
+                              [
+                                "BuiltIn",
+                                {
+                                  "modules": [
+                                    "Int"
+                                  ],
+                                  "name": [
+                                    "FnName",
+                                    "toString"
+                                  ],
+                                  "version": 0
+                                }
+                              ]
                             ],
                             [
                               [
@@ -3524,20 +3554,23 @@
                                 "y"
                               ],
                               [
-                                "EFnCall",
+                                "EApply",
                                 173079901,
                                 [
-                                  "BuiltIn",
-                                  {
-                                    "modules": [
-                                      "Int"
-                                    ],
-                                    "name": [
-                                      "FnName",
-                                      "add"
-                                    ],
-                                    "version": 0
-                                  }
+                                  "FnTargetName",
+                                  [
+                                    "BuiltIn",
+                                    {
+                                      "modules": [
+                                        "Int"
+                                      ],
+                                      "name": [
+                                        "FnName",
+                                        "add"
+                                      ],
+                                      "version": 0
+                                    }
+                                  ]
                                 ],
                                 [],
                                 [
@@ -3746,20 +3779,23 @@
                                 "EMatch",
                                 889712088,
                                 [
-                                  "EFnCall",
+                                  "EApply",
                                   203239466,
                                   [
-                                    "BuiltIn",
-                                    {
-                                      "modules": [
-                                        "Mod"
-                                      ],
-                                      "name": [
-                                        "FnName",
-                                        "function"
-                                      ],
-                                      "version": 2
-                                    }
+                                    "FnTargetName",
+                                    [
+                                      "BuiltIn",
+                                      {
+                                        "modules": [
+                                          "Mod"
+                                        ],
+                                        "name": [
+                                          "FnName",
+                                          "function"
+                                        ],
+                                        "version": 2
+                                      }
+                                    ]
                                   ],
                                   [],
                                   []
@@ -4588,20 +4624,23 @@
                           "EIf",
                           46231874,
                           [
-                            "EFnCall",
+                            "EApply",
                             898531080,
                             [
-                              "BuiltIn",
-                              {
-                                "modules": [
-                                  "Int"
-                                ],
-                                "name": [
-                                  "FnName",
-                                  "toString"
-                                ],
-                                "version": 0
-                              }
+                              "FnTargetName",
+                              [
+                                "BuiltIn",
+                                {
+                                  "modules": [
+                                    "Int"
+                                  ],
+                                  "name": [
+                                    "FnName",
+                                    "toString"
+                                  ],
+                                  "version": 0
+                                }
+                              ]
                             ],
                             [
                               [
@@ -4848,20 +4887,23 @@
                                 "y"
                               ],
                               [
-                                "EFnCall",
+                                "EApply",
                                 173079901,
                                 [
-                                  "BuiltIn",
-                                  {
-                                    "modules": [
-                                      "Int"
-                                    ],
-                                    "name": [
-                                      "FnName",
-                                      "add"
-                                    ],
-                                    "version": 0
-                                  }
+                                  "FnTargetName",
+                                  [
+                                    "BuiltIn",
+                                    {
+                                      "modules": [
+                                        "Int"
+                                      ],
+                                      "name": [
+                                        "FnName",
+                                        "add"
+                                      ],
+                                      "version": 0
+                                    }
+                                  ]
                                 ],
                                 [],
                                 [
@@ -5070,20 +5112,23 @@
                                 "EMatch",
                                 889712088,
                                 [
-                                  "EFnCall",
+                                  "EApply",
                                   203239466,
                                   [
-                                    "BuiltIn",
-                                    {
-                                      "modules": [
-                                        "Mod"
-                                      ],
-                                      "name": [
-                                        "FnName",
-                                        "function"
-                                      ],
-                                      "version": 2
-                                    }
+                                    "FnTargetName",
+                                    [
+                                      "BuiltIn",
+                                      {
+                                        "modules": [
+                                          "Mod"
+                                        ],
+                                        "name": [
+                                          "FnName",
+                                          "function"
+                                        ],
+                                        "version": 2
+                                      }
+                                    ]
                                   ],
                                   [],
                                   []

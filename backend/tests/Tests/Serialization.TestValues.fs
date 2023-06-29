@@ -328,12 +328,14 @@ module ProgramTypes =
                       PT.LPVariable(44124UL, "i"),
                       PT.EIf(
                         46231874UL,
-                        PT.EFnCall(
+                        PT.EApply(
                           898531080UL,
-                          PT.FQName.BuiltIn
-                            { modules = [ "Int" ]
-                              name = PT.FnName.FnName "toString"
-                              version = 0 },
+                          PT.FnTargetName(
+                            PT.FQName.BuiltIn
+                              { modules = [ "Int" ]
+                                name = PT.FnName.FnName "toString"
+                                version = 0 }
+                          ),
                           dtypes,
                           [ PT.EInt(160106123UL, 6L) ]
                         ),
@@ -373,12 +375,14 @@ module ProgramTypes =
                               PT.EVariable(1002893266UL, "x"),
                               "y"
                             ),
-                            PT.EFnCall(
+                            PT.EApply(
                               173079901UL,
-                              PT.FQName.BuiltIn
-                                { modules = [ "Int" ]
-                                  name = PT.FnName.FnName "add"
-                                  version = 0 },
+                              PT.FnTargetName(
+                                PT.FQName.BuiltIn
+                                  { modules = [ "Int" ]
+                                    name = PT.FnName.FnName "add"
+                                    version = 0 }
+                              ),
                               [],
                               [ PT.EInt(250221144UL, 6L); PT.EInt(298149318UL, 2L) ]
                             )
@@ -464,12 +468,14 @@ module ProgramTypes =
                             PT.LPVariable(17461UL, "m"),
                             PT.EMatch(
                               889712088UL,
-                              PT.EFnCall(
+                              PT.EApply(
                                 203239466UL,
-                                PT.FQName.BuiltIn
-                                  { modules = [ "Mod" ]
-                                    name = PT.FnName.FnName "function"
-                                    version = 2 },
+                                PT.FnTargetName(
+                                  PT.FQName.BuiltIn
+                                    { modules = [ "Mod" ]
+                                      name = PT.FnName.FnName "function"
+                                      version = 2 }
+                                ),
                                 [],
                                 []
                               ),
@@ -582,11 +588,7 @@ module ProgramTypes =
   // Note: This is aimed to contain all cases of `TypeReference`
   let dtype =
     PT.TTuple(
-      PT.TList(
-        PT.TDict(
-          PT.TDB(PT.TOption(PT.TFn([ PT.TFloat ], PT.TUnit)))
-        )
-      ),
+      PT.TList(PT.TDict(PT.TDB(PT.TOption(PT.TFn([ PT.TFloat ], PT.TUnit))))),
       PT.TInt,
       [ PT.TFloat
         PT.TBool

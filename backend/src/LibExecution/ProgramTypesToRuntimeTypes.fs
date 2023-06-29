@@ -143,10 +143,17 @@ module Expr =
     | PT.EUnit id -> RT.EUnit id
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
-    | PT.EFnCall(id, fnName, typeArgs, args) ->
+    | PT.EApply(id, PT.FnTargetName fnName, typeArgs, args) ->
       RT.EApply(
         id,
         RT.FnTargetName(FnName.toRT fnName),
+        List.map TypeReference.toRT typeArgs,
+        List.map toRT args
+      )
+    | PT.EApply(id, PT.FnTargetExpr fnName, typeArgs, args) ->
+      RT.EApply(
+        id,
+        RT.FnTargetExpr(toRT fnName),
         List.map TypeReference.toRT typeArgs,
         List.map toRT args
       )
@@ -157,7 +164,7 @@ module Expr =
           { modules = modules; name = PT.FnName.FnName fn; version = version }
         )
       let typeArgs = []
-      toRT (PT.EFnCall(id, name, typeArgs, [ arg1; arg2 ]))
+      toRT (PT.EApply(id, PT.FnTargetName name, typeArgs, [ arg1; arg2 ]))
     | PT.EInfix(id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix(id, PT.BinOp PT.BinOpOr, expr1, expr2) ->

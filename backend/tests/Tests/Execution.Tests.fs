@@ -109,9 +109,9 @@ let testRecursionInEditor : Test =
 
         // 'else' expression
         // calls self ("recurse") resulting in recursion
-        PT.EFnCall(
+        PT.EApply(
           skippedCallerID,
-          PT.FnName.fqUserProgram [] "recurse" 0,
+          PT.FnTargetName(PT.FnName.fqUserProgram [] "recurse" 0),
           [],
           [ PT.EInt(gid (), 2) ]
         )

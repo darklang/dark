@@ -262,10 +262,17 @@ module Expr =
     | PT.EUnit id -> ST.EUnit id
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
-    | PT.EFnCall(id, name, typeArgs, args) ->
-      ST.EFnCall(
+    | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
+      ST.EApply(
         id,
-        FnName.toST name,
+        ST.FnTargetName(FnName.toST name),
+        List.map TypeReference.toST typeArgs,
+        List.map toST args
+      )
+    | PT.EApply(id, PT.FnTargetExpr name, typeArgs, args) ->
+      ST.EApply(
+        id,
+        ST.FnTargetExpr(toST name),
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
@@ -334,10 +341,17 @@ module Expr =
     | ST.EUnit id -> PT.EUnit id
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
-    | ST.EFnCall(id, name, typeArgs, args) ->
-      PT.EFnCall(
+    | ST.EApply(id, ST.FnTargetName name, typeArgs, args) ->
+      PT.EApply(
         id,
-        FnName.toPT name,
+        PT.FnTargetName(FnName.toPT name),
+        List.map TypeReference.toPT typeArgs,
+        List.map toPT args
+      )
+    | ST.EApply(id, ST.FnTargetExpr name, typeArgs, args) ->
+      PT.EApply(
+        id,
+        PT.FnTargetExpr(toPT name),
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )

@@ -375,7 +375,7 @@ module Expr =
 
     let synToPipeExpr (e : SynExpr) : PT.PipeExpr =
       match c e with
-      | PT.EFnCall(id, name, typeArgs, args) ->
+      | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
         PT.EPipeFnCall(id, name, typeArgs, args)
       | PT.EInfix(id, op, Placeholder, arg2) -> PT.EPipeInfix(id, op, arg2)
       | PT.EInfix(id, op, arg1, Placeholder) -> PT.EPipeInfix(id, op, arg1)
@@ -454,14 +454,14 @@ module Expr =
       ident.idText = "op_UnaryNegation"
       ->
       let name = PT.FnName.fqBuiltIn [ "Int" ] "negate" 0
-      PT.EFnCall(id, name, [], [])
+      PT.EApply(id, PT.FnTargetName name, [], [])
 
 
     // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FnName.oneWordFunctions ->
       match parseFn ident.idText with
       | Some(name, version) ->
-        PT.EFnCall(id, PT.FnName.fqBuiltIn [] name version, [], [])
+        PT.EApply(id, PT.FnTargetName(PT.FnName.fqBuiltIn [] name version), [], [])
       | None -> PT.EVariable(id, ident.idText)
 
     // List literals
@@ -511,18 +511,6 @@ module Expr =
       let typeName = PT.TypeName.fqBuiltIn [] "Result" 0
       PT.EEnum(id, typeName, name.idText, [])
 
-    // Package manager function calls
-    // (preliminary support)
-    | SynExpr.LongIdent(_, SynLongIdent([ owner; modName; fnName ], _, _), _, _) when
-      owner.idText = "Test" && modName.idText = "Test"
-      ->
-      PT.EFnCall(
-        gid (),
-        PT.FnName.fqPackage "test" (NonEmptyList.singleton "Test") fnName.idText 0,
-        [],
-        []
-      )
-
 
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
     | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) when
@@ -540,7 +528,10 @@ module Expr =
 
       match parseFn name with
       | Some(name, version) ->
-        PT.EFnCall(gid (), PT.FnName.fqUserProgram modules name version, [], [])
+        PT.EApply(
+          gid (),
+          PT.FnTargetName(PT.FnName.fqUserProgram modules name version), [], []
+        )
       | None ->
         match parseEnum name with
         | Some enumName ->
@@ -573,7 +564,7 @@ module Expr =
         |> Exception.unwrapOptionInternal
           "invalid fn name"
           [ "name", name.idText; "ast", ast ]
-      PT.EFnCall(gid (), PT.FnName.fqUserProgram [] name version, typeArgs, [])
+      PT.EApply(gid (), PT.FnTargetName(PT.FnName.fqUserProgram [] name version), typeArgs, [])
 
     // e.g. `Module1.Module2.fnName<String>`
     | SynExpr.TypeApp(SynExpr.LongIdent(_,
@@ -599,9 +590,9 @@ module Expr =
         let typeArgs =
           typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-        PT.EFnCall(
+        PT.EApply(
           gid (),
-          PT.FnName.fqUserProgram modules name version,
+          PT.FnTargetName(PT.FnName.fqUserProgram modules name version),
           typeArgs,
           []
         )
@@ -792,8 +783,8 @@ module Expr =
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App(_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
-      | PT.EFnCall(id, name, typeArgs, args) ->
-        PT.EFnCall(id, name, typeArgs, args @ [ c arg ])
+      | PT.EApply(id, name, typeArgs, args) ->
+        PT.EApply(id, name, typeArgs, args @ [ c arg ])
       | PT.EInfix(id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
       | PT.EInfix(id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
       // A pipe with one entry
@@ -805,7 +796,12 @@ module Expr =
       | PT.EVariable(id, name) ->
         parseFn name
         |> Option.map (fun (name, version) ->
-          PT.EFnCall(id, PT.FnName.fqUserProgram [] name version, [], [ c arg ]))
+          PT.EApply(
+            id,
+            PT.FnTargetName(PT.FnName.fqUserProgram [] name version),
+            [],
+            [ c arg ]
+          ))
         |> Option.orElseWith (fun () ->
           parseEnum name
           |> Option.map (fun name ->
