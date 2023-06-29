@@ -1,36 +1,146 @@
-Result.andThen (Error "test") (fun x -> Error "test") = Error "test"
-Result.andThen (Error "test") (fun x -> Ok 5) = Error "test"
-Result.andThen (Ok 5) (fun x -> Error "test") = Error "test"
-Result.andThen (Ok 5) (fun x -> Ok (1 + x)) = Ok 6
-Result.andThen (Ok 8) (fun x -> Int.divide x 2) = Test.typeError_v0 "Expected `fn` to return a Result<'ok, 'err>, but it returned `4`"
-Result.andThen (Ok 5) (fun x -> true) = Test.typeError_v0 "Expected `fn` to return a Result<'ok, 'err>, but it returned `true`"
+PACKAGE.Darklang.Stdlib.Result.andThen
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
+  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Error "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
 
-PACKAGE.Darklang.Stdlib.Result.collect [Ok 5; Ok 6; Ok 7] = Ok [5; 6; 7]
-PACKAGE.Darklang.Stdlib.Result.collect [Ok 5; Error "test"; Ok 7] = Error "test"
-PACKAGE.Darklang.Stdlib.Result.collect [Ok 5; Error "test"; Error "test2"] = Error "test"
-PACKAGE.Darklang.Stdlib.Result.collect [Error "test"; Error "test2"] = Error "test"
-PACKAGE.Darklang.Stdlib.Result.collect [] = Ok []
+PACKAGE.Darklang.Stdlib.Result.andThen
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
+  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Ok 5) = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
 
-Result.fromOption (Just 6) "test" = Ok 6
-Result.fromOption Nothing "test" = Error "test"
-Result.fromOption (Just (Error "test")) "test" = Ok (Error "test")
-Result.fromOption Nothing (1,2,3) = Error ((1,2,3))
-Result.fromOption Nothing Nothing = Error Nothing
+PACKAGE.Darklang.Stdlib.Result.andThen
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5)
+  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Error "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
+
+PACKAGE.Darklang.Stdlib.Result.andThen
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5)
+  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(1 + x)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  6
+
+PACKAGE.Darklang.Stdlib.Result.andThen
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 8)
+  (fun x -> Int.divide x 2) = Test.typeError
+  "Expected `fn` to return a Result<'ok, 'err>, but it returned `4`"
+
+PACKAGE.Darklang.Stdlib.Result.andThen
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5)
+  (fun x -> true) = Test.typeError
+  "Expected `fn` to return a Result<'ok, 'err>, but it returned `true`"
 
 
-Result.map2_v0 (Error "error1") (Error "error2") (fun (a, b) -> a - b) = Error "error1"
-Result.map2_v0 (Error "error1") (Ok 1) (fun (a, b) -> a - b) = Error "error1"
-Result.map2_v0 (Ok 10) (Error "error2") (fun (a, b) -> a - b) = Error "error2"
-Result.map2_v0 (Ok 10) (Ok 1) (fun (a, b) -> a - b) = Ok 9
-Result.map2_v0 (Test.okWithTypeError_v0 "err") (Ok 1) (fun (a, b) -> a - b) = Test.typeError_v0 "err"
 
-Result.mapError (Error "test") (fun x -> String.append x "-appended") = Error "test-appended"
-Result.mapError (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 4
+PACKAGE.Darklang.Stdlib.Result.collect
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 6
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 7 ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ 5; 6; 7 ]
 
-Result.map (Error "test") (fun x -> Int.divide_v0 x 2) = Error "test"
-Result.map (Ok 4) (fun x -> Int.divide_v0 x 2) = Ok 2
+PACKAGE.Darklang.Stdlib.Result.collect
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 7 ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
 
-Result.toOption (Error "test") = Nothing
+PACKAGE.Darklang.Stdlib.Result.collect
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
 
-Result.withDefault_v0 (Error "test") 5 = 5
-Result.withDefault_v0 (Ok 6) 5 = 6
+PACKAGE.Darklang.Stdlib.Result.collect
+  [ PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
+
+PACKAGE.Darklang.Stdlib.Result.collect [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  []
+
+
+
+PACKAGE.Darklang.Stdlib.Result.Result.fromOption (Just 6) "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  6
+
+PACKAGE.Darklang.Stdlib.Result.fromOption Nothing "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test"
+
+PACKAGE.Darklang.Stdlib.Result.fromOption
+  (Just(PACKAGE.Darklang.Stdlib.Result.Result.Error "test"))
+  "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+)
+
+PACKAGE.Darklang.Stdlib.Result.fromOption Nothing (1, 2, 3) = PACKAGE
+  .Darklang
+  .Stdlib
+  .Result
+  .Error((1, 2, 3))
+
+PACKAGE.Darklang.Stdlib.Result.fromOption Nothing Nothing = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  Nothing
+
+
+
+PACKAGE.Darklang.Stdlib.Result.map2_v0
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
+  (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
+
+PACKAGE.Darklang.Stdlib.Result.map2_v0
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+  (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
+
+PACKAGE.Darklang.Stdlib.Result.map2_v0
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10)
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
+  (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error2"
+
+PACKAGE.Darklang.Stdlib.Result.map2_v0
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10)
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+  (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 9
+
+PACKAGE.Darklang.Stdlib.Result.map2_v0
+  (Test.okWithTypeError "err")
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+  (fun (a, b) -> a - b) = Test.typeError "err"
+
+
+PACKAGE.Darklang.Stdlib.Result.mapError
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
+  (fun x -> String.append x "-appended") = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "test-appended"
+
+PACKAGE.Darklang.Stdlib.Result.mapError
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 4)
+  (fun x -> Int.divide_v0 x 2) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 4
+
+
+PACKAGE.Darklang.Stdlib.Result.map
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
+  (fun x -> Int.divide_v0 x 2) = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+
+PACKAGE.Darklang.Stdlib.Result.map
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 4)
+  (fun x -> Int.divide_v0 x 2) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 2
+
+
+
+PACKAGE.Darklang.Stdlib.Result.toOption (
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
+) = Just "test"
+
+PACKAGE.Darklang.Stdlib.Result.toOption (
+  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+) = Nothing
+
+
+
+PACKAGE.Darklang.Stdlib.Result.withDefault_v0
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
+  5 = 5
+
+PACKAGE.Darklang.Stdlib.Result.withDefault_v0
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 6)
+  5 = 6

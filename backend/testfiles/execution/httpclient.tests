@@ -24,8 +24,8 @@ module NoInternal =
 // Tests that try to make requests to the internet
 
 // basic requests work
-((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
-((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> Result.map (fun response -> response.statusCode)) = Ok 200
+((HttpClient.request "get" "https://example.com" [] Bytes.empty) |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = Ok 200
+((HttpClient.request "get" "http://example.com" [] Bytes.empty) |> PACKAGE.Darklang.Stdlib.Result.map (fun response -> response.statusCode)) = Ok 200
 
 // type errors for bad `headers` are OK
 HttpClient.request "get" "https://darklang.com" [1] Bytes.empty = Test.typeError_v0 "Expected request headers to be a `List<String*String>`, but got: 1"

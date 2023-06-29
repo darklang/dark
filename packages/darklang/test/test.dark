@@ -17,10 +17,10 @@ module Darklang =
     let returnsOptionNothing () : Option<'a> = Nothing
 
     let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
-      PACKAGE.Darklang.Stdlib.Result.Ok 5
+      PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
 
     let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<Char, Bool> =
-      PACKAGE.Darklang.Stdlib.Result.Error false
+      PACKAGE.Darklang.Stdlib.Result.Result.Error false
 
     let throwsException () : DateTime =
       Test.raiseException "throwsException message"
