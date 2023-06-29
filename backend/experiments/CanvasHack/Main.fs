@@ -4,7 +4,6 @@ open System
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-
 open Prelude
 open Tablecloth
 
@@ -19,21 +18,12 @@ module CommandNames =
   [<Literal>]
   let import = "load-from-disk"
 
-  [<Literal>]
-  let export = "save-to-disk"
+type CanvasHackConfig =
+  { [<Legivel.Attributes.YamlField("id")>]
+    CanvasId : Option<string>
 
-module CanvasHackConfig =
-  type JustVersion =
-    { [<Legivel.Attributes.YamlField("version")>]
-      Version : string }
-
-  // One .dark file to define the full canvas
-  type V2 =
-    { [<Legivel.Attributes.YamlField("id")>]
-      CanvasId : Option<string>
-
-      [<Legivel.Attributes.YamlField("main")>]
-      Main : string }
+    [<Legivel.Attributes.YamlField("main")>]
+    Main : string }
 
 let parseYamlExn<'a> (filename : string) : 'a =
   let contents = System.IO.File.ReadAllText filename
@@ -43,10 +33,10 @@ let parseYamlExn<'a> (filename : string) : 'a =
   | Some(Legivel.Serialization.Success s) -> s.Data
   | ex -> Exception.raiseCode $"couldn't parse {filename}" [ "error", ex ]
 
-let seedCanvasV2 (canvasName : string) =
+let seedCanvas (canvasName : string) =
   task {
     let canvasDir = $"{baseDir}/{canvasName}"
-    let config = parseYamlExn<CanvasHackConfig.V2> $"{canvasDir}/config.yml"
+    let config = parseYamlExn<CanvasHackConfig> $"{canvasDir}/config.yml"
 
     // Create the canvas - expect this to be empty
     let domain = $"{canvasName}.dlio.localhost"
@@ -115,44 +105,17 @@ let main (args : string[]) =
       match args with
       | [||]
       | [| "--help" |] ->
-        print
-          $"`canvas-hack {CommandNames.import}` to load dark-editor from disk or
-            `canvas-hack {CommandNames.export}' to save dark-editor to disk"
+        print $"`canvas-hack {CommandNames.import}` to load dark-editor from disk"
 
+      | [| canvasName |]
       | [| CommandNames.import; canvasName |] ->
         print $"Loading canvas {canvasName} from disk"
-
-        let config =
-          parseYamlExn<CanvasHackConfig.JustVersion>
-            $"{baseDir}/{canvasName}/config.yml"
-
-        match config.Version with
-        | "2" -> do! seedCanvasV2 canvasName
-        | _ -> Exception.raiseCode "unknown canvas import config version"
-
-      | [| CommandNames.export |] ->
-        // Find the canvas
-        print "TODO: get context of the canvas"
-
-        // Get the list of HTTP Handlers configured
-        print "TODO: get list of http handlers, incl. code, path, method"
-
-        // Replace the .dark files on disk
-
-        // For each of the current HTTP handlers
-        //    - serialize it (`let a = 1 + 2`)
-        //      (write serializer in dark?)
-        //    - save to disk
-        //      (? how do we choose the name)
-
-        // 5. Save to .dark files
-
-        print "TODO"
+        do! seedCanvas canvasName
 
       | _ ->
         print
           $"CanvasHack isn't sure what to do with these arguments.
-          Currently expecting just '{CommandNames.import}' or '{CommandNames.export}'"
+          Currently expecting just '{CommandNames.import}'"
 
       NonBlockingConsole.wait ()
       return 0
