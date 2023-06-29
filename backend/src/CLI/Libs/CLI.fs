@@ -97,7 +97,6 @@ let fns : List<BuiltInFn> =
         function
         | state, [], [ DString filename; DString code; DDict symtable ] ->
           uply {
-
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
               let fields = [ "msg", DString msg; "metadata", DDict metadata ]
@@ -109,18 +108,21 @@ let fns : List<BuiltInFn> =
                   )
                 )
               )
+
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"
               let metadata =
                 Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
               err msg metadata
-            let parsed =
+
+            let parsedScript =
               try
                 Parser.CanvasV2.parse filename code |> Ok
               with e ->
                 Error(exnError e)
+
             try
-              match parsed with
+              match parsedScript with
               | Ok mod' ->
                 match! execute state mod' symtable with
                 | DInt i -> return DResult(Ok(DInt i))

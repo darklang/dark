@@ -11,16 +11,18 @@
     <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="paket.references" />
-    <Compile Include="ProdExec.fs" />
-  </ItemGroup>
+
+
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
-    <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
-    <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <Compile Include="ProdExec.fs" />
+  </ItemGroup>
 </Project>

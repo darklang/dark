@@ -31,7 +31,7 @@ module Pusher = LibBackend.Pusher
 
 module HttpMiddleware = HttpMiddleware.Http
 
-module RealExe = LibExperimentalExecution.RealExperimentalExecution
+module RealExe = DangerExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -503,7 +503,7 @@ let main _ =
     initSerializers ()
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibExperimentalExecution.Init.init name).Result
+    (DangerExecution.init ()).Result
 
     run ()
     // CLEANUP I suspect this isn't called
