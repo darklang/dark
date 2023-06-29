@@ -220,7 +220,6 @@ let _handler _req =
       200
 
 
-// dark-exportable is `c622b6ab-f117-4c9b-826d-51ea2d175b18`
 [<HttpHandler("GET", "/export-canvas/:canvasId")>]
 let _handler _req =
   let canvasId = canvasId |> Uuid.parse |> rUnwrap
