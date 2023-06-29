@@ -537,7 +537,12 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (let typeName = TypeName.fqBuiltIn [] "Result" 0
+        (let typeName =
+          TypeName.fqPackage
+            "Darklang"
+            (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+            "Result"
+            0
          eEnum typeName "Ok" [ eStr "y" ])
         [ (pOkVarOkId, "ok pat 2", er (Dval.resultOk (DString "y")))
           (pOkVarVarId, "var pat", er (DString "y"))

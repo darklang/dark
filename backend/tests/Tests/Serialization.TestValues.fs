@@ -427,8 +427,10 @@ module ProgramTypes =
                                "Ok",
                                [ PT.EEnum(
                                    646107057UL,
-                                   PT.FQName.BuiltIn(
-                                     { modules = []
+                                   PT.FQName.Package(
+                                     { owner = "Darklang"
+                                       modules =
+                                         NonEmptyList.ofList [ "Stdlib"; "Result" ]
                                        name = PT.TypeName.TypeName "Result"
                                        version = 0 }
                                    ),
