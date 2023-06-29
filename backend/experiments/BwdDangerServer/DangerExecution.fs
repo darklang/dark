@@ -1,4 +1,4 @@
-module LibExperimentalExecution.RealExperimentalExecution
+module BwdDangerServer.DangerExecution
 
 // For executing code with the appropriate production "real" execution, setting
 // traces, stdlib, etc, appropriately. Used by most of the executables.
@@ -22,7 +22,7 @@ let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
-      StdLibExperimental.StdLib.contents
+      BwdDangerServer.StdLib.contents
       StdLibDarkInternal.StdLib.contents ]
     []
     []

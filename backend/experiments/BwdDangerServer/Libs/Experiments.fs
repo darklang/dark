@@ -1,4 +1,4 @@
-module StdLibExperimental.Libs.Experiments
+module BwdDangerServer.Libs.Experiments
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
