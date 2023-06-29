@@ -81,76 +81,7 @@ let types : List<BuiltInType> = []
 let fn = fn [ "Experiments" ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "parseAndExecuteExpr" 0
-      typeParams = []
-      parameters =
-        [ Param.make "code" TString ""; Param.make "userInputs" (TDict TString) "" ]
-      returnType = TResult(TString, TString)
-      description =
-        "Parses and executes arbitrary Dark code in the context of the current canvas."
-      fn =
-        // I had these tests in internal.tests for a bit, but that test runner
-        // no longer has 'access' to the fn, so removed them. If we move them
-        // out of 'LibExperimentalStdLib' then we can add them back in.
-
-        //module ParseAndExecuteExpr =
-        //  Experiments.parseAndExecuteExpr "1 + 2" Dict.empty_v0 = Ok "3"
-        //  Experiments.parseAndExecuteExpr "a" { a = 3 } = Ok "3"
-        //  Experiments.parseAndExecuteExpr """let a = 3 in a + b""" { b = 2 } = Ok "5"
-        //  //Experiments.parseAndExecuteExpr """(HttpClient.request "get" "https://example.com" [] Bytes.empty) |> unwrap |> (fun response -> response.statusCode)""" Dict.empty = 200
-
-        function
-        | state, _, [ DString code; DDict userInputs ] ->
-          uply {
-            // TODO: return an appropriate error if this fails
-            // CLEANUP: the parser won't work with user fns or types
-            let expr =
-              Parser.ProgramTypes.parseRTExpr
-                Set.empty
-                Set.empty
-                "experiment.fs"
-                code
-
-            let symtable = LibExecution.Interpreter.withGlobals state userInputs
-
-            // TODO: return an appropriate error if this fails
-            let! evalResult = LibExecution.Interpreter.eval state symtable expr
-
-            return
-              LibExecution.DvalReprDeveloper.toRepr evalResult
-              |> DString
-              |> Ok
-              |> DResult
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "parseAndSerializeExpr" 0
-      typeParams = []
-      parameters = [ Param.make "code" TString "" ]
-      returnType = TResult(TString, TString)
-      description = "Parses Dark code and serializes the result to JSON."
-      fn =
-        function
-        | _, _, [ DString code ] ->
-          uply {
-            return
-              Parser.ProgramTypes.parseIgnoringUser code
-              |> Json.Vanilla.serialize
-              |> DString
-              |> Ok
-              |> DResult
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "parseAndSerializeProgram" 0
+  [ { name = fn "parseAndSerializeProgram" 0
       typeParams = []
       parameters = [ Param.make "code" TString ""; Param.make "filename" TString "" ]
       returnType = TResult(TDict TString, TString)
