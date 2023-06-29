@@ -125,7 +125,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
         LibExecution.StdLib.combine
           [ LibTest.contents
             LibRealExecution.RealExecution.builtins
-            StdLibCli.StdLib.contents ]
+            StdLibCLI.StdLib.contents ]
           []
           []
       let! packageFns = LibBackend.PackageManager.allFunctions ()

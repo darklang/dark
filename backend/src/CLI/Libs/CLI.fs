@@ -1,6 +1,6 @@
 /// StdLib functions for building the CLI
-/// (as opposed to functions needed by Cli programs, which are in StdLibCli)
-module StdLibCliInternal.Libs.Cli
+/// (as opposed to functions needed by CLI programs, which are in StdLibCLI)
+module CLI.Libs.CLI
 
 open System.Threading.Tasks
 
@@ -16,7 +16,7 @@ module Exe = LibExecution.Execution
 
 let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
+    [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents ]
     []
     []
 
@@ -67,7 +67,7 @@ let execute
   }
 
 let types : List<BuiltInType> =
-  [ { name = typ [ "Cli" ] "ExecutionError" 0
+  [ { name = typ [ "CLI" ] "ExecutionError" 0
       description = "Result of Execution"
       typeParams = []
       definition =
@@ -81,7 +81,7 @@ let types : List<BuiltInType> =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
+  [ { name = fn [ "CLI" ] "parseAndExecuteScript" 0
       typeParams = []
       parameters =
         [ Param.make "filename" TString ""
@@ -90,7 +90,7 @@ let fns : List<BuiltInFn> =
       returnType =
         TResult(
           TInt,
-          TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
+          TCustomType(FQName.BuiltIn(typ [ "CLI" ] "ExecutionError" 0), [])
         )
       description = "Parses and executes arbitrary Dark code"
       fn =
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
               DResult(
                 Error(
                   DRecord(
-                    FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0),
+                    FQName.BuiltIn(typ [ "CLI" ] "ExecutionError" 0),
                     Map fields
                   )
                 )

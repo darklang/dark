@@ -11,11 +11,11 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module StdLibCli = StdLibCli.StdLib
+module StdLibCLI = StdLibCLI.StdLib
 
 let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
+    [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents; StdLib.contents ]
     []
     []
 
@@ -128,7 +128,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    let mainFile = "/home/dark/app/backend/src/LocalExec/main.dark"
+    let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
     let modul = Parser.CanvasV2.parseFromFile mainFile
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
     let result = execute modul (Map [ "args", args ])

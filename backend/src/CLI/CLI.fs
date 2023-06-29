@@ -1,4 +1,4 @@
-module Cli.Main
+module CLI.Main
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -10,7 +10,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module StdLibCli = StdLibCli.StdLib
+module StdLibCLI = StdLibCLI.StdLib
 
 // ---------------------
 // Version information
@@ -29,7 +29,7 @@ open System.Reflection
 let info () =
   let buildAttributes =
     Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyMetadataAttribute>()
-  // This reads values created during the build in Cli.fsproj
+  // This reads values created during the build in CLI.fsproj
   // It doesn't feel like this is how it's supposed to be used, but it works. But
   // what if we wanted more than two parameters?
   let buildDate = buildAttributes.Key
@@ -44,8 +44,8 @@ let info () =
 let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
-      StdLibCli.StdLib.contents
-      StdLibCliInternal.Libs.Cli.contents ]
+      StdLibCLI.StdLib.contents
+      CLI.StdLib.contents ]
     []
     []
 
@@ -65,6 +65,7 @@ let execute
   task {
     let config : RT.Config =
       { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -106,13 +107,17 @@ let initSerializers () = ()
 let main (args : string[]) =
   try
     initSerializers ()
-    let mainFile = "/home/dark/app/backend/experiments/cli/cli.dark"
-    let mod' = Parser.CanvasV2.parseFromFile mainFile
-    // debuG "mod" mod'
+
+    let hostScript =
+      Parser.CanvasV2.parseFromFile "/home/dark/app/backend/src/CLI/cli-host.dark"
+
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
-    let result = execute mod' (Map [ "args", args ])
+
+    let result = execute hostScript (Map [ "args", args ])
     let result = result.Result
+
     NonBlockingConsole.wait ()
+
     match result with
     | RT.DError(RT.SourceNone, msg) ->
       System.Console.WriteLine $"Error: {msg}"
@@ -127,5 +132,5 @@ let main (args : string[]) =
         $"Error: main function must return an int (returned {output})"
       1
   with e ->
-    printException "Error starting cli" [] e
+    printException "Error starting Darklang CLI" [] e
     1
