@@ -56,10 +56,11 @@
     <ProjectReference Include="../Parser/Parser.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
-    <ProjectReference Include="../StdLibCliInternal/StdLibCliInternal.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="Libs/CLI.fs" />
+    <Compile Include="StdLib.fs" />
     <Compile Include="CLI.fs" />
   </ItemGroup>
 </Project>

@@ -45,7 +45,7 @@ let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCli.StdLib.contents
-      StdLibCliInternal.Libs.Cli.contents ]
+      CLI.StdLib.contents ]
     []
     []
 
@@ -65,6 +65,7 @@ let execute
   task {
     let config : RT.Config =
       { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -106,13 +107,17 @@ let initSerializers () = ()
 let main (args : string[]) =
   try
     initSerializers ()
-    let mainFile = "/home/dark/app/backend/src/CLI/cli-host.dark"
-    let mod' = Parser.CanvasV2.parseFromFile mainFile
-    // debuG "mod" mod'
+
+    let hostScript =
+      Parser.CanvasV2.parseFromFile "/home/dark/app/backend/src/CLI/cli-host.dark"
+
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
-    let result = execute mod' (Map [ "args", args ])
+
+    let result = execute hostScript (Map [ "args", args ])
     let result = result.Result
+
     NonBlockingConsole.wait ()
+
     match result with
     | RT.DError(RT.SourceNone, msg) ->
       System.Console.WriteLine $"Error: {msg}"
@@ -127,5 +132,5 @@ let main (args : string[]) =
         $"Error: main function must return an int (returned {output})"
       1
   with e ->
-    printException "Error starting cli" [] e
+    printException "Error starting Darklang CLI" [] e
     1
