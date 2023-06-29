@@ -47,7 +47,6 @@
   </Target>
 
 
-  <!-- Dependencies and code -->
   <Import Project="..\..\.paket\Paket.Restore.targets" />
   <ItemGroup><None Include="paket.references" /></ItemGroup>
 

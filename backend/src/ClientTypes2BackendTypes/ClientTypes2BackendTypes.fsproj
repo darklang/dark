@@ -8,14 +8,18 @@
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
+
+
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
   </ItemGroup>
+
   <ItemGroup>
-    <None Include="paket.references" />
     <Compile Include="Pusher.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
