@@ -612,13 +612,14 @@ module Darklang =
           let otherPipeParts =
             otherPipeExprs
             |> List.map (fun (pipeExpr) -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.pipeExpr pipeExpr )
-            |> String.join " |> "
+            |> String.join " \n|> "
 
           let pipesPart =
             if otherPipeParts == "" then firstPipePart
-            else $"{firstPipePart} |> {otherPipeParts}"
+            else $"{firstPipePart}\n|> {otherPipeParts}"
 
-          $"{exprPart} |> {pipesPart}"
+          $"{exprPart} \n|> {pipesPart}"
+
 
 
         // function calls
@@ -639,7 +640,7 @@ module Darklang =
 
           let bodyPart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr body
 
-          $"(fun {argsPart} -> {bodyPart})"
+          $"(fun {argsPart} -> \n {PACKAGE.Darklang.PrettyPrinter.indent bodyPart})"
 
         | EFnCall(_id, fnName, typeArgs, args) ->
           let fnNamePart =
