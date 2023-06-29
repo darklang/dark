@@ -566,9 +566,15 @@
                                       "EEnum",
                                       646107057,
                                       [
-                                        "BuiltIn",
+                                        "Package",
                                         {
-                                          "modules": [],
+                                          "owner": "Darklang",
+                                          "modules": {
+                                            "Head": "Stdlib",
+                                            "Tail": [
+                                              "Result"
+                                            ]
+                                          },
                                           "name": [
                                             "TypeName",
                                             "Result"
@@ -1605,9 +1611,15 @@
                                       "EEnum",
                                       646107057,
                                       [
-                                        "BuiltIn",
+                                        "Package",
                                         {
-                                          "modules": [],
+                                          "owner": "Darklang",
+                                          "modules": {
+                                            "Head": "Stdlib",
+                                            "Tail": [
+                                              "Result"
+                                            ]
+                                          },
                                           "name": [
                                             "TypeName",
                                             "Result"
@@ -2647,9 +2659,15 @@
                                       "EEnum",
                                       646107057,
                                       [
-                                        "BuiltIn",
+                                        "Package",
                                         {
-                                          "modules": [],
+                                          "owner": "Darklang",
+                                          "modules": {
+                                            "Head": "Stdlib",
+                                            "Tail": [
+                                              "Result"
+                                            ]
+                                          },
                                           "name": [
                                             "TypeName",
                                             "Result"
@@ -3686,9 +3704,15 @@
                                       "EEnum",
                                       646107057,
                                       [
-                                        "BuiltIn",
+                                        "Package",
                                         {
-                                          "modules": [],
+                                          "owner": "Darklang",
+                                          "modules": {
+                                            "Head": "Stdlib",
+                                            "Tail": [
+                                              "Result"
+                                            ]
+                                          },
                                           "name": [
                                             "TypeName",
                                             "Result"
@@ -5019,9 +5043,15 @@
                                       "EEnum",
                                       646107057,
                                       [
-                                        "BuiltIn",
+                                        "Package",
                                         {
-                                          "modules": [],
+                                          "owner": "Darklang",
+                                          "modules": {
+                                            "Head": "Stdlib",
+                                            "Tail": [
+                                              "Result"
+                                            ]
+                                          },
                                           "name": [
                                             "TypeName",
                                             "Result"
