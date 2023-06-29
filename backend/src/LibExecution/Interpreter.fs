@@ -620,21 +620,6 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | "Just", _ ->
           return err id $"Option.Just expects 1 argument but got {fields.Length}"
         | name, _ -> return err id $"Invalid name for enum {name}"
-      | FQName.BuiltIn({ modules = []
-                         name = TypeName.TypeName "Result"
-                         version = 0 }) ->
-        match (caseName, fields) with
-        | "Ok", [ arg ] ->
-          let! dv = eval state st arg
-          return Dval.resultOk dv
-        | "Ok", _ ->
-          return err id $"Result.Ok expects 1 argument but got {fields.Length}"
-        | "Error", [ arg ] ->
-          let! dv = eval state st arg
-          return Dval.resultError dv
-        | "Error", _ ->
-          return err id $"Result.Error expects 1 argument but got {fields.Length}"
-        | name, _ -> return err id $"Invalid name for enum {name}"
       | typeName ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
