@@ -106,7 +106,7 @@ let initSerializers () = ()
 let main (args : string[]) =
   try
     initSerializers ()
-    let mainFile = "/home/dark/app/backend/experiments/cli/cli.dark"
+    let mainFile = "/home/dark/app/backend/src/CLI/cli-host.dark"
     let mod' = Parser.CanvasV2.parseFromFile mainFile
     // debuG "mod" mod'
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
