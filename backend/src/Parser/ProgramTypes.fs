@@ -489,13 +489,7 @@ module Expr =
 
     // Enum values (EEnums)
     // TODO: remove this explicit handling
-    // when the Option and Result types are defined in StdLib
-    | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
-      List.contains name.idText [ "Ok"; "Error" ]
-      ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Result" 0
-      PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
-
+    // when the Option type are defined in StdLib
     | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Nothing"; "Just" ]
       ->
@@ -505,10 +499,6 @@ module Expr =
     // Enum values (EEnums)
     | SynExpr.Ident name when List.contains name.idText [ "Nothing"; "Just" ] ->
       let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
-      PT.EEnum(id, typeName, name.idText, [])
-
-    | SynExpr.Ident name when List.contains name.idText [ "Ok"; "Error" ] ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Result" 0
       PT.EEnum(id, typeName, name.idText, [])
 
 
