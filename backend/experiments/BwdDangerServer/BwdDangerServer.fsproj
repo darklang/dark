@@ -38,10 +38,3 @@
     <Compile Include="Server.fs" />
   </ItemGroup>
 </Project>
-
-
-
-
-
-
-
