@@ -348,12 +348,6 @@ module Darklang =
               |> String.join ", "
 
             $"{caseName} ({fieldPart})"
-        | _ ->
-          match
-            Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.MatchPattern> mp
-          with
-          | Ok s -> $"TODO: {s}"
-          | Error e -> $"Error: {e}"
 
 
       let binaryOperation
@@ -681,10 +675,6 @@ module Darklang =
 
           $"{{ ({recordPart}) with {updatePart} }}"
 
-        | _ ->
-          match Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.Expr> e with
-          | Ok s -> $"TODO: {s}"
-          | Error e -> $"Error: {e}"
 
       let deprecation<'name>
         (m: 'name -> String)
