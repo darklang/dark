@@ -240,9 +240,6 @@ module Darklang =
         | TOption inner ->
           $"Option<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 
-        | TResult(ok, err) ->
-          $"PACKAGE.Darklang.Stdlib.Result.Result<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference ok}, {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference err}>"
-
         | TDict inner ->
           $"Dict<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 

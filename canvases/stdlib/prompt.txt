@@ -151,11 +151,7 @@ type DType =
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of TypeName.T * typeArgs : List<DType>
-
-  // TODO: remove all of thse in favor of TCustomType
-  // Enums
   | TOption of DType
-  | TResult of DType * DType
 
   // Records
   | TDict of DType
