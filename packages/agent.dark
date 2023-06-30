@@ -2,8 +2,7 @@ module OpenAI =
 
   module Config =
 
-    let apiKey () : String =
-      "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"
+    let apiKey () : String = "openai-api-key"
 
     let getHeaders () : List<(String * String)> =
       [ ("authorization", "Bearer " ++ PACKAGE.OpenAI.Config.apiKey ())
