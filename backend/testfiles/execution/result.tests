@@ -58,7 +58,7 @@ PACKAGE.Darklang.Stdlib.Result.collect [] = PACKAGE.Darklang.Stdlib.Result.Resul
 
 
 
-PACKAGE.Darklang.Stdlib.Result.Result.fromOption (Just 6) "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+PACKAGE.Darklang.Stdlib.Result.fromOption (Just 6) "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   6
 
 PACKAGE.Darklang.Stdlib.Result.fromOption Nothing "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error
@@ -70,11 +70,7 @@ PACKAGE.Darklang.Stdlib.Result.fromOption
   PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
 )
 
-PACKAGE.Darklang.Stdlib.Result.fromOption Nothing (1, 2, 3) = PACKAGE
-  .Darklang
-  .Stdlib
-  .Result
-  .Error((1, 2, 3))
+PACKAGE.Darklang.Stdlib.Result.fromOption Nothing (1, 2, 3) = PACKAGE.Darklang.Stdlib.Result.Result.Error((1, 2, 3))
 
 PACKAGE.Darklang.Stdlib.Result.fromOption Nothing Nothing = PACKAGE.Darklang.Stdlib.Result.Result.Error
   Nothing
