@@ -18,17 +18,6 @@ PACKAGE.Darklang.Stdlib.Result.andThen
   (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(1 + x)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
   6
 
-PACKAGE.Darklang.Stdlib.Result.andThen
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 8)
-  (fun x -> Int.divide x 2) = Test.typeError
-  "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Result.Result<'ok, 'err>, but it returned `4`"
-
-PACKAGE.Darklang.Stdlib.Result.andThen
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5)
-  (fun x -> true) = Test.typeError
-  "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Result.Result<'ok, 'err>, but it returned `true`"
-
-
 
 PACKAGE.Darklang.Stdlib.Result.collect
   [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 5

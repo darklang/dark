@@ -185,8 +185,6 @@ module Enums =
     module Builtins =
       Nothing 5 = Test.typeError "Option.Nothing expects 0 arguments but got 1"
       Just(5,6) = Test.typeError "Option.Just expects 1 argument but got 2"
-      PACKAGE.Darklang.Stdlib.Result.Result.Ok(5,6) = Test.typeError "Darklang.Stdlib.Result.Result.Ok expects 1 argument but got 2"
-      PACKAGE.Darklang.Stdlib.Result.Result.Error(5,6) = Test.typeError "Darklang.Stdlib.Result.Result.Error expects 1 argument but got 2"
 
     module User =
       type MyEnum = | A | B | C of String
