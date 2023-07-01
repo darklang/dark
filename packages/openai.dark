@@ -79,18 +79,53 @@ module OpenAI =
       { choices: List<PACKAGE.OpenAI.ChatCompletion.ResponseChoice> }
 
 
-    let completion (prompt: String) : Result<String, String> =
+    type CompletionOptions =
+      { model: String
+        messages: List<PACKAGE.OpenAI.ChatCompletion.RequestMessage>
+        temperature: Float
+        max_tokens: Int
+        top_p: Float
+        n: Int
+        stream: Bool }
 
-      let openAIRequest =
-        PACKAGE.OpenAI.ChatCompletion.Request
-          { model = "gpt-3.5-turbo"
-            max_tokens = 700
-            temperature = 0.7
-            messages =
-              [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
-                  { role = "user"; content = prompt } ] }
+    let completionOptionsDefault
+      ()
+      : PACKAGE.OpenAI.ChatCompletion.CompletionOptions =
+      PACKAGE.OpenAI.ChatCompletion.CompletionOptions
+        { model = "gpt-3.5-turbo"
+          messages =
+            [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
+                { role = "user"; content = "test" } ]
+          temperature = 0.7
+          max_tokens = 700
+          top_p = 1.0
+          n = 1
+          stream = false }
 
-      match Json.serialize<PACKAGE.OpenAI.ChatCompletion.Request> openAIRequest with
+
+    let completionWithOption
+      (prompt: String)
+      (options: Option<PACKAGE.OpenAI.ChatCompletion.CompletionOptions>)
+      : Result<String, String> =
+
+      let options =
+        match options with
+        | Just o ->
+          { o with
+              messages =
+                [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
+                    { role = "user"; content = prompt } ] }
+        | Nothing ->
+          { (PACKAGE.OpenAI.ChatCompletion.completionOptionsDefault ()) with
+              messages =
+                [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
+                    { role = "user"; content = prompt } ] }
+
+      let openAIRequest = options
+
+      match
+        Json.serialize<PACKAGE.OpenAI.ChatCompletion.CompletionOptions> openAIRequest
+      with
       | Ok reqBody ->
         let headers = PACKAGE.OpenAI.Config.getHeaders ()
 
@@ -118,15 +153,8 @@ module OpenAI =
       | Error e -> Error("Couldn't serialize request" ++ e)
 
 
-    let completionWithRole (role: String) (prompt: String) : Result<String, String> =
 
-      let role =
-        match role with
-        | "user" -> "user"
-        | "system" -> "system"
-        | "function" -> "function" // if the role is function the field name is required
-        | "assistant" -> "assistant"
-        | _ -> "user"
+    let completion (prompt: String) : Result<String, String> =
 
       let openAIRequest =
         PACKAGE.OpenAI.ChatCompletion.Request
@@ -135,7 +163,7 @@ module OpenAI =
             temperature = 0.7
             messages =
               [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
-                  { role = role; content = prompt } ] }
+                  { role = "user"; content = prompt } ] }
 
       match Json.serialize<PACKAGE.OpenAI.ChatCompletion.Request> openAIRequest with
       | Ok reqBody ->
