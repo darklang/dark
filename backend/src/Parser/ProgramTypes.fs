@@ -520,7 +520,9 @@ module Expr =
       | Some(name, version) ->
         PT.EApply(
           gid (),
-          PT.FnTargetName(PT.FnName.fqUserProgram modules name version), [], []
+          PT.FnTargetName(PT.FnName.fqUserProgram modules name version),
+          [],
+          []
         )
       | None ->
         match parseEnum name with
@@ -554,7 +556,12 @@ module Expr =
         |> Exception.unwrapOptionInternal
           "invalid fn name"
           [ "name", name.idText; "ast", ast ]
-      PT.EApply(gid (), PT.FnTargetName(PT.FnName.fqUserProgram [] name version), typeArgs, [])
+      PT.EApply(
+        gid (),
+        PT.FnTargetName(PT.FnName.fqUserProgram [] name version),
+        typeArgs,
+        []
+      )
 
     // e.g. `Module1.Module2.fnName<String>`
     | SynExpr.TypeApp(SynExpr.LongIdent(_,
@@ -849,6 +856,13 @@ module Expr =
         match e with
         | PT.EPipeFnCall(id, name, typeArgs, args) ->
           PT.EPipeFnCall(id, name, typeArgs, args)
+        | PT.EPipeEnum(id, typeName, caseName, fields) ->
+          PT.EPipeEnum(
+            id,
+            TypeName.resolveNames userTypes typeName,
+            caseName,
+            fields
+          )
         // pipes with variables might be fn calls
         | PT.EPipeVariable(id, name) ->
           match parseFn name with
