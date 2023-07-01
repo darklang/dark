@@ -266,9 +266,9 @@ Json.parse<Option<Int>> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Just 1)
 
 
 // Results
-Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"
-Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (Error "err message") = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":\"err message\"}"
-Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Ok\":1}"
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (PACKAGE.Darklang.Stdlib.Result.Result.Error "err message") = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":\"err message\"}"
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> "{\"Ok\":1}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
 Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> "{\"Error\":\"err message\"}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Error "err message")
 // TODO: more...
 // TODO: more nesting...
