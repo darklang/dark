@@ -79,8 +79,8 @@ module Darklang =
         (error: 'e)
         : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
         match option with
-        | Some value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
-        | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error error
+        | Just value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
+        | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error error
 
       /// Turn a <type Result> into an <type Option>
       let toOption
