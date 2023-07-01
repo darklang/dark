@@ -420,7 +420,14 @@ module Expect =
     | FQName.UserProgram a, FQName.UserProgram e ->
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
-    | _ -> err ()
+    | FQName.Package a, FQName.Package e ->
+      if a.owner <> e.owner then err ()
+      if a.modules <> e.modules then err ()
+      if a.name <> e.name then err ()
+      if a.version <> e.version then err ()
+    | FQName.BuiltIn _, _
+    | FQName.UserProgram _, _
+    | FQName.Package _, _ -> err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
