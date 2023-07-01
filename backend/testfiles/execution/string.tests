@@ -100,8 +100,8 @@ String.fromChar (c "👱🏾") = "👱🏾"
 String.fromChar (c "Z̤͔ͧ̑̓") = "Z̤͔ͧ̑̓"
 
 
-String.base64Decode_v0 "random string" = Error "Not a valid base64 string"
-String.base64Decode_v0 "illegal chars&@:" = Error "Not a valid base64 string"
+String.base64Decode_v0 "random string" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
+String.base64Decode_v0 "illegal chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
 String.base64Decode_v0 "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "+"
 String.base64Decode_v0 "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "Ⱥ"
 String.base64Decode_v0 "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "żółw"
@@ -161,7 +161,7 @@ String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 
 
 (String.random 5) == (String.random 5) = false
-String.random -1 = Error "Expected `length` to be positive, but it was `-1`"
+String.random -1 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `length` to be positive, but it was `-1`"
 String.length ((String.random 10) |> unwrap) = 10
 String.length ((String.random 5) |> unwrap) = 5
 String.length ((String.random 0) |> unwrap) = 0
@@ -547,8 +547,8 @@ String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍�
 
 String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
 String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-String.padStart_v0 "123" "_-" 4 = Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padStart_v0 "123" "" 10 = Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
+String.padStart_v0 "123" "_-" 4 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padStart_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
 String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000123"
 String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
 String.padStart_v0 "123🍊🍊" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123🍊🍊"
@@ -564,8 +564,8 @@ String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "
 
 String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
 String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
-String.padEnd_v0 "123" "_-" 3 = Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padEnd_v0 "123" "" 10 = Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
+String.padEnd_v0 "123" "_-" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padEnd_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
 String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123000"
 String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
 String.padEnd_v0 "123🍊🍊" "0" 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123🍊🍊000"

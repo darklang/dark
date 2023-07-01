@@ -4,14 +4,14 @@
 Json.serialize<Unit> () = PACKAGE.Darklang.Stdlib.Result.Result.Ok "null"
 Json.parse<Unit> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Ok ()
 
-Json.serialize<Unit> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<Unit> 0 = Error "Can't currently serialize this type/value combination"
-Json.serialize<Int> () = Error "Can't currently serialize this type/value combination"
+Json.serialize<Unit> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Unit> 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Int> () = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
 
-Json.parse<Int> "()" = Error "not JSON"
-Json.parse<Unit> "0" = Error "Can't currently parse this type/value combination"
-Json.parse<Unit> "\"\"" = Error "Can't currently parse this type/value combination"
-Json.parse<Unit> "\"null\"" = Error "Can't currently parse this type/value combination"
+Json.parse<Int> "()" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Unit> "0" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Unit> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Unit> "\"null\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 
 
 // Bools
@@ -24,20 +24,20 @@ Json.parse<Bool> " false " = PACKAGE.Darklang.Stdlib.Result.Result.Ok false
 Json.parse<List<Bool>> "[true, true, false, true  ] " = PACKAGE.Darklang.Stdlib.Result.Result.Ok [true; true; false; true]
 
 Json.serialize<Bool> None = Test.typeError "There is no variable named: None"
-Json.serialize<Bool> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<Bool> 0 = Error "Can't currently serialize this type/value combination"
-Json.serialize<Bool> 1 = Error "Can't currently serialize this type/value combination"
-Json.serialize<Bool> "False" = Error "Can't currently serialize this type/value combination"
-Json.serialize<Bool> "tRUE" = Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> 1 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> "False" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Bool> "tRUE" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
 
-Json.parse<Bool> "tru" = Error "not JSON"
-Json.parse<Bool> "null" = Error "Can't currently parse this type/value combination"
-Json.parse<Bool> "" = Error "not JSON"
-Json.parse<Bool> "\"true\"" = Error "Can't currently parse this type/value combination"
-Json.parse<Bool> "0" = Error "Can't currently parse this type/value combination"
-Json.parse<Bool> "1" = Error "Can't currently parse this type/value combination"
-Json.parse<Bool> "False" = Error "not JSON"
-Json.parse<Bool> "tRUE" = Error "not JSON"
+Json.parse<Bool> "tru" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Bool> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Bool> "\"true\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "0" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Bool> "False" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Bool> "tRUE" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 
 // Ints
@@ -72,23 +72,23 @@ Json.parse<Int> "2147483647" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 21474836
 // TODO: review Float.tests for more values to test against
 
 // not ints
-Json.serialize<Int> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<Int> 42.5 = Error "Can't currently serialize this type/value combination"
-Json.serialize<Int> "42" = Error "Can't currently serialize this type/value combination"
-Json.parse<Int> " " = Error "not JSON"
-Json.parse<Int> "4a" = Error "not JSON"
-Json.parse<Int> "- 42" = Error "not JSON"
-Json.parse<Int> "null" = Error "Can't currently parse this type/value combination"
-Json.parse<Int> "true" = Error "Can't currently parse this type/value combination"
-Json.parse<Int> "false" = Error "Can't currently parse this type/value combination"
-Json.parse<Int> "\"42\"" = Error "Can't currently parse this type/value combination"
-Json.parse<Int> "[42]" = Error "Can't currently parse this type/value combination"
-Json.parse<Int> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
-//Json.parse<Int> "42.5" = Error "Can't currently parse this type/value combination"
-//Json.parse<Int> "1e3" = Error "Can't currently parse this type/value combination"
-//Json.parse<Int> "-1e3" = Error "Can't currently parse this type/value combination"
-Json.parse<Int> "\"42\n\"" = Error "not JSON"
-//Json.parse<Int> "4\u0032" = Error "not JSON"
+Json.serialize<Int> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Int> 42.5 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Int> "42" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.parse<Int> " " = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Int> "4a" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Int> "- 42" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Int> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Int> "true" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Int> "false" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Int> "\"42\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Int> "[42]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Int> "{ \"key\": 42 }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+//Json.parse<Int> "42.5" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+//Json.parse<Int> "1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+//Json.parse<Int> "-1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Int> "\"42\n\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+//Json.parse<Int> "4\u0032" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 
 // Floats
@@ -99,8 +99,8 @@ Json.serialize<Float> (2.0/3.0) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0.66
 Json.serialize<Float> 12345.67890 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "12345.6789"
 Json.serialize<Float> -12345.67890 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "-12345.6789"
 Json.parse<Float> "0.0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 0.0
-Json.parse<Float> "e" = Error "not JSON"
-Json.parse<Float> "pi" = Error "not JSON"
+Json.parse<Float> "e" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Float> "pi" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 Json.parse<Float> "12345.67890" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 12345.67890
 Json.parse<Float> "-12345.67890" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -12345.67890
 Json.parse<Float> " 42.0 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok 42.0
@@ -113,22 +113,22 @@ Json.parse<Float> "-1e3" = PACKAGE.Darklang.Stdlib.Result.Result.Ok -1000.0 // P
 // TODO: review Float.tests for more values to test against
 
 // not floats
-Json.parse<Float> " -42 . 0 " = Error "not JSON"
-Json.serialize<Float> 0 = Error "Can't currently serialize this type/value combination"
-//Json.parse<Float> "0" = Error "Can't currently serialize this type/value combination"
-Json.serialize<Float> "" = Error "Can't currently serialize this type/value combination"
-Json.serialize<Float> 42 = Error "Can't currently serialize this type/value combination"
-Json.parse<Float> " " = Error "not JSON"
-Json.parse<Float> "4a" = Error "not JSON"
-Json.parse<Float> "- 42.0" = Error "not JSON"
-Json.parse<Float> "null" = Error "Can't currently parse this type/value combination"
-Json.parse<Float> "true" = Error "Can't currently parse this type/value combination"
-Json.parse<Float> "false" = Error "Can't currently parse this type/value combination"
-//Json.parse<Float> "\"42\"" = Error "Can't currently parse this type/value combination"
-Json.parse<Float> "[42]" = Error "Can't currently parse this type/value combination"
-Json.parse<Float> "{ \"key\": 42 }" = Error "Can't currently parse this type/value combination"
-Json.parse<Float> "\"42\n\"" = Error "not JSON"
-//Json.parse<Float> "4\u0032" = Error "not JSON"
+Json.parse<Float> " -42 . 0 " = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.serialize<Float> 0 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+//Json.parse<Float> "0" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Float> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.serialize<Float> 42 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.parse<Float> " " = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Float> "4a" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Float> "- 42.0" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+Json.parse<Float> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Float> "true" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Float> "false" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+//Json.parse<Float> "\"42\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Float> "[42]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Float> "{ \"key\": 42 }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<Float> "\"42\n\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+//Json.parse<Float> "4\u0032" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 
 // Chars
@@ -145,8 +145,8 @@ Json.parse<Char> "\"a\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'a'
 //Json.parse<Char> "\"Ł\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 'Ł'
 
 // not chars
-//Json.serialize<Char> "test" = Error "Can't currently serialize this type/value combination"
-//Json.parse<Char> "\"test\"" = Error "Can't currently parse this type/value combination"
+//Json.serialize<Char> "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+//Json.parse<Char> "\"test\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 
 
 // Strings
@@ -183,9 +183,9 @@ Json.serialize<DateTime> (d "3023-07-28T22:42:36Z") = PACKAGE.Darklang.Stdlib.Re
 Json.parse<DateTime> "\"3023-07-28T22:42:36Z\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (d "3023-07-28T22:42:36Z")
 
 // not dates (either malformatted, or missing stuff, or totally not dates)
-Json.parse<DateTime> "\"3023-07-28T22:42:36\"" = Error "String '3023-07-28T22:42:36' was not recognized as a valid DateTime."
-Json.parse<DateTime> "\"2023-07-28\"" = Error "String '2023-07-28' was not recognized as a valid DateTime."
-Json.parse<DateTime> "1" = Error "Can't currently parse this type/value combination"
+Json.parse<DateTime> "\"3023-07-28T22:42:36\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "String '3023-07-28T22:42:36' was not recognized as a valid DateTime."
+Json.parse<DateTime> "\"2023-07-28\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "String '2023-07-28' was not recognized as a valid DateTime."
+Json.parse<DateTime> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 
 
 // UUIDs
@@ -202,8 +202,8 @@ Json.serialize<Uuid> (uuid "11111111-2222-3333-4444-555555555555") = PACKAGE.Dar
 Json.parse<Uuid> ("\"11111111-2222-3333-4444-555555555555\"") = PACKAGE.Darklang.Stdlib.Result.Result.Ok (uuid "11111111-2222-3333-4444-555555555555")
 
 // not UUIDs
-Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"" = Error "Guid should contain 32 digits with 4 dashes (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." // has a missing digit at the end
-Json.serialize<Uuid> "" = Error "Can't currently serialize this type/value combination"
+Json.parse<Uuid> "\"00000000-0000-0000-0000-00000000000\"" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Guid should contain 32 digits with 4 dashes (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." // has a missing digit at the end
+Json.serialize<Uuid> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
 
 
 // Bytes
@@ -235,12 +235,12 @@ Json.serialize<List<Person>> [ Person { Name = "Alice"; Age = 42 }; Person { Nam
 Json.parse<List<Dict<MyString>>> """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = PACKAGE.Darklang.Stdlib.Result.Result.Ok [ Dict{ name = "Alice"; role = "admin" }; Dict{ name = "Bob"; role = "user" }; Dict{ name = "Charlie"; role = "user" }]
 
 // not proper lists
-Json.serialize<List<Int>> [1, 2, "three"] = Error "Can't currently serialize this type/value combination"
-Json.parse<List<Int>> "[1, 2, \"three\"]" = Error "Can't currently parse this type/value combination"
-Json.parse<List<Int>> "[1, 2, ]" = Error "not JSON"
-//Json.serialize<List<List<List<Int>>>> [[[1, 2, 3], [4, 5.5, 6]], [[7, 8], [9, 0]]] = Error "Can't currently parse this type/value combination"
-//Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = Error "Can't currently parse this type/value combination"
-Json.parse<List<Dict<Int>>> """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = Error "Can't currently parse this type/value combination"
+Json.serialize<List<Int>> [1, 2, "three"] = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently serialize this type/value combination"
+Json.parse<List<Int>> "[1, 2, \"three\"]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<List<Int>> "[1, 2, ]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
+//Json.serialize<List<List<List<Int>>>> [[[1, 2, 3], [4, 5.5, 6]], [[7, 8], [9, 0]]] = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+//Json.parse<List<List<List<Int>>>> "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
+Json.parse<List<Dict<Int>>> """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 
 
 // Tuples
@@ -250,7 +250,7 @@ Json.parse<Tuple<Int, String, Int>> "[1,\"two\",3]" = PACKAGE.Darklang.Stdlib.Re
 // TODO: more nesting...
 
 // not proper tuples
-Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = Error "Can't currently parse this type/value combination"
+Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Can't currently parse this type/value combination"
 // TODO: more...
 // TODO: issues at a few levels deep
 
@@ -266,10 +266,10 @@ Json.parse<Option<Int>> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Just 1)
 
 
 // Results
-Json.serialize<Result<Int, String>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"
-Json.serialize<Result<Int, String>> (Error "err message") = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":\"err message\"}"
-Json.parse<Result<Int, String>> "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
-Json.parse<Result<Int, String>> "{\"Error\":\"err message\"}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Error "err message")
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"
+Json.serialize<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> (Error "err message") = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":\"err message\"}"
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+Json.parse<PACKAGE.Darklang.Stdlib.Result.Result<Int, String>> "{\"Error\":\"err message\"}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Error "err message")
 // TODO: more...
 // TODO: more nesting...
 
@@ -283,7 +283,7 @@ Json.serialize<Dict<String>> (Dict.singleton "a" "b") = PACKAGE.Darklang.Stdlib.
 Json.parse<Dict<String>> """{"a":"b"}""" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Dict.singleton "a" "b")
 Json.serialize<Dict<String>> (Dict { a = "b"; c = "d" }) = PACKAGE.Darklang.Stdlib.Result.Result.Ok """{"a":"b","c":"d"}"""
 Json.parse<Dict<String>> """{"a":"b","c":"d"}""" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (Dict { a = "b"; c = "d" })
-Json.parse<Dict<Int>> """{1:"b",2:"d"}""" = Error "not JSON"
+Json.parse<Dict<Int>> """{1:"b",2:"d"}""" = PACKAGE.Darklang.Stdlib.Result.Result.Error "not JSON"
 
 // Unsupported stuff:
 // - TDB
@@ -346,12 +346,12 @@ Json.parse<MyPrettyLikely> "{\"Enh\":[\"printer broke\",7]}" = PACKAGE.Darklang.
 type Person1 = { Name: String; Age: Int }
 type Person2 = { Name: String; Age: Int }
 
-Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = Error "Incorrect record type"
+Json.serialize<Person2> (Person1 { Name = "Bob"; Age = 42 }) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Incorrect record type"
 
-type StringResult<’a> = Result<’a, String>
+type StringResult<’a> = PACKAGE.Darklang.Stdlib.Result.Result<’a, String>
 Json.serialize<StringResult<Int>> (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"PACKAGE.Darklang.Stdlib.Result.Result.Ok\":1}"
 Json.serialize<StringResult<Int>> (Error “err”) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":\"err\"}"
-Json.serialize<StringResult<Int>> (Error 1) = Error "Incorrect type for Error value"
+Json.serialize<StringResult<Int>> (Error 1) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Incorrect type for Error value"
 
 // TODO: This test should fail but doesn't
 // Json.serialize<StringResult<Int>> (Error 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Error\":1}"
@@ -411,16 +411,16 @@ Json.serialize<StringResult<Int>> (Error 1) = Error "Incorrect type for Error va
 //Json.parse<TODO> "{ \"v\": 4611686018427387904 }" = PACKAGE.Darklang.Stdlib.Result.Result.Ok { v = 4611686018427387904L }
 //Json.parse<TODO> "\"\"" = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
 
-//Json.parse<TODO> "" = Error "JSON string was empty"
-//Json.parse<TODO> "{3: false}" = Error "'3' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "JSON string was empty"
+//Json.parse<TODO> "{3: false}" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'3' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
 
-//Json.parse<TODO> "[97, 2, 30, 4,]" = Error "The JSON array contains a trailing comma at the end, at on line 0, position 14"
-//Json.parse<TODO> "{Id : 1.0}" = Error "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
-//Json.parse<TODO> "{\"Id\" : Infinity }" = Error "'I' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8."
-//Json.parse<TODO> "{\"Id\" : -Infinity }" = Error "'I' is invalid within a number, immediately after a sign character ('+' or '-'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 9."
-//Json.parse<TODO> "{\"Id\" : NaN }" = Error "'N' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8."
-//Json.parse<TODO> "{\"Id\" : 1.}" = Error "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
-//Json.parse<TODO> "[ {\"date\" : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = Error "'l' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 26."
-//Json.parse<TODO> "{\"id\" : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = Error "'e' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 13."
-//Json.parse<TODO> "{\"id\" : 555, \"edition\" : 'First' }" = Error "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 25."
-//Json.parse<TODO> "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})" = Error "'(' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."
+//Json.parse<TODO> "[97, 2, 30, 4,]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "The JSON array contains a trailing comma at the end, at on line 0, position 14"
+//Json.parse<TODO> "{Id : 1.0}" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'I' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 1."
+//Json.parse<TODO> "{\"Id\" : Infinity }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'I' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8."
+//Json.parse<TODO> "{\"Id\" : -Infinity }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'I' is invalid within a number, immediately after a sign character ('+' or '-'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 9."
+//Json.parse<TODO> "{\"Id\" : NaN }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'N' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 8."
+//Json.parse<TODO> "{\"Id\" : 1.}" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'}' is invalid within a number, immediately after a decimal point ('.'). Expected a digit ('0'-'9'). LineNumber: 0 | BytePositionInLine: 10."
+//Json.parse<TODO> "[ {\"date\" : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'l' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 26."
+//Json.parse<TODO> "{\"id\" : 555, edition : \"First\", author : \"Dennis Ritchie\"}" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'e' is an invalid start of a property name. Expected a '\"'. LineNumber: 0 | BytePositionInLine: 13."
+//Json.parse<TODO> "{\"id\" : 555, \"edition\" : 'First' }" = PACKAGE.Darklang.Stdlib.Result.Result.Error "''' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 25."
+//Json.parse<TODO> "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})" = PACKAGE.Darklang.Stdlib.Result.Result.Error "'(' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0."

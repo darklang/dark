@@ -49,7 +49,7 @@ module Domains =
       (Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> unwrap
     ) = []
 
-    DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = Error
+    DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = PACKAGE.Darklang.Stdlib.Result.Result.Error
       "Canvas not found"
 
 module Secrets =
@@ -72,7 +72,7 @@ module Secrets =
   (let _ =
     (Test.getCanvasID ()) |> DarkInternal.Canvas.Secret.insert "SECRET" "VALUE" 1
    // Does not work
-   DarkInternal.Canvas.Secret.insert (Test.getCanvasID ()) "SECRET" "OTHERVALUE" 1) = Error
+   DarkInternal.Canvas.Secret.insert (Test.getCanvasID ()) "SECRET" "OTHERVALUE" 1) = PACKAGE.Darklang.Stdlib.Result.Result.Error
     "Error inserting secret"
 
   // delete

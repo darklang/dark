@@ -1,10 +1,10 @@
 // All certs from https://fm4dd.com/openssl/certexamples.shtm
 
 module Errors =
-  X509.pemCertificatePublicKey_v0 "" = Error "No certificates"
-  X509.pemCertificatePublicKey_v0 "ABC" = Error "No certificates"
-  X509.pemCertificatePublicKey_v0 "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----" = Error "No certificates"
-  X509.pemCertificatePublicKey_v0 "-----BEGIN CERTIFICATE-----\nABC-----END CERTIFICATE-----" = Error "No certificates"
+  X509.pemCertificatePublicKey_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
+  X509.pemCertificatePublicKey_v0 "ABC" = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
+  X509.pemCertificatePublicKey_v0 "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----" = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
+  X509.pemCertificatePublicKey_v0 "-----BEGIN CERTIFICATE-----\nABC-----END CERTIFICATE-----" = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
 
 module RSA =
 
@@ -14,11 +14,11 @@ module RSA =
 
   // 512B CSR PEM
   X509.pemCertificatePublicKey_v0 "-----BEGIN CERTIFICATE REQUEST-----\nMIIBBDCBrwIBADBKMQswCQYDVQQGEwJKUDEOMAwGA1UECAwFVG9reW8xETAPBgNV\nBAoMCEZyYW5rNEREMRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20wXDANBgkqhkiG\n9w0BAQEFAANLADBIAkEAm/xmkHmEQrurE/0re/jeFRLl8ZPjBop7uLHhnia7lQG/\n5zDtZIUC3RVpqDSwBuw/NTweGyuP+o8AG98HxqxTBwIDAQABoAAwDQYJKoZIhvcN\nAQEFBQADQQByOV52Y17y8xw1V/xvru3rLPrVxYAXS5SgvNpfBsj38lNVtTvuH/Mg\nroBgmjSpnqKqBiBDkoY2YUET2qmGjAu9\n-----END CERTIFICATE REQUEST-----\n"
-    = Error "No certificates"
+    = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
 
   // RSA 512B Keypair PEM
   X509.pemCertificatePublicKey_v0 "-----BEGIN RSA PRIVATE KEY-----\nMIIBOwIBAAJBAJv8ZpB5hEK7qxP9K3v43hUS5fGT4waKe7ix4Z4mu5UBv+cw7WSF\nAt0Vaag0sAbsPzU8Hhsrj/qPABvfB8asUwcCAwEAAQJAG0r3ezH35WFG1tGGaUOr\nQA61cyaII53ZdgCR1IU8bx7AUevmkFtBf+aqMWusWVOWJvGu2r5VpHVAIl8nF6DS\nkQIhAMjEJ3zVYa2/Mo4ey+iU9J9Vd+WoyXDQD4EEtwmyG1PpAiEAxuZlvhDIbbce\n7o5BvOhnCZ2N7kYb1ZC57g3F+cbJyW8CIQCbsDGHBto2qJyFxbAO7uQ8Y0UVHa0J\nBO/g900SAcJbcQIgRtEljIShOB8pDjrsQPxmI1BLhnjD1EhRSubwhDw5AFUCIQCN\nA24pDtdOHydwtSB5+zFqFLfmVZplQM/g5kb4so70Yw==\n-----END RSA PRIVATE KEY-----"
-    = Error "No certificates"
+    = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
 
 
 module DSA =
@@ -29,11 +29,11 @@ module DSA =
 
   // DSA 512B Keypair PEM
   X509.pemCertificatePublicKey_v0 "-----BEGIN DSA PARAMETERS-----\nMIGcAkEAylbe2WLRUQs65tvzU45eOWLTIFXLUKS2nQKMBUcnWNd7oRsPiV8jPqpp\n4H0JFyJkKaGHSHvgPA1htr2jt8CkNwIVAMcenXmg7PlzR3G7IlUNaLL8axvLAkB0\nGGQ5UsvwOQBV61l1DZUyWzYVg54rYhv/eamAnhRp8GD6f1soV/v5Ww5kLo5K23eM\nGErbnWTNHHOIgwFnjh0N\n-----END DSA PARAMETERS-----\n-----BEGIN DSA PRIVATE KEY-----\nMIH3AgEAAkEAylbe2WLRUQs65tvzU45eOWLTIFXLUKS2nQKMBUcnWNd7oRsPiV8j\nPqpp4H0JFyJkKaGHSHvgPA1htr2jt8CkNwIVAMcenXmg7PlzR3G7IlUNaLL8axvL\nAkB0GGQ5UsvwOQBV61l1DZUyWzYVg54rYhv/eamAnhRp8GD6f1soV/v5Ww5kLo5K\n23eMGErbnWTNHHOIgwFnjh0NAkA7Sv0ujzjEBPGiPrJAXTUJ/goe+pDQ4c7Qv7Lj\nq/RWwksZ2fwn4UoBNaYTichJHUdo4BK5d7oedZaPu7aO+iy1AhRZb1azIQ2V62dZ\nUHn6qvojCzSfWA==\n-----END DSA PRIVATE KEY-----"
-    = Error "No certificates"
+    = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
 
   // DSA 512B CSR PEM
   X509.pemCertificatePublicKey_v0 "-----BEGIN CERTIFICATE REQUEST-----\nMIIBhDCCAUQCAQAwSjELMAkGA1UEBhMCSlAxDjAMBgNVBAgMBVRva3lvMREwDwYD\nVQQKDAhGcmFuazRERDEYMBYGA1UEAwwPd3d3LmV4YW1wbGUuY29tMIHwMIGoBgcq\nhkjOOAQBMIGcAkEAylbe2WLRUQs65tvzU45eOWLTIFXLUKS2nQKMBUcnWNd7oRsP\niV8jPqpp4H0JFyJkKaGHSHvgPA1htr2jt8CkNwIVAMcenXmg7PlzR3G7IlUNaLL8\naxvLAkB0GGQ5UsvwOQBV61l1DZUyWzYVg54rYhv/eamAnhRp8GD6f1soV/v5Ww5k\nLo5K23eMGErbnWTNHHOIgwFnjh0NA0MAAkA7Sv0ujzjEBPGiPrJAXTUJ/goe+pDQ\n4c7Qv7Ljq/RWwksZ2fwn4UoBNaYTichJHUdo4BK5d7oedZaPu7aO+iy1oAAwCQYH\nKoZIzjgEAwMvADAsAhRez3atcWJFwJLLuKsrblhcrLhQ7AIUEstUTOWpjOZX5V+q\ngGAv5jN7zm8=\n-----END CERTIFICATE REQUEST-----"
-    = Error "No certificates"
+    = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
 
 
 module ECC =
@@ -44,11 +44,11 @@ module ECC =
 
   // ECC 570B Keypair PEM
   X509.pemCertificatePublicKey_v0 "-----BEGIN EC PRIVATE KEY-----\nMIHuAgEBBEgBH3PwaVkfMDZwbwQB0FlKTYFTObjkNxRo++SRg8XOIpNCJk118Z26\npjVLS9UadaisLopUMsZ+f/pQITUhbPl//0rRBfM2KtigBwYFK4EEACehgZUDgZIA\nBAIZ0Rc0Y3jsqPqqptRz3tiSAuvTHA9vUigM2gUjM6YkTKofP7RRls4dqt6aM7/1\neLbFg4Jdh9DXS4zU1EFeiZQZ+drSQYAmAgAtTzpmtmUoy+miwtiSBomu3CSUe6Yr\nVvWb+Oirmvw2x3BCTJW2Xjhy5y6tDPVRRyhg0nh5wm/UxZv4jo7AZuJV8ztZKwCE\nAA==\n-----END EC PRIVATE KEY-----"
-    = Error "No certificates"
+    = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
 
   // ECC 570B CSR PEM
   X509.pemCertificatePublicKey_v0 "-----BEGIN CERTIFICATE REQUEST-----\nMIIBpDCB+wIBADBKMQswCQYDVQQGEwJKUDEOMAwGA1UECAwFVG9reW8xETAPBgNV\nBAoMCEZyYW5rNEREMRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20wgacwEAYHKoZI\nzj0CAQYFK4EEACcDgZIABAIZ0Rc0Y3jsqPqqptRz3tiSAuvTHA9vUigM2gUjM6Yk\nTKofP7RRls4dqt6aM7/1eLbFg4Jdh9DXS4zU1EFeiZQZ+drSQYAmAgAtTzpmtmUo\ny+miwtiSBomu3CSUe6YrVvWb+Oirmvw2x3BCTJW2Xjhy5y6tDPVRRyhg0nh5wm/U\nxZv4jo7AZuJV8ztZKwCEAKAAMAkGByqGSM49BAEDgZgAMIGUAkgDHvgliw56MDT1\nB0L3VTRKsaqp0xGIUKAPJOOuqn0UxyzuVktk9Rna467bXll0UJwOuUVbEjdL7B13\nvyDpRnafKiUX7oDbsW0CSAP8EY0n79AiJwLYDhghUBAsGMCw4uaLEIOE0sAWqOdT\nWTCAhu/gJh9e+4lAFiKoMpM3XWoplCqKuvvNqenGda6EOMuTk/S4Bw==\n-----END CERTIFICATE REQUEST-----"
-    = Error "No certificates"
+    = PACKAGE.Darklang.Stdlib.Result.Result.Error "No certificates"
 
 module Variations =
 

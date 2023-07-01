@@ -11,8 +11,8 @@ Bytes.base64Decode "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toByte
 Bytes.base64Decode "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "Ⱥ")
 Bytes.base64Decode "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "żółw")
 Bytes.base64Decode "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "/*-+(&@98521")
-Bytes.base64Decode "illegal-chars&@:" = Error "Not a valid base64 string"
-Bytes.base64Decode "x" = Error "Not a valid base64 string"
+Bytes.base64Decode "illegal-chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
+Bytes.base64Decode "x" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
 // empty case
 Bytes.base64Decode "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "")
 // Test cases from the spec with padding added
