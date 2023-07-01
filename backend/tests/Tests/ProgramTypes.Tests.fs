@@ -44,8 +44,7 @@ let testPipesToRuntimeTypes =
                 [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
               S.eFieldAccess (S.eVar "value") "age" ]
           S.eInt 3 ]
-    let types = RT.Types.empty
-    Expect.equalExprIgnoringIDs types actual expected
+    Expect.equalExprIgnoringIDs actual expected
   }
 
 let testProgramTypesToRuntimeTypes =

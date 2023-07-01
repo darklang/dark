@@ -124,7 +124,7 @@ let t
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
       let availableTypes = RT.ExecutionState.availableTypes state
-      return Expect.equalDval availableTypes actual expected msg
+      return Expect.equalDval actual expected msg
     with e ->
       let metadata = Exception.toMetadata e
       printMetadata "" metadata

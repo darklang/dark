@@ -134,8 +134,7 @@ let inlineWorksAtRoot =
 
     let expected = p "3 + 5"
     let result = C.inline' "value" Map.empty expr
-    let types = Types.empty
-    Expect.equalExprIgnoringIDs types result expected
+    Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithNested =
@@ -144,8 +143,7 @@ let inlineWorksWithNested =
 
     let expected = p "3 + 7"
     let result = C.inline' "value" Map.empty expr
-    let types = Types.empty
-    Expect.equalExprIgnoringIDs types result expected
+    Expect.equalExprIgnoringIDs result expected
   }
 
 let partialEvaluation =

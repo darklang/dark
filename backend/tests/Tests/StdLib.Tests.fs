@@ -39,8 +39,7 @@ let hardToRepresentTests =
       let! state = executionStateFor meta false false Map.empty Map.empty Map.empty
       let! actual =
         LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
-      let availableTypes = RT.ExecutionState.availableTypes state
-      return Expect.dvalEquality availableTypes actual expected
+      return Expect.dvalEquality actual expected
     }
 
   let fnName mod_ function_ version = PT.FnName.builtIn mod_ function_ version
