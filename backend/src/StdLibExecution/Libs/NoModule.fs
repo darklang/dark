@@ -9,11 +9,11 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 let rec getUnderlyingTypeFromAlias
-  (typ : CustomType.T)
+  (typ : TypeDeclaration.T)
   (types : Types)
-  : CustomType.T =
+  : TypeDeclaration.T =
   match typ with
-  | CustomType.Alias(TCustomType(innerType, _)) ->
+  | TypeDeclaration.Alias(TCustomType(innerType, _)) ->
     match Types.find innerType types with
     | Some alias -> getUnderlyingTypeFromAlias alias types
     | None -> Exception.raiseCode "Alias not found"

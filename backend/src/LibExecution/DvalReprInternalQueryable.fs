@@ -114,7 +114,7 @@ let rec private toJsonV0
   | TCustomType(typeName, args), dv ->
     match Types.find typeName types, dv with
     | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-    | Some(CustomType.Record(f1, fs)), DRecord(_, dm) ->
+    | Some(TypeDeclaration.Record(f1, fs)), DRecord(_, dm) ->
       // TYPESCLEANUP: shouldn't we be using `args` here?
       let fields = f1 :: fs
       w.writeObject (fun () ->
@@ -123,7 +123,7 @@ let rec private toJsonV0
           w.WritePropertyName f.name
           let dval = Map.find f.name dm
           writeDval f.typ dval))
-    | Some(CustomType.Enum _), DEnum _ ->
+    | Some(TypeDeclaration.Enum _), DEnum _ ->
       Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
     | Some typ, dv ->
       Exception.raiseInternal
@@ -209,8 +209,8 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
     | TCustomType(typeName, args), JsonValueKind.Object ->
       match Types.find typeName types with
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-      | Some(CustomType.Alias(f1)) -> convert f1 j
-      | Some(CustomType.Record(f1, fs)) ->
+      | Some(TypeDeclaration.Alias(f1)) -> convert f1 j
+      | Some(TypeDeclaration.Record(f1, fs)) ->
         let fields = f1 :: fs
         let objFields =
           j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
@@ -228,7 +228,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
           Exception.raiseInternal
             "Record has incorrect field count"
             [ "expected", List.length fields; "actual", Map.count objFields ]
-      | Some(CustomType.Enum(f1, fs)) ->
+      | Some(TypeDeclaration.Enum(f1, fs)) ->
         Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
 
     | TBytes _, _ -> Exception.raiseInternal "Not supported yet" []

@@ -30,7 +30,7 @@ let types : List<BuiltInType> =
   [ { name = typ "Program" 0
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "id"; typ = TUuid; description = "" },
           [ { name = "types"
               typ = TList(TCustomType(ptTyp [] "UserType" 0, []))

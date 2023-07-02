@@ -245,33 +245,33 @@ module Expr =
     | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
 
 
-module CustomType =
+module TypeDeclaration =
   module RecordField =
-    let toRT (f : PT.CustomType.RecordField) : RT.CustomType.RecordField =
+    let toRT (f : PT.TypeDeclaration.RecordField) : RT.TypeDeclaration.RecordField =
       { name = f.name; typ = TypeReference.toRT f.typ; description = f.description }
 
   module EnumField =
-    let toRT (f : PT.CustomType.EnumField) : RT.CustomType.EnumField =
+    let toRT (f : PT.TypeDeclaration.EnumField) : RT.TypeDeclaration.EnumField =
       { typ = TypeReference.toRT f.typ
         label = f.label
         description = f.description }
 
   module EnumCase =
-    let toRT (c : PT.CustomType.EnumCase) : RT.CustomType.EnumCase =
+    let toRT (c : PT.TypeDeclaration.EnumCase) : RT.TypeDeclaration.EnumCase =
       { name = c.name
         fields = List.map EnumField.toRT c.fields
         description = c.description }
 
-  let toRT (d : PT.CustomType.T) : RT.CustomType.T =
+  let toRT (d : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =
     match d with
-    | PT.CustomType.Alias(typ) -> RT.CustomType.Alias(TypeReference.toRT typ)
-    | PT.CustomType.Record(firstField, additionalFields) ->
-      RT.CustomType.Record(
+    | PT.TypeDeclaration.Alias(typ) -> RT.TypeDeclaration.Alias(TypeReference.toRT typ)
+    | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+      RT.TypeDeclaration.Record(
         RecordField.toRT firstField,
         List.map RecordField.toRT additionalFields
       )
-    | PT.CustomType.Enum(firstCase, additionalCases) ->
-      RT.CustomType.Enum(
+    | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+      RT.TypeDeclaration.Enum(
         EnumCase.toRT firstCase,
         List.map EnumCase.toRT additionalCases
       )
@@ -312,7 +312,7 @@ module UserType =
     { tlid = t.tlid
       name = TypeName.UserProgram.toRT t.name
       typeParams = t.typeParams
-      definition = CustomType.toRT t.definition }
+      definition = TypeDeclaration.toRT t.definition }
 
 module UserFunction =
   module Parameter =
@@ -355,4 +355,4 @@ module PackageType =
   let toRT (t : PT.PackageType.T) : RT.PackageType.T =
     { name = TypeName.Package.toRT t.name
       typeParams = t.typeParams
-      definition = CustomType.toRT t.definition }
+      definition = TypeDeclaration.toRT t.definition }

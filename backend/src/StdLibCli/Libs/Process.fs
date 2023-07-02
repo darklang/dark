@@ -15,7 +15,7 @@ let types : List<BuiltInType> =
       description = "An error that occurred while running a process."
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "exitCode"; typ = TInt; description = "The exit code" },
           [ { name = "stdout"; typ = TBytes; description = "The stdout" }
             { name = "stderr"; typ = TBytes; description = "The stderr" } ]

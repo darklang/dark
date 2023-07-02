@@ -24,11 +24,11 @@ type Context =
     location : Location
   | RecordField of
     recordTypeName : TypeName.T *
-    fieldDef : CustomType.RecordField *
+    fieldDef : TypeDeclaration.RecordField *
     location : Location
   | EnumField of
     enumTypeName : TypeName.T *
-    definition : CustomType.EnumField *
+    definition : TypeDeclaration.EnumField *
     caseName : string *
     paramIndex : int *  // nth argument to the enum constructor
     location : Location
@@ -107,11 +107,11 @@ let rec unify
       let err = Error(ValueNotExpectedType(value, resolvedType, context))
 
       match ut, value with
-      | CustomType.Alias aliasType, _ ->
+      | TypeDeclaration.Alias aliasType, _ ->
         let resolvedAliasType = getTypeReferenceFromAlias types aliasType
         unify context types resolvedAliasType value
 
-      | CustomType.Record(firstField, additionalFields), DRecord(tn, dmap) ->
+      | TypeDeclaration.Record(firstField, additionalFields), DRecord(tn, dmap) ->
         let aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
         match aliasedType with
         | TCustomType(concreteTn, typeArgs) ->
@@ -126,12 +126,13 @@ let rec unify
               dmap
         | _ -> err
 
-      | CustomType.Enum(firstCase, additionalCases), DEnum(tn, caseName, valFields) ->
+      | TypeDeclaration.Enum(firstCase, additionalCases),
+        DEnum(tn, caseName, valFields) ->
         // TODO: deal with aliased type?
         if tn <> typeName then
           Error(ValueNotExpectedType(value, resolvedType, context))
         else
-          let matchingCase : Option<CustomType.EnumCase> =
+          let matchingCase : Option<TypeDeclaration.EnumCase> =
             firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
 
           match matchingCase with
@@ -175,12 +176,12 @@ and unifyRecordFields
   (recordType : TypeName.T)
   (context : Context)
   (types : Types)
-  (defs : List<CustomType.RecordField>)
+  (defs : List<TypeDeclaration.RecordField>)
   (values : DvalMap)
   : Result<unit, Error> =
   let completeDefinition =
     defs
-    |> List.filterMap (fun (d : CustomType.RecordField) ->
+    |> List.filterMap (fun (d : TypeDeclaration.RecordField) ->
       if d.name = "" then None else Some(d.name, d))
     |> Map.ofList
 

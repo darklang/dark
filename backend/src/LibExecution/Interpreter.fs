@@ -50,14 +50,15 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   let recordMaybe
     (typeName : TypeName.T)
-    : Option<TypeName.T * List<CustomType.RecordField>> =
+    : Option<TypeName.T * List<TypeDeclaration.RecordField>> =
     let types = ExecutionState.availableTypes state
     let rec inner (typeName : TypeName.T) =
       match Types.find typeName types with
-      | Some(CustomType.Alias(TCustomType(innerTypeName, _))) -> inner innerTypeName
-      | Some(CustomType.Record(firstField, otherFields)) ->
+      | Some(TypeDeclaration.Alias(TCustomType(innerTypeName, _))) ->
+        inner innerTypeName
+      | Some(TypeDeclaration.Record(firstField, otherFields)) ->
         Some(typeName, firstField :: otherFields)
-      | Some(CustomType.Enum _) -> None
+      | Some(TypeDeclaration.Enum _) -> None
       | _ -> None
     inner typeName
 
@@ -201,7 +202,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | None ->
         match typ with
         | None -> return err id $"There is no type named `{typeStr}`"
-        | Some(CustomType.Enum _) ->
+        | Some(TypeDeclaration.Enum _) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
       | Some(typename, expected) ->
@@ -255,7 +256,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           let typ = Types.find typeName types
           match typ with
           | None -> return err id $"There is no type named `{typeStr}`"
-          | Some(CustomType.Enum _) ->
+          | Some(TypeDeclaration.Enum _) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
         | Some(typeName, expected) ->
@@ -625,11 +626,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         let types = ExecutionState.availableTypes state
         match Types.find typeName types with
         | None -> return err id $"There is no type named `{typeStr}`"
-        | Some(CustomType.Alias _) ->
+        | Some(TypeDeclaration.Alias _) ->
           return err id $"Expected an enum but {typeStr} is an alias"
-        | Some(CustomType.Record _) ->
+        | Some(TypeDeclaration.Record _) ->
           return err id $"Expected an enum but {typeStr} is a record"
-        | Some(CustomType.Enum(case, cases)) ->
+        | Some(TypeDeclaration.Enum(case, cases)) ->
           let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
           match case with
           | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
@@ -642,7 +643,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
               let fields = List.zip case.fields fields
               return!
                 Ply.List.foldSequentiallyWithIndex
-                  (fun i r ((enumField : CustomType.EnumField), expr) ->
+                  (fun i r ((enumField : TypeDeclaration.EnumField), expr) ->
                     uply {
                       if Dval.isFake r then
                         do! preview st expr

@@ -248,7 +248,7 @@ type Deprecation<'name> =
   | DeprecatedBecause of string
 
 
-module CustomType =
+module TypeDeclaration =
   [<MessagePack.MessagePackObject>]
   type RecordField =
     { [<MessagePack.Key 0>]
@@ -333,7 +333,7 @@ module UserType =
       [<MessagePack.Key 2>]
       typeParams : List<string>
       [<MessagePack.Key 3>]
-      definition : CustomType.T }
+      definition : TypeDeclaration.T }
 
 
 module UserFunction =
@@ -408,7 +408,7 @@ module PackageType =
       [<MessagePack.Key 3>]
       typeParams : List<string>
       [<MessagePack.Key 4>]
-      definition : CustomType.T
+      definition : TypeDeclaration.T
       [<MessagePack.Key 5>]
       description : string
       [<MessagePack.Key 6>]

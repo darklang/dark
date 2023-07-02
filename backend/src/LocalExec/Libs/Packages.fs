@@ -18,7 +18,7 @@ let types : List<BuiltInType> =
       description = "The name of a package function"
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "owner"
             typ = TString
             description = "The username of the owner of the function" },
@@ -39,7 +39,7 @@ let types : List<BuiltInType> =
       description = "The name of a package type"
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "owner"
             typ = TString
             description = "The username of the owner of the function" },

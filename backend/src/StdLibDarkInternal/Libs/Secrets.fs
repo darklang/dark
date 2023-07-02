@@ -19,7 +19,7 @@ let types : List<BuiltInType> =
   [ { name = typ "Secret" 0
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "name"; typ = TString; description = "" },
           [ { name = "value"; typ = TString; description = "" }
             { name = "version"; typ = TInt; description = "" } ]

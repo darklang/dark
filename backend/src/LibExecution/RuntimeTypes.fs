@@ -538,7 +538,7 @@ and BuiltInParam =
 and Param = { name : string; typ : TypeReference }
 
 
-module CustomType =
+module TypeDeclaration =
   // TYPESCLEANUP support type parameters
   type RecordField = { name : string; typ : TypeReference; description : string }
   type Alias = { typ : TypeReference }
@@ -815,7 +815,7 @@ module UserType =
     { tlid : tlid
       name : TypeName.UserProgram
       typeParams : List<string>
-      definition : CustomType.T }
+      definition : TypeDeclaration.T }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -863,7 +863,9 @@ module PackageFn =
 
 module PackageType =
   type T =
-    { name : TypeName.Package; typeParams : List<string>; definition : CustomType.T }
+    { name : TypeName.Package
+      typeParams : List<string>
+      definition : TypeDeclaration.T }
 
 
 // <summary>
@@ -953,7 +955,7 @@ type SqlSpec =
 type BuiltInType =
   { name : TypeName.BuiltIn
     typeParams : List<string>
-    definition : CustomType.T
+    definition : TypeDeclaration.T
     description : string
     deprecated : Deprecation<TypeName.T> }
 
@@ -1115,7 +1117,7 @@ module Types =
       packageTypes = Map.empty
       userProgramTypes = Map.empty }
 
-  let find (name : TypeName.T) (types : Types) : Option<CustomType.T> =
+  let find (name : TypeName.T) (types : Types) : Option<TypeDeclaration.T> =
     match name with
     | FQName.BuiltIn b ->
       Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.definition)
@@ -1132,7 +1134,7 @@ let rec getTypeReferenceFromAlias
   match typ with
   | TCustomType(typeName, typeArgs) ->
     match Types.find typeName types with
-    | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
+    | Some(TypeDeclaration.Alias(TCustomType(innerTypeName, _))) ->
       getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
     | _ -> typ
   | _ -> typ

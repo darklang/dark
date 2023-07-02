@@ -47,7 +47,7 @@ let types : List<BuiltInType> =
   [ { name = schedulingRuleTypeName
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "id"; typ = TInt; description = "" },
           [ { name = "ruleType"; typ = TString; description = "" }
             { name = "canvasID"; typ = TUuid; description = "" }

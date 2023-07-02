@@ -18,7 +18,7 @@ let types : List<BuiltInType> =
   [ { name = typ "F404" 0
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "space"
             typ = TString
             description = "Name of the space (eg WORKER, HTTP, REPL)" },

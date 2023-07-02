@@ -126,9 +126,9 @@ let rec serialize
     // TODO: try find exactly one matching type
 
     match Types.find typeName types with
-    | Some(CustomType.Alias typ) -> r typ dv
+    | Some(TypeDeclaration.Alias typ) -> r typ dv
 
-    | Some(CustomType.Enum(firstCase, additionalCases)) ->
+    | Some(TypeDeclaration.Enum(firstCase, additionalCases)) ->
       // TODO: ensure that the type names are the same
       // TODO: _something_ with the type args
       //   (or maybe we just need to revisit once TypeDefinition is present)
@@ -162,7 +162,7 @@ let rec serialize
 
       | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
-    | Some(CustomType.Record(firstField, additionalFields)) ->
+    | Some(TypeDeclaration.Record(firstField, additionalFields)) ->
       match dval with
       | DRecord(actualTypeName, dvalMap) when actualTypeName = typeName ->
         let fieldDefs = firstField :: additionalFields
@@ -370,9 +370,9 @@ let parse
 
       // TODO: handle type missing
       match Types.find typeName types, jsonValueKind with
-      | Some(CustomType.Alias alias), _ -> convert alias j
+      | Some(TypeDeclaration.Alias alias), _ -> convert alias j
 
-      | Some(CustomType.Enum(firstCase, additionalCases)), JsonValueKind.Object ->
+      | Some(TypeDeclaration.Enum(firstCase, additionalCases)), JsonValueKind.Object ->
 
         let enumerated =
           j.EnumerateObject()
@@ -400,7 +400,8 @@ let parse
 
         | _ -> Exception.raiseInternal "TODO" []
 
-      | Some(CustomType.Record(firstField, additionalFields)), JsonValueKind.Object ->
+      | Some(TypeDeclaration.Record(firstField, additionalFields)),
+        JsonValueKind.Object ->
         let fieldDefs = firstField :: additionalFields
         let enumerated = j.EnumerateObject() |> Seq.toList
 

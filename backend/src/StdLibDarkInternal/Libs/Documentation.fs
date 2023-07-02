@@ -19,7 +19,7 @@ let types : List<BuiltInType> =
   [ { name = typ "Function" 0
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "name"; typ = TString; description = "" },
           [ { name = "description"; typ = TString; description = "" }
             { name = "parameters"; typ = TList(TString); description = "" }
@@ -30,7 +30,7 @@ let types : List<BuiltInType> =
     { name = typ "Parameter" 0
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "name"; typ = TString; description = "" },
           [ { name = "type"; typ = TString; description = "" } ]
         )

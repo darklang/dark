@@ -348,7 +348,7 @@ let types : List<BuiltInType> =
   [ { name = typ [ "HttpClient" ] "Response" 0
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "statusCode"; typ = TInt; description = "" },
           [ { name = "headers"; typ = headersType; description = "" }
             { name = "body"; typ = TBytes; description = "" } ]

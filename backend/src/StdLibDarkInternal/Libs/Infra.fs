@@ -19,7 +19,7 @@ let types : List<BuiltInType> =
   [ { name = typ "TableSize" 0
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "disk"; typ = TFloat; description = "Number of bytes on disk" },
           [ { name = "rows"; typ = TFloat; description = "Number of rows" }
             { name = "diskHuman"

@@ -676,16 +676,16 @@ module ProgramTypes =
       name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
       typeParams = [ "a" ]
       definition =
-        let firstField : PT.CustomType.RecordField =
+        let firstField : PT.TypeDeclaration.RecordField =
           { name = "prop1"; typ = dtype; description = "desc1" }
-        PT.CustomType.Record(firstField, []) }
+        PT.TypeDeclaration.Record(firstField, []) }
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
       name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
       typeParams = [ "a" ]
       definition =
-        PT.CustomType.Enum(
+        PT.TypeDeclaration.Enum(
           { name = "caseA"; fields = []; description = "" },
           [ { name = "caseB"
               fields = [ { typ = dtype; label = Some "i"; description = "" } ]
@@ -721,7 +721,7 @@ module ProgramTypes =
           version = 0 }
       typeParams = [ "a" ]
       definition =
-        PT.CustomType.Enum(
+        PT.TypeDeclaration.Enum(
           { name = "caseA"; fields = []; description = "" },
           [ { name = "caseB"
               fields = [ { typ = dtype; label = Some "i"; description = "" } ]

@@ -70,7 +70,7 @@ let types : List<BuiltInType> =
       description = "Result of Execution"
       typeParams = []
       definition =
-        CustomType.Record(
+        TypeDeclaration.Record(
           { name = "msg"; typ = TString; description = "The error message" },
           [ { name = "metadata"
               typ = TDict TString

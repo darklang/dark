@@ -418,7 +418,7 @@ type Deprecation<'name> =
 
 
 /// A type defined by a standard library module, a canvas/user, or a package
-module CustomType =
+module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
   type EnumField =
@@ -462,7 +462,7 @@ module UserType =
     { tlid : tlid
       name : TypeName.UserProgram
       typeParams : List<string>
-      definition : CustomType.T }
+      definition : TypeDeclaration.T }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
@@ -514,6 +514,6 @@ module PackageType =
       id : System.Guid
       name : TypeName.Package
       typeParams : List<string>
-      definition : CustomType.T
+      definition : TypeDeclaration.T
       description : string
       deprecated : Deprecation<TypeName.T> }

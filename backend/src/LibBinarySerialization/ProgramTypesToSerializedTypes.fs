@@ -435,60 +435,60 @@ module Deprecation =
 
 
 
-module CustomType =
+module TypeDeclaration =
   module RecordField =
-    let toST (f : PT.CustomType.RecordField) : ST.CustomType.RecordField =
+    let toST (f : PT.TypeDeclaration.RecordField) : ST.TypeDeclaration.RecordField =
       { name = f.name; typ = TypeReference.toST f.typ; description = f.description }
 
-    let toPT (f : ST.CustomType.RecordField) : PT.CustomType.RecordField =
+    let toPT (f : ST.TypeDeclaration.RecordField) : PT.TypeDeclaration.RecordField =
       { name = f.name; typ = TypeReference.toPT f.typ; description = f.description }
 
   module EnumField =
-    let toST (f : PT.CustomType.EnumField) : ST.CustomType.EnumField =
+    let toST (f : PT.TypeDeclaration.EnumField) : ST.TypeDeclaration.EnumField =
       { typ = TypeReference.toST f.typ
         label = f.label
         description = f.description }
 
-    let toPT (f : ST.CustomType.EnumField) : PT.CustomType.EnumField =
+    let toPT (f : ST.TypeDeclaration.EnumField) : PT.TypeDeclaration.EnumField =
       { typ = TypeReference.toPT f.typ
         label = f.label
         description = f.description }
 
   module EnumCase =
-    let toST (c : PT.CustomType.EnumCase) : ST.CustomType.EnumCase =
+    let toST (c : PT.TypeDeclaration.EnumCase) : ST.TypeDeclaration.EnumCase =
       { name = c.name
         fields = List.map EnumField.toST c.fields
         description = c.description }
 
-    let toPT (c : ST.CustomType.EnumCase) : PT.CustomType.EnumCase =
+    let toPT (c : ST.TypeDeclaration.EnumCase) : PT.TypeDeclaration.EnumCase =
       { name = c.name
         fields = List.map EnumField.toPT c.fields
         description = c.description }
 
-  let toST (d : PT.CustomType.T) : ST.CustomType.T =
+  let toST (d : PT.TypeDeclaration.T) : ST.TypeDeclaration.T =
     match d with
-    | PT.CustomType.Alias typ -> ST.CustomType.Alias(TypeReference.toST typ)
-    | PT.CustomType.Record(firstField, additionalFields) ->
-      ST.CustomType.Record(
+    | PT.TypeDeclaration.Alias typ -> ST.TypeDeclaration.Alias(TypeReference.toST typ)
+    | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+      ST.TypeDeclaration.Record(
         RecordField.toST firstField,
         List.map RecordField.toST additionalFields
       )
-    | PT.CustomType.Enum(firstCase, additionalCases) ->
-      ST.CustomType.Enum(
+    | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+      ST.TypeDeclaration.Enum(
         EnumCase.toST firstCase,
         List.map EnumCase.toST additionalCases
       )
 
-  let toPT (d : ST.CustomType.T) : PT.CustomType.T =
+  let toPT (d : ST.TypeDeclaration.T) : PT.TypeDeclaration.T =
     match d with
-    | ST.CustomType.Alias typ -> PT.CustomType.Alias(TypeReference.toPT typ)
-    | ST.CustomType.Record(firstField, additionalFields) ->
-      PT.CustomType.Record(
+    | ST.TypeDeclaration.Alias typ -> PT.TypeDeclaration.Alias(TypeReference.toPT typ)
+    | ST.TypeDeclaration.Record(firstField, additionalFields) ->
+      PT.TypeDeclaration.Record(
         RecordField.toPT firstField,
         List.map RecordField.toPT additionalFields
       )
-    | ST.CustomType.Enum(firstCase, additionalCases) ->
-      PT.CustomType.Enum(
+    | ST.TypeDeclaration.Enum(firstCase, additionalCases) ->
+      PT.TypeDeclaration.Enum(
         EnumCase.toPT firstCase,
         List.map EnumCase.toPT additionalCases
       )
@@ -554,13 +554,13 @@ module UserType =
     { tlid = t.tlid
       name = TypeName.UserProgram.toST t.name
       typeParams = t.typeParams
-      definition = CustomType.toST t.definition }
+      definition = TypeDeclaration.toST t.definition }
 
   let toPT (t : ST.UserType.T) : PT.UserType.T =
     { tlid = t.tlid
       name = TypeName.UserProgram.toPT t.name
       typeParams = t.typeParams
-      definition = CustomType.toPT t.definition }
+      definition = TypeDeclaration.toPT t.definition }
 
 module UserFunction =
   module Parameter =
@@ -640,7 +640,7 @@ module PackageType =
     { name = TypeName.Package.toST pt.name
       description = pt.description
       typeParams = pt.typeParams
-      definition = CustomType.toST pt.definition
+      definition = TypeDeclaration.toST pt.definition
       deprecated = Deprecation.toST TypeName.toST pt.deprecated
       id = pt.id
       tlid = pt.tlid }
@@ -649,7 +649,7 @@ module PackageType =
     { name = TypeName.Package.toPT pt.name
       description = pt.description
       typeParams = pt.typeParams
-      definition = CustomType.toPT pt.definition
+      definition = TypeDeclaration.toPT pt.definition
       deprecated = Deprecation.toPT TypeName.toPT pt.deprecated
       id = pt.id
       tlid = pt.tlid }
