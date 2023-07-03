@@ -45,7 +45,7 @@ let runScript (path: String) (args: List<String>) : Int =
 
 
 // parse args and execute
-type CLIOptions =
+type CliOptions =
   | Help
   | LoadPackages
   | ListPackages
@@ -61,17 +61,17 @@ let usage () : String =
       run-script     Parse and run .dark script
   "
 
-let parseArgs (args: List<String>) : Result<CLIOptions, String> =
+let parseArgs (args: List<String>) : Result<CliOptions, String> =
   match args with
-  | [] -> Ok CLIOptions.Help
-  | [ "-h" ] -> Ok CLIOptions.Help
-  | [ "--help" ] -> Ok CLIOptions.Help
+  | [] -> Ok CliOptions.Help
+  | [ "-h" ] -> Ok CliOptions.Help
+  | [ "--help" ] -> Ok CliOptions.Help
 
-  | [ "list-packages" ] -> Ok CLIOptions.ListPackages
-  | [ "load-packages" ] -> Ok CLIOptions.LoadPackages
+  | [ "list-packages" ] -> Ok CliOptions.ListPackages
+  | [ "load-packages" ] -> Ok CliOptions.LoadPackages
 
   | [ "run-script" ] -> Error "Missing path to script after `run-script`"
-  | "run-script" :: path :: args -> Ok(CLIOptions.RunScript (path, args))
+  | "run-script" :: path :: args -> Ok(CliOptions.RunScript (path, args))
 
   | _ -> Error "Invalid arguments"
 

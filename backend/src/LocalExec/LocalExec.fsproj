@@ -21,13 +21,13 @@
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../Parser/Parser.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../StdLibCLI/StdLibCLI.fsproj" />
+    <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
     <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="Libs/Packages.fs" />
-    <Compile Include="Libs/CLI.fs" />
+    <Compile Include="Libs/Cli.fs" />
     <Compile Include="StdLib.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>

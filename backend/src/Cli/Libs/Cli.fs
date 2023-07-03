@@ -1,6 +1,6 @@
 /// StdLib functions for building the CLI
-/// (as opposed to functions needed by CLI programs, which are in StdLibCLI)
-module LocalExec.Libs.CLI
+/// (as opposed to functions needed by CLI programs, which are in StdLibCli)
+module Cli.Libs.Cli
 
 open System.Threading.Tasks
 
@@ -13,19 +13,20 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
+
 let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents
-      StdLibCLI.StdLib.contents
-      StdLibDarkInternal.StdLib.contents ]
+    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents ]
     []
     []
+
 
 let libraries : RT.Libraries =
   { builtInTypes = builtInTypes |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
     builtInFns = builtInFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
     packageFns = Map.empty
     packageTypes = Map.empty }
+
 
 
 let execute
@@ -39,7 +40,7 @@ let execute
       { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
     let program : Program =
       { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = true
+        internalFnsAllowed = false
         fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
@@ -66,7 +67,7 @@ let execute
   }
 
 let types : List<BuiltInType> =
-  [ { name = typ [ "LocalExec" ] "ExecutionError" 0
+  [ { name = typ [ "Cli" ] "ExecutionError" 0
       description = "Result of Execution"
       typeParams = []
       definition =
@@ -80,21 +81,21 @@ let types : List<BuiltInType> =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn [ "LocalExec" ] "parseAndExecuteScript" 0
+  [ { name = fn [ "Cli" ] "parseAndExecuteScript" 0
       typeParams = []
       parameters =
         [ Param.make "filename" TString ""
           Param.make "code" TString ""
-          Param.make "symtable" (TList TString) "" ]
+          Param.make "symtable" (TDict TString) "" ]
       returnType =
         TResult(
           TInt,
-          TCustomType(FQName.BuiltIn(typ [ "CLI" ] "ExecutionError" 0), [])
+          TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
         )
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
-        | state, [], [ DString filename; DString code; args ] ->
+        | state, [], [ DString filename; DString code; DDict symtable ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
@@ -102,7 +103,7 @@ let fns : List<BuiltInFn> =
               DResult(
                 Error(
                   DRecord(
-                    FQName.BuiltIn(typ [ "CLI" ] "ExecutionError" 0),
+                    FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0),
                     Map fields
                   )
                 )
@@ -123,8 +124,6 @@ let fns : List<BuiltInFn> =
             try
               match parsedScript with
               | Ok mod' ->
-                let symtable = [ ("args", args) ] |> Map.ofList
-
                 match! execute state mod' symtable with
                 | DInt i -> return DResult(Ok(DInt i))
                 | DError(_, e) -> return err e []

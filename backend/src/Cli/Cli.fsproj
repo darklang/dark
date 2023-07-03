@@ -54,12 +54,12 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../Parser/Parser.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../StdLibCLI/StdLibCLI.fsproj" />
+    <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Libs/CLI.fs" />
+    <Compile Include="Libs/Cli.fs" />
     <Compile Include="StdLib.fs" />
-    <Compile Include="CLI.fs" />
+    <Compile Include="Cli.fs" />
   </ItemGroup>
 </Project>
