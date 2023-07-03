@@ -14,18 +14,15 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
 
-let (builtInFns, builtInTypes) =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents ]
-    []
-    []
+let builtIns : RT.BuiltIns =
+  let (fns, types) =
+    LibExecution.StdLib.combine
+      [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents ]
+      []
+      []
 
-
-let libraries : RT.Libraries =
-  { builtInTypes = builtInTypes |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
-    builtInFns = builtInFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
-    packageFns = Map.empty
-    packageTypes = Map.empty }
+  { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Tablecloth.Map.fromListBy (fun fn -> fn.name) }
 
 
 
@@ -38,6 +35,7 @@ let execute
   task {
     let config : Config =
       { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+
     let program : Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
@@ -56,7 +54,15 @@ let execute
     let notify = parentState.notify
     let sendException = parentState.reportException
     let state =
-      Exe.createState libraries tracing sendException notify 7UL program config
+      Exe.createState
+        builtIns
+        RT.PackageManager.Empty
+        tracing
+        sendException
+        notify
+        7UL
+        program
+        config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])

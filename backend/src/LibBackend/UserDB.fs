@@ -34,10 +34,14 @@ let currentDarkVersion = 0
 
 type Uuid = System.Guid
 
-let rec dbToDval (types : RT.Types) (db : RT.DB.T) (dbValue : string) : RT.Dval =
+let rec dbToDval
+  (types : RT.Types)
+  (db : RT.DB.T)
+  (dbValue : string)
+  : Task<RT.Dval> =
   DvalReprInternalQueryable.parseJsonV0 types db.typ dbValue
 
-let rec dvalToDB (types : RT.Types) (db : RT.DB.T) (dv : RT.Dval) : string =
+let rec dvalToDB (types : RT.Types) (db : RT.DB.T) (dv : RT.Dval) : Task<string> =
   DvalReprInternalQueryable.toJsonStringV0 types db.typ dv
 
 let rec set
@@ -47,39 +51,44 @@ let rec set
   (key : string)
   (dv : RT.Dval)
   : Task<Uuid> =
-  let id = System.Guid.NewGuid()
+  task {
+    let id = System.Guid.NewGuid()
 
-  let types = RT.ExecutionState.availableTypes state
-  // CLEANUP: the caller should do this type check instead, but we haven't
-  // implemented nested types in the DB yet
-  let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ, None)
-  match LibExecution.TypeChecker.unify context types db.typ dv with
-  | Error err ->
-    let msg = Errors.toString (Errors.TypeError err)
-    Exception.raiseCode msg
-  | Ok _ -> ()
+    let types = RT.ExecutionState.availableTypes state
+    // CLEANUP: the caller should do this type check instead, but we haven't
+    // implemented nested types in the DB yet
+    let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ, None)
+    match! LibExecution.TypeChecker.unify context types db.typ dv with
+    | Error err ->
+      let msg = Errors.toString (Errors.TypeError err)
+      Exception.raiseCode msg
+    | Ok _ -> ()
 
-  let upsertQuery =
-    if upsert then
-      "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data"
-    else
-      ""
+    let upsertQuery =
+      if upsert then
+        "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data = EXCLUDED.data"
+      else
+        ""
 
-  Sql.query
-    $"INSERT INTO user_data_v0
-       (id, canvas_id, table_tlid, user_version, dark_version, key, data)
-       VALUES (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data)
-       {upsertQuery}"
-  |> Sql.parameters
-    [ "id", Sql.uuid id
-      "canvasID", Sql.uuid state.program.canvasID
-      "tlid", Sql.id db.tlid
-      "userVersion", Sql.int db.version
-      "darkVersion", Sql.int currentDarkVersion
-      "key", Sql.string key
-      "data", Sql.jsonb (dvalToDB types db dv) ]
-  |> Sql.executeStatementAsync
-  |> Task.map (fun () -> id)
+    let! data = dvalToDB types db dv
+
+    return!
+      Sql.query
+        $"INSERT INTO user_data_v0
+        (id, canvas_id, table_tlid, user_version, dark_version, key, data)
+        VALUES (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data)
+        {upsertQuery}"
+      |> Sql.parameters
+        [ "id", Sql.uuid id
+          "canvasID", Sql.uuid state.program.canvasID
+          "tlid", Sql.id db.tlid
+          "userVersion", Sql.int db.version
+          "darkVersion", Sql.int currentDarkVersion
+          "key", Sql.string key
+          "data", Sql.jsonb data ]
+      |> Sql.executeStatementAsync
+      |> Task.map (fun () -> id)
+  }
 
 
 
@@ -106,7 +115,12 @@ and getOption
           "darkVersion", Sql.int currentDarkVersion
           "key", Sql.string key ]
       |> Sql.executeRowOptionAsync (fun read -> read.string "data")
-    return Option.map (dbToDval types db) result
+
+    match result with
+    | None -> return None
+    | Some result ->
+      let! dval = dbToDval types db result
+      return Some dval
   }
 
 
@@ -115,23 +129,31 @@ and getMany
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<RT.Dval>> =
-  let types = RT.ExecutionState.availableTypes state
-  Sql.query
-    "SELECT data
-       FROM user_data_v0
-      WHERE table_tlid = @tlid
-        AND canvas_id = @canvasID
-        AND user_version = @userVersion
-        AND dark_version = @darkVersion
-        AND key = ANY (@keys)"
-  |> Sql.parameters
-    [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid state.program.canvasID
-      "userVersion", Sql.int db.version
-      "darkVersion", Sql.int currentDarkVersion
-      "keys", Sql.stringArray (Array.ofList keys) ]
-  |> Sql.executeAsync (fun read -> read.string "data")
-  |> Task.map (List.map (dbToDval types db))
+  task {
+    let types = RT.ExecutionState.availableTypes state
+    let! executed =
+      Sql.query
+        "SELECT data
+          FROM user_data_v0
+          WHERE table_tlid = @tlid
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND key = ANY (@keys)"
+      |> Sql.parameters
+        [ "tlid", Sql.tlid db.tlid
+          "canvasID", Sql.uuid state.program.canvasID
+          "userVersion", Sql.int db.version
+          "darkVersion", Sql.int currentDarkVersion
+          "keys", Sql.stringArray (Array.ofList keys) ]
+      |> Sql.executeAsync (fun read -> read.string "data")
+
+    return!
+      executed
+      |> List.map (dbToDval types db)
+      |> Task.WhenAll
+      |> Task.map List.ofArray
+  }
 
 
 
@@ -140,23 +162,35 @@ and getManyWithKeys
   (db : RT.DB.T)
   (keys : string list)
   : Task<List<string * RT.Dval>> =
-  let types = RT.ExecutionState.availableTypes state
-  Sql.query
-    "SELECT key, data
-       FROM user_data_v0
-      WHERE table_tlid = @tlid
-        AND canvas_id = @canvasID
-        AND user_version = @userVersion
-        AND dark_version = @darkVersion
-        AND key = ANY (@keys)"
-  |> Sql.parameters
-    [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid state.program.canvasID
-      "userVersion", Sql.int db.version
-      "darkVersion", Sql.int currentDarkVersion
-      "keys", Sql.stringArray (Array.ofList keys) ]
-  |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-  |> Task.map (List.map (fun (key, data) -> key, dbToDval types db data))
+  task {
+    let types = RT.ExecutionState.availableTypes state
+    let! executed =
+      Sql.query
+        "SELECT key, data
+          FROM user_data_v0
+          WHERE table_tlid = @tlid
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND key = ANY (@keys)"
+      |> Sql.parameters
+        [ "tlid", Sql.tlid db.tlid
+          "canvasID", Sql.uuid state.program.canvasID
+          "userVersion", Sql.int db.version
+          "darkVersion", Sql.int currentDarkVersion
+          "keys", Sql.stringArray (Array.ofList keys) ]
+      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+
+    return!
+      executed
+      |> List.map(fun (key, data) ->
+        task {
+          let! dval = dbToDval types db data
+          return (key, dval)
+        })
+      |> Task.WhenAll
+      |> Task.map List.ofArray
+  }
 
 
 
@@ -164,21 +198,33 @@ let getAll
   (state : RT.ExecutionState)
   (db : RT.DB.T)
   : Task<List<string * RT.Dval>> =
-  let types = RT.ExecutionState.availableTypes state
-  Sql.query
-    "SELECT key, data
-       FROM user_data_v0
-      WHERE table_tlid = @tlid
-        AND canvas_id = @canvasID
-        AND user_version = @userVersion
-        AND dark_version = @darkVersion"
-  |> Sql.parameters
-    [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid state.program.canvasID
-      "userVersion", Sql.int db.version
-      "darkVersion", Sql.int currentDarkVersion ]
-  |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
-  |> Task.map (List.map (fun (key, data) -> key, dbToDval types db data))
+  task {
+    let types = RT.ExecutionState.availableTypes state
+    let! executed =
+      Sql.query
+        "SELECT key, data
+          FROM user_data_v0
+          WHERE table_tlid = @tlid
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion"
+      |> Sql.parameters
+        [ "tlid", Sql.tlid db.tlid
+          "canvasID", Sql.uuid state.program.canvasID
+          "userVersion", Sql.int db.version
+          "darkVersion", Sql.int currentDarkVersion ]
+      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+
+    return!
+      executed
+      |> List.map (fun (key, data) ->
+        task {
+          let! dval = dbToDval types db data
+          return (key, dval)
+        })
+      |> Task.WhenAll
+      |> Task.map List.ofArray
+  }
 
 // Reusable function that provides the template for the SqlCompiler query functions
 let doQuery
@@ -225,7 +271,15 @@ let query
     let! results =
       query |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
-    return results |> List.map (fun (key, data) -> (key, dbToDval types db data))
+    return!
+      results
+      |> List.map (fun (key, data) ->
+        task {
+          let! dval = dbToDval types db data
+          return (key, dval)
+        })
+      |> Task.WhenAll
+      |> Task.map List.ofArray
   }
 
 let queryValues
@@ -239,7 +293,11 @@ let queryValues
 
     let! results = query |> Sql.executeAsync (fun read -> read.string "data")
 
-    return results |> List.map (dbToDval types db)
+    return!
+      results
+      |> List.map (dbToDval types db)
+      |> Task.WhenAll
+      |> Task.map List.ofArray
   }
 
 let queryCount

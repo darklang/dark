@@ -1039,12 +1039,17 @@ and TestContext =
     postTestExecutionHook : TestContext -> Dval -> unit }
 
 // Non-user-specific functionality needed to run code
-and Libraries =
-  { builtInFns : Map<FnName.BuiltIn, BuiltInFn>
-    builtInTypes : Map<TypeName.BuiltIn, BuiltInType>
+and BuiltIns =
+  { types : Map<TypeName.BuiltIn, BuiltInType>
+    fns : Map<FnName.BuiltIn, BuiltInFn> }
 
-    packageFns : Map<FnName.Package, PackageFn.T>
-    packageTypes : Map<TypeName.Package, PackageType.T> }
+and PackageManager =
+  { getType : TypeName.Package -> Task<Option<PackageType.T>>
+    getFn : FnName.Package -> Task<Option<PackageFn.T>> }
+
+  static member Empty : PackageManager =
+    { getType = fun _typ -> Task.FromResult None
+      getFn = fun _fn -> Task.FromResult None }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1052,7 +1057,8 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 
 // All state used while running a program
 and ExecutionState =
-  { libraries : Libraries
+  { builtIns : BuiltIns
+    packageManager : PackageManager
     tracing : Tracing
     program : Program
     config : Config
@@ -1090,42 +1096,51 @@ and ExecutionState =
 
 and Types =
   { builtInTypes : Map<TypeName.BuiltIn, BuiltInType>
-    packageTypes : Map<TypeName.Package, PackageType.T>
+    packageManager : PackageManager
     userProgramTypes : Map<TypeName.UserProgram, UserType.T> }
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
-    { builtInTypes = state.libraries.builtInTypes
-      packageTypes = state.libraries.packageTypes
+    { builtInTypes = state.builtIns.types
+      packageManager = state.packageManager
       userProgramTypes = state.program.types }
 
 module Types =
   let empty =
     { builtInTypes = Map.empty
-      packageTypes = Map.empty
+      packageManager = PackageManager.Empty
       userProgramTypes = Map.empty }
 
-  let find (name : TypeName.T) (types : Types) : Option<CustomType.T> =
-    match name with
-    | FQName.BuiltIn b ->
-      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.definition)
-    | FQName.UserProgram user ->
-      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.definition)
-    | FQName.Package pkg ->
-      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
+  let find (name : TypeName.T) (types : Types) : Task<Option<CustomType.T>> =
+    task {
+      match name with
+      | FQName.BuiltIn b ->
+        return Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.definition)
 
+      | FQName.UserProgram user ->
+        return
+          Map.tryFind user types.userProgramTypes
+          |> Option.map (fun t -> t.definition)
+
+      | FQName.Package pkg ->
+        // TODO: have to deal with the fact that the package manager is async...
+        //return Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
+        return None
+    }
 
 let rec getTypeReferenceFromAlias
   (types : Types)
   (typ : TypeReference)
-  : TypeReference =
-  match typ with
-  | TCustomType(typeName, typeArgs) ->
-    match Types.find typeName types with
-    | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
-      getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
-    | _ -> typ
-  | _ -> typ
+  : Task<TypeReference> =
+  task {
+    match typ with
+    | TCustomType(typeName, typeArgs) ->
+      match! Types.find typeName types with
+      | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
+        return! getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
+      | _ -> return typ
+    | _ -> return typ
+  }
 
 
 let consoleReporter : ExceptionReporter =

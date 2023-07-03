@@ -503,7 +503,6 @@ let main _ =
     initSerializers ()
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (DangerExecution.init ()).Result
 
     run ()
     // CLEANUP I suspect this isn't called

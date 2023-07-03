@@ -13,18 +13,15 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module StdLibCLI = StdLibCLI.StdLib
 
-let (builtInFns, builtInTypes) =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents; StdLib.contents ]
-    []
-    []
+let builtIns : RT.BuiltIns =
+  let (fns, types) =
+    LibExecution.StdLib.combine
+      [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents; StdLib.contents ]
+      []
+      []
 
-
-let libraries : RT.Libraries =
-  { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
-    builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
-    packageFns = Map.empty
-    packageTypes = Map.empty }
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
 let defaultTLID = 7UL
 
@@ -71,7 +68,8 @@ let execute
 
     let state =
       Exe.createState
-        libraries
+        builtIns
+        RT.PackageManager.Empty
         tracing
         sendException
         notify

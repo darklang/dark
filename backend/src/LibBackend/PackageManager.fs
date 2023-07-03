@@ -117,3 +117,33 @@ let allTypes () : Task<List<PT.PackageType.T>> =
       |> List.map (fun (id, def) ->
         BinarySerialization.deserializePackageType id def)
   }
+
+let packageManager: RT.PackageManager =
+  { getType =
+      fun typ ->
+        task {
+          let! types = allTypes()
+
+          let types =
+            types
+            |> List.map (fun (t : PT.PackageType.T) ->
+              (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
+            |> Map.ofList
+
+          return types.TryFind typ
+        }
+
+    getFn =
+      fun fn ->
+        task {
+          let! fns = allFunctions()
+
+          let fns =
+            fns
+            |> List.map (fun (f : PT.PackageFn.T) ->
+              (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
+            |> Map.ofList
+
+          return fns.TryFind fn
+        } }
+

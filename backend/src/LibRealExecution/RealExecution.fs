@@ -26,46 +26,12 @@ let builtins : LibExecution.StdLib.Contents =
     []
     []
 
-let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
-  (task {
-    let! packages = PackageManager.allFunctions ()
+let builtIns : RT.BuiltIns =
+  { types = builtins |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
+    fns = builtins |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name) }
 
-    return
-      packages
-      |> List.map (fun (f : PT.PackageFn.T) ->
-        (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-      |> Map.ofList
-  })
 
-let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
-  (task {
-    let! packages = PackageManager.allTypes ()
 
-    return
-      packages
-      |> List.map (fun (t : PT.PackageType.T) ->
-        (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-      |> Map.ofList
-  })
-
-let libraries () : Task<RT.Libraries> =
-  task {
-    let! packageFns = packageFns ()
-    let! packageTypes = packageTypes ()
-
-    let builtinFns = builtins |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
-    let builtinTypes =
-      builtins |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
-
-    // TODO: this keeps a cached version so we're not loading them all the time.
-    // Of course, this won't be up to date if we add more functions. This should be
-    // some sort of LRU cache.
-    return
-      { builtInTypes = builtinTypes
-        builtInFns = builtinFns
-        packageFns = packageFns
-        packageTypes = packageTypes }
-  }
 
 let createState
   (traceID : AT.TraceID.T)
@@ -75,8 +41,6 @@ let createState
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let! libraries = libraries ()
-
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
         "trace_id", traceID
@@ -92,7 +56,16 @@ let createState
       let metadata = extraMetadata state @ metadata
       LibService.Rollbar.sendException None metadata exn
 
-    return Exe.createState libraries tracing sendException notify tlid program config
+    return
+      Exe.createState
+        builtIns
+        PackageManager.packageManager
+        tracing
+        sendException
+        notify
+        tlid
+        program
+        config
   }
 
 type ExecutionReason =
@@ -164,12 +137,4 @@ let reexecuteFunction
     let! result = Exe.executeFunction state callerID name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results
-  }
-
-
-/// Ensure library is ready to be called. Throws if it cannot initialize.
-let init () : Task<unit> =
-  task {
-    let! (_ : RT.Libraries) = libraries ()
-    return ()
   }

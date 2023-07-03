@@ -41,20 +41,19 @@ let info () =
 // Execution
 // ---------------------
 
-let (builtInFns, builtInTypes) =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents
-      StdLibCLI.StdLib.contents
-      CLI.StdLib.contents ]
-    []
-    []
+let builtIns : RT.BuiltIns =
+  let (fns, types) =
+    LibExecution.StdLib.combine
+      [ StdLibExecution.StdLib.contents
+        StdLibCLI.StdLib.contents
+        CLI.StdLib.contents ]
+      []
+      []
 
 
-let libraries : RT.Libraries =
-  { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
-    builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
-    packageFns = Map.empty
-    packageTypes = Map.empty }
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
+
 
 
 let execute
@@ -91,7 +90,15 @@ let execute
       printException "Internal error" metadata exn
 
     let state =
-      Exe.createState libraries tracing sendException notify 7UL program config
+      Exe.createState
+        builtIns
+        RT.PackageManager.Empty
+        tracing
+        sendException
+        notify
+        7UL
+        program
+        config
 
     if mod'.exprs.Length = 1 then
       return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])

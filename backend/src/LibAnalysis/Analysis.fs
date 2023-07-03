@@ -58,18 +58,19 @@ module Eval =
           dbs = request.dbs |> List.map (fun t -> t.name, t) |> Map
           secrets = request.secrets }
 
-      let (builtInFns, builtInTypes) =
-        LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
+      let builtIns : RT.BuiltIns =
+        let (fns, types) =
+          LibExecution.StdLib.combine [ StdLibExecution.StdLib.contents ] [] []
 
-      let packageFns = request.packageFns |> Map.fromListBy (fun fn -> fn.name)
-      let packageTypes = request.packageTypes |> Map.fromListBy (fun typ -> typ.name)
+        { types = types |> Map.fromListBy (fun typ -> typ.name)
+          fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
+      let packageManager : RT.PackageManager =
+        let fns = request.packageFns |> Map.fromListBy (fun fn -> fn.name)
+        let types = request.packageTypes |> Map.fromListBy (fun typ -> typ.name)
 
-      let libraries : RT.Libraries =
-        { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
-          builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
-          packageFns = packageFns
-          packageTypes = packageTypes }
+        { getType = fun typ -> types.TryFind typ |> Task.FromResult
+          getFn = fun fn -> fns.TryFind fn |> Task.FromResult }
 
       let results, traceDvalFn = Exe.traceDvals ()
       let functionResults = request.traceData.functionResults
@@ -81,7 +82,8 @@ module Eval =
 
       let state =
         Exe.createState
-          libraries
+          builtIns
+          packageManager
           tracing
           RT.consoleReporter
           RT.consoleNotifier

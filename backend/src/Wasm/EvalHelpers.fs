@@ -3,6 +3,9 @@ module Wasm.EvalHelpers
 open Prelude
 open Tablecloth
 
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open LibExecution.RuntimeTypes
 
 let getStateForEval
@@ -10,18 +13,11 @@ let getStateForEval
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
   : ExecutionState =
-  let packageFns = Map.empty // TODO
-  let packageTypes = Map.empty // TODO
 
-  let libraries : Libraries =
-    let builtInFns, builtInTypes = stdlib
-
-    { builtInTypes = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
-
-      builtInFns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
-
-      packageFns = packageFns
-      packageTypes = packageTypes }
+  let builtIns : BuiltIns =
+    let fns, types = stdlib
+    { types = types |> List.map (fun typ -> typ.name, typ) |> Map
+      fns = fns |> List.map (fun fn -> fn.name, fn) |> Map }
 
   let config : Config = { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
 
@@ -33,7 +29,8 @@ let getStateForEval
       types = Map.fromListBy (fun typ -> typ.name) types
       secrets = List.empty }
 
-  { libraries = libraries
+  { builtIns = builtIns
+    packageManager = PackageManager.Empty
     tracing = LibExecution.Execution.noTracing Real
     program = program
     config = config

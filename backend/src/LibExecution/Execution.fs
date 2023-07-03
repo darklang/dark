@@ -29,7 +29,8 @@ let noTestContext : RT.TestContext =
     postTestExecutionHook = fun _ _ -> () }
 
 let createState
-  (libraries : RT.Libraries)
+  (builtIns : RT.BuiltIns)
+  (packageManager: RT.PackageManager)
   (tracing : RT.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
@@ -37,7 +38,8 @@ let createState
   (program : RT.Program)
   (config : RT.Config)
   : RT.ExecutionState =
-  { libraries = libraries
+  { builtIns = builtIns
+    packageManager = packageManager
     tracing = tracing
     program = program
     config = config

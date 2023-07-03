@@ -756,7 +756,7 @@ let compileLambda
 
     let sql, vars, _expectedType =
       lambdaToSql
-        state.libraries.builtInFns
+        state.builtIns.fns
         types
         symtable
         paramName

@@ -117,36 +117,19 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
 /// In the case of a fn existing in both places, the test fn is the one used.
-let libraries : Lazy<Task<RT.Libraries>> =
-  lazy
-    task {
+let builtIns : RT.BuiltIns =
+  let (fns, types) =
+    LibExecution.StdLib.combine
+      [ LibRealExecution.RealExecution.builtins
+        StdLibCLI.StdLib.contents
+        LibTest.contents ]
+      []
+      []
 
-      let (fns, types) =
-        LibExecution.StdLib.combine
-          [ LibTest.contents
-            LibRealExecution.RealExecution.builtins
-            StdLibCLI.StdLib.contents ]
-          []
-          []
-      let! packageFns = LibBackend.PackageManager.allFunctions ()
-      let packageFns =
-        packageFns
-        |> List.map (fun (f : PT.PackageFn.T) ->
-          (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-        |> Map.ofList
-      let! packageTypes = LibBackend.PackageManager.allTypes ()
-      let packageTypes =
-        packageTypes
-        |> List.map (fun (t : PT.PackageType.T) ->
-          (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-        |> Map.ofList
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
-      return
-        { builtInTypes = types |> Map.fromListBy (fun typ -> typ.name)
-          builtInFns = fns |> Map.fromListBy (fun fn -> fn.name)
-          packageFns = packageFns
-          packageTypes = packageTypes }
-    }
+
 
 let executionStateFor
   (canvasID : CanvasID)
@@ -213,11 +196,11 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
-    let! libraries = libraries.Force()
 
     let state =
       Exe.createState
-        libraries
+        builtIns
+        LibBackend.PackageManager.packageManager
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier
@@ -290,7 +273,7 @@ let testMany2Task
 let testListUsingProperty
   (name : string)
   (prop : 'a -> bool)
-  (list : (string * 'a) list)
+  (list : (string * 'a) list): Test
   =
   testList
     name
