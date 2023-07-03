@@ -674,23 +674,29 @@ module ProgramTypes =
   let userRecordType : PT.UserType.T =
     { tlid = 0UL
       name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
-      typeParams = [ "a" ]
-      definition =
-        let firstField : PT.TypeDeclaration.RecordField =
-          { name = "prop1"; typ = dtype; description = "desc1" }
-        PT.TypeDeclaration.Record(firstField, []) }
+      description = "test description"
+      deprecated = PT.NotDeprecated
+      declaration =
+        { typeParams = [ "a" ]
+          definition =
+            let firstField : PT.TypeDeclaration.RecordField =
+              { name = "prop1"; typ = dtype; description = "desc1" }
+            PT.TypeDeclaration.Record(firstField, []) } }
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
       name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
-      typeParams = [ "a" ]
-      definition =
-        PT.TypeDeclaration.Enum(
-          { name = "caseA"; fields = []; description = "" },
-          [ { name = "caseB"
-              fields = [ { typ = dtype; label = Some "i"; description = "" } ]
-              description = "" } ]
-        ) }
+      deprecated = PT.NotDeprecated
+      description = "test description"
+      declaration =
+        { typeParams = [ "a" ]
+          definition =
+            PT.TypeDeclaration.Enum(
+              { name = "caseA"; fields = []; description = "" },
+              [ { name = "caseB"
+                  fields = [ { typ = dtype; label = Some "i"; description = "" } ]
+                  description = "" } ]
+            ) } }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
 
@@ -719,14 +725,15 @@ module ProgramTypes =
           modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
           name = PT.TypeName.TypeName "T"
           version = 0 }
-      typeParams = [ "a" ]
-      definition =
-        PT.TypeDeclaration.Enum(
-          { name = "caseA"; fields = []; description = "" },
-          [ { name = "caseB"
-              fields = [ { typ = dtype; label = Some "i"; description = "" } ]
-              description = "" } ]
-        )
+      declaration =
+        { typeParams = [ "a" ]
+          definition =
+            PT.TypeDeclaration.Enum(
+              { name = "caseA"; fields = []; description = "" },
+              [ { name = "caseB"
+                  fields = [ { typ = dtype; label = Some "i"; description = "" } ]
+                  description = "" } ]
+            ) }
       id = uuid
       description = "test"
       deprecated = PT.NotDeprecated

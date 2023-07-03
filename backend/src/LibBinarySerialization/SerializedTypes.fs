@@ -277,10 +277,18 @@ module TypeDeclaration =
       description : string }
 
   [<MessagePack.MessagePackObject>]
-  type T =
+  type Definition =
     | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      typeParams : List<string>
+      [<MessagePack.Key 1>]
+      definition : Definition }
+
 
 
 module Handler =
@@ -330,10 +338,12 @@ module UserType =
       tlid : tlid
       [<MessagePack.Key 1>]
       name : TypeName.UserProgram
-      [<MessagePack.Key 2>]
-      typeParams : List<string>
       [<MessagePack.Key 3>]
-      definition : TypeDeclaration.T }
+      declaration : TypeDeclaration.T
+      [<MessagePack.Key 4>]
+      description : string
+      [<MessagePack.Key 5>]
+      deprecated : Deprecation<TypeName.T> }
 
 
 module UserFunction =
@@ -406,12 +416,10 @@ module PackageType =
       [<MessagePack.Key 2>]
       name : TypeName.Package
       [<MessagePack.Key 3>]
-      typeParams : List<string>
+      declaration : TypeDeclaration.T
       [<MessagePack.Key 4>]
-      definition : TypeDeclaration.T
-      [<MessagePack.Key 5>]
       description : string
-      [<MessagePack.Key 6>]
+      [<MessagePack.Key 5>]
       deprecated : Deprecation<TypeName.T> }
 
 

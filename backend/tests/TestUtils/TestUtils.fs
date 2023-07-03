@@ -105,12 +105,15 @@ let testUserRecordType
 
   { tlid = gid ()
     name = name
-    typeParams = []
-    definition =
-      PT.TypeDeclaration.Record(
-        mapField firstField,
-        List.map mapField additionalFields
-      ) }
+    description = ""
+    deprecated = PT.NotDeprecated
+    declaration =
+      { typeParams = []
+        definition =
+          PT.TypeDeclaration.Record(
+            mapField firstField,
+            List.map mapField additionalFields
+          ) } }
 
 
 

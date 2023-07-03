@@ -402,6 +402,32 @@ module PipeExpr =
     | EPipeFnCall(id, _, _, _)
     | EPipeEnum(id, _, _, _) -> id
 
+
+/// A type defined by a standard library module, a canvas/user, or a package
+module TypeDeclaration =
+  type RecordField = { name : string; typ : TypeReference; description : string }
+
+  type EnumField =
+    { typ : TypeReference; label : Option<string>; description : string }
+
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
+
+  /// The right-hand-side of the declaration: eg List<'a>
+  type Definition =
+    /// `type MyAlias = Int`
+    | Alias of TypeReference
+
+    /// `type MyRecord = { a : int; b : string }`
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+
+    /// `type MyEnum = A | B of int | C of int * (label: string)`
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  /// Combined the RHS definition, with the list of type parameters. Eg type
+  /// MyType<'a> = List<'a>
+  type T = { typeParams : List<string>; definition : Definition }
+
+
 // Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
 type Deprecation<'name> =
@@ -416,25 +442,6 @@ type Deprecation<'name> =
   /// This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of string
 
-
-/// A type defined by a standard library module, a canvas/user, or a package
-module TypeDeclaration =
-  type RecordField = { name : string; typ : TypeReference; description : string }
-
-  type EnumField =
-    { typ : TypeReference; label : Option<string>; description : string }
-
-  type EnumCase = { name : string; fields : List<EnumField>; description : string }
-
-  type T =
-    /// `type MyAlias = Int`
-    | Alias of TypeReference
-
-    /// `type MyRecord = { a : int; b : string }`
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-
-    /// `type MyEnum = A | B of int | C of int * (label: string)`
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
 module Handler =
   type CronInterval =
@@ -461,8 +468,10 @@ module UserType =
   type T =
     { tlid : tlid
       name : TypeName.UserProgram
-      typeParams : List<string>
-      definition : TypeDeclaration.T }
+      declaration : TypeDeclaration.T
+      description : string
+      deprecated : Deprecation<TypeName.T> }
+
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
@@ -513,7 +522,6 @@ module PackageType =
     { tlid : tlid
       id : System.Guid
       name : TypeName.Package
-      typeParams : List<string>
-      definition : TypeDeclaration.T
+      declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<TypeName.T> }

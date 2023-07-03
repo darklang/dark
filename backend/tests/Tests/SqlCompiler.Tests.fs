@@ -33,8 +33,8 @@ let compile
     let userType : UserType.T =
       { tlid = gid ()
         name = typeName
-        typeParams = []
-        definition = TypeDeclaration.Record(field, []) }
+        declaration =
+          { typeParams = []; definition = TypeDeclaration.Record(field, []) } }
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQName.UserProgram typeName, [])
 

@@ -346,13 +346,14 @@ open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> =
   [ { name = typ [ "HttpClient" ] "Response" 0
-      typeParams = []
-      definition =
-        TypeDeclaration.Record(
+      declaration = {
+        typeParams = []
+        definition = TypeDeclaration.Record(
           { name = "statusCode"; typ = TInt; description = "" },
           [ { name = "headers"; typ = headersType; description = "" }
             { name = "body"; typ = TBytes; description = "" } ]
         )
+      }
       description = "The response from a HTTP request"
       deprecated = NotDeprecated } ]
 

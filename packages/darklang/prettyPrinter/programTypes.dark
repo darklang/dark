@@ -683,15 +683,15 @@ module Darklang =
         | ReplacedBy name -> $"ReplacedBy {m name}"
         | DeprecatedBecause reason -> $"DeprecatedBecause {reason}"
 
-      module CustomType =
+      module TypeDeclaration =
         let recordField
-          (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.RecordField)
+          (d: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.RecordField)
           : String =
           // TODO: /// for description
           $"{d.name} : {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference d.typ}"
 
         let enumField
-          (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumField)
+          (d: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumField)
           : String =
           match d.label with
           | Nothing ->
@@ -700,7 +700,7 @@ module Darklang =
             $"{label}: {PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference d.typ}"
 
         let enumCase
-          (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumCase)
+          (d: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumCase)
           : String =
           match d.fields with
           | [] -> "| " ++ d.name
@@ -708,7 +708,7 @@ module Darklang =
             let fieldPart =
               fields
               |> List.map (fun field ->
-                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.CustomType.enumField
+                PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumField
                   field)
               |> String.join " * "
 
@@ -716,7 +716,7 @@ module Darklang =
 
 
       let customType
-        (d: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T)
+        (d: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T)
         : String =
         match d with
         | Alias typeRef ->
@@ -726,7 +726,7 @@ module Darklang =
           let fieldsPart =
             (List.append [ firstField ] additionalFields)
             |> List.map (fun field ->
-              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.CustomType.recordField
+              PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.recordField
                 field)
             |> String.join "\n"
 
@@ -737,7 +737,7 @@ module Darklang =
 
           cases
           |> List.map (fun case ->
-            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.CustomType.enumCase case)
+            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumCase case)
           |> String.join "\n"
 
 

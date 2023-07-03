@@ -13,7 +13,7 @@ let rec getUnderlyingTypeFromAlias
   (types : Types)
   : TypeDeclaration.T =
   match typ with
-  | TypeDeclaration.Alias(TCustomType(innerType, _)) ->
+  | {definition=TypeDeclaration.Alias(TCustomType(innerType, _))} ->
     match Types.find innerType types with
     | Some alias -> getUnderlyingTypeFromAlias alias types
     | None -> Exception.raiseCode "Alias not found"

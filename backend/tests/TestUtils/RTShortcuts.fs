@@ -108,7 +108,7 @@ let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T
       { name = name; typ = typ; description = "" } : TypeDeclaration.RecordField)
   match fields with
   | [] -> Exception.raiseInternal "userRecord must have at least one field" []
-  | hd :: rest -> TypeDeclaration.Record(hd, rest)
+  | hd :: rest -> { typeParams = []; definition = TypeDeclaration.Record(hd, rest) }
 
 let userTypeRecord
   (modules : List<string>)
@@ -118,5 +118,4 @@ let userTypeRecord
   : UserType.T =
   { tlid = gid ()
     name = { modules = modules; name = TypeName.TypeName name; version = version }
-    typeParams = []
-    definition = customTypeRecord fields }
+    declaration = customTypeRecord fields }

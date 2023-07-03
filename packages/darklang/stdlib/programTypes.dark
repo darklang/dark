@@ -375,7 +375,7 @@ module Darklang =
 
 
       /// A stdlib-, user-, or package- defined type (an alias, record, or enum)
-      module CustomType =
+      module TypeDeclaration =
         type RecordField =
           { name: String
             typ: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
@@ -388,24 +388,31 @@ module Darklang =
 
         type EnumCase =
           { name: String
-            fields: List<PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumField>
+            fields: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumField>
             description: String }
 
-        type T =
+        type Definition =
           /// Alias/abbreviation of an existing type with an alternative name, to capture some meaning
           | Alias of PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
 
           /// `type MyRecord = { a : int; b : String }`
           | Record of
-            firstField: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.RecordField *
+            firstField: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.RecordField *
             additionalFields:
-              List<PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.RecordField>
+              List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.RecordField>
 
           /// `type MyEnum = A | B of int | C of int * (label: String)`
           | Enum of
-            firstCase: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumCase *
+            firstCase: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumCase *
             additionalCases:
-              List<PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.EnumCase>
+              List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumCase>
+
+        type T =
+          { description: String
+            typeParams: List<String>
+            definition: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.Definition
+            deprecated:
+              PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> }
 
 
       module Handler =
@@ -451,7 +458,7 @@ module Darklang =
           typeParams: List<String>
 
           /// The type definition (Alias, Record, Enum, etc.)
-          definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
+          definition: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T
         }
 
 
@@ -502,7 +509,7 @@ module Darklang =
             id: Uuid
             name: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Package
             typeParams: List<String>
-            definition: PACKAGE.Darklang.Stdlib.ProgramTypes.CustomType.T
+            definition: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T
             description: String
             deprecated:
               PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> }

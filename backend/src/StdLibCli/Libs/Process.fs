@@ -13,13 +13,14 @@ open StdLib.Shortcuts
 let types : List<BuiltInType> =
   [ { name = typ [ "Process" ] "Result" 0
       description = "An error that occurred while running a process."
-      typeParams = []
-      definition =
-        TypeDeclaration.Record(
-          { name = "exitCode"; typ = TInt; description = "The exit code" },
-          [ { name = "stdout"; typ = TBytes; description = "The stdout" }
-            { name = "stderr"; typ = TBytes; description = "The stderr" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "exitCode"; typ = TInt; description = "The exit code" },
+              [ { name = "stdout"; typ = TBytes; description = "The stdout" }
+                { name = "stderr"; typ = TBytes; description = "The stderr" } ]
+            ) }
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =

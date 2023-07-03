@@ -262,19 +262,24 @@ module TypeDeclaration =
         fields = List.map EnumField.toRT c.fields
         description = c.description }
 
-  let toRT (d : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =
-    match d with
-    | PT.TypeDeclaration.Alias(typ) -> RT.TypeDeclaration.Alias(TypeReference.toRT typ)
-    | PT.TypeDeclaration.Record(firstField, additionalFields) ->
-      RT.TypeDeclaration.Record(
-        RecordField.toRT firstField,
-        List.map RecordField.toRT additionalFields
-      )
-    | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
-      RT.TypeDeclaration.Enum(
-        EnumCase.toRT firstCase,
-        List.map EnumCase.toRT additionalCases
-      )
+  module Definition =
+    let toRT (d : PT.TypeDeclaration.Definition) : RT.TypeDeclaration.Definition =
+      match d with
+      | PT.TypeDeclaration.Definition.Alias(typ) ->
+        RT.TypeDeclaration.Alias(TypeReference.toRT typ)
+      | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+        RT.TypeDeclaration.Record(
+          RecordField.toRT firstField,
+          List.map RecordField.toRT additionalFields
+        )
+      | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+        RT.TypeDeclaration.Enum(
+          EnumCase.toRT firstCase,
+          List.map EnumCase.toRT additionalCases
+        )
+
+  let toRT (t : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =
+    { typeParams = t.typeParams; definition = Definition.toRT t.definition }
 
 
 module Handler =
@@ -311,8 +316,7 @@ module UserType =
   let toRT (t : PT.UserType.T) : RT.UserType.T =
     { tlid = t.tlid
       name = TypeName.UserProgram.toRT t.name
-      typeParams = t.typeParams
-      definition = TypeDeclaration.toRT t.definition }
+      declaration = TypeDeclaration.toRT t.declaration }
 
 module UserFunction =
   module Parameter =
@@ -354,5 +358,4 @@ module PackageFn =
 module PackageType =
   let toRT (t : PT.PackageType.T) : RT.PackageType.T =
     { name = TypeName.Package.toRT t.name
-      typeParams = t.typeParams
-      definition = TypeDeclaration.toRT t.definition }
+      declaration = TypeDeclaration.toRT t.declaration }

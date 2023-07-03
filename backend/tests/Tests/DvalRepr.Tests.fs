@@ -41,9 +41,8 @@ let queryableRoundtripsSuccessfullyInRecord
           Map
             [ typeName,
               { name = typeName
-                typeParams = []
                 tlid = 8UL
-                definition = S.customTypeRecord [ "field", fieldTyp ] } ] }
+                declaration = S.customTypeRecord [ "field", fieldTyp ] } ] }
 
 
   record
@@ -217,8 +216,7 @@ module Password =
                 [ typeName,
                   { tlid = 8UL
                     name = typeName
-                    typeParams = []
-                    definition = S.customTypeRecord [ "x", RT.TPassword ] } ] }
+                    declaration = S.customTypeRecord [ "x", RT.TPassword ] } ] }
 
 
       let serialize = DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef

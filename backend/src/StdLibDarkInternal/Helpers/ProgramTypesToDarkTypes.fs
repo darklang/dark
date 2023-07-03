@@ -425,21 +425,30 @@ module TypeDeclaration =
             "description", DString ec.description ]
       )
 
-  let toDT (d : PT.TypeDeclaration.T) : Dval =
-    let caseName, fields =
-      match d with
-      | PT.TypeDeclaration.Alias typeRef -> "Alias", [ TypeReference.toDT typeRef ]
+  module Definition =
+    let toDT (d : PT.TypeDeclaration.Definition) : Dval =
+      let caseName, fields =
+        match d with
+        | PT.TypeDeclaration.Alias typeRef -> "Alias", [ TypeReference.toDT typeRef ]
 
-      | PT.TypeDeclaration.Record(firstField, additionalFields) ->
-        "Record",
-        [ RecordField.toDT firstField
-          DList(List.map RecordField.toDT additionalFields) ]
+        | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+          "Record",
+          [ RecordField.toDT firstField
+            DList(List.map RecordField.toDT additionalFields) ]
 
-      | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
-        "Enum",
-        [ EnumCase.toDT firstCase; DList(List.map EnumCase.toDT additionalCases) ]
+        | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+          "Enum",
+          [ EnumCase.toDT firstCase; DList(List.map EnumCase.toDT additionalCases) ]
 
-    DEnum(ptTyp [ "TypeDeclaration" ] "T" 0, caseName, fields)
+      DEnum(ptTyp [ "TypeDeclaration" ] "Definition" 0, caseName, fields)
+
+  let toDT (td : PT.TypeDeclaration.T) : Dval =
+    DRecord(
+      ptTyp [ "TypeDeclaration" ] "T" 0,
+      Map
+        [ "typeParams", DList(List.map DString td.typeParams)
+          "definition", Definition.toDT td.definition ]
+    )
 
 module Handler =
   module CronInterval =
@@ -496,8 +505,8 @@ module UserType =
       Map
         [ "tlid", DInt(int64 userType.tlid)
           "name", TypeName.UserProgram.toDT userType.name
-          "typeParams", DList(List.map DString userType.typeParams)
-          "definition", TypeDeclaration.toDT userType.definition ]
+          "deprecated", Deprecation.toDT TypeName.toDT userType.deprecated
+          "declaration", TypeDeclaration.toDT userType.declaration ]
     )
 
 
@@ -545,8 +554,7 @@ module PackageType =
         [ "tlid", DInt(int64 p.tlid)
           "id", DUuid p.id
           "name", TypeName.Package.toDT p.name
-          "typeParams", DList(List.map DString p.typeParams)
-          "definition", TypeDeclaration.toDT p.definition
+          "declaration", TypeDeclaration.toDT p.declaration
           "description", DString p.description
           "deprecated", Deprecation.toDT TypeName.toDT p.deprecated ]
     )

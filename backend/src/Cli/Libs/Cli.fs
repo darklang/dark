@@ -68,15 +68,16 @@ let execute
 
 let types : List<BuiltInType> =
   [ { name = typ [ "Cli" ] "ExecutionError" 0
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Definition.Record(
+              { name = "msg"; typ = TString; description = "The error message" },
+              [ { name = "metadata"
+                  typ = TDict TString
+                  description = "List of metadata as strings" } ]
+            ) }
       description = "Result of Execution"
-      typeParams = []
-      definition =
-        TypeDeclaration.Record(
-          { name = "msg"; typ = TString; description = "The error message" },
-          [ { name = "metadata"
-              typ = TDict TString
-              description = "List of metadata as strings" } ]
-        )
       deprecated = NotDeprecated } ]
 
 

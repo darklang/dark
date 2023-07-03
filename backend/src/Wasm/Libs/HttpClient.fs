@@ -183,13 +183,14 @@ type HeaderError =
 let types : List<BuiltInType> =
   // TODO: put this into the WASM submodule
   [ { name = typ [ "HttpClient" ] "Response" 0
+      declaration = {
       typeParams = []
       definition =
         TypeDeclaration.Record(
           { name = "statusCode"; typ = TInt; description = "" },
           [ { name = "headers"; typ = headersType; description = "" }
             { name = "body"; typ = TBytes; description = "" } ]
-        )
+        )}
       description = "The response from a HTTP request"
       deprecated = NotDeprecated } ]
 

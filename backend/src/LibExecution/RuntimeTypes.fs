@@ -537,9 +537,22 @@ and BuiltInParam =
 
 and Param = { name : string; typ : TypeReference }
 
+// Used to mark whether a function/type has been deprecated, and if so,
+// details about possible replacements/alternatives, and reasoning
+type Deprecation<'name> =
+  | NotDeprecated
+
+  // The exact same thing is available under a new, preferred name
+  | RenamedTo of 'name
+
+  /// This has been deprecated and has a replacement we can suggest
+  | ReplacedBy of 'name
+
+  /// This has been deprecated and not replaced, provide a message for the user
+  | DeprecatedBecause of string
+
 
 module TypeDeclaration =
-  // TYPESCLEANUP support type parameters
   type RecordField = { name : string; typ : TypeReference; description : string }
   type Alias = { typ : TypeReference }
 
@@ -548,10 +561,12 @@ module TypeDeclaration =
 
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
-  type T =
+  type Definition =
     | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  type T = { typeParams : List<string>; definition : Definition }
 
 // Functions for working with Dark runtime expressions
 module Expr =
@@ -812,10 +827,7 @@ module DB =
 
 module UserType =
   type T =
-    { tlid : tlid
-      name : TypeName.UserProgram
-      typeParams : List<string>
-      definition : TypeDeclaration.T }
+    { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -862,10 +874,7 @@ module PackageFn =
       body : Expr }
 
 module PackageType =
-  type T =
-    { name : TypeName.Package
-      typeParams : List<string>
-      definition : TypeDeclaration.T }
+  type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 
 // <summary>
@@ -891,20 +900,6 @@ type Previewable =
   // Can only be run on the server. e.g. `DB.update`
   // We should save the results.
   | Impure
-
-// Used to mark whether a function/type has been deprecated, and if so,
-// details about possible replacements/alternatives, and reasoning
-type Deprecation<'name> =
-  | NotDeprecated
-
-  // The exact same thing is available under a new, preferred name
-  | RenamedTo of 'name
-
-  /// This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of 'name
-
-  /// This has been deprecated and not replaced, provide a message for the user
-  | DeprecatedBecause of string
 
 // Used to mark whether a function has an equivalent that can be
 // used within a Postgres query.
@@ -954,8 +949,10 @@ type SqlSpec =
 // A built-in standard library type
 type BuiltInType =
   { name : TypeName.BuiltIn
-    typeParams : List<string>
-    definition : TypeDeclaration.T
+    declaration : TypeDeclaration.T
+    // description and deprecated are here because they're not needed in
+    // TypeDeclaration for Package and UserProgram types, where we have them in
+    // ProgramTypes and don't propagate them to RuntimeTypes
     description : string
     deprecated : Deprecation<TypeName.T> }
 
@@ -1120,11 +1117,11 @@ module Types =
   let find (name : TypeName.T) (types : Types) : Option<TypeDeclaration.T> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.declaration)
     | FQName.UserProgram user ->
-      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.declaration)
     | FQName.Package pkg ->
-      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.declaration)
 
 
 let rec getTypeReferenceFromAlias
@@ -1134,7 +1131,7 @@ let rec getTypeReferenceFromAlias
   match typ with
   | TCustomType(typeName, typeArgs) ->
     match Types.find typeName types with
-    | Some(TypeDeclaration.Alias(TCustomType(innerTypeName, _))) ->
+    | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
       getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
     | _ -> typ
   | _ -> typ

@@ -107,11 +107,12 @@ let rec unify
       let err = Error(ValueNotExpectedType(value, resolvedType, context))
 
       match ut, value with
-      | TypeDeclaration.Alias aliasType, _ ->
+      | { definition = TypeDeclaration.Alias aliasType }, _ ->
         let resolvedAliasType = getTypeReferenceFromAlias types aliasType
         unify context types resolvedAliasType value
 
-      | TypeDeclaration.Record(firstField, additionalFields), DRecord(tn, dmap) ->
+      | { definition = TypeDeclaration.Record(firstField, additionalFields) },
+        DRecord(tn, dmap) ->
         let aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
         match aliasedType with
         | TCustomType(concreteTn, typeArgs) ->
@@ -126,7 +127,7 @@ let rec unify
               dmap
         | _ -> err
 
-      | TypeDeclaration.Enum(firstCase, additionalCases),
+      | { definition = TypeDeclaration.Enum(firstCase, additionalCases) },
         DEnum(tn, caseName, valFields) ->
         // TODO: deal with aliased type?
         if tn <> typeName then

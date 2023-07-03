@@ -1085,7 +1085,7 @@ module TypeDeclaration =
         typ = TypeReference.resolveNames userTypes t.typ
         description = t.description }
 
-  let fromFields typeDef (fields : List<SynField>) : PT.TypeDeclaration.T =
+  let fromFields typeDef (fields : List<SynField>) : PT.TypeDeclaration.Definition =
     match fields with
     | [] ->
       Exception.raiseInternal
@@ -1098,81 +1098,94 @@ module TypeDeclaration =
         List.map RecordField.parseField additionalFields
       )
 
-  let fromCases typeDef (cases : List<SynUnionCase>) : PT.TypeDeclaration.T =
-    let firstCase, additionalCases =
-      match cases with
-      | [] ->
-        Exception.raiseInternal
-          $"Can't parse enum without any cases"
-          [ "typeDef", typeDef ]
-      | firstCase :: additionalCases -> firstCase, additionalCases
+  module Definition =
+    let fromCases
+      typeDef
+      (cases : List<SynUnionCase>)
+      : PT.TypeDeclaration.Definition =
+      let firstCase, additionalCases =
+        match cases with
+        | [] ->
+          Exception.raiseInternal
+            $"Can't parse enum without any cases"
+            [ "typeDef", typeDef ]
+        | firstCase :: additionalCases -> firstCase, additionalCases
 
-    PT.TypeDeclaration.Enum(
-      EnumCase.parseCase firstCase,
-      List.map EnumCase.parseCase additionalCases
-    )
+      PT.TypeDeclaration.Enum(
+        EnumCase.parseCase firstCase,
+        List.map EnumCase.parseCase additionalCases
+      )
 
 
-  let fromSynTypeDefn
-    (typeDef : SynTypeDefn)
-    : (List<string> * List<string> * PT.TypeDeclaration.T) =
-    match typeDef with
-    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
-                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
-                                         _),
-                  _,
-                  _,
-                  _,
-                  _) ->
-      SimpleTypeArgs.fromSynTyparDecls typeParams,
-      ids |> List.map string,
-      PT.TypeDeclaration.Alias(TypeReference.fromSynType typ)
+    let fromSynTypeDefn
+      (typeDef : SynTypeDefn)
+      : (List<string> * List<string> * PT.TypeDeclaration.Definition) =
+      match typeDef with
+      | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
+                    SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
+                                           _),
+                    _,
+                    _,
+                    _,
+                    _) ->
+        SimpleTypeArgs.fromSynTyparDecls typeParams,
+        ids |> List.map string,
+        PT.TypeDeclaration.Alias(TypeReference.fromSynType typ)
 
-    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
-                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Record(_, fields, _),
-                                         _),
-                  _,
-                  _,
-                  _,
-                  _) ->
-      SimpleTypeArgs.fromSynTyparDecls typeParams,
-      ids |> List.map string,
-      fromFields typeDef fields
+      | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
+                    SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Record(_, fields, _),
+                                           _),
+                    _,
+                    _,
+                    _,
+                    _) ->
+        SimpleTypeArgs.fromSynTyparDecls typeParams,
+        ids |> List.map string,
+        fromFields typeDef fields
 
-    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
-                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Union(_, cases, _), _),
-                  _,
-                  _,
-                  _,
-                  _) ->
-      SimpleTypeArgs.fromSynTyparDecls typeParams,
-      ids |> List.map string,
-      fromCases typeDef cases
-    | _ ->
-      Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
+      | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
+                    SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Union(_, cases, _),
+                                           _),
+                    _,
+                    _,
+                    _,
+                    _) ->
+        SimpleTypeArgs.fromSynTyparDecls typeParams,
+        ids |> List.map string,
+        fromCases typeDef cases
+      | _ ->
+        Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
+
+    let resolveNames
+      (userTypes : Set<PT.TypeName.UserProgram>)
+      (t : PT.TypeDeclaration.Definition)
+      : PT.TypeDeclaration.Definition =
+      match t with
+      | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+        PT.TypeDeclaration.Enum(
+          EnumCase.resolveNames userTypes firstCase,
+          additionalCases |> List.map (EnumCase.resolveNames userTypes)
+        )
+      | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+        PT.TypeDeclaration.Record(
+          RecordField.resolveNames userTypes firstField,
+          additionalFields |> List.map (RecordField.resolveNames userTypes)
+        )
+      | PT.TypeDeclaration.Alias typ ->
+        PT.TypeDeclaration.Alias(TypeReference.resolveNames userTypes typ)
 
   let resolveNames
     (userTypes : Set<PT.TypeName.UserProgram>)
     (t : PT.TypeDeclaration.T)
     : PT.TypeDeclaration.T =
-    match t with
-    | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
-      PT.TypeDeclaration.Enum(
-        EnumCase.resolveNames userTypes firstCase,
-        additionalCases |> List.map (EnumCase.resolveNames userTypes)
-      )
-    | PT.TypeDeclaration.Record(firstField, additionalFields) ->
-      PT.TypeDeclaration.Record(
-        RecordField.resolveNames userTypes firstField,
-        additionalFields |> List.map (RecordField.resolveNames userTypes)
-      )
-    | PT.TypeDeclaration.Alias typ ->
-      PT.TypeDeclaration.Alias(TypeReference.resolveNames userTypes typ)
+    { definition = Definition.resolveNames userTypes t.definition
+      typeParams = t.typeParams }
 
 
 module UserType =
   let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.UserType.T =
-    let (typeParamNames, names, definition) = TypeDeclaration.fromSynTypeDefn typeDef
+    let (typeParams, names, definition) =
+      TypeDeclaration.Definition.fromSynTypeDefn typeDef
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
@@ -1183,8 +1196,9 @@ module UserType =
 
     { tlid = gid ()
       name = PT.TypeName.userProgram modules name version
-      typeParams = typeParamNames
-      definition = definition }
+      description = ""
+      deprecated = PT.NotDeprecated
+      declaration = { definition = definition; typeParams = typeParams } }
 
   let resolveNames
     (userTypes : Set<PT.TypeName.UserProgram>)
@@ -1192,8 +1206,9 @@ module UserType =
     : PT.UserType.T =
     { tlid = t.tlid
       name = t.name
-      typeParams = t.typeParams
-      definition = TypeDeclaration.resolveNames userTypes t.definition }
+      declaration = TypeDeclaration.resolveNames userTypes t.declaration
+      description = ""
+      deprecated = PT.NotDeprecated }
 
 module PackageType =
   let fromSynTypeDefn
@@ -1201,7 +1216,8 @@ module PackageType =
     (modules : NonEmptyList<string>)
     (typeDef : SynTypeDefn)
     : PT.PackageType.T =
-    let (typeParmNames, names, definition) = TypeDeclaration.fromSynTypeDefn typeDef
+    let (typeParams, names, definition) =
+      TypeDeclaration.Definition.fromSynTypeDefn typeDef
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
@@ -1213,8 +1229,7 @@ module PackageType =
       name = PT.TypeName.package owner modules name version
       description = ""
       deprecated = PT.NotDeprecated
-      typeParams = typeParmNames
-      definition = definition }
+      declaration = { typeParams = typeParams; definition = definition } }
 
   let resolveNames (f : PT.PackageType.T) : PT.PackageType.T =
     { tlid = f.tlid
@@ -1222,8 +1237,7 @@ module PackageType =
       name = f.name
       description = f.description
       deprecated = f.deprecated
-      typeParams = f.typeParams
-      definition = TypeDeclaration.resolveNames Set.empty f.definition }
+      declaration = TypeDeclaration.resolveNames Set.empty f.declaration }
 
 
 /// Returns an incomplete parse of a PT expression. Requires calling

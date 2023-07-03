@@ -17,13 +17,14 @@ let fn = fn modules
 
 let types : List<BuiltInType> =
   [ { name = typ "Secret" 0
-      typeParams = []
-      definition =
-        TypeDeclaration.Record(
-          { name = "name"; typ = TString; description = "" },
-          [ { name = "value"; typ = TString; description = "" }
-            { name = "version"; typ = TInt; description = "" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "name"; typ = TString; description = "" },
+              [ { name = "value"; typ = TString; description = "" }
+                { name = "version"; typ = TInt; description = "" } ]
+            ) }
       description = "A secret"
       deprecated = NotDeprecated } ]
 
