@@ -33,6 +33,8 @@ let types : List<BuiltInType> =
               description = "The version of the function" } ]
         )
       deprecated = NotDeprecated }
+
+
     { name = typ [ "LocalExec"; "Packages" ] "Type" 0
       description = "The name of a package type"
       typeParams = []
@@ -48,8 +50,6 @@ let types : List<BuiltInType> =
             { name = "version"; typ = TInt; description = "The version of the type" } ]
         )
       deprecated = NotDeprecated } ]
-
-
 
 
 let fns : List<BuiltInFn> =
@@ -181,4 +181,6 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]
+
+
 let contents : LibExecution.StdLib.Contents = (fns, types)
