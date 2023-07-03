@@ -455,14 +455,9 @@ module Darklang =
         | EInt(_id, i) -> Int.toString i
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
-          let wholePart = Int.toString whole
+          let remainderPart = $".{remainder}"
 
-          let remainderPart =
-            match remainder with
-            | Nothing -> ""
-            | Just r -> $".{Int.toString r}"
-
-          $"{signPart}{wholePart}{remainderPart}"
+          $"{signPart}{whole}{remainderPart}"
 
         | EChar(_id, c) -> "\"" ++ c ++ "\""
 
