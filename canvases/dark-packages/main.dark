@@ -1,0 +1,10 @@
+[<HttpHandler("GET", "/all-packages")>]
+let _handler _req =
+  let packages = DarkInternal.Packages.all ()
+
+
+  let prettyPackages = PACKAGE.Darklang.PrettyPrinter.packages packages
+
+  let result = prettyPackages
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
