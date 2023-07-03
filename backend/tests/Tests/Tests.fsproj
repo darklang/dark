@@ -21,7 +21,6 @@
     <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
-    <ProjectReference Include="../../src/LibAnalysis/LibAnalysis.fsproj" />
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
