@@ -1,5 +1,5 @@
 /// Standard libraries for Environment Variables
-module StdLibCLI.Libs.Environment
+module StdLibCli.Libs.Environment
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

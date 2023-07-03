@@ -54,7 +54,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "experiments", "experiments"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "CanvasHack", "experiments\CanvasHack\CanvasHack.fsproj", "{83A0A509-1FC6-4522-BFF0-09C36A4B29B6}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "CLI", "src\CLI\CLI.fsproj", "{DF812CBE-894C-4C90-9EDC-4558983CCDEA}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Cli", "src\Cli\Cli.fsproj", "{DF812CBE-894C-4C90-9EDC-4558983CCDEA}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BwdDangerServer", "experiments\BwdDangerServer\BwdDangerServer.fsproj", "{1C03DEE5-5ADB-4D2E-969F-5F0C70DF3EC4}"
 EndProject
@@ -62,7 +62,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Wasm", "src\Wasm\Wasm.fspro
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LocalExec", "src\LocalExec\LocalExec.fsproj", "{FC9D3B85-2CD6-4A5C-B853-BCE770F76FC6}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCLI", "src\StdLibCLI\StdLibCLI.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibCli", "src\StdLibCli\StdLibCli.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibDarkInternal", "src\StdLibDarkInternal\StdLibDarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
 EndProject

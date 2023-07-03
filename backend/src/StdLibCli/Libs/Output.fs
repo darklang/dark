@@ -1,5 +1,5 @@
 /// Standard libraries for printing and output
-module StdLibCLI.Libs.Output
+module StdLibCli.Libs.Output
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

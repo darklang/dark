@@ -13,9 +13,9 @@ do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/CLI/Release/net7.0/linux-x64/publish/CLI"
+  EXE="backend/Build/out/Cli/Release/net7.0/linux-x64/publish/Cli"
 else
-  EXE="backend/Build/out/CLI/Debug/net7.0/CLI"
+  EXE="backend/Build/out/Cli/Debug/net7.0/Cli"
 fi
 
 # if it hasn't been compiled yet, wait for it

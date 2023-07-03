@@ -1,5 +1,5 @@
 /// Standard libraries for running processes
-module StdLibCLI.Libs.Process
+module StdLibCli.Libs.Process
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

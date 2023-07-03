@@ -11,11 +11,11 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module StdLibCLI = StdLibCLI.StdLib
+module StdLibCli = StdLibCli.StdLib
 
 let (builtInFns, builtInTypes) =
   LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCLI.StdLib.contents; StdLib.contents ]
+    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
     []
     []
 
