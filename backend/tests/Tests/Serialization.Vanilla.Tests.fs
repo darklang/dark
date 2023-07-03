@@ -226,7 +226,4 @@ module PersistedSerializations =
         testTestFilesForConsistentSerialization ]
 
 
-let tests =
-  testList
-    "Vanilla Serialization"
-    [ PersistedSerializations.tests ]
+let tests = testList "Vanilla Serialization" [ PersistedSerializations.tests ]
