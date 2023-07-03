@@ -26,6 +26,11 @@ let int (name : string) : int = getEnvExn name |> int
 
 let uuid (name : string) : System.Guid = getEnvExn name |> System.Guid.Parse
 
+let uuids (name : string) : List<System.Guid> =
+  (getEnvExn name).Split(',')
+  |> Array.toList
+  |> List.map (fun s -> System.Guid.Parse(s))
+
 let bool (name : string) : bool =
   match getEnvExn name with
   | "y" -> true
