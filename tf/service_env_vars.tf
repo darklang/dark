@@ -110,6 +110,6 @@ variable "service_secrets" {
     "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS" = "traces-cloud-storage-credentials"
 
     # Config
-    "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_ID" = "allowed-dark-internal-canvas-id"
+    "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_IDS" = "allowed-dark-internal-canvas-ids"
   }
 }
