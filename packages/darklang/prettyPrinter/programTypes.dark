@@ -297,12 +297,9 @@ module Darklang =
         | MPBool(_id, b) -> Bool.toString b
         | MPInt(_id, i) -> Int.toString i
         | MPFloat(_id, sign, whole, remainder) ->
-          let wholePart = Int.toString whole
+          let wholePart = whole
 
-          let remainderPart =
-            match remainder with
-            | Nothing -> ""
-            | Just r -> $".{Int.toString r}"
+          let remainderPart = $".{remainder}"
 
           $"{PACKAGE.Darklang.PrettyPrinter.sign sign}{wholePart}{remainderPart}"
 
