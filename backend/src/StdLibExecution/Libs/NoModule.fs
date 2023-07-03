@@ -2,6 +2,8 @@ module StdLibExecution.Libs.NoModule
 
 open Prelude
 open System
+open System.Threading.Tasks
+open FSharp.Control.Tasks
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
@@ -11,13 +13,15 @@ open LibExecution.StdLib.Shortcuts
 let rec getUnderlyingTypeFromAlias
   (typ : CustomType.T)
   (types : Types)
-  : CustomType.T =
-  match typ with
-  | CustomType.Alias(TCustomType(innerType, _)) ->
-    match Types.find innerType types with
-    | Some alias -> getUnderlyingTypeFromAlias alias types
-    | None -> Exception.raiseCode "Alias not found"
-  | _ -> typ
+  : Task<CustomType.T> =
+  task {
+    match typ with
+    | CustomType.Alias(TCustomType(innerType, _)) ->
+      match! Types.find innerType types with
+      | Some alias -> return! getUnderlyingTypeFromAlias alias types
+      | None -> return Exception.raiseCode "Alias not found"
+    | _ -> return typ
+  }
 
 
 
@@ -42,18 +46,18 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
       (fun k v ->
         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
       a
-  | DRecord(tn1, a), DRecord(tn2, b) ->
-    match Types.find tn1 types, Types.find tn2 types with
-    | Some t1, Some t2 ->
-      let tn1 = getUnderlyingTypeFromAlias t1 types
-      let tn2 = getUnderlyingTypeFromAlias t2 types
-      tn1 = tn2
-      && Map.count a = Map.count b
-      && Map.forall
-        (fun k v ->
-          Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
-        a
-    | _ -> Exception.raiseInternal "Type not found" []
+  // | DRecord(tn1, a), DRecord(tn2, b) ->
+  //   match Types.find tn1 types, Types.find tn2 types with
+  //   | Some t1, Some t2 ->
+  //     let tn1 = getUnderlyingTypeFromAlias t1 types
+  //     let tn2 = getUnderlyingTypeFromAlias t2 types
+  //     tn1 = tn2
+  //     && Map.count a = Map.count b
+  //     && Map.forall
+  //       (fun k v ->
+  //         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+  //       a
+  //   | _ -> Exception.raiseInternal "Type not found" []
   | DFnVal a, DFnVal b ->
     match a, b with
     | Lambda a, Lambda b -> equalsLambdaImpl types a b

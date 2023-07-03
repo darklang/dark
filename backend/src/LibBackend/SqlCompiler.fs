@@ -144,11 +144,14 @@ let typecheckDval
   (types : Types)
   (dval : Dval)
   (expectedType : TypeReference)
+  : Task<unit>
   =
-  let context = TypeChecker.DBQueryVariable(name, None)
-  match TypeChecker.unify context types expectedType dval with
-  | Ok() -> ()
-  | Error err -> error (Errors.toString (Errors.TypeError err))
+  task {
+    let context = TypeChecker.DBQueryVariable(name, None)
+    match! TypeChecker.unify context types expectedType dval with
+    | Ok() -> ()
+    | Error err -> error (Errors.toString (Errors.TypeError err))
+  }
 
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only
@@ -249,6 +252,11 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
            args) when modules = [ mName ] && name = fName && version = v -> Some args
   | _ -> None
 
+type LambdaToSqlResults = // TODO: rename?
+  { sql : string
+    vars : List<string * SqlValue>
+    actualType : TypeReference }
+
 /// Generate SQL from an Expr. This expects that all the hard stuff has been
 /// removed by previous passes, and should only be called as the final pass.
 /// Returns the sql snippet for this expression, the variables that need to be
@@ -261,256 +269,258 @@ let rec lambdaToSql
   (dbTypeRef : TypeReference)
   (expectedType : TypeReference)
   (expr : Expr)
-  : string * List<string * SqlValue> * TypeReference =
-  let lts (expectedType : TypeReference) (expr : Expr) =
-    lambdaToSql fns types symtable paramName dbTypeRef expectedType expr
+  : LambdaToSqlResults =
+    let lts (expectedType : TypeReference) (expr : Expr): LambdaToSqlResults =
+      lambdaToSql fns types symtable paramName dbTypeRef expectedType expr
 
-  let (sql, vars, actualType) =
-    match expr with
-    | EApply(_, FnTargetName(FQName.BuiltIn name as fqName), [], args) ->
-      let nameStr = FnName.toString fqName
-      match Map.get name fns with
-      | Some fn ->
-        // check the abstract type here. We will check the concrete type later
-        typecheck nameStr fn.returnType expectedType
+    let (sql, vars, actualType) =
+      match expr with
+      | EApply(_, FnTargetName(FQName.BuiltIn name as fqName), [], args) ->
+        let nameStr = FnName.toString fqName
+        match Map.get name fns with
+        | Some fn ->
+          // check the abstract type here. We will check the concrete type later
+          typecheck nameStr fn.returnType expectedType
 
-        let actualTypes, argSqls, sqlVars =
-          let paramCount = List.length fn.parameters
-          let argCount = List.length args
+          let actualTypes, argSqls, sqlVars =
+            let paramCount = List.length fn.parameters
+            let argCount = List.length args
 
-          if argCount = paramCount then
+            if argCount = paramCount then
+              // While checking the arguments, record the actual types for any abstract
+              // types so that we can compare them and give a good error message as well
+              // as have the types for the correct Npgsql wrapper for lists and other
+              // polymorphic values
+              List.fold2
+                (fun (actualTypes, prevSqls, prevVars) argExpr (param : BuiltInParam) ->
+                  let compiled = lts param.typ argExpr
+                  let newActuals =
+                    match param.typ with
+                    | TVariable name ->
+                      match Map.get name actualTypes with
+                      // We've seen this type before, check it matches
+                      | Some expected ->
+                        typecheck param.name compiled.actualType expected
+                        actualTypes
+                      | None -> Map.add name compiled.actualType actualTypes
+                    | _ -> actualTypes
 
-            // While checking the arguments, record the actual types for any abstract
-            // types so that we can compare them and give a good error message as well
-            // as have the types for the correct Npgsql wrapper for lists and other
-            // polymorphic values
-            List.fold2
-              (fun (actualTypes, prevSqls, prevVars) argExpr (param : BuiltInParam) ->
-                let sql, vars, argActualType = lts param.typ argExpr
-                let newActuals =
-                  match param.typ with
-                  | TVariable name ->
-                    match Map.get name actualTypes with
-                    // We've seen this type before, check it matches
-                    | Some expected ->
-                      typecheck param.name argActualType expected
-                      actualTypes
-                    | None -> Map.add name argActualType actualTypes
-                  | _ -> actualTypes
+                  newActuals, prevSqls @ [ compiled.sql ], prevVars @ compiled.vars)
 
-                newActuals, prevSqls @ [ sql ], prevVars @ vars)
+                (Map.empty, [], [])
+                args
+                fn.parameters
+            else
+              error
+                $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
 
-              (Map.empty, [], [])
-              args
-              fn.parameters
-          else
-            error
-              $"{nameStr} has {paramCount} functions but we have {argCount} arguments"
+          // Check the unified return type (basic on the actual arguments) against the
+          // expected type
+          let returnType =
+            match fn.returnType with
+            | TVariable name ->
+              match Map.get name actualTypes with
+              | Some typ -> typ
+              | None -> error "Could not find return type"
+            | TList(TVariable name) ->
+              match Map.get name actualTypes with
+              | Some typ -> TList typ
+              | None -> error "Could not find return type"
+            | typ -> typ
 
-        // Check the unified return type (basic on the actual arguments) against the
-        // expected type
-        let returnType =
-          match fn.returnType with
-          | TVariable name ->
-            match Map.get name actualTypes with
-            | Some typ -> typ
-            | None -> error "Could not find return type"
-          | TList(TVariable name) ->
-            match Map.get name actualTypes with
-            | Some typ -> TList typ
-            | None -> error "Could not find return type"
-          | typ -> typ
-
-        typecheck nameStr returnType expectedType
-
-
-        match fn, argSqls with
-        | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
-          $"({argL} {op} {argR})", sqlVars, returnType
-        | { sqlSpec = SqlUnaryOp op }, [ argSql ] ->
-          $"({op} {argSql})", sqlVars, returnType
-        | { sqlSpec = SqlFunction fnname }, _ ->
-          let argSql = String.concat ", " argSqls
-          $"({fnname}({argSql}))", sqlVars, returnType
-        | { sqlSpec = SqlFunctionWithPrefixArgs(fnName, fnArgs) }, _ ->
-          let argSql = fnArgs @ argSqls |> String.concat ", "
-          $"({fnName} ({argSql}))", sqlVars, returnType
-        | { sqlSpec = SqlFunctionWithSuffixArgs(fnName, fnArgs) }, _ ->
-          let argSql = argSqls @ fnArgs |> String.concat ", "
-          $"({fnName} ({argSql}))", sqlVars, returnType
-        | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
-          $"({fn arg1 arg2})", sqlVars, returnType
-        | _, _ -> error $"This function ({nameStr}) is not yet implemented"
-      | None ->
-        error
-          $"Only builtin functions can be used in queries right now; {nameStr} is not a builtin function"
-
-    | EAnd(_, left, right) ->
-      let leftSql, leftVars, leftActual = lts TBool left
-      let rightSql, rightVars, rightActual = lts TBool right
-      typecheck "left side of and" leftActual TBool
-      typecheck "right side of and" rightActual TBool
-      $"({leftSql} AND {rightSql})", leftVars @ rightVars, TBool
+          typecheck nameStr returnType expectedType
 
 
-    | EOr(_, left, right) ->
-      let leftSql, leftVars, leftActual = lts TBool left
-      let rightSql, rightVars, rightActual = lts TBool right
-      typecheck "left side of or" leftActual TBool
-      typecheck "right side of or" rightActual TBool
-      $"({leftSql} OR {rightSql})", leftVars @ rightVars, TBool
+          match fn, argSqls with
+          | { sqlSpec = SqlBinOp op }, [ argL; argR ] ->
+            $"({argL} {op} {argR})", sqlVars, returnType
+          | { sqlSpec = SqlUnaryOp op }, [ argSql ] ->
+            $"({op} {argSql})", sqlVars, returnType
+          | { sqlSpec = SqlFunction fnname }, _ ->
+            let argSql = String.concat ", " argSqls
+            $"({fnname}({argSql}))", sqlVars, returnType
+          | { sqlSpec = SqlFunctionWithPrefixArgs(fnName, fnArgs) }, _ ->
+            let argSql = fnArgs @ argSqls |> String.concat ", "
+            $"({fnName} ({argSql}))", sqlVars, returnType
+          | { sqlSpec = SqlFunctionWithSuffixArgs(fnName, fnArgs) }, _ ->
+            let argSql = argSqls @ fnArgs |> String.concat ", "
+            $"({fnName} ({argSql}))", sqlVars, returnType
+          | { sqlSpec = SqlCallback2 fn }, [ arg1; arg2 ] ->
+            $"({fn arg1 arg2})", sqlVars, returnType
+          | _, _ -> error $"This function ({nameStr}) is not yet implemented"
+        | None ->
+          error
+            $"Only builtin functions can be used in queries right now; {nameStr} is not a builtin function"
+
+      | EAnd(_, left, right) ->
+        let left = lts TBool left
+        let right = lts TBool right
+        typecheck "left side of and" left.actualType TBool
+        typecheck "right side of and" right.actualType TBool
+        $"({left.sql} AND {right.sql})", left.vars @ right.vars, TBool
 
 
-    // TYPESCLEANUP - this could be the paramName, now that we support more than
-    // records here.
-    | EVariable(_, varname) ->
-      match Map.get varname symtable with
-      | Some dval ->
-        typecheckDval $"variable {varname}" types dval expectedType
-        let random = randomString 8
-        let newname = $"{varname}_{random}"
-        // Fetch the actualType here as well as we might be passing in an abstract
-        // type.
-        let (sqlValue, actualType) = dvalToSql expectedType dval
-        $"(@{newname})", [ newname, sqlValue ], actualType
-      | None -> error $"This variable is not defined: {varname}"
-
-    | EInt(_, v) ->
-      typecheck $"Int {v}" TInt expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.int64 v ], TInt
-
-    | EBool(_, v) ->
-      typecheck $"Bool {v}" TBool expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.bool v ], TBool
-
-    | EUnit _ ->
-      typecheck "Unit" TUnit expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.int64 0L ], TUnit
-
-    | EFloat(_, v) ->
-      typecheck $"Float {v}" TFloat expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.double v ], TFloat
-
-    | EString(_, parts) ->
-      let strParts, vars =
-        parts
-        |> List.map (fun part ->
-          match part with
-          | StringText(s) ->
-            typecheck $"String \"{s}\"" TString expectedType
-            let name = randomString 10
-            $"(@{name})", [ name, Sql.string s ]
-          | StringInterpolation e ->
-            let strPart, vars, actualType = lts TString e
-            typecheck $"String interpolation" TString actualType
-            strPart, vars)
-        |> List.unzip
-      let result = String.concat ", " strParts
-      let strPart = $"concat({result})"
-      let vars = vars |> List.concat
-      strPart, vars, TString
-
-    | EChar(_, v) ->
-      typecheck $"Char '{v}'" TChar expectedType
-      let name = randomString 10
-      $"(@{name})", [ name, Sql.string v ], TChar
-
-    | EList(_, items) ->
-      match expectedType with
-      | TVariable _ as expectedType
-      | TList expectedType ->
-        let sqls, vars, actualType =
-          List.fold
-            ([], [], expectedType)
-            (fun (prevSqls, prevVars, prevActualType) v ->
-              let sql, vars, actualType = lts expectedType v
-              typecheck $"List item" actualType prevActualType
-              prevSqls @ [ sql ], prevVars @ vars, actualType)
-            items
-        let sql =
-          sqls
-          |> String.concat ", "
-          |> (fun s -> "((ARRAY[ " + s + " ] )::bigint[])")
-        (sql, vars, TList actualType)
-      | _ -> error "Expected a List"
+      | EOr(_, left, right) ->
+        let left = lts TBool left
+        let right = lts TBool right
+        typecheck "left side of or" left.actualType TBool
+        typecheck "right side of or" right.actualType TBool
+        $"({left.sql} OR {right.sql})", left.vars @ right.vars, TBool
 
 
-    | EFieldAccess(_, EVariable(_, v), fieldname) when v = paramName ->
-      // Because this is the param name, we know its type to be dbType
+      // TYPESCLEANUP - this could be the paramName, now that we support more than
+      // records here.
+      // | EVariable(_, varname) ->
+      //   match Map.get varname symtable with
+      //   | Some dval ->
+      //     typecheckDval $"variable {varname}" types dval expectedType
+      //     let random = randomString 8
+      //     let newname = $"{varname}_{random}"
+      //     // Fetch the actualType here as well as we might be passing in an abstract
+      //     // type.
+      //     let (sqlValue, actualType) = dvalToSql expectedType dval
+      //     $"(@{newname})", [ newname, sqlValue ], actualType
+      //   | None -> error $"This variable is not defined: {varname}"
 
-      let dbFieldType =
-        match dbTypeRef with
-        // TYPESCLEANUP use args
-        | TCustomType(typeName, args) ->
-          match Types.find typeName types with
-          // TODO: Deal with alias of record type
-          | Some(CustomType.Alias _) ->
-            error2
-              "The datastore's type is not a record"
-              (TypeName.toString typeName)
-          | Some(CustomType.Record(f1, fields)) ->
-            let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
-            match field with
-            | Some v -> v.typ
-            | None -> error2 "The datastore does not have a field named" fieldname
-          | Some(CustomType.Enum _) ->
-            error2
-              "The datastore's type is not a record"
-              (TypeName.toString typeName)
-          | None ->
-            error2
-              "The datastore does not have a type named"
-              (TypeName.toString typeName)
-        | _ -> error "The datastore is not a record"
+      | EInt(_, v) ->
+        typecheck $"Int {v}" TInt expectedType
+        let name = randomString 10
+        $"(@{name})", [ name, Sql.int64 v ], TInt
 
-      typecheck fieldname dbFieldType expectedType
+      | EBool(_, v) ->
+        typecheck $"Bool {v}" TBool expectedType
+        let name = randomString 10
+        $"(@{name})", [ name, Sql.bool v ], TBool
 
-      let primitiveFieldType t =
-        match t with
-        | TString -> "text"
-        | TInt -> "bigint"
-        | TFloat -> "double precision"
-        | TBool -> "bool"
-        | TDateTime -> "timestamp with time zone"
-        | TChar -> "text"
-        | TUuid -> "uuid"
-        | TUnit -> "bigint"
-        | _ -> error $"We do not support this type of DB field yet: {t}"
+      | EUnit _ ->
+        typecheck "Unit" TUnit expectedType
+        let name = randomString 10
+        $"(@{name})", [ name, Sql.int64 0L ], TUnit
 
-      let fieldname = escapeFieldname fieldname
-      match dbFieldType with
-      | TString
-      | TInt
-      | TFloat
-      | TBool
-      | TDateTime
-      | TChar
-      | TUuid
-      | TUnit ->
-        let typename = primitiveFieldType dbFieldType
-        $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
-      | TList t ->
-        let typename = primitiveFieldType t
-        let sql =
-          $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
-        (sql, [], dbFieldType)
-      | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
-    | _ -> error $"We do not yet support compiling this code: {expr}"
+      | EFloat(_, v) ->
+        typecheck $"Float {v}" TFloat expectedType
+        let name = randomString 10
+        $"(@{name})", [ name, Sql.double v ], TFloat
 
-  assert_
-    "typeReference is concrete"
-    [ "actualType", actualType
-      "expectedType", expectedType
-      "dbTypeRef", dbTypeRef
-      "expr", expr
-      "sql", sql
-      "vars", vars ]
-    (actualType.isConcrete ())
-  (sql, vars, actualType)
+      | EString(_, parts) ->
+        let strParts, vars =
+          parts
+          |> List.map (fun part ->
+            match part with
+            | StringText(s) ->
+              typecheck $"String \"{s}\"" TString expectedType
+              let name = randomString 10
+              $"(@{name})", [ name, Sql.string s ]
+            | StringInterpolation e ->
+              let compiled = lts TString e
+              typecheck $"String interpolation" TString compiled.actualType
+              compiled.sql, compiled.vars)
+          |> List.unzip
+        let result = String.concat ", " strParts
+        let strPart = $"concat({result})"
+        let vars = vars |> List.concat
+        strPart, vars, TString
+
+      | EChar(_, v) ->
+        typecheck $"Char '{v}'" TChar expectedType
+        let name = randomString 10
+        $"(@{name})", [ name, Sql.string v ], TChar
+
+      | EList(_, items) ->
+        match expectedType with
+        | TVariable _ as expectedType
+        | TList expectedType ->
+          let sqls, vars, actualType =
+            List.fold
+              ([], [], expectedType)
+              (fun (prevSqls, prevVars, prevActualType) v ->
+                let inner = lts expectedType v
+                typecheck $"List item" inner.actualType prevActualType
+                prevSqls @ [ inner.sql ], prevVars @ inner.vars, inner.actualType)
+              items
+          let sql =
+            sqls
+            |> String.concat ", "
+            |> (fun s -> "((ARRAY[ " + s + " ] )::bigint[])")
+          (sql, vars, TList actualType)
+        | _ -> error "Expected a List"
+
+
+      | EFieldAccess(_, EVariable(_, v), fieldname) when v = paramName ->
+        // Because this is the param name, we know its type to be dbType
+
+        let dbFieldType =
+          match dbTypeRef with
+          // TYPESCLEANUP use args
+          // | TCustomType(typeName, args) ->
+          //   match Types.find typeName types with
+          //   // TODO: Deal with alias of record type
+          //   | Some(CustomType.Alias _) ->
+          //     error2
+          //       "The datastore's type is not a record"
+          //       (TypeName.toString typeName)
+          //   | Some(CustomType.Record(f1, fields)) ->
+          //     let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
+          //     match field with
+          //     | Some v -> v.typ
+          //     | None -> error2 "The datastore does not have a field named" fieldname
+          //   | Some(CustomType.Enum _) ->
+          //     error2
+          //       "The datastore's type is not a record"
+          //       (TypeName.toString typeName)
+          //   | None ->
+          //     error2
+          //       "The datastore does not have a type named"
+          //       (TypeName.toString typeName)
+          | _ -> error "The datastore is not a record"
+
+        typecheck fieldname dbFieldType expectedType
+
+        let primitiveFieldType t =
+          match t with
+          | TString -> "text"
+          | TInt -> "bigint"
+          | TFloat -> "double precision"
+          | TBool -> "bool"
+          | TDateTime -> "timestamp with time zone"
+          | TChar -> "text"
+          | TUuid -> "uuid"
+          | TUnit -> "bigint"
+          | _ -> error $"We do not support this type of DB field yet: {t}"
+
+        let fieldname = escapeFieldname fieldname
+        match dbFieldType with
+        | TString
+        | TInt
+        | TFloat
+        | TBool
+        | TDateTime
+        | TChar
+        | TUuid
+        | TUnit ->
+          let typename = primitiveFieldType dbFieldType
+          $"((data::jsonb->>'{fieldname}')::{typename})", [], dbFieldType
+        | TList t ->
+          let typename = primitiveFieldType t
+          let sql =
+            $"(ARRAY(SELECT jsonb_array_elements_text(data::jsonb->'{fieldname}')::{typename}))::{typename}[]"
+          (sql, [], dbFieldType)
+        | _ -> error $"We do not support this type of DB field yet: {dbFieldType}"
+      | _ -> error $"We do not yet support compiling this code: {expr}"
+
+    assert_
+      "typeReference is concrete"
+      [ "actualType", actualType
+        "expectedType", expectedType
+        "dbTypeRef", dbTypeRef
+        "expr", expr
+        "sql", sql
+        "vars", vars ]
+      (actualType.isConcrete ())
+
+    { sql = sql
+      vars = vars
+      actualType = actualType }
 
 
 //  Trying to get rid of complex expressions, including values which can be
@@ -754,7 +764,7 @@ let compileLambda
 
     let types = ExecutionState.availableTypes state
 
-    let sql, vars, _expectedType =
+    let compiled =
       lambdaToSql
         state.builtIns.fns
         types
@@ -764,5 +774,5 @@ let compileLambda
         TBool
         body
 
-    return (sql, vars)
+    return (compiled.sql, compiled.vars)
   }

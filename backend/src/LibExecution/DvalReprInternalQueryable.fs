@@ -6,13 +6,14 @@
 /// </summary>
 module LibExecution.DvalReprInternalQueryable
 
+open System.Text.Json
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 open Prelude
 open VendoredTablecloth
 
 open RuntimeTypes
-
-open System.Text.Json
-
 
 let parseJson (s : string) : JsonElement =
   let mutable options = new JsonDocumentOptions()
@@ -21,18 +22,21 @@ let parseJson (s : string) : JsonElement =
 
   JsonDocument.Parse(s, options).RootElement
 
-let writeJson (f : Utf8JsonWriter -> unit) : string =
-  let mutable options = new JsonWriterOptions()
-  options.Indented <- true
-  options.SkipValidation <- true
-  let encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-  options.Encoder <- encoder
+let writeJson (f : Utf8JsonWriter -> Task<unit>) : Task<string> =
+  task {
+    let mutable options = new JsonWriterOptions()
+    options.Indented <- true
+    options.SkipValidation <- true
+    let encoder =
+      System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    options.Encoder <- encoder
 
-  let stream = new System.IO.MemoryStream()
-  let w = new Utf8JsonWriter(stream, options)
-  f w
-  w.Flush()
-  UTF8.ofBytesUnsafe (stream.ToArray())
+    let stream = new System.IO.MemoryStream()
+    let w = new Utf8JsonWriter(stream, options)
+    do! f w
+    w.Flush()
+    return UTF8.ofBytesUnsafe (stream.ToArray())
+  }
 
 
 
@@ -43,10 +47,25 @@ type Utf8JsonWriter with
     f ()
     this.WriteEndObject()
 
+  member this.writeObjectAsync(f : unit -> Task<unit>) =
+    task {
+      this.WriteStartObject()
+      do! f ()
+      this.WriteEndObject()
+    }
+
   member this.writeArray(f : unit -> unit) =
     this.WriteStartArray()
     f ()
     this.WriteEndArray()
+
+  member this.writeArrayAsync(f : unit -> Task<unit>) =
+    task {
+      this.WriteStartArray()
+      do! f ()
+      this.WriteEndArray()
+    }
+
 
 // -------------------------
 // Queryable - for the DB
@@ -73,196 +92,229 @@ let rec private toJsonV0
   (types : Types)
   (typ : TypeReference)
   (dv : Dval)
-  : unit =
-  let writeDval = toJsonV0 w types
+  : Task<unit> =
+  task {
+    let writeDval = toJsonV0 w types
 
-  match typ, dv with
-  // basic types
-  | TUnit, DUnit -> w.WriteNumberValue(0)
-  | TBool, DBool b -> w.WriteBooleanValue b
-  | TInt, DInt i -> w.WriteNumberValue i // CLEANUP if the number is outside the range, store as a string?
-  | TFloat, DFloat f ->
-    if System.Double.IsNaN f then
-      w.WriteStringValue "NaN"
-    else if System.Double.IsNegativeInfinity f then
-      w.WriteStringValue "-Infinity"
-    else if System.Double.IsPositiveInfinity f then
-      w.WriteStringValue "Infinity"
-    else
-      let result = sprintf "%.12g" f
-      let result = if result.Contains "." then result else $"{result}.0"
-      w.WriteRawValue result
-  | TChar, DChar c -> w.WriteStringValue c
-  | TString, DString s -> w.WriteStringValue s
-  | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
-  | TBytes, DBytes bytes ->
-    bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
-  | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
-  | TPassword, DPassword(Password hashed) ->
-    hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
-  | TList ltype, DList l -> w.writeArray (fun () -> List.iter (writeDval ltype) l)
-  | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
-    w.writeArray (fun () ->
-      List.iter2 writeDval (t1 :: t2 :: trest) (d1 :: d2 :: rest))
-  | TDict objType, DDict o ->
-    w.writeObject (fun () ->
-      Map.iter
-        (fun k v ->
-          w.WritePropertyName k
-          writeDval objType v)
-        o)
-  | TCustomType(typeName, args), dv ->
-    match Types.find typeName types, dv with
-    | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-    | Some(CustomType.Record(f1, fs)), DRecord(_, dm) ->
-      // TYPESCLEANUP: shouldn't we be using `args` here?
-      let fields = f1 :: fs
-      w.writeObject (fun () ->
-        fields
-        |> List.iter (fun f ->
-          w.WritePropertyName f.name
-          let dval = Map.find f.name dm
-          writeDval f.typ dval))
-    | Some(CustomType.Enum _), DEnum _ ->
-      Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
-    | Some typ, dv ->
+    match typ, dv with
+    // basic types
+    | TUnit, DUnit -> w.WriteNumberValue(0)
+    | TBool, DBool b -> w.WriteBooleanValue b
+    | TInt, DInt i -> w.WriteNumberValue i // CLEANUP if the number is outside the range, store as a string?
+    | TFloat, DFloat f ->
+      if System.Double.IsNaN f then
+        w.WriteStringValue "NaN"
+      else if System.Double.IsNegativeInfinity f then
+        w.WriteStringValue "-Infinity"
+      else if System.Double.IsPositiveInfinity f then
+        w.WriteStringValue "Infinity"
+      else
+        let result = sprintf "%.12g" f
+        let result = if result.Contains "." then result else $"{result}.0"
+        w.WriteRawValue result
+    | TChar, DChar c -> w.WriteStringValue c
+    | TString, DString s -> w.WriteStringValue s
+    | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
+    | TBytes, DBytes bytes ->
+      bytes |> Base64.defaultEncodeToString |> w.WriteStringValue
+    | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
+    | TPassword, DPassword(Password hashed) ->
+      hashed |> Base64.defaultEncodeToString |> w.WriteStringValue
+    | TList ltype, DList l ->
+      do! w.writeArrayAsync (fun () -> Task.iterSequentially (writeDval ltype) l)
+    | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
+      let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
+      do!
+        w.writeArrayAsync (fun () ->
+          Task.iterSequentially (fun (t, d) -> writeDval t d) zipped)
+    | TDict objType, DDict o ->
+      do!
+        w.writeObjectAsync (fun () ->
+          Task.iterSequentially
+            (fun (k : string, v) -> // TODO: can we remove type annotation?
+              task {
+                w.WritePropertyName k
+                do! writeDval objType v
+              })
+            (Map.toList o))
+
+    | TCustomType(typeName, _args), dv ->
+      let! found = Types.find typeName types
+
+      match found, dv with
+      | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
+      | Some(CustomType.Record(f1, fs)), DRecord(_, dm) ->
+        // TYPESCLEANUP: shouldn't we be using `args` here?
+        let fields = f1 :: fs
+        do!
+          w.writeObjectAsync (fun () ->
+            Task.iterSequentially
+              (fun (f: CustomType.RecordField) ->
+                task {
+                  w.WritePropertyName f.name
+                  let dval = Map.find f.name dm
+                  do! writeDval f.typ dval
+                })
+              fields)
+      | Some(CustomType.Enum _), DEnum _ ->
+        Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
+      | Some typ, dv ->
+        Exception.raiseInternal
+          "Value to be stored does not match Datastore type"
+          [ "value", dv; "type", typ; "typeName", typeName ]
+
+    // // Not supported
+    // | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
+    // | TOption oType, DOption(Some dv) ->
+    //   w.writeObject (fun () ->
+    //     w.WritePropertyName "Just"
+    //     writeDval oType dv)
+    // | TResult(okType, _), DResult(Ok dv) ->
+    //   w.writeObject (fun () ->
+    //     w.WritePropertyName "Ok"
+    //     writeDval okType dv)
+    // | TResult(_, errType), DResult(Error dv) ->
+    //   w.writeObject (fun () ->
+    //     w.WritePropertyName "Error"
+    //     writeDval errType dv)
+
+
+    | TFn _, DFnVal _
+    | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
+    // exhaustiveness checking
+    | TInt, _
+    | TFloat, _
+    | TBool, _
+    | TUnit, _
+    | TString, _
+    | TList _, _
+    | TDict _, _
+    | TCustomType _, _
+    | TChar, _
+    | TDateTime, _
+    | TPassword, _
+    | TUuid, _
+    | TTuple _, _
+    | TBytes, _
+    | TOption _, _
+    | TResult _, _
+    | TVariable _, _ // CLEANUP: pass the map of variable names in
+    | TDB _, _
+    | TFn _, _ ->
       Exception.raiseInternal
         "Value to be stored does not match Datastore type"
-        [ "value", dv; "type", typ; "typeName", typeName ]
-
-  // Not supported
-  | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
-  | TOption oType, DOption(Some dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Just"
-      writeDval oType dv)
-  | TResult(okType, _), DResult(Ok dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Ok"
-      writeDval okType dv)
-  | TResult(_, errType), DResult(Error dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Error"
-      writeDval errType dv)
-  | TFn _, DFnVal _
-  | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
-  // exhaustiveness checking
-  | TInt, _
-  | TFloat, _
-  | TBool, _
-  | TUnit, _
-  | TString, _
-  | TList _, _
-  | TDict _, _
-  | TCustomType _, _
-  | TChar, _
-  | TDateTime, _
-  | TPassword, _
-  | TUuid, _
-  | TTuple _, _
-  | TBytes, _
-  | TOption _, _
-  | TResult _, _
-  | TVariable _, _ // CLEANUP: pass the map of variable names in
-  | TDB _, _
-  | TFn _, _ ->
-    Exception.raiseInternal
-      "Value to be stored does not match Datastore type"
-      [ "value", dv; "type", typ ]
+        [ "value", dv; "type", typ ]
+  }
 
 
 
-let toJsonStringV0 (types : Types) (typ : TypeReference) (dval : Dval) : string =
+let toJsonStringV0
+  (types : Types)
+  (typ : TypeReference)
+  (dval : Dval)
+  : Task<string> =
   writeJson (fun w -> toJsonV0 w types typ dval)
 
 
-let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
-  let rec convert (typ : TypeReference) (j : JsonElement) : Dval =
-    match typ, j.ValueKind with
-    | TUnit, JsonValueKind.Number -> DUnit
-    | TBool, JsonValueKind.True -> DBool true
-    | TBool, JsonValueKind.False -> DBool false
-    | TInt, JsonValueKind.Number -> j.GetInt64() |> DInt
-    | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat
-    | TFloat, JsonValueKind.String ->
-      match j.GetString() with
-      | "NaN" -> DFloat System.Double.NaN
-      | "Infinity" -> DFloat System.Double.PositiveInfinity
-      | "-Infinity" -> DFloat System.Double.NegativeInfinity
-      | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
-    | TChar, JsonValueKind.String -> DChar(j.GetString())
-    | TString, JsonValueKind.String -> DString(j.GetString())
-    | TUuid, JsonValueKind.String -> DUuid(System.Guid(j.GetString()))
-    | TPassword, JsonValueKind.String ->
-      j.GetString() |> Base64.decodeFromString |> Password |> DPassword
-    | TDateTime, JsonValueKind.String ->
-      j.GetString()
-      |> NodaTime.Instant.ofIsoString
-      |> DarkDateTime.fromInstant
-      |> DDateTime
-    | TList nested, JsonValueKind.Array ->
-      j.EnumerateArray() |> Seq.map (convert nested) |> Seq.toList |> DList
-    | TTuple(t1, t2, rest), JsonValueKind.Array ->
-      let arr = j.EnumerateArray() |> Seq.toList
-      if List.length arr = 2 + List.length rest then
-        let d1 = convert t1 arr[0]
-        let d2 = convert t2 arr[1]
-        let rest = List.map2 convert rest arr[2..]
-        DTuple(d1, d2, rest)
-      else
-        Exception.raiseInternal "Invalid tuple" []
-    | TDict typ, JsonValueKind.Object ->
-      let objFields =
-        j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-      objFields |> Map.mapWithIndex (fun k v -> convert typ v) |> DDict
-    | TCustomType(typeName, args), JsonValueKind.Object ->
-      match Types.find typeName types with
-      | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-      | Some(CustomType.Alias(f1)) -> convert f1 j
-      | Some(CustomType.Record(f1, fs)) ->
-        let fields = f1 :: fs
-        let objFields =
-          j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-        if Map.count objFields = List.length fields then
-          fields
-          |> List.map (fun f ->
-            let dval =
-              match Map.tryFind f.name objFields with
-              | Some j -> convert f.typ j
-              | None -> Exception.raiseInternal "Missing field" [ "field", f.name ]
-            f.name, dval)
-          |> Map
-          |> fun map -> DRecord(typeName, map)
+let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Task<Dval> =
+  let rec convert (typ : TypeReference) (j : JsonElement) : Task<Dval> =
+    task {
+      match typ, j.ValueKind with
+      | TUnit, JsonValueKind.Number -> return DUnit
+      | TBool, JsonValueKind.True -> return DBool true
+      | TBool, JsonValueKind.False -> return DBool false
+      | TInt, JsonValueKind.Number -> return j.GetInt64() |> DInt
+      | TFloat, JsonValueKind.Number -> return j.GetDouble() |> DFloat
+      | TFloat, JsonValueKind.String ->
+        match j.GetString() with
+        | "NaN" -> return DFloat System.Double.NaN
+        | "Infinity" -> return DFloat System.Double.PositiveInfinity
+        | "-Infinity" -> return DFloat System.Double.NegativeInfinity
+        | v -> return Exception.raiseInternal "Invalid float" [ "value", v ]
+      | TChar, JsonValueKind.String -> return DChar(j.GetString())
+      | TString, JsonValueKind.String -> return DString(j.GetString())
+      | TUuid, JsonValueKind.String -> return DUuid(System.Guid(j.GetString()))
+      | TPassword, JsonValueKind.String ->
+        return j.GetString() |> Base64.decodeFromString |> Password |> DPassword
+      | TDateTime, JsonValueKind.String ->
+        return
+          j.GetString()
+          |> NodaTime.Instant.ofIsoString
+          |> DarkDateTime.fromInstant
+          |> DDateTime
+      | TList nested, JsonValueKind.Array ->
+        let! converted =
+          j.EnumerateArray() |> Seq.map (convert nested) |> Task.WhenAll
+        return converted |> Array.toList |> DList
+      | TTuple(t1, t2, rest), JsonValueKind.Array ->
+        let arr = j.EnumerateArray() |> Seq.toList
+        if List.length arr = 2 + List.length rest then
+          let! d1 = convert t1 arr[0]
+          let! d2 = convert t2 arr[1]
+          let! rest =
+            List.map2 convert rest arr[2..] |> Task.WhenAll |> Task.map List.ofArray
+          return DTuple(d1, d2, rest)
         else
-          Exception.raiseInternal
-            "Record has incorrect field count"
-            [ "expected", List.length fields; "actual", Map.count objFields ]
-      | Some(CustomType.Enum(f1, fs)) ->
-        Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
+          return Exception.raiseInternal "Invalid tuple" []
 
-    | TBytes _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TOption _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TResult _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TFn _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TDB _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TVariable _, _ -> Exception.raiseInternal "Not supported yet" []
-    // Exhaustiveness checking
-    | TUnit, _
-    | TBool, _
-    | TInt, _
-    | TFloat, _
-    | TChar, _
-    | TString, _
-    | TUuid, _
-    | TPassword, _
-    | TDateTime, _
-    | TTuple _, _
-    | TList _, _
-    | TDict _, _
-    | TCustomType _, _ ->
-      Exception.raiseInternal
-        "Value in Datastore does not match Datastore expected type"
-        [ "type", typ; "value", j ]
+
+      // TODO: follow up on these
+      // | TDict typ, JsonValueKind.Object ->
+      //   let objFields =
+      //     j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
+      //   let! converted = objFields |> Map.mapWithIndex (fun k v -> convert typ v)
+      //   converted |> DDict
+      // | TCustomType(typeName, args), JsonValueKind.Object ->
+      //   match! Types.find typeName types with
+      //   | None -> return Exception.raiseInternal "Type not found" [ "typeName", typeName ]
+      //   | Some(CustomType.Alias(f1)) -> return! convert f1 j
+      //   | Some(CustomType.Record(f1, fs)) ->
+      //     let fields = f1 :: fs
+      //     let objFields =
+      //       j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
+      //     if Map.count objFields = List.length fields then
+      //       fields
+      //       |> List.map (fun f ->
+      //         let dval =
+      //           match Map.tryFind f.name objFields with
+      //           | Some j -> convert f.typ j
+      //           | None -> Exception.raiseInternal "Missing field" [ "field", f.name ]
+      //         f.name, dval)
+      //       |> Map
+      //       |> fun map -> DRecord(typeName, map)
+      //     else
+      //       return Exception.raiseInternal
+      //         "Record has incorrect field count"
+      //         [ "expected", List.length fields; "actual", Map.count objFields ]
+      //   | Some(CustomType.Enum(f1, fs)) ->
+      //     return Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
+
+
+      | TBytes _, _ -> return Exception.raiseInternal "Not supported yet" []
+      | TOption _, _ -> return Exception.raiseInternal "Not supported yet" []
+      | TResult _, _ -> return Exception.raiseInternal "Not supported yet" []
+      | TFn _, _ -> return Exception.raiseInternal "Not supported yet" []
+      | TDB _, _ -> return Exception.raiseInternal "Not supported yet" []
+      | TVariable _, _ -> return Exception.raiseInternal "Not supported yet" []
+      // Exhaustiveness checking
+      | TUnit, _
+      | TBool, _
+      | TInt, _
+      | TFloat, _
+      | TChar, _
+      | TString, _
+      | TUuid, _
+      | TPassword, _
+      | TDateTime, _
+      | TTuple _, _
+      | TList _, _
+      | TDict _, _
+      | TCustomType _, _ ->
+        return
+          Exception.raiseInternal
+            "Value in Datastore does not match Datastore expected type"
+            [ "type", typ; "value", j ]
+    }
 
   str |> parseJson |> convert typ
 
