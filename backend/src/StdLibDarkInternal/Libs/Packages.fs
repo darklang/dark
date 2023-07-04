@@ -61,7 +61,7 @@ let fns : List<BuiltInFn> =
     { name = fn "allTypes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(stdlibPackageTyp [] "PackageTypes" 0, [])
+      returnType = TCustomType(stdlibPackageTyp [] "Packages" 0, [])
       description = "List all package types"
       fn =
         function
@@ -72,8 +72,8 @@ let fns : List<BuiltInFn> =
 
             return
               DRecord(
-                stdlibPackageTyp [] "PackageTypes" 0,
-                Map([ "types", DList packages ])
+                stdlibPackageTyp [] "Packages" 0,
+                Map([ "types", DList packages; "fns", DList [] ])
               )
           }
         | _ -> incorrectArgs ()
@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
     { name = fn "allFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(stdlibPackageTyp [] "PackageFns" 0, [])
+      returnType = TCustomType(stdlibPackageTyp [] "Packages" 0, [])
       description = "List all package functions"
       fn =
         function
@@ -94,7 +94,10 @@ let fns : List<BuiltInFn> =
             let fns = List.map PT2DT.PackageFn.toDT fns
 
             return
-              DRecord(stdlibPackageTyp [] "PackageFns" 0, Map([ "fns", DList fns ]))
+              DRecord(
+                stdlibPackageTyp [] "Packages" 0,
+                Map([ "types", DList []; "fns", DList fns ])
+              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
