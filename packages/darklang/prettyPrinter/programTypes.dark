@@ -461,7 +461,9 @@ module Darklang =
         | EString(_id, segments) ->
           match segments with
           | [] -> "\"\""
-          | [ StringText text ] -> $"\"{text}\""
+          | [ StringText text ] ->
+            let escapedText = String.replaceAll text "\n" "\\n"
+            $"\"{escapedText}\""
           | segments ->
             let inner =
               segments
