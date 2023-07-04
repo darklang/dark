@@ -452,9 +452,22 @@ module Darklang =
         | EInt(_id, i) -> Int.toString i
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
-          let remainderPart = $".{remainder}"
+          let rem = $".{remainder}" |> Float.parse
+          let remainderPart =
+              match rem with
+              | Ok r ->
+                  if r == 0.0 then ""
+                  else (r  |> Float.toString) |> String.dropFirst 2
+              | Error e -> e
+          let wholePart =
+              match whole with
+              | "0" -> if remainderPart != "" then "0" else ""
+              | _ -> whole
+          let formattedFloat =
+              if remainderPart == "" then $"{wholePart}.0"
+              else $"{wholePart}.{remainderPart}"
+          $"{signPart}{formattedFloat}"
 
-          $"{signPart}{whole}{remainderPart}"
 
         | EChar(_id, c) -> "\"" ++ c ++ "\""
 
