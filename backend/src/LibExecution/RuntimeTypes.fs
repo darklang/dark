@@ -1123,6 +1123,44 @@ module Types =
     | FQName.Package pkg ->
       Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.declaration)
 
+  // Swap concrete types for type parameters
+  let rec substitute
+    (arguments : List<string * TypeReference>)
+    (typ : TypeReference)
+    : TypeReference =
+    let substitute = substitute arguments
+    match typ with
+    | TVariable v ->
+      let matchingArg =
+        arguments |> List.filter (fun (name, _) -> name = v) |> List.map snd
+
+      match matchingArg with
+      | [ arg ] -> arg
+      | [] -> Exception.raiseInternal "No matching type arguments" []
+      | _ -> Exception.raiseInternal "Too many matching arguments" []
+
+    | TUnit
+    | TBool
+    | TInt
+    | TFloat
+    | TChar
+    | TString
+    | TUuid
+    | TBytes
+    | TDateTime
+    | TPassword -> typ
+
+    | TList t -> TList(substitute t)
+    | TTuple(t1, t2, rest) ->
+      TTuple(substitute t1, substitute t2, List.map substitute rest)
+    | TFn _ -> typ
+    | TDB _ -> typ
+    | TCustomType(typeName, typeArgs) ->
+      TCustomType(typeName, List.map substitute typeArgs)
+    | TOption t -> TOption(substitute t)
+    | TDict t -> TDict(substitute t)
+
+
 
 let rec getTypeReferenceFromAlias
   (types : Types)
