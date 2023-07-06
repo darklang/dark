@@ -14,8 +14,10 @@ module Errors = LibExecution.Errors
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "Int" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Int" "mod" 0
+  [ { name = fn "mod" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -45,7 +47,7 @@ let fns : List<BuiltInFn> =
 
     // See above for when to uncomment this
     // TODO: A future version should support all non-zero modulus values and should include the infix "%"
-    // { name = fn "Int" "mod" 0
+    // { name = fn "mod" 0
     //   parameters = [ Param.make "value" TInt ""; Param.make "modulus" TInt "" ]
     //   returnType = TResult(TInt, TString)
     //   description =
@@ -78,7 +80,7 @@ let fns : List<BuiltInFn> =
     //   deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "remainder" 0
+    { name = fn "remainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
       returnType = TResult(TInt, TString)
@@ -111,7 +113,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "add" 0
+    { name = fn "add" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -125,7 +127,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "subtract" 0
+    { name = fn "subtract" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -139,7 +141,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "multiply" 0
+    { name = fn "multiply" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -153,7 +155,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "power" 0
+    { name = fn "power" 0
       typeParams = []
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
       returnType = TResult(TInt, TString)
@@ -189,7 +191,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "divide" 0
+    { name = fn "divide" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -204,7 +206,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "absoluteValue" 0
+    { name = fn "absoluteValue" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
@@ -219,7 +221,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "negate" 0
+    { name = fn "negate" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TInt
@@ -233,7 +235,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "greaterThan" 0
+    { name = fn "greaterThan" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -247,7 +249,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "greaterThanOrEqualTo" 0
+    { name = fn "greaterThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -262,7 +264,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "lessThan" 0
+    { name = fn "lessThan" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -276,7 +278,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "lessThanOrEqualTo" 0
+    { name = fn "lessThanOrEqualTo" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TBool
@@ -291,7 +293,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "random" 0
+    { name = fn "random" 0
       typeParams = []
       parameters = [ Param.make "start" TInt ""; Param.make "end" TInt "" ]
       returnType = TInt
@@ -313,7 +315,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "sqrt" 0
+    { name = fn "sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
@@ -327,7 +329,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "toFloat" 0
+    { name = fn "toFloat" 0
       typeParams = []
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
@@ -341,7 +343,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "sum" 0
+    { name = fn "sum" 0
       typeParams = []
       parameters = [ Param.make "a" (TList TInt) "" ]
       returnType = TInt
@@ -368,7 +370,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "max" 0
+    { name = fn "max" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -382,7 +384,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "min" 0
+    { name = fn "min" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
@@ -396,7 +398,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "clamp" 0
+    { name = fn "clamp" 0
       typeParams = []
       parameters =
         [ Param.make "value" TInt ""
@@ -425,7 +427,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "parse" 0
+    { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TInt, TString)
@@ -447,7 +449,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Int" "toString" 0
+    { name = fn "toString" 0
       typeParams = []
       parameters = [ Param.make "int" TInt "" ]
       returnType = TString

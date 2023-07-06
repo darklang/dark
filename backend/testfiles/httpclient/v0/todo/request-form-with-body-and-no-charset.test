@@ -16,7 +16,7 @@ var1=2&var2=[]
 
 [test]
 (let reqHeaders = { "Content-type" = "application/x-www-form-urlencoded" }
- let response = (HttpClient.request "post" "http://URL" {x=6; y=false; z = "str"} {} reqHeaders) |> Test.unwrap
+ let response = (HttpClient.request "post" "http://URL" {x=6; y=false; z = "str"} {} reqHeaders) |> unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
 {response with headers = respHeaders}) =
    HttpClient.Response

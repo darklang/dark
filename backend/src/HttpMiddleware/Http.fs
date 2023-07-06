@@ -6,6 +6,7 @@ module HttpMiddleware.Http
 
 open Prelude
 open LibExecution.VendoredTablecloth
+open LibExecution.StdLib.Shortcuts
 
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
@@ -15,7 +16,12 @@ let lowercaseHeaderKeys (headers : HttpHeaders.T) =
 
 module Request =
 
-  let typ = RT.FQTypeName.Stdlib(RT.FQTypeName.stdlibTypeName "Http" "Request" 0)
+  let typ =
+    RT.TypeName.fqPackage
+      "Darklang"
+      (NonEmptyList.ofList [ "Stdlib"; "Http" ])
+      "Request"
+      0
 
   let fromRequest
     (uri : string)
@@ -39,11 +45,10 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DRecord(RT.FQTypeName.Package { owner = "Darklang"
-                                         modules = { Head = "Stdlib"
-                                                     Tail = [ "Http" ] }
-                                         typ = "Response"
-                                         version = 0 },
+    | RT.DRecord(RT.FQName.Package { owner = "Darklang"
+                                     modules = { Head = "Stdlib"; Tail = [ "Http" ] }
+                                     name = RT.TypeName.TypeName "Response"
+                                     version = 0 },
                  fields) ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
       let code = Map.get "statusCode" fields
@@ -82,9 +87,11 @@ module Response =
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
+          let typeName = LibExecution.DvalReprDeveloper.dvalTypeName result
           let message =
             [ $"Application error: expected a HTTP response, got:"
-              $"{LibExecution.DvalReprDeveloper.dvalTypeName result}: {LibExecution.DvalReprDeveloper.toRepr result}"
+              $"type {typeName}:"
+              $"  {LibExecution.DvalReprDeveloper.toRepr result}"
               "\nHTTP handlers should return results in the form:"
               "  PACKAGE.Darklang.Stdlib.Http.Response {"
               "    statusCode : Int"

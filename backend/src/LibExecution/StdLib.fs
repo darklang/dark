@@ -5,8 +5,8 @@ open Prelude
 open VendoredTablecloth
 open RuntimeTypes
 
-type TypeRenames = List<FQTypeName.StdlibTypeName * FQTypeName.StdlibTypeName>
-type FnRenames = List<FQFnName.StdlibFnName * FQFnName.StdlibFnName>
+type TypeRenames = List<TypeName.BuiltIn * TypeName.BuiltIn>
+type FnRenames = List<FnName.BuiltIn * FnName.BuiltIn>
 
 /// All Libs should expose `contents`, which is a list of all the types and functions it provides
 type Contents = List<BuiltInFn> * List<BuiltInType> * List<BuiltInConstant>
@@ -34,7 +34,9 @@ let renameFunctions
           [ "oldName", oldName; "newName", newName ]
       Map.add
         oldName
-        { newFn with name = oldName; deprecated = RenamedTo newName }
+        { newFn with
+            name = oldName
+            deprecated = RenamedTo(FQName.BuiltIn newName) }
         renamedFns)
     |> Map.values
   existing @ newFns
@@ -54,7 +56,9 @@ let renameTypes
           [ "oldName", oldName; "newName", newName ]
       Map.add
         oldName
-        { newType with name = oldName; deprecated = RenamedTo newName }
+        { newType with
+            name = oldName
+            deprecated = RenamedTo(FQName.BuiltIn newName) }
         renamedTypes)
     |> Map.values
   existing @ newTypes
@@ -80,21 +84,17 @@ let combine
 
 
 module Shortcuts =
-  let fn' = FQFnName.stdlibFnName'
-  let fn = FQFnName.stdlibFnName
-  let constant = FQConstantName.stdlibConstantName
-  let fnNoMod = FQFnName.stdlibFnName' []
-  let typ = FQTypeName.stdlibTypeName
-  let typ' = FQTypeName.stdlibTypeName'
-
+  let fn = FnName.builtIn
+  let typ = TypeName.builtIn
+  let constant = ConstantName.builtIn
   let incorrectArgs = Errors.incorrectArgs
 
   type Param = BuiltInParam
 
 
   let stdlibTypeRef
-    (modul : string)
+    (modules : List<string>)
     (name : string)
     (version : int)
     : TypeReference =
-    TCustomType(FQTypeName.Stdlib(typ modul name version), [])
+    TCustomType((TypeName.fqBuiltIn modules name version), [])

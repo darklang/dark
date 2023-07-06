@@ -1,0 +1,275 @@
+module OpenAI =
+
+  module Config =
+
+    let apiKey () : String = "openai-api-key"
+
+    let getHeaders () : List<(String * String)> =
+      [ ("authorization", "Bearer " ++ PACKAGE.OpenAI.Config.apiKey ())
+        ("content-type", "application/json") ]
+
+
+  module Completion =
+    type Request =
+      { model: String
+        prompt: String
+        max_tokens: Int
+        temperature: Float }
+
+    type ResponseChoice = { text: String }
+
+    type Response =
+      { id: String
+        object: String
+        created: Int
+        model: String
+        choices: List<PACKAGE.OpenAI.Completion.ResponseChoice> }
+
+    let completion (prompt: String) : Result<String, String> =
+
+      let openAIRequest =
+        PACKAGE.OpenAI.Completion.Request
+          { model = "text-davinci-003"
+            prompt = prompt
+            max_tokens = 700
+            temperature = 0.7 }
+
+      match Json.serialize<PACKAGE.OpenAI.Completion.Request> openAIRequest with
+      | Ok reqBody ->
+        let headers = PACKAGE.OpenAI.Config.getHeaders ()
+
+        let openAIResponse =
+          HttpClient.request
+            "POST"
+            "https://api.openai.com/v1/completions"
+            headers
+            (String.toBytes reqBody)
+
+        match openAIResponse with
+        | Ok r ->
+          match
+            Json.parse<PACKAGE.OpenAI.Completion.Response> (String.fromBytes r.body)
+          with
+          | Ok r ->
+            match List.head r.choices with
+            | Just c -> Ok c.text
+
+            | Nothing -> Error("No choices returned")
+        | Error err -> Error("Couldn't parse OpenAI completion response - " ++ err)
+        | Error e -> Error("OpenAI API request failed\n" ++ e)
+      | Error e -> Error("Couldn't serialize request" ++ e)
+
+
+
+  module ChatCompletion =
+    type RequestMessage = { role: String; content: String }
+
+    type Request =
+      { model: String
+        max_tokens: Int
+        temperature: Float
+        messages: List<PACKAGE.OpenAI.ChatCompletion.RequestMessage> }
+
+    type ResponseChoiceMessage = { content: String }
+
+    type ResponseChoice =
+      { message: PACKAGE.OpenAI.ChatCompletion.ResponseChoiceMessage }
+
+    type Response =
+      { choices: List<PACKAGE.OpenAI.ChatCompletion.ResponseChoice> }
+
+
+    type CompletionOptions =
+      { model: String
+        messages: List<PACKAGE.OpenAI.ChatCompletion.RequestMessage>
+        temperature: Float
+        max_tokens: Int
+        top_p: Float
+        n: Int
+        stream: Bool }
+
+    let completionOptionsDefault
+      ()
+      : PACKAGE.OpenAI.ChatCompletion.CompletionOptions =
+      PACKAGE.OpenAI.ChatCompletion.CompletionOptions
+        { model = "gpt-3.5-turbo"
+          messages =
+            [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
+                { role = "user"; content = "test" } ]
+          temperature = 0.7
+          max_tokens = 700
+          top_p = 1.0
+          n = 1
+          stream = false }
+
+
+    let completionWithOption
+      (prompt: String)
+      (options: Option<PACKAGE.OpenAI.ChatCompletion.CompletionOptions>)
+      : Result<String, String> =
+
+      let options =
+        match options with
+        | Just o ->
+          { o with
+              messages =
+                [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
+                    { role = "user"; content = prompt } ] }
+        | Nothing ->
+          { (PACKAGE.OpenAI.ChatCompletion.completionOptionsDefault ()) with
+              messages =
+                [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
+                    { role = "user"; content = prompt } ] }
+
+      let openAIRequest = options
+
+      match
+        Json.serialize<PACKAGE.OpenAI.ChatCompletion.CompletionOptions> openAIRequest
+      with
+      | Ok reqBody ->
+        let headers = PACKAGE.OpenAI.Config.getHeaders ()
+
+        let openAIResponse =
+          HttpClient.request
+            "POST"
+            "https://api.openai.com/v1/chat/completions"
+            headers
+            (String.toBytes reqBody)
+
+        match openAIResponse with
+        | Ok r ->
+          match
+            Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
+              String.fromBytes r.body
+            )
+          with
+          | Ok r ->
+            match List.head r.choices with
+            | Just c -> Ok c.message.content
+
+            | Nothing -> Error("No choices returned")
+          | Error err -> Error("Couldn't parse OpenAI completion response - " ++ err)
+        | Error e -> Error("OpenAI API request failed\n" ++ e)
+      | Error e -> Error("Couldn't serialize request" ++ e)
+
+
+
+    let completion (prompt: String) : Result<String, String> =
+
+      let openAIRequest =
+        PACKAGE.OpenAI.ChatCompletion.Request
+          { model = "gpt-3.5-turbo"
+            max_tokens = 700
+            temperature = 0.7
+            messages =
+              [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
+                  { role = "user"; content = prompt } ] }
+
+      match Json.serialize<PACKAGE.OpenAI.ChatCompletion.Request> openAIRequest with
+      | Ok reqBody ->
+        let headers = PACKAGE.OpenAI.Config.getHeaders ()
+
+        let openAIResponse =
+          HttpClient.request
+            "POST"
+            "https://api.openai.com/v1/chat/completions"
+            headers
+            (String.toBytes reqBody)
+
+        match openAIResponse with
+        | Ok r ->
+          match
+            Json.parse<PACKAGE.OpenAI.ChatCompletion.Response> (
+              String.fromBytes r.body
+            )
+          with
+          | Ok r ->
+            match List.head r.choices with
+            | Just c -> Ok c.message.content
+
+            | Nothing -> Error("No choices returned")
+          | Error err -> Error("Couldn't parse OpenAI completion response - " ++ err)
+        | Error e -> Error("OpenAI API request failed\n" ++ e)
+      | Error e -> Error("Couldn't serialize request" ++ e)
+
+
+  module ImageGeneration =
+    type Request = { prompt: String; size: String }
+
+    type ResponseData = { url: String }
+
+    type Response =
+      { data: List<PACKAGE.OpenAI.ImageGeneration.ResponseData> }
+
+    // This returns a url to the image, should it return the image itself?
+    let imageGeneration (prompt: String) : Result<String, String> =
+
+      let openAIRequest =
+        PACKAGE.OpenAI.ImageGeneration.Request { prompt = prompt; size = "256x256" }
+
+      match Json.serialize<PACKAGE.OpenAI.ImageGeneration.Request> openAIRequest with
+      | Ok reqBody ->
+        let headers = PACKAGE.OpenAI.Config.getHeaders ()
+
+        let openAIResponse =
+          HttpClient.request
+            "POST"
+            "https://api.openai.com/v1/images/generations"
+            headers
+            (String.toBytes reqBody)
+
+        match openAIResponse with
+        | Ok r ->
+          match
+            Json.parse<PACKAGE.OpenAI.ImageGeneration.Response> (
+              String.fromBytes r.body
+            )
+          with
+          | Ok r ->
+            match List.head r.data with
+            | Just d -> Ok d.url
+            | Nothing -> Error("No data returned")
+        | Error err ->
+          Error("Couldn't parse open ai image generation response - " ++ err)
+        | Error e -> Error("OpenAI API request failed\n" ++ e)
+      | Error e -> Error("Couldn't serialize request" ++ e)
+
+
+  module Model =
+    type Request = { model: String }
+
+    type Response =
+      { id: String
+        object: String
+        created: Int
+        model: String }
+
+    let retrieveModel (model: String) : Result<String, String> =
+
+      let headers = PACKAGE.OpenAI.Config.getHeaders ()
+
+      let modelResponse =
+        HttpClient.request
+          "GET"
+          ("https://api.openai.com/v1/models/" ++ model)
+          headers
+          Bytes.empty
+
+      match modelResponse with
+      | Ok r -> r.body |> String.fromBytes |> Ok
+      | Error e -> Error("OpenAI API request failed\n" ++ e)
+
+    let getListOfModels () : Result<List<String>, String> =
+
+      let headers = PACKAGE.OpenAI.Config.getHeaders ()
+
+      let modelResponse =
+        HttpClient.request
+          "GET"
+          "https://api.openai.com/v1/models"
+          headers
+          Bytes.empty
+
+      match modelResponse with
+      | Ok r -> r.body |> String.fromBytes |> Ok
+      | Error e -> Error("OpenAI API request failed\n" ++ e)

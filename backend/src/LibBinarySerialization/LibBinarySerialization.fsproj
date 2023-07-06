@@ -9,18 +9,19 @@
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
+
+
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../LibService/LibService.fsproj" />
   </ItemGroup>
+
   <ItemGroup>
-    <None Include="paket.references" />
     <Compile Include="SerializedTypes.fs" />
-    <!-- TODO: consider merging the below 2 files into one module? -->
     <Compile Include="ProgramTypesToSerializedTypes.fs" />
     <Compile Include="BinarySerialization.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

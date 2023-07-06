@@ -7,13 +7,17 @@
     <OtherFlags>--warnaserror</OtherFlags>
     <IsPublishable>false</IsPublishable>
   </PropertyGroup>
+
+
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
   </ItemGroup>
+
   <ItemGroup>
-    <None Include="paket.references" />
     <Compile Include="Http.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

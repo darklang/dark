@@ -11,7 +11,6 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module CRT = LibAnalysis.ClientRuntimeTypes
 
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
@@ -34,15 +33,16 @@ let queryableRoundtripsSuccessfullyInRecord
   ) : bool =
 
   let typeName = S.userTypeName [] "MyType" 0
-  let record = RT.DRecord(RT.FQTypeName.User typeName, Map.ofList [ "field", dv ])
+  let record = RT.DRecord(RT.FQName.UserProgram typeName, Map.ofList [ "field", dv ])
   let typeRef = S.userTypeReference [] "MyType" 0
 
   let types : RT.Types =
     { RT.Types.empty with
-        userTypes =
+        userProgramTypes =
           Map
             [ typeName,
               { name = typeName
+                typeParams = []
                 tlid = 8UL
                 definition = S.customTypeRecord [ "field", fieldTyp ] } ] }
 
@@ -80,20 +80,6 @@ let testToDeveloperRepr =
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
           RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
           RT.DList [ RT.DUnit ], "[\n  unit\n]" ] ]
-
-// We used a System.Text.Json converter supplied by a NuGet package for a bit,
-// but found that it was incompatible with the OCamlCompatible serializer. We
-// have since adjusted `Vanilla` to use a custom converter, and this test is to
-// ensure values serialized during the time where the NuGet package's converter
-// are able to be deserialized.
-let testPreviousDateSerializionCompatibility =
-  test "previous date serialization compatible" {
-    let expected =
-      CRT.Dval.DDateTime(NodaTime.Instant.UnixEpoch.toUtcLocalTimeZone ())
-    let actual =
-      Json.Vanilla.deserialize<CRT.Dval.T> """["DDateTime","1970-01-01T00:00:00"]"""
-    Expect.equal expected actual "not deserializing correctly"
-  }
 
 module ToHashableRepr =
   open LibExecution.RuntimeTypes
@@ -138,20 +124,7 @@ let allRoundtrips =
       t
         "queryable record v0"
         queryableRoundtripsSuccessfullyInRecord
-        (dvs DvalReprInternalQueryable.Test.isQueryableDval)
-      t
-        "vanilla"
-        (fun (dv, _) ->
-          let types = RT.Types.empty
-          dv
-          |> CRT.Dval.toCT
-          |> Json.Vanilla.serialize
-          |> Json.Vanilla.deserialize
-          |> CRT.Dval.fromCT
-          |> Expect.dvalEquality types dv)
-        (dvs (function
-          | RT.DPassword _ -> false
-          | _ -> true)) ]
+        (dvs DvalReprInternalQueryable.Test.isQueryableDval) ]
 
 
 let testInternalRoundtrippableNew =
@@ -212,7 +185,7 @@ module Password =
         let typeName = S.userTypeName [] "MyType" 0
         let types =
           { RT.Types.empty with
-              userTypes =
+              userProgramTypes =
                 Map
                   [ typeName, S.userTypeRecord [] "MyType" 0 [ "x", RT.TPassword ] ] }
 
@@ -235,9 +208,6 @@ module Password =
 
       // redacting
       doesRedact "toDeveloperReprV0" DvalReprDeveloper.toRepr
-      doesRedact "Json.Vanilla.serialize" (fun dv ->
-        dv |> CRT.Dval.toCT |> Json.Vanilla.serialize)
-      ()
     }
 
   let testSerialization2 =
@@ -246,7 +216,7 @@ module Password =
       let typeName = S.userTypeName [] "MyType" 0
       let password =
         RT.DRecord(
-          RT.FQTypeName.User typeName,
+          RT.FQName.UserProgram typeName,
           Map.ofList [ "x", RT.DPassword(Password bytes) ]
         )
 
@@ -254,11 +224,12 @@ module Password =
 
       let availableTypes =
         { RT.Types.empty with
-            userTypes =
+            userProgramTypes =
               Map
                 [ typeName,
                   { tlid = 8UL
                     name = typeName
+                    typeParams = []
                     definition = S.customTypeRecord [ "x", RT.TPassword ] } ] }
 
 
@@ -271,30 +242,12 @@ module Password =
         "Passwords serialize in non-redaction function: toInternalQueryableV1"
     }
 
-  let testNoAutoSerialization =
-    testList
-      "no auto serialization of passwords"
-      [ test "vanilla" {
-          let password =
-            CRT.Dval.DPassword(Password(UTF8.toBytes "some password"))
-            |> Json.Vanilla.serialize
-            |> Json.Vanilla.deserialize
-
-          Expect.equal
-            password
-            (CRT.Dval.DPassword(Password(UTF8.toBytes "Redacted")))
-            "should be redacted"
-        } ]
-
 
 
   let tests =
     testList
       "password"
-      [ testJsonRoundtripForwards
-        testSerialization
-        testSerialization2
-        testNoAutoSerialization ]
+      [ testJsonRoundtripForwards; testSerialization; testSerialization2 ]
 
 let tests =
   testList
@@ -304,5 +257,4 @@ let tests =
       ToHashableRepr.tests
       testInternalRoundtrippableNew
       Password.tests
-      testPreviousDateSerializionCompatibility
       allRoundtrips ]

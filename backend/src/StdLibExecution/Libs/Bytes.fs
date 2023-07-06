@@ -9,8 +9,10 @@ open LibExecution.StdLib.Shortcuts
 open System.Text.RegularExpressions
 
 let types : List<BuiltInType> = []
+
+let fn = fn [ "Bytes" ]
 let constants : List<BuiltInConstant> =
-  [ { name = constant "Bytes" "empty" 0
+  [ { name = constant "empty" 0
       returnType = TBytes
       description = "Returns an empty list of bytes"
       constant = DBytes [||] |> Ply
@@ -19,7 +21,7 @@ let constants : List<BuiltInConstant> =
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Bytes" "base64Decode" 0
+  [ { name = fn "base64Decode" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -62,7 +64,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "base64Encode" 0
+    { name = fn "base64Encode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
@@ -83,7 +85,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "hexEncode" 0
+    { name = fn "hexEncode" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TString
@@ -112,7 +114,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bytes" "length" 0
+    { name = fn "length" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes "" ]
       returnType = TInt

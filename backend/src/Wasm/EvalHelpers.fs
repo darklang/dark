@@ -17,28 +17,30 @@ let getStateForEval
   let packageConstants = Map.empty // TODO
 
   let libraries : Libraries =
-    let stdlibFns, stdlibTypes, stdlibConstants = stdlib
+    let builtInFns, builtInTypes, builtInConstants = stdlib
 
-    { stdlibTypes = stdlibTypes |> List.map (fun typ -> typ.name, typ) |> Map
-      stdlibFns = stdlibFns |> List.map (fun fn -> fn.name, fn) |> Map
-      stdlibConstants = stdlibConstants |> List.map (fun c -> c.name, c) |> Map
+    { builtInTypes = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
+      builtInFns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
+      builtInConstants = builtInConstants |> List.map (fun c -> c.name, c) |> Map
       packageFns = packageFns
       packageTypes = packageTypes
       packageConstants = packageConstants }
 
-  let program : ProgramContext =
+  let config : Config = { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
+
+  let program : Program =
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
-      allowLocalHttpAccess = true
       dbs = Map.empty
-      userFns = Map.fromListBy (fun fn -> fn.name) fns
-      userTypes = Map.fromListBy (fun typ -> typ.name) types
-      userConstants = Map.fromListBy (fun c -> c.name) constants
+      fns = Map.fromListBy (fun fn -> fn.name) fns
+      types = Map.fromListBy (fun typ -> typ.name) types
+      constants = Map.fromListBy (fun c -> c.name) constants
       secrets = List.empty }
 
   { libraries = libraries
     tracing = LibExecution.Execution.noTracing Real
     program = program
+    config = config
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter
     notify = consoleNotifier

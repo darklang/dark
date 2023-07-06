@@ -1,5 +1,5 @@
 let c (arg: String) : Char =
-  (Test.toChar_v0 arg) |> Test.unwrap
+  (Test.toChar_v0 arg) |> unwrap
 
 "" ++ "" = ""
 "a" ++ "̂" = "â"
@@ -84,12 +84,12 @@ String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
 String.endsWith_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "‍⚧️‍️🇵🇷"= true
 
 
-String.foreach "a string" (fun x -> x) = "a string"
-String.foreach "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.foreach "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.foreach "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.foreach "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟‍♂️"
-String.foreach  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
+String.map "a string" (fun x -> x) = "a string"
+String.map "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" (fun x -> x) = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+String.map "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" (fun x -> x) = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+String.map "👱👱🏻👱🏼👱🏽👱🏾👱🏿" (fun x -> x) = "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+String.map "🧟‍♀️🧟‍♂️" (fun x -> x) = "🧟‍♀️🧟‍♂️"
+String.map  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> x) = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
 
 
 String.fromChar 'a' = "a"
@@ -162,9 +162,9 @@ String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 
 (String.random 5) == (String.random 5) = false
 String.random -1 = Error "Expected `length` to be positive, but it was `-1`"
-String.length ((String.random 10) |> Test.unwrap) = 10
-String.length ((String.random 5) |> Test.unwrap) = 5
-String.length ((String.random 0) |> Test.unwrap) = 0
+String.length ((String.random 10) |> unwrap) = 10
+String.length ((String.random 5) |> unwrap) = 5
+String.length ((String.random 0) |> unwrap) = 0
 
 
 String.htmlEscape_v0 "test<>&\"" = "test&lt;&gt;&amp;&quot;" // HTML escaping works reasonably
@@ -590,6 +590,6 @@ String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱
 String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = Nothing
 
 
-// Check that foreach executes the right number of times
-(let v = String.foreach "a string" (fun x -> let _ = Test.incrementSideEffectCounter_v0 false in 'c') in
+// Check that map executes the right number of times
+(let v = String.map "a string" (fun x -> let _ = Test.incrementSideEffectCounter_v0 false in 'c') in
  (v, Test.sideEffectCount_v0 ())) = ("cccccccc", 8)

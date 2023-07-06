@@ -8,8 +8,10 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "Password" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Password" "hash" 0
+  [ { name = fn "hash" 0
       typeParams = []
       parameters = [ Param.make "password" TString "" ]
       returnType = TPassword
@@ -43,7 +45,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "Password" "check" 0
+    { name = fn "check" 0
       typeParams = []
       parameters =
         [ Param.make "password" TPassword ""; Param.make "rawPassword" TString "" ]

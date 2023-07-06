@@ -9,14 +9,10 @@ open LibExecution.StdLib.Shortcuts
 
 module Telemetry = LibService.Telemetry
 
-let modul = [ "DarkInternal"; "Canvas"; "F404" ]
+let modules = [ "DarkInternal"; "Canvas"; "F404" ]
 
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' modul name version
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
-
+let typ = typ modules
+let fn = fn modules
 
 let types : List<BuiltInType> =
   [ { name = typ "F404" 0
@@ -62,14 +58,14 @@ let fns : List<BuiltInFn> = []
 //   { name = fn "recent" 0
 //     typeParams = []
 //     parameters = [ Param.make "canvasID" TUuid "" ]
-//     returnType = TList(TCustomType(FQTypeName.Stdlib(typ "F404" 0), []))
+//     returnType = TList(TCustomType(FQName.BuiltIn(typ "F404" 0), []))
 //     description = "Fetch a list of recent 404s"
 //     fn =
 //       (function
 //       | _, _, [ DUuid canvasID ] ->
 //         uply {
 //           let! f404s = TraceInputs.getRecent404s canvasID
-//           let typeName = FQTypeName.Stdlib(typ "F404" 0)
+//           let typeName = FQName.BuiltIn(typ "F404" 0)
 //           return
 //             f404s
 //             |> List.map (fun (space, path, modifier, instant, traceID) ->

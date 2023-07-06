@@ -86,7 +86,7 @@ let testUserFn
   { tlid = gid ()
     body = body
     description = ""
-    name = PT.FQFnName.userFnName [] name 0
+    name = PT.FnName.userProgram [] name 0
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
@@ -96,7 +96,7 @@ let testUserFn
     returnType = returnType }
 
 let testUserRecordType
-  (name : PT.FQTypeName.UserTypeName)
+  (name : PT.TypeName.UserProgram)
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
@@ -105,6 +105,7 @@ let testUserRecordType
 
   { tlid = gid ()
     name = name
+    typeParams = []
     definition =
       PT.CustomType.Record(mapField firstField, List.map mapField additionalFields) }
 
@@ -123,7 +124,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
       let (fns, types, constants) =
         LibExecution.StdLib.combine
           [ LibTest.contents
-            LibRealExecution.RealExecution.contents
+            LibRealExecution.RealExecution.builtins
             StdLibCli.StdLib.contents ]
           []
           []
@@ -131,13 +132,13 @@ let libraries : Lazy<Task<RT.Libraries>> =
       let packageFns =
         packageFns
         |> List.map (fun (f : PT.PackageFn.T) ->
-          (f.name |> PT2RT.FQFnName.PackageFnName.toRT, PT2RT.PackageFn.toRT f))
+          (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
         |> Map.ofList
       let! packageTypes = LibBackend.PackageManager.allTypes ()
       let packageTypes =
         packageTypes
         |> List.map (fun (t : PT.PackageType.T) ->
-          (t.name |> PT2RT.FQTypeName.PackageTypeName.toRT, PT2RT.PackageType.toRT t))
+          (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
         |> Map.ofList
 
       let! packageConstants = LibBackend.PackageManager.allConstants ()
@@ -148,9 +149,9 @@ let libraries : Lazy<Task<RT.Libraries>> =
            PT2RT.PackageConstant.toRT c))
         |> Map.ofList
       return
-        { stdlibTypes = types |> Map.fromListBy (fun typ -> typ.name)
-          stdlibFns = fns |> Map.fromListBy (fun fn -> fn.name)
-          stdlibConstants = constants |> Map.fromListBy (fun c -> c.name)
+        { builtInTypes = types |> Map.fromListBy (fun typ -> typ.name)
+          builtInFns = fns |> Map.fromListBy (fun fn -> fn.name)
+          builtInConstants = constants |> Map.fromListBy (fun c -> c.name)
           packageFns = packageFns
           packageTypes = packageTypes
           packageConstants = packageConstants }
@@ -161,20 +162,23 @@ let executionStateFor
   (internalFnsAllowed : bool)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
-  (userTypes : Map<RT.FQTypeName.UserTypeName, RT.UserType.T>)
-  (userFunctions : Map<RT.FQFnName.UserFnName, RT.UserFunction.T>)
-  (userConstants : Map<RT.FQConstantName.UserConstantName, RT.UserConstant.T>)
+  (userTypes : Map<RT.TypeName.UserProgram, RT.UserType.T>)
+  (userFunctions : Map<RT.FnName.UserProgram, RT.UserFunction.T>)
+  (userConstants : Map<RT.ConstantName.UserProgram, RT.UserConstant.T>)
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
-    let program : RT.ProgramContext =
+    let config : RT.Config =
+      // Short timeout so that tests using the timeout complete quickly
+      { allowLocalHttpAccess = allowLocalHttpAccess; httpclientTimeoutInMs = 5000 }
+
+    let program : RT.Program =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
-        allowLocalHttpAccess = allowLocalHttpAccess
-        userFns = userFunctions
+        fns = userFunctions
+        types = userTypes
         dbs = dbs
-        userTypes = userTypes
-        userConstants = userConstants
+        constants = userConstants
         secrets = [] }
 
     let testContext : RT.TestContext =
@@ -230,6 +234,7 @@ let executionStateFor
         notifier
         (id 7)
         program
+        config
     let state = { state with test = testContext }
     return state
   }
@@ -237,24 +242,10 @@ let executionStateFor
 /// Saves and reloads the canvas for the Toplevels
 let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
   task {
-    let descs =
-      tls
-      |> List.map (fun tl ->
-        let tlid = PT.Toplevel.toTLID tl
-
-        let op =
-          match tl with
-          | PT.Toplevel.TLHandler h -> PT.SetHandler h
-          | _ -> Exception.raiseInternal "not yet supported in canvasForTLs" []
-
-        (tlid, [ op ], tl, Canvas.NotDeleted))
-
+    let descs = tls |> List.map (fun tl -> (tl, LibBackend.Serialize.NotDeleted))
     do! Canvas.saveTLIDs canvasID descs
     return! Canvas.loadAll canvasID
   }
-
-
-
 
 
 
@@ -336,7 +327,7 @@ let rec debugDval (v : Dval) : string =
   | DDateTime d ->
     $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
   | DRecord(tn, o) ->
-    let typeStr = FQTypeName.toString tn
+    let typeStr = TypeName.toString tn
     o
     |> Map.toList
     |> List.map (fun (k, v) -> $"\"{k}\": {debugDval v}")
@@ -433,16 +424,16 @@ module Expect =
   let rec userTypeNameEqualityBaseFn
     (types : Types)
     (path : Path)
-    (actual : FQTypeName.T)
-    (expected : FQTypeName.T)
+    (actual : TypeName.T)
+    (expected : TypeName.T)
     (errorFn : Path -> string -> string -> unit)
     : unit =
     let err () = errorFn path (string actual) (string expected)
 
     match actual, expected with
-    | FQTypeName.Stdlib a, FQTypeName.Stdlib e -> if a.typ <> e.typ then err ()
-    | FQTypeName.User a, FQTypeName.User e ->
-      if a.typ <> e.typ then err ()
+    | FQName.BuiltIn a, FQName.BuiltIn e -> if a.name <> e.name then err ()
+    | FQName.UserProgram a, FQName.UserProgram e ->
+      if a.name <> e.name then err ()
       if a.version <> e.version then err ()
     | _ -> err ()
 
@@ -1047,29 +1038,32 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          { body =
              EApply(
                92356985UL,
-               (FnName(
-                 FQFnName.Stdlib
-                   { modules = [ "List" ]; function_ = "push"; version = 0 }
+               (FnTargetName(
+                 FQName.BuiltIn
+                   { modules = [ "List" ]; name = FnName.FnName "push"; version = 0 }
                )),
                [],
                [ EApply(
                    93459985UL,
-                   (FnName(
-                     FQFnName.Stdlib { modules = []; function_ = "+"; version = 0 }
+                   (FnTargetName(
+                     FQName.BuiltIn
+                       { modules = []; name = FnName.FnName "+"; version = 0 }
                    )),
                    [],
                    [ EApply(
                        394567785UL,
-                       (FnName(
-                         FQFnName.Stdlib
-                           { modules = []; function_ = "+"; version = 0 }
+                       (FnTargetName(
+                         FQName.BuiltIn
+                           { modules = []; name = FnName.FnName "+"; version = 0 }
                        )),
                        [],
                        [ EApply(
                            44444485UL,
-                           (FnName(
-                             FQFnName.Stdlib
-                               { modules = []; function_ = "+"; version = 0 }
+                           (FnTargetName(
+                             FQName.BuiltIn
+                               { modules = []
+                                 name = FnName.FnName "+"
+                                 version = 0 }
                            )),
                            [],
                            [ EInt(234213618UL, 5); EInt(923423468UL, 6) ]

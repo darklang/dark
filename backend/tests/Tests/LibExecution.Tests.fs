@@ -25,46 +25,28 @@ module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Canvas = LibBackend.Canvas
+module Serialize = LibBackend.Serialize
 
 open TestUtils.TestUtils
 
 let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
   task {
-    let workersWithIDs = workers |> List.map (fun w -> w, (gid ()))
-
-    let ops =
-      workersWithIDs
-      |> List.map (fun (worker, tlid) ->
-        PT.SetHandler(
-          { tlid = tlid
+    let tls =
+      workers
+      |> List.map (fun worker ->
+        let w : PT.Handler.T =
+          { tlid = gid ()
             ast = PT.Expr.EUnit(gid ())
             spec = PT.Handler.Worker(worker) }
-        ))
+        PT.Toplevel.TLHandler w, Serialize.NotDeleted)
 
-    let c = Canvas.empty canvasID |> Canvas.addOps ops []
-
-    let oplists =
-      workersWithIDs
-      |> List.map (fun (_w, tlid) ->
-        tlid, ops, PT.Toplevel.TLHandler c.handlers[tlid], Canvas.NotDeleted)
-
-    do! Canvas.saveTLIDs canvasID oplists
+    do! Canvas.saveTLIDs canvasID tls
   }
 
 let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
   task {
-    let ops =
-      // Convert the DBs back into ops so that DB operations will run
-      dbs
-      |> List.map (fun (db : PT.DB.T) ->
-        let initial = PT.CreateDB(db.tlid, db.name, db.typ)
-        (db, [ initial ]))
-
-    let oplists =
-      ops
-      |> List.map (fun (db, ops) ->
-        db.tlid, ops, PT.Toplevel.TLDB db, Canvas.NotDeleted)
-    do! Canvas.saveTLIDs canvasID oplists
+    let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
+    do! Canvas.saveTLIDs canvasID tls
   }
 
 
@@ -93,7 +75,7 @@ let t
       let rtTypes =
         types
         |> List.map (fun typ ->
-          PT2RT.FQTypeName.UserTypeName.toRT typ.name, PT2RT.UserType.toRT typ)
+          PT2RT.TypeName.UserProgram.toRT typ.name, PT2RT.UserType.toRT typ)
         |> Map.ofList
 
       let rtDBs =

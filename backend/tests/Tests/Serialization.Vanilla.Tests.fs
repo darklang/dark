@@ -14,20 +14,9 @@ module Config = LibBackend.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module WorkerStates = LibBackend.QueueSchedulingRules.WorkerStates
-module CPT = LibAnalysis.ClientProgramTypes
-module CRT = LibAnalysis.ClientRuntimeTypes
-module CAT = LibAnalysis.ClientAnalysisTypes
 
 module V = SerializationTestValues
 
-[<RequireQualifiedAccess>]
-module ClientTestValues =
-  let dval : CRT.Dval.T = CRT.Dval.toCT V.RuntimeTypes.dval
-
-  let dtypes : List<CRT.TypeReference> =
-    List.map CRT.TypeReference.toCT V.RuntimeTypes.dtypes
-
-module CV = ClientTestValues
 
 // Throughout our F# codebase, we've annotated which types we `allow` to be
 // serialized with our "Vanilla" serializer. Now we want to verify that the format
@@ -82,15 +71,26 @@ module PersistedSerializations =
         // ------------------
         // LibExecution
         // ------------------
-        v<CRT.Dval.T> "complete" CV.dval
-
         v<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
           "complete"
           (V.RuntimeTypes.dval
            |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT)
 
-        v<LibExecution.ProgramTypes.Oplist> "complete" V.ProgramTypes.oplist
-        v<CPT.Handler.T> "simple" (CPT.Handler.toCT V.ProgramTypes.Handler.http)
+        v<List<LibExecution.ProgramTypes.Toplevel.T>>
+          "complete"
+          V.ProgramTypes.toplevels
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "httphandler"
+          (PT.Toplevel.TLHandler V.ProgramTypes.Handler.http)
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "db"
+          (PT.Toplevel.TLDB V.ProgramTypes.userDB)
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "function"
+          (PT.Toplevel.TLFunction V.ProgramTypes.userFunction)
+        v<LibExecution.ProgramTypes.Toplevel.T>
+          "recordtype"
+          (PT.Toplevel.TLType V.ProgramTypes.userRecordType)
 
         // ------------------
         // LibBackend
@@ -133,65 +133,6 @@ module PersistedSerializations =
         // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
         //   "simple"
         //   { tlids = testTLIDs }
-
-
-
-        // ------------------
-        // LibAnalysis
-        // ------------------
-        v<CAT.AnalysisResult>
-          "simple"
-          (Ok(
-            V.uuid,
-            Dictionary.fromList (
-              [ (7UL, CAT.ExecutionResult.ExecutedResult CV.dval)
-                (7UL, CAT.ExecutionResult.NonExecutedResult CV.dval) ]
-            ),
-            1,
-            NodaTime.Instant.UnixEpoch
-          ))
-        v<CAT.PerformAnalysisParams>
-          "handler"
-          (CAT.AnalyzeHandler
-            { requestID = 2
-              requestTime = NodaTime.Instant.UnixEpoch
-              handler = CPT.Handler.toCT V.ProgramTypes.Handler.http
-              traceID = V.uuid
-              traceData =
-                { input = [ "var", CV.dval ]
-                  functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
-              dbs =
-                [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
-              userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
-              userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
-              userConstants =
-                List.map CPT.UserConstant.toCT V.ProgramTypes.userConstants
-              packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
-              packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
-              packageConstants =
-                [ V.ProgramTypes.packageConstant |> CPT.PackageConstant.toCT ]
-              secrets = [ { name = "z"; value = "y"; version = 1 } ] })
-        v<CAT.PerformAnalysisParams>
-          "function"
-          (CAT.AnalyzeFunction
-            { requestID = 3
-              requestTime = NodaTime.Instant.UnixEpoch
-              func = CPT.UserFunction.toCT V.ProgramTypes.userFunction
-              traceID = V.uuid
-              traceData =
-                { input = [ "var", CV.dval ]
-                  functionResults = [ ("fnName", 7UL, "hash", 0, CV.dval) ] }
-              dbs =
-                [ { tlid = V.tlid; name = "dbname"; typ = CPT.TInt; version = 1 } ]
-              userFns = List.map CPT.UserFunction.toCT V.ProgramTypes.userFunctions
-              userTypes = List.map CPT.UserType.toCT V.ProgramTypes.userTypes
-              userConstants =
-                List.map CPT.UserConstant.toCT V.ProgramTypes.userConstants
-              packageFns = [ V.ProgramTypes.packageFn |> CPT.PackageFn.toCT ]
-              packageTypes = [ V.ProgramTypes.packageType |> CPT.PackageType.toCT ]
-              packageConstants =
-                [ V.ProgramTypes.packageConstant |> CPT.PackageConstant.toCT ]
-              secrets = [ { name = "z"; value = "y"; version = 2 } ] })
 
 
         // ------------------
@@ -285,178 +226,4 @@ module PersistedSerializations =
         testTestFilesForConsistentSerialization ]
 
 
-// Ensure that converting between 'internal' and 'client' types is stable
-module RoundtripTests =
-  // for each type/value:
-  // perform domain val -> CT -> domain -> CT -> domain
-  // most of the time, it should end up being the same as the source.
-  // if there are known exceptions, break down individual mappings as separate tests
-
-  let testRoundtrip
-    (typeName : string)
-    (original : 'a)
-    (toCT : 'a -> 'b)
-    (fromCT : 'b -> 'a)
-    =
-    test typeName {
-      let actual : 'a = original |> toCT |> fromCT |> toCT |> fromCT
-
-      Expect.equal actual original $"{typeName} does not roundtrip successfully"
-    }
-
-  let testRoundtripList
-    (typeName : string)
-    (original : List<'a>)
-    (toCT : 'a -> 'b)
-    (fromCT : 'b -> 'a)
-    (customEquality : Option<'a -> 'a -> unit>)
-    =
-    test typeName {
-      let actual : List<'a> =
-        original
-        |> List.map toCT
-        |> List.map fromCT
-        |> List.map toCT
-        |> List.map fromCT
-
-      match customEquality with
-      | None ->
-        Expect.equal actual original $"{typeName} does not roundtrip successfully"
-      | Some customEquality ->
-        List.zip original actual
-        |> List.iter (fun (original, actual) -> customEquality original actual)
-    }
-
-
-  module RuntimeTypes =
-    let tests =
-      [ testRoundtripList
-          "RT.FqFnName"
-          V.RuntimeTypes.fqFnNames
-          CRT.FQFnName.toCT
-          CRT.FQFnName.fromCT
-          None
-        testRoundtripList
-          "RT.TypeReference"
-          V.RuntimeTypes.dtypes
-          CRT.TypeReference.toCT
-          CRT.TypeReference.fromCT
-          None
-        testRoundtripList
-          "RT.MatchPattern"
-          V.RuntimeTypes.matchPatterns
-          CRT.MatchPattern.toCT
-          CRT.MatchPattern.fromCT
-          None
-        testRoundtripList
-          "RT.Expr"
-          V.RuntimeTypes.exprs
-          CRT.Expr.toCT
-          CRT.Expr.fromCT
-          None
-        testRoundtripList
-          "RT.DvalSource"
-          V.RuntimeTypes.dvalSources
-          CRT.Dval.DvalSource.toCT
-          CRT.Dval.DvalSource.fromCT
-          None
-        testRoundtripList
-          "RT.Dval"
-          V.RuntimeTypes.dvals
-          CRT.Dval.toCT
-          CRT.Dval.fromCT
-          (Some(fun l r ->
-            let types = RT.Types.empty
-            Expect.equalDval types l r "dval does not roundtrip successfully")) ]
-
-  module ProgramTypes =
-    let tests =
-      [ testRoundtripList
-          "PT.FQFnName"
-          V.ProgramTypes.fqFnNames
-          CPT.FQFnName.toCT
-          CPT.FQFnName.fromCT
-          None
-        testRoundtripList
-          "PT.MatchPattern"
-          V.ProgramTypes.matchPatterns
-          CPT.MatchPattern.toCT
-          CPT.MatchPattern.fromCT
-          None
-        testRoundtripList
-          "PT.LetPattern"
-          V.ProgramTypes.letPatterns
-          CPT.LetPattern.toCT
-          CPT.LetPattern.fromCT
-          None
-        testRoundtrip "PT.Expr" V.ProgramTypes.expr CPT.Expr.toCT CPT.Expr.fromCT
-        testRoundtrip
-          "PT.Dtype"
-          V.ProgramTypes.dtype
-          CPT.TypeReference.toCT
-          CPT.TypeReference.fromCT
-        testRoundtripList
-          "PT.CronInterval"
-          V.ProgramTypes.Handler.cronIntervals
-          CPT.Handler.CronInterval.toCT
-          CPT.Handler.CronInterval.fromCT
-          None
-        testRoundtripList
-          "PT.HandlerSpec"
-          V.ProgramTypes.Handler.specs
-          CPT.Handler.Spec.toCT
-          CPT.Handler.Spec.fromCT
-          None
-        testRoundtripList
-          "PT.Handler"
-          V.ProgramTypes.Handler.handlers
-          CPT.Handler.toCT
-          CPT.Handler.fromCT
-          None
-        testRoundtrip "PT.UserDB" V.ProgramTypes.userDB CPT.DB.toCT CPT.DB.fromCT
-        testRoundtrip
-          "PT.UserType"
-          V.ProgramTypes.userRecordType
-          CPT.UserType.toCT
-          CPT.UserType.fromCT
-        testRoundtrip
-          "PT.UserFunction"
-          V.ProgramTypes.userFunction
-          CPT.UserFunction.toCT
-          CPT.UserFunction.fromCT
-        testRoundtripList
-          "PT.Toplevel"
-          V.ProgramTypes.toplevels
-          CPT.Toplevel.toCT
-          CPT.Toplevel.fromCT
-          None
-        testRoundtrip
-          "PT.UserSecret"
-          V.ProgramTypes.userSecret
-          CPT.Secret.toCT
-          CPT.Secret.fromCT
-        testRoundtrip
-          "PT.Package"
-          V.ProgramTypes.packageFn
-          CPT.PackageFn.toCT
-          CPT.PackageFn.fromCT ]
-
-
-let tests =
-  testList
-    "Vanilla Serialization"
-    [ PersistedSerializations.tests
-
-      testList
-        "roundtrip RTs to and from client types"
-        RoundtripTests.RuntimeTypes.tests
-      testList
-        "roundtrip PTs to and from client types"
-        RoundtripTests.ProgramTypes.tests ]
-
-// TODO: ensure (using reflection) we've covered all types within ClientTypes
-// (many of which we'll have to explicity exclude, if they don't have exact
-// equivalents in the 'domain' types)
-
-// TODO: ensure (using reflection) that each of the DU cases _of_ those types
-// are covered (so if we add another case to CTProgram.Expr, it's covered).
+let tests = testList "Vanilla Serialization" [ PersistedSerializations.tests ]

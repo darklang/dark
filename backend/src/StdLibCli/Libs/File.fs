@@ -13,8 +13,10 @@ open StdLib.Shortcuts
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "File" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "File" "read" 0
+  [ { name = fn "read" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TBytes, TString)
@@ -36,7 +38,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "File" "write" 0
+    { name = fn "write" 0
       typeParams = []
       parameters = [ Param.make "contents" TBytes ""; Param.make "path" TString "" ]
       returnType = TResult(TUnit, TString)
@@ -58,7 +60,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "File" "append" 0
+    { name = fn "append" 0
       typeParams = []
       parameters = [ Param.make "path" TString ""; Param.make "content" TBytes "" ]
       returnType = TResult(TUnit, TString)
@@ -80,7 +82,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "File" "createTemp" 0
+    { name = fn "createTemp" 0
       typeParams = []
       parameters = [ Param.make "" TUnit "" ]
       returnType = TResult(TString, TString)
@@ -102,7 +104,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "File" "isDirectory" 0
+    { name = fn "isDirectory" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TBool
@@ -125,7 +127,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "File" "isNormal" 0
+    { name = fn "isNormal" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TBool
@@ -150,7 +152,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "File" "exists" 0
+    { name = fn "exists" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TBool
@@ -173,7 +175,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "File" "size" 0
+    { name = fn "size" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
       returnType = TResult(TInt, TString)

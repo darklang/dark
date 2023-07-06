@@ -50,9 +50,12 @@ let rec set
   let id = System.Guid.NewGuid()
 
   let types = RT.ExecutionState.availableTypes state
-  match LibExecution.TypeChecker.unify [ db.name ] types db.typ dv with
+  // CLEANUP: the caller should do this type check instead, but we haven't
+  // implemented nested types in the DB yet
+  let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ, None)
+  match LibExecution.TypeChecker.unify context types db.typ dv with
   | Error err ->
-    let msg = LibExecution.TypeChecker.Error.toString err
+    let msg = Errors.toString (Errors.TypeError err)
     Exception.raiseCode msg
   | Ok _ -> ()
 
@@ -360,7 +363,7 @@ let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
 let all (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid
-       FROM toplevel_oplists_v0
+       FROM toplevels_v0
       WHERE canvas_id = @canvasID
         AND tipe = 'db'"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
@@ -377,7 +380,7 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
   // CLEANUP: do we need table_tlid IS NULL since we're using NOT NULL in the schema?
   Sql.query
     "SELECT tl.tlid
-     FROM toplevel_oplists_v0 as tl
+     FROM toplevels_v0 as tl
      LEFT JOIN user_data_v0 as ud
             ON tl.tlid = ud.table_tlid
            AND tl.canvas_id = ud.canvas_id

@@ -14,17 +14,27 @@
          break. When we get source generators going, this might improve. -->
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
+
+
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
-    <None Include="paket.references" />
-    <Compile Include="Server.fs" />
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../LibExperimentalExecution/LibExperimentalExecution.fsproj" />
     <ProjectReference Include="../../src/HttpMiddleware/HttpMiddleware.fsproj" />
     <ProjectReference Include="../../src/ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
-    <ProjectReference Include="../StdLibExperimental/StdLibExperimental.fsproj" />
+    <ProjectReference Include="../../src/Parser/Parser.fsproj" />
+    <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
+    <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../../src/StdLibDarkInternal/StdLibDarkInternal.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <Compile Include="Libs/Experiments.fs" />
+    <Compile Include="StdLib.fs" />
+    <Compile Include="DangerExecution.fs" />
+    <Compile Include="Server.fs" />
+  </ItemGroup>
 </Project>

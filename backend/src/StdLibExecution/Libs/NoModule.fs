@@ -76,7 +76,7 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DDB a, DDB b -> a = b
   | DEnum(a1, a2, a3), DEnum(b1, b2, b3) ->
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
-  // exhaustivenss check
+  // exhaustiveness check
   | DInt _, _
   | DFloat _, _
   | DBool _, _
@@ -287,8 +287,10 @@ let varA = TVariable "a"
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn []
+
 let fns : List<BuiltInFn> =
-  [ { name = fnNoMod "equals" 0
+  [ { name = fn "equals" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
@@ -304,7 +306,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fnNoMod "notEquals" 0
+    { name = fn "notEquals" 0
       typeParams = []
       parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
       returnType = TBool
@@ -316,6 +318,32 @@ let fns : List<BuiltInFn> =
           equals availableTypes a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "unwrap" 0
+      typeParams = []
+      parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
+      returnType = TVariable "a"
+      description =
+        "Unwrap an Option or Result, returning the value or a DError if Nothing"
+      fn =
+        (function
+        | _, _, [ DOption opt ] ->
+          uply {
+            match opt with
+            | Some value -> return value
+            | None -> return (DError(SourceNone, "Nothing"))
+          }
+        | _, _, [ DResult res ] ->
+          uply {
+            match res with
+            | Ok value -> return value
+            | Error e -> return (DError(SourceNone, DvalReprDeveloper.toRepr e))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 

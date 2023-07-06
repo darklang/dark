@@ -13,7 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module StdLibCli = StdLibCli.StdLib
 
-let (stdlibFns, stdlibTypes, stdlibConstants) =
+let (builtInFns, builtInTypes, builtInConstants) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
     []
@@ -21,9 +21,9 @@ let (stdlibFns, stdlibTypes, stdlibConstants) =
 
 
 let libraries : RT.Libraries =
-  { stdlibTypes = stdlibTypes |> Map.fromListBy (fun typ -> typ.name)
-    stdlibFns = stdlibFns |> Map.fromListBy (fun fn -> fn.name)
-    stdlibConstants = stdlibConstants |> Map.fromListBy (fun c -> c.name)
+  { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
+    builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
+    builtInConstants = builtInConstants |> Map.fromListBy (fun c -> c.name)
     packageFns = Map.empty
     packageTypes = Map.empty
     packageConstants = Map.empty }
@@ -36,15 +36,17 @@ let execute
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
-    let program : RT.ProgramContext =
+    let config : RT.Config =
+      { allowLocalHttpAccess = true; httpclientTimeoutInMs = 30000 }
+
+    let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        allowLocalHttpAccess = true
-        userFns =
+        fns =
           mod'.fns
           |> List.map (fun fn -> PT2RT.UserFunction.toRT fn)
           |> Map.fromListBy (fun fn -> fn.name)
-        userTypes =
+        types =
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Map.fromListBy (fun typ -> typ.name)
@@ -74,7 +76,14 @@ let execute
         $"Exception: {exn.Message}\nMetadata:\n{metadata}\nStacktrace:\n{exn.StackTrace}"
 
     let state =
-      Exe.createState libraries tracing sendException notify defaultTLID program
+      Exe.createState
+        libraries
+        tracing
+        sendException
+        notify
+        defaultTLID
+        program
+        config
 
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT mod'.exprs[0])
   }
@@ -126,7 +135,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    let mainFile = "/home/dark/app/backend/src/LocalExec/main.dark"
+    let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
     let modul = Parser.CanvasV2.parseFromFile mainFile
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
     let result = execute modul (Map [ "args", args ])

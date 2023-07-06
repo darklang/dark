@@ -16,7 +16,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fnNoMod "emit" 0
+  [ { name = fn [] "emit" 0
       typeParams = []
       parameters = [ Param.make "event" varA ""; Param.make "name" TString "" ]
       returnType = varA

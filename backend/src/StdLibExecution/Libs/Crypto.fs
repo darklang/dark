@@ -16,8 +16,10 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "Crypto" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Crypto" "sha256" 0
+  [ { name = fn "sha256" 0
       typeParams = []
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -32,7 +34,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Crypto" "sha384" 0
+    { name = fn "sha384" 0
       typeParams = []
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -47,7 +49,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Crypto" "md5" 0
+    { name = fn "md5" 0
       typeParams = []
       parameters = [ Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -62,7 +64,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Crypto" "sha256hmac" 0
+    { name = fn "sha256hmac" 0
       typeParams = []
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes
@@ -79,7 +81,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Crypto" "sha1hmac" 0
+    { name = fn "sha1hmac" 0
       typeParams = []
       parameters = [ Param.make "key" TBytes ""; Param.make "data" TBytes "" ]
       returnType = TBytes

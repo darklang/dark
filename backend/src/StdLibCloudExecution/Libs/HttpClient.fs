@@ -197,6 +197,7 @@ module HttpClient =
 
   let request
     (localAccessAllowed : bool)
+    (timeoutInMs : int)
     (httpRequest : HttpRequest)
     : Task<HttpRequestResult> =
     task {
@@ -265,11 +266,16 @@ module HttpClient =
           // send request
           Telemetry.addTag "request.content_type" req.Content.Headers.ContentType
           Telemetry.addTag "request.content_length" req.Content.Headers.ContentLength
+
+          // Allow timeout
+          let cancellationToken =
+            (new System.Threading.CancellationTokenSource(timeoutInMs)).Token
+
           use! response =
             if localAccessAllowed then
-              localAllowedHttpClient.SendAsync req
+              localAllowedHttpClient.SendAsync(req, cancellationToken)
             else
-              localDisallowedHttpClient.SendAsync req
+              localDisallowedHttpClient.SendAsync(req, cancellationToken)
 
           Telemetry.addTags
             [ "response.status_code", response.StatusCode
@@ -339,7 +345,7 @@ type HeaderError =
 open LibExecution.StdLib.Shortcuts
 
 let types : List<BuiltInType> =
-  [ { name = typ "HttpClient" "Response" 0
+  [ { name = typ [ "HttpClient" ] "Response" 0
       typeParams = []
       definition =
         CustomType.Record(
@@ -352,7 +358,7 @@ let types : List<BuiltInType> =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "HttpClient" "request" 0
+  [ { name = fn [ "HttpClient" ] "request" 0
       typeParams = []
       parameters =
         [ Param.make "method" TString ""
@@ -361,7 +367,7 @@ let fns : List<BuiltInFn> =
           Param.make "body" TBytes "" ]
       returnType =
         TResult(
-          TCustomType(FQTypeName.Stdlib(typ "HttpClient" "Response" 0), []),
+          TCustomType(FQName.BuiltIn(typ [ "HttpClient" ] "Response" 0), []),
           TString
         )
       description =
@@ -403,7 +409,10 @@ let fns : List<BuiltInFn> =
                 { url = uri; method = method; headers = reqHeaders; body = reqBody }
 
               let! (response : HttpClient.HttpRequestResult) =
-                HttpClient.request state.program.allowLocalHttpAccess request
+                HttpClient.request
+                  state.config.allowLocalHttpAccess
+                  state.config.httpclientTimeoutInMs
+                  request
 
               match response with
               | Ok response ->
@@ -418,9 +427,7 @@ let fns : List<BuiltInFn> =
                   |> DList
 
                 let typ =
-                  FQTypeName.Stdlib(
-                    FQTypeName.stdlibTypeName "HttpClient" "Response" 0
-                  )
+                  FQName.BuiltIn(TypeName.builtIn [ "HttpClient" ] "Response" 0)
 
                 return
                   [ ("statusCode", DInt(int64 response.statusCode))

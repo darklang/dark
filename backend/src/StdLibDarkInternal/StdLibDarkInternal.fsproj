@@ -13,6 +13,7 @@
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../Parser/Parser.fsproj" />
     <ProjectReference Include="../ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
   </ItemGroup>
   <ItemGroup>
@@ -25,6 +26,7 @@
     <Compile Include="Libs/Domains.fs" />
     <Compile Include="Libs/F404s.fs" />
     <Compile Include="Libs/Infra.fs" />
+    <Compile Include="Libs/Packages.fs" />
     <Compile Include="Libs/Secrets.fs" />
     <Compile Include="Libs/Users.fs" />
     <Compile Include="Libs/Workers.fs" />

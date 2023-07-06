@@ -10,16 +10,12 @@ open Prelude
 module Telemetry = LibService.Telemetry
 
 module CTPusher = ClientTypes.Pusher
-module CPT = LibAnalysis.ClientProgramTypes
-module CRT = LibAnalysis.ClientRuntimeTypes
 
 let initSerializers () =
   BwdServer.Server.initSerializers ()
 
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
-  Json.Vanilla.allow<CRT.Dval.T> "dvalrepr tests"
-  Json.Vanilla.allow<CPT.Handler.T> "canvasClone"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
 
 
@@ -31,7 +27,6 @@ let main (args : string array) : int =
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
     (LibRealExecution.Init.init name).Result
 
-    LibAnalysis.Analysis.initSerializers ()
     initSerializers ()
 
     let tests =
@@ -54,9 +49,7 @@ let main (args : string array) : int =
         Tests.VanillaSerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
-        Tests.StorageTraces.tests
-        Tests.TypeChecker.tests
-        Tests.Undo.tests ]
+        Tests.StorageTraces.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token

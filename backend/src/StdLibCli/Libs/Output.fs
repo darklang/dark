@@ -14,7 +14,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fnNoMod "print" 0
+  [ { name = fn [] "print" 0
       typeParams = []
       parameters = [ Param.make "value" TString "The value to be printed." ]
       returnType = TUnit
@@ -27,7 +27,26 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+    { name = fn [] "debug" 0
+      typeParams = []
+      parameters =
+        [ Param.make "value" (TVariable "a") "The value to be printed."
+          Param.make "label" TString "The label to be printed." ]
+      returnType = TVariable "a"
+      description = "Prints the given <param value> to the standard output"
+      fn =
+        (function
+        | _, _, [ value; DString label ] ->
+          print $"DEBUG: {label} - {value}"
+          Ply value
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    ]
 
 
 let contents : StdLib.Contents = (fns, types, constants)

@@ -14,9 +14,9 @@ module S = TestUtils.RTShortcuts
 
 let ptFQFnName =
   testMany
-    "ProgramTypes.FQFnName.ToString"
-    (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PT.FQFnName.stdlibFqName [ "String" ] "append" 1), "String.append_v1" ]
+    "ProgramTypes.FnName.ToString"
+    (fun name -> name |> PT2RT.FnName.toRT |> RT.FnName.toString)
+    [ (PT.FnName.fqBuiltIn [ "String" ] "append" 1), "String.append_v1" ]
 
 
 let testPipesToRuntimeTypes =

@@ -86,10 +86,7 @@ let getOwner (id : CanvasID) : Task<UserID> =
 /// <remarks>
 /// This includes just a subset of the key program data. It is rare that all of
 /// the data for a canvas will be loaded. In addition, there is other canvas
-/// data which is meaningful, such as CORS info, oplists, creation date. These
-/// can be fetched separately. (Oplists in particular are omitted as it can be
-/// very tricky to pass this data around safely (esp in regards to loading and
-/// saving).)
+/// data which is meaningful, such as creation date. These can be fetched separately.
 /// </remarks>
 type T =
   { id : CanvasID
@@ -98,7 +95,6 @@ type T =
     userFunctions : Map<tlid, PT.UserFunction.T>
     userTypes : Map<tlid, PT.UserType.T>
     userConstants : Map<tlid, PT.UserConstant.T>
-    // TODO: no separate fields for deleted, combine them
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T>
     deletedUserFunctions : Map<tlid, PT.UserFunction.T>
@@ -106,20 +102,29 @@ type T =
     deletedUserConstants : Map<tlid, PT.UserType.T>
     secrets : Map<string, PT.Secret.T> }
 
-let addToplevel (tl : PT.Toplevel.T) (c : T) : T =
+let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
   let tlid = PT.Toplevel.toTLID tl
 
-  match tl with
-  | PT.Toplevel.TLHandler h -> { c with handlers = Map.add tlid h c.handlers }
-  | PT.Toplevel.TLDB db -> { c with dbs = Map.add tlid db c.dbs }
-  | PT.Toplevel.TLType t -> { c with userTypes = Map.add tlid t c.userTypes }
-  | PT.Toplevel.TLFunction f ->
+  match deleted, tl with
+  | Serialize.NotDeleted, PT.Toplevel.TLHandler h ->
+    { c with handlers = Map.add tlid h c.handlers }
+  | Serialize.NotDeleted, PT.Toplevel.TLDB db ->
+    { c with dbs = Map.add tlid db c.dbs }
+  | Serialize.NotDeleted, PT.Toplevel.TLType t ->
+    { c with userTypes = Map.add tlid t c.userTypes }
+  | Serialize.NotDeleted, PT.Toplevel.TLFunction f ->
     { c with userFunctions = Map.add tlid f c.userFunctions }
-  | PT.Toplevel.TLConstant ct ->
-    { c with userConstants = Map.add tlid ct c.userConstants }
+  | Serialize.Deleted, PT.Toplevel.TLHandler h ->
+    { c with deletedHandlers = Map.add tlid h c.deletedHandlers }
+  | Serialize.Deleted, PT.Toplevel.TLDB db ->
+    { c with deletedDBs = Map.add tlid db c.deletedDBs }
+  | Serialize.Deleted, PT.Toplevel.TLType t ->
+    { c with deletedUserTypes = Map.add tlid t c.deletedUserTypes }
+  | Serialize.Deleted, PT.Toplevel.TLFunction f ->
+    { c with deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
 
-let addToplevels (tls : PT.Toplevel.T list) (canvas : T) : T =
-  List.fold canvas (fun c tl -> addToplevel tl c) tls
+let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : T =
+  List.fold canvas (fun c (deleted, tl) -> addToplevel deleted tl c) tls
 
 let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   let map f l = Map.map f l |> Map.toSeq
@@ -222,45 +227,9 @@ let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
   { c with dbs = applyToMap tlid f c.dbs }
 
 
-// -------------------------
-// Build
-// -------------------------
-let applyOp (isNew : bool) (op : PT.Op) (c : T) : T =
-  try
-    match op with
-    | PT.SetHandler h -> setHandler h c
-    | PT.CreateDB(tlid, name, typ) ->
-      if name = "" then Exception.raiseEditor "DB must have a name"
-      let db = UserDB.create tlid name typ
-      setDB db c
-    | PT.SetExpr(_tlid, _id, _e) ->
-      // Only implemented for DBs for now, and we don't support rollbacks/rollforwards yet
-      // applyToAllToplevels (TL.set_expr id e) tlid c
-      c
-    | PT.DeleteTL tlid -> deleteToplevel tlid c
-    | PT.SetFunction user_fn -> setFunction user_fn c
-    | PT.DeleteFunction tlid -> deleteFunction tlid c
-    | PT.TLSavepoint _ -> c
-    | PT.UndoTL _
-    | PT.RedoTL _ ->
-      Exception.raiseInternal
-        "Undo/Redo op should have been preprocessed out!"
-        [ "op", op ]
-    | PT.RenameDB(tlid, name) -> applyToDB (UserDB.renameDB name) tlid c
-    | PT.SetType t -> setType t c
-    | PT.DeleteType tlid -> deleteType tlid c
-  with e ->
-    // Log here so we have context, but then re-raise
-    let tags = [ ("op", string op :> obj) ]
-    Telemetry.addException tags (InternalException("apply_op", e))
-    e.Reraise()
-
 
 // NOTE: If you add a new verification here, please ensure all places that
 // load canvases/apply ops correctly load the requisite data.
-//
-// See `Op.RequiredContext` for how we determine which ops need what other
-// context to be loaded to appropriately verify.
 let verify (c : T) : T =
   let dupedNames =
     c.dbs
@@ -274,13 +243,6 @@ let verify (c : T) : T =
   | dupes ->
     let dupes = String.concat "," dupes
     Exception.raiseInternal $"Duplicate DB names: {dupes}" []
-
-
-let addOps (oldops : PT.Oplist) (newops : PT.Oplist) (c : T) : T =
-  let oldops = List.map (fun op -> (false, op)) oldops
-  let newops = List.map (fun op -> (true, op)) newops
-  let reducedOps = Undo.preprocess (oldops @ newops)
-  List.fold c (fun c (isNew, op) -> applyOp isNew op c) reducedOps
 
 
 // -------------------------
@@ -301,67 +263,45 @@ let empty (id : CanvasID) =
     deletedUserConstants = Map.empty
     secrets = Map.empty }
 
-// DOES NOT LOAD OPS FROM DB
-let fromOplist (id : CanvasID) (oldOps : PT.Oplist) (newOps : PT.Oplist) : T =
-  empty id |> addOps oldOps newOps |> verify
-
-let loadFrom
-  (loadAmount : Serialize.LoadAmount)
-  (id : CanvasID)
-  (tlids : List<tlid>)
-  : Task<T> =
+let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
     try
-      Telemetry.addTags [ "tlids", tlids; "loadAmount", loadAmount ]
+      Telemetry.addTags [ "tlids", tlids ]
 
       // load
-      let! fastLoadedTLs = Serialize.loadOnlyCachedTLIDs id tlids
+      let! tls = Serialize.loadToplevels id tlids
 
-      let fastLoadedTLIDs = List.map PT.Toplevel.toTLID fastLoadedTLs
-
-      let notLoadedTLIDs =
-        List.filter (fun x -> not (List.includes x fastLoadedTLIDs)) tlids
-
-      // canvas initialized via the normal loading path with the non-fast loaded tlids
-      // loaded traditionally via the oplist
-      let! uncachedOplists = Serialize.loadOplists loadAmount id notLoadedTLIDs
-      let uncachedOplists = uncachedOplists |> List.map Tuple2.second |> List.concat
       let c = empty id
 
       let! secrets = Secret.getCanvasSecrets id
       let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
 
-      return
-        { c with secrets = secrets }
-        |> addToplevels fastLoadedTLs
-        |> addOps uncachedOplists []
-        |> verify
+      return { c with secrets = secrets } |> addToplevels tls |> verify
     with e when not (LD.knownBroken id) ->
-      let tags = [ "tlids", tlids :> obj; "loadAmount", loadAmount ]
+      let tags = [ "tlids", tlids :> obj ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
   }
 
 let loadAll (id : CanvasID) : Task<T> =
   task {
-    let! tlids = Serialize.fetchAllTLIDs id
-    return! loadFrom Serialize.IncludeDeletedToplevels id tlids
+    let! tlids = Serialize.fetchAllIncludingDeletedTLIDs id
+    return! loadFrom id tlids
   }
 
 let loadHttpHandlers (id : CanvasID) (path : string) (method : string) : Task<T> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP id path method
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
-let loadTLIDs (id : CanvasID) (tlids : tlid list) : Task<T> =
-  loadFrom Serialize.LiveToplevels id tlids
+let loadTLIDs (id : CanvasID) (tlids : tlid list) : Task<T> = loadFrom id tlids
 
 
 let loadTLIDsWithContext (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
     let! context = Serialize.fetchRelevantTLIDsForExecution id
     let tlids = tlids @ context
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 let loadForEventV2
@@ -372,63 +312,60 @@ let loadForEventV2
   : Task<T> =
   task {
     let! tlids = Serialize.fetchRelevantTLIDsForEvent id module' name modifier
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 let loadAllDBs (id : CanvasID) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs id
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 /// Returns a best guess at all workers (excludes what it knows not to be a worker)
 let loadAllWorkers (id : CanvasID) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllWorkers id
-    return! loadFrom Serialize.LiveToplevels id tlids
+    return! loadFrom id tlids
   }
 
 let loadTLIDsWithDBs (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs id
-    return! loadFrom Serialize.LiveToplevels id (tlids @ dbTLIDs)
+    return! loadFrom id (tlids @ dbTLIDs)
   }
 
-type Deleted =
-  | Deleted
-  | NotDeleted
-
-let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
+let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T> =
   let handler () =
     Map.tryFind tlid c.handlers
-    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLHandler h))
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLHandler h))
 
   let deletedHandler () =
     Map.tryFind tlid c.deletedHandlers
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLHandler h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLHandler h))
 
   let db () =
-    Map.tryFind tlid c.dbs |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLDB h))
+    Map.tryFind tlid c.dbs
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLDB h))
 
   let deletedDB () =
     Map.tryFind tlid c.deletedDBs
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLDB h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLDB h))
 
   let userFunction () =
     Map.tryFind tlid c.userFunctions
-    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLFunction h))
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLFunction h))
 
   let deletedUserFunction () =
     Map.tryFind tlid c.deletedUserFunctions
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLFunction h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLFunction h))
 
   let userType () =
     Map.tryFind tlid c.userTypes
-    |> Option.map (fun h -> (NotDeleted, PT.Toplevel.TLType h))
+    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLType h))
 
   let deletedUserType () =
     Map.tryFind tlid c.deletedUserTypes
-    |> Option.map (fun h -> (Deleted, PT.Toplevel.TLType h))
+    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLType h))
 
   handler ()
   |> Option.orElseWith deletedHandler
@@ -439,10 +376,12 @@ let getToplevel (tlid : tlid) (c : T) : Option<Deleted * PT.Toplevel.T> =
   |> Option.orElseWith userType
   |> Option.orElseWith deletedUserType
 
+
+
 let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
-  // CLEANUP: set deleted column in toplevel_oplists to be not nullable
+  // CLEANUP: set deleted column in toplevels_v0 to be not nullable
   Sql.query
-    "DELETE from toplevel_oplists_v0
+    "DELETE from toplevels_v0
       WHERE canvas_id = @canvasID
         AND tlid = @tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
@@ -453,17 +392,19 @@ let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
 /// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
   (id : CanvasID)
-  (oplists : List<tlid * PT.Oplist * PT.Toplevel.T * Deleted>)
+  (toplevels : List<PT.Toplevel.T * Serialize.Deleted>)
   : Task<unit> =
   try
     // Use ops rather than just set of toplevels, because toplevels may
     // have been deleted or undone, and therefore not appear, but it's
     // important to record them.
-    oplists
-    |> Task.iterInParallel (fun (tlid, oplist, tl, deleted) ->
+    toplevels
+    |> Task.iterInParallel (fun (tl, deleted) ->
       task {
         let string2option (s : string) : Option<string> =
           if s = "" then None else Some s
+
+        let tlid = PT.Toplevel.toTLID tl
 
         let routingNames =
           match tl with
@@ -490,7 +431,7 @@ let saveTLIDs
 
         let (module_, name, modifier) =
           // Only save info used to find handlers when the handler has not been deleted
-          if deleted = NotDeleted then
+          if deleted = Serialize.NotDeleted then
             match routingNames with
             | Some(module_, name, modifier) ->
               (string2option module_, string2option name, string2option modifier)
@@ -498,22 +439,20 @@ let saveTLIDs
           else
             None, None, None
 
-        let serializedOplist = BinarySerialization.serializeOplist tlid oplist
-        let serializedOplistCache = BinarySerialization.serializeToplevel tl
+        let serializedToplevel = BinarySerialization.serializeToplevel tl
 
         let deleted =
           match deleted with
-          | Deleted -> true
-          | NotDeleted -> false
+          | Serialize.Deleted -> true
+          | Serialize.NotDeleted -> false
 
         return!
           Sql.query
-            "INSERT INTO toplevel_oplists_v0
+            "INSERT INTO toplevels_v0
                     (canvas_id, tlid, digest, tipe, name, module, modifier,
-                     deleted, oplist, oplist_cache)
+                     deleted, data)
                     VALUES (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
-                            @module, @modifier, @deleted,
-                            @oplist, @oplistCache)
+                            @module, @modifier, @deleted, @data)
                     ON CONFLICT (canvas_id, tlid) DO UPDATE
                     SET digest = @digest,
                         tipe = @typ::toplevel_type,
@@ -521,8 +460,7 @@ let saveTLIDs
                         module = @module,
                         modifier = @modifier,
                         deleted = @deleted,
-                        oplist = @oplist,
-                        oplist_cache = @oplistCache"
+                        data = @data"
           |> Sql.parameters
             [ "canvasID", Sql.uuid id
               "tlid", Sql.id tlid
@@ -532,8 +470,7 @@ let saveTLIDs
               "module", Sql.stringOrNone module_
               "modifier", Sql.stringOrNone modifier
               "deleted", Sql.bool deleted
-              "oplist", Sql.bytea serializedOplist
-              "oplistCache", Sql.bytea serializedOplistCache ]
+              "data", Sql.bytea serializedToplevel ]
           |> Sql.executeStatementAsync
       })
   with e ->
@@ -562,8 +499,7 @@ let loadDomainsHealthCheck
                   "canvas host healthcheck probe"
                   [ "domain", hostname ]
                   id
-              let _canvas =
-                Serialize.loadOplists Serialize.IncludeDeletedToplevels id
+              let _canvas = Serialize.loadToplevels id
               return healthy
             with _ ->
               return
@@ -587,7 +523,7 @@ let healthCheck : LibService.Kubernetes.HealthCheck =
     probeTypes = [ LibService.Kubernetes.Startup ] }
 
 
-let toProgram (c : T) : RT.ProgramContext =
+let toProgram (c : T) : RT.Program =
 
   let dbs =
     c.dbs
@@ -599,15 +535,16 @@ let toProgram (c : T) : RT.ProgramContext =
     c.userFunctions
     |> Map.values
     |> List.map (fun f ->
-      (PT2RT.FQFnName.UserFnName.toRT f.name, PT2RT.UserFunction.toRT f))
+      (PT2RT.FnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
     |> Map.ofList
 
   let userTypes =
     c.userTypes
     |> Map.values
     |> List.map (fun t ->
-      (PT2RT.FQTypeName.UserTypeName.toRT t.name, PT2RT.UserType.toRT t))
+      (PT2RT.TypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
     |> Map.ofList
+
 
   let userConstants =
     c.userConstants
@@ -620,9 +557,8 @@ let toProgram (c : T) : RT.ProgramContext =
 
   { canvasID = c.id
     internalFnsAllowed = c.id = Config.allowedDarkInternalCanvasID
-    allowLocalHttpAccess = false
-    userFns = userFns
-    userTypes = userTypes
-    userConstants = userConstants
+    fns = userFns
+    types = userTypes
+    constants = userConstants
     dbs = dbs
     secrets = secrets }

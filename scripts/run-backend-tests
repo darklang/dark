@@ -12,6 +12,7 @@ function ctrl_c() {
 
 LLDB=false
 PUBLISHED=false
+PUBLISHED_FLAG=
 
 EXPECTO_ARGS=()
 
@@ -19,7 +20,10 @@ for i in "$@"
 do
   case "${i}" in
     --lldb) LLDB=true ;;
-    --published) PUBLISHED=true ;;
+    --published)
+      PUBLISHED=true
+      PUBLISHED_FLAG=$i
+      ;;
     *) EXPECTO_ARGS+=("${i}");;
   esac
 done
@@ -29,11 +33,9 @@ killall -9 Tests || true
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net7.0/linux-x64/Tests
   PRODEXEC=Build/out/ProdExec/Release/net7.0/linux-x64/ProdExec
-  LOCALEXEC=Build/out/LocalExec/Release/net7.0/linux-x64/LocalExec
 else
   EXE=Build/out/Tests/Debug/net7.0/Tests
   PRODEXEC=Build/out/ProdExec/Debug/net7.0/ProdExec
-  LOCALEXEC=Build/out/LocalExec/Debug/net7.0/LocalExec
 fi
 
 echo "Dropping testdb database"
@@ -67,18 +69,15 @@ cd backend && \
   "${PRODEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
 cd ..
 
-echo -e "Loading packages ${grey}($LOGS/test-package-load.log)${reset}"
-cd backend && \
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_DB_HOST=localhost \
-  DARK_CONFIG_DB_DBNAME=testdb \
-  DARK_CONFIG_DB_USER=dark \
-  DARK_CONFIG_DB_PASSWORD=darklang \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
-  "${LOCALEXEC}" load-packages > "$LOGS/test-package-load.log" 2>&1
-cd ..
+DARK_CONFIG_TELEMETRY_EXPORTER=none \
+DARK_CONFIG_DB_HOST=localhost \
+DARK_CONFIG_DB_DBNAME=testdb \
+DARK_CONFIG_DB_USER=dark \
+DARK_CONFIG_DB_PASSWORD=darklang \
+DARK_CONFIG_ROLLBAR_ENABLED=n \
+DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
+./scripts/build/reload-packages --test $PUBLISHED_FLAG
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 

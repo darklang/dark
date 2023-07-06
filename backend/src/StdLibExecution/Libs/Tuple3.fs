@@ -13,8 +13,10 @@ module Interpreter = LibExecution.Interpreter
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "Tuple3" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Tuple3" "create" 0
+  [ { name = fn "create" 0
       typeParams = []
       parameters =
         [ Param.make "first" (TVariable "a") ""
@@ -31,7 +33,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple3" "first" 0
+    { name = fn "first" 0
       typeParams = []
       parameters =
         [ Param.make
@@ -49,7 +51,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple3" "second" 0
+    { name = fn "second" 0
       typeParams = []
       parameters =
         [ Param.make
@@ -67,7 +69,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple3" "third" 0
+    { name = fn "third" 0
       typeParams = []
       parameters =
         [ Param.make
@@ -85,7 +87,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple3" "mapFirst" 0
+    { name = fn "mapFirst" 0
       typeParams = []
       parameters =
         [ Param.makeWithArgs
@@ -112,7 +114,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple3" "mapSecond" 0
+    { name = fn "mapSecond" 0
       typeParams = []
       parameters =
         [ Param.makeWithArgs
@@ -139,7 +141,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple3" "mapThird" 0
+    { name = fn "mapThird" 0
       typeParams = []
       parameters =
         [ Param.makeWithArgs
@@ -166,7 +168,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Tuple3" "mapAllThree" 0
+    { name = fn "mapAllThree" 0
       typeParams = []
       parameters =
         [ Param.makeWithArgs

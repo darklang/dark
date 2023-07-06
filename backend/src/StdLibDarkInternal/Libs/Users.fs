@@ -8,12 +8,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' [ "DarkInternal"; "User" ] name version
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' [ "DarkInternal"; "User" ] name version
+let modules = [ "DarkInternal"; "User" ]
+let typ = typ modules
+let fn = fn modules
 
 // only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
 let types : List<BuiltInType> = []

@@ -24,6 +24,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module Routing = LibBackend.Routing
 module Canvas = LibBackend.Canvas
+module Serialize = LibBackend.Serialize
 
 open Tests
 open TestUtils.TestUtils
@@ -202,7 +203,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
 
         let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
 
-        (h.tlid, [ PT.SetHandler h ], PT.Toplevel.TLHandler h, Canvas.NotDeleted))
+        (PT.Toplevel.TLHandler h, Serialize.NotDeleted))
 
     do! Canvas.saveTLIDs canvasID oplists
 

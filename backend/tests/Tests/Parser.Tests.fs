@@ -39,7 +39,7 @@ let parserTests =
             PT.EVariable(id, "x"),
             PT.EPipeFnCall(
               id,
-              PT.FQFnName.stdlibFqName [ "List" ] "map" 0,
+              PT.FnName.fqBuiltIn [ "List" ] "map" 0,
               [],
               [ PT.EInt(id, 5) ]
             ),

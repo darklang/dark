@@ -11,8 +11,10 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "Uuid" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Uuid" "generate" 0
+  [ { name = fn "generate" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
@@ -28,7 +30,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Uuid" "parse" 0
+    { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "uuid" TString "" ]
       returnType = TResult(TUuid, TString)
@@ -51,7 +53,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Uuid" "toString" 0
+    { name = fn "toString" 0
       typeParams = []
       parameters = [ Param.make "uuid" TUuid "" ]
       returnType = TString

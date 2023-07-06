@@ -8,17 +8,11 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-let eStdFnName
-  (modules : List<string>)
-  (function_ : string)
-  (version : int)
-  : FnTarget =
-  PT.FQFnName.stdlibFqName modules function_ version
-  |> PT2RT.FQFnName.toRT
-  |> FnName
+let eStdFnName (modules : List<string>) (name : string) (version : int) : FnTarget =
+  PT.FnName.fqBuiltIn modules name version |> PT2RT.FnName.toRT |> FnTargetName
 
-let eUserFnName (function_ : string) : FnTarget =
-  PT.FQFnName.userFqName [] function_ 0 |> PT2RT.FQFnName.toRT |> FnName
+let eUserFnName (name : string) : FnTarget =
+  PT.FnName.fqUserProgram [] name 0 |> PT2RT.FnName.toRT |> FnTargetName
 
 
 let eFn'
@@ -84,18 +78,18 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 let eLambda (varNames : string list) (body : Expr) : Expr =
   ELambda(gid (), List.map (fun name -> (gid (), name)) varNames, body)
 
-let eEnum (typeName : FQTypeName.T) (name : string) (args : Expr list) : Expr =
+let eEnum (typeName : TypeName.T) (name : string) (args : Expr list) : Expr =
   EEnum(gid (), typeName, name, args)
 
 let userTypeName
   (modules : List<string>)
   (name : string)
   (version : int)
-  : FQTypeName.UserTypeName =
-  { modules = modules; typ = name; version = version }
+  : TypeName.UserProgram =
+  { modules = modules; name = TypeName.TypeName name; version = version }
 
 let fqUserTypeName (modules : List<string>) (name : string) (version : int) =
-  FQTypeName.User(userTypeName modules name version)
+  FQName.UserProgram(userTypeName modules name version)
 
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
@@ -123,5 +117,6 @@ let userTypeRecord
   (fields : List<string * TypeReference>)
   : UserType.T =
   { tlid = gid ()
-    name = { modules = modules; typ = name; version = version }
+    name = { modules = modules; name = TypeName.TypeName name; version = version }
+    typeParams = []
     definition = customTypeRecord fields }

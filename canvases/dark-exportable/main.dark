@@ -1,4 +1,0 @@
-type Count = Int
-
-// let stringifyCount (count : Count) : String =
-//   Int.toString count

@@ -34,11 +34,13 @@ let createState
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
   (tlid : tlid)
-  (program : RT.ProgramContext)
+  (program : RT.Program)
+  (config : RT.Config)
   : RT.ExecutionState =
   { libraries = libraries
     tracing = tracing
     program = program
+    config = config
     test = noTestContext
     reportException = reportException
     notify = notify
@@ -64,7 +66,7 @@ let executeExpr
 let executeFunction
   (state : RT.ExecutionState)
   (callerID : id)
-  (name : RT.FQFnName.T)
+  (name : RT.FnName.T)
   (typeArgs : List<RT.TypeReference>)
   (args : List<RT.Dval>)
   : Task<RT.Dval> =

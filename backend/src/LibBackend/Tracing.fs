@@ -171,8 +171,7 @@ let createTelemetryTracer
         { standardTracing with
             storeFnResult =
               (fun (tlid, name, id) args result ->
-                let stringifiedName =
-                  LibExecution.RuntimeTypes.FQFnName.toString name
+                let stringifiedName = LibExecution.RuntimeTypes.FnName.toString name
                 let hash =
                   args
                   |> DvalReprInternalHash.hash

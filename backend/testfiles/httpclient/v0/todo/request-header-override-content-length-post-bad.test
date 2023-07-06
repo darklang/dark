@@ -16,7 +16,7 @@ Content-Length: LENGTH
 
 [test]
 (let reqHeaders = { "Content-length" = "6" }
- let response = (HttpClient.request "post" "http://URL" "morethansix" {} reqHeaders) |> Test.unwrap
+ let response = (HttpClient.request "post" "http://URL" "morethansix" {} reqHeaders) |> unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response

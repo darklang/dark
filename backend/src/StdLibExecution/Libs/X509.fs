@@ -15,7 +15,7 @@ let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "X509" "pemCertificatePublicKey" 0
+  [ { name = fn [ "X509" ] "pemCertificatePublicKey" 0
       typeParams = []
       parameters = [ Param.make "pemCert" TString "" ]
       returnType = TResult(TString, TString)

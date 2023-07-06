@@ -31,7 +31,7 @@ module Pusher = LibBackend.Pusher
 
 module HttpMiddleware = HttpMiddleware.Http
 
-module RealExe = LibExperimentalExecution.RealExperimentalExecution
+module RealExe = DangerExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -261,6 +261,9 @@ exception NotFoundException of msg : string with
   override this.Message = this.msg
 
 
+let config : RT.Config =
+  { allowLocalHttpAccess = true; httpclientTimeoutInMs = 10000 }
+
 
 /// ---------------
 /// Handle builtwithdark request
@@ -321,9 +324,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! (result, _) =
             RealExe.executeHandler
               ClientTypes2BackendTypes.Pusher.eventSerializer
-              canvasID
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
+              config
               traceID
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
@@ -468,7 +471,7 @@ let initSerializers () =
   // one-off types used internally
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
@@ -500,7 +503,7 @@ let main _ =
     initSerializers ()
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibExperimentalExecution.Init.init name).Result
+    (DangerExecution.init ()).Result
 
     run ()
     // CLEANUP I suspect this isn't called

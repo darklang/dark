@@ -1,6 +1,6 @@
 // TYPESCLEANUP - re-add all this with proper types
 // PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal" }
-// PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = (DateTime.parse "2000-07-28T22:42:00Z") |> Test.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
+// PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = (DateTime.parse "2000-07-28T22:42:00Z") |> unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
 
 // date
 // (match DateTime.parse "2019-07-28T22:42:00Z" with

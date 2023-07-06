@@ -15,7 +15,7 @@ Hello back
 
 [test]
 (let reqHeaders = [("Content-Type", "application/json; charset=invalid")]
- let response = (HttpClient.request "get" "http://URL" reqHeaders Bytes.empty) |> Test.unwrap
+ let response = (HttpClient.request "get" "http://URL" reqHeaders Bytes.empty) |> unwrap
  let respHeaders = response.headers |> List.filter (fun h -> Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    HttpClient.Response

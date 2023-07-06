@@ -7,9 +7,9 @@ module Documentation =
   ((DarkInternal.Documentation.list_v0 ())
    |> List.map (fun f -> (f.name, f))
    |> Dict.fromList_v0
-   |> Test.unwrap
+   |> unwrap
    |> Dict.get "Int.add"
-   |> Test.unwrap
+   |> unwrap
    |> (fun f -> f.parameters)) = [ DarkInternal.Documentation.Parameter
                                      { name = "a"; ``type`` = "Int" }
                                    DarkInternal.Documentation.Parameter
@@ -41,12 +41,12 @@ module Domains =
     ((Test.getCanvasID ())
      |> DarkInternal.Canvas.Domain.get
      |> List.head
-     |> Test.unwrap
+     |> unwrap
      |> DarkInternal.Canvas.Domain.toCanvasID) = Ok(Test.getCanvasID ())
 
   module Errors =
     DarkInternal.Canvas.Domain.get (
-      (Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Test.unwrap
+      (Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> unwrap
     ) = []
 
     DarkInternal.Canvas.Domain.toCanvasID "not-a-real-domain" = Error
@@ -129,11 +129,3 @@ module Queue =
   // TODO: DarkInternal.Infra.SchedulingRule.Block.delete
   // TODO: DarkInternal.Infra.SchedulingRule.list
   [] = []
-
-
-
-
-
-module Ops =
-  // getOpsForToplevel returns empty list for nonexistant TL
-  (Test.getCanvasID ()) |> DarkInternal.Canvas.getOpsForToplevel_v0 0 = []

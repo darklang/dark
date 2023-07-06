@@ -145,9 +145,10 @@ let typecheckDval
   (dval : Dval)
   (expectedType : TypeReference)
   =
-  match TypeChecker.unify [ name ] types expectedType dval with
+  let context = TypeChecker.DBQueryVariable(name, None)
+  match TypeChecker.unify context types expectedType dval with
   | Ok() -> ()
-  | Error err -> error $"Incorrect type in {name}: {err}"
+  | Error err -> error (Errors.toString (Errors.TypeError err))
 
 let escapeFieldname (str : string) : string =
   // Allow underscore, numbers, letters, only
@@ -240,10 +241,12 @@ let rec inline'
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
-  | EApply(_, FnName(FQFnName.Stdlib std), [], args) when
-    std.modules = [ mName ] && std.function_ = fName && std.version = v
-    ->
-    Some args
+  | EApply(_,
+           FnTargetName(FQName.BuiltIn({ modules = modules
+                                         name = FnName.FnName name
+                                         version = version })),
+           [],
+           args) when modules = [ mName ] && name = fName && version = v -> Some args
   | _ -> None
 
 /// Generate SQL from an Expr. This expects that all the hard stuff has been
@@ -251,8 +254,8 @@ let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
 /// Returns the sql snippet for this expression, the variables that need to be
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
-  (fns : Map<FQFnName.StdlibFnName, BuiltInFn>)
-  (constants : Map<FQConstantName.StdlibConstantName, BuiltInConstant>)
+  (fns : Map<FnName.BuiltIn, BuiltInFn>)
+  (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
   (types : Types)
   (symtable : DvalMap)
   (paramName : string)
@@ -265,8 +268,8 @@ let rec lambdaToSql
 
   let (sql, vars, actualType) =
     match expr with
-    | EConstant(_, (FQConstantName.Stdlib name as fqName)) ->
-      let nameStr = FQConstantName.toString fqName
+    | EConstant(_, (ConstantName.Stdlib name as fqName)) ->
+      let nameStr = ConstantName.toString fqName
       match Map.get name constants with
       | Some c ->
         typecheck nameStr c.returnType expectedType
@@ -279,8 +282,8 @@ let rec lambdaToSql
         error
           $"Only builtin constants can be used in queries right now; {nameStr} is not a builtin constant"
 
-    | EApply(_, FnName(FQFnName.Stdlib name as fqName), [], args) ->
-      let nameStr = FQFnName.toString fqName
+    | EApply(_, FnTargetName(FQName.BuiltIn name as fqName), [], args) ->
+      let nameStr = FnName.toString fqName
       match Map.get name fns with
       | Some fn ->
         // check the abstract type here. We will check the concrete type later
@@ -463,7 +466,7 @@ let rec lambdaToSql
           | Some(CustomType.Alias _) ->
             error2
               "The datastore's type is not a record"
-              (FQTypeName.toString typeName)
+              (TypeName.toString typeName)
           | Some(CustomType.Record(f1, fields)) ->
             let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
             match field with
@@ -472,11 +475,11 @@ let rec lambdaToSql
           | Some(CustomType.Enum _) ->
             error2
               "The datastore's type is not a record"
-              (FQTypeName.toString typeName)
+              (TypeName.toString typeName)
           | None ->
             error2
               "The datastore does not have a type named"
-              (FQTypeName.toString typeName)
+              (TypeName.toString typeName)
         | _ -> error "The datastore is not a record"
 
       typecheck fieldname dbFieldType expectedType
@@ -770,8 +773,8 @@ let compileLambda
 
     let sql, vars, _expectedType =
       lambdaToSql
-        state.libraries.stdlibFns
-        state.libraries.stdlibConstants
+        state.libraries.builtInFns
+        state.libraries.builtInConstants
         types
         symtable
         paramName

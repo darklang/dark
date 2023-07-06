@@ -6,13 +6,15 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
+let fn = fn [ "Bool" ]
+
 let varA = TVariable "a"
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "Bool" "not" 0
+  [ { name = fn "not" 0
       typeParams = []
       parameters = [ Param.make "b" TBool "" ]
       returnType = TBool
@@ -27,7 +29,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bool" "and" 0
+    { name = fn "and" 0
       typeParams = []
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
@@ -41,7 +43,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bool" "or" 0
+    { name = fn "or" 0
       typeParams = []
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
@@ -56,7 +58,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bool" "xor" 0
+    { name = fn "xor" 0
       typeParams = []
       parameters = [ Param.make "a" TBool ""; Param.make "b" TBool "" ]
       returnType = TBool
@@ -71,7 +73,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Bool" "toString" 0
+    { name = fn "toString" 0
       typeParams = []
       parameters = [ Param.make "v" TBool "" ]
       returnType = TString

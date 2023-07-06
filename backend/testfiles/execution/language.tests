@@ -54,8 +54,9 @@ module Alias =
   // simple alias
   type Id = String
   type Something = { ID : Id; Data : String }
-  Something { ID = 2; Data = "test" } = Test.typeError "Expected a value of type `String` but got a `Int` in ID"
   Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
+  Something { ID = 2; Data = "test" } =
+    Test.typeError "Something's ID field should be an Id. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
 
   // record alias
   type Person = { name: String }
@@ -92,7 +93,8 @@ module Alias =
   type EmployeeCredential = UserCredential
   let getUserID(credential:UserCredential) : Id = credential |> Tuple2.second
   getUserID(("Alice", "EMP123")) = "EMP123"
-  getUserID(("Alice", 123)) = Test.typeError "Type error in return type: Expected a value of type `String` but got a `Int` in getUserID->result"
+  getUserID(("Alice", 123)) =
+    Test.typeError "getUserID's return value should be an Id. However, an Int (123) was returned instead.\n\nExpected: Id\nActual: an Int: 123"
 
   type UserProfile = { credential: UserCredential; name: String; role: UserRole }
   type EmployeeProfile = UserProfile
@@ -139,7 +141,7 @@ module Records =
   Cols2 { col1 = 2 } = Test.typeError "Missing key `col2` in Cols2_v0"
   Cols2 { col1 = 2; other = 3 } = Test.typeError "Unexpected field `other` in Cols2_v0"
   Cols2 { col1 = 2; col2 = 3; col3 = 4 } = Test.typeError "Unexpected field `col3` in Cols2_v0"
-  Cols1 { col1 = "" } = Test.typeError "Expected a value of type `Int` but got a `String` in col1"
+  Cols1 { col1 = "" } = Test.typeError "Cols1's col1 field should be an Int. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
 
   // Invalid type
   MyNonExistantType { col1 = 2 } = Test.typeError "There is no type named `MyNonExistantType_v0`"
@@ -166,8 +168,10 @@ module Records =
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11}) = RecordForUpdateMultipe {x = 42 ; y = 11; z = 3}
      // Invalid type and content
      (let myRec = RecordForUpdateMultipe {x = 4; y = 1; z = 0} in {myRec with z = 3; x = 42; y = 11; p = 10}) = Test.typeError "Unexpected field `p` in RecordForUpdateMultipe"
-     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with other = 2}) = Test.typeError "Unexpected field `other` in RecordForUpdate_v0"
-     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with y = "2"}) = Test.typeError "Expected a value of type `Int` but got a `String` in y"
+     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with other = 2}) =
+       Test.typeError "Unexpected field `other` in RecordForUpdate_v0"
+     (let myRec = RecordForUpdate {x = 4; y = 1} in {myRec with y = "2"}) =
+       Test.typeError "RecordForUpdate's y field should be an Int. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""
 
 module Enums =
   Nothing = Nothing
@@ -194,7 +198,8 @@ module Enums =
       // (match MyEnum.C "test" with | C -> v) = Test.typeError "TODO"
       // (match MyEnum.C "test" with | D -> "ok" | C _ -> v) = Test.typeError "TODO"
       // (match MyEnum.C "test" with | 5 -> "ok" | C _ -> v) = Test.typeError "TODO"
-      (MyEnum.C 5) = Test.typeError "Expected a value of type `String` but got a `Int` in C"
+      (MyEnum.C 5) =
+        Test.typeError "MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
 
 
   module Simple =
@@ -224,9 +229,14 @@ module Enums =
     (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1)) = false
     (EnumOfMixedCases.Y 1 == EnumOfMixedCases.Y 1) = true
 
-    EnumOfMixedCases.X 1 = Test.typeError "Expected a value of type `String` but got a `Int` in X"
-    EnumOfMixedCases.Y "test" = Test.typeError "Expected a value of type `Int` but got a `String` in Y"
-    EnumOfMixedCases.Z 1 = Test.typeError "Case `Z` expected 2 fields but got 1"
+    EnumOfMixedCases.X 1 =
+      Test.typeError "EnumOfMixedCases.X's 1st argument should be a String. However, an Int (1) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 1"
+    EnumOfMixedCases.Y "test" =
+      Test.typeError "EnumOfMixedCases.Y's 1st argument (i) should be an Int. However, a String (\"test\") was passed instead.\n\nExpected: (i: Int)\nActual: a String: \"test\""
+    EnumOfMixedCases.Z 1 =
+      Test.typeError "Case `Z` expected 2 fields but got 1"
+    // Test ordering of evaluation
+    EnumOfMixedCases.Z(Test.typeError "1", Test.typeError "2") = Test.typeError "1"
 
     (let values = [EnumOfMixedCases.W;
                    EnumOfMixedCases.X "testX";
@@ -351,12 +361,14 @@ module InterpolatedString =
 
 module FnCall =
   5 + 3 = 8
+  5 + true = Test.typeError_v0 "Int.add's 2nd argument (b) should be an Int. However, a Bool (true) was passed instead.\n\nExpected: (b: Int)\nActual: a Bool: true"
   5 + (Test.typeError_v0 "error") = Test.typeError_v0 "error"
   (Test.typeError_v0 "error") + 5 = Test.typeError_v0 "error"
   (Test.typeError_v0 "one") + (Test.typeError_v0 "two") = Test.typeError_v0 "one" // CLEANUP
   "xx" ++ "yy" = "xxyy"
   (5 + (3)) = 8
   Int.add_v0 5 3 = 8
+  Int.add_v0 5 = Test.typeError_v0 "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
 
 module If =
@@ -412,7 +424,6 @@ module Lambdas =
   (let y = (fun msg -> Test.typeError msg) in List.map_v0 [] y) = []
   // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
   (let y = (fun a b -> a * b) in List.fold_v0 [1; 2; 3; 4] 1 y) = 24
-  (List.fold_v0 [4] 1 5) = Test.typeError_v0 "List.fold was expected to be called with a `Function` in fn, but was actually called with 5"
   (List.fold_v0 [4] 1 (Test.typeError "test")) = Test.typeError "test"
 
   (let x = 5 in
@@ -445,7 +456,7 @@ module Pipes =
 
   ([5]
    |> List.head
-   |> Test.unwrap
+   |> unwrap
    |> Int.add_v0 1
    |> (+) 3
    |> (fun x -> if (x + 4) > 1 then x else (1 + x))) = 9
@@ -754,7 +765,7 @@ module Match =
     (match [1; 2; 3] with | 1::2::[3] -> 42 | [] -> 4 | _ -> 2) = 42
     (match [1; 2; 3] with | [] -> 4 | 1::2::[3] -> 42 | _ -> 2) = 42
     (match [1; 2; 3] with |  _ -> 2 | 1::2::[3] -> 42 |[] -> 4) = 2
-    (match [1; 2; 3] with | head::rest -> head + (rest |> List.head |> Test.unwrap)) = 3
+    (match [1; 2; 3] with | head::rest -> head + (rest |> List.head |> unwrap)) = 3
 
     // head tail
     let headTail (list: List<Int>) : (Int * List<Int>)  =
@@ -817,7 +828,12 @@ module Match =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") = Test.typeError_v0 "Option.map2 was expected to be called with a `Option<'b>` in option2, but was actually called with \"not an option\""
+  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") =
+    Test.typeError_v0 "Option.map2's 2nd argument (option2) should be an Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: Option<'b>)\nActual: a String: \"not an option\""
+
+  // Check we get previous errors before later ones
+  (List.map_v0 [1;2;3;4;5] (fun x -> Test.typeError "X")) |> List.fakeFunction =
+    Test.typeError_v0 "X"
 
 module ErrorPropagation =
   type EPRec = { i: Int; m: Int; j: Int; n: Int }
@@ -962,15 +978,15 @@ module UserDefined =
     returnsInt () = 5
     returnsString () = "string"
     returnsOptionJust () = Just 5
-    (returnsOptionJust ()) |> Test.unwrap = 5
+    (returnsOptionJust ()) |> unwrap = 5
     returnsOptionNothing () = Nothing
     returnsResultOk () = Ok 5
-    (returnsResultOk ()) |> Test.unwrap = 5
+    (returnsResultOk ()) |> unwrap = 5
     fnWithTypeArgAndOneParam<Int> 1 = 1
 
   module InvalidFnCalls =
     functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
-    stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in stringFn->key"
+    stringFn 5 = Test.typeError "stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
     stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
@@ -999,24 +1015,24 @@ module Packages =
   PACKAGE.Darklang.Test.returnsInt () = 5
   PACKAGE.Darklang.Test.returnsString () = "string"
   PACKAGE.Darklang.Test.returnsOptionJust () = Just 5
-  (PACKAGE.Darklang.Test.returnsOptionJust ()) |> Test.unwrap = 5
+  (PACKAGE.Darklang.Test.returnsOptionJust ()) |> unwrap = 5
   PACKAGE.Darklang.Test.returnsOptionNothing () = Nothing
   PACKAGE.Darklang.Test.returnsResultOk () = Ok 5
-  (PACKAGE.Darklang.Test.returnsResultOk ()) |> Test.unwrap = 5
+  (PACKAGE.Darklang.Test.returnsResultOk ()) |> unwrap = 5
   PACKAGE.Darklang.Test.returnsResultError () = Error false
 
   module Invalid =
-    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "Type error calling function: Expected a value of type `String` but got a `Int` in Darklang.Test.stringFn->key"
-    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "PACKAGE.Darklang.Test.stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+    PACKAGE.Darklang.Test.stringFn "str1" "str2" = Test.typeError "PACKAGE.Darklang.Test.stringFn_v0 has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
     PACKAGE.Darklang.Test.derrorFn "test" = Test.typeError "test"
 
     (let _ = Test.setExpectedExceptionCount 1 in
      PACKAGE.Darklang.Test.throwsException ()) = Test.typeError "Unknown error"
 
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1 = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
 
 
 module TypeChecking =

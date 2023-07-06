@@ -14,6 +14,6 @@ Content-Length: 5
 à æ ç
 
 [test]
-(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> Test.unwrap
+(let response = (HttpClient.request "get" "http://URL" [] Bytes.empty) |> unwrap
  response.body) =
    "à æ ç"

@@ -11,14 +11,17 @@
     <PublishSingleFile>false</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
+
+
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
   </ItemGroup>
+
   <ItemGroup>
-    <None Include="paket.references" />
     <Compile Include="CronChecker.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

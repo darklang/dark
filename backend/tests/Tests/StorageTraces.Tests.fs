@@ -266,7 +266,7 @@ let testTraceRoundtrip =
 
 //     let callerTLID = 98765UL
 //     let callerID = 1234UL
-//     let fnName = RT.FQFnName.User "test_fn"
+//     let fnName = RT.FQName.UserProgram "test_fn"
 //     let args = []
 //     let traceID = AT.TraceID.create()
 

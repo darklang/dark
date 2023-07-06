@@ -22,6 +22,8 @@ open LibBackend.Db
 let varA = TVariable "a"
 let varB = TVariable "b"
 
+let fn = fn [ "Test" ]
+
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> =
   [ { name = constant "Test" "incomplete" 0
@@ -60,7 +62,7 @@ let constants : List<BuiltInConstant> =
 
 let fns : List<BuiltInFn> =
 
-  [ { name = fn "Test" "typeError" 0
+  [ { name = fn "typeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt
@@ -73,7 +75,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Test" "sqlError" 0
+    { name = fn "sqlError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
       returnType = TInt
@@ -88,7 +90,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Test" "toChar" 0
+    { name = fn "toChar" 0
       typeParams = []
       parameters = [ Param.make "c" TString "" ]
       returnType = TOption TChar
@@ -108,7 +110,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "incrementSideEffectCounter" 0
+    { name = fn "incrementSideEffectCounter" 0
       typeParams = []
       parameters =
         [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
@@ -126,7 +128,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "sideEffectCount" 0
+    { name = fn "sideEffectCount" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TInt
@@ -140,7 +142,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "inspect" 0
+    { name = fn "inspect" 0
       typeParams = []
       parameters = [ Param.make "var" varA ""; Param.make "msg" TString "" ]
       returnType = varA
@@ -156,7 +158,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "justWithTypeError" 0
+    { name = fn "justWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
       returnType = TOption varA
@@ -170,7 +172,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "okWithTypeError" 0
+    { name = fn "okWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
       returnType = TResult(varA, varB)
@@ -184,7 +186,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "errorWithTypeError" 0
+    { name = fn "errorWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
       returnType = TResult(varA, varB)
@@ -198,7 +200,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "deleteUser" 0
+    { name = fn "deleteUser" 0
       typeParams = []
       parameters = [ Param.make "username" TString "" ]
       returnType = TResult(TUnit, varB)
@@ -221,7 +223,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "getQueue" 0
+    { name = fn "getQueue" 0
       typeParams = []
       parameters = [ Param.make "eventName" TString "" ]
       returnType = TList TString
@@ -244,7 +246,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "asBytes" 0
+    { name = fn "asBytes" 0
       typeParams = []
       parameters = [ Param.make "list" (TList TInt) "" ]
       returnType = TBytes
@@ -266,7 +268,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "raiseException" 0
+    { name = fn "raiseException" 0
       typeParams = []
       parameters = [ Param.make "message" TString "" ]
       returnType = TVariable "a"
@@ -280,7 +282,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "intArrayToBytes" 0
+    { name = fn "intArrayToBytes" 0
       typeParams = []
       parameters = [ Param.make "bytes" (TList TInt) "" ]
       returnType = TBytes
@@ -303,7 +305,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "regexReplace" 0
+    { name = fn "regexReplace" 0
       typeParams = []
       parameters =
         [ Param.make "subject" TString ""
@@ -321,7 +323,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "getCanvasID" 0
+    { name = fn "getCanvasID" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TUuid
@@ -335,7 +337,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "unwrap" 0
+    { name = fn "unwrap" 0
       typeParams = []
       parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
       returnType = TVariable "a"
@@ -366,7 +368,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Test" "setExpectedExceptionCount" 0
+    { name = fn "setExpectedExceptionCount" 0
       typeParams = []
       parameters = [ Param.make "count" TInt "" ]
       returnType = TUnit

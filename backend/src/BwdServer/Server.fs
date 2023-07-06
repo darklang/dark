@@ -267,7 +267,9 @@ let canonicalizeURL (toHttps : bool) (url : string) =
 exception NotFoundException of msg : string with
   override this.Message = this.msg
 
-
+let config : RT.Config =
+  { allowLocalHttpAccess = false
+    httpclientTimeoutInMs = LibBackend.Config.httpclientTimeoutInMs }
 
 /// ---------------
 /// Handle builtwithdark request
@@ -328,9 +330,9 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! (result, _) =
             RealExe.executeHandler
               ClientTypes2BackendTypes.Pusher.eventSerializer
-              canvasID
               (PT2RT.Handler.toRT handler)
               (Canvas.toProgram canvas)
+              config
               traceID
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
@@ -474,7 +476,9 @@ let initSerializers () =
   // one-off types used internally
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
-  Json.Vanilla.allow<LibExecution.ProgramTypes.Oplist> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<List<LibExecution.ProgramTypes.Toplevel.T>>
+    "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"

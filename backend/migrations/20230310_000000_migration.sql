@@ -162,7 +162,7 @@ CREATE TYPE toplevel_type AS
 ENUM ('handler', 'db', 'user_function', 'user_tipe');
 
 CREATE TABLE IF NOT EXISTS
-toplevel_oplists_v0
+toplevels_v0
 ( canvas_id UUID NOT NULL
 , tlid INTEGER NOT NULL
 , digest CHAR(32) NOT NULL
@@ -173,13 +173,12 @@ toplevel_oplists_v0
 , updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 , deleted BOOLEAN NOT NULL
-, oplist BYTEA NOT NULL
-, oplist_cache BYTEA NOT NULL
+, data BYTEA NOT NULL
 , PRIMARY KEY (canvas_id, tlid)
 );
 
-CREATE TRIGGER set_toplevel_oplist_timestamp
-BEFORE UPDATE ON toplevel_oplists_v0
+CREATE TRIGGER set_toplevels_timestamp
+BEFORE UPDATE ON toplevels_v0
 FOR EACH ROW
 EXECUTE PROCEDURE trigger_set_timestamp();
 

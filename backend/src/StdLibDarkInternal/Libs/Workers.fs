@@ -12,10 +12,6 @@ module SchedulingRules = LibBackend.QueueSchedulingRules
 module Pusher = LibBackend.Pusher
 module Queue = LibBackend.Queue
 
-let typ = FQTypeName.stdlibTypeName'
-let fn = FQFnName.stdlibFnName'
-
-
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   (function
@@ -34,11 +30,10 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
 
 let schedulingRuleTypeName = typ [ "DarkInternal"; "SchedulingRule" ] "Rule" 0
 
-let schedulingRuleTypeRef =
-  TCustomType(FQTypeName.Stdlib(schedulingRuleTypeName), [])
+let schedulingRuleTypeRef = TCustomType(FQName.BuiltIn(schedulingRuleTypeName), [])
 
 let ruleToDval (r : SchedulingRules.SchedulingRule.T) : Dval =
-  let typeName = FQTypeName.Stdlib schedulingRuleTypeName
+  let typeName = FQName.BuiltIn schedulingRuleTypeName
   Dval.record
     typeName
     [ ("id", Dval.int r.id)

@@ -25,9 +25,9 @@ type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
 let executionStateForPreview
   (name : string)
   (dbs : Map<string, DB.T>)
-  (types : Map<FQTypeName.UserTypeName, UserType.T>)
-  (fns : Map<FQFnName.UserFnName, UserFunction.T>)
-  (constants : Map<FQConstantName.UserConstantName, UserConstant.T>)
+  (types : Map<TypeName.UserProgram, UserType.T>)
+  (fns : Map<FnName.UserProgram, UserFunction.T>)
+  (constants : Map<ConstantName.UserProgram, UserConstant.T>)
   : Task<AT.AnalysisResults * ExecutionState> =
   task {
     let canvasID = System.Guid.NewGuid()
@@ -82,7 +82,8 @@ let testExecFunctionTLIDs : Test =
           tracing =
             { state.tracing with traceTLID = traceFn; realOrPreview = Preview } }
 
-    let! value = Exe.executeFunction state (gid ()) (FQFnName.User fn.name) [] []
+    let! value =
+      Exe.executeFunction state (gid ()) (FQName.UserProgram fn.name) [] []
 
     Expect.equal (HashSet.toList tlids) [ fn.tlid ] "tlid of function is traced"
     Expect.equal value (DInt 5L) "sanity check"
@@ -115,7 +116,7 @@ let testRecursionInEditor : Test =
         // calls self ("recurse") resulting in recursion
         PT.EFnCall(
           skippedCallerID,
-          PT.FQFnName.userFqName [] "recurse" 0,
+          PT.FnName.fqUserProgram [] "recurse" 0,
           [],
           [ PT.EInt(gid (), 2) ]
         )
@@ -401,9 +402,9 @@ let testMatchPreview : Test =
       (MPEnum(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
-         PT.FQFnName.stdlibFqName [ "String" ] "append" 0
-         |> PT2RT.FQFnName.toRT
-         |> FnName,
+         PT.FnName.fqBuiltIn [ "String" ] "append" 0
+         |> PT2RT.FnName.toRT
+         |> FnTargetName,
          [],
          [ EString(okVarRhsStrId, [ StringText "ok: " ])
            EVariable(okVarRhsVarId, "x") ]
@@ -541,8 +542,7 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (let typeName =
-          FQTypeName.Stdlib({ modules = []; typ = "Result"; version = 0 })
+        (let typeName = TypeName.fqBuiltIn [] "Result" 0
          eEnum typeName "Ok" [ eStr "y" ])
         [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DString "y"))))
           (pOkVarVarId, "var pat", er (DString "y"))
@@ -561,8 +561,7 @@ let testMatchPreview : Test =
 
       t
         "nothing"
-        (let typeName =
-          FQTypeName.Stdlib({ modules = []; typ = "Option"; version = 0 })
+        (let typeName = TypeName.fqBuiltIn [] "Option" 0
          eEnum typeName "Nothing" [])
         [ (pNothingId, "ok pat", er (DOption None))
           (nothingRhsId, "rhs", er (DString "enum nothing")) ]
@@ -641,9 +640,9 @@ let testLetPreview : Test =
         let divisionExpr =
           EApply(
             divID,
-            PT.FQFnName.stdlibFqName [ "Int" ] "divide" 0
-            |> PT2RT.FQFnName.toRT
-            |> FnName,
+            PT.FnName.fqBuiltIn [ "Int" ] "divide" 0
+            |> PT2RT.FnName.toRT
+            |> FnTargetName,
             [],
             [ eInt 1; eInt 0 ]
           )

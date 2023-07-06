@@ -16,8 +16,10 @@ open LibExecution.StdLib.Shortcuts
 
 
 let types : List<BuiltInType> = []
+
+let fn = fn [ "HttpClient" ]
 let constants : List<BuiltInConstant> =
-  [ { name = constant "HttpClient" "formContentType" 0
+  [ { name = constant "formContentType" 0
       returnType = TDict TString
       description =
         "Returns a header <type Dict> with {{Content-Type}} set for HTML form
@@ -77,7 +79,7 @@ let constants : List<BuiltInConstant> =
 let fns : List<BuiltInFn> =
   [
 
-    { name = fn "HttpClient" "bearerToken" 0
+    { name = fn "bearerToken" 0
       typeParams = []
       parameters = [ Param.make "token" TString "" ]
       returnType = TDict TString

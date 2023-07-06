@@ -13,25 +13,17 @@ module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
 module PT2DT = ProgramTypes2DarkTypes
 
-let modul = [ "DarkInternal"; "Canvas" ]
+let modules = [ "DarkInternal"; "Canvas" ]
 
-let typ (name : string) (version : int) : FQTypeName.StdlibTypeName =
-  FQTypeName.stdlibTypeName' modul name version
+let typ = typ modules
+let fn = fn modules
 
-let ptTyp
-  (submodules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.T =
-  FQTypeName.packageTypeName'
+let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
+  TypeName.fqPackage
     "Darklang"
     (NonEmptyList.ofList ([ "Stdlib"; "ProgramTypes" ] @ submodules))
     name
     version
-  |> FQTypeName.Package
-
-let fn (name : string) (version : int) : FQFnName.StdlibFnName =
-  FQFnName.stdlibFnName' modul name version
 
 
 let types : List<BuiltInType> =
@@ -45,11 +37,11 @@ let types : List<BuiltInType> =
               description = "All typed defined within this canvas" }
 
             // { name = "dbs"
-            //   typ = TList(TCustomType(FQTypeName.Stdlib(typ "DB" 0), []))
+            //   typ = TList(TCustomType(FQName.BuiltIn(typ "DB" 0), []))
             //   description = "" }
 
             // { name = "httpHandlers"
-            //   typ = TList(TCustomType(FQTypeName.Stdlib(typ "HttpHandler" 0), []))
+            //   typ = TList(TCustomType(FQName.BuiltIn(typ "HttpHandler" 0), []))
             //   description = "" }
             ]
         )
@@ -98,7 +90,7 @@ let fns : List<BuiltInFn> =
     { name = fn "owner" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TString
+      returnType = TUuid
       description = "Get the owner of a canvas"
       fn =
         (function
@@ -127,8 +119,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID; DInt tlid ] ->
           uply {
             let tlid = uint64 tlid
-            let! c =
-              Canvas.loadFrom Serialize.IncludeDeletedToplevels canvasID [ tlid ]
+            let! c = Canvas.loadFrom canvasID [ tlid ]
             if
               Map.containsKey tlid c.deletedHandlers
               || Map.containsKey tlid c.deletedDBs
@@ -148,30 +139,6 @@ let fns : List<BuiltInFn> =
     // ---------------------
     // Programs
     // ---------------------
-    { name = fn "getOpsForToplevel" 0
-      typeParams = []
-      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TInt "" ]
-      returnType = TList TString
-      description = "Returns all ops for a tlid in the given canvas"
-      fn =
-        (function
-        | _, _, [ DUuid canvasID; DInt tlid ] ->
-          uply {
-            let tlid = uint64 tlid
-            let! ops =
-              let loadAmount = Serialize.LoadAmount.IncludeDeletedToplevels
-              Serialize.loadOplists loadAmount canvasID [ tlid ]
-
-            match ops with
-            | [ (_tlid, ops) ] -> return ops |> List.map (string >> DString) |> DList
-            | _ -> return DList []
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "darkEditorCanvasID" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
@@ -189,8 +156,7 @@ let fns : List<BuiltInFn> =
     { name = fn "fullProgram" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType =
-        TResult(TCustomType(FQTypeName.Stdlib(typ "Program" 0), []), TString)
+      returnType = TResult(TCustomType(FQName.BuiltIn(typ "Program" 0), []), TString)
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
@@ -201,10 +167,17 @@ let fns : List<BuiltInFn> =
 
             let types =
               canvas.userTypes
-              |> Map.toList
-              |> List.map (fun (tlid, userType) -> PT2DT.UserType.toDT tlid userType)
+              |> Map.values
+              |> Seq.toList
+              |> List.map PT2DT.UserType.toDT
               |> DList
 
+            let fns =
+              canvas.userFunctions
+              |> Map.values
+              |> Seq.toList
+              |> List.map PT2DT.UserFunction.toDT
+              |> DList
             // let dbs =
             //   Map.values canvas.dbs
             //   |> Seq.toList
@@ -232,7 +205,10 @@ let fns : List<BuiltInFn> =
             //   |> DList
 
             return
-              DRecord(FQTypeName.Stdlib(typ "Program" 0), Map [ "types", types ])
+              DRecord(
+                FQName.BuiltIn(typ "Program" 0),
+                Map [ "types", types; "fns", fns ]
+              )
               |> Ok
               |> DResult
           }

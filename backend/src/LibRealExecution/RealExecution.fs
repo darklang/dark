@@ -18,7 +18,7 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let contents : LibExecution.StdLib.Contents =
+let builtins : LibExecution.StdLib.Contents =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
@@ -26,76 +26,70 @@ let contents : LibExecution.StdLib.Contents =
     []
     []
 
-let packageFns : Lazy<Task<Map<RT.FQFnName.PackageFnName, RT.PackageFn.T>>> =
-  lazy
-    (task {
-      let! packages = PackageManager.allFunctions ()
+let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
+  (task {
+    let! packages = PackageManager.allFunctions ()
 
-      return
-        packages
-        |> List.map (fun (f : PT.PackageFn.T) ->
-          (f.name |> PT2RT.FQFnName.PackageFnName.toRT, PT2RT.PackageFn.toRT f))
-        |> Map.ofList
-    })
+    return
+      packages
+      |> List.map (fun (f : PT.PackageFn.T) ->
+        (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
+      |> Map.ofList
+  })
 
-let packageTypes : Lazy<Task<Map<RT.FQTypeName.PackageTypeName, RT.PackageType.T>>> =
-  lazy
-    (task {
-      let! packages = PackageManager.allTypes ()
+let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
+  (task {
+    let! packages = PackageManager.allTypes ()
 
-      return
-        packages
-        |> List.map (fun (t : PT.PackageType.T) ->
-          (t.name |> PT2RT.FQTypeName.PackageTypeName.toRT, PT2RT.PackageType.toRT t))
-        |> Map.ofList
-    })
+    return
+      packages
+      |> List.map (fun (t : PT.PackageType.T) ->
+        (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
+      |> Map.ofList
+  })
 
-let packageConstants
-  : Lazy<Task<Map<RT.FQConstantName.PackageConstantName, RT.PackageConstant.T>>> =
-  lazy
+let packageConstants: Task<Map<RT.ConstantName.Package, RT.PackageConstant.T>> =
     (task {
       let! packages = PackageManager.allConstants ()
 
       return
         packages
         |> List.map (fun (c : PT.PackageConstant.T) ->
-          (c.name |> PT2RT.FQConstantName.PackageConstantName.toRT,
+          (c.name |> PT2RT.ConstantName.Package.toRT,
            PT2RT.PackageConstant.toRT c))
         |> Map.ofList
     })
 
-let libraries : Lazy<Task<RT.Libraries>> =
-  lazy
-    (task {
-      let! packageFns = Lazy.force packageFns
-      let! packageTypes = Lazy.force packageTypes
+let libraries () : Task<RT.Libraries> =
+  task {
+    let! packageFns = packageFns ()
+    let! packageTypes = packageTypes ()
+
+      let fns = contents |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
+      let types = contents |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
       let! packageConstants = Lazy.force packageConstants
 
-      let (fns, types, constants) = contents
-      let fns = fns |> Map.fromListBy (fun fn -> fn.name)
-      let types = types |> Map.fromListBy (fun typ -> typ.name)
-      let constants = constants |> Map.fromListBy (fun c -> c.name)
-
-      // TODO: this keeps a cached version so we're not loading them all the time.
-      // Of course, this won't be up to date if we add more functions. This should be
-      // some sort of LRU cache.
-      return
-        { stdlibTypes = types
-          stdlibFns = fns
-          stdlibConstants = constants
-          packageFns = packageFns
-          packageTypes = packageTypes
-          packageConstants = packageConstants }
-    })
+    // TODO: this keeps a cached version so we're not loading them all the time.
+    // Of course, this won't be up to date if we add more functions. This should be
+    // some sort of LRU cache.
+    return
+      { builtInTypes = builtinTypes
+        builtInFns = builtinFns
+        builtInConstants = builtinConstants
+        packageFns = packageFns
+        packageTypes = packageTypes
+        packageConstants = packageConstants }
+  }
 
 let createState
   (traceID : AT.TraceID.T)
   (tlid : tlid)
-  (program : RT.ProgramContext)
+  (program : RT.Program)
+  (config : RT.Config)
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let! libraries = Lazy.force libraries
+    let! libraries = libraries ()
 
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
@@ -112,7 +106,7 @@ let createState
       let metadata = extraMetadata state @ metadata
       LibService.Rollbar.sendException None metadata exn
 
-    return Exe.createState libraries tracing sendException notify tlid program
+    return Exe.createState libraries tracing sendException notify tlid program config
   }
 
 type ExecutionReason =
@@ -128,22 +122,22 @@ type ExecutionReason =
 /// ReExecution, which will update existing traces and not send pushes.
 let executeHandler
   (pusherSerializer : Pusher.PusherEventSerializer)
-  (canvasID : CanvasID)
   (h : RT.Handler.T)
-  (program : RT.ProgramContext)
+  (program : RT.Program)
+  (config : RT.Config)
   (traceID : AT.TraceID.T)
   (inputVars : Map<string, RT.Dval>)
   (reason : ExecutionReason)
   : Task<RT.Dval * Tracing.TraceResults.T> =
   task {
-    let tracing = Tracing.create canvasID h.tlid traceID
+    let tracing = Tracing.create program.canvasID h.tlid traceID
 
     match reason with
     | InitialExecution(desc, varname, inputVar) ->
       tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 
-    let! state = createState traceID h.tlid program tracing.executionTracing
+    let! state = createState traceID h.tlid program config tracing.executionTracing
     HashSet.add h.tlid tracing.results.tlids
     let! result = Exe.executeExpr state inputVars h.ast
     tracing.storeTraceResults ()
@@ -153,7 +147,11 @@ let executeHandler
     | InitialExecution _ ->
       if tracing.enabled then
         let tlids = HashSet.toList tracing.results.tlids
-        Pusher.push pusherSerializer canvasID (Pusher.NewTrace(traceID, tlids)) None
+        Pusher.push
+          pusherSerializer
+          program.canvasID
+          (Pusher.NewTrace(traceID, tlids))
+          None
 
     return (result, tracing.results)
   }
@@ -161,12 +159,13 @@ let executeHandler
 /// We call this reexecuteFunction because it always runs in an existing trace.
 let reexecuteFunction
   (canvasID : CanvasID)
-  (program : RT.ProgramContext)
+  (program : RT.Program)
+  (config : RT.Config)
   (callerTLID : tlid)
   (callerID : id)
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
-  (name : RT.FQFnName.T)
+  (name : RT.FnName.T)
   (typeArgs : List<RT.TypeReference>)
   (args : List<RT.Dval>)
   : Task<RT.Dval * Tracing.TraceResults.T> =
@@ -174,7 +173,8 @@ let reexecuteFunction
     // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
     // the rootTLID of the trace.
     let tracing = Tracing.create canvasID rootTLID traceID
-    let! state = createState traceID callerTLID program tracing.executionTracing
+    let! state =
+      createState traceID callerTLID program config tracing.executionTracing
     let! result = Exe.executeFunction state callerID name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results
@@ -184,6 +184,6 @@ let reexecuteFunction
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =
   task {
-    let! (_ : RT.Libraries) = Lazy.force libraries
+    let! (_ : RT.Libraries) = libraries ()
     return ()
   }

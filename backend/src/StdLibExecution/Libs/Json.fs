@@ -105,6 +105,14 @@ let rec serialize
         o)
 
   | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
+    let ts = t1 :: t2 :: trest
+    let ds = d1 :: d2 :: rest
+
+    if List.length ts <> List.length ds then
+      Exception.raiseInternal
+        $"Not sure what to do with mismatched tuple ({ds} doesn't match {ts})"
+        []
+
     let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
     w.writeArray (fun () -> List.iter (fun (t, d) -> r t d) zipped)
 
@@ -136,37 +144,56 @@ let rec serialize
       match dval with
       | DEnum(dTypeName, caseName, fields) ->
         let matchingCase =
-          (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
-        // TODO: handle 0 or 2+ cases
+          (firstCase :: additionalCases) |> List.filter (fun c -> c.name = caseName)
 
-        let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
-        // TODO: ensure that the field count is the same
+        match matchingCase with
+        | [] ->
+          Exception.raiseInternal $"Couldn't find matching case for {caseName}" []
+        | [ matchingCase ] ->
+          let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
 
-        w.writeObject (fun () ->
-          w.WritePropertyName caseName
-          w.writeArray (fun () ->
-            List.zip fieldDefs fields
-            |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+          if List.length fieldDefs <> List.length fields then
+            Exception.raiseInternal
+              $"Couldn't serialize Enum as incorrect # of fields provided"
+              [ "defs", fieldDefs
+                "fields", fields
+                "typeName", typeName
+                "caseName", caseName ]
+
+          w.writeObject (fun () ->
+            w.WritePropertyName caseName
+            w.writeArray (fun () ->
+              List.zip fieldDefs fields
+              |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+        | _ -> Exception.raiseInternal "Too many matching cases" []
+
+
       | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
 
     | Some(CustomType.Record(firstField, additionalFields)) ->
       match dval with
-      | DRecord(recordTypeName, dvalMap) when recordTypeName = typeName ->
+      | DRecord(actualTypeName, dvalMap) when actualTypeName = typeName ->
         let fieldDefs = firstField :: additionalFields
+
         w.writeObject (fun () ->
           dvalMap
           |> Map.toList
           |> List.iter (fun (fieldName, dval) ->
             w.WritePropertyName fieldName
 
-            let matchingTypeReference =
-              fieldDefs
-              |> List.find (fun def -> def.name = fieldName)
-              |> fun def -> def.typ
+            let matchingFieldDef =
+              fieldDefs |> List.filter (fun def -> def.name = fieldName)
 
-            r matchingTypeReference dval))
+            match matchingFieldDef with
+            | [] -> Exception.raiseInternal "Couldn't find matching field" []
+            | [ matchingFieldDef ] -> r matchingFieldDef.typ dval
+            | _ -> Exception.raiseInternal "Too many matching fields" []))
+
       | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
-      | _ -> Exception.raiseInternal "Expected a DRecord but got something else" []
+      | _ ->
+        Exception.raiseInternal
+          "Expected a DRecord but got something else"
+          [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]
 
     | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
 
@@ -377,9 +404,16 @@ let parse
           // TODO: handle 0 or 2+ matching cases
           let j = j.EnumerateArray() |> Seq.toList
           // TODO: handle when lists aren't of same len
+
+          if List.length matchingCase.fields <> List.length j then
+            Exception.raiseInternal
+              $"Couldn't parse Enum as incorrect # of fields provided"
+              []
+
           let mapped =
             List.zip matchingCase.fields j
             |> List.map (fun (typ, j) -> convert typ.typ j)
+
           DEnum(typeName, caseName, mapped)
 
         | _ -> Exception.raiseInternal "TODO" []
@@ -392,11 +426,16 @@ let parse
           fieldDefs
           |> List.map (fun def ->
             let correspondingValue =
-              enumerated
-              // TODO: handle case where value isn't found for
-              // and maybe, if it's an Option<>al thing, don't complain
-              |> List.find (fun v -> v.Name = def.name)
-              |> fun field -> field.Value
+              let matchingFieldDef =
+                enumerated
+                // TODO: handle case where value isn't found for
+                // and maybe, if it's an Option<>al thing, don't complain
+                |> List.filter (fun v -> v.Name = def.name)
+
+              match matchingFieldDef with
+              | [] -> Exception.raiseInternal "Couldn't find matching field" []
+              | [ matchingFieldDef ] -> matchingFieldDef.Value
+              | _ -> Exception.raiseInternal "Too many matching fields" []
 
             let converted = convert def.typ correspondingValue
             (def.name, converted))
@@ -465,8 +504,10 @@ let parse
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "Json" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Json" "serialize" 0
+  [ { name = fn "serialize" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "arg" (TVariable "a") "" ]
       returnType = TResult(TString, TString)
@@ -474,7 +515,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ typeArg ], [ arg ] ->
-
           // TODO: somehow collect list of TVariable -> TypeReference
           // "'b = Int",
           // so we can Json.serialize<'b>, if 'b is in the surrounding context
@@ -490,7 +530,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Json" "parse" 0
+    { name = fn "parse" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
       returnType = TResult(TVariable "a", TString)

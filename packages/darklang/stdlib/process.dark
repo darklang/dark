@@ -1,0 +1,15 @@
+// TODO: only applicable in the CLI
+module Darklang =
+  module Stdlib =
+    module Process =
+      // Return Ok stdout+stderr, or Error exitCode+stdout+stderr
+      let runCommand
+        (command: String)
+        (input: String)
+        : Result<String, Process.Result> =
+        let result = Process.run command input
+
+        if result.exitCode == 0 then
+          Ok(stdout ++ stderr)
+        else
+          Error(result)

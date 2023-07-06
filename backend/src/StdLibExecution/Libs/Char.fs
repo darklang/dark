@@ -12,8 +12,10 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
+let fn = fn [ "Char" ]
+
 let fns : List<BuiltInFn> =
-  [ { name = fn "Char" "toUppercase" 0
+  [ { name = fn "toUppercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
@@ -28,7 +30,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "toLowercase" 0
+    { name = fn "toLowercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
@@ -43,7 +45,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "isLowercase" 0
+    { name = fn "isLowercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
@@ -60,7 +62,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "isUppercase" 0
+    { name = fn "isUppercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
@@ -77,7 +79,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "isDigit" 0
+    { name = fn "isDigit" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
@@ -92,7 +94,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "isASCIILetter" 0
+    { name = fn "isASCIILetter" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
@@ -112,7 +114,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "isASCII" 0
+    { name = fn "isASCII" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TBool
@@ -126,7 +128,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Char" "isLessThan" 0
+    { name = fn "isLessThan" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
@@ -139,7 +141,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Char" "isGreaterThan" 0
+    { name = fn "isGreaterThan" 0
       typeParams = []
       parameters = [ Param.make "c1" TChar ""; Param.make "c2" TChar "" ]
       returnType = TBool
@@ -153,9 +155,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "Char" "toString" 0
+    { name = fn "toString" 0
       typeParams = []
-      parameters = [ Param.make "c" TInt "" ]
+      parameters = [ Param.make "c" TChar "" ]
       returnType = TString
       description = "Stringify <param c>"
       fn =

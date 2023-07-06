@@ -21,6 +21,7 @@ let contents =
     [ Libs.Directory.contents
       Libs.Environment.contents
       Libs.File.contents
+      Libs.Process.contents
       Libs.Output.contents ]
     fnRenames
     typeRenames
