@@ -111,24 +111,59 @@ let rec private toJsonV0
           w.WritePropertyName k
           writeDval objType v)
         o)
-  | TCustomType(typeName, args), dv ->
-    match Types.find typeName types, dv with
-    | None, _ -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-    | Some({ definition = TypeDeclaration.Record(f1, fs) }), DRecord(_, dm) ->
-      // TYPESCLEANUP: shouldn't we be using `args` here?
-      let fields = f1 :: fs
-      w.writeObject (fun () ->
-        fields
-        |> List.iter (fun f ->
-          w.WritePropertyName f.name
-          let dval = Map.find f.name dm
-          writeDval f.typ dval))
-    | Some({ definition = TypeDeclaration.Enum _ }), DEnum _ ->
-      Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
-    | Some typ, dv ->
-      Exception.raiseInternal
-        "Value to be stored does not match Datastore type"
-        [ "value", dv; "type", typ; "typeName", typeName ]
+  | TCustomType(typeName, typeArgs), dv ->
+    match Types.find typeName types with
+    | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
+    | Some decl ->
+      match decl.definition, dv with
+      | TypeDeclaration.Alias(typeRef), dv ->
+        let typ = Types.substitute decl.typeParams typeArgs typeRef
+        writeDval typ dv
+
+      | TypeDeclaration.Record(f1, fs), DRecord(_, dm) ->
+        w.writeObject (fun () ->
+          f1 :: fs
+          |> List.iter (fun f ->
+            w.WritePropertyName f.name
+            let dval = Map.find f.name dm
+            let typ = Types.substitute decl.typeParams typeArgs f.typ
+            writeDval typ dval))
+
+
+      | TypeDeclaration.Enum(firstCase, additionalCases), DEnum(_, caseName, fields) ->
+
+        let matchingCase =
+          firstCase :: additionalCases
+          |> List.find (fun c -> c.name = caseName)
+          |> Exception.unwrapOptionInternal
+            $"Couldn't find matching case for {caseName}"
+            []
+
+        let fieldDefs =
+          matchingCase.fields
+          |> List.map (fun def -> Types.substitute decl.typeParams typeArgs def.typ)
+
+        if List.length fieldDefs <> List.length fields then
+          Exception.raiseInternal
+            $"Couldn't serialize Enum to as incorrect # of fields provided"
+            [ "defs", fieldDefs
+              "fields", fields
+              "typeName", typeName
+              "caseName", caseName ]
+
+        w.writeObject (fun () ->
+          w.WritePropertyName caseName
+          w.writeArray (fun () ->
+            List.zip fieldDefs fields
+            |> List.iter (fun (fieldDef, fieldVal) -> writeDval fieldDef fieldVal)))
+
+
+      | TypeDeclaration.Alias _, _
+      | TypeDeclaration.Record _, _
+      | TypeDeclaration.Enum _, _ ->
+        Exception.raiseInternal
+          "Value to be stored does not match a declared type"
+          [ "value", dv; "type", typ; "typeName", typeName ]
 
   // Not supported
   | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
@@ -136,8 +171,11 @@ let rec private toJsonV0
     w.writeObject (fun () ->
       w.WritePropertyName "Just"
       writeDval oType dv)
+
+  | TVariable _, _
   | TFn _, DFnVal _
   | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
+
   // exhaustiveness checking
   | TInt, _
   | TFloat, _
@@ -146,7 +184,6 @@ let rec private toJsonV0
   | TString, _
   | TList _, _
   | TDict _, _
-  | TCustomType _, _
   | TChar, _
   | TDateTime, _
   | TPassword, _
@@ -154,7 +191,6 @@ let rec private toJsonV0
   | TTuple _, _
   | TBytes, _
   | TOption _, _
-  | TVariable _, _ // CLEANUP: pass the map of variable names in
   | TDB _, _
   | TFn _, _ ->
     Exception.raiseInternal
@@ -206,36 +242,72 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
       objFields |> Map.mapWithIndex (fun k v -> convert typ v) |> DDict
-    | TCustomType(typeName, args), JsonValueKind.Object ->
+    | TCustomType(typeName, typeArgs), JsonValueKind.Object ->
       match Types.find typeName types with
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
-      | Some({ definition = TypeDeclaration.Alias(f1) }) -> convert f1 j
-      | Some({ definition = TypeDeclaration.Record(f1, fs) }) ->
-        let fields = f1 :: fs
-        let objFields =
-          j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-        if Map.count objFields = List.length fields then
-          fields
-          |> List.map (fun f ->
-            let dval =
-              match Map.tryFind f.name objFields with
-              | Some j -> convert f.typ j
-              | None -> Exception.raiseInternal "Missing field" [ "field", f.name ]
-            f.name, dval)
-          |> Map
-          |> fun map -> DRecord(typeName, map)
-        else
-          Exception.raiseInternal
-            "Record has incorrect field count"
-            [ "expected", List.length fields; "actual", Map.count objFields ]
-      | Some({ definition = TypeDeclaration.Enum(f1, fs) }) ->
-        Exception.raiseInternal "Enum not handled yet" [ "typeName", typeName ]
+      | Some decl ->
+        match decl.definition with
 
-    | TBytes _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TOption _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TFn _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TDB _, _ -> Exception.raiseInternal "Not supported yet" []
-    | TVariable _, _ -> Exception.raiseInternal "Not supported yet" []
+        | TypeDeclaration.Alias(typeRef) ->
+          let typ = Types.substitute decl.typeParams typeArgs typeRef
+          convert typ j
+
+        // JS object with the named fields
+        | TypeDeclaration.Record(f1, fs) ->
+          let fields = f1 :: fs
+          let objFields =
+            j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
+          if Map.count objFields = List.length fields then
+            fields
+            |> List.map (fun f ->
+              let dval =
+                match Map.tryFind f.name objFields with
+                | Some j ->
+                  let typ = Types.substitute decl.typeParams typeArgs f.typ
+                  convert typ j
+                | None ->
+                  Exception.raiseInternal "Missing field" [ "field", f.name ]
+              f.name, dval)
+            |> Map
+            |> fun map -> DRecord(typeName, map)
+          else
+            Exception.raiseInternal
+              "Record has incorrect field count"
+              [ "expected", List.length fields; "actual", Map.count objFields ]
+
+
+        | TypeDeclaration.Enum(f1, fs) ->
+          let fieldDefs = f1 :: fs
+          let objFields =
+            j.EnumerateObject()
+            |> Seq.toList
+            |> List.map (fun jp -> (jp.Name, jp.Value))
+
+          match objFields with
+          | []
+          | _ :: _ :: _ -> Exception.raiseInternal "Invalid enum" []
+          | [ caseName, fields ] ->
+            let caseDesc =
+              fieldDefs
+              |> List.find (fun c -> c.name = caseName)
+              |> Exception.unwrapOptionInternal "Couldn't find matching case" []
+
+            let fieldTypes =
+              caseDesc.fields
+              |> List.map (fun def ->
+                Types.substitute decl.typeParams typeArgs def.typ)
+
+            let fields =
+              fields.EnumerateArray() |> Seq.map2 convert fieldTypes |> Seq.toList
+            DEnum(typeName, caseName, fields)
+
+    | TBytes _, _ -> Exception.raiseInternal "Bytes values not supported yet" []
+    | TOption _, _ -> Exception.raiseInternal "Option values not supported yet" []
+
+    | TFn _, _ -> Exception.raiseInternal "Fn values not supported" []
+    | TDB _, _ -> Exception.raiseInternal "DB values not supported" []
+    | TVariable _, _ -> Exception.raiseInternal "Variables not supported yet" []
+
     // Exhaustiveness checking
     | TUnit, _
     | TBool, _

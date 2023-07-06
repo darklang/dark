@@ -1125,19 +1125,23 @@ module Types =
 
   // Swap concrete types for type parameters
   let rec substitute
-    (arguments : List<string * TypeReference>)
+    (typeParams : List<string>)
+    (typeArguments : List<TypeReference>)
     (typ : TypeReference)
     : TypeReference =
-    let substitute = substitute arguments
+    let substitute = substitute typeParams typeArguments
     match typ with
     | TVariable v ->
-      let matchingArg =
-        arguments |> List.filter (fun (name, _) -> name = v) |> List.map snd
+      if typeParams.Length = typeArguments.Length then
+        List.zip typeParams typeArguments
+        |> List.find (fun (param, _) -> param = v)
+        |> Option.map snd
+        |> Exception.unwrapOptionInternal "No type argument found for type parameter" []
+      else
+        Exception.raiseInternal
+          $"typeParams and typeArguments have different lengths"
+          [ "typeParams", typeParams; "typeArguments", typeArguments ]
 
-      match matchingArg with
-      | [ arg ] -> arg
-      | [] -> Exception.raiseInternal "No matching type arguments" []
-      | _ -> Exception.raiseInternal "Too many matching arguments" []
 
     | TUnit
     | TBool

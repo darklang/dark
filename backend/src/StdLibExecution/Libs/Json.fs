@@ -127,14 +127,6 @@ let rec serialize
     match Types.find typeName types with
     | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
     | Some decl ->
-      let arguments =
-        if typeArgs.Length = decl.typeParams.Length then
-          List.zip decl.typeParams typeArgs
-        else
-          Exception.raiseInternal
-            "Incorrect number of type arguments"
-            [ "expected", decl.typeParams.Length; "actual", typeArgs.Length ]
-
 
       match decl.definition with
       // TODO: handle typeArgs in Alias
@@ -153,7 +145,8 @@ let rec serialize
           | [ matchingCase ] ->
             let fieldDefs =
               matchingCase.fields
-              |> List.map (fun def -> Types.substitute arguments def.typ)
+              |> List.map (fun def ->
+                Types.substitute decl.typeParams typeArgs def.typ)
 
             if List.length fieldDefs <> List.length fields then
               Exception.raiseInternal
@@ -185,14 +178,13 @@ let rec serialize
               w.WritePropertyName fieldName
 
               let matchingFieldDef =
-                fieldDefs |> List.filter (fun def -> def.name = fieldName)
+                fieldDefs
+                |> List.tryFind (fun def -> def.name = fieldName)
+                |> Exception.unwrapOptionInternal "Couldn't find matching field" []
 
-              match matchingFieldDef with
-              | [] -> Exception.raiseInternal "Couldn't find matching field" []
-              | [ matchingFieldDef ] ->
-                let typ = Types.substitute arguments matchingFieldDef.typ
-                r typ dval
-              | _ -> Exception.raiseInternal "Too many matching fields" []))
+              let typ =
+                Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
+              r typ dval))
 
         | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
         | _ ->
@@ -383,18 +375,10 @@ let parse
       match Types.find typeName types with
       | None -> Exception.raiseInternal "TODO - type not found" []
       | Some decl ->
-        let arguments =
-          if typeArgs.Length = decl.typeParams.Length then
-            List.zip decl.typeParams typeArgs
-          else
-            Exception.raiseInternal
-              "Incorrect number of type arguments"
-              [ "expected", decl.typeParams.Length; "actual", typeArgs.Length ]
-
         match decl.definition with
         | TypeDeclaration.Alias alias ->
-          // TODO -- how do we pass in the type args here?
-          convert alias j
+          let aliasType = Types.substitute decl.typeParams typeArgs alias
+          convert aliasType j
 
         | TypeDeclaration.Enum(firstCase, additionalCases) ->
           if jsonValueKind <> JsonValueKind.Object then
@@ -412,9 +396,7 @@ let parse
             let matchingCase =
               (firstCase :: additionalCases)
               |> List.find (fun c -> c.name = caseName)
-            // TODO: handle 0 or 2+ matching cases
             let j = j.EnumerateArray() |> Seq.toList
-            // TODO: handle when lists aren't of same len
 
             if List.length matchingCase.fields <> List.length j then
               Exception.raiseInternal
@@ -424,7 +406,7 @@ let parse
             let mapped =
               List.zip matchingCase.fields j
               |> List.map (fun (typ, j) ->
-                let typ = Types.substitute arguments typ.typ
+                let typ = Types.substitute decl.typeParams typeArgs typ.typ
                 convert typ j)
 
             DEnum(typeName, caseName, mapped)
@@ -455,7 +437,7 @@ let parse
                 | [ matchingFieldDef ] -> matchingFieldDef.Value
                 | _ -> Exception.raiseInternal "Too many matching fields" []
 
-              let typ = Types.substitute arguments def.typ
+              let typ = Types.substitute decl.typeParams typeArgs def.typ
               let converted = convert typ correspondingValue
               (def.name, converted))
             |> Map.ofSeq
@@ -466,7 +448,6 @@ let parse
     // Explicitly not supported
     | TVariable _, _ ->
       // this should disappear when we use a TypeReference here rather than a TypeReference
-      // TYPESCLEANUP-I don't think it does, bunecessarily, but it should be knowable here
       JsonParseError.TypeUnsupported typ
       |> JsonParseError.JsonParseException
       |> raise
@@ -488,9 +469,6 @@ let parse
     | TPassword, _
     | TList _, _
     | TTuple _, _
-    | TFn _, _
-    | TDB _, _
-    | TVariable _, _
     | TCustomType _, _
     | TOption _, _
     | TDict _, _ ->
