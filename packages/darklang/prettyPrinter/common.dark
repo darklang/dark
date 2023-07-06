@@ -17,3 +17,20 @@ module Darklang =
       match s with
       | Positive -> ""
       | Negative -> "-"
+
+    let escapeSpecialCharacters (s: String) : String =
+      s
+      |> String.replaceAll "\n" "\\n"
+      |> String.replaceAll "\t" "\\t"
+      |> String.replaceAll "\r" "\\r"
+
+    let processRemainder (remainder: String) : String =
+      let rem = $".{remainder}" |> Float.parse
+
+      match rem with
+      | Ok r ->
+        if r == 0.0 then
+          "0"
+        else
+          (r |> Float.toString) |> String.dropFirst 2
+      | Error e -> e
