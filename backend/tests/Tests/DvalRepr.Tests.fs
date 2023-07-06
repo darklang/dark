@@ -19,6 +19,11 @@ module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module Errors = LibExecution.Errors
 module S = TestUtils.RTShortcuts
 
+
+let defaultTypes () =
+  { RT.Types.empty with
+      packageTypes = TestUtils.TestUtils.libraries.Force().Result.packageTypes }
+
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv
   |> DvalReprInternalRoundtrippable.toJsonV0
@@ -36,7 +41,7 @@ let queryableRoundtripsSuccessfullyInRecord
   let typeRef = S.userTypeReference [] "MyType" 0
 
   let types : RT.Types =
-    { RT.Types.empty with
+    { defaultTypes () with
         userProgramTypes =
           Map
             [ typeName,
@@ -52,8 +57,8 @@ let queryableRoundtripsSuccessfullyInRecord
 
 let queryableRoundtripsSuccessfully (dv : RT.Dval, typ : RT.TypeReference) : bool =
   dv
-  |> DvalReprInternalQueryable.toJsonStringV0 RT.Types.empty typ
-  |> DvalReprInternalQueryable.parseJsonV0 RT.Types.empty typ
+  |> DvalReprInternalQueryable.toJsonStringV0 (defaultTypes ()) typ
+  |> DvalReprInternalQueryable.parseJsonV0 (defaultTypes ()) typ
   |> Expect.dvalEquality dv
 
 
