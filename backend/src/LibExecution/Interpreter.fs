@@ -420,29 +420,35 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             let (_, newVars, traces) = checkPattern (incomplete pID) p
             false, newVars, traceIncompleteWithArgs id [] @ traces
 
-          | caseName, fieldPats, DEnum(_dTypeName, dCaseName, dFields) ->
+          | caseName, fieldPats, DEnum(_dTypeName, dCaseName, dFields) when
+            List.length dFields = List.length fieldPats && caseName = dCaseName
+            ->
+            let (passResults, newVarResults, traceResults) =
+              List.zip dFields fieldPats
+              |> List.map (fun (dv, pat) -> checkPattern dv pat)
+              |> List.unzip3
 
-            if
-              List.length dFields = List.length fieldPats && caseName = dCaseName
-            then
-              let (passResults, newVarResults, traceResults) =
-                List.zip dFields fieldPats
-                |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip3
+            let allPass = passResults |> List.forall identity
+            let allVars = newVarResults |> List.collect identity
+            let allSubTraces = traceResults |> List.collect identity
 
-              let allPass = passResults |> List.forall identity
-              let allVars = newVarResults |> List.collect identity
-              let allSubTraces = traceResults |> List.collect identity
-
-              if allPass then
-                true, allVars, (id, dv) :: allSubTraces
-              else
-                false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces
+            if allPass then
+              true, allVars, (id, dv) :: allSubTraces
             else
-              false, [], traceIncompleteWithArgs id fieldPats
+              false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces
 
+          // Trace this with incompletes to avoid type errors
           | _caseName, fieldPats, _dv ->
-            false, [], traceIncompleteWithArgs id fieldPats
+            let (newVarResults, traceResults) =
+              fieldPats
+              |> List.map (fun fp ->
+                let pID = MatchPattern.toID fp
+                let (_, newVars, traces) = checkPattern (incomplete pID) fp
+                newVars, traceIncompleteWithArgs id [] @ traces)
+              |> List.unzip
+            let allVars = newVarResults |> List.collect identity
+            let allSubTraces = traceResults |> List.collect identity
+            (false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces)
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
