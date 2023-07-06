@@ -297,11 +297,14 @@ module Darklang =
         | MPBool(_id, b) -> Bool.toString b
         | MPInt(_id, i) -> Int.toString i
         | MPFloat(_id, sign, whole, remainder) ->
-          let wholePart = whole
-
-          let remainderPart = $".{remainder}"
-
-          $"{PACKAGE.Darklang.PrettyPrinter.sign sign}{wholePart}{remainderPart}"
+          let rem = $".{remainder}" |> Float.parse
+          let remainderPart =
+              match rem with
+              | Ok r ->
+                  if r == 0.0 then "0"
+                  else (r  |> Float.toString) |> String.dropFirst 2
+              | Error e -> e
+          $"{PACKAGE.Darklang.PrettyPrinter.sign sign}{whole}.{remainderPart}"
 
         | MPChar(_id, c) -> c
         | MPString(_id, s) -> s
@@ -456,17 +459,10 @@ module Darklang =
           let remainderPart =
               match rem with
               | Ok r ->
-                  if r == 0.0 then ""
+                  if r == 0.0 then "0"
                   else (r  |> Float.toString) |> String.dropFirst 2
               | Error e -> e
-          let wholePart =
-              match whole with
-              | "0" -> if remainderPart != "" then "0" else ""
-              | _ -> whole
-          let formattedFloat =
-              if remainderPart == "" then $"{wholePart}.0"
-              else $"{wholePart}.{remainderPart}"
-          $"{signPart}{formattedFloat}"
+          $"{signPart}{whole}.{remainderPart}"
 
 
         | EChar(_id, c) -> "\"" ++ c ++ "\""
