@@ -297,17 +297,12 @@ module Darklang =
         | MPBool(_id, b) -> Bool.toString b
         | MPInt(_id, i) -> Int.toString i
         | MPFloat(_id, sign, whole, remainder) ->
-          let rem = $".{remainder}" |> Float.parse
-          let remainderPart =
-              match rem with
-              | Ok r ->
-                  if r == 0.0 then "0"
-                  else (r  |> Float.toString) |> String.dropFirst 2
-              | Error e -> e
+          let remainderPart = PACKAGE.Darklang.PrettyPrinter.processRemainder remainder
           $"{PACKAGE.Darklang.PrettyPrinter.sign sign}{whole}.{remainderPart}"
 
         | MPChar(_id, c) -> c
-        | MPString(_id, s) -> s
+        | MPString(_id, s) ->
+          $"\"{PACKAGE.Darklang.PrettyPrinter.escapeSpecialCharacters s}\""
 
         | MPList(_id, items) ->
           items
@@ -455,13 +450,7 @@ module Darklang =
         | EInt(_id, i) -> Int.toString i
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
-          let rem = $".{remainder}" |> Float.parse
-          let remainderPart =
-              match rem with
-              | Ok r ->
-                  if r == 0.0 then "0"
-                  else (r  |> Float.toString) |> String.dropFirst 2
-              | Error e -> e
+          let remainderPart = PACKAGE.Darklang.PrettyPrinter.processRemainder remainder
           $"{signPart}{whole}.{remainderPart}"
 
 
@@ -470,9 +459,7 @@ module Darklang =
         | EString(_id, segments) ->
           match segments with
           | [] -> "\"\""
-          | [ StringText text ] ->
-            let escapedText = String.replaceAll text "\n" "\\n"
-            $"\"{escapedText}\""
+          | [ StringText text ] -> $"\"{PACKAGE.Darklang.PrettyPrinter.escapeSpecialCharacters text}\""
           | segments ->
             let inner =
               segments
