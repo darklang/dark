@@ -1136,7 +1136,9 @@ module Types =
         List.zip typeParams typeArguments
         |> List.find (fun (param, _) -> param = v)
         |> Option.map snd
-        |> Exception.unwrapOptionInternal "No type argument found for type parameter" []
+        |> Exception.unwrapOptionInternal
+          "No type argument found for type parameter"
+          []
       else
         Exception.raiseInternal
           $"typeParams and typeArguments have different lengths"

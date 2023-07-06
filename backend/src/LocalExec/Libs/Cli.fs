@@ -68,15 +68,15 @@ let execute
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec" ] "ExecutionError" 0
       description = "Result of Execution"
-      declaration =  {
-        typeParams = []
-        definition =
-          TypeDeclaration.Record(
-            { name = "msg"; typ = TString; description = "The error message" },
-            [ { name = "metadata"
-                typ = TDict TString
-                description = "List of metadata as strings" } ]
-          )}
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "msg"; typ = TString; description = "The error message" },
+              [ { name = "metadata"
+                  typ = TDict TString
+                  description = "List of metadata as strings" } ]
+            ) }
       deprecated = NotDeprecated } ]
 
 
