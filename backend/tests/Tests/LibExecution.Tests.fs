@@ -89,12 +89,6 @@ let t
 
       let! (state : RT.ExecutionState) =
         executionStateFor canvasID internalFnsAllowed false rtDBs rtTypes rtFunctions
-      let state =
-        { state with
-            libraries =
-              { state.libraries with
-                  packageFns = state.libraries.packageFns
-                  packageTypes = state.libraries.packageTypes } }
 
       let msg = $"\n\n{actualExpr}\n=\n{expectedExpr} ->"
 
