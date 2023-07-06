@@ -272,6 +272,14 @@ module Get =
    DB.get "key2" XDB) = Just(X { x = "waffle" })
 
 
+module Params =
+  type Param<'a> =  { x : 'a; b : Int}
+  [<DB>] type ParamDB = Param<String>
+
+  (let _ = DB.set (Param { x = "hello"; b = 5 }) "key" ParamDB
+   DB.get "key" ParamDB) = Just(Param { x = "hello"; b = 5 })
+
+
 
 module GetAll =
   (let one = DB.set (SortedX { x = "hello"; sortBy = 0 }) "one" SortedXDB in
