@@ -28,5 +28,5 @@ module Darklang =
       let rem = $".{remainder}" |> Float.parse
 
       match rem with
-      | Ok r -> (r |> Float.toString) |> String.dropFirst 2
+      | Ok r -> r |> Float.toString |> String.dropFirst 2
       | Error e -> e
