@@ -16,7 +16,7 @@ module Darklang =
         (fn: 't -> 'u)
         : PACKAGE.Darklang.Stdlib.Result.Result<'u, 'e> =
         match result with
-        | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn value)
+        | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(value |> fn)
         | Error msg -> PACKAGE.Darklang.Stdlib.Result.Result.Error msg
 
 
@@ -30,7 +30,7 @@ module Darklang =
         : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'u> =
         match result with
         | Ok value -> PACKAGE.Darklang.Stdlib.Result.Result.Ok value
-        | Error value -> PACKAGE.Darklang.Stdlib.Result.Result.Error(fn value)
+        | Error value -> PACKAGE.Darklang.Stdlib.Result.Result.Error(value |> fn)
 
 
       /// If both <param result1> is {{Ok <var v1>}} and <param result2> is {{Ok <var
@@ -58,7 +58,7 @@ module Darklang =
         (fn: 't -> PACKAGE.Darklang.Stdlib.Result.Result<'u, 'e>)
         : PACKAGE.Darklang.Stdlib.Result.Result<'u, 'e> =
         match result with
-        | Ok value -> fn value
+        | Ok value -> value |> fn
         | Error msg -> PACKAGE.Darklang.Stdlib.Result.Result.Error msg
 
 
