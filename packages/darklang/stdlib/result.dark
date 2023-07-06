@@ -38,15 +38,16 @@ module Darklang =
       /// applied to <var v1> and <var v2>, and the result is wrapped in {{Ok}}.
       /// Otherwise, returns the first of <param result1> and <param result2> that is
       /// an error.
-      let map2
-        (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
-        (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
-        (fn: 'a -> 'b -> 'c)
-        : PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e> =
-        match (result1, result2) with
-        | (Ok v1, Ok v2) -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2)
-        | (Error e1, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
-        | (_, Error e2) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
+      /// TODO: not supported as we don't yet support applying against variables with arguments
+      // let map2
+      //   (result1: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'e>)
+      //   (result2: PACKAGE.Darklang.Stdlib.Result.Result<'b, 'e>)
+      //   (fn: 'a -> 'b -> 'c)
+      //   : PACKAGE.Darklang.Stdlib.Result.Result<'c, 'e> =
+      //   match (result1, result2) with
+      //   | (Ok v1, Ok v2) -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(fn v1 v2)
+      //   | (Error e1, _) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e1
+      //   | (_, Error e2) -> PACKAGE.Darklang.Stdlib.Result.Result.Error e2
 
 
       /// If <param result> is {{Ok <var value>}}, returns {{fn <var value>}}. The
