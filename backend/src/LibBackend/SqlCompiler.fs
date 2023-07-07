@@ -53,7 +53,6 @@ let rec dvalToSql
   | _, DDict _ // CLEANUP allow
   | _, DPassword _ // CLEANUP allow
   | _, DOption _ // CLEANUP allow
-  | _, DResult _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
   | _, DEnum _ // TODO: revisit
   | _, DRecord _
@@ -448,16 +447,16 @@ let rec lambdaToSql
         | TCustomType(typeName, args) ->
           match Types.find typeName types with
           // TODO: Deal with alias of record type
-          | Some(CustomType.Alias _) ->
+          | Some({ definition = TypeDeclaration.Alias _ }) ->
             error2
               "The datastore's type is not a record"
               (TypeName.toString typeName)
-          | Some(CustomType.Record(f1, fields)) ->
+          | Some({ definition = TypeDeclaration.Record(f1, fields) }) ->
             let field = f1 :: fields |> List.find (fun f -> f.name = fieldname)
             match field with
             | Some v -> v.typ
             | None -> error2 "The datastore does not have a field named" fieldname
-          | Some(CustomType.Enum _) ->
+          | Some({ definition = TypeDeclaration.Enum _ }) ->
             error2
               "The datastore's type is not a record"
               (TypeName.toString typeName)

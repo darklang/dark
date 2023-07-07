@@ -109,9 +109,9 @@ let testRecursionInEditor : Test =
 
         // 'else' expression
         // calls self ("recurse") resulting in recursion
-        PT.EFnCall(
+        PT.EApply(
           skippedCallerID,
-          PT.FnName.fqUserProgram [] "recurse" 0,
+          PT.FnTargetName(PT.FnName.fqUserProgram [] "recurse" 0),
           [],
           [ PT.EInt(gid (), 2) ]
         )
@@ -537,9 +537,14 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (let typeName = TypeName.fqBuiltIn [] "Result" 0
+        (let typeName =
+          TypeName.fqPackage
+            "Darklang"
+            (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+            "Result"
+            0
          eEnum typeName "Ok" [ eStr "y" ])
-        [ (pOkVarOkId, "ok pat 2", er (DResult(Ok(DString "y"))))
+        [ (pOkVarOkId, "ok pat 2", er (Dval.resultOk (DString "y")))
           (pOkVarVarId, "var pat", er (DString "y"))
           (okVarRhsId, "rhs", er (DString "ok: y"))
           (okVarRhsVarId, "rhs", er (DString "y"))

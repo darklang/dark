@@ -6,40 +6,40 @@ Bytes.empty_v0 = String.toBytes_v0 ""
 
 Bytes.length (String.toBytes_v0 "abcdef") = 6
 
-Bytes.base64Decode "white space" = Error "Not a valid base64 string"
-Bytes.base64Decode "Kw" = Ok(String.toBytes_v0 "+")
-Bytes.base64Decode "yLo" = Ok(String.toBytes_v0 "Ⱥ")
-Bytes.base64Decode "xbzDs8WCdw" = Ok(String.toBytes_v0 "żółw")
-Bytes.base64Decode "LyotKygmQDk4NTIx" = Ok(String.toBytes_v0 "/*-+(&@98521")
-Bytes.base64Decode "illegal-chars&@:" = Error "Not a valid base64 string"
-Bytes.base64Decode "x" = Error "Not a valid base64 string"
+Bytes.base64Decode "white space" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
+Bytes.base64Decode "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "+")
+Bytes.base64Decode "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "Ⱥ")
+Bytes.base64Decode "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "żółw")
+Bytes.base64Decode "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "/*-+(&@98521")
+Bytes.base64Decode "illegal-chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
+Bytes.base64Decode "x" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
 // empty case
-Bytes.base64Decode "" = Ok(String.toBytes_v0 "")
+Bytes.base64Decode "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "")
 // Test cases from the spec with padding added
-Bytes.base64Decode "Zg" = Ok(String.toBytes_v0 "f")
-Bytes.base64Decode "Zg==" = Ok(String.toBytes_v0 "f")
-Bytes.base64Decode "Zm8" = Ok(String.toBytes_v0 "fo")
-Bytes.base64Decode "Zm8=" = Ok(String.toBytes_v0 "fo")
-Bytes.base64Decode "Zm9v" = Ok(String.toBytes_v0 "foo")
-Bytes.base64Decode "Zm9vYg" = Ok(String.toBytes_v0 "foob")
-Bytes.base64Decode "Zm9vYg==" = Ok(String.toBytes_v0 "foob")
-Bytes.base64Decode "Zm9vYmE" = Ok(String.toBytes_v0 "fooba")
-Bytes.base64Decode "Zm9vYmE=" = Ok(String.toBytes_v0 "fooba")
-Bytes.base64Decode "Zm9vYmFy" = Ok(String.toBytes_v0 "foobar")
+Bytes.base64Decode "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "f")
+Bytes.base64Decode "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "f")
+Bytes.base64Decode "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "fo")
+Bytes.base64Decode "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "fo")
+Bytes.base64Decode "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "foo")
+Bytes.base64Decode "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "foob")
+Bytes.base64Decode "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "foob")
+Bytes.base64Decode "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "fooba")
+Bytes.base64Decode "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "fooba")
+Bytes.base64Decode "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "foobar")
 // "Impossible cases" from apache
 // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-Bytes.base64Decode "ZE==" = Ok(String.toBytes_v0 "d")
-Bytes.base64Decode "ZmC=" = Ok(String.toBytes_v0 "f`")
-Bytes.base64Decode "Zm9vYE==" = Ok(String.toBytes_v0 "foo`")
-Bytes.base64Decode "Zm9vYmC=" = Ok(String.toBytes_v0 "foob`")
-Bytes.base64Decode "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = Ok(String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
-Bytes.base64Decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = Ok(String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+Bytes.base64Decode "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "d")
+Bytes.base64Decode "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "f`")
+Bytes.base64Decode "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "foo`")
+Bytes.base64Decode "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "foob`")
+Bytes.base64Decode "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "from=06/07/2013 query=\"Καλώς ορίσατε\"")
+Bytes.base64Decode "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿")
 // These produce strings of bytes which are technically legal it seems
-Bytes.base64Decode "-p" = Ok(Test.asBytes_v0 [ 250 ])
-Bytes.base64Decode "lI" = Ok(Test.asBytes_v0 [ 148 ])
-Bytes.base64Decode "5Sk" = Ok(Test.asBytes_v0 [ 229; 41 ])
-Bytes.base64Decode "AA" = Ok(Test.asBytes_v0 [ 0 ])
-Bytes.base64Decode "_w" = Ok(Test.asBytes_v0 [ 255 ])
+Bytes.base64Decode "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.asBytes_v0 [ 250 ])
+Bytes.base64Decode "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.asBytes_v0 [ 148 ])
+Bytes.base64Decode "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.asBytes_v0 [ 229; 41 ])
+Bytes.base64Decode "AA" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.asBytes_v0 [ 0 ])
+Bytes.base64Decode "_w" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(Test.asBytes_v0 [ 255 ])
 
 
 

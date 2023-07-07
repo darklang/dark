@@ -121,10 +121,10 @@ module Alias =
   isEmpty([1;2;3]) = false
 
   // result alias
-  type IntResult = Result<Int, String>
-  let getIntResultValue(ir: IntResult) : Int = Result.withDefault_v0 ir 0
-  getIntResultValue(Ok 5) = 5
-  getIntResultValue(Error "error") = 0
+  type IntResult = PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
+  let getIntResultValue(ir: IntResult) : Int = PACKAGE.Darklang.Stdlib.Result.withDefault_v0 ir 0
+  getIntResultValue(PACKAGE.Darklang.Stdlib.Result.Result.Ok 5) = 5
+  getIntResultValue(PACKAGE.Darklang.Stdlib.Result.Result.Error "error") = 0
 
 
 module Records =
@@ -150,7 +150,7 @@ module Records =
   module Polymorphism =
     type MyRecord<'a> = { col1 : 'a; col2 : Int }
     (MyRecord { col1 = (); col2 = 1 }).col2 = 1
-    (MyRecord { col1 = Just(Ok 1); col2 = 1 }).col1 = Just(Ok 1)
+    (MyRecord { col1 = Just(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1); col2 = 1 }).col1 = Just(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
 
   module Nested =
     type NestedRecordA = { col1 : Int }
@@ -177,16 +177,14 @@ module Enums =
   Nothing = Nothing
   ((List.head []) == Nothing) = true
   (List.head []) = Nothing
-  Ok (Test.typeError_v0 "err") = Test.typeError_v0 "err"
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.typeError_v0 "err") = Test.typeError_v0 "err"
   Just (Test.typeError_v0 "err") = Test.typeError_v0 "err"
-  Error (Test.typeError_v0 "err") = Test.typeError_v0 "err"
+  PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.typeError_v0 "err") = Test.typeError_v0 "err"
 
   module Errors =
     module Builtins =
       Nothing 5 = Test.typeError "Option.Nothing expects 0 arguments but got 1"
       Just(5,6) = Test.typeError "Option.Just expects 1 argument but got 2"
-      Ok(5,6) = Test.typeError "Result.Ok expects 1 argument but got 2"
-      Error(5,6) = Test.typeError "Result.Error expects 1 argument but got 2"
 
     module User =
       type MyEnum = | A | B | C of String
@@ -196,8 +194,8 @@ module Enums =
       (match MyEnum.C "test" with | C v -> v) = "test"
       // TYPESCLEANUP
       // (match MyEnum.C "test" with | C -> v) = Test.typeError "TODO"
-      // (match MyEnum.C "test" with | D -> "ok" | C _ -> v) = Test.typeError "TODO"
-      // (match MyEnum.C "test" with | 5 -> "ok" | C _ -> v) = Test.typeError "TODO"
+      // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.typeError "TODO"
+      // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.typeError "TODO"
       (MyEnum.C 5) =
         Test.typeError "MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
 
@@ -243,8 +241,8 @@ module Enums =
                    EnumOfMixedCases.Y(5);
                    EnumOfMixedCases.Z("testZ", 2)]
     match List.getAt values 3 with
-    | Just z -> Ok z
-    | Nothing -> Error "Failure") = Ok (EnumOfMixedCases.Z ("testZ", 2))
+    | Just z -> PACKAGE.Darklang.Stdlib.Result.Result.Ok z
+    | Nothing -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Failure") = PACKAGE.Darklang.Stdlib.Result.Result.Ok (EnumOfMixedCases.Z ("testZ", 2))
 
     ([EnumOfMixedCases.W; EnumOfMixedCases.X "testX"; EnumOfMixedCases.Y(5); EnumOfMixedCases.Z("testZ", 2)]
      |> List.map_v0(fun v ->
@@ -370,6 +368,10 @@ module FnCall =
   Int.add_v0 5 3 = 8
   Int.add_v0 5 = Test.typeError_v0 "Int.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
+  // TODO - not yet suppported
+  // (let fn = (fun x -> x + 1)
+  //  fn 6) = 7
+
 
 module If =
   (if true then "correct" else 0) = "correct"
@@ -490,7 +492,7 @@ module Pipes =
   type MyEnum = A of Int * Int * Int
   (33 |> MyEnum.A 21 42) = MyEnum.A 33 21 42
 
-  (3 |> Ok) = Ok 3
+  (3 |> PACKAGE.Darklang.Stdlib.Result.Result.Ok) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
   (4 |> (+) 3 |> Just) = Just 7
   (Nothing |> Just) = Just Nothing
 
@@ -509,16 +511,16 @@ module Pipes =
    |> Option.withDefault_v0 Nothing
    |> (+) 3) = 6
 
-  ((Ok 3)
-   |> Result.withDefault_v0 0
+  ((PACKAGE.Darklang.Stdlib.Result.Result.Ok 3)
+   |> PACKAGE.Darklang.Stdlib.Result.withDefault_v0 0
    |> (+) 3) = 6
 
-  ((Error "err")
-   |> Result.withDefault_v0 0
+  ((PACKAGE.Darklang.Stdlib.Result.Result.Error "err")
+   |> PACKAGE.Darklang.Stdlib.Result.withDefault_v0 0
    |> (+) 3) = 3
 
-  (let x = fun a -> Result.withDefault_v0 a 1 in
-   (Error "err")
+  (let x = fun a -> PACKAGE.Darklang.Stdlib.Result.withDefault_v0 a 1 in
+   (PACKAGE.Darklang.Stdlib.Result.Result.Error "err")
    |> x
    |> (+) 3) = 4
 
@@ -532,10 +534,10 @@ module Pipes =
 
   (3
    |> Just
-   |> Result.fromOption "test") = Ok 3
+   |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
 
   (Nothing
-   |> Result.fromOption "test") = Error "test"
+   |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
 
 
 module Match =
@@ -567,7 +569,7 @@ module Match =
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | 5 -> "int"
   | (1, 2) -> "1 and 2"
@@ -580,7 +582,7 @@ module Match =
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | 5.6 -> "float"
   | (1, 2) -> "1 and 2"
@@ -593,7 +595,7 @@ module Match =
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | 1.1 -> "float"
   | (1, 2) -> "1 and 2"
@@ -606,7 +608,7 @@ module Match =
   | 5.6 -> "float"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | false -> "bool"
   | (1, 2) -> "1 and 2"
@@ -619,7 +621,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | "myStr" -> "string"
   | (1, 2) -> "1 and 2"
@@ -633,7 +635,7 @@ module Match =
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | (1, 2) -> "1 and 2"
   | [i] -> "list:" ++ i
@@ -645,7 +647,7 @@ module Match =
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | () -> "()"
   | (1, 2) -> "1 and 2"
@@ -653,17 +655,17 @@ module Match =
   | name -> name ++ "var") = "()"
 
   // constructor with arg
-  (match Ok "x" with
+  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok "x" with
   | 5 -> "int"
   | 5.6 -> "float"
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
   | Nothing -> "constructor nothing"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | (1, 2) -> "1 and 2"
   | [i] -> "list:" ++ i
-  | name -> name ++ "var") = "ok: x"
+  | name -> name ++ "var") = "PACKAGE.Darklang.Stdlib.Result.Result.Ok: x"
 
   // simple tuple
   (let tpl = (1, 2) in
@@ -681,7 +683,7 @@ module Match =
   | name -> name ++ "var") = "1 and 2"
 
   // nested tuple
-  (let tpl = (1, 2, (Ok 1, "four"), 5) in
+  (let tpl = (1, 2, (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1, "four"), 5) in
   match tpl with
   | 5 -> "int"
   | 5.6 -> "float"
@@ -730,7 +732,7 @@ module Match =
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | [i] -> "list:" ++ i
   | (1, 2) -> "1 and 2"
@@ -743,7 +745,7 @@ module Match =
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | Nothing -> "constructor nothing"
   | [i] -> "list:" ++ i
   | (1, 2) -> "1 and 2"
@@ -755,7 +757,7 @@ module Match =
   | false -> "bool"
   | "myStr" -> "string"
   | () -> "()"
-  | Ok x -> "ok: " ++ x
+  | Ok x -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok: " ++ x
   | [i] -> "list:" ++ i
   | (1, 2) -> "1 and 2"
   | Nothing -> "constructor nothing") = Test.typeError "No match"
@@ -847,8 +849,8 @@ module ErrorPropagation =
   5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   ("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
   Just (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-  Error (Test.typeError_v0 "test") = Test.typeError_v0 "test"
-  Ok (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+  PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+  PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.typeError_v0 "test") = Test.typeError_v0 "test"
 
 
   // pipe into error
@@ -861,12 +863,12 @@ module ErrorPropagation =
 module Shadowing =
   (let x = 5 in let x = 6 in x) = 6
   (let x = 35 in (match 6 with | x -> x)) = 6
-  (let x = 35 in (match Ok 6 with | Ok x -> x)) = 6
+  (let x = 35 in (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with | Ok x -> x)) = 6
   (let x = 35 in List.map_v0 [1;2;3;4] (fun x -> x + 2)) = [ 3; 4; 5; 6 ]
-  (let x = 35 in (match Ok 6 with | Ok x -> (List.map_v0 [1; 2; 3; 4] (fun x -> x + 2)))) = [ 3; 4; 5; 6]
-  (List.map_v0 [1;2;3;4] (fun x -> (let x = 35 in (match Ok 6 with | Ok x -> x + 2)))) = [ 8; 8; 8; 8 ]
-  (List.map_v0 [1;2;3;4] (fun x -> (match Ok 6 with | Ok x -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
-  (List.map_v0 [1;2;3;4] (fun x -> (match Ok (Ok 6) with | Ok (Ok x) -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
+  (let x = 35 in (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with | Ok x -> (List.map_v0 [1; 2; 3; 4] (fun x -> x + 2)))) = [ 3; 4; 5; 6]
+  (List.map_v0 [1;2;3;4] (fun x -> (let x = 35 in (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with | Ok x -> x + 2)))) = [ 8; 8; 8; 8 ]
+  (List.map_v0 [1;2;3;4] (fun x -> (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6 with | Ok x -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
+  (List.map_v0 [1;2;3;4] (fun x -> (match PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Result.Result.Ok 6) with | Ok (Ok x) -> let x = 9 in x + 2))) = [ 11; 11; 11; 11 ]
 
 
 // ---------------------------
@@ -916,9 +918,9 @@ module Equality =
   (Just 5 != Just 6) = true
   (Just (Just 0) != Just (Just 1)) = true
   (Just (Just 0) == Just (Just 0)) = true
-  (Error 0 == Error 0) = true
-  (Ok 0 == Ok 0) = true
-  (Ok 0 != Error 0) = true
+  (PACKAGE.Darklang.Stdlib.Result.Result.Error 0 == PACKAGE.Darklang.Stdlib.Result.Result.Error 0) = true
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0 == PACKAGE.Darklang.Stdlib.Result.Result.Ok 0) = true
+  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0 != PACKAGE.Darklang.Stdlib.Result.Result.Error 0) = true
   ((String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼") == (String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x)) = true
@@ -960,11 +962,11 @@ module UserDefined =
   let returnsOptionNothing () : Option<Int> =
     Nothing
 
-  let returnsResultOk () : Result<Int, 'err> =
-    Ok 5
+  let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, 'err> =
+    PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
 
-  let returnsResultError () : Result<String, Bool> =
-    Error false
+  let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<String, Bool> =
+    PACKAGE.Darklang.Stdlib.Result.Result.Error false
 
   let throwsException () : 'a =
     Test.raiseException "throwsException message"
@@ -980,7 +982,7 @@ module UserDefined =
     returnsOptionJust () = Just 5
     (returnsOptionJust ()) |> unwrap = 5
     returnsOptionNothing () = Nothing
-    returnsResultOk () = Ok 5
+    returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
     (returnsResultOk ()) |> unwrap = 5
     fnWithTypeArgAndOneParam<Int> 1 = 1
 
@@ -1017,9 +1019,9 @@ module Packages =
   PACKAGE.Darklang.Test.returnsOptionJust () = Just 5
   (PACKAGE.Darklang.Test.returnsOptionJust ()) |> unwrap = 5
   PACKAGE.Darklang.Test.returnsOptionNothing () = Nothing
-  PACKAGE.Darklang.Test.returnsResultOk () = Ok 5
+  PACKAGE.Darklang.Test.returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
   (PACKAGE.Darklang.Test.returnsResultOk ()) |> unwrap = 5
-  PACKAGE.Darklang.Test.returnsResultError () = Error false
+  PACKAGE.Darklang.Test.returnsResultError () = PACKAGE.Darklang.Stdlib.Result.Result.Error false
 
   module Invalid =
     PACKAGE.Darklang.Test.stringFn 5 = Test.typeError "PACKAGE.Darklang.Test.stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"

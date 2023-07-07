@@ -27,20 +27,14 @@
                 [
                   "TOption",
                   [
-                    "TResult",
+                    "TFn",
                     [
-                      "TInt"
+                      [
+                        "TFloat"
+                      ]
                     ],
                     [
-                      "TFn",
-                      [
-                        [
-                          "TFloat"
-                        ]
-                      ],
-                      [
-                        "TUnit"
-                      ]
+                      "TUnit"
                     ]
                   ]
                 ]
@@ -130,15 +124,6 @@
               "TBytes"
             ],
             [
-              "TResult",
-              [
-                "TInt"
-              ],
-              [
-                "TString"
-              ]
-            ],
-            [
               "TVariable",
               "v"
             ],
@@ -169,20 +154,14 @@
             [
               "TOption",
               [
-                "TResult",
+                "TFn",
                 [
-                  "TInt"
+                  [
+                    "TFloat"
+                  ]
                 ],
                 [
-                  "TFn",
-                  [
-                    [
-                      "TFloat"
-                    ]
-                  ],
-                  [
-                    "TUnit"
-                  ]
+                  "TUnit"
                 ]
               ]
             ]
@@ -270,15 +249,6 @@
         ],
         [
           "TBytes"
-        ],
-        [
-          "TResult",
-          [
-            "TInt"
-          ],
-          [
-            "TString"
-          ]
         ],
         [
           "TVariable",
@@ -470,20 +440,23 @@
                         "EIf",
                         46231874,
                         [
-                          "EFnCall",
+                          "EApply",
                           898531080,
                           [
-                            "BuiltIn",
-                            {
-                              "modules": [
-                                "Int"
-                              ],
-                              "name": [
-                                "FnName",
-                                "toString"
-                              ],
-                              "version": 0
-                            }
+                            "FnTargetName",
+                            [
+                              "BuiltIn",
+                              {
+                                "modules": [
+                                  "Int"
+                                ],
+                                "name": [
+                                  "FnName",
+                                  "toString"
+                                ],
+                                "version": 0
+                              }
+                            ]
                           ],
                           [
                             [
@@ -602,15 +575,6 @@
                             ],
                             [
                               "TBytes"
-                            ],
-                            [
-                              "TResult",
-                              [
-                                "TBool"
-                              ],
-                              [
-                                "TString"
-                              ]
                             ],
                             [
                               "TVariable",
@@ -739,20 +703,23 @@
                               "y"
                             ],
                             [
-                              "EFnCall",
+                              "EApply",
                               173079901,
                               [
-                                "BuiltIn",
-                                {
-                                  "modules": [
-                                    "Int"
-                                  ],
-                                  "name": [
-                                    "FnName",
-                                    "add"
-                                  ],
-                                  "version": 0
-                                }
+                                "FnTargetName",
+                                [
+                                  "BuiltIn",
+                                  {
+                                    "modules": [
+                                      "Int"
+                                    ],
+                                    "name": [
+                                      "FnName",
+                                      "add"
+                                    ],
+                                    "version": 0
+                                  }
+                                ]
                               ],
                               [],
                               [
@@ -868,9 +835,15 @@
                                     "EEnum",
                                     646107057,
                                     [
-                                      "BuiltIn",
+                                      "Package",
                                       {
-                                        "modules": [],
+                                        "owner": "Darklang",
+                                        "modules": {
+                                          "Head": "Stdlib",
+                                          "Tail": [
+                                            "Result"
+                                          ]
+                                        },
                                         "name": [
                                           "TypeName",
                                           "Result"
@@ -961,20 +934,23 @@
                               "EMatch",
                               889712088,
                               [
-                                "EFnCall",
+                                "EApply",
                                 203239466,
                                 [
-                                  "BuiltIn",
-                                  {
-                                    "modules": [
-                                      "Mod"
-                                    ],
-                                    "name": [
-                                      "FnName",
-                                      "function"
-                                    ],
-                                    "version": 2
-                                  }
+                                  "FnTargetName",
+                                  [
+                                    "BuiltIn",
+                                    {
+                                      "modules": [
+                                        "Mod"
+                                      ],
+                                      "name": [
+                                        "FnName",
+                                        "function"
+                                      ],
+                                      "version": 2
+                                    }
+                                  ]
                                 ],
                                 [],
                                 []

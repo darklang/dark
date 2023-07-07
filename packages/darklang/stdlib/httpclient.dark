@@ -5,7 +5,7 @@ module Darklang =
       let basicAuth
         (username: String)
         (password: String)
-        : Result<(String * String), String> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
         if String.contains "-" username then
           Error "Username cannot contain a hyphen"
         else

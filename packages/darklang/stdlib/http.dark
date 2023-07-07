@@ -170,7 +170,7 @@ module Darklang =
         (name: String)
         (value: String)
         (cookie: Cookie)
-        : Result<(String * String), String> =
+        : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
         if
           not (
             List.contains

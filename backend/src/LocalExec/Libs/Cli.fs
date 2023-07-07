@@ -68,14 +68,15 @@ let execute
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec" ] "ExecutionError" 0
       description = "Result of Execution"
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "msg"; typ = TString; description = "The error message" },
-          [ { name = "metadata"
-              typ = TDict TString
-              description = "List of metadata as strings" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "msg"; typ = TString; description = "The error message" },
+              [ { name = "metadata"
+                  typ = TDict TString
+                  description = "List of metadata as strings" } ]
+            ) }
       deprecated = NotDeprecated } ]
 
 
@@ -87,10 +88,10 @@ let fns : List<BuiltInFn> =
           Param.make "code" TString ""
           Param.make "symtable" (TList TString) "" ]
       returnType =
-        TResult(
-          TInt,
-          TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), [])
-        )
+        TypeReference.result
+          TInt
+          (TCustomType(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), []))
+
       description = "Parses and executes arbitrary Dark code"
       fn =
         function
@@ -99,14 +100,10 @@ let fns : List<BuiltInFn> =
             let err (msg : string) (metadata : List<string * string>) =
               let metadata = metadata |> List.map (fun (k, v) -> k, DString v) |> Map
               let fields = [ "msg", DString msg; "metadata", DDict metadata ]
-              DResult(
-                Error(
-                  DRecord(
-                    FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0),
-                    Map fields
-                  )
-                )
+              Dval.resultError (
+                DRecord(FQName.BuiltIn(typ [ "Cli" ] "ExecutionError" 0), Map fields)
               )
+
 
             let exnError (e : exn) : Dval =
               let msg = Exception.getMessages e |> String.concat "\n"
@@ -126,7 +123,7 @@ let fns : List<BuiltInFn> =
                 let symtable = [ ("args", args) ] |> Map.ofList
 
                 match! execute state mod' symtable with
-                | DInt i -> return DResult(Ok(DInt i))
+                | DInt i -> return Dval.resultOk (DInt i)
                 | DError(_, e) -> return err e []
                 | result ->
                   let asString = LibExecution.DvalReprDeveloper.toRepr result
@@ -136,6 +133,28 @@ let fns : List<BuiltInFn> =
               return exnError e
           }
         | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn [ "LocalExec"; "File" ] "read" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "" ]
+      returnType = TBytes
+      description =
+        "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes. This function exists as File.read uses a result, which isn't yet available in LocalExec"
+      fn =
+        (function
+        | _, _, [ DString path ] ->
+          uply {
+            try
+              let! contents = System.IO.File.ReadAllBytesAsync path
+              return DBytes contents
+            with e ->
+              return DError(SourceNone, $"Error reading file: {e.Message}")
+          }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

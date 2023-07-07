@@ -10,28 +10,24 @@
       ],
       "version": 0
     },
-    "typeParams": [
-      "a"
-    ],
-    "definition": [
-      "Record",
-      {
-        "name": "prop1",
-        "typ": [
-          "TTuple",
-          [
-            "TList",
+    "declaration": {
+      "typeParams": [
+        "a"
+      ],
+      "definition": [
+        "Record",
+        {
+          "name": "prop1",
+          "typ": [
+            "TTuple",
             [
-              "TDict",
+              "TList",
               [
-                "TDB",
+                "TDict",
                 [
-                  "TOption",
+                  "TDB",
                   [
-                    "TResult",
-                    [
-                      "TInt"
-                    ],
+                    "TOption",
                     [
                       "TFn",
                       [
@@ -46,119 +42,114 @@
                   ]
                 ]
               ]
-            ]
-          ],
-          [
-            "TInt"
-          ],
-          [
-            [
-              "TFloat"
             ],
             [
-              "TBool"
+              "TInt"
             ],
             [
-              "TUnit"
-            ],
-            [
-              "TString"
-            ],
-            [
-              "TList",
               [
-                "TInt"
-              ]
-            ],
-            [
-              "TTuple",
+                "TFloat"
+              ],
               [
-                "TInt"
+                "TBool"
+              ],
+              [
+                "TUnit"
               ],
               [
                 "TString"
               ],
-              []
-            ],
-            [
-              "TDict",
               [
-                "TInt"
-              ]
-            ],
-            [
-              "TDB",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "TDateTime"
-            ],
-            [
-              "TChar"
-            ],
-            [
-              "TPassword"
-            ],
-            [
-              "TUuid"
-            ],
-            [
-              "TOption",
-              [
-                "TInt"
-              ]
-            ],
-            [
-              "TCustomType",
-              [
-                "UserProgram",
-                {
-                  "modules": [
-                    "Mod"
-                  ],
-                  "name": [
-                    "TypeName",
-                    "name"
-                  ],
-                  "version": 0
-                }
-              ],
-              []
-            ],
-            [
-              "TBytes"
-            ],
-            [
-              "TResult",
-              [
-                "TInt"
-              ],
-              [
-                "TString"
-              ]
-            ],
-            [
-              "TVariable",
-              "v"
-            ],
-            [
-              "TFn",
-              [
+                "TList",
                 [
                   "TInt"
                 ]
               ],
               [
-                "TInt"
+                "TTuple",
+                [
+                  "TInt"
+                ],
+                [
+                  "TString"
+                ],
+                []
+              ],
+              [
+                "TDict",
+                [
+                  "TInt"
+                ]
+              ],
+              [
+                "TDB",
+                [
+                  "TInt"
+                ]
+              ],
+              [
+                "TDateTime"
+              ],
+              [
+                "TChar"
+              ],
+              [
+                "TPassword"
+              ],
+              [
+                "TUuid"
+              ],
+              [
+                "TOption",
+                [
+                  "TInt"
+                ]
+              ],
+              [
+                "TCustomType",
+                [
+                  "UserProgram",
+                  {
+                    "modules": [
+                      "Mod"
+                    ],
+                    "name": [
+                      "TypeName",
+                      "name"
+                    ],
+                    "version": 0
+                  }
+                ],
+                []
+              ],
+              [
+                "TBytes"
+              ],
+              [
+                "TVariable",
+                "v"
+              ],
+              [
+                "TFn",
+                [
+                  [
+                    "TInt"
+                  ]
+                ],
+                [
+                  "TInt"
+                ]
               ]
             ]
-          ]
-        ],
-        "description": "desc1"
-      },
-      []
+          ],
+          "description": "desc1"
+        },
+        []
+      ]
+    },
+    "description": "test description",
+    "deprecated": [
+      "NotDeprecated"
     ]
   }
 ]

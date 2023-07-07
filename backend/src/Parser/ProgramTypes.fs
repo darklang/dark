@@ -115,8 +115,6 @@ module TypeReference =
     // with type args
     | [], ("List", 0), [ arg ] -> PT.TList(fromSynType arg)
     | [], ("Option", 0), [ arg ] -> PT.TOption(fromSynType arg)
-    | [], ("Result", 0), [ okArg; errorArg ] ->
-      PT.TResult(fromSynType okArg, fromSynType errorArg)
     | [], ("Dict", 0), [ valArg ] -> PT.TDict(fromSynType valArg)
     // TYPESCLEANUP - don't use word Tuple here
     | [], ("Tuple", 0), first :: second :: theRest ->
@@ -186,7 +184,6 @@ module TypeReference =
       PT.TTuple(c first, c second, List.map c theRest)
     | PT.TList arg -> PT.TList(c arg)
     | PT.TOption arg -> PT.TOption(c arg)
-    | PT.TResult(okArg, errorArg) -> PT.TResult(c okArg, c errorArg)
     | PT.TDict valArg -> PT.TDict(c valArg)
     | PT.TVariable _ -> typ
     | PT.TDB arg -> PT.TDB(c arg)
@@ -378,7 +375,7 @@ module Expr =
 
     let synToPipeExpr (e : SynExpr) : PT.PipeExpr =
       match c e with
-      | PT.EFnCall(id, name, typeArgs, args) ->
+      | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
         PT.EPipeFnCall(id, name, typeArgs, args)
       | PT.EInfix(id, op, Placeholder, arg2) -> PT.EPipeInfix(id, op, arg2)
       | PT.EInfix(id, op, arg1, Placeholder) -> PT.EPipeInfix(id, op, arg1)
@@ -457,14 +454,14 @@ module Expr =
       ident.idText = "op_UnaryNegation"
       ->
       let name = PT.FnName.fqBuiltIn [ "Int" ] "negate" 0
-      PT.EFnCall(id, name, [], [])
+      PT.EApply(id, PT.FnTargetName name, [], [])
 
 
     // One word functions like `equals`
     | SynExpr.Ident ident when Set.contains ident.idText PT.FnName.oneWordFunctions ->
       match parseFn ident.idText with
       | Some(name, version) ->
-        PT.EFnCall(id, PT.FnName.fqBuiltIn [] name version, [], [])
+        PT.EApply(id, PT.FnTargetName(PT.FnName.fqBuiltIn [] name version), [], [])
       | None -> PT.EVariable(id, ident.idText)
 
     // List literals
@@ -492,13 +489,7 @@ module Expr =
 
     // Enum values (EEnums)
     // TODO: remove this explicit handling
-    // when the Option and Result types are defined in StdLib
-    | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
-      List.contains name.idText [ "Ok"; "Error" ]
-      ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Result" 0
-      PT.EEnum(id, typeName, name.idText, convertEnumArg arg)
-
+    // when the Option type are defined in StdLib
     | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
       List.contains name.idText [ "Nothing"; "Just" ]
       ->
@@ -509,22 +500,6 @@ module Expr =
     | SynExpr.Ident name when List.contains name.idText [ "Nothing"; "Just" ] ->
       let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
       PT.EEnum(id, typeName, name.idText, [])
-
-    | SynExpr.Ident name when List.contains name.idText [ "Ok"; "Error" ] ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Result" 0
-      PT.EEnum(id, typeName, name.idText, [])
-
-    // Package manager function calls
-    // (preliminary support)
-    | SynExpr.LongIdent(_, SynLongIdent([ owner; modName; fnName ], _, _), _, _) when
-      owner.idText = "Test" && modName.idText = "Test"
-      ->
-      PT.EFnCall(
-        gid (),
-        PT.FnName.fqPackage "test" (NonEmptyList.singleton "Test") fnName.idText 0,
-        [],
-        []
-      )
 
 
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
@@ -543,7 +518,12 @@ module Expr =
 
       match parseFn name with
       | Some(name, version) ->
-        PT.EFnCall(gid (), PT.FnName.fqUserProgram modules name version, [], [])
+        PT.EApply(
+          gid (),
+          PT.FnTargetName(PT.FnName.fqUserProgram modules name version),
+          [],
+          []
+        )
       | None ->
         match parseEnum name with
         | Some enumName ->
@@ -576,7 +556,12 @@ module Expr =
         |> Exception.unwrapOptionInternal
           "invalid fn name"
           [ "name", name.idText; "ast", ast ]
-      PT.EFnCall(gid (), PT.FnName.fqUserProgram [] name version, typeArgs, [])
+      PT.EApply(
+        gid (),
+        PT.FnTargetName(PT.FnName.fqUserProgram [] name version),
+        typeArgs,
+        []
+      )
 
     // e.g. `Module1.Module2.fnName<String>`
     | SynExpr.TypeApp(SynExpr.LongIdent(_,
@@ -602,9 +587,9 @@ module Expr =
         let typeArgs =
           typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-        PT.EFnCall(
+        PT.EApply(
           gid (),
-          PT.FnName.fqUserProgram modules name version,
+          PT.FnTargetName(PT.FnName.fqUserProgram modules name version),
           typeArgs,
           []
         )
@@ -795,8 +780,8 @@ module Expr =
     // Callers with multiple args are encoded as apps wrapping other apps.
     | SynExpr.App(_, _, funcExpr, arg, _) -> // function application (binops and fncalls)
       match c funcExpr with
-      | PT.EFnCall(id, name, typeArgs, args) ->
-        PT.EFnCall(id, name, typeArgs, args @ [ c arg ])
+      | PT.EApply(id, name, typeArgs, args) ->
+        PT.EApply(id, name, typeArgs, args @ [ c arg ])
       | PT.EInfix(id, op, Placeholder, arg2) -> PT.EInfix(id, op, c arg, arg2)
       | PT.EInfix(id, op, arg1, Placeholder) -> PT.EInfix(id, op, arg1, c arg)
       // A pipe with one entry
@@ -808,7 +793,12 @@ module Expr =
       | PT.EVariable(id, name) ->
         parseFn name
         |> Option.map (fun (name, version) ->
-          PT.EFnCall(id, PT.FnName.fqUserProgram [] name version, [], [ c arg ]))
+          PT.EApply(
+            id,
+            PT.FnTargetName(PT.FnName.fqUserProgram [] name version),
+            [],
+            [ c arg ]
+          ))
         |> Option.orElseWith (fun () ->
           parseEnum name
           |> Option.map (fun name ->
@@ -866,6 +856,13 @@ module Expr =
         match e with
         | PT.EPipeFnCall(id, name, typeArgs, args) ->
           PT.EPipeFnCall(id, name, typeArgs, args)
+        | PT.EPipeEnum(id, typeName, caseName, fields) ->
+          PT.EPipeEnum(
+            id,
+            TypeName.resolveNames userTypes typeName,
+            caseName,
+            fields
+          )
         // pipes with variables might be fn calls
         | PT.EPipeVariable(id, name) ->
           match parseFn name with
@@ -1044,16 +1041,16 @@ module PackageFn =
       body = Expr.resolveNames Set.empty Set.empty f.body }
 
 
-module CustomType =
+module TypeDeclaration =
   module EnumCase =
-    let private parseField (typ : SynField) : PT.CustomType.EnumField =
+    let private parseField (typ : SynField) : PT.TypeDeclaration.EnumField =
       match typ with
       | SynField(_, _, fieldName, typ, _, _, _, _, _) ->
         { typ = TypeReference.fromSynType typ
           label = fieldName |> Option.map (fun id -> id.idText)
           description = "" }
 
-    let parseCase (case : SynUnionCase) : PT.CustomType.EnumCase =
+    let parseCase (case : SynUnionCase) : PT.TypeDeclaration.EnumCase =
       match case with
       | SynUnionCase(_, SynIdent(id, _), typ, _, _, _, _) ->
         match typ with
@@ -1063,8 +1060,8 @@ module CustomType =
 
     let resolveNames
       (userTypes : Set<PT.TypeName.UserProgram>)
-      (t : PT.CustomType.EnumCase)
-      : PT.CustomType.EnumCase =
+      (t : PT.TypeDeclaration.EnumCase)
+      : PT.TypeDeclaration.EnumCase =
       { name = t.name
         fields =
           t.fields
@@ -1074,7 +1071,7 @@ module CustomType =
 
 
   module RecordField =
-    let parseField (field : SynField) : PT.CustomType.RecordField =
+    let parseField (field : SynField) : PT.TypeDeclaration.RecordField =
       match field with
       | SynField(_, _, Some id, typ, _, _, _, _, _) ->
         { name = id.idText; typ = TypeReference.fromSynType typ; description = "" }
@@ -1082,13 +1079,13 @@ module CustomType =
 
     let resolveNames
       (userTypes : Set<PT.TypeName.UserProgram>)
-      (t : PT.CustomType.RecordField)
-      : PT.CustomType.RecordField =
+      (t : PT.TypeDeclaration.RecordField)
+      : PT.TypeDeclaration.RecordField =
       { name = t.name
         typ = TypeReference.resolveNames userTypes t.typ
         description = t.description }
 
-  let fromFields typeDef (fields : List<SynField>) : PT.CustomType.T =
+  let fromFields typeDef (fields : List<SynField>) : PT.TypeDeclaration.Definition =
     match fields with
     | [] ->
       Exception.raiseInternal
@@ -1096,86 +1093,99 @@ module CustomType =
         [ "typeDef", typeDef ]
     | firstField :: additionalFields ->
 
-      PT.CustomType.Record(
+      PT.TypeDeclaration.Record(
         RecordField.parseField firstField,
         List.map RecordField.parseField additionalFields
       )
 
-  let fromCases typeDef (cases : List<SynUnionCase>) : PT.CustomType.T =
-    let firstCase, additionalCases =
-      match cases with
-      | [] ->
-        Exception.raiseInternal
-          $"Can't parse enum without any cases"
-          [ "typeDef", typeDef ]
-      | firstCase :: additionalCases -> firstCase, additionalCases
+  module Definition =
+    let fromCases
+      typeDef
+      (cases : List<SynUnionCase>)
+      : PT.TypeDeclaration.Definition =
+      let firstCase, additionalCases =
+        match cases with
+        | [] ->
+          Exception.raiseInternal
+            $"Can't parse enum without any cases"
+            [ "typeDef", typeDef ]
+        | firstCase :: additionalCases -> firstCase, additionalCases
 
-    PT.CustomType.Enum(
-      EnumCase.parseCase firstCase,
-      List.map EnumCase.parseCase additionalCases
-    )
+      PT.TypeDeclaration.Enum(
+        EnumCase.parseCase firstCase,
+        List.map EnumCase.parseCase additionalCases
+      )
 
 
-  let fromSynTypeDefn
-    (typeDef : SynTypeDefn)
-    : (List<string> * List<string> * PT.CustomType.T) =
-    match typeDef with
-    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
-                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
-                                         _),
-                  _,
-                  _,
-                  _,
-                  _) ->
-      SimpleTypeArgs.fromSynTyparDecls typeParams,
-      ids |> List.map string,
-      PT.CustomType.Alias(TypeReference.fromSynType typ)
+    let fromSynTypeDefn
+      (typeDef : SynTypeDefn)
+      : (List<string> * List<string> * PT.TypeDeclaration.Definition) =
+      match typeDef with
+      | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
+                    SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
+                                           _),
+                    _,
+                    _,
+                    _,
+                    _) ->
+        SimpleTypeArgs.fromSynTyparDecls typeParams,
+        ids |> List.map string,
+        PT.TypeDeclaration.Alias(TypeReference.fromSynType typ)
 
-    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
-                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Record(_, fields, _),
-                                         _),
-                  _,
-                  _,
-                  _,
-                  _) ->
-      SimpleTypeArgs.fromSynTyparDecls typeParams,
-      ids |> List.map string,
-      fromFields typeDef fields
+      | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
+                    SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Record(_, fields, _),
+                                           _),
+                    _,
+                    _,
+                    _,
+                    _) ->
+        SimpleTypeArgs.fromSynTyparDecls typeParams,
+        ids |> List.map string,
+        fromFields typeDef fields
 
-    | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
-                  SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Union(_, cases, _), _),
-                  _,
-                  _,
-                  _,
-                  _) ->
-      SimpleTypeArgs.fromSynTyparDecls typeParams,
-      ids |> List.map string,
-      fromCases typeDef cases
-    | _ ->
-      Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
+      | SynTypeDefn(SynComponentInfo(_, typeParams, _, ids, _, _, _, _),
+                    SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Union(_, cases, _),
+                                           _),
+                    _,
+                    _,
+                    _,
+                    _) ->
+        SimpleTypeArgs.fromSynTyparDecls typeParams,
+        ids |> List.map string,
+        fromCases typeDef cases
+      | _ ->
+        Exception.raiseInternal $"Unsupported type definition" [ "typeDef", typeDef ]
+
+    let resolveNames
+      (userTypes : Set<PT.TypeName.UserProgram>)
+      (t : PT.TypeDeclaration.Definition)
+      : PT.TypeDeclaration.Definition =
+      match t with
+      | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+        PT.TypeDeclaration.Enum(
+          EnumCase.resolveNames userTypes firstCase,
+          additionalCases |> List.map (EnumCase.resolveNames userTypes)
+        )
+      | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+        PT.TypeDeclaration.Record(
+          RecordField.resolveNames userTypes firstField,
+          additionalFields |> List.map (RecordField.resolveNames userTypes)
+        )
+      | PT.TypeDeclaration.Alias typ ->
+        PT.TypeDeclaration.Alias(TypeReference.resolveNames userTypes typ)
 
   let resolveNames
     (userTypes : Set<PT.TypeName.UserProgram>)
-    (t : PT.CustomType.T)
-    : PT.CustomType.T =
-    match t with
-    | PT.CustomType.Enum(firstCase, additionalCases) ->
-      PT.CustomType.Enum(
-        EnumCase.resolveNames userTypes firstCase,
-        additionalCases |> List.map (EnumCase.resolveNames userTypes)
-      )
-    | PT.CustomType.Record(firstField, additionalFields) ->
-      PT.CustomType.Record(
-        RecordField.resolveNames userTypes firstField,
-        additionalFields |> List.map (RecordField.resolveNames userTypes)
-      )
-    | PT.CustomType.Alias typ ->
-      PT.CustomType.Alias(TypeReference.resolveNames userTypes typ)
+    (t : PT.TypeDeclaration.T)
+    : PT.TypeDeclaration.T =
+    { definition = Definition.resolveNames userTypes t.definition
+      typeParams = t.typeParams }
 
 
 module UserType =
   let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.UserType.T =
-    let (typeParamNames, names, definition) = CustomType.fromSynTypeDefn typeDef
+    let (typeParams, names, definition) =
+      TypeDeclaration.Definition.fromSynTypeDefn typeDef
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
@@ -1186,8 +1196,9 @@ module UserType =
 
     { tlid = gid ()
       name = PT.TypeName.userProgram modules name version
-      typeParams = typeParamNames
-      definition = definition }
+      description = ""
+      deprecated = PT.NotDeprecated
+      declaration = { definition = definition; typeParams = typeParams } }
 
   let resolveNames
     (userTypes : Set<PT.TypeName.UserProgram>)
@@ -1195,8 +1206,9 @@ module UserType =
     : PT.UserType.T =
     { tlid = t.tlid
       name = t.name
-      typeParams = t.typeParams
-      definition = CustomType.resolveNames userTypes t.definition }
+      declaration = TypeDeclaration.resolveNames userTypes t.declaration
+      description = ""
+      deprecated = PT.NotDeprecated }
 
 module PackageType =
   let fromSynTypeDefn
@@ -1204,7 +1216,8 @@ module PackageType =
     (modules : NonEmptyList<string>)
     (typeDef : SynTypeDefn)
     : PT.PackageType.T =
-    let (typeParmNames, names, definition) = CustomType.fromSynTypeDefn typeDef
+    let (typeParams, names, definition) =
+      TypeDeclaration.Definition.fromSynTypeDefn typeDef
     let (name, version) =
       List.last names
       |> Exception.unwrapOptionInternal
@@ -1216,8 +1229,7 @@ module PackageType =
       name = PT.TypeName.package owner modules name version
       description = ""
       deprecated = PT.NotDeprecated
-      typeParams = typeParmNames
-      definition = definition }
+      declaration = { typeParams = typeParams; definition = definition } }
 
   let resolveNames (f : PT.PackageType.T) : PT.PackageType.T =
     { tlid = f.tlid
@@ -1225,8 +1237,7 @@ module PackageType =
       name = f.name
       description = f.description
       deprecated = f.deprecated
-      typeParams = f.typeParams
-      definition = CustomType.resolveNames Set.empty f.definition }
+      declaration = TypeDeclaration.resolveNames Set.empty f.declaration }
 
 
 /// Returns an incomplete parse of a PT expression. Requires calling

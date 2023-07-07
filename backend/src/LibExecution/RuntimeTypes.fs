@@ -295,7 +295,6 @@ type TypeReference =
   | TVariable of string
   | TCustomType of TypeName.T * typeArgs : List<TypeReference> // CLEANUP check all uses
   | TOption of TypeReference // CLEANUP remove
-  | TResult of TypeReference * TypeReference // CLEANUP remove
   | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
@@ -314,7 +313,6 @@ type TypeReference =
       | TDB t -> isConcrete t
       | TCustomType(_, ts) -> List.forall isConcrete ts
       | TOption t -> isConcrete t
-      | TResult(t1, t2) -> isConcrete t1 && isConcrete t2
       | TDict t -> isConcrete t
       // exhaustiveness
       | TUnit
@@ -329,7 +327,16 @@ type TypeReference =
       | TPassword -> true
     isConcrete this
 
-
+module TypeReference =
+  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
+    TCustomType(
+      TypeName.fqPackage
+        "Darklang"
+        (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+        "Result"
+        0,
+      [ t1; t2 ]
+    )
 
 
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
@@ -481,10 +488,9 @@ and [<NoComparison>] Dval =
 
   | DDict of DvalMap
 
-  // TODO: merge DOption and DResult into DEnum once the Option and Result types
+  // TODO: merge DOption into DEnum once the Option and Result types
   // are defined in the Option and Result modules of the standard library
   | DOption of Option<Dval>
-  | DResult of Result<Dval, Dval>
 
   | DRecord of TypeName.T * DvalMap
   | DEnum of TypeName.T * caseName : string * List<Dval>
@@ -531,9 +537,22 @@ and BuiltInParam =
 
 and Param = { name : string; typ : TypeReference }
 
+// Used to mark whether a function/type has been deprecated, and if so,
+// details about possible replacements/alternatives, and reasoning
+type Deprecation<'name> =
+  | NotDeprecated
 
-module CustomType =
-  // TYPESCLEANUP support type parameters
+  // The exact same thing is available under a new, preferred name
+  | RenamedTo of 'name
+
+  /// This has been deprecated and has a replacement we can suggest
+  | ReplacedBy of 'name
+
+  /// This has been deprecated and not replaced, provide a message for the user
+  | DeprecatedBecause of string
+
+
+module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
   type Alias = { typ : TypeReference }
 
@@ -542,10 +561,12 @@ module CustomType =
 
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
-  type T =
+  type Definition =
     | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  type T = { typeParams : List<string>; definition : Definition }
 
 // Functions for working with Dark runtime expressions
 module Expr =
@@ -658,9 +679,7 @@ module Dval =
     | DFnVal(Lambda l), TFn(parameters, _) ->
       List.length parameters = List.length l.parameters
     | DOption None, TOption _ -> true
-    | DOption(Some v), TOption t
-    | DResult(Ok v), TResult(t, _) -> typeMatches t v
-    | DResult(Error v), TResult(_, t) -> typeMatches t v
+    | DOption(Some v), TOption t -> typeMatches t v
 
     | DRecord(typeName, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
@@ -695,7 +714,6 @@ module Dval =
     | DRecord _, _
     | DFnVal _, _
     | DOption _, _
-    | DResult _, _
     | DEnum _, _ -> false
 
 
@@ -757,12 +775,19 @@ module Dval =
       fields
 
 
+  let resultType =
+    TypeName.fqPackage
+      "Darklang"
+      (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+      "Result"
+      0
 
-  let resultOk (dv : Dval) : Dval = if isFake dv then dv else DResult(Ok dv)
+  let resultOk (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(resultType, "Ok", [ dv ])
+  let resultError (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(resultType, "Error", [ dv ])
 
-  let resultError (dv : Dval) : Dval = if isFake dv then dv else DResult(Error dv)
-
-  // Wraps in a DResult after checking that the value is not a fakeval
+  // Wraps in a Result after checking that the value is not a fakeval
   let result (dv : Result<Dval, Dval>) : Dval =
     match dv with
     | Ok dv -> resultOk dv
@@ -802,10 +827,7 @@ module DB =
 
 module UserType =
   type T =
-    { tlid : tlid
-      name : TypeName.UserProgram
-      typeParams : List<string>
-      definition : CustomType.T }
+    { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -852,8 +874,7 @@ module PackageFn =
       body : Expr }
 
 module PackageType =
-  type T =
-    { name : TypeName.Package; typeParams : List<string>; definition : CustomType.T }
+  type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 
 // <summary>
@@ -879,20 +900,6 @@ type Previewable =
   // Can only be run on the server. e.g. `DB.update`
   // We should save the results.
   | Impure
-
-// Used to mark whether a function/type has been deprecated, and if so,
-// details about possible replacements/alternatives, and reasoning
-type Deprecation<'name> =
-  | NotDeprecated
-
-  // The exact same thing is available under a new, preferred name
-  | RenamedTo of 'name
-
-  /// This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of 'name
-
-  /// This has been deprecated and not replaced, provide a message for the user
-  | DeprecatedBecause of string
 
 // Used to mark whether a function has an equivalent that can be
 // used within a Postgres query.
@@ -942,8 +949,10 @@ type SqlSpec =
 // A built-in standard library type
 type BuiltInType =
   { name : TypeName.BuiltIn
-    typeParams : List<string>
-    definition : CustomType.T
+    declaration : TypeDeclaration.T
+    // description and deprecated are here because they're not needed in
+    // TypeDeclaration for Package and UserProgram types, where we have them in
+    // ProgramTypes and don't propagate them to RuntimeTypes
     description : string
     deprecated : Deprecation<TypeName.T> }
 
@@ -1105,14 +1114,58 @@ module Types =
       packageTypes = Map.empty
       userProgramTypes = Map.empty }
 
-  let find (name : TypeName.T) (types : Types) : Option<CustomType.T> =
+  let find (name : TypeName.T) (types : Types) : Option<TypeDeclaration.T> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.declaration)
     | FQName.UserProgram user ->
-      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.declaration)
     | FQName.Package pkg ->
-      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.declaration)
+
+  // Swap concrete types for type parameters
+  let rec substitute
+    (typeParams : List<string>)
+    (typeArguments : List<TypeReference>)
+    (typ : TypeReference)
+    : TypeReference =
+    let substitute = substitute typeParams typeArguments
+    match typ with
+    | TVariable v ->
+      if typeParams.Length = typeArguments.Length then
+        List.zip typeParams typeArguments
+        |> List.find (fun (param, _) -> param = v)
+        |> Option.map snd
+        |> Exception.unwrapOptionInternal
+          "No type argument found for type parameter"
+          []
+      else
+        Exception.raiseInternal
+          $"typeParams and typeArguments have different lengths"
+          [ "typeParams", typeParams; "typeArguments", typeArguments ]
+
+
+    | TUnit
+    | TBool
+    | TInt
+    | TFloat
+    | TChar
+    | TString
+    | TUuid
+    | TBytes
+    | TDateTime
+    | TPassword -> typ
+
+    | TList t -> TList(substitute t)
+    | TTuple(t1, t2, rest) ->
+      TTuple(substitute t1, substitute t2, List.map substitute rest)
+    | TFn _ -> typ
+    | TDB _ -> typ
+    | TCustomType(typeName, typeArgs) ->
+      TCustomType(typeName, List.map substitute typeArgs)
+    | TOption t -> TOption(substitute t)
+    | TDict t -> TDict(substitute t)
+
 
 
 let rec getTypeReferenceFromAlias
@@ -1122,7 +1175,7 @@ let rec getTypeReferenceFromAlias
   match typ with
   | TCustomType(typeName, typeArgs) ->
     match Types.find typeName types with
-    | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
+    | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
       getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
     | _ -> typ
   | _ -> typ

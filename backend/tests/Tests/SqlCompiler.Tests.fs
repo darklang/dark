@@ -28,13 +28,13 @@ let compile
 
     let typeName : TypeName.UserProgram =
       { modules = []; name = TypeName.TypeName "MyType"; version = 0 }
-    let field : CustomType.RecordField =
+    let field : TypeDeclaration.RecordField =
       { name = rowName; typ = rowType; description = "" }
     let userType : UserType.T =
       { tlid = gid ()
         name = typeName
-        typeParams = []
-        definition = CustomType.Record(field, []) }
+        declaration =
+          { typeParams = []; definition = TypeDeclaration.Record(field, []) } }
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQName.UserProgram typeName, [])
 
@@ -134,8 +134,7 @@ let inlineWorksAtRoot =
 
     let expected = p "3 + 5"
     let result = C.inline' "value" Map.empty expr
-    let types = Types.empty
-    Expect.equalExprIgnoringIDs types result expected
+    Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithNested =
@@ -144,8 +143,7 @@ let inlineWorksWithNested =
 
     let expected = p "3 + 7"
     let result = C.inline' "value" Map.empty expr
-    let types = Types.empty
-    Expect.equalExprIgnoringIDs types result expected
+    Expect.equalExprIgnoringIDs result expected
   }
 
 let partialEvaluation =

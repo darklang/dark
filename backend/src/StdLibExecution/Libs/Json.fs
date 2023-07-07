@@ -121,81 +121,77 @@ let rec serialize
     w.writeObject (fun () ->
       w.WritePropertyName "Just"
       r oType dv)
-  | TResult(okType, _), DResult(Ok dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Ok"
-      r okType dv)
-  | TResult(_, errType), DResult(Error dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Error"
-      r errType dv)
 
-  | TCustomType(typeName, _typeArgs), dval ->
-    // TODO: try find exactly one matching type
+  | TCustomType(typeName, typeArgs), dval ->
 
     match Types.find typeName types with
-    | Some(CustomType.Alias typ) -> r typ dv
+    | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
+    | Some decl ->
 
-    | Some(CustomType.Enum(firstCase, additionalCases)) ->
-      // TODO: ensure that the type names are the same
-      // TODO: _something_ with the type args
-      //   (or maybe we just need to revisit once TypeDefinition is present)
+      match decl.definition with
+      // TODO: handle typeArgs in Alias
+      | TypeDeclaration.Alias typ -> r typ dv
 
-      match dval with
-      | DEnum(dTypeName, caseName, fields) ->
-        let matchingCase =
-          (firstCase :: additionalCases) |> List.filter (fun c -> c.name = caseName)
+      | TypeDeclaration.Enum(firstCase, additionalCases) ->
+        match dval with
+        | DEnum(dTypeName, caseName, fields) ->
+          let matchingCase =
+            (firstCase :: additionalCases)
+            |> List.filter (fun c -> c.name = caseName)
 
-        match matchingCase with
-        | [] ->
-          Exception.raiseInternal $"Couldn't find matching case for {caseName}" []
-        | [ matchingCase ] ->
-          let fieldDefs = matchingCase.fields |> List.map (fun def -> def.typ)
+          match matchingCase with
+          | [] ->
+            Exception.raiseInternal $"Couldn't find matching case for {caseName}" []
+          | [ matchingCase ] ->
+            let fieldDefs =
+              matchingCase.fields
+              |> List.map (fun def ->
+                Types.substitute decl.typeParams typeArgs def.typ)
 
-          if List.length fieldDefs <> List.length fields then
-            Exception.raiseInternal
-              $"Couldn't serialize Enum as incorrect # of fields provided"
-              [ "defs", fieldDefs
-                "fields", fields
-                "typeName", typeName
-                "caseName", caseName ]
+            if List.length fieldDefs <> List.length fields then
+              Exception.raiseInternal
+                $"Couldn't serialize Enum as incorrect # of fields provided"
+                [ "defs", fieldDefs
+                  "fields", fields
+                  "typeName", typeName
+                  "caseName", caseName ]
+
+            w.writeObject (fun () ->
+              w.WritePropertyName caseName
+              w.writeArray (fun () ->
+                List.zip fieldDefs fields
+                |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
+          | _ -> Exception.raiseInternal "Too many matching cases" []
+
+
+        | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
+
+      | TypeDeclaration.Record(firstField, additionalFields) ->
+        match dval with
+        | DRecord(actualTypeName, dvalMap) when actualTypeName = typeName ->
+          let fieldDefs = firstField :: additionalFields
 
           w.writeObject (fun () ->
-            w.WritePropertyName caseName
-            w.writeArray (fun () ->
-              List.zip fieldDefs fields
-              |> List.iter (fun (fieldDef, fieldVal) -> r fieldDef fieldVal)))
-        | _ -> Exception.raiseInternal "Too many matching cases" []
+            dvalMap
+            |> Map.toList
+            |> List.iter (fun (fieldName, dval) ->
+              w.WritePropertyName fieldName
 
+              let matchingFieldDef =
+                fieldDefs
+                |> List.tryFind (fun def -> def.name = fieldName)
+                |> Exception.unwrapOptionInternal "Couldn't find matching field" []
 
-      | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
+              let typ =
+                Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
+              r typ dval))
 
-    | Some(CustomType.Record(firstField, additionalFields)) ->
-      match dval with
-      | DRecord(actualTypeName, dvalMap) when actualTypeName = typeName ->
-        let fieldDefs = firstField :: additionalFields
+        | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
+        | _ ->
+          Exception.raiseInternal
+            "Expected a DRecord but got something else"
+            [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]
 
-        w.writeObject (fun () ->
-          dvalMap
-          |> Map.toList
-          |> List.iter (fun (fieldName, dval) ->
-            w.WritePropertyName fieldName
-
-            let matchingFieldDef =
-              fieldDefs |> List.filter (fun def -> def.name = fieldName)
-
-            match matchingFieldDef with
-            | [] -> Exception.raiseInternal "Couldn't find matching field" []
-            | [ matchingFieldDef ] -> r matchingFieldDef.typ dval
-            | _ -> Exception.raiseInternal "Too many matching fields" []))
-
-      | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
-      | _ ->
-        Exception.raiseInternal
-          "Expected a DRecord but got something else"
-          [ "type", LibExecution.DvalReprDeveloper.dvalTypeName dval ]
-
-    | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
 
   // Not supported
   | TVariable _, _ ->
@@ -226,7 +222,6 @@ let rec serialize
   | TVariable _, _
   | TCustomType _, _
   | TOption _, _
-  | TResult _, _
   | TDict _, _ ->
     Exception.raiseInternal
       "Can't currently serialize this type/value combination"
@@ -303,6 +298,7 @@ let parse
   (typ : TypeReference)
   (str : string)
   : Result<Dval, string> =
+
   let rec convert (typ : TypeReference) (j : JsonElement) : Dval =
     match typ, j.ValueKind with
     // basic types
@@ -368,15 +364,6 @@ let parse
       | None -> DOption None
     | TOption oType, v -> convert oType j |> Some |> DOption
 
-    | TResult(okType, errType), JsonValueKind.Object ->
-      let objFields =
-        j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-
-      match (Map.tryFind "Ok" objFields, Map.tryFind "Error" objFields) with
-      | (Some vOk, None) -> DResult(Ok(convert okType vOk))
-      | (None, Some vError) -> DResult(Error(convert errType vError))
-      | _ -> Exception.raiseInternal "Invalid result object" []
-
     | TDict tDict, JsonValueKind.Object ->
       j.EnumerateObject()
       |> Seq.map (fun jp -> (jp.Name, convert tDict jp.Value))
@@ -384,75 +371,83 @@ let parse
       |> DDict
 
     | TCustomType(typeName, typeArgs), jsonValueKind ->
-      // TODO: something with typeArgs
 
-      // TODO: handle type missing
-      match Types.find typeName types, jsonValueKind with
-      | Some(CustomType.Alias alias), _ -> convert alias j
+      match Types.find typeName types with
+      | None -> Exception.raiseInternal "TODO - type not found" []
+      | Some decl ->
+        match decl.definition with
+        | TypeDeclaration.Alias alias ->
+          let aliasType = Types.substitute decl.typeParams typeArgs alias
+          convert aliasType j
 
-      | Some(CustomType.Enum(firstCase, additionalCases)), JsonValueKind.Object ->
-
-        let enumerated =
-          j.EnumerateObject()
-          |> Seq.map (fun jp -> (jp.Name, jp.Value))
-          |> Seq.toList
-
-        match enumerated with
-        | [ (caseName, j) ] ->
-          let matchingCase =
-            (firstCase :: additionalCases) |> List.find (fun c -> c.name = caseName)
-          // TODO: handle 0 or 2+ matching cases
-          let j = j.EnumerateArray() |> Seq.toList
-          // TODO: handle when lists aren't of same len
-
-          if List.length matchingCase.fields <> List.length j then
+        | TypeDeclaration.Enum(firstCase, additionalCases) ->
+          if jsonValueKind <> JsonValueKind.Object then
             Exception.raiseInternal
-              $"Couldn't parse Enum as incorrect # of fields provided"
-              []
+              "Expected an object for an enum"
+              [ "type", typeName; "value", j ]
 
-          let mapped =
-            List.zip matchingCase.fields j
-            |> List.map (fun (typ, j) -> convert typ.typ j)
+          let enumerated =
+            j.EnumerateObject()
+            |> Seq.map (fun jp -> (jp.Name, jp.Value))
+            |> Seq.toList
 
-          DEnum(typeName, caseName, mapped)
+          match enumerated with
+          | [ (caseName, j) ] ->
+            let matchingCase =
+              (firstCase :: additionalCases)
+              |> List.find (fun c -> c.name = caseName)
+            let j = j.EnumerateArray() |> Seq.toList
 
-        | _ -> Exception.raiseInternal "TODO" []
+            if List.length matchingCase.fields <> List.length j then
+              Exception.raiseInternal
+                $"Couldn't parse Enum as incorrect # of fields provided"
+                []
 
-      | Some(CustomType.Record(firstField, additionalFields)), JsonValueKind.Object ->
-        let fieldDefs = firstField :: additionalFields
-        let enumerated = j.EnumerateObject() |> Seq.toList
+            let mapped =
+              List.zip matchingCase.fields j
+              |> List.map (fun (typ, j) ->
+                let typ = Types.substitute decl.typeParams typeArgs typ.typ
+                convert typ j)
 
-        let dvalMap =
-          fieldDefs
-          |> List.map (fun def ->
-            let correspondingValue =
-              let matchingFieldDef =
-                enumerated
-                // TODO: handle case where value isn't found for
-                // and maybe, if it's an Option<>al thing, don't complain
-                |> List.filter (fun v -> v.Name = def.name)
+            DEnum(typeName, caseName, mapped)
 
-              match matchingFieldDef with
-              | [] -> Exception.raiseInternal "Couldn't find matching field" []
-              | [ matchingFieldDef ] -> matchingFieldDef.Value
-              | _ -> Exception.raiseInternal "Too many matching fields" []
+          | _ -> Exception.raiseInternal "TODO" []
 
-            let converted = convert def.typ correspondingValue
-            (def.name, converted))
-          |> Map.ofSeq
+        | TypeDeclaration.Record(firstField, additionalFields) ->
+          if jsonValueKind <> JsonValueKind.Object then
+            Exception.raiseInternal
+              "Expected an object for a record"
+              [ "type", typeName; "value", j ]
 
-        DRecord(typeName, dvalMap)
-      | None, _ -> Exception.raiseInternal "TODO - type not found" []
-      | _ ->
-        Exception.raiseInternal
-          "Can't currently parse this custom type"
-          [ "type", typeName ]
+          let fieldDefs = firstField :: additionalFields
+          let enumerated = j.EnumerateObject() |> Seq.toList
+
+          let dvalMap =
+            fieldDefs
+            |> List.map (fun def ->
+              let correspondingValue =
+                let matchingFieldDef =
+                  enumerated
+                  // TODO: handle case where value isn't found for
+                  // and maybe, if it's an Option<>al thing, don't complain
+                  |> List.filter (fun v -> v.Name = def.name)
+
+                match matchingFieldDef with
+                | [] -> Exception.raiseInternal "Couldn't find matching field" []
+                | [ matchingFieldDef ] -> matchingFieldDef.Value
+                | _ -> Exception.raiseInternal "Too many matching fields" []
+
+              let typ = Types.substitute decl.typeParams typeArgs def.typ
+              let converted = convert typ correspondingValue
+              (def.name, converted))
+            |> Map.ofSeq
+
+          DRecord(typeName, dvalMap)
 
 
     // Explicitly not supported
     | TVariable _, _ ->
       // this should disappear when we use a TypeReference here rather than a TypeReference
-      // TYPESCLEANUP-I don't think it does, bunecessarily, but it should be knowable here
       JsonParseError.TypeUnsupported typ
       |> JsonParseError.JsonParseException
       |> raise
@@ -474,12 +469,8 @@ let parse
     | TPassword, _
     | TList _, _
     | TTuple _, _
-    | TFn _, _
-    | TDB _, _
-    | TVariable _, _
     | TCustomType _, _
     | TOption _, _
-    | TResult _, _
     | TDict _, _ ->
       Exception.raiseInternal
         "Can't currently parse this type/value combination"
@@ -509,7 +500,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "serialize" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "arg" (TVariable "a") "" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
@@ -521,9 +512,9 @@ let fns : List<BuiltInFn> =
           try
             let types = ExecutionState.availableTypes state
             let response = writeJson (fun w -> serialize types w typeArg arg)
-            Ply(DResult(Ok(DString response)))
+            Ply(Dval.resultOk (DString response))
           with ex ->
-            Ply(DResult(Error(DString ex.Message)))
+            Ply(Dval.resultError (DString ex.Message))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -532,7 +523,7 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "json" TString "" ]
-      returnType = TResult(TVariable "a", TString)
+      returnType = TypeReference.result (TVariable "a") TString
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
@@ -540,8 +531,8 @@ let fns : List<BuiltInFn> =
         | state, [ typeArg ], [ DString arg ] ->
           let types = ExecutionState.availableTypes state
           match parse types typeArg arg with
-          | Ok v -> Ply(DResult(Ok v))
-          | Error e -> Ply(DResult(Error(DString e)))
+          | Ok v -> Ply(Dval.resultOk v)
+          | Error e -> Ply(Dval.resultError (DString e))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

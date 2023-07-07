@@ -31,15 +31,15 @@ let hardToRepresentTests =
       let args = List.mapi (fun i arg -> ($"v{i}", arg)) args
       let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
-      let ast = PT.EFnCall(gid (), PT.FQName.BuiltIn fn, [], fnArgList)
+      let ast =
+        PT.EApply(gid (), PT.FnTargetName(PT.FQName.BuiltIn fn), [], fnArgList)
 
       let symtable = Map.ofList args
 
       let! state = executionStateFor meta false false Map.empty Map.empty Map.empty
       let! actual =
         LibExecution.Execution.executeExpr state symtable (PT2RT.Expr.toRT ast)
-      let availableTypes = RT.ExecutionState.availableTypes state
-      return Expect.dvalEquality availableTypes actual expected
+      return Expect.dvalEquality actual expected
     }
 
   let fnName mod_ function_ version = PT.FnName.builtIn mod_ function_ version
@@ -57,65 +57,6 @@ let hardToRepresentTests =
            RT.Lambda { parameters = []; symtable = Map.empty; body = RT.EUnit 1UL }
          ) ]),
       (RT.DError(RT.SourceNone, "Expected 0 arguments, got 2")),
-      true
-
-      (fnName [ "Result" ] "fromOption" 0,
-       [ RT.DOption(
-           Some(
-             RT.DFnVal(
-               RT.Lambda
-                 { parameters = []
-                   symtable = Map.empty
-                   body = RT.EFloat(84932785UL, -9.223372037e+18) }
-             )
-           )
-         )
-         RT.DString "s" ]),
-      (RT.DResult(
-        Ok(
-          RT.DFnVal(
-            RT.Lambda
-              { parameters = []
-                symtable = Map.empty
-                body = RT.EFloat(84932785UL, -9.223372037e+18) }
-          )
-        )
-      )),
-      true
-
-      (fnName [ "Result" ] "fromOption" 0,
-       [ RT.DOption(
-           Some(
-             RT.DFnVal(
-               RT.Lambda
-                 { parameters = []
-                   symtable = Map.empty
-                   body =
-                     RT.EMatch(
-                       gid (),
-                       RT.EUnit(gid ()),
-                       [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
-                     ) }
-             )
-           )
-         )
-         RT.DString "s" ]),
-
-      RT.DResult(
-        Ok(
-          RT.DFnVal(
-            RT.Lambda
-              { parameters = []
-                symtable = Map.empty
-                body =
-                  RT.EMatch(
-                    gid (),
-                    RT.EUnit(gid ()),
-                    [ (RT.MPFloat(gid (), -9.223372037e+18), RT.EUnit(gid ())) ]
-                  ) }
-          )
-        )
-      ),
       true ]
 
 let oldFunctionsAreDeprecated =

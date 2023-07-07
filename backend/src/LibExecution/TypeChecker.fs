@@ -24,11 +24,11 @@ type Context =
     location : Location
   | RecordField of
     recordTypeName : TypeName.T *
-    fieldDef : CustomType.RecordField *
+    fieldDef : TypeDeclaration.RecordField *
     location : Location
   | EnumField of
     enumTypeName : TypeName.T *
-    definition : CustomType.EnumField *
+    definition : TypeDeclaration.EnumField *
     caseName : string *
     paramIndex : int *  // nth argument to the enum constructor
     location : Location
@@ -97,7 +97,6 @@ let rec unify
 
   // TYPESCLEANUP - fold these cases all into TCustomType
   | TOption _, DOption _ -> Ok()
-  | TResult _, DResult _ -> Ok()
 
   // TYPESCLEANUP: handle typeArgs
   | TCustomType(typeName, typeArgs), value ->
@@ -108,11 +107,12 @@ let rec unify
       let err = Error(ValueNotExpectedType(value, resolvedType, context))
 
       match ut, value with
-      | CustomType.Alias aliasType, _ ->
+      | { definition = TypeDeclaration.Alias aliasType }, _ ->
         let resolvedAliasType = getTypeReferenceFromAlias types aliasType
         unify context types resolvedAliasType value
 
-      | CustomType.Record(firstField, additionalFields), DRecord(tn, dmap) ->
+      | { definition = TypeDeclaration.Record(firstField, additionalFields) },
+        DRecord(tn, dmap) ->
         let aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
         match aliasedType with
         | TCustomType(concreteTn, typeArgs) ->
@@ -127,12 +127,13 @@ let rec unify
               dmap
         | _ -> err
 
-      | CustomType.Enum(firstCase, additionalCases), DEnum(tn, caseName, valFields) ->
+      | { definition = TypeDeclaration.Enum(firstCase, additionalCases) },
+        DEnum(tn, caseName, valFields) ->
         // TODO: deal with aliased type?
         if tn <> typeName then
           Error(ValueNotExpectedType(value, resolvedType, context))
         else
-          let matchingCase : Option<CustomType.EnumCase> =
+          let matchingCase : Option<TypeDeclaration.EnumCase> =
             firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
 
           match matchingCase with
@@ -168,8 +169,7 @@ let rec unify
   | TChar, _
   | TDB _, _
   | TBytes, _
-  | TOption _, _
-  | TResult _, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
+  | TOption _, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
 
 
 
@@ -177,12 +177,12 @@ and unifyRecordFields
   (recordType : TypeName.T)
   (context : Context)
   (types : Types)
-  (defs : List<CustomType.RecordField>)
+  (defs : List<TypeDeclaration.RecordField>)
   (values : DvalMap)
   : Result<unit, Error> =
   let completeDefinition =
     defs
-    |> List.filterMap (fun (d : CustomType.RecordField) ->
+    |> List.filterMap (fun (d : TypeDeclaration.RecordField) ->
       if d.name = "" then None else Some(d.name, d))
     |> Map.ofList
 

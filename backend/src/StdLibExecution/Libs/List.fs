@@ -47,12 +47,6 @@ module DvalComparator =
       | None, Some _ -> -1
       | Some _, None -> 1
       | Some v1, Some v2 -> compareDval v1 v2
-    | DResult r1, DResult r2 ->
-      match r1, r2 with
-      | Ok v1, Ok v2 -> compareDval v1 v2
-      | Ok _, Error _ -> -1
-      | Error _, Ok _ -> 1
-      | Error e1, Error e2 -> compareDval e1 e2
     | DEnum(tn1, c1, f1), DEnum(tn2, c2, f2) ->
       let c = compare tn1 tn2
       if c = 0 then
@@ -80,7 +74,6 @@ module DvalComparator =
     | DDict _, _
     | DRecord _, _
     | DOption _, _
-    | DResult _, _
     | DEnum _, _ ->
       Exception.raiseCode "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
 
@@ -399,20 +392,20 @@ let fns : List<BuiltInFn> =
     { name = fn "repeat" 0
       typeParams = []
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
-      returnType = TResult(TList varA, TString)
+      returnType = TypeReference.result (TList varA) TString
       description =
         "Returns a list containing <param val> repeated <param times> times"
       fn =
         (function
         | _, _, [ DInt times; v ] ->
-          let errPipe e = e |> DString |> Error |> DResult |> Ply
+          let errPipe e = e |> DString |> Dval.resultError |> Ply
           if times < 0L then
             Errors.argumentWasnt "positive" "times" (DInt times) |> errPipe
           else if times > 2147483647L then
             Errors.argumentWasnt "less than 2147483647" "times" (DInt times)
             |> errPipe
           else
-            List.replicate (int times) v |> DList |> Ok |> DResult |> Ply
+            List.replicate (int times) v |> DList |> Dval.resultOk |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -732,7 +725,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
-      returnType = TResult(varA, TString)
+      returnType = TypeReference.result varA TString
       description =
         "Returns a copy of <param list>, sorted using {{fn a b}} to compare values
          <var a> and <var b>.
@@ -764,9 +757,9 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
-              return array |> Array.toList |> DList |> Ok |> DResult
+              return array |> Array.toList |> DList |> Dval.resultOk
             with e ->
-              return DResult(Error(DString e.Message))
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

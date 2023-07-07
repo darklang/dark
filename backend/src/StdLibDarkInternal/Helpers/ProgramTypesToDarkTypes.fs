@@ -143,7 +143,6 @@ module TypeReference =
       | PT.TDB inner -> "TDB", [ toDT inner ]
       | PT.TFn(args, ret) -> "TFn", [ DList(List.map toDT args); toDT ret ]
       | PT.TOption inner -> "TOption", [ toDT inner ]
-      | PT.TResult(ok, err) -> "TResult", [ toDT ok; toDT err ]
 
     DEnum(ptTyp [] "TypeReference" 0, name, fields)
 
@@ -358,10 +357,17 @@ module Expr =
 
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
-      | PT.EFnCall(id, name, typeArgs, args) ->
-        "EFnCall",
+      | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
+        "EApply",
         [ DInt(int64 id)
-          FnName.toDT name
+          DEnum(ptTyp [] "FnTarget" 0, "FnTargetName", [ FnName.toDT name ])
+          DList(List.map TypeReference.toDT typeArgs)
+          DList(List.map toDT args) ]
+
+      | PT.EApply(id, PT.FnTargetExpr expr, typeArgs, args) ->
+        "EApply",
+        [ DInt(int64 id)
+          DEnum(ptTyp [] "FnTarget" 0, "FnTargetExpr", [ toDT expr ])
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map toDT args) ]
 
@@ -388,11 +394,11 @@ module Deprecation =
     DEnum(ptTyp [] "Deprecation" 0, caseName, fields)
 
 
-module CustomType =
+module TypeDeclaration =
   module RecordField =
-    let toDT (rf : PT.CustomType.RecordField) : Dval =
+    let toDT (rf : PT.TypeDeclaration.RecordField) : Dval =
       DRecord(
-        ptTyp [ "CustomType" ] "RecordField" 0,
+        ptTyp [ "TypeDeclaration" ] "RecordField" 0,
         Map
           [ "name", DString rf.name
             "typ", TypeReference.toDT rf.typ
@@ -400,9 +406,9 @@ module CustomType =
       )
 
   module EnumField =
-    let toDT (ef : PT.CustomType.EnumField) : Dval =
+    let toDT (ef : PT.TypeDeclaration.EnumField) : Dval =
       DRecord(
-        ptTyp [ "CustomType" ] "EnumField" 0,
+        ptTyp [ "TypeDeclaration" ] "EnumField" 0,
         Map
           [ "typ", TypeReference.toDT ef.typ
             "label", ef.label |> Option.map DString |> DOption
@@ -410,30 +416,39 @@ module CustomType =
       )
 
   module EnumCase =
-    let toDT (ec : PT.CustomType.EnumCase) : Dval =
+    let toDT (ec : PT.TypeDeclaration.EnumCase) : Dval =
       DRecord(
-        ptTyp [ "CustomType" ] "EnumCase" 0,
+        ptTyp [ "TypeDeclaration" ] "EnumCase" 0,
         Map
           [ "name", DString ec.name
             "fields", DList(List.map EnumField.toDT ec.fields)
             "description", DString ec.description ]
       )
 
-  let toDT (d : PT.CustomType.T) : Dval =
-    let caseName, fields =
-      match d with
-      | PT.CustomType.Alias typeRef -> "Alias", [ TypeReference.toDT typeRef ]
+  module Definition =
+    let toDT (d : PT.TypeDeclaration.Definition) : Dval =
+      let caseName, fields =
+        match d with
+        | PT.TypeDeclaration.Alias typeRef -> "Alias", [ TypeReference.toDT typeRef ]
 
-      | PT.CustomType.Record(firstField, additionalFields) ->
-        "Record",
-        [ RecordField.toDT firstField
-          DList(List.map RecordField.toDT additionalFields) ]
+        | PT.TypeDeclaration.Record(firstField, additionalFields) ->
+          "Record",
+          [ RecordField.toDT firstField
+            DList(List.map RecordField.toDT additionalFields) ]
 
-      | PT.CustomType.Enum(firstCase, additionalCases) ->
-        "Enum",
-        [ EnumCase.toDT firstCase; DList(List.map EnumCase.toDT additionalCases) ]
+        | PT.TypeDeclaration.Enum(firstCase, additionalCases) ->
+          "Enum",
+          [ EnumCase.toDT firstCase; DList(List.map EnumCase.toDT additionalCases) ]
 
-    DEnum(ptTyp [ "CustomType" ] "T" 0, caseName, fields)
+      DEnum(ptTyp [ "TypeDeclaration" ] "Definition" 0, caseName, fields)
+
+  let toDT (td : PT.TypeDeclaration.T) : Dval =
+    DRecord(
+      ptTyp [ "TypeDeclaration" ] "T" 0,
+      Map
+        [ "typeParams", DList(List.map DString td.typeParams)
+          "definition", Definition.toDT td.definition ]
+    )
 
 module Handler =
   module CronInterval =
@@ -490,8 +505,8 @@ module UserType =
       Map
         [ "tlid", DInt(int64 userType.tlid)
           "name", TypeName.UserProgram.toDT userType.name
-          "typeParams", DList(List.map DString userType.typeParams)
-          "definition", CustomType.toDT userType.definition ]
+          "deprecated", Deprecation.toDT TypeName.toDT userType.deprecated
+          "declaration", TypeDeclaration.toDT userType.declaration ]
     )
 
 
@@ -539,8 +554,7 @@ module PackageType =
         [ "tlid", DInt(int64 p.tlid)
           "id", DUuid p.id
           "name", TypeName.Package.toDT p.name
-          "typeParams", DList(List.map DString p.typeParams)
-          "definition", CustomType.toDT p.definition
+          "declaration", TypeDeclaration.toDT p.declaration
           "description", DString p.description
           "deprecated", Deprecation.toDT TypeName.toDT p.deprecated ]
     )

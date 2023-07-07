@@ -32,19 +32,18 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "uuid" TString "" ]
-      returnType = TResult(TUuid, TString)
+      returnType = TypeReference.result TUuid TString
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         (function
         | _, _, [ DString s ] ->
           match System.Guid.TryParse s with
-          | true, x -> x |> DUuid |> Ok |> DResult |> Ply
+          | true, x -> x |> DUuid |> Dval.resultOk |> Ply
           | _ ->
             "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             |> DString
-            |> Error
-            |> DResult
+            |> Dval.resultError
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

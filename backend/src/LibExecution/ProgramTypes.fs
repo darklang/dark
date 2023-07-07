@@ -300,10 +300,6 @@ type TypeReference =
   // and the Option module defines the custom `Option` type
   | TOption of TypeReference
 
-  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
-  // and the Result module defines the custom `Result` type
-  | TResult of TypeReference * TypeReference
-
 
 /// Expressions - the main part of the language.
 type Expr =
@@ -326,7 +322,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -361,6 +357,10 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
+and FnTarget =
+  | FnTargetName of FnName.T
+  | FnTargetExpr of Expr
+
 and PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
@@ -383,7 +383,7 @@ module Expr =
     | ELambda(id, _, _)
     | EFieldAccess(id, _, _)
     | EVariable(id, _)
-    | EFnCall(id, _, _, _)
+    | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)
@@ -402,6 +402,32 @@ module PipeExpr =
     | EPipeFnCall(id, _, _, _)
     | EPipeEnum(id, _, _, _) -> id
 
+
+/// A type defined by a standard library module, a canvas/user, or a package
+module TypeDeclaration =
+  type RecordField = { name : string; typ : TypeReference; description : string }
+
+  type EnumField =
+    { typ : TypeReference; label : Option<string>; description : string }
+
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
+
+  /// The right-hand-side of the declaration: eg List<'a>
+  type Definition =
+    /// `type MyAlias = Int`
+    | Alias of TypeReference
+
+    /// `type MyRecord = { a : int; b : string }`
+    | Record of firstField : RecordField * additionalFields : List<RecordField>
+
+    /// `type MyEnum = A | B of int | C of int * (label: string)`
+    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  /// Combined the RHS definition, with the list of type parameters. Eg type
+  /// MyType<'a> = List<'a>
+  type T = { typeParams : List<string>; definition : Definition }
+
+
 // Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
 type Deprecation<'name> =
@@ -416,25 +442,6 @@ type Deprecation<'name> =
   /// This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of string
 
-
-/// A type defined by a standard library module, a canvas/user, or a package
-module CustomType =
-  type RecordField = { name : string; typ : TypeReference; description : string }
-
-  type EnumField =
-    { typ : TypeReference; label : Option<string>; description : string }
-
-  type EnumCase = { name : string; fields : List<EnumField>; description : string }
-
-  type T =
-    /// `type MyAlias = Int`
-    | Alias of TypeReference
-
-    /// `type MyRecord = { a : int; b : string }`
-    | Record of firstField : RecordField * additionalFields : List<RecordField>
-
-    /// `type MyEnum = A | B of int | C of int * (label: string)`
-    | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
 module Handler =
   type CronInterval =
@@ -461,8 +468,10 @@ module UserType =
   type T =
     { tlid : tlid
       name : TypeName.UserProgram
-      typeParams : List<string>
-      definition : CustomType.T }
+      declaration : TypeDeclaration.T
+      description : string
+      deprecated : Deprecation<TypeName.T> }
+
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
@@ -513,7 +522,6 @@ module PackageType =
     { tlid : tlid
       id : System.Guid
       name : TypeName.Package
-      typeParams : List<string>
-      definition : CustomType.T
+      declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<TypeName.T> }

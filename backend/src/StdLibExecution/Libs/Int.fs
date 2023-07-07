@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
     // TODO: A future version should support all non-zero modulus values and should include the infix "%"
     // { name = fn "mod" 0
     //   parameters = [ Param.make "value" TInt ""; Param.make "modulus" TInt "" ]
-    //   returnType = TResult(TInt, TString)
+    //   returnType = TypeReference.result TInt TString
     //   description =
     //     "Returns the result of wrapping <param value> around so that {{0 <= res < modulus}}, as a <type Result>.
     //      If <param modulus> is positive, returns {{Ok res}}. Returns an {{Error}} if <param modulus> is {{0}} or negative.
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
     //     (function
     //     | _, [ DInt v; DInt m ] ->
     //       (try
-    //         Ply(DResult(Ok(DInt(v % m))))
+    //         Ply(Dval.resultOk(DInt(v % m)))
     //        with
     //        | e ->
     //          if m <= 0L then
@@ -82,7 +82,7 @@ let fns : List<BuiltInFn> =
     { name = fn "remainder" 0
       typeParams = []
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
-      returnType = TResult(TInt, TString)
+      returnType = TypeReference.result TInt TString
       description =
         "Returns the integer remainder left over after dividing <param value> by
          <param divisor>, as a <type Result>.
@@ -97,10 +97,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DInt v; DInt d ] ->
           (try
-            v % d |> DInt |> Ok |> DResult |> Ply
+            v % d |> DInt |> Dval.resultOk |> Ply
            with e ->
              if d = 0L then
-               Ply(DResult(Error(DString($"`divisor` must be non-zero"))))
+               Ply(Dval.resultError (DString($"`divisor` must be non-zero")))
              else
                Exception.raiseInternal
                  "unexpected failure case in Int.remainder"
@@ -157,7 +157,7 @@ let fns : List<BuiltInFn> =
     { name = fn "power" 0
       typeParams = []
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
-      returnType = TResult(TInt, TString)
+      returnType = TypeReference.result TInt TString
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
@@ -165,8 +165,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DInt number; DInt exp as expdv ] ->
-          let errPipe e = e |> DString |> Error |> DResult |> Ply
-          let okPipe r = r |> DInt |> Ok |> DResult |> Ply
+          let errPipe e = e |> DString |> Dval.resultError |> Ply
+          let okPipe r = r |> DInt |> Dval.resultOk |> Ply
           (try
             if exp < 0L then
               Errors.argumentWasnt "positive" "exponent" expdv |> errPipe
@@ -429,18 +429,17 @@ let fns : List<BuiltInFn> =
     { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TResult(TInt, TString)
+      returnType = TypeReference.result TInt TString
       description = "Returns the <type Int> value of a <type String>"
       fn =
         (function
         | _, _, [ DString s ] ->
           (try
-            s |> System.Convert.ToInt64 |> DInt |> Ok |> DResult |> Ply
+            s |> System.Convert.ToInt64 |> DInt |> Dval.resultOk |> Ply
            with _e ->
              $"Expected to parse String with only numbers, instead got \"{s}\""
              |> DString
-             |> Error
-             |> DResult
+             |> Dval.resultError
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

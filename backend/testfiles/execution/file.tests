@@ -5,4 +5,4 @@ module Write =
    do (testContents ())
       |> String.toBytes
       |> (File.write filename)
-   File.read filename) = Ok ((testContents ()) |> String.toBytes)
+   File.read filename) = PACKAGE.Darklang.Stdlib.Result.Result.Ok ((testContents ()) |> String.toBytes)

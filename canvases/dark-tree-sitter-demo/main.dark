@@ -2,7 +2,7 @@
 let _handler _req =
   let body =
     (Experiments.readFromStaticDir path)
-    |> Result.withDefault Bytes.empty
+    |> PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
 
   let contentType =
     match (String.split path ".") |> List.last |> Option.withDefault "" with
@@ -221,7 +221,7 @@ let getField (node: SyntaxTreeNode) (fieldName: String): SyntaxTreeNode =
 let getText (node: SyntaxTreeNode): String =
   node.text
 
-// TODO: should return Result<PTExpr, String>
+// TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
 let parseExprCase (node: SyntaxTreeNode): PTExpr =
   match node.typ with
   | "identifier" -> PTExpr.EVariable (gid(), getText node)
@@ -259,7 +259,7 @@ let parseExprCase (node: SyntaxTreeNode): PTExpr =
     | "-" -> PTExpr.EFnCall (id, "Int.subtract", [left; right])
 
 
-// TODO: should return Result<PTExpr, String>
+// TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTExpr, String>
 let parseExpr (node: SyntaxTreeNode): PTExpr =
   if node.typ != "expression" then
     err "bad expr"
@@ -269,7 +269,7 @@ let parseExpr (node: SyntaxTreeNode): PTExpr =
   | _ -> err "expression has 0 or 2+ children"
 
 
-// TODO: should return Result<PTTypeReference, String>
+// TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTTypeReference, String>
 let parseTypeReference (node: SyntaxTreeNode): PTTypeReference =
   // TODO: support additional types
   PTTypeReference.TInt
@@ -278,7 +278,7 @@ let parseTypeReference (node: SyntaxTreeNode): PTTypeReference =
 // TODO: handle unit params
 // e.g. `let doSomething () = ...`
 //
-// TODO: should return Result<PTUserFunctionParameter, String>
+// TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunctionParameter, String>
 let parseUserFunctionParam (node: SyntaxTreeNode): PTUserFunctionParameter =
   if node.typ != "fn_param_def" then
     err "fn param def wrong"
@@ -302,7 +302,7 @@ let parseUserFunctionParams (node: SyntaxTreeNode): List<PTUserFunctionParameter
   |> List.map(fun p -> parseUserFunctionParam p)
 
 
-// TODO: should return Result<PTUserFunction, String>
+// TODO: should return PACKAGE.Darklang.Stdlib.Result.Result<PTUserFunction, String>
 let parseUserFunction (node: SyntaxTreeNode): PTUserFunction =
   if node.typ != "fn_def" then
     err "fn def wrong"

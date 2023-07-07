@@ -38,6 +38,12 @@ module UserDB =
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
+  let resolveNames
+    (userTypes : Set<PT.TypeName.UserProgram>)
+    (db : PT.DB.T)
+    : PT.DB.T =
+    { db with typ = PTP.TypeReference.resolveNames userTypes db.typ }
+
 
 /// Extracts a test from a SynExpr.
 /// The test must be in the format `expected = actual`, otherwise an exception is raised
@@ -117,15 +123,19 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
         decls
     let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
     let typeNames = m.types |> List.map (fun t -> t.name) |> Set
-    let fixup = ProgramTypes.Expr.resolveNames fnNames typeNames
-    { fns = m.fns |> List.map (fun fn -> { fn with body = fixup fn.body })
-      types = m.types
-      dbs = m.dbs
+    let fixExpr = PTP.Expr.resolveNames fnNames typeNames
+    { fns = m.fns |> List.map (PTP.UserFunction.resolveNames fnNames typeNames)
+      types = m.types |> List.map (PTP.UserType.resolveNames typeNames)
+      dbs = m.dbs |> List.map (UserDB.resolveNames typeNames)
+      // We don't need to resolve names in nested modules as they are resolved
+      // upon construction. TODO: But are the names ready when they do so?
       modules = m.modules
       tests =
         m.tests
         |> List.map (fun test ->
-          { test with actual = fixup test.actual; expected = fixup test.expected }) }
+          { test with
+              actual = fixExpr test.actual
+              expected = fixExpr test.expected }) }
 
 
 
