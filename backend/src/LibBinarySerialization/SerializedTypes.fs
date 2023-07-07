@@ -145,7 +145,6 @@ type TypeReference =
   | TChar
   | TPassword
   | TUuid
-  | TOption of TypeReference
   | TCustomType of typeName : TypeName.T * typeArgs : List<TypeReference>
   | TBytes
   | TVariable of string

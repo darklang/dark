@@ -102,17 +102,17 @@ module Alias =
   getEmployeeName(UserProfile { credential = ("Alice", "EMP123"); name = "Alice"; role = UserRole.Admin }) = "Alice"
 
   // option alias
-  type OptionName = Option<String>
+  type OptionName = PACKAGE.Darklang.Stdlib.Option.Option<String>
   type UserInfo = { id: Id; name: OptionName ; roles: List<UserRole> }
   let userHasRole(user: UserInfo) (role: UserRole) : Bool = List.member_v0  user.roles role
-  userHasRole(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) UserRole.Admin = true
-  userHasRole(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) UserRole.Guest = false
+  userHasRole(UserInfo { id = "1"; name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) UserRole.Admin = true
+  userHasRole(UserInfo { id = "1"; name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) UserRole.Guest = false
 
-  type UserRoleOption = Option<UserRole>
+  type UserRoleOption = PACKAGE.Darklang.Stdlib.Option.Option<UserRole>
   let getUserRoleAsOption (user: UserInfo) : UserRoleOption = user.roles |> List.head
-  getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) = Just UserRole.Admin
-  getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [] }) = Nothing
-  (getUserRoleAsOption(UserInfo { id = "1"; name = Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) == Just UserRole.Guest) = false
+  getUserRoleAsOption(UserInfo { id = "1"; name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) = PACKAGE.Darklang.Stdlib.Option.Option.Just UserRole.Admin
+  getUserRoleAsOption(UserInfo { id = "1"; name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"; roles = [] }) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+  (getUserRoleAsOption(UserInfo { id = "1"; name = PACKAGE.Darklang.Stdlib.Option.Option.Just "Alice"; roles = [UserRole.Admin; UserRole.User] }) == PACKAGE.Darklang.Stdlib.Option.Option.Just UserRole.Guest) = false
 
   // list alias
   type IntegerList = List<Int>
@@ -150,7 +150,7 @@ module Records =
   module Polymorphism =
     type MyRecord<'a> = { col1 : 'a; col2 : Int }
     (MyRecord { col1 = (); col2 = 1 }).col2 = 1
-    (MyRecord { col1 = Just(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1); col2 = 1 }).col1 = Just(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
+    (MyRecord { col1 = PACKAGE.Darklang.Stdlib.Option.Option.Just(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1); col2 = 1 }).col1 = PACKAGE.Darklang.Stdlib.Option.Option.Just(PACKAGE.Darklang.Stdlib.Result.Result.Ok 1)
 
   module Nested =
     type NestedRecordA = { col1 : Int }
@@ -174,17 +174,17 @@ module Records =
        Test.typeError "RecordForUpdate's y field should be an Int. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int; ... })\nActual: a String: \"2\""
 
 module Enums =
-  Nothing = Nothing
-  ((List.head []) == Nothing) = true
-  (List.head []) = Nothing
+  PACKAGE.Darklang.Stdlib.Option.Option.Nothing = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+  ((List.head []) == PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
+  (List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
   PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.typeError_v0 "err") = Test.typeError_v0 "err"
-  Just (Test.typeError_v0 "err") = Test.typeError_v0 "err"
+  PACKAGE.Darklang.Stdlib.Option.Option.Just (Test.typeError_v0 "err") = Test.typeError_v0 "err"
   PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.typeError_v0 "err") = Test.typeError_v0 "err"
 
   module Errors =
     module Builtins =
-      Nothing 5 = Test.typeError "Option.Nothing expects 0 arguments but got 1"
-      Just(5,6) = Test.typeError "Option.Just expects 1 argument but got 2"
+      PACKAGE.Darklang.Stdlib.Option.Option.Nothing 5 = Test.typeError "Option.Nothing expects 0 arguments but got 1"
+      PACKAGE.Darklang.Stdlib.Option.Option.Just(5,6) = Test.typeError "Option.Just expects 1 argument but got 2"
 
     module User =
       type MyEnum = | A | B | C of String
@@ -341,9 +341,9 @@ module Variable =
   (let x = 5 in x) = 5
 
 module Dict =
-  ((Dict { a = 5 }) |> Dict.get "a") = Just 5
-  ((Dict { ___ = 5 }) |> Dict.get "") = Just 5
-  ((Dict { a = 5 }) |> Dict.get "b") = Nothing
+  ((Dict { a = 5 }) |> Dict.get "a") = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+  ((Dict { ___ = 5 }) |> Dict.get "") = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+  ((Dict { a = 5 }) |> Dict.get "b") = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
 
 module InterpolatedString =
@@ -493,22 +493,22 @@ module Pipes =
   (33 |> MyEnum.A 21 42) = MyEnum.A 33 21 42
 
   (3 |> PACKAGE.Darklang.Stdlib.Result.Result.Ok) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
-  (4 |> (+) 3 |> Just) = Just 7
-  (Nothing |> Just) = Just Nothing
+  (4 |> (+) 3 |> PACKAGE.Darklang.Stdlib.Option.Option.Just) = PACKAGE.Darklang.Stdlib.Option.Option.Just 7
+  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing |> PACKAGE.Darklang.Stdlib.Option.Option.Just) = PACKAGE.Darklang.Stdlib.Option.Option.Just PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
 
-  (let x = Just 3
+  (let x = PACKAGE.Darklang.Stdlib.Option.Option.Just 3
    x
-   |> Option.map (fun a -> a)
-   |> Option.map (fun a -> a + 1)) = Just 4
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a)
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
 
-  (let x = fun x -> Option.map x (fun a -> a) in
-   (Just 3)
+  (let x = fun x -> PACKAGE.Darklang.Stdlib.Option.map x (fun a -> a) in
+   (PACKAGE.Darklang.Stdlib.Option.Just 3)
    |> x
-   |> Option.map (fun a -> a + 1)) = Just 4
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
 
-  ((Just 3)
-   |> Option.withDefault_v0 Nothing
+  ((PACKAGE.Darklang.Stdlib.Option.Option.Just 3)
+   |> PACKAGE.Darklang.Stdlib.Option.withDefault_v0 PACKAGE.Darklang.Stdlib.Option.Option.Nothing
    |> (+) 3) = 6
 
   ((PACKAGE.Darklang.Stdlib.Result.Result.Ok 3)
@@ -524,19 +524,19 @@ module Pipes =
    |> x
    |> (+) 3) = 4
 
-  (let x = fun x -> Option.andThen_v0 (Just x) (fun x -> Just (1 + x)) in
-   3 |> x) = Just 4
+  (let x = fun x -> PACKAGE.Darklang.Stdlib.Option.andThen_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just x) (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Just (1 + x)) in
+   3 |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
 
-  (let x = fun x -> Option.andThen_v0 x (fun x -> Just (1 + x)) in
+  (let x = fun x -> PACKAGE.Darklang.Stdlib.Option.andThen_v0 x (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Just (1 + x)) in
    3
-   |> Just
-   |> x) = Just 4
+   |> PACKAGE.Darklang.Stdlib.Option.Option.Just
+   |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
 
   (3
-   |> Just
+   |> PACKAGE.Darklang.Stdlib.Option.Option.Just
    |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Ok 3
 
-  (Nothing
+  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing
    |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
 
 
@@ -726,7 +726,7 @@ module Match =
    | name -> name ++ "var") = 5
 
   // empty constructor
-  (match Nothing with
+  (match PACKAGE.Darklang.Stdlib.Option.Option.Nothing with
   | 5 -> "int"
   | 5.6 -> "float"
   | false -> "bool"
@@ -830,8 +830,8 @@ module Match =
 
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
-  Option.map2_v0 (Just 10) "not an option" (fun (a,b) -> "1") =
-    Test.typeError_v0 "Option.map2's 2nd argument (option2) should be an Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: Option<'b>)\nActual: a String: \"not an option\""
+  Option.map2_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 10) "not an option" (fun (a,b) -> "1") =
+    Test.typeError_v0 "Option.map2's 2nd argument (option2) should be an PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: Option<'b>)\nActual: a String: \"not an option\""
 
   // Check we get previous errors before later ones
   (List.map_v0 [1;2;3;4;5] (fun x -> Test.typeError "X")) |> List.fakeFunction =
@@ -848,7 +848,7 @@ module ErrorPropagation =
   5 |> (+) (Test.typeError_v0 "test") |> (+) 3564 = Test.typeError_v0 "test"
   5 |> (+) (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   ("test" |> Test.typeError_v0) = Test.typeError_v0 "test"
-  Just (Test.typeError_v0 "test") = Test.typeError_v0 "test"
+  PACKAGE.Darklang.Stdlib.Option.Option.Just (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   PACKAGE.Darklang.Stdlib.Result.Result.Error (Test.typeError_v0 "test") = Test.typeError_v0 "test"
   PACKAGE.Darklang.Stdlib.Result.Result.Ok (Test.typeError_v0 "test") = Test.typeError_v0 "test"
 
@@ -897,7 +897,7 @@ module Equality =
   (false == false) = true
   (true != false) = true
   (() == ()) = true
-  (() != Nothing) = Test.typeError_v0 "Both values must be the same type"
+  (() != PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = Test.typeError_v0 "Both values must be the same type"
   (() != false) = Test.typeError_v0 "Both values must be the same type"
   (() != 0) = Test.typeError_v0 "Both values must be the same type"
   (() != 0.0) = Test.typeError_v0 "Both values must be the same type"
@@ -912,12 +912,12 @@ module Equality =
   ((DateTime.parse "2019-07-28T22:42:37Z") != (DateTime.parse "2019-07-28T22:42:36Z")) = true
   (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d" == Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
   (Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e" != Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
-  (Nothing == Nothing) = true
-  (Nothing != Just Nothing) = true
-  (Just 5 == Just 5) = true
-  (Just 5 != Just 6) = true
-  (Just (Just 0) != Just (Just 1)) = true
-  (Just (Just 0) == Just (Just 0)) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing == PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Nothing != PACKAGE.Darklang.Stdlib.Option.Option.Just PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just 5 == PACKAGE.Darklang.Stdlib.Option.Option.Just 5) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just 5 != PACKAGE.Darklang.Stdlib.Option.Option.Just 6) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just (PACKAGE.Darklang.Stdlib.Option.Option.Just 0) != PACKAGE.Darklang.Stdlib.Option.Option.Just (PACKAGE.Darklang.Stdlib.Option.Option.Just 1)) = true
+  (PACKAGE.Darklang.Stdlib.Option.Option.Just (PACKAGE.Darklang.Stdlib.Option.Option.Just 0) == PACKAGE.Darklang.Stdlib.Option.Option.Just (PACKAGE.Darklang.Stdlib.Option.Option.Just 0)) = true
   (PACKAGE.Darklang.Stdlib.Result.Result.Error 0 == PACKAGE.Darklang.Stdlib.Result.Result.Error 0) = true
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0 == PACKAGE.Darklang.Stdlib.Result.Result.Ok 0) = true
   (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0 != PACKAGE.Darklang.Stdlib.Result.Result.Error 0) = true
@@ -956,11 +956,11 @@ module UserDefined =
   let returnsString () : String =
     "string"
 
-  let returnsOptionJust () : Option<Int> =
-    Just 5
+  let returnsOptionJust () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+    PACKAGE.Darklang.Stdlib.Option.Option.Just 5
 
-  let returnsOptionNothing () : Option<Int> =
-    Nothing
+  let returnsOptionNothing () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+    PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, 'err> =
     PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
@@ -979,9 +979,9 @@ module UserDefined =
     twoStringFn "str1" "str2" = "str1 appended str2"
     returnsInt () = 5
     returnsString () = "string"
-    returnsOptionJust () = Just 5
+    returnsOptionJust () = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
     (returnsOptionJust ()) |> unwrap = 5
-    returnsOptionNothing () = Nothing
+    returnsOptionNothing () = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
     returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
     (returnsResultOk ()) |> unwrap = 5
     fnWithTypeArgAndOneParam<Int> 1 = 1
@@ -1016,9 +1016,9 @@ module Packages =
   PACKAGE.Darklang.Test.twoStringFn "str1" "str2" = "str1 appended str2"
   PACKAGE.Darklang.Test.returnsInt () = 5
   PACKAGE.Darklang.Test.returnsString () = "string"
-  PACKAGE.Darklang.Test.returnsOptionJust () = Just 5
+  PACKAGE.Darklang.Test.returnsOptionJust () = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
   (PACKAGE.Darklang.Test.returnsOptionJust ()) |> unwrap = 5
-  PACKAGE.Darklang.Test.returnsOptionNothing () = Nothing
+  PACKAGE.Darklang.Test.returnsOptionNothing () = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
   PACKAGE.Darklang.Test.returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
   (PACKAGE.Darklang.Test.returnsResultOk ()) |> unwrap = 5
   PACKAGE.Darklang.Test.returnsResultError () = PACKAGE.Darklang.Stdlib.Result.Result.Error false

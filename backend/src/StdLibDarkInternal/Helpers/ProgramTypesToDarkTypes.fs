@@ -142,7 +142,6 @@ module TypeReference =
 
       | PT.TDB inner -> "TDB", [ toDT inner ]
       | PT.TFn(args, ret) -> "TFn", [ DList(List.map toDT args); toDT ret ]
-      | PT.TOption inner -> "TOption", [ toDT inner ]
 
     DEnum(ptTyp [] "TypeReference" 0, name, fields)
 
@@ -411,7 +410,7 @@ module TypeDeclaration =
         ptTyp [ "TypeDeclaration" ] "EnumField" 0,
         Map
           [ "typ", TypeReference.toDT ef.typ
-            "label", ef.label |> Option.map DString |> DOption
+            "label", ef.label |> Option.map DString |> Dval.option
             "description", DString ef.description ]
       )
 

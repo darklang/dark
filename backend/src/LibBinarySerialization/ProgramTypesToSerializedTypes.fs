@@ -154,7 +154,6 @@ module TypeReference =
     | PT.TChar -> ST.TChar
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
-    | PT.TOption typ -> ST.TOption(toST typ)
     | PT.TCustomType(t, typeArgs) ->
       ST.TCustomType(TypeName.toST t, List.map toST typeArgs)
     | PT.TBytes -> ST.TBytes
@@ -178,7 +177,6 @@ module TypeReference =
     | ST.TChar -> PT.TChar
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
-    | ST.TOption typ -> PT.TOption(toPT typ)
     | ST.TCustomType(t, typeArgs) ->
       PT.TCustomType(TypeName.toPT t, List.map toPT typeArgs)
     | ST.TBytes -> PT.TBytes

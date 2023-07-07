@@ -163,7 +163,7 @@ let fns : List<BuiltInFn> =
     { name = fn "acos" 0
       typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "Returns the arc cosine of <param ratio>, as an <type Option>.
 
@@ -178,9 +178,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Ply(DOption None)
+            Ply(Dval.optionNothing)
           else
-            Ply(DOption(Some(DFloat res)))
+            Ply(Dval.optionJust (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
     { name = fn "asin" 0
       typeParams = []
       parameters = [ Param.make "ratio" TFloat "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "Returns the arc sine of <param ratio>, as an <type Option>.
 
@@ -205,9 +205,9 @@ let fns : List<BuiltInFn> =
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Ply(DOption None)
+            Ply(Dval.optionNothing)
           else
-            Ply(DOption(Some(DFloat res)))
+            Ply(Dval.optionJust (DFloat res))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

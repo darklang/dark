@@ -66,7 +66,7 @@ let fns : List<BuiltInFn> =
     { name = fn "get" 0
       typeParams = []
       parameters = [ keyParam; tableParam ]
-      returnType = TOption valType
+      returnType = TypeReference.option valType
       description = "Finds a value in <param table> by <param key>"
       fn =
         (function
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
     { name = fn "getMany" 0
       typeParams = []
       parameters = [ keysParam; tableParam ]
-      returnType = TOption(TList valType)
+      returnType = TypeReference.option(TList valType)
       description =
         "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB.etExisting)"
       fn =
@@ -104,9 +104,9 @@ let fns : List<BuiltInFn> =
             let! items = UserDB.getMany state db skeys
 
             if List.length items = List.length skeys then
-              return items |> DList |> Some |> DOption
+              return items |> DList |> Dval.optionJust
             else
-              return DOption None
+              return Dval.optionNothing
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -349,7 +349,7 @@ let fns : List<BuiltInFn> =
     { name = fn "queryOne" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
-      returnType = TOption valType
+      returnType = TypeReference.option valType
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
@@ -362,7 +362,7 @@ let fns : List<BuiltInFn> =
 
               match results with
               | [ (_, v) ] -> return Dval.optionJust v
-              | _ -> return DOption None
+              | _ -> return Dval.optionNothing
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }
@@ -375,7 +375,7 @@ let fns : List<BuiltInFn> =
     { name = fn "queryOneWithKey" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
-      returnType = TOption(TTuple(TString, valType, []))
+      returnType = TypeReference.option(TTuple(TString, valType, []))
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
@@ -388,7 +388,7 @@ let fns : List<BuiltInFn> =
 
               match results with
               | [ (key, dv) ] -> return Dval.optionJust (DTuple(DString key, dv, []))
-              | _ -> return DOption None
+              | _ -> return Dval.optionNothing
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
           }

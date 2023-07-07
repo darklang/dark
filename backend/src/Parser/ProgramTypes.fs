@@ -114,7 +114,6 @@ module TypeReference =
 
     // with type args
     | [], ("List", 0), [ arg ] -> PT.TList(fromSynType arg)
-    | [], ("Option", 0), [ arg ] -> PT.TOption(fromSynType arg)
     | [], ("Dict", 0), [ valArg ] -> PT.TDict(fromSynType valArg)
     // TYPESCLEANUP - don't use word Tuple here
     | [], ("Tuple", 0), first :: second :: theRest ->
@@ -183,7 +182,6 @@ module TypeReference =
     | PT.TTuple(first, second, theRest) ->
       PT.TTuple(c first, c second, List.map c theRest)
     | PT.TList arg -> PT.TList(c arg)
-    | PT.TOption arg -> PT.TOption(c arg)
     | PT.TDict valArg -> PT.TDict(c valArg)
     | PT.TVariable _ -> typ
     | PT.TDB arg -> PT.TDB(c arg)
@@ -540,8 +538,7 @@ module Expr =
         | None -> Exception.raiseInternal "invalid enum name" [ "name", name ]
 
 
-    // Variable enums - Ok, Error, Nothing, and Just are handled elsewhere,
-    // and Enums are expected to be fully qualified
+    // Enums are expected to be fully qualified
     | SynExpr.Ident name -> PT.EVariable(id, name.idText)
 
 

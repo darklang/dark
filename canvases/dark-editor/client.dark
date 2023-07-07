@@ -120,7 +120,7 @@ type ChatHistoryItem =
 type CodeSnippet =
   { id: String
     code: String
-    eval: Option<String> }
+    eval: PACKAGE.Darklang.Stdlib.Option.Option<String> }
 
 type Model =
   { isLoading: Bool
@@ -248,7 +248,7 @@ let update (model: Model) (msg: Msg) : Model =
                 [ CodeSnippet
                     { id = snippetId
                       code = text
-                      eval = Nothing } ]
+                      eval = PACKAGE.Darklang.Stdlib.Option.Option.Nothing } ]
 
             let updatedResponseParts =
               List.append responseParts [ BotResponseItem.CodeSnippet snippetId ]
@@ -300,7 +300,7 @@ let update (model: Model) (msg: Msg) : Model =
               [ CodeSnippet
                   { id = snippetToUpdate.id
                     code = codeSnippet
-                    eval = Just evalPgm } ]
+                    eval = PACKAGE.Darklang.Stdlib.Option.Option.Just evalPgm } ]
               otherSnippets
 
           Model
@@ -332,7 +332,7 @@ let update (model: Model) (msg: Msg) : Model =
           CodeSnippet
             { id = "evaluated-program"
               code = code
-              eval = Just evalPgm }
+              eval = PACKAGE.Darklang.Stdlib.Option.Option.Just evalPgm }
 
         Model
           { isLoading = false
@@ -400,7 +400,7 @@ let init () : Model =
       CodeSnippet
         { id = (String.random 5) |> unwrap
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
-          eval = Nothing }
+          eval = PACKAGE.Darklang.Stdlib.Option.Option.Nothing }
 
     let demoAction =
       [ Action

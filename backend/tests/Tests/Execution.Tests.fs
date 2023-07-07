@@ -512,7 +512,7 @@ let testMatchPreview : Test =
           (okVarRhsVarId, "ok var rhs var", ner (inc pOkVarVarId))
           (okVarRhsStrId, "ok var rhs str", ner (DString "ok: "))
 
-          (pNothingId, "nothing pat", ner (DOption None))
+          (pNothingId, "nothing pat", ner (Dval.optionNothing))
           (nothingRhsId, "nothing pat rhs", ner (DString "enum nothing"))
 
           (pVarId, "catch all pat", er (DInt 6L))
@@ -563,7 +563,7 @@ let testMatchPreview : Test =
         "nothing"
         (let typeName = TypeName.fqBuiltIn [] "Option" 0
          eEnum typeName "Nothing" [])
-        [ (pNothingId, "ok pat", er (DOption None))
+        [ (pNothingId, "ok pat", er (Dval.optionNothing))
           (nothingRhsId, "rhs", er (DString "enum nothing")) ]
 
       // TODO: test enum around a literal

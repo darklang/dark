@@ -87,7 +87,7 @@ some examples:
 { name = fn "getMany" 0
   typeParams = []
   parameters = [ keysParam; tableParam ]
-  returnType = TOption varA
+  returnType = TypeReference.option varA
   description =
     "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB::getExisting)"
   fn =
@@ -106,9 +106,9 @@ some examples:
         let! items = UserDB.getMany state db skeys
 
         if List.length items = List.length skeys then
-          return items |> DList |> Some |> DOption
+          return items |> DList |> Dval.optionJust
         else
-          return DOption None
+          return Dval.optionNothing
       }
     | _ -> incorrectArgs ())
   sqlSpec = NotQueryable
@@ -151,7 +151,6 @@ type DType =
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TStr])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of TypeName.T * typeArgs : List<DType>
-  | TOption of DType
 
   // Records
   | TDict of DType
@@ -223,7 +222,6 @@ and [<NoComparison>] Dval =
 
   | DRecord (* TypeName.T * *)  of DvalMap
   | DDict of DvalMap
-  | DOption of Option<Dval>
   | DEnum of
     typeName : TypeName.T *
     caseName : string *

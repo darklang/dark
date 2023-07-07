@@ -18,7 +18,7 @@ let _handler _req =
   let incomingHost =
     request.headers
     |> List.findFirst (fun t -> Tuple2.first t == "origin")
-    |> Option.map (fun t -> Tuple2.second t)
+    |> PACKAGE.Darklang.Stdlib.Option.map (fun t -> Tuple2.second t)
     |> Option.withDefault
       "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 

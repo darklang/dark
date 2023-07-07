@@ -95,9 +95,6 @@ let rec unify
   | TBytes, DBytes _ -> Ok()
   | TTuple _, DTuple _ -> Ok()
 
-  // TYPESCLEANUP - fold these cases all into TCustomType
-  | TOption _, DOption _ -> Ok()
-
   // TYPESCLEANUP: handle typeArgs
   | TCustomType(typeName, typeArgs), value ->
 
@@ -168,8 +165,7 @@ let rec unify
   | TUuid, _
   | TChar, _
   | TDB _, _
-  | TBytes, _
-  | TOption _, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
+  | TBytes, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
 
 
 

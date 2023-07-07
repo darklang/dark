@@ -60,12 +60,6 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DDateTime a, DDateTime b -> a = b
   | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
-  | DOption a, DOption b ->
-    match a, b with
-    | Some a, Some b -> equals a b
-    | None, None -> true
-    | Some _, None
-    | None, Some _ -> false
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
   | DEnum(a1, a2, a3), DEnum(b1, b2, b3) ->
@@ -85,7 +79,6 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DDateTime _, _
   | DPassword _, _
   | DUuid _, _
-  | DOption _, _
   | DBytes _, _
   | DDB _, _
   | DEnum _, _
@@ -320,11 +313,20 @@ let fns : List<BuiltInFn> =
         "Unwrap an Option or Result, returning the value or a DError if Nothing"
       fn =
         (function
-        | _, _, [ DOption opt ] ->
+        | _,
+          _,
+           [ DEnum(FQName.Package({ owner = "Darklang"
+                                    modules = { Head = "Stdlib"; Tail = [ "Option" ] }
+                                    name = TypeName.TypeName "Option"
+                                    version = 0 }),
+                  caseName,
+                  [ value ]) ] ->
           uply {
-            match opt with
-            | Some value -> return value
-            | None -> return (DError(SourceNone, "Nothing"))
+            match caseName with
+            | "Just" -> return value
+            | "Nothing" ->
+              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
+            | _ -> return (DError(SourceNone, "Invalid Result"))
           }
         | _,
           _,
