@@ -141,8 +141,10 @@ let toRepr (dv : Dval) : string =
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 
+      let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
+
       let typeStr = TypeName.toString typeName
-      $"{typeStr}.{caseName}({fieldStr})"
+      $"{typeStr}.{caseName}{fieldStr}"
 
 
   toRepr_ 0 dv
