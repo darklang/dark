@@ -50,7 +50,7 @@ List.empty_v0 = []
 
 
 
-List.filter [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`"
+List.filter [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing | 2 -> false | 3 -> true) = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.Nothing`"
 List.filter [true;false;true] (fun item -> "a") = Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`"
 List.filter [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = [ 1; 3 ]
 List.filter [] (fun item -> true) = []
@@ -58,7 +58,7 @@ List.filter [-20; 5; 9;] (fun x -> x > 20) = []
 List.filter [] (fun item -> "a") = []
 
 List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then PACKAGE.Darklang.Stdlib.Option.Option.Nothing else (PACKAGE.Darklang.Stdlib.Option.Option.Just (item * 2))) = [ 2; 6 ]
-List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (PACKAGE.Darklang.Stdlib.Option.Option.Just (item * 2))) = Test.typeError_v0 "Expected `fn` to return a Option<'b>, but it returned `false`"
+List.filterMap_v0 [1;2;3] (fun item -> if item == 2 then false else (PACKAGE.Darklang.Stdlib.Option.Option.Just (item * 2))) = Test.typeError_v0 "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Option.Option<'b>, but it returned `false`"
 List.filterMap_v0 [] (fun item -> 0) = []
 
 List.findFirst [1;2;3] (fun x -> x > 5) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
@@ -141,7 +141,7 @@ List.partition_v0 [] (fun item -> true) = ([], [])
 List.partition_v0 [] (fun item -> "a") = ([], [])
 List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> true | 2 -> false | 3 -> true) = ([ 1; 3 ], [2])
 List.partition_v0 [true;false;true] (fun item -> "a") = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `\"a\"`", [])
-List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing | 2 -> false | 3 -> true) = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `Nothing`", [])
+List.partition_v0 [1;2;3] (fun item -> match item with | 1 -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing | 2 -> false | 3 -> true) = (Test.typeError_v0 "Expected `fn` to return a Bool, but it returned `PACKAGE.Darklang.Stdlib.Option.Option.Nothing`", [])
 
 List.pushBack_v0 [2;3] 1 = [2;3;1]
 List.pushBack_v0 [] 1 = [1]

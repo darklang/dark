@@ -183,8 +183,8 @@ module Enums =
 
   module Errors =
     module Builtins =
-      PACKAGE.Darklang.Stdlib.Option.Option.Nothing 5 = Test.typeError "Option.Nothing expects 0 arguments but got 1"
-      PACKAGE.Darklang.Stdlib.Option.Option.Just(5,6) = Test.typeError "Option.Just expects 1 argument but got 2"
+      PACKAGE.Darklang.Stdlib.Option.Option.Nothing 5 = Test.typeError "Case `Nothing` expected 0 fields but got 1"
+      PACKAGE.Darklang.Stdlib.Option.Option.Just(5,6) = Test.typeError "Case `Just` expected 1 fields but got 2"
 
     module User =
       type MyEnum = | A | B | C of String
@@ -503,7 +503,7 @@ module Pipes =
    |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
 
   (let x = fun x -> PACKAGE.Darklang.Stdlib.Option.map x (fun a -> a) in
-   (PACKAGE.Darklang.Stdlib.Option.Just 3)
+   (PACKAGE.Darklang.Stdlib.Option.Option.Just 3)
    |> x
    |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1)) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
 
@@ -831,7 +831,7 @@ module Match =
 module Error =
   List.map_v0 [1;2;3;4;5] (fun x y -> x) = Test.typeError_v0 "Expected 2 arguments, got 1"
   Option.map2_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 10) "not an option" (fun (a,b) -> "1") =
-    Test.typeError_v0 "Option.map2's 2nd argument (option2) should be an PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: Option<'b>)\nActual: a String: \"not an option\""
+    Test.typeError_v0 "Option.map2's 2nd argument (option2) should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a String (\"not an...) was passed instead.\n\nExpected: (option2: PACKAGE.Darklang.Stdlib.Option.Option<'b>)\nActual: a String: \"not an option\""
 
   // Check we get previous errors before later ones
   (List.map_v0 [1;2;3;4;5] (fun x -> Test.typeError "X")) |> List.fakeFunction =

@@ -251,12 +251,14 @@ Json.parse<Tuple<String, String, Int>> """[1, "two", 3]""" = PACKAGE.Darklang.St
 
 
 // Options
-Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<Int>> PACKAGE.Darklang.Stdlib.Option.Option.Nothing = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Nothing\":null}"
-Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "{\"Nothing\":null}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<Int>> (PACKAGE.Darklang.Stdlib.Option.Option.Just 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Just\":1}"
-Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "{\"Just\":1}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Option.Option.Just 1)
-Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Ok PACKAGE.Darklang.Stdlib.Option.Option.Nothing
-Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Option.Option.Just 1)
+Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<Int>> PACKAGE.Darklang.Stdlib.Option.Option.Nothing = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Nothing\":[]}"
+Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "{\"Nothing\":[]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+Json.serialize<PACKAGE.Darklang.Stdlib.Option.Option<Int>> (PACKAGE.Darklang.Stdlib.Option.Option.Just 1) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "{\"Just\":[1]}"
+Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "{\"Just\":[1]}" = PACKAGE.Darklang.Stdlib.Result.Result.Ok (PACKAGE.Darklang.Stdlib.Option.Option.Just 1)
+
+// TODO: these might make good candidates for more ergonmic parsing
+Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "null" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected an object for an enum"
+Json.parse<PACKAGE.Darklang.Stdlib.Option.Option<Int>> "1" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected an object for an enum"
 // TODO: more...
 
 

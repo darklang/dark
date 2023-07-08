@@ -59,7 +59,7 @@ type TwilioRequest = {
 }
 
 type TwilioResponse = {
-  error : Option<String>
+  error : PACKAGE.Darklang.Stdlib.Option.Option<String>
   successCode : Int
 }
 

@@ -39,16 +39,22 @@ let fns : List<BuiltInFn> =
          {{Nothing}}, returns {{Nothing}} without applying <param fn>."
       fn =
         (function
-        | state, _, [ DEnum(_, caseName1, [dv1]); DEnum(_, caseName2, [dv2]); DFnVal b ] ->
+        | state,
+          _,
+          [ DEnum(_, caseName1, dvs1); DEnum(_, caseName2, dvs2); DFnVal b ] ->
           uply {
-            match (caseName1, caseName2) with
-            | "Nothing" , _
-            | _, "Nothing" -> return Dval.optionNothing
-            | "Just", "Just" ->
+            match (caseName1, dvs1, caseName2, dvs2) with
+            | "Nothing", _, _, _
+            | _, _, "Nothing", _ -> return Dval.optionNothing
+            | "Just", [ dv1 ], "Just", [ dv2 ] ->
               let! result = Interpreter.applyFnVal state b [ dv1; dv2 ]
 
               return Dval.optionJust result
-            | _ -> return Exception.raiseInternal "Invalid case names" ["caseName1", caseName1; "caseName2", caseName2]
+            | _ ->
+              return
+                Exception.raiseInternal
+                  "Invalid enums"
+                  [ "caseName1", caseName1; "caseName2", caseName2 ]
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

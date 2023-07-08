@@ -20,7 +20,7 @@ module Darklang =
       /// {{Just}}. Otherwise, returns {{Nothing}}
       let andThen (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>) (fn: 'a -> PACKAGE.Darklang.Stdlib.Option.Option<'b>) : PACKAGE.Darklang.Stdlib.Option.Option<'b> =
         match option with
-        | Just v -> fn v
+        | Just v -> v |> fn
         | Nothing -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
       /// If <param option> is {{Just <var value>}}, returns <var value>. Otherwise,

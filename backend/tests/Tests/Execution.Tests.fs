@@ -537,12 +537,7 @@ let testMatchPreview : Test =
 
       t
         "ok: y"
-        (let typeName =
-          TypeName.fqPackage
-            "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "Result" ])
-            "Result"
-            0
+        (let typeName = Dval.resultType
          eEnum typeName "Ok" [ eStr "y" ])
         [ (pOkVarOkId, "ok pat 2", er (Dval.resultOk (DString "y")))
           (pOkVarVarId, "var pat", er (DString "y"))
@@ -561,9 +556,9 @@ let testMatchPreview : Test =
 
       t
         "nothing"
-        (let typeName = TypeName.fqBuiltIn [] "Option" 0
+        (let typeName = Dval.optionType
          eEnum typeName "Nothing" [])
-        [ (pNothingId, "ok pat", er (Dval.optionNothing))
+        [ (pNothingId, "nothing pat", er (Dval.optionNothing))
           (nothingRhsId, "rhs", er (DString "enum nothing")) ]
 
       // TODO: test enum around a literal
