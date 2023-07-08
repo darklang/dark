@@ -26,7 +26,4 @@ module Darklang =
 
     let processRemainder (remainder: String) : String =
       let rem = $".{remainder}" |> Float.parse
-
-      match rem with
-      | Ok r -> r |> Float.toString |> String.dropFirst 2
-      | Error e -> e
+      rem |> unwrap |> Float.toString |> String.dropFirst 2
