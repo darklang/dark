@@ -388,7 +388,8 @@ module Darklang =
 
         type EnumCase =
           { name: String
-            fields: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumField>
+            fields:
+              List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumField>
             description: String }
 
         type Definition =
@@ -397,7 +398,8 @@ module Darklang =
 
           /// `type MyRecord = { a : int; b : String }`
           | Record of
-            firstField: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.RecordField *
+            firstField:
+              PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.RecordField *
             additionalFields:
               List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.RecordField>
 
@@ -408,12 +410,9 @@ module Darklang =
               List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.EnumCase>
 
         type T =
-          { description: String
-            typeParams: List<String>
-            definition: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.Definition
-            deprecated:
-              PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> }
-
+          { typeParams: List<String>
+            definition:
+              PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.Definition }
 
       module Handler =
         type CronInterval =
@@ -455,10 +454,10 @@ module Darklang =
           /// Name
           name: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.UserProgram
 
-          typeParams: List<String>
+          declaration: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T
 
-          /// The type definition (Alias, Record, Enum, etc.)
-          definition: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T
+          deprecated:
+            PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T>
         }
 
 
@@ -508,8 +507,7 @@ module Darklang =
           { tlid: PACKAGE.Darklang.Stdlib.TLID
             id: Uuid
             name: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Package
-            typeParams: List<String>
-            definition: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T
+            declaration: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T
             description: String
             deprecated:
               PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> }

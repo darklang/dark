@@ -718,7 +718,7 @@ module Darklang =
       let customType
         (d: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T)
         : String =
-        match d with
+        match d.definition with
         | Alias typeRef ->
           PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference typeRef
 
@@ -789,17 +789,16 @@ module Darklang =
             userType.name
 
         let typeParamPart =
-          match userType.typeParams with
+          match userType.declaration.typeParams with
           | [] -> ""
           | _ ->
-            userType.typeParams
+            userType.declaration.typeParams
             |> List.map (fun typeParam -> $"'{typeParam}")
             |> String.join ", "
             |> fun parts -> $"<{parts}>"
 
         let defPart =
-          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.customType userType.definition
-
+          PACKAGE.Darklang.PrettyPrinter.ProgramTypes.customType userType.declaration
         $"type {namePart}{typeParamPart} =\n{PACKAGE.Darklang.PrettyPrinter.indent defPart}"
 
 
