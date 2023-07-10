@@ -342,9 +342,12 @@ let debuGList (msg : string) (list : List<'a>) : unit =
   if list = [] then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
   else
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {List.length list}, ["
-    List.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}") list
-    NonBlockingConsole.WriteLine $"])"
+
+    [ $"DEBUG: {msg} (len {List.length list}, [" ]
+    @ List.map (fun item -> $"  {item}") list
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
 
 let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
@@ -354,18 +357,25 @@ let debuGArray (msg : string) (array : 'a[]) : unit =
   if array.Length = 0 then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
   else
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {array.Length}, ["
-    array |> Array.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}")
-    NonBlockingConsole.WriteLine $"])"
+    [ $"DEBUG: {msg} (len {array.Length}, [" ]
+    @ (array |> Array.toList |> List.map (fun item -> $"  {item}"))
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
 
 let debugArray (msg : string) (array : 'a[]) : 'a[] =
   debuGArray msg array
   array
 
 let debuGMap (msg : string) (map : Map<'k, 'v>) : unit =
-  NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {Map.count map}, ["
-  map |> Map.iter (fun k v -> NonBlockingConsole.WriteLine $"  {k} -> {v}")
-  NonBlockingConsole.WriteLine $"])"
+  if map = Map.empty then
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+  else
+    [ $"DEBUG: {msg} (len {Map.count map}, [" ]
+    @ (Map.toList map |> List.map (fun (k, v) -> $"  ({k}, {v})"))
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
 
 let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
   debuGMap msg map
@@ -897,6 +907,8 @@ module Dictionary =
 
   let get (k : 'k) (t : T<'k, 'v>) : Option<'v> =
     FSharpPlus.Dictionary.tryGetValue k t
+
+  let containsKey (k : 'k) (t : T<'k, 'v>) : bool = t.ContainsKey k
 
   let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : unit =
     d[k] <- v
