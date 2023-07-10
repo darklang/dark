@@ -91,9 +91,6 @@ module Darklang =
           List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference> *
           PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
 
-        | TOption of PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
-
-
       type LetPattern =
         | LPVariable of PACKAGE.Darklang.Stdlib.ID * name: String
         | LPTuple of
@@ -383,7 +380,7 @@ module Darklang =
 
         type EnumField =
           { typ: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
-            label: Option<String>
+            label: PACKAGE.Darklang.Stdlib.Option.Option<String>
             description: String }
 
         type EnumCase =

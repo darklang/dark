@@ -237,9 +237,6 @@ module Darklang =
           |> String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
 
-        | TOption inner ->
-          $"Option<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
-
         | TDict inner ->
           $"Dict<{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.typeReference inner}>"
 

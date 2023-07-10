@@ -52,7 +52,6 @@ let rec dvalToSql
   | _, DDB _
   | _, DDict _ // CLEANUP allow
   | _, DPassword _ // CLEANUP allow
-  | _, DOption _ // CLEANUP allow
   | _, DBytes _ // CLEANUP allow
   | _, DEnum _ // TODO: revisit
   | _, DRecord _
@@ -236,6 +235,11 @@ let rec inline'
            expr)
 
       | expr -> expr)
+    identity
+    identity
+    identity
+    identity
+    identity
     expr
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =

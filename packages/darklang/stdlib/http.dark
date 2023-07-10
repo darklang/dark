@@ -23,19 +23,19 @@ module Darklang =
         let queryParam
           (req: PACKAGE.Darklang.Stdlib.Http.Request)
           (key: String)
-          : Option<String> =
+          : PACKAGE.Darklang.Stdlib.Option.Option<String> =
           let found =
             (PACKAGE.Darklang.Stdlib.Http.Request.queryParams req)
             |> List.filterMap (fun pair ->
               match pair with
-              | (k, v) -> if k == key then Just v else Nothing
-              | _ -> Nothing)
+              | (k, v) -> if k == key then PACKAGE.Darklang.Stdlib.Option.Option.Just v else PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+              | _ -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing)
 
           match found with
-          | [] -> Nothing
-          | [ v ] -> Just v
+          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+          | [ v ] -> PACKAGE.Darklang.Stdlib.Option.Option.Just v
           // TODO: something else?
-          | items -> Just(String.join items ",")
+          | items -> PACKAGE.Darklang.Stdlib.Option.Option.Just(String.join items ",")
 
 
       type Response =
@@ -192,7 +192,7 @@ module Darklang =
               ("Secure", cookie.secure |> Bool.toString)
               ("HttpOnly", cookie.httpOnly |> Bool.toString)
               ("SameSite", cookie.sameSite) ]
-            |> List.filterMap (fun (k, v) -> if v == "" then Nothing else Just(k, v))
+            |> List.filterMap (fun (k, v) -> if v == "" then PACKAGE.Darklang.Stdlib.Option.Option.Nothing else PACKAGE.Darklang.Stdlib.Option.Option.Just(k, v))
             |> List.map (fun (k, v) -> k ++ "=" ++ v)
             |> String.join "; "
 

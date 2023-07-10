@@ -102,7 +102,7 @@ let fns : List<BuiltInFn> =
     { name = fn "toChar" 0
       typeParams = []
       parameters = [ Param.make "c" TString "" ]
-      returnType = TOption TChar
+      returnType = TypeReference.option TChar
       description = "Turns a string of length 1 into a character"
       fn =
         (function
@@ -110,9 +110,9 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Some |> DOption |> Ply)
+            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionJust |> Ply)
           else
-            Ply(DOption None)
+            Ply(Dval.optionNothing)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -184,11 +184,11 @@ let fns : List<BuiltInFn> =
     { name = fn "justWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description = "Returns a DError in a Just"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(Dval.optionJust (DError(SourceNone, msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -354,47 +354,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "unwrap" 0
-      typeParams = []
-      parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
-      returnType = TVariable "a"
-      description =
-        "Unwrap an Option or Result, returning the value or a DError if Nothing"
-      fn =
-        (function
-        | _, _, [ DOption opt ] ->
-          uply {
-            match opt with
-            | Some value -> return value
-            | None -> return (DError(SourceNone, "Nothing"))
-          }
-        // | _,
-        //   _,
-        //   [ DEnum(FQName.Package({ owner = "Darklang"
-        //                            modules = NonEmptyList.ofList [ "Stdlib"
-        //                                                            "Result" ]
-        //                            name = "Result"
-        //                            version = 0 }),
-        //           caseName,
-        //           [ res ]) ] -> res
-
-        //   uply {
-        //     match caseName with
-        //     | "Ok" value -> return value
-        //     | "Error" e ->
-        //       return
-        //         (DError(
-        //           SourceNone,
-        //           ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
-        //         ))
-        //     | _ -> return (DError(SourceNone, "Invalid Result"))
-        // }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

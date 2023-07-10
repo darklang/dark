@@ -51,7 +51,6 @@ module TypeReference =
     | PT.TChar -> RT.TChar
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
-    | PT.TOption typ -> RT.TOption(toRT typ)
     | PT.TCustomType(typeName, typArgs) ->
       RT.TCustomType(TypeName.toRT typeName, List.map toRT typArgs)
     | PT.TBytes -> RT.TBytes

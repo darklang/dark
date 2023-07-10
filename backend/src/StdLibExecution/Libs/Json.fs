@@ -116,12 +116,6 @@ let rec serialize
     let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
     w.writeArray (fun () -> List.iter (fun (t, d) -> r t d) zipped)
 
-  | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
-  | TOption oType, DOption(Some dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Just"
-      r oType dv)
-
   | TCustomType(typeName, typeArgs), dval ->
 
     match Types.find typeName types with
@@ -221,7 +215,6 @@ let rec serialize
   | TDB _, _
   | TVariable _, _
   | TCustomType _, _
-  | TOption _, _
   | TDict _, _ ->
     Exception.raiseInternal
       "Can't currently serialize this type/value combination"
@@ -354,16 +347,6 @@ let parse
           "Invalid tuple - really shouldn't be possible to hit this"
           []
 
-    | TOption _, JsonValueKind.Null -> DOption None
-    | TOption oType, JsonValueKind.Object ->
-      let objFields =
-        j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
-
-      match Map.tryFind "Just" objFields with
-      | Some v -> DOption(Some(convert oType v))
-      | None -> DOption None
-    | TOption oType, v -> convert oType j |> Some |> DOption
-
     | TDict tDict, JsonValueKind.Object ->
       j.EnumerateObject()
       |> Seq.map (fun jp -> (jp.Name, convert tDict jp.Value))
@@ -470,7 +453,6 @@ let parse
     | TList _, _
     | TTuple _, _
     | TCustomType _, _
-    | TOption _, _
     | TDict _, _ ->
       Exception.raiseInternal
         "Can't currently parse this type/value combination"

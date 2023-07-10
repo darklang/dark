@@ -402,25 +402,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPVariable(id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
+
         | MPEnum(id, caseName, fieldPats) ->
-          match (caseName, fieldPats, dv) with
-          | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
-
-          | "Just", [ p ], DOption(Some v) ->
-            let (passes, newVars, traces) = checkPattern v p
-
-            if passes then
-              true, newVars, (id, dv) :: traces
-            else
-              false, newVars, traceIncompleteWithArgs id [ p ] @ traces
-
-          // Trace this with incompletes to avoid type errors
-          | "Just", [ p ], _ ->
-            let pID = MatchPattern.toID p
-            let (_, newVars, traces) = checkPattern (incomplete pID) p
-            false, newVars, traceIncompleteWithArgs id [] @ traces
-
-          | caseName, fieldPats, DEnum(_dTypeName, dCaseName, dFields) when
+          match dv with
+          | DEnum(_dTypeName, dCaseName, dFields) when
             List.length dFields = List.length fieldPats && caseName = dCaseName
             ->
             let (passResults, newVarResults, traceResults) =
@@ -435,20 +420,21 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             if allPass then
               true, allVars, (id, dv) :: allSubTraces
             else
-              false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces
+              false, allVars, (id, incomplete id) :: allSubTraces
 
           // Trace this with incompletes to avoid type errors
-          | _caseName, fieldPats, _dv ->
+          | _dv ->
             let (newVarResults, traceResults) =
               fieldPats
               |> List.map (fun fp ->
                 let pID = MatchPattern.toID fp
                 let (_, newVars, traces) = checkPattern (incomplete pID) fp
-                newVars, traceIncompleteWithArgs id [] @ traces)
+                newVars, (id, incomplete id) :: traces)
               |> List.unzip
             let allVars = newVarResults |> List.collect identity
             let allSubTraces = traceResults |> List.collect identity
-            (false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces)
+            (false, allVars, (id, incomplete id) :: allSubTraces)
+
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
@@ -474,6 +460,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
+
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
@@ -613,76 +600,57 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | EEnum(id, typeName, caseName, fields) ->
-      match typeName with
-      | FQName.BuiltIn({ modules = []
-                         name = TypeName.TypeName "Option"
-                         version = 0 }) ->
-        match (caseName, fields) with
-        | "Nothing", [] -> return DOption None
-        | "Nothing", _ ->
-          return err id $"Option.Nothing expects 0 arguments but got {fields.Length}"
-        | "Just", [ arg ] ->
-          let! dv = (eval state st arg)
-          return Dval.optionJust dv
-        | "Just", _ ->
-          return err id $"Option.Just expects 1 argument but got {fields.Length}"
-        | name, _ -> return err id $"Invalid name for enum {name}"
-      | typeName ->
-        let typeStr = TypeName.toString typeName
-        let types = ExecutionState.availableTypes state
-        match Types.find typeName types with
-        | None -> return err id $"There is no type named `{typeStr}`"
-        | Some({ definition = TypeDeclaration.Alias _ }) ->
-          return err id $"Expected an enum but {typeStr} is an alias"
-        | Some({ definition = TypeDeclaration.Record _ }) ->
-          return err id $"Expected an enum but {typeStr} is a record"
-        | Some({ definition = TypeDeclaration.Enum(case, cases) }) ->
-          let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
-          match case with
-          | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
-          | Some case ->
-            if case.fields.Length <> fields.Length then
-              let msg =
-                $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
-              return err id msg
-            else
-              let fields = List.zip case.fields fields
-              return!
-                Ply.List.foldSequentiallyWithIndex
-                  (fun i r ((enumField : TypeDeclaration.EnumField), expr) ->
-                    uply {
-                      if Dval.isFake r then
-                        do! preview st expr
-                        return r
+      let typeStr = TypeName.toString typeName
+      let types = ExecutionState.availableTypes state
+      match Types.find typeName types with
+      | None -> return err id $"There is no type named `{typeStr}`"
+      | Some({ definition = TypeDeclaration.Alias _ }) ->
+        return err id $"Expected an enum but {typeStr} is an alias"
+      | Some({ definition = TypeDeclaration.Record _ }) ->
+        return err id $"Expected an enum but {typeStr} is a record"
+      | Some({ definition = TypeDeclaration.Enum(case, cases) }) ->
+        let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
+        match case with
+        | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
+        | Some case ->
+          if case.fields.Length <> fields.Length then
+            let msg =
+              $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
+            return err id msg
+          else
+            let fields = List.zip case.fields fields
+            return!
+              Ply.List.foldSequentiallyWithIndex
+                (fun i r ((enumField : TypeDeclaration.EnumField), expr) ->
+                  uply {
+                    if Dval.isFake r then
+                      do! preview st expr
+                      return r
+                    else
+                      let! v = eval state st expr
+                      if Dval.isFake v then
+                        return v
                       else
-                        let! v = eval state st expr
-                        if Dval.isFake v then
-                          return v
-                        else
-                          let context =
-                            TypeChecker.EnumField(
-                              typeName,
-                              enumField,
-                              case.name,
-                              i,
-                              None
-                            )
-                          match TypeChecker.unify context types enumField.typ v with
-                          | Ok() ->
-                            match r with
-                            | DEnum(typeName, caseName, existing) ->
-                              return
-                                DEnum(
-                                  typeName,
-                                  caseName,
-                                  List.append existing [ v ]
-                                )
-                            | _ -> return err id "Expected an enum"
-                          | Error e ->
-                            return err id (Errors.toString (Errors.TypeError(e)))
-                    })
-                  (DEnum(typeName, caseName, []))
-                  fields
+                        let context =
+                          TypeChecker.EnumField(
+                            typeName,
+                            enumField,
+                            case.name,
+                            i,
+                            None
+                          )
+                        match TypeChecker.unify context types enumField.typ v with
+                        | Ok() ->
+                          match r with
+                          | DEnum(typeName, caseName, existing) ->
+                            return
+                              DEnum(typeName, caseName, List.append existing [ v ])
+                          | _ -> return err id "Expected an enum"
+                        | Error e ->
+                          return err id (Errors.toString (Errors.TypeError(e)))
+                  })
+                (DEnum(typeName, caseName, []))
+                fields
   }
 
 /// Interprets an expression and reduces to a Dark value

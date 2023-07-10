@@ -294,7 +294,6 @@ type TypeReference =
   | TDB of TypeReference
   | TVariable of string
   | TCustomType of TypeName.T * typeArgs : List<TypeReference> // CLEANUP check all uses
-  | TOption of TypeReference // CLEANUP remove
   | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
@@ -312,7 +311,6 @@ type TypeReference =
       | TFn(ts, t) -> List.forall isConcrete ts && isConcrete t
       | TDB t -> isConcrete t
       | TCustomType(_, ts) -> List.forall isConcrete ts
-      | TOption t -> isConcrete t
       | TDict t -> isConcrete t
       // exhaustiveness
       | TUnit
@@ -336,6 +334,16 @@ module TypeReference =
         "Result"
         0,
       [ t1; t2 ]
+    )
+
+  let option (t : TypeReference) : TypeReference =
+    TCustomType(
+      TypeName.fqPackage
+        "Darklang"
+        (NonEmptyList.ofList [ "Stdlib"; "Option" ])
+        "Option"
+        0,
+      [ t ]
     )
 
 
@@ -487,11 +495,6 @@ and [<NoComparison>] Dval =
   | DBytes of byte array
 
   | DDict of DvalMap
-
-  // TODO: merge DOption into DEnum once the Option and Result types
-  // are defined in the Option and Result modules of the standard library
-  | DOption of Option<Dval>
-
   | DRecord of TypeName.T * DvalMap
   | DEnum of TypeName.T * caseName : string * List<Dval>
 
@@ -678,8 +681,6 @@ module Dval =
     | DDict m, TDict t -> Map.all (typeMatches t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
       List.length parameters = List.length l.parameters
-    | DOption None, TOption _ -> true
-    | DOption(Some v), TOption t -> typeMatches t v
 
     | DRecord(typeName, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
@@ -713,7 +714,6 @@ module Dval =
     | DDict _, _
     | DRecord _, _
     | DFnVal _, _
-    | DOption _, _
     | DEnum _, _ -> false
 
 
@@ -782,6 +782,13 @@ module Dval =
       "Result"
       0
 
+  let optionType =
+    TypeName.fqPackage
+      "Darklang"
+      (NonEmptyList.ofList [ "Stdlib"; "Option" ])
+      "Option"
+      0
+
   let resultOk (dv : Dval) : Dval =
     if isFake dv then dv else DEnum(resultType, "Ok", [ dv ])
   let resultError (dv : Dval) : Dval =
@@ -793,13 +800,17 @@ module Dval =
     | Ok dv -> resultOk dv
     | Error dv -> resultError dv
 
-  let optionJust (dv : Dval) : Dval = if isFake dv then dv else DOption(Some dv)
 
-  // Wraps in a DOption after checking that the value is not a fakeval
+  let optionJust (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(optionType, "Just", [ dv ])
+
+  let optionNothing : Dval = DEnum(optionType, "Nothing", [])
+
+  // Wraps in an Option after checking that the value is not a fakeval
   let option (dv : Option<Dval>) : Dval =
     match dv with
     | Some dv -> optionJust dv // checks isFake
-    | None -> DOption None
+    | None -> optionNothing
 
   let errStr (s : string) : Dval = DError(SourceNone, s)
 
@@ -1163,7 +1174,6 @@ module Types =
     | TDB _ -> typ
     | TCustomType(typeName, typeArgs) ->
       TCustomType(typeName, List.map substitute typeArgs)
-    | TOption t -> TOption(substitute t)
     | TDict t -> TDict(substitute t)
 
 

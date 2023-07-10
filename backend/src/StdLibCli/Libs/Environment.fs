@@ -18,7 +18,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "get" 0
       typeParams = []
       parameters = [ Param.make "varName" TString "" ]
-      returnType = TOption TString
+      returnType = TypeReference.option TString
       description =
         "Gets the value of the environment variable with the given <param varName> if it exists."
       fn =
@@ -27,9 +27,9 @@ let fns : List<BuiltInFn> =
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
-            Ply(DOption None)
+            Ply(Dval.optionNothing)
           else
-            Ply(DOption(Some(DString envValue)))
+            Ply(Dval.optionJust (DString envValue))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

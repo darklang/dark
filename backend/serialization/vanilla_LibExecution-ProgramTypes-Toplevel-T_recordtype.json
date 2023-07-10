@@ -27,17 +27,14 @@
                 [
                   "TDB",
                   [
-                    "TOption",
+                    "TFn",
                     [
-                      "TFn",
                       [
-                        [
-                          "TFloat"
-                        ]
-                      ],
-                      [
-                        "TUnit"
+                        "TFloat"
                       ]
+                    ],
+                    [
+                      "TUnit"
                     ]
                   ]
                 ]
@@ -98,12 +95,6 @@
               ],
               [
                 "TUuid"
-              ],
-              [
-                "TOption",
-                [
-                  "TInt"
-                ]
               ],
               [
                 "TCustomType",

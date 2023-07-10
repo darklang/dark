@@ -296,10 +296,6 @@ type TypeReference =
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of TypeName.T * typeArgs : List<TypeReference>
 
-  // TODO: collapse into TCustomType once Stdlib-defined types are supported in FQTypeName
-  // and the Option module defines the custom `Option` type
-  | TOption of TypeReference
-
 
 /// Expressions - the main part of the language.
 type Expr =

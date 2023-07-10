@@ -367,9 +367,7 @@ module Expect =
     | DDB _
     | DUuid _
     | DBytes _
-    | DOption None
     | DFloat _ -> true
-    | DOption(Some v) -> check v
     | DList vs -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
@@ -509,8 +507,7 @@ module Expect =
     | TBytes, _
     | TVariable(_), _
     | TFn(_, _), _
-    | TCustomType(_, _), _
-    | TOption(_), _ ->
+    | TCustomType(_, _), _ ->
       if actual <> expected then errorFn path (string actual) (string expected)
 
 
@@ -683,7 +680,6 @@ module Expect =
         ()
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
         error path
-    | DOption(Some l), DOption(Some r) -> de ("Just" :: path) l r
     | DDateTime l, DDateTime r ->
       // Two dates can be the same millisecond and not be equal if they don't
       // have the same number of ticks. For testing, we shall consider them
@@ -760,7 +756,6 @@ module Expect =
     | DEnum _, _
     | DList _, _
     | DTuple _, _
-    | DOption _, _
     | DString _, _
     | DInt _, _
     | DDateTime _, _
@@ -829,8 +824,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DOption(Some v) -> visit v
-    | DOption None
     | DString _
     | DInt _
     | DDateTime _
@@ -1064,9 +1057,9 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("password", DPassword(Password(UTF8.toBytes "somebytes")), TPassword)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", DOption None, TOption TInt)
-    ("option2", DOption(Some(Dval.int 15)), TOption TInt)
-    ("option3", DOption(Some(DString "a string")), TOption TString)
+    ("option", Dval.optionNothing, TypeReference.option TInt)
+    ("option2", Dval.optionJust (Dval.int 15), TypeReference.option TInt)
+    ("option3", Dval.optionJust (DString "a string"), TypeReference.option TString)
     ("character", DChar "s", TChar)
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms

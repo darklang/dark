@@ -94,7 +94,7 @@ module Roundtrip =
   // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
   (let v = sample ()
    let z = DB.set v "all" SampleDB in
-   (z, DB.get "all" SampleDB)) = (sample (), Just(sample ()))
+   (z, DB.get "all" SampleDB)) = (sample (), PACKAGE.Darklang.Stdlib.Option.Option.Just(sample ()))
 
 
   type Passwords = { password: Password }
@@ -250,26 +250,26 @@ module SetCharUpserts =
 
 module Get =
   // return nothing for empty store
-  (DB.get "lol" XDB) = Nothing
+  (DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // return nothing for invalid key
-  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "lol" XDB) = Nothing
+  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // returns single value
-  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "key" XDB) = Just(
+  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
     X { x = "hello" }
   )
 
   // returns correct value given reassigned entry
   (let _ = DB.set (X { x = "hello" }) "key" XDB in
    let _ = DB.set (X { x = "goodbye" }) "key" XDB in
-   DB.get "key" XDB) = Just(X { x = "goodbye" })
+   DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(X { x = "goodbye" })
 
   // returns value given multiple entries
   (let _ = DB.set (X { x = "pancake" }) "key1" XDB in
    let _ = DB.set (X { x = "waffle" }) "key2" XDB in
    let _ = DB.set (X { x = "scone" }) "key3" XDB in
-   DB.get "key2" XDB) = Just(X { x = "waffle" })
+   DB.get "key2" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(X { x = "waffle" })
 
 
 module Params =
@@ -277,7 +277,7 @@ module Params =
   [<DB>] type ParamDB = Param<String>
 
   (let _ = DB.set (Param { x = "hello"; b = 5 }) "key" ParamDB
-   DB.get "key" ParamDB) = Just(Param { x = "hello"; b = 5 })
+   DB.get "key" ParamDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(Param { x = "hello"; b = 5 })
 
 
 
@@ -327,7 +327,7 @@ module GetExisting =
 module GetMany =
   (let one = DB.set (X { x = "hello" }) "one" XDB in
    let two = DB.set (X { x = "goodbye" }) "two" XDB in
-   DB.getMany [ "three"; "two" ] XDB) = Nothing
+   DB.getMany [ "three"; "two" ] XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   (let one = DB.set (X { x = "hello" }) "one" XDB in
    let two = DB.set (X { x = "goodbye" }) "two" XDB in
@@ -637,10 +637,10 @@ module PartialEvaluation =
 
 module QueryOneWithKey =
   // multiple
-  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.human)) = Nothing
+  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.human)) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // none
-  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = Nothing
+  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // one
   (let _ = prepFriends () in
@@ -650,11 +650,11 @@ module QueryOneWithKey =
    |> (fun v -> (Tuple2.second v).name)) = "Rachel"
 
   // interpolated
-  (let _ = prepFriends () in
-   let test = "ache" in
+  (let _ = prepFriends ()
+   let test = "ache"
 
    (DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
-   |> Option.map (fun v -> (Tuple2.second v).name)) = Just "Rachel"
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> (Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Just "Rachel"
 
 
 module QueryWithKey =

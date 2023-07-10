@@ -17,7 +17,7 @@ let _handler _req =
   let incomingHost =
     request.headers
     |> List.findFirst (fun t -> Tuple2.first t == "origin")
-    |> Option.map (fun t -> Tuple2.second t)
+    |> PACKAGE.Darklang.Stdlib.Option.map (fun t -> Tuple2.second t)
     |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
@@ -194,7 +194,7 @@ type PTUserFunction =
 type SyntaxTreeNode =
   { typ: String
     text: String
-    fieldName: Option<String>
+    fieldName: PACKAGE.Darklang.Stdlib.Option.Option<String>
     children: List<SyntaxTreeNode> }
 
 /// From a node, looks through its children for a single node

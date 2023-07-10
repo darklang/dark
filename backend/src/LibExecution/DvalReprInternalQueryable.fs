@@ -166,12 +166,6 @@ let rec private toJsonV0
           [ "value", dv; "type", typ; "typeName", typeName ]
 
   // Not supported
-  | TOption _, DOption None -> w.writeObject (fun () -> w.WriteNull "Nothing")
-  | TOption oType, DOption(Some dv) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName "Just"
-      writeDval oType dv)
-
   | TVariable _, _
   | TFn _, DFnVal _
   | TDB _, DDB _ -> Exception.raiseInternal "Not supported in queryable" []
@@ -190,7 +184,6 @@ let rec private toJsonV0
   | TUuid, _
   | TTuple _, _
   | TBytes, _
-  | TOption _, _
   | TDB _, _
   | TFn _, _ ->
     Exception.raiseInternal
@@ -302,7 +295,6 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Dval =
             DEnum(typeName, caseName, fields)
 
     | TBytes _, _ -> Exception.raiseInternal "Bytes values not supported yet" []
-    | TOption _, _ -> Exception.raiseInternal "Option values not supported yet" []
 
     | TFn _, _ -> Exception.raiseInternal "Fn values not supported" []
     | TDB _, _ -> Exception.raiseInternal "DB values not supported" []
@@ -350,7 +342,6 @@ module Test =
     // TODO support
     | DRecord _ // TYPESCLEANUP
     | DBytes _
-    | DOption _
 
     // Maybe never support
     | DFnVal _

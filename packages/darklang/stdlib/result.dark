@@ -76,7 +76,7 @@ module Darklang =
 
       /// Turn an option into a result, using <param error> as the error message for Error. Specifically, if <param option> is {{Just <var value>}}, returns {{Ok <var value>}}. Returns {{Error <var error>}} otherwise.
       let fromOption
-        (option: Option<'t>)
+        (option: PACKAGE.Darklang.Stdlib.Option.Option<'t>)
         (error: 'e)
         : PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e> =
         match option with
@@ -86,10 +86,10 @@ module Darklang =
       /// Turn a <type Result> into an <type Option>
       let toOption
         (result: PACKAGE.Darklang.Stdlib.Result.Result<'t, 'e>)
-        : Option<'t> =
+        : PACKAGE.Darklang.Stdlib.Option.Option<'t> =
         match result with
-        | Ok value -> Just value
-        | Error _ -> Nothing
+        | Ok value -> PACKAGE.Darklang.Stdlib.Option.Option.Just value
+        | Error _ -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
 
       /// Collect a list of results into a single result. If any of the results

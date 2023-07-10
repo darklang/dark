@@ -590,7 +590,7 @@ module ProgramTypes =
   // Note: This is aimed to contain all cases of `TypeReference`
   let dtype =
     PT.TTuple(
-      PT.TList(PT.TDict(PT.TDB(PT.TOption(PT.TFn([ PT.TFloat ], PT.TUnit))))),
+      PT.TList(PT.TDict(PT.TDB(PT.TFn([ PT.TFloat ], PT.TUnit)))),
       PT.TInt,
       [ PT.TFloat
         PT.TBool
@@ -604,7 +604,6 @@ module ProgramTypes =
         PT.TChar
         PT.TPassword
         PT.TUuid
-        PT.TOption(PT.TInt)
         PT.TCustomType(
           PT.FQName.UserProgram
             { modules = [ "Mod" ]; name = PT.TypeName.TypeName "name"; version = 0 },
