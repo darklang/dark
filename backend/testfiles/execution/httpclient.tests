@@ -3,13 +3,13 @@
 
 // Tests that don't use the internet
 module NoInternal =
-  PACKAGE.Darklang.Stdlib.HttpClient.formContentType_v0 () = ("Content-Type", "application/x-www-form-urlencoded")
+  PACKAGE.Darklang.Stdlib.HttpClient.formContentType_v0 () = ("content-type", "application/x-www-form-urlencoded")
 
-  PACKAGE.Darklang.Stdlib.HttpClient.jsonContentType_v0 () = ("Content-Type", "application/json; charset=utf-8")
+  PACKAGE.Darklang.Stdlib.HttpClient.jsonContentType_v0 () = ("content-type", "application/json; charset=utf-8")
 
-  PACKAGE.Darklang.Stdlib.HttpClient.plainTextContentType_v0 () = ("Content-Type", "text/plain; charset=utf-8")
+  PACKAGE.Darklang.Stdlib.HttpClient.plainTextContentType_v0 () = ("content-type", "text/plain; charset=utf-8")
 
-  PACKAGE.Darklang.Stdlib.HttpClient.htmlContentType_v0 () = ("Content-Type", "text/html; charset=utf-8")
+  PACKAGE.Darklang.Stdlib.HttpClient.htmlContentType_v0 () = ("content-type", "text/html; charset=utf-8")
 
   PACKAGE.Darklang.Stdlib.HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = ("Authorization", "Bearer YWxhZGRpbjpvcGVuc2VzYW1l")
 
