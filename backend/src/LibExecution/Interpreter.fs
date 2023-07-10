@@ -402,9 +402,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPVariable(id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
+
         | MPEnum(id, caseName, fieldPats) ->
-          match (caseName, fieldPats, dv) with
-          | caseName, fieldPats, DEnum(_dTypeName, dCaseName, dFields) when
+          match dv with
+          | DEnum(_dTypeName, dCaseName, dFields) when
             List.length dFields = List.length fieldPats && caseName = dCaseName
             ->
             let (passResults, newVarResults, traceResults) =
@@ -419,20 +420,21 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             if allPass then
               true, allVars, (id, dv) :: allSubTraces
             else
-              false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces
+              false, allVars, (id, incomplete id) :: allSubTraces
 
           // Trace this with incompletes to avoid type errors
-          | _caseName, fieldPats, _dv ->
+          | _dv ->
             let (newVarResults, traceResults) =
               fieldPats
               |> List.map (fun fp ->
                 let pID = MatchPattern.toID fp
                 let (_, newVars, traces) = checkPattern (incomplete pID) fp
-                newVars, traceIncompleteWithArgs id [] @ traces)
+                newVars, (id, incomplete id) :: traces)
               |> List.unzip
             let allVars = newVarResults |> List.collect identity
             let allSubTraces = traceResults |> List.collect identity
-            (false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces)
+            (false, allVars, (id, incomplete id) :: allSubTraces)
+
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
@@ -458,6 +460,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
+
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
