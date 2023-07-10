@@ -15,7 +15,7 @@ module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
 let p (code : string) : Expr =
-  Parser.ProgramTypes.parseRTExpr Set.empty Set.empty "sqlcompiler.tests.fs" code
+  Parser.Parser.parseRTExpr Set.empty Set.empty "sqlcompiler.tests.fs" code
 
 let compile
   (symtable : DvalMap)
@@ -126,7 +126,7 @@ let compileTests =
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
     let expr =
-      Parser.ProgramTypes.parseRTExpr
+      Parser.Parser.parseRTExpr
         Set.empty
         Set.empty
         "test.fs"

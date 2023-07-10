@@ -132,7 +132,7 @@ module UserDB =
       { tlid = gid ()
         name = id.idText
         version = 0
-        typ = Parser.ProgramTypes.TypeReference.fromSynType typ }
+        typ = ProgramTypes.TypeReference.fromSynType typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
@@ -149,7 +149,7 @@ let parseTypeDefn (m : CanvasModule) (typeDefn : SynTypeDefn) : CanvasModule =
       if isDB then
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ Parser.ProgramTypes.UserType.fromSynTypeDefn typeDefn ]
+        [], [ ProgramTypes.UserType.fromSynTypeDefn typeDefn ]
 
     { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
@@ -188,18 +188,20 @@ let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
 let postProcessModule (m : CanvasModule) : CanvasModule =
   let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
   let userTypeNames = m.types |> List.map (fun t -> t.name) |> Set
-  let fixExpr = ProgramTypes.Expr.resolveNames userFnNames userTypeNames
+  let fixExpr = NameResolution.Expr.resolveNames userFnNames userTypeNames
   { handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixExpr expr))
     exprs = m.exprs |> List.map fixExpr
     fns =
       m.fns
-      |> List.map (ProgramTypes.UserFunction.resolveNames userFnNames userTypeNames)
-    types = m.types |> List.map (ProgramTypes.UserType.resolveNames userTypeNames)
+      |> List.map (
+        NameResolution.UserFunction.resolveNames userFnNames userTypeNames
+      )
+    types = m.types |> List.map (NameResolution.UserType.resolveNames userTypeNames)
     dbs =
       m.dbs
       |> List.map (fun db ->
         { db with
-            typ = ProgramTypes.TypeReference.resolveNames userTypeNames db.typ }) }
+            typ = NameResolution.TypeReference.resolveNames userTypeNames db.typ }) }
 
 let parse (filename : string) (source : string) : CanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source

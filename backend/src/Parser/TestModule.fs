@@ -42,7 +42,7 @@ module UserDB =
     (userTypes : Set<PT.TypeName.UserProgram>)
     (db : PT.DB.T)
     : PT.DB.T =
-    { db with typ = PTP.TypeReference.resolveNames userTypes db.typ }
+    { db with typ = NameResolution.TypeReference.resolveNames userTypes db.typ }
 
 
 /// Extracts a test from a SynExpr.
@@ -123,9 +123,11 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
         decls
     let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
     let typeNames = m.types |> List.map (fun t -> t.name) |> Set
-    let fixExpr = PTP.Expr.resolveNames fnNames typeNames
-    { fns = m.fns |> List.map (PTP.UserFunction.resolveNames fnNames typeNames)
-      types = m.types |> List.map (PTP.UserType.resolveNames typeNames)
+    let fixExpr = NameResolution.Expr.resolveNames fnNames typeNames
+    { fns =
+        m.fns
+        |> List.map (NameResolution.UserFunction.resolveNames fnNames typeNames)
+      types = m.types |> List.map (NameResolution.UserType.resolveNames typeNames)
       dbs = m.dbs |> List.map (UserDB.resolveNames typeNames)
       // We don't need to resolve names in nested modules as they are resolved
       // upon construction. TODO: But are the names ready when they do so?

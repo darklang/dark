@@ -91,9 +91,9 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let packages = Parser.Package.parse path contents
-            do! LibBackend.PackageManager.savePackageFunctions packages.fns
-            do! LibBackend.PackageManager.savePackageTypes packages.types
+            let (fns, types) = Parser.Parser.parsePackage path contents
+            do! LibBackend.PackageManager.savePackageFunctions fns
+            do! LibBackend.PackageManager.savePackageTypes types
             return DUnit
           }
         | _ -> incorrectArgs ()
