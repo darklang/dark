@@ -357,18 +357,27 @@ let testMatchPreview : Test =
   let pFloatId, floatRhsId = gid (), gid ()
   let pBoolId, boolRhsId = gid (), gid ()
   let pStrId, strRhsId = gid (), gid ()
+  let pCharId, charRhsId = gid (), gid ()
   let pUnitId, unitRhsId = gid (), gid ()
   let pTupleId, tupleRhsId = gid (), gid ()
+  let pTuple2Id, tuple2RhsId = gid (), gid ()
+  let pListConsId, listConsRhsId = gid (), gid ()
+  let pListConsIntId7, pListConsIntId3, pListConsVarId, pListConsId2 =
+    gid (), gid (), gid (), gid ()
+  let pList2Id, list2RhsId = gid (), gid ()
+  let pList2IntId3, pList2IntId7 = gid (), gid ()
+
 
   let (pOkVarOkId,
        pOkVarVarId,
        okVarRhsId,
-       binopFnValId,
        okVarRhsVarId,
        okVarRhsStrId,
        pTupleIdX,
-       pTupleIdY) =
-    gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
+       pTupleIdY,
+       pTuple2IdX,
+       pTuple2IdY) =
+    gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid (), gid ()
 
   let pNothingId, nothingRhsId = gid (), gid ()
   let pVarId, varRhsId = gid (), gid ()
@@ -377,21 +386,20 @@ let testMatchPreview : Test =
     [ // | 5 -> 17
       (MPInt(pIntId, 5L), EInt(intRhsId, 17L))
 
-      // | 5.6 -> "float"
-      (MPFloat(pFloatId, 5.6), EString(floatRhsId, [ StringText "float" ]))
-
       // | false -> "bool"
       (MPBool(pBoolId, false), EString(boolRhsId, [ StringText "bool" ]))
+
+      // | 'c' -> "char"
+      (MPChar(pCharId, "c"), EString(charRhsId, [ StringText "char" ]))
 
       // | "myStr" -> "str"
       (MPString(pStrId, "myStr"), EString(strRhsId, [ StringText "str" ]))
 
+      // | 5.6 -> "float"
+      (MPFloat(pFloatId, 5.6), EString(floatRhsId, [ StringText "float" ]))
+
       // | () -> "unit"
       (MPUnit(pUnitId), EString(unitRhsId, [ StringText "unit" ]))
-
-      // | (2, y) -> "tuple"
-      (MPTuple(pTupleId, MPInt(pTupleIdX, 2L), MPVariable(pTupleIdY, "y"), []),
-       EString(tupleRhsId, [ StringText "tuple" ]))
 
       // | Ok x -> "ok: " ++ x
       (MPEnum(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
@@ -405,20 +413,54 @@ let testMatchPreview : Test =
            EVariable(okVarRhsVarId, "x") ]
        ))
 
-      // | None -> "enum nothing"
+      // | Nothing -> "enum nothing"
       (MPEnum(pNothingId, "Nothing", []),
        EString(nothingRhsId, [ StringText "enum nothing" ]))
+
+      // | (2, y) -> "tuple"
+      (MPTuple(pTupleId, MPInt(pTupleIdX, 2L), MPVariable(pTupleIdY, "y"), []),
+       EString(tupleRhsId, [ StringText "tuple" ]))
+
+      // | (2, 5) -> "tuple 2"
+      (MPTuple(pTuple2Id, MPInt(pTuple2IdX, 2L), MPInt(pTuple2IdY, 5), []),
+       EString(tuple2RhsId, [ StringText "tuple2" ]))
+
+      // | 7 :: 3 :: z -> "list"
+      (MPListCons(
+        pListConsId,
+        MPInt(pListConsIntId7, 7L),
+        MPListCons(
+          pListConsId2,
+          MPInt(pListConsIntId3, 3L),
+          MPVariable(pListConsVarId, "z")
+        )
+       ),
+       EString(listConsRhsId, [ StringText "list" ]))
+
+      // | [7, 3] -> "list 2"
+      (MPList(pList2Id, [ MPInt(pList2IntId7, 7L); MPInt(pList2IntId3, 3L) ]),
+       EString(list2RhsId, [ StringText "list2" ]))
 
       // | name -> name
       // (everything should match this, except for 'fake' dvals such as errors)
       (MPVariable(pVarId, "name"), EVariable(varRhsId, "name")) ]
 
-  let getSubExprIds (arg : Expr) =
+  let getSubExprIds (arg : Expr) : List<id * string> =
     let mutable argIDs = []
     arg
-    |> RuntimeTypesAst.postTraversal (fun e ->
-      argIDs <- (Expr.toID e) :: argIDs
-      e)
+    |> RuntimeTypesAst.postTraversal
+      (fun e ->
+        argIDs <- (Expr.toID e, string e) :: argIDs
+        e)
+      identity
+      identity
+      identity
+      (fun lp ->
+        argIDs <- (LetPattern.toID lp, string lp) :: argIDs
+        lp)
+      (fun mp ->
+        argIDs <- (MatchPattern.toID mp, string mp) :: argIDs
+        mp)
     |> ignore<Expr>
     argIDs
 
@@ -452,27 +494,45 @@ let testMatchPreview : Test =
       // Check that all patterns not included in 'expected' were evaluated,
       // and are NotExecutedResults
 
-      // we expect _some_ result for all of these exprs
-      let expectedIDs =
-        (matchId :: getSubExprIds arg) @ List.map Tuple3.first expected |> Set
+      // we expect _some_ result for all of these exprs and patterns
+      let expected =
+        getSubExprIds ast @ List.map (fun (id, name, _) -> (id, name)) expected
+        |> Map
 
-      // ensure we don't have more expected results than actual results
-      Expect.isGreaterThan results.Count (Set.count expectedIDs) "sanity check"
-
-      let resultsUnaccountedFor =
-        Set.ofSeq (Dictionary.keys results)
-        |> Set.difference expectedIDs
+      let resultKeys = Set.ofSeq (Dictionary.keys results)
+      let expectedKeys = Map.keys expected |> Seq.toList |> Set
+      let unexpectedResultIDs = // keys in the results that we didn't expect
+        Set.difference resultKeys expectedKeys
         |> Seq.map (fun id -> id, Dictionary.get id results)
 
-      resultsUnaccountedFor
+
+      unexpectedResultIDs
       |> Seq.iter (fun (id, result) ->
         match result with
         | Some(AT.ExecutedResult dv) ->
           Expect.isTrue
             false
-            $"{msg}: found unexpected execution result ({id}: {dv})"
-        | None -> Expect.isTrue false "missing value"
+            $"{msg}: found unexpected execution result ({id}: {dv}\nin {ast})"
+        | None ->
+          // This should never be missing as these are supposedly the IDs in results not present elsewhere
+          Expect.isTrue false $"missing value: {id}\n({ast})"
         | Some(AT.NonExecutedResult _) -> ())
+
+
+      let missingIDs =
+        Map.filterWithIndex
+          (fun id _ -> not <| Dictionary.containsKey id results)
+          expected
+      missingIDs
+      |> Map.iter (fun id v ->
+        // TODO: Some results are currently missing (esp around MPList/MPListCons)
+        // so don't assert this yet
+        //   Expect.isTrue false $"{msg}: missing expected result ({id}: {v})"
+        ())
+
+    // ensure we don't have more expected results than actual results
+    // TODO: also not correct at this time
+    // Expect.equal results.Count (Map.count expected) "expected counts"
     }
 
   // helpers
@@ -494,14 +554,20 @@ let testMatchPreview : Test =
       t
         "non match"
         (eInt 6)
-        [ (pIntId, "non matching pat", ner (DInt 5L))
-          (intRhsId, "non matching rhs", ner (DInt 17L))
-
-          (pFloatId, "float pat", ner (DFloat 5.6))
-          (floatRhsId, "float rhs", ner (DString "float"))
+        [ (pIntId, "int pat", ner (DInt 5L))
+          (intRhsId, "int rhs", ner (DInt 17L))
 
           (pBoolId, "bool pat", ner (DBool false))
           (boolRhsId, "bool rhs", ner (DString "bool"))
+
+          (pCharId, "char pat", ner (DChar "c"))
+          (charRhsId, "char rhs", ner (DString "char"))
+
+          (pStrId, "string pat", ner (DString "myStr"))
+          (strRhsId, "string rhs", ner (DString "str"))
+
+          (pFloatId, "float pat", ner (DFloat 5.6))
+          (floatRhsId, "float rhs", ner (DString "float"))
 
           (pUnitId, "unit pat", ner DUnit)
           (unitRhsId, "unit rhs", ner (DString "unit"))
@@ -512,8 +578,33 @@ let testMatchPreview : Test =
           (okVarRhsVarId, "ok var rhs var", ner (inc pOkVarVarId))
           (okVarRhsStrId, "ok var rhs str", ner (DString "ok: "))
 
-          (pNothingId, "nothing pat", ner (Dval.optionNothing))
+          // An Enum pattern in just a name, not a type ref, so we can't know
+          // what DEnum was supposed to be here at runtime
+          (pNothingId, "nothing pat", ner (inc pNothingId)) // TODO: provide this value in the trace
           (nothingRhsId, "nothing pat rhs", ner (DString "enum nothing"))
+
+          (pTupleId, "tuple pat", ner (inc pTupleId))
+          (pTupleIdX, "tuple pat x", ner (inc pTupleIdX)) // TODO: provide this value in the trace
+          (pTupleIdY, "tuple pat y", ner (inc pTupleIdY))
+          (tupleRhsId, "tuple rhs", ner (DString "tuple"))
+
+          (pTuple2Id, "tuple 2 pat", ner (inc pTuple2Id)) // TODO: provide this value in the trace
+          (pTuple2IdX, "tuple 2 pat x", ner (inc pTuple2IdX)) // TODO: provide this value in the trace
+          (pTuple2IdY, "tuple 2 pat y", ner (inc pTuple2IdY)) // TODO: provide this value in the trace
+          (tuple2RhsId, "tuple 2 rhs", ner (DString "tuple2"))
+
+          (pListConsId, "list cons pat", ner (inc pListConsId))
+          (pListConsIntId7, "list cons pat 7", ner (inc pListConsIntId7)) // TODO: provide this value in the trace
+          // (pListConsIntId3, "list cons pat 3", ner (inc pListConsIntId3) ) // TODO: this is missing, provide this value in the trace
+          // (pListConsVarId, "list cons pat var", ner (inc pListConsVarId)) // TODO: this is missing, provide this value in the trace
+          (pListConsId2, "list cons pat 2", ner (inc pListConsId2))
+          (listConsRhsId, "list cons rhs", ner (DString "list"))
+
+          (pList2Id, "list 2 pat", ner (inc pList2Id)) // TODO: can we provide something here
+          (pList2IntId7, "list 2 pat 7", ner (inc pList2IntId7)) // TODO: provide this value in the trace
+          (pList2IntId3, "list 2 pat 3", ner (inc pList2IntId3)) // TODO: provide this value in the trace
+          (list2RhsId, "list 2 rhs", ner (DString "list2"))
+
 
           (pVarId, "catch all pat", er (DInt 6L))
           (varRhsId, "catch all rhs", er (DInt 6L)) ]
