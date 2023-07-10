@@ -235,6 +235,11 @@ let rec inline'
            expr)
 
       | expr -> expr)
+    identity
+    identity
+    identity
+    identity
+    identity
     expr
 
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
