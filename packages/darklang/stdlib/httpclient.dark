@@ -3,7 +3,7 @@ module Darklang =
     module HttpClient =
 
       // Note: this function currently doesn't work, as Base64.encode doesn't exist
-      /// Returns a header <type (String*String))> with {{'Authorization'}} created using HTTP basic auth
+      /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
       let basicAuth
         (username: String)
         (password: String)
@@ -11,8 +11,12 @@ module Darklang =
         if String.contains "-" username then
           Error "Username cannot contain a hyphen"
         else
-          let encoded = Base64.encode (String.toBytes $"{username}:{password}")
-          $"Basic {encoded}"
+          let encoded = String.base64encode $"{username}:{password}"
+          Ok("authorization", $"basic {encoded}")
+
+      /// Returns a header <type (String*String))> with {{'authorization'}} set to <param token>
+      let bearerToken (token: String) : (String * String) =
+        ("authorization", ("bearer " ++ token))
 
 
       // TODOs:
@@ -21,25 +25,17 @@ module Darklang =
       // - these should likely be Constants (rather than fns)
 
       /// Returns a header <type (String*String))> with {{content-type}} set for HTML form requests or responses
-      let formContentType (): (String * String) =
+      let formContentType () : (String * String) =
         ("content-type", "application/x-www-form-urlencoded")
 
-
       /// Returns a header <type (String*String))> with {{content-type}} set for JSON requests or responses
-      let jsonContentType (): (String * String) =
+      let jsonContentType () : (String * String) =
         ("content-type", "application/json; charset=utf-8")
 
-
       /// Returns a header <type (String*String))> with {{'content-type'}} set for plain text requests or responses
-      let plainTextContentType (): (String * String) =
+      let plainTextContentType () : (String * String) =
         ("content-type", "text/plain; charset=utf-8")
 
-
       /// Returns a header <type (String*String))> with {{'content-type'}} set for html requests
-      let htmlContentType (): (String * String) =
+      let htmlContentType () : (String * String) =
         ("content-type", "text/html; charset=utf-8")
-
-
-      /// Returns a header <type (String*String))> with {{'Authorization'}} set to <param token>
-      let bearerToken (token: String): (String * String) =
-        ("Authorization", ("Bearer " ++ token))
