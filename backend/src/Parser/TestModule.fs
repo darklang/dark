@@ -5,18 +5,22 @@ open FSharp.Compiler.Syntax
 open Prelude
 open Tablecloth
 
-module PT = LibExecution.ProgramTypes
 module PTP = ProgramTypes
+module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module RT = LibExecution.RuntimeTypes
+
 open Utils
 
-type Test = { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
+type Test<'expr> =
+  { name : string; lineNumber : int; actual : 'expr; expected : 'expr }
 
-type T =
+type T<'expr> =
   { types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
-    modules : List<string * T>
-    tests : List<Test> }
+    modules : List<string * T<'expr>>
+    tests : List<Test<'expr>> }
 
 let empty = { types = []; dbs = []; fns = []; modules = []; tests = [] }
 
@@ -47,7 +51,7 @@ module UserDB =
 
 /// Extracts a test from a SynExpr.
 /// The test must be in the format `expected = actual`, otherwise an exception is raised
-let parseTest (ast : SynExpr) : Test =
+let parseTest (ast : SynExpr) : Test<PT.Expr> =
   let convert (x : SynExpr) : PT.Expr = PTP.Expr.fromSynExpr x
 
   match ast with
@@ -67,7 +71,7 @@ let parseTest (ast : SynExpr) : Test =
   | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
 
-let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
+let parseFile (parsedAsFSharp : ParsedImplFileInput) : T<PT.Expr> =
   let parseTypeDecl (typeDefn : SynTypeDefn) : List<PT.DB.T> * List<PT.UserType.T> =
     match typeDefn with
     | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
@@ -81,7 +85,10 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
       else
         [], [ PTP.UserType.fromSynTypeDefn typeDefn ]
 
-  let rec parseModule (parent : T) (decls : List<SynModuleDecl>) : T =
+  let rec parseModule
+    (parent : T<PT.Expr>)
+    (decls : List<SynModuleDecl>)
+    : T<PT.Expr> =
     let m =
       List.fold
         { types = parent.types
@@ -161,14 +168,26 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : T =
 
 
 // Below are the fns that we intend to expose to the rest of the codebase
-let parseTestFile (filename : string) : T =
+let parseTestFile (filename : string) : T<PT.Expr> =
   filename
   |> System.IO.File.ReadAllText
   |> parseAsFSharpSourceFile filename
   |> parseFile
 
-let parseSingleTestFromFile (filename : string) (testSource : string) : Test =
-  testSource
-  |> parseAsFSharpSourceFile filename
-  |> singleExprFromImplFile
-  |> parseTest
+let parseSingleTestFromFile
+  (filename : string)
+  (testSource : string)
+  : Test<LibExecution.RuntimeTypes.Expr> =
+  let ptTest =
+    testSource
+    |> parseAsFSharpSourceFile filename
+    |> singleExprFromImplFile
+    |> parseTest
+  { actual =
+      NameResolution.Expr.resolveNames Set.empty Set.empty ptTest.actual
+      |> PT2RT.Expr.toRT
+    expected =
+      NameResolution.Expr.resolveNames Set.empty Set.empty ptTest.expected
+      |> PT2RT.Expr.toRT
+    lineNumber = ptTest.lineNumber
+    name = ptTest.name }

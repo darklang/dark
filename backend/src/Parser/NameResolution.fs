@@ -1,4 +1,4 @@
-module Parser.NameResolution
+module internal Parser.NameResolution
 
 open Prelude
 open Tablecloth
