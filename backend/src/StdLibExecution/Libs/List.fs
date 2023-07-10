@@ -248,7 +248,7 @@ let fns : List<BuiltInFn> =
     { name = fn "tail" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option(TList varA)
+      returnType = TypeReference.option (TList varA)
       description =
         "If <param list> contains at least one value, returns {{Just}} with a list of
          every value other than the first. Otherwise, returns {{Nothing}}."
@@ -874,7 +874,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TypeReference.option varB)) "" [ "val" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn([ varA ], TypeReference.option varB))
+            ""
+            [ "val" ] ]
       returnType = TList varB
       description =
         "Calls <param fn> on every <var val> in <param list>, returning a list that
@@ -901,8 +905,20 @@ let fns : List<BuiltInFn> =
                   let! result = Interpreter.applyFnVal state b [ dv ]
 
                   match result with
-                  | DEnum(FQName.Package { owner = "Darklang"; modules = {Head = "Stdlib"; Tail = ["Option"]}; name = TypeName.TypeName "Option"; version = 0}, "Just", [o]) -> return Some o
-                  | DEnum(FQName.Package { owner = "Darklang"; modules = {Head = "Stdlib"; Tail = ["Option"]}; name = TypeName.TypeName "Option"; version = 0}, "Nothing", []) -> return None
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Just",
+                          [ o ]) -> return Some o
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Nothing",
+                          []) -> return None
                   | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
@@ -1245,7 +1261,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
-      returnType = TypeReference.option(TList(TTuple(varA, varB, [])))
+      returnType = TypeReference.option (TList(TTuple(varA, varB, [])))
       description =
         "If the lists have the same length, returns {{Just list of tuples}} formed from
         parallel pairs in <param as> and <param bs>.

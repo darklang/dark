@@ -315,10 +315,10 @@ let fns : List<BuiltInFn> =
         (function
         | _,
           _,
-           [ DEnum(FQName.Package({ owner = "Darklang"
-                                    modules = { Head = "Stdlib"; Tail = [ "Option" ] }
-                                    name = TypeName.TypeName "Option"
-                                    version = 0 }),
+          [ DEnum(FQName.Package({ owner = "Darklang"
+                                   modules = { Head = "Stdlib"; Tail = [ "Option" ] }
+                                   name = TypeName.TypeName "Option"
+                                   version = 0 }),
                   caseName,
                   [ value ]) ] ->
           uply {

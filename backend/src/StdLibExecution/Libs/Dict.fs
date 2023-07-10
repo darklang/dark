@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
     { name = fn "fromList" 0
       typeParams = []
       parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
-      returnType = TypeReference.option(TDict varB)
+      returnType = TypeReference.option (TDict varB)
       description =
         "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
          key> is a <type String>.
@@ -364,8 +364,20 @@ let fns : List<BuiltInFn> =
                   let! result = Interpreter.applyFnVal state b [ DString key; data ]
 
                   match result with
-                  | DEnum(FQName.Package { owner = "Darklang"; modules = {Head = "Stdlib"; Tail = ["Option"]}; name = TypeName.TypeName "Option"; version = 0}, "Just", [o]) -> return Some o
-                  | DEnum(FQName.Package { owner = "Darklang"; modules = {Head = "Stdlib"; Tail = ["Option"]}; name = TypeName.TypeName "Option"; version = 0}, "Nothing", []) -> return None
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Just",
+                          [ o ]) -> return Some o
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Nothing",
+                          []) -> return None
                   | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None

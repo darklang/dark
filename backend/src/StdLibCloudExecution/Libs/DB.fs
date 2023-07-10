@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
     { name = fn "getMany" 0
       typeParams = []
       parameters = [ keysParam; tableParam ]
-      returnType = TypeReference.option(TList valType)
+      returnType = TypeReference.option (TList valType)
       description =
         "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Just a list of [values], otherwise returns Nothing (to ignore missing keys, use DB.etExisting)"
       fn =
@@ -375,7 +375,7 @@ let fns : List<BuiltInFn> =
     { name = fn "queryOneWithKey" 0
       typeParams = []
       parameters = [ tableParam; queryParam ]
-      returnType = TypeReference.option(TTuple(TString, valType, []))
+      returnType = TypeReference.option (TTuple(TString, valType, []))
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =

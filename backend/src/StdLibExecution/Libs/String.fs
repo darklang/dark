@@ -990,7 +990,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
-          if index = -1 then Ply(Dval.optionNothing) else Ply(Dval.optionJust (DInt index))
+          if index = -1 then
+            Ply(Dval.optionNothing)
+          else
+            Ply(Dval.optionJust (DInt index))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
