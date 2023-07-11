@@ -219,21 +219,6 @@ module TypeDeclaration =
   type T = { typeParams : List<string>; definition : Definition }
 
 
-// Used to mark whether a function/type has been deprecated, and if so,
-// details about possible replacements/alternatives, and reasoning
-type Deprecation<'name> =
-  | NotDeprecated
-
-  // The exact same thing is available under a new, preferred name
-  | RenamedTo of 'name
-
-  /// This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of 'name
-
-  /// This has been deprecated and not replaced, provide a message for the user
-  | DeprecatedBecause of string
-
-
 module Handler =
   type CronInterval =
     | EveryDay
@@ -260,8 +245,7 @@ module UserType =
     { tlid : tlid
       name : PT.TypeName.UserProgram
       declaration : TypeDeclaration.T
-      description : string
-      deprecated : Deprecation<PT.TypeName.T> }
+      description : string }
 
 
 module UserFunction =
@@ -274,7 +258,6 @@ module UserFunction =
       parameters : List<Parameter>
       returnType : TypeReference
       description : string
-      deprecated : Deprecation<PT.FnName.T>
       body : Expr }
 
 module Toplevel =
@@ -305,8 +288,7 @@ module PackageFn =
       typeParams : List<string>
       parameters : List<Parameter>
       returnType : TypeReference
-      description : string
-      deprecated : Deprecation<PT.FnName.T> }
+      description : string }
 
 module PackageType =
   type T =
@@ -314,5 +296,4 @@ module PackageType =
       id : System.Guid
       name : PT.TypeName.Package
       declaration : TypeDeclaration.T
-      description : string
-      deprecated : Deprecation<PT.TypeName.T> }
+      description : string }

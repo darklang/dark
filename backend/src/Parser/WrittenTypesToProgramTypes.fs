@@ -160,23 +160,6 @@ module Expr =
     | WT.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(id, typeName, caseName, List.map toPT fields)
 
-module Deprecation =
-  type Deprecation<'name> =
-    | NotDeprecated
-    | RenamedTo of 'name
-    | ReplacedBy of 'name
-    | DeprecatedBecause of string
-  let toPT
-    (f : 'name1 -> 'name2)
-    (d : WT.Deprecation<'name1>)
-    : PT.Deprecation<'name2> =
-    match d with
-    | WT.NotDeprecated -> PT.NotDeprecated
-    | WT.RenamedTo name -> PT.RenamedTo(f name)
-    | WT.ReplacedBy name -> PT.ReplacedBy(f name)
-    | WT.DeprecatedBecause reason -> PT.DeprecatedBecause reason
-
-
 
 module TypeDeclaration =
   module RecordField =
@@ -231,7 +214,7 @@ module Handler =
       | WT.Handler.EveryMinute -> PT.Handler.EveryMinute
 
   module Spec =
-   let toPT (s : WT.Handler.Spec) : PT.Handler.Spec =
+    let toPT (s : WT.Handler.Spec) : PT.Handler.Spec =
       match s with
       | WT.Handler.HTTP(route, method) -> PT.Handler.HTTP(route, method)
       | WT.Handler.Worker name -> PT.Handler.Worker name
@@ -255,7 +238,7 @@ module UserType =
       name = t.name
       declaration = TypeDeclaration.toPT t.declaration
       description = t.description
-      deprecated = Deprecation.toPT identity t.deprecated }
+      deprecated = PT.NotDeprecated }
 
 
 module UserFunction =
@@ -270,7 +253,7 @@ module UserFunction =
       parameters = List.map Parameter.toPT f.parameters
       returnType = TypeReference.toPT f.returnType
       description = f.description
-      deprecated = Deprecation.toPT identity f.deprecated
+      deprecated = PT.NotDeprecated
       body = Expr.toPT f.body }
 
 module Toplevel =
@@ -291,7 +274,7 @@ module PackageFn =
       parameters = List.map Parameter.toPT fn.parameters
       returnType = TypeReference.toPT fn.returnType
       description = fn.description
-      deprecated = Deprecation.toPT identity fn.deprecated
+      deprecated = PT.NotDeprecated
       body = Expr.toPT fn.body
       typeParams = fn.typeParams
       id = fn.id
@@ -302,6 +285,6 @@ module PackageType =
     { name = pt.name
       description = pt.description
       declaration = TypeDeclaration.toPT pt.declaration
-      deprecated = Deprecation.toPT identity pt.deprecated
+      deprecated = PT.NotDeprecated
       id = pt.id
       tlid = pt.tlid }

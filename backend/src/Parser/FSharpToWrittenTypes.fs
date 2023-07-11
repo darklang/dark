@@ -854,7 +854,6 @@ module UserFunction =
         |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""
-      deprecated = WT.NotDeprecated
       body = f.body }
 
 
@@ -874,7 +873,6 @@ module PackageFn =
         |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""
-      deprecated = WT.NotDeprecated
       body = f.body }
 
 module TypeDeclaration =
@@ -989,7 +987,6 @@ module UserType =
     { tlid = gid ()
       name = PT.TypeName.userProgram modules name version
       description = ""
-      deprecated = WT.NotDeprecated
       declaration = { definition = definition; typeParams = typeParams } }
 
 module PackageType =
@@ -1010,7 +1007,6 @@ module PackageType =
       id = System.Guid.NewGuid()
       name = PT.TypeName.package owner modules name version
       description = ""
-      deprecated = WT.NotDeprecated
       declaration = { typeParams = typeParams; definition = definition } }
 
 
