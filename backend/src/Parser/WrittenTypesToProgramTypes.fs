@@ -256,14 +256,6 @@ module UserFunction =
       deprecated = PT.NotDeprecated
       body = Expr.toPT f.body }
 
-module Toplevel =
-  let toPT (tl : WT.Toplevel.T) : PT.Toplevel.T =
-    match tl with
-    | WT.Toplevel.TLHandler h -> PT.Toplevel.TLHandler(Handler.toPT h)
-    | WT.Toplevel.TLDB db -> PT.Toplevel.TLDB(DB.toPT db)
-    | WT.Toplevel.TLFunction f -> PT.Toplevel.TLFunction(UserFunction.toPT f)
-    | WT.Toplevel.TLType ut -> PT.Toplevel.TLType(UserType.toPT ut)
-
 module PackageFn =
   module Parameter =
     let toPT (p : WT.PackageFn.Parameter) : PT.PackageFn.Parameter =

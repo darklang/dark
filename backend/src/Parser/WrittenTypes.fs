@@ -182,16 +182,6 @@ module UserFunction =
       description : string
       body : Expr }
 
-module Toplevel =
-  type T =
-    | TLHandler of Handler.T
-    | TLDB of DB.T
-    | TLFunction of UserFunction.T
-    | TLType of UserType.T
-
-module Secret =
-  type T = { name : string; value : string; version : int }
-
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
