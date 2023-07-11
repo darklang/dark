@@ -1112,30 +1112,27 @@ and ExecutionState =
     onExecutionPath : bool }
 
 and Types =
-  { builtInTypes : Map<TypeName.BuiltIn, BuiltInType>
-    packageTypes : Map<TypeName.Package, PackageType.T>
-    userProgramTypes : Map<TypeName.UserProgram, UserType.T> }
+  { builtIn : Map<TypeName.BuiltIn, BuiltInType>
+    package : Map<TypeName.Package, PackageType.T>
+    userProgram : Map<TypeName.UserProgram, UserType.T> }
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
-    { builtInTypes = state.builtIns.types
-      packageTypes = state.packageManager.types
-      userProgramTypes = state.program.types }
+    { builtIn = state.builtIns.types
+      package = state.packageManager.types
+      userProgram = state.program.types }
 
 module Types =
-  let empty =
-    { builtInTypes = Map.empty
-      packageTypes = Map.empty
-      userProgramTypes = Map.empty }
+  let empty = { builtIn = Map.empty; package = Map.empty; userProgram = Map.empty }
 
   let find (name : TypeName.T) (types : Types) : Option<TypeDeclaration.T> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.declaration)
+      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration)
     | FQName.UserProgram user ->
-      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.declaration)
+      Map.tryFind user types.userProgram |> Option.map (fun t -> t.declaration)
     | FQName.Package pkg ->
-      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.declaration)
+      Map.tryFind pkg types.package |> Option.map (fun t -> t.declaration)
 
   // Swap concrete types for type parameters
   let rec substitute

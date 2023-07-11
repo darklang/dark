@@ -12,9 +12,10 @@ let getStateForEval
   : ExecutionState =
 
   let builtIns : BuiltIns =
-    let builtInFns, builtInTypes = stdlib
-    { types = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
-      fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map }
+    let fns, types = stdlib
+
+    { types = types |> List.map (fun typ -> typ.name, typ) |> Map
+      fns = fns |> List.map (fun fn -> fn.name, fn) |> Map }
 
   // TODO
   let packageManager : PackageManager = { fns = Map.empty; types = Map.empty }
