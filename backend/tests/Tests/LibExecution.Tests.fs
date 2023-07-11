@@ -143,7 +143,7 @@ let fileTests () : Test =
 
     let rec moduleToTests
       (moduleName : string)
-      (modul : Parser.TestModule.T<PT.Expr>)
+      (modul : Parser.TestModule.PTModule)
       =
 
       let nestedModules =

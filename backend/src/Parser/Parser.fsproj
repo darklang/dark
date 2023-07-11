@@ -13,6 +13,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.fs" />
+    <Compile Include="WrittenTypes.fs" />
+    <Compile Include="WrittenTypesToProgramTypes.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="NameResolution.fs" />
     <Compile Include="TestModule.fs" />

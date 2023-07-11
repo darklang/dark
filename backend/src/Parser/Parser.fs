@@ -4,6 +4,8 @@ module Parser.Parser
 open Prelude
 open Tablecloth
 
+module WT = WrittenTypes
+module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 
 /// Returns an incomplete parse of a PT expression. Requires calling
@@ -13,6 +15,7 @@ let initialParse (filename : string) (code : string) : PT.Expr =
   |> Utils.parseAsFSharpSourceFile filename
   |> Utils.singleExprFromImplFile
   |> ProgramTypes.Expr.fromSynExpr
+  |> WT2PT.Expr.toPT
 
 
 // Shortcut function for tests that ignore user functions and types

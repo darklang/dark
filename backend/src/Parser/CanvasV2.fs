@@ -5,11 +5,23 @@ open FSharp.Compiler.Syntax
 open Prelude
 open Tablecloth
 
+module WT = WrittenTypes
+module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 
 open Utils
 
-type CanvasModule =
+type WTCanvasModule =
+  { types : List<WT.UserType.T>
+    fns : List<WT.UserFunction.T>
+    dbs : List<WT.DB.T>
+    // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
+    handlers : List<WT.Handler.Spec * WT.Expr>
+    exprs : List<WT.Expr> }
+
+let emptyWTModule = { types = []; fns = []; dbs = []; handlers = []; exprs = [] }
+
+type PTCanvasModule =
   { types : List<PT.UserType.T>
     fns : List<PT.UserFunction.T>
     dbs : List<PT.DB.T>
@@ -17,7 +29,6 @@ type CanvasModule =
     handlers : List<PT.Handler.Spec * PT.Expr>
     exprs : List<PT.Expr> }
 
-let emptyModule = { types = []; fns = []; dbs = []; handlers = []; exprs = [] }
 
 
 /// Extracts the parts we care about from an F# attribute
@@ -53,7 +64,7 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
 
 /// Update a CanvasModule by parsing a single F# let binding
 /// Depending on the attribute present, this may add a user function, a handler, or a DB
-let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule =
+let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasModule =
   match letBinding with
   | SynBinding(_, _, _, _, attrs, _, _, pat, returnInfo, expr, _, _, _) ->
     let expr = ProgramTypes.Expr.fromSynExpr expr
@@ -69,11 +80,11 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
       match returnInfo with
       | None ->
         let newExpr =
-          PT.ELet(
+          WT.ELet(
             gid (),
             ProgramTypes.LetPattern.fromSynPat pat,
             expr,
-            PT.EUnit(gid ())
+            WT.EUnit(gid ())
           )
         { m with exprs = m.exprs @ [ newExpr ] }
       | Some _ ->
@@ -83,7 +94,7 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
     | [ attr ] ->
       match attr with
       | SimpleAttribute("HttpHandler", [ method; route ]) ->
-        let newHttpHanlder = PT.Handler.Spec.HTTP(route, method)
+        let newHttpHanlder = WT.Handler.Spec.HTTP(route, method)
         { m with handlers = (newHttpHanlder, expr) :: m.handlers }
 
       | SimpleAttribute("REPL", [ name ]) ->
@@ -120,7 +131,7 @@ let parseLetBinding (m : CanvasModule) (letBinding : SynBinding) : CanvasModule 
 
 
 module UserDB =
-  let fromSynTypeDefn (typeDef : SynTypeDefn) : PT.DB.T =
+  let fromSynTypeDefn (typeDef : SynTypeDefn) : WT.DB.T =
     match typeDef with
     | SynTypeDefn(SynComponentInfo(_, _params, _, [ id ], _, _, _, _),
                   SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.TypeAbbrev(_, typ, _),
@@ -136,7 +147,7 @@ module UserDB =
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
-let parseTypeDefn (m : CanvasModule) (typeDefn : SynTypeDefn) : CanvasModule =
+let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule =
   match typeDefn with
   | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
     let isDB =
@@ -168,9 +179,9 @@ let parseTypeDefn (m : CanvasModule) (typeDefn : SynTypeDefn) : CanvasModule =
 ///   or as DBs (i.e. with `[<DB>] DBName = Type`)
 /// - ? expressions are parsed as init commands (not currently supported)
 /// - anything else fails
-let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
+let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
   List.fold
-    emptyModule
+    emptyWTModule
     (fun m decl ->
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
@@ -185,7 +196,17 @@ let parseDecls (decls : List<SynModuleDecl>) : CanvasModule =
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
 
-let postProcessModule (m : CanvasModule) : CanvasModule =
+let toPT (m : WTCanvasModule) : PTCanvasModule =
+  { types = m.types |> List.map WT2PT.UserType.toPT
+    fns = m.fns |> List.map WT2PT.UserFunction.toPT
+    dbs = m.dbs |> List.map WT2PT.DB.toPT
+    handlers =
+      m.handlers
+      |> List.map (fun (spec, expr) ->
+        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT expr))
+    exprs = m.exprs |> List.map WT2PT.Expr.toPT }
+
+let postProcessModule (m : PTCanvasModule) : PTCanvasModule =
   let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
   let userTypeNames = m.types |> List.map (fun t -> t.name) |> Set
   let fixExpr = NameResolution.Expr.resolveNames userFnNames userTypeNames
@@ -203,7 +224,7 @@ let postProcessModule (m : CanvasModule) : CanvasModule =
         { db with
             typ = NameResolution.TypeReference.resolveNames userTypeNames db.typ }) }
 
-let parse (filename : string) (source : string) : CanvasModule =
+let parse (filename : string) (source : string) : PTCanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
   let decls =
@@ -222,8 +243,8 @@ let parse (filename : string) (source : string) : CanvasModule =
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
 
-  decls |> parseDecls |> postProcessModule
+  decls |> parseDecls |> toPT |> postProcessModule
 
 
-let parseFromFile (filename : string) : CanvasModule =
+let parseFromFile (filename : string) : PTCanvasModule =
   filename |> System.IO.File.ReadAllText |> parse filename
