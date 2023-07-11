@@ -223,18 +223,18 @@ module Handler =
       | WT.Handler.REPL name -> PT.Handler.REPL name
 
   let toPT (h : WT.Handler.T) : PT.Handler.T =
-    { tlid = h.tlid; ast = Expr.toPT h.ast; spec = Spec.toPT h.spec }
+    { tlid = gid (); ast = Expr.toPT h.ast; spec = Spec.toPT h.spec }
 
 module DB =
   let toPT (db : WT.DB.T) : PT.DB.T =
-    { tlid = db.tlid
+    { tlid = gid ()
       name = db.name
       version = db.version
       typ = TypeReference.toPT db.typ }
 
 module UserType =
   let toPT (t : WT.UserType.T) : PT.UserType.T =
-    { tlid = t.tlid
+    { tlid = gid ()
       name = t.name
       declaration = TypeDeclaration.toPT t.declaration
       description = t.description
@@ -247,7 +247,7 @@ module UserFunction =
       { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
   let toPT (f : WT.UserFunction.T) : PT.UserFunction.T =
-    { tlid = f.tlid
+    { tlid = gid ()
       name = f.name
       typeParams = f.typeParams
       parameters = List.map Parameter.toPT f.parameters
@@ -277,8 +277,8 @@ module PackageFn =
       deprecated = PT.NotDeprecated
       body = Expr.toPT fn.body
       typeParams = fn.typeParams
-      id = fn.id
-      tlid = fn.tlid }
+      id = System.Guid.NewGuid()
+      tlid = gid () }
 
 module PackageType =
   let toPT (pt : WT.PackageType.T) : PT.PackageType.T =
@@ -286,5 +286,5 @@ module PackageType =
       description = pt.description
       declaration = TypeDeclaration.toPT pt.declaration
       deprecated = PT.NotDeprecated
-      id = pt.id
-      tlid = pt.tlid }
+      id = System.Guid.NewGuid()
+      tlid = gid () }
