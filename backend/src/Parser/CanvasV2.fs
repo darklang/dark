@@ -5,6 +5,7 @@ open FSharp.Compiler.Syntax
 open Prelude
 open Tablecloth
 
+module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
@@ -67,7 +68,7 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
 let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasModule =
   match letBinding with
   | SynBinding(_, _, _, _, attrs, _, _, pat, returnInfo, expr, _, _, _) ->
-    let expr = ProgramTypes.Expr.fromSynExpr expr
+    let expr = FS2WT.Expr.fromSynExpr expr
 
     let attrs = attrs |> List.collect (fun l -> l.Attributes)
 
@@ -80,15 +81,10 @@ let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasMod
       match returnInfo with
       | None ->
         let newExpr =
-          WT.ELet(
-            gid (),
-            ProgramTypes.LetPattern.fromSynPat pat,
-            expr,
-            WT.EUnit(gid ())
-          )
+          WT.ELet(gid (), FS2WT.LetPattern.fromSynPat pat, expr, WT.EUnit(gid ()))
         { m with exprs = m.exprs @ [ newExpr ] }
       | Some _ ->
-        let newFn = ProgramTypes.UserFunction.fromSynBinding letBinding
+        let newFn = FS2WT.UserFunction.fromSynBinding letBinding
         { m with fns = newFn :: m.fns }
 
     | [ attr ] ->
@@ -143,7 +139,7 @@ module UserDB =
       { tlid = gid ()
         name = id.idText
         version = 0
-        typ = ProgramTypes.TypeReference.fromSynType typ }
+        typ = FS2WT.TypeReference.fromSynType typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
@@ -160,7 +156,7 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
       if isDB then
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ ProgramTypes.UserType.fromSynTypeDefn typeDefn ]
+        [], [ FS2WT.UserType.fromSynTypeDefn typeDefn ]
 
     { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
@@ -191,7 +187,7 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
         List.fold m (fun m d -> parseTypeDefn m d) defns
 
       | SynModuleDecl.Expr(expr, _) ->
-        { m with exprs = m.exprs @ [ ProgramTypes.Expr.fromSynExpr expr ] }
+        { m with exprs = m.exprs @ [ FS2WT.Expr.fromSynExpr expr ] }
 
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls

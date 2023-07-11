@@ -5,6 +5,7 @@ open FSharp.Compiler.Syntax
 open Prelude
 open Tablecloth
 
+module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
@@ -28,7 +29,7 @@ let parseLetBinding
   match modules with
   | owner :: modules ->
     let modules = NonEmptyList.ofList modules
-    ProgramTypes.PackageFn.fromSynBinding owner modules letBinding
+    FS2WT.PackageFn.fromSynBinding owner modules letBinding
   | _ ->
     Exception.raiseInternal
       "Expected owner, and at least 1 other modules"
@@ -38,7 +39,7 @@ let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : WT.PackageType.
   match modules with
   | owner :: modules ->
     let modules = NonEmptyList.ofList modules
-    ProgramTypes.PackageType.fromSynTypeDefn owner modules defn
+    FS2WT.PackageType.fromSynTypeDefn owner modules defn
   | _ ->
     Exception.raiseInternal
       "Expected owner, and at least 1 other modules"

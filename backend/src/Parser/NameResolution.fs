@@ -3,6 +3,7 @@ module internal Parser.NameResolution
 open Prelude
 open Tablecloth
 
+module FS2WT = FSharpToWrittenTypes
 module PT = LibExecution.ProgramTypes
 
 module TypeName =
@@ -118,7 +119,7 @@ module Expr =
           )
         // pipes with variables might be fn calls
         | PT.EPipeVariable(id, name) ->
-          match ProgramTypes.Expr.parseFn name with
+          match FS2WT.Expr.parseFn name with
           | Some(name, version) ->
             if
               Set.contains (PT.FnName.userProgram [] name version) userFunctions

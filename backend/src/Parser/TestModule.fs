@@ -5,9 +5,9 @@ open FSharp.Compiler.Syntax
 open Prelude
 open Tablecloth
 
+module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
-module PTP = ProgramTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
@@ -64,7 +64,7 @@ module UserDB =
       { tlid = gid ()
         name = id.idText
         version = 0
-        typ = PTP.TypeReference.fromSynType typ }
+        typ = FS2WT.TypeReference.fromSynType typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
@@ -78,7 +78,7 @@ module UserDB =
 /// Extracts a test from a SynExpr.
 /// The test must be in the format `expected = actual`, otherwise an exception is raised
 let parseTest (ast : SynExpr) : WTTest =
-  let convert (x : SynExpr) : WT.Expr = PTP.Expr.fromSynExpr x
+  let convert (x : SynExpr) : WT.Expr = FS2WT.Expr.fromSynExpr x
 
   match ast with
   | SynExpr.App(_,
@@ -109,7 +109,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : WTModule =
       if isDB then
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ PTP.UserType.fromSynTypeDefn typeDefn ]
+        [], [ FS2WT.UserType.fromSynTypeDefn typeDefn ]
 
   let rec parseModule (parent : WTModule) (decls : List<SynModuleDecl>) : WTModule =
     List.fold
@@ -121,7 +121,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : WTModule =
       (fun m decl ->
         match decl with
         | SynModuleDecl.Let(_, bindings, _) ->
-          let newUserFns = List.map PTP.UserFunction.fromSynBinding bindings
+          let newUserFns = List.map FS2WT.UserFunction.fromSynBinding bindings
           { m with fns = m.fns @ newUserFns }
 
         | SynModuleDecl.Types(defns, _) ->

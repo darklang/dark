@@ -4,6 +4,7 @@ module Parser.Parser
 open Prelude
 open Tablecloth
 
+module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
@@ -14,7 +15,7 @@ let initialParse (filename : string) (code : string) : PT.Expr =
   code
   |> Utils.parseAsFSharpSourceFile filename
   |> Utils.singleExprFromImplFile
-  |> ProgramTypes.Expr.fromSynExpr
+  |> FS2WT.Expr.fromSynExpr
   |> WT2PT.Expr.toPT
 
 
