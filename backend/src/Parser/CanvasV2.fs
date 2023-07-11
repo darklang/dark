@@ -136,10 +136,7 @@ module UserDB =
                   _,
                   _,
                   _) ->
-      { tlid = gid ()
-        name = id.idText
-        version = 0
-        typ = FS2WT.TypeReference.fromSynType typ }
+      { name = id.idText; version = 0; typ = FS2WT.TypeReference.fromSynType typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 

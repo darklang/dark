@@ -845,9 +845,7 @@ module Function =
 module UserFunction =
   let fromSynBinding (b : SynBinding) : WT.UserFunction.T =
     let f = Function.fromSynBinding b
-    { tlid = gid ()
-
-      name = PT.FnName.userProgram [] f.name f.version
+    { name = PT.FnName.userProgram [] f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -864,9 +862,7 @@ module PackageFn =
     (b : SynBinding)
     : WT.PackageFn.T =
     let f = Function.fromSynBinding b
-    { tlid = gid ()
-      id = System.Guid.NewGuid()
-      name = PT.FnName.package owner modules f.name f.version
+    { name = PT.FnName.package owner modules f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -984,8 +980,7 @@ module UserType =
       |> Expr.parseTypeName
     let modules = names |> List.initial |> Option.unwrap []
 
-    { tlid = gid ()
-      name = PT.TypeName.userProgram modules name version
+    { name = PT.TypeName.userProgram modules name version
       description = ""
       declaration = { definition = definition; typeParams = typeParams } }
 
@@ -1003,9 +998,7 @@ module PackageType =
         "user type should have name"
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
-    { tlid = gid ()
-      id = System.Guid.NewGuid()
-      name = PT.TypeName.package owner modules name version
+    { name = PT.TypeName.package owner modules name version
       description = ""
       declaration = { typeParams = typeParams; definition = definition } }
 
