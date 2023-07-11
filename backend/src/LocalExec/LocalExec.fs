@@ -30,7 +30,7 @@ let defaultTLID = 7UL
 
 
 let execute
-  (mod' : Parser.CanvasV2.CanvasModule)
+  (mod' : Parser.CanvasV2.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
@@ -85,7 +85,7 @@ let execute
 let sourceOf
   (tlid : tlid)
   (id : id)
-  (modul : Parser.CanvasV2.CanvasModule)
+  (modul : Parser.CanvasV2.PTCanvasModule)
   : string =
   let ast =
     if tlid = defaultTLID then

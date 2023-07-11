@@ -141,7 +141,10 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests (moduleName : string) (modul : Parser.TestModule.T) =
+    let rec moduleToTests
+      (moduleName : string)
+      (modul : Parser.TestModule.PTModule)
+      =
 
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) modul.modules

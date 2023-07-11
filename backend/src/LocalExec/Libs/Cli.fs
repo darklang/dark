@@ -30,7 +30,7 @@ let libraries : RT.Libraries =
 
 let execute
   (parentState : RT.ExecutionState)
-  (mod' : Parser.CanvasV2.CanvasModule)
+  (mod' : Parser.CanvasV2.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
 

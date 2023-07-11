@@ -13,10 +13,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.fs" />
-    <Compile Include="ProgramTypes.fs" />
+    <Compile Include="WrittenTypes.fs" />
+    <Compile Include="WrittenTypesToProgramTypes.fs" />
+    <Compile Include="FSharpToWrittenTypes.fs" />
+    <Compile Include="NameResolution.fs" />
     <Compile Include="TestModule.fs" />
     <Compile Include="Package.fs" />
     <Compile Include="CanvasV2.fs" />
+    <Compile Include="Parser.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

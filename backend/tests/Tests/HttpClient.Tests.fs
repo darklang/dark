@@ -156,15 +156,11 @@ let makeTest versionName filename =
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> Parser.TestModule.parseSingleTestFromFile "httpclient.tests.fs"
-      let actualCode =
-        test.actual
-        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty
-        |> PT2RT.Expr.toRT
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state Map.empty actualCode
+      let! actual = Exe.executeExpr state Map.empty test.actual
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]
@@ -179,12 +175,7 @@ let makeTest versionName filename =
       // Second check: expected result (Dval) matches actual result (Dval)
       let actual = normalizeDvalResult actual
 
-      let expectedCode =
-        test.expected
-        |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty
-        |> PT2RT.Expr.toRT
-      let! expected = Exe.executeExpr state Map.empty expectedCode
-      let types = RT.Types.empty
+      let! expected = Exe.executeExpr state Map.empty test.expected
       return Expect.equalDval actual expected $"Responses don't match"
   }
 
