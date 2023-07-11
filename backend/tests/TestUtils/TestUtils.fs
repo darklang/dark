@@ -120,20 +120,23 @@ let testUserRecordType
 let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
+let builtIns : RT.BuiltIns =
+  let (fns, types) =
+    LibExecution.StdLib.combine
+      [ LibTest.contents
+        LibRealExecution.RealExecution.builtins
+        StdLibCli.StdLib.contents ]
+      []
+      []
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
+
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
 /// In the case of a fn existing in both places, the test fn is the one used.
-let libraries : Lazy<Task<RT.Libraries>> =
+let packageManager : Lazy<Task<RT.PackageManager>> =
   lazy
     task {
-
-      let (fns, types) =
-        LibExecution.StdLib.combine
-          [ LibTest.contents
-            LibRealExecution.RealExecution.builtins
-            StdLibCli.StdLib.contents ]
-          []
-          []
       let! packageFns = LibBackend.PackageManager.allFunctions ()
       let packageFns =
         packageFns
@@ -147,11 +150,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
           (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
         |> Map.ofList
 
-      return
-        { builtInTypes = types |> Map.fromListBy (fun typ -> typ.name)
-          builtInFns = fns |> Map.fromListBy (fun fn -> fn.name)
-          packageFns = packageFns
-          packageTypes = packageTypes }
+      return { types = packageTypes; fns = packageFns }
     }
 
 let executionStateFor
@@ -219,11 +218,12 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
-    let! libraries = libraries.Force()
+    let! packageManager = packageManager.Force()
 
     let state =
       Exe.createState
-        libraries
+        builtIns
+        packageManager
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier

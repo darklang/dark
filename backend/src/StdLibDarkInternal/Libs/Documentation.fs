@@ -51,7 +51,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUnit ] ->
           let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
-          state.libraries.builtInFns
+          state.builtIns.fns
           |> Map.toList
           |> List.filter (fun (key, data) ->
             (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)

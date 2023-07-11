@@ -774,11 +774,11 @@ and callFn
       let fn =
         match desc with
         | FQName.BuiltIn std ->
-          state.libraries.builtInFns.TryFind std |> Option.map builtInFnToFn
+          state.builtIns.fns.TryFind std |> Option.map builtInFnToFn
         | FQName.UserProgram u ->
           state.program.fns.TryFind u |> Option.map userFnToFn
         | FQName.Package pkg ->
-          state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
+          state.packageManager.fns.TryFind pkg |> Option.map packageFnToFn
 
       match fn with
       | None -> return handleMissingFunction ()

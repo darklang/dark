@@ -758,14 +758,7 @@ let compileLambda
     let types = ExecutionState.availableTypes state
 
     let sql, vars, _expectedType =
-      lambdaToSql
-        state.libraries.builtInFns
-        types
-        symtable
-        paramName
-        dbType
-        TBool
-        body
+      lambdaToSql state.builtIns.fns types symtable paramName dbType TBool body
 
     return (sql, vars)
   }
