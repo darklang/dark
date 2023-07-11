@@ -10,18 +10,14 @@ let getStateForEval
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
   : ExecutionState =
-  let packageFns = Map.empty // TODO
-  let packageTypes = Map.empty // TODO
 
-  let libraries : Libraries =
+  let builtIns : BuiltIns =
     let builtInFns, builtInTypes = stdlib
+    { types = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
+      fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map }
 
-    { builtInTypes = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
-
-      builtInFns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
-
-      packageFns = packageFns
-      packageTypes = packageTypes }
+  // TODO
+  let packageManager : PackageManager = { fns = Map.empty; types = Map.empty }
 
   let config : Config = { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
 
@@ -33,7 +29,8 @@ let getStateForEval
       types = Map.fromListBy (fun typ -> typ.name) types
       secrets = List.empty }
 
-  { libraries = libraries
+  { builtIns = builtIns
+    packageManager = packageManager
     tracing = LibExecution.Execution.noTracing Real
     program = program
     config = config

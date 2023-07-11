@@ -18,15 +18,17 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let (builtInFns, builtInTypes) =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents
-      StdLibCloudExecution.StdLib.contents
-      BwdDangerServer.StdLib.contents
-      StdLibDarkInternal.StdLib.contents ]
-    []
-    []
-
+let builtIns : RT.BuiltIns =
+  let (fns, types) =
+    LibExecution.StdLib.combine
+      [ StdLibExecution.StdLib.contents
+        StdLibCloudExecution.StdLib.contents
+        BwdDangerServer.StdLib.contents
+        StdLibDarkInternal.StdLib.contents ]
+      []
+      []
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
 let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
   (task {
@@ -50,18 +52,15 @@ let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
       |> Map.ofList
   })
 
-let libraries () : Task<RT.Libraries> =
+let packageManager () : Task<RT.PackageManager> =
   (task {
-    let! packageFns = packageFns ()
     let! packageTypes = packageTypes ()
+    let! packageFns = packageFns ()
+
     // TODO: this keeps a cached version so we're not loading them all the time.
     // Of course, this won't be up to date if we add more functions. This should be
     // some sort of LRU cache.
-    return
-      { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
-        builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
-        packageFns = packageFns
-        packageTypes = packageTypes }
+    return { types = packageTypes; fns = packageFns }
   })
 
 let createState
@@ -72,7 +71,7 @@ let createState
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let! libraries = libraries ()
+    let! packageManager = packageManager ()
 
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
@@ -89,7 +88,16 @@ let createState
       let metadata = extraMetadata state @ metadata
       LibService.Rollbar.sendException None metadata exn
 
-    return Exe.createState libraries tracing sendException notify tlid program config
+    return
+      Exe.createState
+        builtIns
+        packageManager
+        tracing
+        sendException
+        notify
+        tlid
+        program
+        config
   }
 
 type ExecutionReason =
@@ -166,6 +174,6 @@ let reexecuteFunction
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =
   task {
-    let! (_ : RT.Libraries) = libraries ()
+    let! (_ : RT.PackageManager) = packageManager ()
     return ()
   }

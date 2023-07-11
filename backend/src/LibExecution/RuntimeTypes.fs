@@ -1058,13 +1058,15 @@ and TestContext =
     mutable expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit }
 
-// Non-user-specific functionality needed to run code
-and Libraries =
-  { builtInFns : Map<FnName.BuiltIn, BuiltInFn>
-    builtInTypes : Map<TypeName.BuiltIn, BuiltInType>
+// Functionally written in F# and shipped with the executable
+and BuiltIns =
+  { types : Map<TypeName.BuiltIn, BuiltInType>
+    fns : Map<FnName.BuiltIn, BuiltInFn> }
 
-    packageFns : Map<FnName.Package, PackageFn.T>
-    packageTypes : Map<TypeName.Package, PackageType.T> }
+// Functionality written in Dark stored and managed outside of user space
+and PackageManager =
+  { types : Map<TypeName.Package, PackageType.T>
+    fns : Map<FnName.Package, PackageFn.T> }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1072,7 +1074,8 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 
 // All state used while running a program
 and ExecutionState =
-  { libraries : Libraries
+  { builtIns : BuiltIns
+    packageManager : PackageManager
     tracing : Tracing
     program : Program
     config : Config
@@ -1115,8 +1118,8 @@ and Types =
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
-    { builtInTypes = state.libraries.builtInTypes
-      packageTypes = state.libraries.packageTypes
+    { builtInTypes = state.builtIns.types
+      packageTypes = state.packageManager.types
       userProgramTypes = state.program.types }
 
 module Types =

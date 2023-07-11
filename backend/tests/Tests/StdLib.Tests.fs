@@ -63,8 +63,7 @@ let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
     let counts = ref Map.empty
 
-    let! (libraries : RT.Libraries) = Lazy.force libraries
-    let fns = libraries.builtInFns |> Map.values
+    let fns = builtIns.fns |> Map.values
 
     fns
     |> List.iter (fun fn ->
@@ -89,8 +88,7 @@ let oldTypesAreDeprecated =
   testTask "old types are deprecated" {
     let counts = ref Map.empty
 
-    let! (libraries : RT.Libraries) = Lazy.force libraries
-    let types = libraries.builtInTypes |> Map.values
+    let types = builtIns.types |> Map.values
 
     types
     |> List.iter (fun typ ->
