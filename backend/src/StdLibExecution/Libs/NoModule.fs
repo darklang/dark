@@ -281,8 +281,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ a; b ] ->
-          let types = ExecutionState.availableTypes state
-          equals types a b |> DBool |> Ply
+          uply {
+            let! types = ExecutionState.availableTypes state
+            return equals types a b |> DBool
+          }
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -297,8 +299,10 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ a; b ] ->
-          let availableTypes = ExecutionState.availableTypes state
-          equals availableTypes a b |> not |> DBool |> Ply
+          uply {
+            let! availableTypes = ExecutionState.availableTypes state
+            return equals availableTypes a b |> not |> DBool
+          }
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure

@@ -131,27 +131,7 @@ let builtIns : RT.BuiltIns =
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
-/// Library function to be usable within tests.
-/// Includes normal StdLib fns, as well as test-specific fns.
-/// In the case of a fn existing in both places, the test fn is the one used.
-let packageManager : Lazy<Task<RT.PackageManager>> =
-  lazy
-    task {
-      let! packageFns = LibBackend.PackageManager.allFunctions ()
-      let packageFns =
-        packageFns
-        |> List.map (fun (f : PT.PackageFn.T) ->
-          (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-        |> Map.ofList
-      let! packageTypes = LibBackend.PackageManager.allTypes ()
-      let packageTypes =
-        packageTypes
-        |> List.map (fun (t : PT.PackageType.T) ->
-          (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-        |> Map.ofList
-
-      return { types = packageTypes; fns = packageFns }
-    }
+let packageManager : RT.PackageManager = LibBackend.PackageManager.packageManager
 
 let executionStateFor
   (canvasID : CanvasID)
@@ -218,7 +198,6 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
-    let! packageManager = packageManager.Force()
 
     let state =
       Exe.createState

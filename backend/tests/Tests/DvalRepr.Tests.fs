@@ -21,8 +21,10 @@ module S = TestUtils.RTShortcuts
 
 
 let defaultTypes () =
-  { RT.Types.empty with
-      package = TestUtils.TestUtils.packageManager.Force().Result.types }
+  // with
+  //   package = TestUtils.TestUtils.packageManager.Force().Result.types
+  RT.Types.empty
+
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv

@@ -1065,8 +1065,23 @@ and BuiltIns =
 
 // Functionality written in Dark stored and managed outside of user space
 and PackageManager =
-  { types : Map<TypeName.Package, PackageType.T>
-    fns : Map<FnName.Package, PackageFn.T> }
+  // these should all be loaded at the start of the interpreter
+  //   (in the eval, not at all within the eval')
+  //   (or maybe the thing above eval idk)
+  //
+  // is it reasonable to expect that we'll have enough context
+  //   to fetch the relevant types and functions at that point?
+
+  // TODO: these will likely need to take some context of what's being
+  // executed, in order to know what types/fns to fetch
+  // using 'unit' as a placeholder for now
+
+  { getTypes : unit -> Task<Map<TypeName.Package, PackageType.T>>
+    getFns : unit -> Task<Map<FnName.Package, PackageFn.T>> }
+
+  static member Empty : PackageManager =
+    { getTypes = fun () -> Task.FromResult Map.empty
+      getFns = fun () -> Task.FromResult Map.empty }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1116,14 +1131,35 @@ and Types =
     package : Map<TypeName.Package, PackageType.T>
     userProgram : Map<TypeName.UserProgram, UserType.T> }
 
+and Functions =
+  { builtIn : Map<FnName.BuiltIn, BuiltInFn>
+    package : Map<FnName.Package, PackageFn.T>
+    userProgram : Map<FnName.UserProgram, UserFunction.T> }
+
 module ExecutionState =
-  let availableTypes (state : ExecutionState) : Types =
-    { builtIn = state.builtIns.types
-      package = state.packageManager.types
-      userProgram = state.program.types }
+  // should be used sparingly
+  let availableTypes (state : ExecutionState) : Task<Types> =
+    task {
+      let! packageTypes = state.packageManager.getTypes ()
+      return
+        { builtIn = state.builtIns.types
+          package = packageTypes
+          userProgram = state.program.types }
+    }
+
+  // should be used sparingly
+  let availableFns (state : ExecutionState) : Task<Functions> =
+    task {
+      let! packageFns = state.packageManager.getFns ()
+      return
+        { builtIn = state.builtIns.fns
+          package = packageFns
+          userProgram = state.program.fns }
+    }
 
 module Types =
-  let empty = { builtIn = Map.empty; package = Map.empty; userProgram = Map.empty }
+  let empty : Types =
+    { builtIn = Map.empty; package = Map.empty; userProgram = Map.empty }
 
   let find (name : TypeName.T) (types : Types) : Option<TypeDeclaration.T> =
     match name with

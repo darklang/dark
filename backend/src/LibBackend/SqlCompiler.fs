@@ -755,7 +755,7 @@ let compileLambda
       |> partiallyEvaluate state paramName symtable
       |> Ply.TplPrimitives.runPlyAsTask
 
-    let types = ExecutionState.availableTypes state
+    let! types = ExecutionState.availableTypes state
 
     let sql, vars, _expectedType =
       lambdaToSql state.builtIns.fns types symtable paramName dbType TBool body

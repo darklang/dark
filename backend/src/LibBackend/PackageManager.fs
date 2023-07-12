@@ -117,3 +117,36 @@ let allTypes () : Task<List<PT.PackageType.T>> =
       |> List.map (fun (id, def) ->
         BinarySerialization.deserializePackageType id def)
   }
+
+
+let packageManager : RT.PackageManager =
+  // maybe some cache here?
+
+  // TODO: this keeps a cached version so we're not loading them all the time.
+  // Of course, this won't be up to date if we add more functions. This should be
+  // some sort of LRU cache.
+  { getTypes =
+      fun () ->
+        task {
+          // TODO: fetch via HTTP call to `dark-packages` canvas/endpoint
+          let! packages = allTypes ()
+
+          return
+            packages
+            |> List.map (fun (t : PT.PackageType.T) ->
+              (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
+            |> Map.ofList
+        }
+
+    getFns =
+      fun () ->
+        task {
+          // TODO: fetch via HTTP call to `dark-packages` canvas/endpoint
+          let! packages = allFunctions ()
+
+          return
+            packages
+            |> List.map (fun (f : PT.PackageFn.T) ->
+              (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
+            |> Map.ofList
+        } }

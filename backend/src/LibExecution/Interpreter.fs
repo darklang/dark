@@ -50,17 +50,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   let recordMaybe
     (typeName : TypeName.T)
-    : Option<TypeName.T * List<TypeDeclaration.RecordField>> =
-    let types = ExecutionState.availableTypes state
-    let rec inner (typeName : TypeName.T) =
-      match Types.find typeName types with
-      | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
-        inner innerTypeName
-      | Some({ definition = TypeDeclaration.Record(firstField, otherFields) }) ->
-        Some(typeName, firstField :: otherFields)
-      | Some({ definition = TypeDeclaration.Enum _ }) -> None
-      | _ -> None
-    inner typeName
+    : Task<Option<TypeName.T * List<TypeDeclaration.RecordField>>> =
+    task {
+      let! types = ExecutionState.availableTypes state
+      let rec inner (typeName : TypeName.T) =
+        match Types.find typeName types with
+        | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
+          inner innerTypeName
+        | Some({ definition = TypeDeclaration.Record(firstField, otherFields) }) ->
+          Some(typeName, firstField :: otherFields)
+        | Some({ definition = TypeDeclaration.Enum _ }) -> None
+        | _ -> None
+      return inner typeName
+    }
 
   uply {
     match e with
@@ -195,10 +197,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | ERecord(id, typeName, fields) ->
       let typeStr = TypeName.toString typeName
-      let types = ExecutionState.availableTypes state
+      let! types = ExecutionState.availableTypes state
       let typ = Types.find typeName types
 
-      match recordMaybe typeName with
+      match! recordMaybe typeName with
       | None ->
         match typ with
         | None -> return err id $"There is no type named `{typeStr}`"
@@ -250,8 +252,8 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       match baseRecord with
       | DRecord(typeName, _) ->
         let typeStr = TypeName.toString typeName
-        let types = ExecutionState.availableTypes state
-        match recordMaybe typeName with
+        let! types = ExecutionState.availableTypes state
+        match! recordMaybe typeName with
         | None ->
           let typ = Types.find typeName types
           match typ with
@@ -601,7 +603,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
     | EEnum(id, typeName, caseName, fields) ->
       let typeStr = TypeName.toString typeName
-      let types = ExecutionState.availableTypes state
+      let! types = ExecutionState.availableTypes state
       match Types.find typeName types with
       | None -> return err id $"There is no type named `{typeStr}`"
       | Some({ definition = TypeDeclaration.Alias _ }) ->
@@ -767,18 +769,16 @@ and callFn
           + $"but here was called with {actualTypeArgLength} type arguments and {actualArgLength} arguments."
         )
 
+    let! fns = ExecutionState.availableFns state
 
     match List.tryFind Dval.isFake args with
     | Some fakeArg -> return fakeArg
     | None ->
       let fn =
         match desc with
-        | FQName.BuiltIn std ->
-          state.builtIns.fns.TryFind std |> Option.map builtInFnToFn
-        | FQName.UserProgram u ->
-          state.program.fns.TryFind u |> Option.map userFnToFn
-        | FQName.Package pkg ->
-          state.packageManager.fns.TryFind pkg |> Option.map packageFnToFn
+        | FQName.BuiltIn std -> fns.builtIn.TryFind std |> Option.map builtInFnToFn
+        | FQName.UserProgram u -> fns.userProgram.TryFind u |> Option.map userFnToFn
+        | FQName.Package pkg -> fns.package.TryFind pkg |> Option.map packageFnToFn
 
       match fn with
       | None -> return handleMissingFunction ()
@@ -819,7 +819,7 @@ and execFn
       let fnRecord = (state.tlid, fnDesc, id) in
 
       let name = FnName.toString fnDesc
-      let types = ExecutionState.availableTypes state
+      let! types = ExecutionState.availableTypes state
       match TypeChecker.checkFunctionCall types fn typeArgs args with
       | Error err ->
         let msg = Errors.toString (Errors.TypeError(err))

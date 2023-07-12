@@ -487,16 +487,18 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ typeArg ], [ arg ] ->
-          // TODO: somehow collect list of TVariable -> TypeReference
-          // "'b = Int",
-          // so we can Json.serialize<'b>, if 'b is in the surrounding context
+          uply {
+            // TODO: somehow collect list of TVariable -> TypeReference
+            // "'b = Int",
+            // so we can Json.serialize<'b>, if 'b is in the surrounding context
 
-          try
-            let types = ExecutionState.availableTypes state
-            let response = writeJson (fun w -> serialize types w typeArg arg)
-            Ply(Dval.resultOk (DString response))
-          with ex ->
-            Ply(Dval.resultError (DString ex.Message))
+            try
+              let! types = ExecutionState.availableTypes state
+              let response = writeJson (fun w -> serialize types w typeArg arg)
+              return Dval.resultOk (DString response)
+            with ex ->
+              return Dval.resultError (DString ex.Message)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -511,10 +513,13 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ typeArg ], [ DString arg ] ->
-          let types = ExecutionState.availableTypes state
-          match parse types typeArg arg with
-          | Ok v -> Ply(Dval.resultOk v)
-          | Error e -> Ply(Dval.resultError (DString e))
+          uply {
+            let! types = ExecutionState.availableTypes state
+
+            match parse types typeArg arg with
+            | Ok v -> return Dval.resultOk v
+            | Error e -> return Dval.resultError (DString e)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

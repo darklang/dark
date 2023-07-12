@@ -24,7 +24,7 @@ let builtIns : RT.BuiltIns =
     fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
 // TODO
-let packageManager : RT.PackageManager = { fns = Map.empty; types = Map.empty }
+let packageManager : RT.PackageManager = RT.PackageManager.Empty
 
 
 let defaultTLID = 7UL
