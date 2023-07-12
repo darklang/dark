@@ -23,6 +23,17 @@ let (|Placeholder|_|) (input : WT.Expr) =
 let (|PipePlaceholder|_|) (input : WT.PipeExpr) =
   if input = pipePlaceholder then Some() else None
 
+let (|LongIdentPat|_|) (names : List<string>) (input : LongIdent) =
+  if longIdentToList input = names then Some() else None
+
+let (|SynExprLongIdentPat|_|) (names : List<string>) (input : SynExpr) =
+  match input with
+  | SynExpr.LongIdent(_, SynLongIdent(longIdent, _, _), _, _) when
+    longIdentToList longIdent = names
+    ->
+    Some()
+  | _ -> None
+
 module TypeReference =
 
   let private parseTypeRef (name : string) : string * int =
@@ -351,32 +362,16 @@ module Expr =
 
 
     // Binary Ops: && / ||
-    | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
-      List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
-      ->
-      let op =
-        match ident.idText with
-        | "op_BooleanAnd" -> WT.BinOpAnd
-        | "op_BooleanOr" -> WT.BinOpOr
-        | _ -> Exception.raiseInternal "unhandled operation" [ "name", ident.idText ]
+    | SynExprLongIdentPat [ "op_BooleanAnd" ] ->
+      WT.EInfix(id, WT.BinOp WT.BinOpAnd, placeholder, placeholder)
 
-      WT.EInfix(id, WT.BinOp op, placeholder, placeholder)
-
+    | SynExprLongIdentPat [ "op_BooleanOr" ] ->
+      WT.EInfix(id, WT.BinOp WT.BinOpOr, placeholder, placeholder)
 
     // Negation
-    | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
-      ident.idText = "op_UnaryNegation"
-      ->
-      let name = PT.FnName.fqBuiltIn [ "Int" ] "negate" 0
-      WT.EApply(id, WT.FnTargetName name, [], [])
+    | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
+      WT.EApply(id, WT.FnTargetName(WT.KnownBuiltin [ "Int"; "negate" ]), [], [])
 
-
-    // One word functions like `equals`
-    | SynExpr.Ident ident when Set.contains ident.idText PT.FnName.oneWordFunctions ->
-      match parseFn ident.idText with
-      | Some(name, version) ->
-        WT.EApply(id, WT.FnTargetName(PT.FnName.fqBuiltIn [] name version), [], [])
-      | None -> WT.EVariable(id, ident.idText)
 
     // List literals
     | SynExpr.ArrayOrList(_, exprs, _) -> WT.EList(id, exprs |> List.map c)
