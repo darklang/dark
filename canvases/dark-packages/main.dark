@@ -1,10 +1,26 @@
-[<HttpHandler("GET", "/all-packages")>]
+type PackageFunction = { description: String }
+
+
+[<DB>]
+type PackageFunctionDB = PackageFunction
+
+[<HttpHandler("POST", "/functions")>]
 let _handler _req =
-  let packages = DarkInternal.Packages.all ()
+  let fn =
+    request.body
+    |> String.fromBytes
+    |> Json.parse<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
+    |> unwrap
+
+  let fnToSave = PackageFunction { description = fn.description ++ "cat" }
+  let key = DB.generateKey_v0 () //use id instread
+  DB.set fnToSave key PackageFunctionDB
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
 
-  let prettyPackages = PACKAGE.Darklang.PrettyPrinter.packages packages
+[<HttpHandler("GET", "/all-functions")>]
+let _handler _req =
+  let count = (DB.count PackageFunction) |> Int.toString
 
-  let result = prettyPackages
-
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes count) 200

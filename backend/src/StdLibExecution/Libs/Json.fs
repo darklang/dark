@@ -469,9 +469,9 @@ let parse
   | Ok parsed ->
     try
       parsed |> convert typ |> Ok
-    with
-    | JsonParseError.JsonParseException ex -> JsonParseError.toString ex |> Error
-    | ex -> Error ex.Message
+    with JsonParseError.JsonParseException ex ->
+      JsonParseError.toString ex |> Error
+
 
 
 let types : List<BuiltInType> = []

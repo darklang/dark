@@ -11,11 +11,50 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
   |> listDirectoryRecursive
   |> List.filter (fun x -> x |> String.endsWith ".dark")
 
+
+let saveFunctionToCanvas
+  (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
+  : Unit =
+  let reqBody =
+    p
+    |> Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
+    |> unwrap
+    |> String.toBytes
+
+  let _ =
+    HttpClient.request
+      "POST"
+      ("http://dark-packages.dlio.localhost:11003/functions")
+      []
+      reqBody
+
+  ()
+
 let loadPackageFile (filename: String) : Unit =
   filename
   |> LocalExec.File.read
   |> String.fromBytes
   |> LocalExec.Packages.parseAndSave filename
+
+
+let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
+  let packages =
+    filename
+    |> File.read
+    |> unwrap
+    |> String.fromBytes
+    |> LocalExec.Packages.parse filename
+    |> unwrap
+    |> debug "packages"
+
+  let fns =
+    packages
+    |> Json.parse<List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>>
+    |> unwrap
+    |> debug "fns"
+
+  fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
+
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> String.join "."
@@ -45,6 +84,7 @@ let runScript (path: String) (args: List<String>) : Int =
 type CliOptions =
   | Help
   | LoadPackages
+  | LoadPackagesIntoDarkCanvas
   | ListPackages
   | RunScript of path: String * args: List<String>
   | BadOption of String
@@ -53,10 +93,11 @@ let usage () : String =
   "Usage: LocalExec [options]
 
     Options:
-      -h, --help     Show this help message and exit
-      load-packages  Load packages from packages
-      list-packages  List packages
-      run-script     Parse and run .dark script
+      -h, --help          Show this help message and exit
+      load-packages       Load packages from packages
+      load-packages-dark  Load packages from dark packages canvas
+      list-packages       List packages
+      run-script          Parse and run .dark script
   "
 
 
@@ -68,6 +109,7 @@ let parseArgs (args: List<String>) : CliOptions =
 
   | [ "list-packages" ] -> CliOptions.ListPackages
   | [ "load-packages" ] -> CliOptions.LoadPackages
+  | [ "load-packages-dark" ] -> CliOptions.LoadPackagesIntoDarkCanvas
 
   | [ "run-script" ] ->
     CliOptions.BadOption "Missing path to script after `run-script`"
@@ -115,6 +157,18 @@ let main (args: List<String>) : Int =
   | RunScript(path, args) ->
     print $"Running script with LocalExec: {path}"
     runScript path args
+
+  | LoadPackagesIntoDarkCanvas ->
+    let files = listPackageFilesOnDisk "/home/dark/app/packages"
+
+    do // can we get rid of this do?
+      List.iter files (fun f ->
+        print $"Loading {f}"
+        loadPackageFileIntoDarkCanvas f)
+
+    print "Done loading packages from dark packages canvas"
+    printAllPackages ()
+    0
 
   | BadOption msg ->
     print ("Error: " ++ msg)
