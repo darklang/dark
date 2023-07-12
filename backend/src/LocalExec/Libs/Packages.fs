@@ -107,7 +107,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "package source" TString "The source code of the package"
           Param.make "filename" TString "Used for error message" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description = "Parse a package"
       fn =
         function
@@ -116,7 +116,7 @@ let fns : List<BuiltInFn> =
             let packages = Parser.Package.parse path contents
             let packagesFns = packages.fns |> Json.Vanilla.serialize
 
-            return DResult(Ok(DString packagesFns))
+            return Dval.resultOk (DString packagesFns)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
