@@ -22,7 +22,7 @@ module S = TestUtils.RTShortcuts
 
 let defaultTypes () =
   { RT.Types.empty with
-      packageTypes = TestUtils.TestUtils.packageManager.Force().Result.types }
+      package = TestUtils.TestUtils.packageManager.Force().Result.types }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv
@@ -42,7 +42,7 @@ let queryableRoundtripsSuccessfullyInRecord
 
   let types : RT.Types =
     { defaultTypes () with
-        userProgramTypes =
+        userProgram =
           Map
             [ typeName,
               { name = typeName
@@ -216,7 +216,7 @@ module Password =
 
       let availableTypes =
         { RT.Types.empty with
-            userProgramTypes =
+            userProgram =
               Map
                 [ typeName,
                   { tlid = 8UL
