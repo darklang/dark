@@ -3,22 +3,22 @@
 
 // Tests that don't use the internet
 module NoInternal =
-  HttpClient.formContentType_v0 = Dict {``Content-Type`` = "application/x-www-form-urlencoded"}
+  PACKAGE.Darklang.Stdlib.HttpClient.formContentType_v0 () = ("content-type", "application/x-www-form-urlencoded")
 
-  HttpClient.jsonContentType_v0 = Dict {``Content-Type`` = "application/json; charset=utf-8"}
+  PACKAGE.Darklang.Stdlib.HttpClient.jsonContentType_v0 () = ("content-type", "application/json; charset=utf-8")
 
-  HttpClient.plainTextContentType_v0 = Dict {``Content-Type`` = "text/plain; charset=utf-8"}
+  PACKAGE.Darklang.Stdlib.HttpClient.plainTextContentType_v0 () = ("content-type", "text/plain; charset=utf-8")
 
-  HttpClient.htmlContentType_v0 = Dict {``Content-Type`` = "text/html; charset=utf-8" }
+  PACKAGE.Darklang.Stdlib.HttpClient.htmlContentType_v0 () = ("content-type", "text/html; charset=utf-8")
 
-  HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = Dict { Authorization = "Bearer YWxhZGRpbjpvcGVuc2VzYW1l"}
+  PACKAGE.Darklang.Stdlib.HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = (("authorization", "bearer YWxhZGRpbjpvcGVuc2VzYW1l"))
 
-  HttpClient.basicAuth "username" "password" = Dict { Authorization = "Basic dXNlcm5hbWU6cGFzc3dvcmQ=" }
-  HttpClient.basicAuth "" "" = Dict { Authorization = "Basic Og==" }
+  HttpClient.basicAuth "username" "password" = ("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ=")
+  HttpClient.basicAuth "" "" = ("authorization", "basic Og==")
   HttpClient.basicAuth "-" "" = Test.typeError_v0 "Username cannot contain a hyphen"
-  HttpClient.basicAuth "" "-" = Dict { Authorization = "Basic Oi0=" }
-  HttpClient.basicAuth ":" "" = Dict { Authorization = "Basic Ojo=" }
-  HttpClient.basicAuth "" ":" = Dict { Authorization = "Basic Ojo=" }
+  HttpClient.basicAuth "" "-" = ("authorization", "basic Oi0=")
+  HttpClient.basicAuth ":" "" = ("authorization", "basic Ojo=")
+  HttpClient.basicAuth "" ":" = ("authorization", "basic Ojo=")
 
 
 // Tests that try to make requests to the internet
