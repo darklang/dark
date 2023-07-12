@@ -15,7 +15,6 @@ type LetPattern =
     second : LetPattern *
     theRest : List<LetPattern>
 
-/// Used for pattern matching in a match statement
 type MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
@@ -72,7 +71,6 @@ type TypeReference =
   | TCustomType of PT.TypeName.T * typeArgs : List<TypeReference>
 
 
-/// Expressions - the main part of the language.
 type Expr =
   | EInt of id * int64
   | EBool of id * bool
@@ -119,7 +117,6 @@ and PipeExpr =
     caseName : string *
     fields : List<Expr>
 
-/// A type defined by a standard library module, a canvas/user, or a package
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
@@ -128,19 +125,11 @@ module TypeDeclaration =
 
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
-  /// The right-hand-side of the declaration: eg List<'a>
   type Definition =
-    /// `type MyAlias = Int`
     | Alias of TypeReference
-
-    /// `type MyRecord = { a : int; b : string }`
     | Record of firstField : RecordField * additionalFields : List<RecordField>
-
-    /// `type MyEnum = A | B of int | C of int * (label: string)`
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
 
-  /// Combined the RHS definition, with the list of type parameters. Eg type
-  /// MyType<'a> = List<'a>
   type T = { typeParams : List<string>; definition : Definition }
 
 
