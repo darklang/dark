@@ -55,55 +55,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "allTypes" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(stdlibPackageTyp [] "Packages" 0, [])
-      description = "List all package types"
-      fn =
-        function
-        | _, _, [ DUnit ] ->
-          uply {
-            let! packages = LibBackend.PackageManager.allTypes ()
-            let packages = List.map PT2DT.PackageType.toDT packages
-
-            return
-              DRecord(
-                stdlibPackageTyp [] "Packages" 0,
-                Map([ "types", DList packages; "fns", DList [] ])
-              )
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-    { name = fn "allFunctions" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(stdlibPackageTyp [] "Packages" 0, [])
-      description = "List all package functions"
-      fn =
-        function
-        | _, _, [ DUnit ] ->
-          uply {
-            let! fns = LibBackend.PackageManager.allFunctions ()
-            let fns = List.map PT2DT.PackageFn.toDT fns
-
-            return
-              DRecord(
-                stdlibPackageTyp [] "Packages" 0,
-                Map([ "types", DList []; "fns", DList fns ])
-              )
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-    ]
+      deprecated = NotDeprecated } ]
 
 let contents = (fns, types)
