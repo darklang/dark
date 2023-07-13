@@ -1065,8 +1065,14 @@ and BuiltIns =
 
 // Functionality written in Dark stored and managed outside of user space
 and PackageManager =
-  { types : Map<TypeName.Package, PackageType.T>
-    fns : Map<FnName.Package, PackageFn.T> }
+  { getType : TypeName.Package -> Ply<Option<PackageType.T>>
+    getFn : FnName.Package -> Ply<Option<PackageFn.T>>
+    init : Ply<unit> }
+
+  static member Empty =
+    { getType = (fun _ -> Ply None)
+      getFn = (fun _ -> Ply None)
+      init = uply { return () } }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1113,29 +1119,29 @@ and ExecutionState =
 
 and Types =
   { builtIn : Map<TypeName.BuiltIn, BuiltInType>
-    package : Map<TypeName.Package, PackageType.T>
+    package : TypeName.Package -> Ply<Option<PackageType.T>>
     userProgram : Map<TypeName.UserProgram, UserType.T> }
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
     { builtIn = state.builtIns.types
-      package = state.packageManager.types
+      package = state.packageManager.getType
       userProgram = state.program.types }
 
 module Types =
   let empty =
-    { builtIn = Map.empty
-      package = Map.empty
-      userProgram = Map.empty }
+    { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
 
-  let find (name : TypeName.T) (types : Types) : Option<TypeDeclaration.T> =
+  let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration)
+      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
     | FQName.UserProgram user ->
-      Map.tryFind user types.userProgram |> Option.map (fun t -> t.declaration)
+      Map.tryFind user types.userProgram
+      |> Option.map (fun t -> t.declaration)
+      |> Ply
     | FQName.Package pkg ->
-      Map.tryFind pkg types.package |> Option.map (fun t -> t.declaration)
+      types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
 
   // Swap concrete types for type parameters
   let rec substitute
@@ -1184,14 +1190,17 @@ module Types =
 let rec getTypeReferenceFromAlias
   (types : Types)
   (typ : TypeReference)
-  : TypeReference =
+  : Ply<TypeReference> =
   match typ with
   | TCustomType(typeName, typeArgs) ->
-    match Types.find typeName types with
-    | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
-      getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
-    | _ -> typ
-  | _ -> typ
+    uply {
+      match! Types.find typeName types with
+      | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
+        return!
+          getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
+      | _ -> return typ
+    }
+  | _ -> Ply typ
 
 
 let consoleReporter : ExceptionReporter =

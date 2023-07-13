@@ -52,7 +52,7 @@ let builtIns : RT.BuiltIns =
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
-let packageManager : RT.PackageManager = { fns = Map.empty; types = Map.empty }
+let packageManager : RT.PackageManager = RT.PackageManager.Empty
 
 
 let execute
