@@ -331,10 +331,12 @@ module ProgramTypes =
                         PT.EApply(
                           898531080UL,
                           PT.FnTargetName(
-                            PT.FQName.BuiltIn
-                              { modules = [ "Int" ]
-                                name = PT.FnName.FnName "toString"
-                                version = 0 }
+                            Ok(
+                              PT.FQName.BuiltIn
+                                { modules = [ "Int" ]
+                                  name = PT.FnName.FnName "toString"
+                                  version = 0 }
+                            )
                           ),
                           dtypes,
                           [ PT.EInt(160106123UL, 6L) ]
@@ -378,10 +380,12 @@ module ProgramTypes =
                             PT.EApply(
                               173079901UL,
                               PT.FnTargetName(
-                                PT.FQName.BuiltIn
-                                  { modules = [ "Int" ]
-                                    name = PT.FnName.FnName "add"
-                                    version = 0 }
+                                Ok(
+                                  PT.FQName.BuiltIn
+                                    { modules = [ "Int" ]
+                                      name = PT.FnName.FnName "add"
+                                      version = 0 }
+                                )
                               ),
                               [],
                               [ PT.EInt(250221144UL, 6L); PT.EInt(298149318UL, 2L) ]
@@ -400,10 +404,12 @@ module ProgramTypes =
                         PT.LPVariable(7567123UL, "r"),
                         PT.ERecord(
                           109539183UL,
-                          PT.FQName.UserProgram(
-                            { modules = [ "dark"; "stdlib" ]
-                              name = PT.TypeName.TypeName "NonEmptyList"
-                              version = 0 }
+                          Ok(
+                            PT.FQName.UserProgram(
+                              { modules = [ "dark"; "stdlib" ]
+                                name = PT.TypeName.TypeName "NonEmptyList"
+                                version = 0 }
+                            )
                           ),
                           [ ("field",
                              PT.EPipe(
@@ -419,36 +425,44 @@ module ProgramTypes =
                             ("enum",
                              PT.EEnum(
                                567764301UL,
-                               PT.FQName.BuiltIn(
-                                 { modules = []
-                                   name = PT.TypeName.TypeName "Result"
-                                   version = 0 }
+                               Ok(
+                                 PT.FQName.BuiltIn(
+                                   { modules = []
+                                     name = PT.TypeName.TypeName "Result"
+                                     version = 0 }
+                                 )
                                ),
                                "Ok",
                                [ PT.EEnum(
                                    646107057UL,
-                                   PT.FQName.Package(
-                                     { owner = "Darklang"
-                                       modules =
-                                         NonEmptyList.ofList [ "Stdlib"; "Result" ]
-                                       name = PT.TypeName.TypeName "Result"
-                                       version = 0 }
+                                   Ok(
+                                     PT.FQName.Package(
+                                       { owner = "Darklang"
+                                         modules =
+                                           NonEmptyList.ofList [ "Stdlib"; "Result" ]
+                                         name = PT.TypeName.TypeName "Result"
+                                         version = 0 }
+                                     )
                                    ),
                                    "Error",
                                    [ PT.EEnum(
                                        689802831UL,
-                                       PT.FQName.BuiltIn(
-                                         { modules = []
-                                           name = PT.TypeName.TypeName "Option"
-                                           version = 0 }
+                                       Ok(
+                                         PT.FQName.BuiltIn(
+                                           { modules = []
+                                             name = PT.TypeName.TypeName "Option"
+                                             version = 0 }
+                                         )
                                        ),
                                        "Just",
                                        [ PT.EEnum(
                                            957916875UL,
-                                           PT.FQName.BuiltIn(
-                                             { modules = []
-                                               name = PT.TypeName.TypeName "Option"
-                                               version = 0 }
+                                           Ok(
+                                             PT.FQName.BuiltIn(
+                                               { modules = []
+                                                 name = PT.TypeName.TypeName "Option"
+                                                 version = 0 }
+                                             )
                                            ),
                                            "Nothing",
                                            []
@@ -473,10 +487,12 @@ module ProgramTypes =
                               PT.EApply(
                                 203239466UL,
                                 PT.FnTargetName(
-                                  PT.FQName.BuiltIn
-                                    { modules = [ "Mod" ]
-                                      name = PT.FnName.FnName "function"
-                                      version = 2 }
+                                  Ok(
+                                    PT.FQName.BuiltIn
+                                      { modules = [ "Mod" ]
+                                        name = PT.FnName.FnName "function"
+                                        version = 2 }
+                                  )
                                 ),
                                 [],
                                 []

@@ -199,24 +199,6 @@ let toPT (nameResolver : WT2PT.NameResolver) (m : WTCanvasModule) : PTCanvasModu
         (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT nameResolver expr))
     exprs = m.exprs |> List.map (WT2PT.Expr.toPT nameResolver) }
 
-let postProcessModule (m : PTCanvasModule) : PTCanvasModule =
-  let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
-  let userTypeNames = m.types |> List.map (fun t -> t.name) |> Set
-  let fixExpr = NameResolution.Expr.resolveNames userFnNames userTypeNames
-  { handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixExpr expr))
-    exprs = m.exprs |> List.map fixExpr
-    fns =
-      m.fns
-      |> List.map (
-        NameResolution.UserFunction.resolveNames userFnNames userTypeNames
-      )
-    types = m.types |> List.map (NameResolution.UserType.resolveNames userTypeNames)
-    dbs =
-      m.dbs
-      |> List.map (fun db ->
-        { db with
-            typ = NameResolution.TypeReference.resolveNames userTypeNames db.typ }) }
-
 let parse (filename : string) (source : string) : PTCanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
@@ -237,7 +219,7 @@ let parse (filename : string) (source : string) : PTCanvasModule =
         [ "parsedAsFsharp", parsedAsFSharp ]
   let resolver = WrittenTypesToProgramTypes.NameResolver.empty
 
-  decls |> parseDecls |> toPT resolver |> postProcessModule
+  decls |> parseDecls |> toPT resolver
 
 
 let parseFromFile (filename : string) : PTCanvasModule =

@@ -112,6 +112,24 @@ module FnName =
 
   let toDT (u : PT.FnName.T) : Dval = FQName.toDT Name.toDT u
 
+module NameResolutionError =
+  let toDT (u : LibExecution.Errors.NameResolutionError) : Dval =
+    let caseName, fields =
+      match u with
+      | LibExecution.Errors.NotFound names ->
+        "NotFound", [ DList(List.map DString names) ]
+      | LibExecution.Errors.MissingModuleName names ->
+        "MissingModuleName", [ DList(List.map DString names) ]
+      | LibExecution.Errors.InvalidPackageName names ->
+        "InvalidPackageName", [ DList(List.map DString names) ]
+
+    DEnum(ptTyp [ "NameResolutionError" ] "NameResolutionError" 0, caseName, fields)
+
+module NameResolution =
+  let toDT (f : 'a -> Dval) (u : PT.NameResolution<'a>) : Dval =
+    match u with
+    | Ok n -> Dval.resultOk (f n)
+    | Error e -> Dval.resultError (NameResolutionError.toDT e)
 
 module TypeReference =
   let rec toDT (t : PT.TypeReference) : Dval =
@@ -253,19 +271,16 @@ module PipeExpr =
       | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
         "EPipeFnCall",
         [ DInt(int64 id)
-          FnName.toDT fnName
+          NameResolution.toDT FnName.toDT fnName
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map exprToDT args) ]
 
       | PT.EPipeEnum(id, typeName, caseName, fields) ->
         "EPipeEnum",
         [ DInt(int64 id)
-          TypeName.toDT typeName
+          NameResolution.toDT TypeName.toDT typeName
           DString caseName
           DList(List.map exprToDT fields) ]
-      | PT.EPipeError(id, string, exprs) ->
-        "EPipeError",
-        [ DInt(int64 id); DString string; DList(List.map exprToDT exprs) ]
 
     DEnum(ptTyp [] "PipeExpr" 0, name, fields)
 
@@ -307,12 +322,13 @@ module Expr =
           fields
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
-        "ERecord", [ DInt(int64 id); TypeName.toDT name; DList(fields) ]
+        "ERecord",
+        [ DInt(int64 id); NameResolution.toDT TypeName.toDT name; DList(fields) ]
 
       | PT.EEnum(id, typeName, caseName, fields) ->
         "EEnum",
         [ DInt(int64 id)
-          TypeName.toDT typeName
+          NameResolution.toDT TypeName.toDT typeName
           DString caseName
           DList(List.map toDT fields) ]
 
@@ -362,7 +378,11 @@ module Expr =
       | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
         "EApply",
         [ DInt(int64 id)
-          DEnum(ptTyp [] "FnTarget" 0, "FnTargetName", [ FnName.toDT name ])
+          DEnum(
+            ptTyp [] "FnTarget" 0,
+            "FnTargetName",
+            [ NameResolution.toDT FnName.toDT name ]
+          )
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map toDT args) ]
 
@@ -379,9 +399,6 @@ module Expr =
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
         "ERecordUpdate", [ DInt(int64 id); toDT record; DList(updates) ]
-
-      | PT.EError(id, string, exprs) ->
-        "EError", [ DInt(int64 id); DString string; DList(List.map toDT exprs) ]
 
     DEnum(ptTyp [] "Expr" 0, name, fields)
 

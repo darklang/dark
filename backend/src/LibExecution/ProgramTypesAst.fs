@@ -18,7 +18,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
-    | EPipeError(id, msg, exprs) -> EPipeError(id, msg, List.map f exprs)
 
   match expr with
   | EInt _
@@ -60,7 +59,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     )
   | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, typeName, caseName, List.map f fields)
-  | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs)
 
 let rec preTraversal
   (exprFn : Expr -> Expr)
@@ -130,7 +128,7 @@ let rec preTraversal
     | EPipeFnCall(id, name, typeArgs, args) ->
       EPipeFnCall(
         id,
-        fqfnFn name,
+        Result.map fqfnFn name,
         List.map preTraversalTypeRef typeArgs,
         List.map f args
       )
@@ -139,7 +137,6 @@ let rec preTraversal
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
-    | EPipeError(id, msg, exprs) -> EPipeError(id, msg, List.map f exprs)
 
   match exprFn expr with
   | EInt _
@@ -171,7 +168,7 @@ let rec preTraversal
   | EApply(id, FnTargetName name, typeArgs, args) ->
     EApply(
       id,
-      FnTargetName(fqfnFn name),
+      FnTargetName(Result.map fqfnFn name),
       List.map preTraversalTypeRef typeArgs,
       List.map f args
     )
@@ -188,7 +185,7 @@ let rec preTraversal
   | ETuple(id, first, second, theRest) ->
     ETuple(id, f first, f second, List.map f theRest)
   | EEnum(id, typeName, caseName, fields) ->
-    EEnum(id, fqtnFn typeName, caseName, List.map f fields)
+    EEnum(id, Result.map fqtnFn typeName, caseName, List.map f fields)
   | EMatch(id, mexpr, pairs) ->
     EMatch(
       id,
@@ -200,7 +197,7 @@ let rec preTraversal
   | ERecord(id, typeName, fields) ->
     ERecord(
       id,
-      fqtnFn typeName,
+      Result.map fqtnFn typeName,
       List.map (fun (name, expr) -> (name, f expr)) fields
     )
   | ERecordUpdate(id, record, updates) ->
@@ -209,7 +206,6 @@ let rec preTraversal
       f record,
       List.map (fun (name, expr) -> (name, f expr)) updates
     )
-  | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f in

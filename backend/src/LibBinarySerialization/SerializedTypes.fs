@@ -168,6 +168,15 @@ type InfixFnName =
   | StringConcat
 
 [<MessagePack.MessagePackObject>]
+type NameResolutionError =
+  | NotFound of List<string>
+  | MissingModuleName of List<string>
+  | InvalidPackageName of List<string>
+
+[<MessagePack.MessagePackObject>]
+type NameResolution<'a> = Result<'a, NameResolutionError>
+
+[<MessagePack.MessagePackObject>]
 type LetPattern =
   | LPVariable of id * name : string
   | LPTuple of
@@ -215,31 +224,44 @@ type Expr =
   | EVariable of id * string
   | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
-  | ERecord of id * typeName : TypeName.T * fields : List<string * Expr>
+  | ERecord of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
-  | EEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
-  | EError of id * string * List<Expr>
 
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
 and FnTarget =
-  | FnTargetName of FnName.T
+  | FnTargetName of NameResolution<FnName.T>
   | FnTargetExpr of Expr
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
-  | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
-  | EPipeError of id * string * List<Expr>
+  | EPipeFnCall of
+    id *
+    NameResolution<FnName.T> *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
 
 [<MessagePack.MessagePackObject>]
 type Deprecation<'name> =

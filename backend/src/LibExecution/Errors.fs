@@ -206,7 +206,16 @@ type ErrorOutput =
     actual : List<ErrorSegment>
     expected : List<ErrorSegment> }
 
-type Error = TypeError of TypeChecker.Error
+
+type NameResolutionError =
+  | NotFound of List<string>
+  | MissingModuleName of List<string>
+  | InvalidPackageName of List<string>
+
+type Error =
+  | TypeError of TypeChecker.Error
+  | NameResolutionError of NameResolutionError
+
 module TCK = TypeChecker
 
 let toSegments (e : Error) : ErrorOutput =
@@ -489,6 +498,43 @@ let toSegments (e : Error) : ErrorOutput =
   | TypeError(TCK.TypeDoesntExist(typeName, _)) ->
     // Perhaps this should be an internal error as this shouldn't be possible
     let summary = [ TypeName typeName; String " doesn't exist" ]
+
+    let extraExplanation = []
+    let actual = []
+    let expected = []
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | NameResolutionError(NotFound(names)) ->
+    let summary = [ String "Package not found"; String(String.concat "." names) ]
+
+    let extraExplanation = []
+    let actual = []
+    let expected = []
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | NameResolutionError(MissingModuleName(names)) ->
+    let summary =
+      [ String "We need more modules: "; String(String.concat "." names) ]
+
+    let extraExplanation = []
+    let actual = []
+    let expected = []
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | NameResolutionError(InvalidPackageName(names)) ->
+    let summary = [ String "Invalid package name"; String(String.concat "." names) ]
 
     let extraExplanation = []
     let actual = []

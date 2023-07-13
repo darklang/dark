@@ -577,8 +577,6 @@ module Expr =
       let names = parseNames name
       let typename =
         List.last names |> Exception.unwrapOptionInternal "empty list" []
-      let (typ, version) =
-        parseTypeName typename |> Exception.unwrapResultInternal []
       let modules = List.initial names |> Option.unwrap []
 
       let fields =
@@ -592,10 +590,7 @@ module Expr =
       if names = [ "Dict" ] then
         WT.EDict(id, fields)
       else
-        // We use a user name here, and we'll resolve it in the post pass when we
-        // have the types available
-        let typeName = PT.TypeName.fqUserProgram modules typ version
-        WT.ERecord(id, typeName, fields)
+        WT.ERecord(id, WT.Unresolved(modules @ [ typename ]), fields)
 
     // Record update: {myRecord with x = 5 }
     | SynExpr.Record(_, Some(baseRecord, _), updates, _) ->

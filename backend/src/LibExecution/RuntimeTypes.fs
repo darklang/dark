@@ -396,6 +396,12 @@ type Expr =
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
+
+  // A runtime error. This is included so that we can allow the program to run in the
+  // presence of compile-time errors (which are converted to this error). We may
+  // adapt this to include more information as we go, possibly using a standard Error
+  // type (the same as used in DErrors and Results). This list of exprs is the
+  // subexpressions to evaluate before evaluating the error.
   | EError of id * string * List<Expr>
 
 and LetPattern =

@@ -20,11 +20,10 @@ let initialParse (filename : string) (code : string) : PT.Expr =
   |> WT2PT.Expr.toPT resolver
 
 
+// NAMETODO remove
 // Shortcut function for tests that ignore user functions and types
 let parseIgnoringUser (filename : string) (code : string) : PT.Expr =
-  code
-  |> initialParse filename
-  |> NameResolution.Expr.resolveNames Set.empty Set.empty
+  code |> initialParse filename
 
 let parseRTExpr
   (fns : Set<PT.FnName.UserProgram>)
@@ -34,13 +33,11 @@ let parseRTExpr
   : LibExecution.RuntimeTypes.Expr =
   code
   |> initialParse filename
-  |> NameResolution.Expr.resolveNames fns types
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
+// NAMETODO remove
 let parsePTExpr (filename : string) (code : string) : PT.Expr =
-  code
-  |> initialParse filename
-  |> NameResolution.Expr.resolveNames Set.empty Set.empty
+  code |> initialParse filename
 
 
 let parsePackage

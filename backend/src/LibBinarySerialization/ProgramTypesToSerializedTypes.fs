@@ -103,6 +103,42 @@ module FnName =
     | ST.FnName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
     | ST.FnName.Package p -> PT.FQName.Package(Package.toPT p)
 
+// type NameResolutionError = NotFound of List<string>
+module NameResolution =
+  module NameResultionError =
+    let toST
+      (err : LibExecution.Errors.NameResolutionError)
+      : ST.NameResolutionError =
+      match err with
+      | LibExecution.Errors.NotFound modules ->
+        ST.NameResolutionError.NotFound modules
+      | LibExecution.Errors.MissingModuleName moduleName ->
+        ST.NameResolutionError.MissingModuleName moduleName
+      | LibExecution.Errors.InvalidPackageName packageName ->
+        ST.NameResolutionError.InvalidPackageName packageName
+
+    let toPT
+      (err : ST.NameResolutionError)
+      : LibExecution.Errors.NameResolutionError =
+      match err with
+      | ST.NameResolutionError.NotFound modules ->
+        LibExecution.Errors.NotFound modules
+      | ST.NameResolutionError.MissingModuleName moduleName ->
+        LibExecution.Errors.MissingModuleName moduleName
+      | ST.NameResolutionError.InvalidPackageName packageName ->
+        LibExecution.Errors.InvalidPackageName packageName
+
+  // type NameResolution = Result<x, NameResolutionError>
+  let toST (f : 'p -> 's) (result : PT.NameResolution<'p>) : ST.NameResolution<'s> =
+    match result with
+    | Ok name -> Ok(f name)
+    | Error err -> Error(NameResultionError.toST err)
+
+  let toPT (f : 's -> 'p) (result : ST.NameResolution<'s>) : PT.NameResolution<'p> =
+    match result with
+    | Ok name -> Ok(f name)
+    | Error err -> Error(NameResultionError.toPT err)
+
 
 module InfixFnName =
   let toST (name : PT.InfixFnName) : ST.InfixFnName =
@@ -261,9 +297,10 @@ module Expr =
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
     | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
+      let name = NameResolution.toST FnName.toST name
       ST.EApply(
         id,
-        ST.FnTargetName(FnName.toST name),
+        ST.FnTargetName name,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
@@ -287,7 +324,11 @@ module Expr =
     | PT.ETuple(id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
     | PT.ERecord(id, typeName, fields) ->
-      ST.ERecord(id, TypeName.toST typeName, List.map (Tuple2.mapSecond toST) fields)
+      ST.ERecord(
+        id,
+        NameResolution.toST TypeName.toST typeName,
+        List.map (Tuple2.mapSecond toST) fields
+      )
     | PT.ERecordUpdate(id, record, updates) ->
       ST.ERecordUpdate(
         id,
@@ -297,7 +338,12 @@ module Expr =
     | PT.EPipe(pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, pipeExprToST expr2, List.map pipeExprToST rest)
     | PT.EEnum(id, typeName, caseName, fields) ->
-      ST.EEnum(id, TypeName.toST typeName, caseName, List.map toST fields)
+      ST.EEnum(
+        id,
+        NameResolution.toST TypeName.toST typeName,
+        caseName,
+        List.map toST fields
+      )
     | PT.EMatch(id, mexpr, cases) ->
       ST.EMatch(
         id,
@@ -305,7 +351,6 @@ module Expr =
         List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
-    | PT.EError(id, msg, exprs) -> ST.EError(id, msg, List.map toST exprs)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
@@ -323,13 +368,17 @@ module Expr =
     | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       ST.EPipeFnCall(
         id,
-        FnName.toST fnName,
+        NameResolution.toST FnName.toST fnName,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
     | PT.EPipeEnum(id, typeName, caseName, fields) ->
-      ST.EPipeEnum(id, TypeName.toST typeName, caseName, List.map toST fields)
-    | PT.EPipeError(id, msg, exprs) -> ST.EPipeError(id, msg, List.map toST exprs)
+      ST.EPipeEnum(
+        id,
+        NameResolution.toST TypeName.toST typeName,
+        caseName,
+        List.map toST fields
+      )
 
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
@@ -344,7 +393,7 @@ module Expr =
     | ST.EApply(id, ST.FnTargetName name, typeArgs, args) ->
       PT.EApply(
         id,
-        PT.FnTargetName(FnName.toPT name),
+        PT.FnTargetName(NameResolution.toPT FnName.toPT name),
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
@@ -364,7 +413,11 @@ module Expr =
     | ST.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
     | ST.ERecord(id, typeName, fields) ->
-      PT.ERecord(id, TypeName.toPT typeName, List.map (Tuple2.mapSecond toPT) fields)
+      PT.ERecord(
+        id,
+        NameResolution.toPT TypeName.toPT typeName,
+        List.map (Tuple2.mapSecond toPT) fields
+      )
     | ST.ERecordUpdate(id, record, updates) ->
       PT.ERecordUpdate(
         id,
@@ -374,7 +427,12 @@ module Expr =
     | ST.EPipe(pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
     | ST.EEnum(id, typeName, caseName, exprs) ->
-      PT.EEnum(id, TypeName.toPT typeName, caseName, List.map toPT exprs)
+      PT.EEnum(
+        id,
+        NameResolution.toPT TypeName.toPT typeName,
+        caseName,
+        List.map toPT exprs
+      )
     | ST.EMatch(id, mexpr, pairs) ->
       PT.EMatch(
         id,
@@ -384,7 +442,6 @@ module Expr =
     | ST.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
-    | ST.EError(id, msg, exprs) -> PT.EError(id, msg, List.map toPT exprs)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with
@@ -400,13 +457,17 @@ module Expr =
     | ST.EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
-        FnName.toPT fnName,
+        NameResolution.toPT FnName.toPT fnName,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
     | ST.EPipeEnum(id, typeName, caseName, fields) ->
-      PT.EPipeEnum(id, TypeName.toPT typeName, caseName, List.map toPT fields)
-    | ST.EPipeError(id, msg, exprs) -> PT.EPipeError(id, msg, List.map toPT exprs)
+      PT.EPipeEnum(
+        id,
+        NameResolution.toPT TypeName.toPT typeName,
+        caseName,
+        List.map toPT fields
+      )
 
 module Deprecation =
   type Deprecation<'name> =
