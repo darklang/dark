@@ -66,6 +66,14 @@ module AddToTestEnumDBs =
   (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in
    (DB.getAll TestEnumDB2)) = Test.typeError_v0 "There is no case named `D` in MyEnum"
 
+  (let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
+   (DB.query TestEnumDB (fun p -> p.x == "hello"))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+
+
+  // TODO: Make this work. we need to enable certain types before we can use DB.query for this
+  //(let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test2" TestEnumDB in
+    //(DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+
 
 
 module Roundtrip =
