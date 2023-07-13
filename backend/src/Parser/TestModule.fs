@@ -65,12 +65,6 @@ module UserDB =
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
-  let resolveNames
-    (userTypes : Set<PT.TypeName.UserProgram>)
-    (db : PT.DB.T)
-    : PT.DB.T =
-    { db with typ = NameResolution.TypeReference.resolveNames userTypes db.typ }
-
 
 /// Extracts a test from a SynExpr.
 /// The test must be in the format `expected = actual`, otherwise an exception is raised
@@ -181,23 +175,6 @@ let rec toPT (resolver : WT2PT.NameResolver) (m : WTModule) : PTModule =
 
 
 
-let rec resolveNames (m : PTModule) : PTModule =
-  let fnNames = m.fns |> List.map (fun fn -> fn.name) |> Set
-  let typeNames = m.types |> List.map (fun t -> t.name) |> Set
-  let fixExpr = NameResolution.Expr.resolveNames fnNames typeNames
-  { fns =
-      m.fns |> List.map (NameResolution.UserFunction.resolveNames fnNames typeNames)
-    types = m.types |> List.map (NameResolution.UserType.resolveNames typeNames)
-    dbs = m.dbs |> List.map (UserDB.resolveNames typeNames)
-    modules = m.modules |> List.map (fun (name, m) -> (name, resolveNames m))
-    tests =
-      m.tests
-      |> List.map (fun test ->
-        { test with actual = fixExpr test.actual; expected = fixExpr test.expected }) }
-
-
-
-
 
 // Below are the fns that we intend to expose to the rest of the codebase
 let parseTestFile (filename : string) : PTModule =
@@ -207,7 +184,6 @@ let parseTestFile (filename : string) : PTModule =
   |> parseAsFSharpSourceFile filename
   |> parseFile
   |> toPT resolver
-  |> resolveNames
 
 let parseSingleTestFromFile (filename : string) (testSource : string) : RTTest =
   let resolver = WrittenTypesToProgramTypes.NameResolver.empty
@@ -216,15 +192,7 @@ let parseSingleTestFromFile (filename : string) (testSource : string) : RTTest =
     |> parseAsFSharpSourceFile filename
     |> singleExprFromImplFile
     |> parseTest
-  { actual =
-      wtTest.actual
-      |> WT2PT.Expr.toPT resolver
-      |> NameResolution.Expr.resolveNames Set.empty Set.empty
-      |> PT2RT.Expr.toRT
-    expected =
-      wtTest.expected
-      |> WT2PT.Expr.toPT resolver
-      |> NameResolution.Expr.resolveNames Set.empty Set.empty
-      |> PT2RT.Expr.toRT
+  { actual = wtTest.actual |> WT2PT.Expr.toPT resolver |> PT2RT.Expr.toRT
+    expected = wtTest.expected |> WT2PT.Expr.toPT resolver |> PT2RT.Expr.toRT
     lineNumber = wtTest.lineNumber
     name = wtTest.name }

@@ -142,11 +142,17 @@ module Expr =
     | PT.EUnit id -> RT.EUnit id
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
-    | PT.EApply(id, PT.FnTargetName fnName, typeArgs, args) ->
+    | PT.EApply(id, PT.FnTargetName(Ok fnName), typeArgs, args) ->
       RT.EApply(
         id,
         RT.FnTargetName(FnName.toRT fnName),
         List.map TypeReference.toRT typeArgs,
+        List.map toRT args
+      )
+    | PT.EApply(id, PT.FnTargetName(Error err), typeArgs, args) ->
+      RT.EError(
+        id,
+        Errors.toString (Errors.NameResolutionError err),
         List.map toRT args
       )
     | PT.EApply(id, PT.FnTargetExpr fnName, typeArgs, args) ->
@@ -163,7 +169,7 @@ module Expr =
           { modules = modules; name = PT.FnName.FnName fn; version = version }
         )
       let typeArgs = []
-      toRT (PT.EApply(id, PT.FnTargetName name, typeArgs, [ arg1; arg2 ]))
+      toRT (PT.EApply(id, PT.FnTargetName(Ok name), typeArgs, [ arg1; arg2 ]))
     | PT.EInfix(id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix(id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
@@ -176,8 +182,14 @@ module Expr =
     | PT.EList(id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ETuple(id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
-    | PT.ERecord(id, typeName, fields) ->
+    | PT.ERecord(id, Ok typeName, fields) ->
       RT.ERecord(id, TypeName.toRT typeName, List.map (Tuple2.mapSecond toRT) fields)
+    | PT.ERecord(id, Error typeName, fields) ->
+      RT.EError(
+        id,
+        Errors.toString (Errors.NameResolutionError typeName),
+        fields |> List.map Tuple2.second |> List.map toRT
+      )
 
     | PT.ERecordUpdate(id, record, updates) ->
       RT.ERecordUpdate(id, toRT record, List.map (Tuple2.mapSecond toRT) updates)
@@ -191,7 +203,13 @@ module Expr =
           RT.EApply(pipeID, RT.FnTargetExpr(expr), typeArgs, [ prev ])
 
         match next with
-        | PT.EPipeFnCall(id, fnName, typeArgs, exprs) ->
+        | PT.EPipeFnCall(id, Error fnName, typeArgs, exprs) ->
+          RT.EError(
+            id,
+            Errors.toString (Errors.NameResolutionError fnName),
+            prev :: List.map toRT exprs
+          )
+        | PT.EPipeFnCall(id, Ok fnName, typeArgs, exprs) ->
           RT.EApply(
             id,
             RT.FnTargetName(FnName.toRT fnName),
@@ -216,14 +234,18 @@ module Expr =
           match op with
           | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr)
           | PT.BinOpOr -> RT.EOr(id, prev, toRT expr)
-        | PT.EPipeEnum(id, typeName, caseName, fields) ->
+        | PT.EPipeEnum(id, Ok typeName, caseName, fields) ->
           let fields' = prev :: List.map toRT fields
           RT.EEnum(id, TypeName.toRT typeName, caseName, fields')
+        | PT.EPipeEnum(id, Error typeName, caseName, fields) ->
+          RT.EError(
+            id,
+            Errors.toString (Errors.NameResolutionError typeName),
+            prev :: List.map toRT fields
+          )
         | PT.EPipeVariable(id, name) -> RT.EVariable(id, name) |> applyFn
         | PT.EPipeLambda(id, vars, body) ->
           RT.ELambda(id, vars, toRT body) |> applyFn
-        | PT.EPipeError(id, msg, exprs) ->
-          RT.EError(id, msg, prev :: List.map toRT exprs)
 
       let init = toRT expr1
       List.fold init folder (expr2 :: rest)
@@ -234,10 +256,15 @@ module Expr =
         toRT mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toRT << Tuple2.mapSecond toRT) pairs
       )
-    | PT.EEnum(id, typeName, caseName, fields) ->
+    | PT.EEnum(id, Ok typeName, caseName, fields) ->
       RT.EEnum(id, TypeName.toRT typeName, caseName, List.map toRT fields)
+    | PT.EEnum(id, Error typeName, caseName, fields) ->
+      RT.EError(
+        id,
+        Errors.toString (Errors.NameResolutionError typeName),
+        List.map toRT fields
+      )
     | PT.EDict(id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)
-    | PT.EError(id, msg, exprs) -> RT.EError(id, msg, List.map toRT exprs)
 
 
 

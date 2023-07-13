@@ -100,14 +100,8 @@ let parse (filename : string) (contents : string) : PTPackageModule =
     // At the toplevel, the module names will from the filenames
     let names = []
     let modul = parseDecls names decls
-    let fns =
-      modul.fns
-      |> List.map (WT2PT.PackageFn.toPT resolver)
-      |> List.map NameResolution.PackageFn.resolveNames
-    let types =
-      modul.types
-      |> List.map (WT2PT.PackageType.toPT resolver)
-      |> List.map NameResolution.PackageType.resolveNames
+    let fns = modul.fns |> List.map (WT2PT.PackageFn.toPT resolver)
+    let types = modul.types |> List.map (WT2PT.PackageType.toPT resolver)
     { fns = fns; types = types }
   // in the parsed package, types are being read as user, as opposed to the package that's right there
   | decl ->

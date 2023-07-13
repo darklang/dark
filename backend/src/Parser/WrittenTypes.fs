@@ -11,7 +11,10 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 
 type Name =
+  // Used when a syntactic construct turns into a function (eg some operators)
   | KnownBuiltin of List<string> * string * int
+  // Basically all names are unresolved at this point, and will be resolved during
+  // WrittenTypesToProgramTypes
   | Unresolved of List<string>
 
 type LetPattern =
@@ -96,7 +99,7 @@ type Expr =
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
-  | ERecord of id * PT.TypeName.T * List<string * Expr>
+  | ERecord of id * Name * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EEnum of id * Name * caseName : string * fields : List<Expr> // Name includes both CaseName and TypeName
   | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>

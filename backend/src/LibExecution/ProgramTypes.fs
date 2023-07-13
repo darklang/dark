@@ -3,6 +3,7 @@ module LibExecution.ProgramTypes
 
 open Prelude
 
+
 /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
 /// or a Package module.
 module FQName =
@@ -220,6 +221,26 @@ module FnName =
         "unwrap_v0" ]
 
 
+// In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
+// resolved. The user wrote them in WrittenTypes, and the WrittenTypesToProgramTypes
+// pass looked them up and specified them exactly in ProgramTypes.
+//
+// However, sometimes the name/fn/type/constant could not be found, which means the
+// user specified a name that doesn't exist (it shouldn't be for any other reason -
+// things like "the internet was down" should error differently).
+//
+// When there is an error, we still want to keep the rest of the expression around,
+// as ProgramTypes's job is to keep the program as it was written by the user. We
+// also have a goal of running invalid programs as much as possible. As such, an
+// incorrectly specified name shouldn't cause a compile-time/parse-time error, nor
+// should it lose information that was specified by the user.
+//
+// As a result, we model those cases as a Result type, where the Ok case is the
+// resolved name, and the Error case models the text name of the type and some error
+// information.
+
+type NameResolution<'a> = Result<'a, Errors.NameResolutionError>
+
 type LetPattern =
   | LPVariable of id * name : string
   | LPTuple of
@@ -324,15 +345,9 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
 
-  | ERecord of id * TypeName.T * List<string * Expr>
+  // See NameResolution comment above
+  | ERecord of id * NameResolution<TypeName.T> * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
-
-  // A runtime error. This is included so that we can allow the program to run in the
-  // presence of compile-time errors (which are converted to this error). We may
-  // adapt this to include more information as we go, possibly using a standard Error
-  // type (the same as used in DErrors and Results). This list of exprs is the
-  // subexpressions to evaluate before evaluating the error.
-  | EError of id * string * List<Expr>
 
   // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.
@@ -343,8 +358,11 @@ type Expr =
   ///   `C (1, "title")`
   /// represented as
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
-  /// TODO: the UserTypeName should eventually be a non-optional TypeName.
-  | EEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
 
   /// Supports `match` expressions
   /// ```fsharp
@@ -361,16 +379,23 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and FnTarget =
-  | FnTargetName of FnName.T
+  | FnTargetName of NameResolution<FnName.T>
   | FnTargetExpr of Expr
 
 and PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
-  | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
-  | EPipeError of id * string * List<Expr>
+  | EPipeFnCall of
+    id *
+    NameResolution<FnName.T> *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
 
 module Expr =
   let toID (expr : Expr) : id =
@@ -396,7 +421,6 @@ module Expr =
     | ERecordUpdate(id, _, _)
     | EEnum(id, _, _, _)
     | EMatch(id, _, _) -> id
-    | EError(id, _, _) -> id
 
 module PipeExpr =
   let toID (expr : PipeExpr) : id =
@@ -405,8 +429,7 @@ module PipeExpr =
     | EPipeLambda(id, _, _)
     | EPipeInfix(id, _, _)
     | EPipeFnCall(id, _, _, _)
-    | EPipeEnum(id, _, _, _)
-    | EPipeError(id, _, _) -> id
+    | EPipeEnum(id, _, _, _) -> id
 
 
 /// A type defined by a standard library module, a canvas/user, or a package

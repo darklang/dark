@@ -41,7 +41,7 @@ module NameResolver =
     (userThings : Set<PT.FQName.UserProgram<'name>>)
     (builtinThings : Set<PT.FQName.BuiltIn<'name>>)
     (name : WT.Name)
-    : Result<PT.FQName.T<'name>, string> =
+    : PT.NameResolution<PT.FQName.T<'name>> =
 
     // These are named exactly during parsing
     match name with
@@ -50,9 +50,9 @@ module NameResolver =
       Ok(PT.FQName.fqBuiltIn nameValidator modules (constructor name) version)
 
     // Packages are unambiguous
-    | WT.Unresolved("PACKAGE" :: owner :: rest) ->
+    | WT.Unresolved(("PACKAGE" :: owner :: rest) as names) ->
       match List.rev rest with
-      | [] -> Error ""
+      | [] -> Error(LibExecution.Errors.MissingModuleName names)
       | name :: moduleLast :: moduleInit ->
         match parser name with
         | Ok(name, version) ->
@@ -65,15 +65,15 @@ module NameResolver =
               (constructor name)
               version
           )
-        | Error _ -> Error "Invalid package name"
-      | _ -> Error "Invalid package name"
+        | Error _ -> Error(LibExecution.Errors.InvalidPackageName names)
+      | _ -> Error(LibExecution.Errors.InvalidPackageName names)
 
     | WT.Unresolved names ->
       match List.rev names with
-      | [] -> Error ""
+      | [] -> Error(LibExecution.Errors.MissingModuleName names)
       | name :: moduleLast :: moduleInit ->
         match parser name with
-        | Error _ -> Error "Invalid type name"
+        | Error _msg -> Error(LibExecution.Errors.InvalidPackageName names)
         | Ok(name, version) ->
           let modules = List.rev (moduleLast :: moduleInit)
 
@@ -101,15 +101,15 @@ module NameResolver =
               //   - a. current module // NOT IMPLEMENTED
               //   - b. parent module(s) // NOT IMPLEMENTED
               //   - c. darklang.stdlib package space
-              Error "Unknown type name"
-      | _ -> Error "Invalid type name"
+              Error(LibExecution.Errors.NotFound names)
+      | _ -> Error(LibExecution.Errors.MissingModuleName names)
 
 
   module TypeName =
     let resolve
       (resolver : NameResolver)
       (name : WT.Name)
-      : Result<PT.TypeName.T, string> =
+      : PT.NameResolution<PT.TypeName.T> =
       resolveName
         PT.TypeName.assert'
         PT.TypeName.TypeName
@@ -123,7 +123,7 @@ module NameResolver =
     let resolve
       (resolver : NameResolver)
       (name : WT.Name)
-      : Result<PT.FnName.T, string> =
+      : PT.NameResolution<PT.FnName.T> =
       resolveName
         PT.FnName.assert'
         PT.FnName.FnName
@@ -229,15 +229,13 @@ module Expr =
     | WT.EVariable(id, var) -> PT.EVariable(id, var)
     | WT.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
     | WT.EApply(id, WT.FnTargetName name, typeArgs, args) ->
-      match NameResolver.FnName.resolve resolver name with
-      | Ok name ->
-        PT.EApply(
-          id,
-          PT.FnTargetName name,
-          List.map (TypeReference.toPT resolver) typeArgs,
-          List.map toPT args
-        )
-      | Error msg -> PT.EError(id, msg, List.map toPT args)
+      let name = NameResolver.FnName.resolve resolver name
+      PT.EApply(
+        id,
+        PT.FnTargetName name,
+        List.map (TypeReference.toPT resolver) typeArgs,
+        List.map toPT args
+      )
     | WT.EApply(id, WT.FnTargetExpr name, typeArgs, args) ->
       PT.EApply(
         id,
@@ -254,7 +252,11 @@ module Expr =
     | WT.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
     | WT.ERecord(id, typeName, fields) ->
-      PT.ERecord(id, typeName, List.map (Tuple2.mapSecond toPT) fields)
+      PT.ERecord(
+        id,
+        NameResolver.TypeName.resolve resolver typeName,
+        List.map (Tuple2.mapSecond toPT) fields
+      )
     | WT.ERecordUpdate(id, record, updates) ->
       PT.ERecordUpdate(
         id,
@@ -269,13 +271,14 @@ module Expr =
         List.map (pipeExprToPT resolver) rest
       )
     | WT.EEnum(id, typeName, caseName, exprs) ->
-
-      match NameResolver.TypeName.resolve resolver typeName with
-      | Ok typeName -> PT.EEnum(id, typeName, caseName, List.map toPT exprs)
-      // NAMETODO: what about the other types? Also should we be checking casenames
-      // here? At least for warnings? Do we check them in the interpreter at
-      // construction time?
-      | Error msg -> PT.EError(id, msg, List.map toPT exprs)
+      // NAMETODO: Should we be checking casenames here? At least for warnings? Do we
+      // check them in the interpreter at construction time?
+      PT.EEnum(
+        id,
+        NameResolver.TypeName.resolve resolver typeName,
+        caseName,
+        List.map toPT exprs
+      )
     | WT.EMatch(id, mexpr, pairs) ->
       PT.EMatch(
         id,
@@ -302,19 +305,19 @@ module Expr =
     | WT.EPipeInfix(id, infix, first) ->
       PT.EPipeInfix(id, Infix.toPT infix, toPT first)
     | WT.EPipeFnCall(id, name, typeArgs, args) ->
-      match NameResolver.FnName.resolve resolver name with
-      | Ok name ->
-        PT.EPipeFnCall(
-          id,
-          name,
-          List.map (TypeReference.toPT resolver) typeArgs,
-          List.map toPT args
-        )
-      | Error msg -> PT.EPipeError(id, msg, List.map toPT args)
+      PT.EPipeFnCall(
+        id,
+        NameResolver.FnName.resolve resolver name,
+        List.map (TypeReference.toPT resolver) typeArgs,
+        List.map toPT args
+      )
     | WT.EPipeEnum(id, typeName, caseName, fields) ->
-      match NameResolver.TypeName.resolve resolver typeName with
-      | Ok typeName -> PT.EPipeEnum(id, typeName, caseName, List.map toPT fields)
-      | Error msg -> PT.EPipeError(id, msg, List.map toPT fields)
+      PT.EPipeEnum(
+        id,
+        NameResolver.TypeName.resolve resolver typeName,
+        caseName,
+        List.map toPT fields
+      )
 
 
 module TypeDeclaration =
