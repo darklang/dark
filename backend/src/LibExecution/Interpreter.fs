@@ -50,10 +50,10 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   let recordMaybe
     (typeName : TypeName.T)
-    : Task<Option<TypeName.T * List<TypeDeclaration.RecordField>>> =
+    : Ply<Option<TypeName.T * List<TypeDeclaration.RecordField>>> =
     let types = ExecutionState.availableTypes state
     let rec inner (typeName : TypeName.T) =
-      task {
+      uply {
         match! Types.find typeName types with
         | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
           return! inner innerTypeName
