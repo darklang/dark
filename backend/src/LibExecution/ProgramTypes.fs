@@ -327,6 +327,13 @@ type Expr =
   | ERecord of id * TypeName.T * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
 
+  // A runtime error. This is included so that we can allow the program to run in the
+  // presence of compile-time errors (which are converted to this error). We may
+  // adapt this to include more information as we go, possibly using a standard Error
+  // type (the same as used in DErrors and Results). This list of exprs is the
+  // subexpressions to evaluate before evaluating the error.
+  | EError of id * string * List<Expr>
+
   // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
   // as user-defined enums.
   //
@@ -363,6 +370,7 @@ and PipeExpr =
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EPipeError of id * string * List<Expr>
 
 module Expr =
   let toID (expr : Expr) : id =
@@ -388,6 +396,7 @@ module Expr =
     | ERecordUpdate(id, _, _)
     | EEnum(id, _, _, _)
     | EMatch(id, _, _) -> id
+    | EError(id, _, _) -> id
 
 module PipeExpr =
   let toID (expr : PipeExpr) : id =
@@ -396,7 +405,8 @@ module PipeExpr =
     | EPipeLambda(id, _, _)
     | EPipeInfix(id, _, _)
     | EPipeFnCall(id, _, _, _)
-    | EPipeEnum(id, _, _, _) -> id
+    | EPipeEnum(id, _, _, _)
+    | EPipeError(id, _, _) -> id
 
 
 /// A type defined by a standard library module, a canvas/user, or a package

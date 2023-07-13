@@ -396,6 +396,7 @@ type Expr =
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
+  | EError of id * string * List<Expr>
 
 and LetPattern =
   | LPVariable of id * name : string
@@ -594,6 +595,7 @@ module Expr =
     | EDict(id, _)
     | EEnum(id, _, _, _)
     | EMatch(id, _, _)
+    | EError(id, _, _)
     | EAnd(id, _, _)
     | EOr(id, _, _) -> id
 

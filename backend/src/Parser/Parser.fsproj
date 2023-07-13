@@ -14,8 +14,8 @@
   <ItemGroup>
     <Compile Include="Utils.fs" />
     <Compile Include="WrittenTypes.fs" />
-    <Compile Include="WrittenTypesToProgramTypes.fs" />
     <Compile Include="FSharpToWrittenTypes.fs" />
+    <Compile Include="WrittenTypesToProgramTypes.fs" />
     <Compile Include="NameResolution.fs" />
     <Compile Include="TestModule.fs" />
     <Compile Include="Package.fs" />

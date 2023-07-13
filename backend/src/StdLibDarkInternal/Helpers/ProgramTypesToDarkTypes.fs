@@ -263,6 +263,9 @@ module PipeExpr =
           TypeName.toDT typeName
           DString caseName
           DList(List.map exprToDT fields) ]
+      | PT.EPipeError(id, string, exprs) ->
+        "EPipeError",
+        [ DInt(int64 id); DString string; DList(List.map exprToDT exprs) ]
 
     DEnum(ptTyp [] "PipeExpr" 0, name, fields)
 
@@ -376,6 +379,9 @@ module Expr =
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
         "ERecordUpdate", [ DInt(int64 id); toDT record; DList(updates) ]
+
+      | PT.EError(id, string, exprs) ->
+        "EError", [ DInt(int64 id); DString string; DList(List.map toDT exprs) ]
 
     DEnum(ptTyp [] "Expr" 0, name, fields)
 

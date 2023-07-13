@@ -124,6 +124,7 @@ let rec preTraversal
       f record,
       List.map (fun (name, expr) -> (name, f expr)) updates
     )
+  | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs)
 
 let rec postTraversal
   (exprFn : Expr -> Expr)
@@ -241,5 +242,6 @@ let rec postTraversal
        id,
        f record,
        List.map (fun (name, expr) -> (name, f expr)) updates
-     ))
+     )
+   | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs))
   |> exprFn

@@ -189,15 +189,15 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
 
-let toPT (m : WTCanvasModule) : PTCanvasModule =
-  { types = m.types |> List.map WT2PT.UserType.toPT
-    fns = m.fns |> List.map WT2PT.UserFunction.toPT
-    dbs = m.dbs |> List.map WT2PT.DB.toPT
+let toPT (nameResolver : WT2PT.NameResolver) (m : WTCanvasModule) : PTCanvasModule =
+  { types = m.types |> List.map (WT2PT.UserType.toPT nameResolver)
+    fns = m.fns |> List.map (WT2PT.UserFunction.toPT nameResolver)
+    dbs = m.dbs |> List.map (WT2PT.DB.toPT nameResolver)
     handlers =
       m.handlers
       |> List.map (fun (spec, expr) ->
-        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT expr))
-    exprs = m.exprs |> List.map WT2PT.Expr.toPT }
+        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT nameResolver expr))
+    exprs = m.exprs |> List.map (WT2PT.Expr.toPT nameResolver) }
 
 let postProcessModule (m : PTCanvasModule) : PTCanvasModule =
   let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
@@ -235,8 +235,9 @@ let parse (filename : string) (source : string) : PTCanvasModule =
       Exception.raiseInternal
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
+  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
 
-  decls |> parseDecls |> toPT |> postProcessModule
+  decls |> parseDecls |> toPT resolver |> postProcessModule
 
 
 let parseFromFile (filename : string) : PTCanvasModule =

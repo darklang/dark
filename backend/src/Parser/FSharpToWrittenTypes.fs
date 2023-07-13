@@ -34,6 +34,13 @@ let (|SynExprLongIdentPat|_|) (names : List<string>) (input : SynExpr) =
     Some()
   | _ -> None
 
+let (|IdentExprPat|_|) (input : SynExpr) =
+  match input with
+  | SynExpr.LongIdent(_, SynLongIdent(longIdent, _, _), _, _) ->
+    Some(longIdentToList longIdent)
+  | SynExpr.Ident name -> Some [ name.idText ]
+  | _ -> None
+
 module TypeReference =
 
   let private parseTypeRef (name : string) : string * int =
@@ -229,12 +236,12 @@ module Expr =
   // CLEANUP - blanks here aren't allowed
   let private nameOrBlank (v : string) : string = if v = "___" then "" else v
 
-  let parseFn (fnName : string) : Option<string * int> =
+  let parseFn (fnName : string) : Result<string * int, string> =
     match fnName with
     | Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
-      Some(name, (int version))
-    | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Some(name, 0)
-    | _ -> None
+      Ok(name, (int version))
+    | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | _ -> Error "Bad format in fn name"
 
   let parseEnum (enumName : string) : Option<string> =
     // No version on the Enum case, that's on the type
@@ -242,12 +249,12 @@ module Expr =
     | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
     | _ -> None
 
-  let parseTypeName (typeName : string) : string * int =
+  let parseTypeName (typeName : string) : Result<string * int, string> =
     match typeName with
     | Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
-      name, (int version)
-    | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> name, 0
-    | _ -> Exception.raiseInternal "Bad format in type name" [ "typeName", typeName ]
+      Ok(name, (int version))
+    | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | _ -> Error "Bad format in type name"
 
   let parseNames (e : SynExpr) : List<string> =
     match e with
@@ -370,7 +377,7 @@ module Expr =
 
     // Negation
     | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
-      WT.EApply(id, WT.FnTargetName(WT.KnownBuiltin [ "Int"; "negate" ]), [], [])
+      WT.EApply(id, WT.FnTargetName(WT.KnownBuiltin([ "Int" ], "negate", 0)), [], [])
 
 
     // List literals
@@ -396,57 +403,17 @@ module Expr =
     | SynExpr.Tuple(_, first :: second :: rest, _, _) ->
       WT.ETuple(id, c first, c second, List.map c rest)
 
-    // Enum values (EEnums)
-    // TODO: remove this explicit handling
-    // when the Option type are defined in StdLib
-    | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
-      List.contains name.idText [ "Nothing"; "Just" ]
-      ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
-      WT.EEnum(id, typeName, name.idText, convertEnumArg arg)
-
-    // Enum values (EEnums)
-    | SynExpr.Ident name when List.contains name.idText [ "Nothing"; "Just" ] ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
-      WT.EEnum(id, typeName, name.idText, [])
-
-
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
-    | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) when
-      (names
-       |> List.initial
-       |> Option.unwrap []
-       |> List.all (fun n -> n.idText <> "" && (System.Char.IsUpper(n.idText[0]))))
+    | IdentExprPat names when
+      (names |> List.initial |> Option.unwrap [] |> List.all String.isCapitalized)
       ->
-      let modules =
-        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
-      let name =
-        List.last names
-        |> Exception.unwrapOptionInternal "empty list" []
-        |> fun i -> i.idText
+      let modules = List.initial names |> Option.unwrap []
+      let name = List.last names |> Exception.unwrapOptionInternal "empty list" []
 
-      match parseFn name with
-      | Some(name, version) ->
-        WT.EApply(
-          gid (),
-          WT.FnTargetName(PT.FnName.fqUserProgram modules name version),
-          [],
-          []
-        )
-      | None ->
-        match parseEnum name with
-        | Some enumName ->
-          let typename =
-            List.last modules |> Exception.unwrapOptionInternal "empty list" []
-          let (typ, version) = parseTypeName typename
-          let modules = List.initial modules |> Option.unwrap []
-          WT.EEnum(
-            gid (),
-            PT.TypeName.fqUserProgram modules typ version,
-            enumName,
-            []
-          )
-        | None -> Exception.raiseInternal "invalid enum name" [ "name", name ]
+      if String.isCapitalized name then
+        WT.EEnum(gid (), WT.Unresolved modules, name, [])
+      else
+        WT.EApply(gid (), WT.FnTargetName(WT.Unresolved(modules @ [ name ])), [], [])
 
 
     // Enums are expected to be fully qualified
@@ -454,57 +421,13 @@ module Expr =
 
 
     // e.g. `Json.serialize<T>`
-    | SynExpr.TypeApp(SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
+    // e.g. `Module1.Module2.fnName<String>`
+    | SynExpr.TypeApp(IdentExprPat names, _, typeArgs, _, _, _, _) ->
+
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-
-      let name, version =
-        parseFn name.idText
-        |> Exception.unwrapOptionInternal
-          "invalid fn name"
-          [ "name", name.idText; "ast", ast ]
-      WT.EApply(
-        gid (),
-        WT.FnTargetName(PT.FnName.fqUserProgram [] name version),
-        typeArgs,
-        []
-      )
-
-    // e.g. `Module1.Module2.fnName<String>`
-    | SynExpr.TypeApp(SynExpr.LongIdent(_,
-                                        SynLongIdent(first :: second :: theRest, _, _),
-                                        _,
-                                        _),
-                      _,
-                      typeArgs,
-                      _,
-                      _,
-                      _,
-                      _) ->
-
-      match List.rev (first :: second :: theRest) with
-      // the last item is the function name
-      // the preceding items are the module names
-      | fnName :: modNameParts ->
-        let modules = modNameParts |> List.rev |> List.map (fun i -> i.idText)
-
-        let name, version =
-          parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
-
-        let typeArgs =
-          typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
-
-        WT.EApply(
-          gid (),
-          WT.FnTargetName(PT.FnName.fqUserProgram modules name version),
-          typeArgs,
-          []
-        )
-
-      | _ ->
-        // should never happen
-        Exception.raiseInternal "invalid fn" []
+      WT.EApply(gid (), WT.FnTargetName(WT.Unresolved names), typeArgs, [])
 
 
 
@@ -654,7 +577,8 @@ module Expr =
       let names = parseNames name
       let typename =
         List.last names |> Exception.unwrapOptionInternal "empty list" []
-      let (typ, version) = parseTypeName typename
+      let (typ, version) =
+        parseTypeName typename |> Exception.unwrapResultInternal []
       let modules = List.initial names |> Option.unwrap []
 
       let fields =
@@ -699,28 +623,10 @@ module Expr =
       | WT.EPipe(id, arg1, arg2, rest) ->
         WT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
       | WT.EVariable(id, name) ->
-        parseFn name
-        |> Option.map (fun (name, version) ->
-          WT.EApply(
-            id,
-            WT.FnTargetName(PT.FnName.fqUserProgram [] name version),
-            [],
-            [ c arg ]
-          ))
-        |> Option.orElseWith (fun () ->
-          parseEnum name
-          |> Option.map (fun name ->
-            WT.EEnum(
-              id,
-              PT.TypeName.fqUserProgram [] name 0,
-              name,
-              convertEnumArg arg
-            )))
-        |> Exception.unwrapOptionInternal
-          "Unsupported function call"
-          [ "fnCall expr", funcExpr
-            "converted specific fncall exp", c funcExpr
-            "argument", arg ]
+        if String.isCapitalized name then
+          WT.EEnum(id, WT.Unresolved [], name, convertEnumArg arg)
+        else
+          WT.EApply(id, WT.FnTargetName(WT.Unresolved [ name ]), [], [ c arg ])
       // Enums
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)
@@ -827,9 +733,7 @@ module Function =
       let returnType = parseReturnInfo returnInfo
       let (name, version) =
         Expr.parseFn name
-        |> Exception.unwrapOptionInternal
-          "invalid fn name"
-          [ "name", name; "binding", binding ]
+        |> Exception.unwrapResultInternal [ "name", name; "binding", binding ]
       { name = name
         version = version
         typeParams = typeParams
@@ -973,6 +877,7 @@ module UserType =
         "user type should have name"
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
+      |> Exception.unwrapResultInternal []
     let modules = names |> List.initial |> Option.unwrap []
 
     { name = PT.TypeName.userProgram modules name version
@@ -993,6 +898,7 @@ module PackageType =
         "user type should have name"
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
+      |> Exception.unwrapResultInternal []
     { name = PT.TypeName.package owner modules name version
       description = ""
       declaration = { typeParams = typeParams; definition = definition } }

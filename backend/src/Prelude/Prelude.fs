@@ -873,6 +873,8 @@ module String =
   let truncateWithElipsis (maxLen : int) (s : string) : string =
     if s.Length <= maxLen then s else s.Substring(0, maxLen - 3) + "..."
 
+  let isCapitalized (s : string) : bool = s.Length > 0 && System.Char.IsUpper(s.[0])
+
 
 module Map =
   let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =

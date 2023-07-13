@@ -223,6 +223,7 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
+  | EError of id * string * List<Expr>
 
 and StringSegment =
   | StringText of string
@@ -238,6 +239,7 @@ and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
   | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EPipeError of id * string * List<Expr>
 
 [<MessagePack.MessagePackObject>]
 type Deprecation<'name> =
