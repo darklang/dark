@@ -113,8 +113,8 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let packages = Parser.Package.parse path contents
-            let packagesFns = packages.fns |> Json.Vanilla.serialize
+            let (fns, types) = Parser.Parser.parsePackage path contents
+            let packagesFns = fns |> Json.Vanilla.serialize
 
             return Dval.resultOk (DString packagesFns)
           }
