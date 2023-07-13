@@ -45,13 +45,11 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> String.fromBytes
     |> LocalExec.Packages.parse filename
     |> unwrap
-    |> debug "packages"
 
   let fns =
     packages
     |> Json.parse<List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>>
     |> unwrap
-    |> debug "fns"
 
   fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
 

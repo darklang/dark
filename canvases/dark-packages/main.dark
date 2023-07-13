@@ -1,8 +1,7 @@
-type PackageFunction = { description: String }
-
+type PackageFns = PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T
 
 [<DB>]
-type PackageFunctionDB = PackageFunction
+type PackageFnsDB = PackageFns
 
 [<HttpHandler("POST", "/functions")>]
 let _handler _req =
@@ -12,15 +11,25 @@ let _handler _req =
     |> Json.parse<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
     |> unwrap
 
-  let fnToSave = PackageFunction { description = fn.description ++ "cat" }
-  let key = DB.generateKey_v0 () //use id instread
-  DB.set fnToSave key PackageFunctionDB
+  let fnToSave =
+    PackageFns
+      { tlid = fn.tlid
+        id = fn.id
+        name = fn.name
+        body = fn.body
+        typeParams = fn.typeParams
+        parameters = fn.parameters
+        returnType = fn.returnType
+        description = fn.description
+        deprecated = fn.deprecated }
+
+  let key = DB.generateKey_v0 () //use id instead
+  DB.set fnToSave key PackageFnsDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
-
 [<HttpHandler("GET", "/all-functions")>]
 let _handler _req =
-  let count = (DB.count PackageFunction) |> Int.toString
+  let count = (DB.count PackageFnsDB) |> Int.toString
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes count) 200
