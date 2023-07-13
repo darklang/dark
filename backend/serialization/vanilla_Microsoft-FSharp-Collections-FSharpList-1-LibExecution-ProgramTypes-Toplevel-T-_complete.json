@@ -325,12 +325,10 @@
                                                             "Package": [
                                                               {
                                                                 "owner": "dark",
-                                                                "modules": {
-                                                                  "Head": "Mod1",
-                                                                  "Tail": [
-                                                                    "Mod2"
-                                                                  ]
-                                                                },
+                                                                "modules": [
+                                                                  "Mod1",
+                                                                  "Mod2"
+                                                                ],
                                                                 "name": {
                                                                   "TypeName": [
                                                                     "Pack"
@@ -657,12 +655,10 @@
                                                                     "Package": [
                                                                       {
                                                                         "owner": "Darklang",
-                                                                        "modules": {
-                                                                          "Head": "Stdlib",
-                                                                          "Tail": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
+                                                                        "modules": [
+                                                                          "Stdlib",
+                                                                          "Result"
+                                                                        ],
                                                                         "name": {
                                                                           "TypeName": [
                                                                             "Result"
@@ -1555,12 +1551,10 @@
                                                             "Package": [
                                                               {
                                                                 "owner": "dark",
-                                                                "modules": {
-                                                                  "Head": "Mod1",
-                                                                  "Tail": [
-                                                                    "Mod2"
-                                                                  ]
-                                                                },
+                                                                "modules": [
+                                                                  "Mod1",
+                                                                  "Mod2"
+                                                                ],
                                                                 "name": {
                                                                   "TypeName": [
                                                                     "Pack"
@@ -1887,12 +1881,10 @@
                                                                     "Package": [
                                                                       {
                                                                         "owner": "Darklang",
-                                                                        "modules": {
-                                                                          "Head": "Stdlib",
-                                                                          "Tail": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
+                                                                        "modules": [
+                                                                          "Stdlib",
+                                                                          "Result"
+                                                                        ],
                                                                         "name": {
                                                                           "TypeName": [
                                                                             "Result"
@@ -2788,12 +2780,10 @@
                                                             "Package": [
                                                               {
                                                                 "owner": "dark",
-                                                                "modules": {
-                                                                  "Head": "Mod1",
-                                                                  "Tail": [
-                                                                    "Mod2"
-                                                                  ]
-                                                                },
+                                                                "modules": [
+                                                                  "Mod1",
+                                                                  "Mod2"
+                                                                ],
                                                                 "name": {
                                                                   "TypeName": [
                                                                     "Pack"
@@ -3120,12 +3110,10 @@
                                                                     "Package": [
                                                                       {
                                                                         "owner": "Darklang",
-                                                                        "modules": {
-                                                                          "Head": "Stdlib",
-                                                                          "Tail": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
+                                                                        "modules": [
+                                                                          "Stdlib",
+                                                                          "Result"
+                                                                        ],
                                                                         "name": {
                                                                           "TypeName": [
                                                                             "Result"
@@ -4018,12 +4006,10 @@
                                                             "Package": [
                                                               {
                                                                 "owner": "dark",
-                                                                "modules": {
-                                                                  "Head": "Mod1",
-                                                                  "Tail": [
-                                                                    "Mod2"
-                                                                  ]
-                                                                },
+                                                                "modules": [
+                                                                  "Mod1",
+                                                                  "Mod2"
+                                                                ],
                                                                 "name": {
                                                                   "TypeName": [
                                                                     "Pack"
@@ -4350,12 +4336,10 @@
                                                                     "Package": [
                                                                       {
                                                                         "owner": "Darklang",
-                                                                        "modules": {
-                                                                          "Head": "Stdlib",
-                                                                          "Tail": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
+                                                                        "modules": [
+                                                                          "Stdlib",
+                                                                          "Result"
+                                                                        ],
                                                                         "name": {
                                                                           "TypeName": [
                                                                             "Result"
@@ -5558,12 +5542,10 @@
                                                             "Package": [
                                                               {
                                                                 "owner": "dark",
-                                                                "modules": {
-                                                                  "Head": "Mod1",
-                                                                  "Tail": [
-                                                                    "Mod2"
-                                                                  ]
-                                                                },
+                                                                "modules": [
+                                                                  "Mod1",
+                                                                  "Mod2"
+                                                                ],
                                                                 "name": {
                                                                   "TypeName": [
                                                                     "Pack"
@@ -5890,12 +5872,10 @@
                                                                     "Package": [
                                                                       {
                                                                         "owner": "Darklang",
-                                                                        "modules": {
-                                                                          "Head": "Stdlib",
-                                                                          "Tail": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
+                                                                        "modules": [
+                                                                          "Stdlib",
+                                                                          "Result"
+                                                                        ],
                                                                         "name": {
                                                                           "TypeName": [
                                                                             "Result"

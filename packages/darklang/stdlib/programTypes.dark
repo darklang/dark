@@ -35,23 +35,33 @@ module Darklang =
 
       module TypeName =
         type Name = TypeName of String
-        type T = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<Name>
-        type BuiltIn = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<Name>
+
+        type T =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Name>
+
+        type BuiltIn =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Name>
 
         type UserProgram =
-          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Name>
 
-        type Package = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<Name>
+        type Package =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Name>
 
       module FnName =
         type Name = FnName of String
-        type T = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<Name>
-        type BuiltIn = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<Name>
+
+        type T =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.T<PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.Name>
+
+        type BuiltIn =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.BuiltIn<PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.Name>
 
         type UserProgram =
-          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<Name>
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.UserProgram<PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.Name>
 
-        type Package = PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<Name>
+        type Package =
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package<PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.Name>
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
       type TypeReference =
@@ -162,6 +172,10 @@ module Darklang =
       type StringSegment =
         | StringText of String
         | StringInterpolation of PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
+
+      type FnTarget =
+        | FnTargetName of PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.T
+        | FnTargetExpr of PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
 
 
       type PipeExpr =
@@ -316,9 +330,9 @@ module Darklang =
           List<PACKAGE.Darklang.Stdlib.ID * String> *
           PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
 
-        | EFnCall of
+        | EApply of
           PACKAGE.Darklang.Stdlib.ID *
-          PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.T *
+          PACKAGE.Darklang.Stdlib.ProgramTypes.FnTarget *
           typeArgs: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference> *
           args: List<PACKAGE.Darklang.Stdlib.ProgramTypes.Expr>
 
@@ -345,7 +359,7 @@ module Darklang =
           | ELambda(id, _, _) -> id
           | EFieldAccess(id, _, _) -> id
           | EVariable(id, _) -> id
-          | EFnCall(id, _, _, _) -> id
+          | EApply(id, _, _, _) -> id
           | EList(id, _) -> id
           | EDict(id, _) -> id
           | ETuple(id, _, _, _) -> id
@@ -519,7 +533,7 @@ module Darklang =
         type T =
           { tlid: PACKAGE.Darklang.Stdlib.TLID
             id: Uuid
-            name: PACKAGE.Darklang.Stdlib.ProgramTypes.FQName.Package
+            name: PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.Package
             body: PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
             typeParams: List<String>
             parameters:
