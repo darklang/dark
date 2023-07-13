@@ -86,6 +86,7 @@ let rec parseDecls
 
 
 let parse (filename : string) (contents : string) : PTPackageModule =
+  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
   match parseAsFSharpSourceFile filename contents with
   | ParsedImplFileInput(_,
                         _,
@@ -101,11 +102,11 @@ let parse (filename : string) (contents : string) : PTPackageModule =
     let modul = parseDecls names decls
     let fns =
       modul.fns
-      |> List.map WT2PT.PackageFn.toPT
+      |> List.map (WT2PT.PackageFn.toPT resolver)
       |> List.map NameResolution.PackageFn.resolveNames
     let types =
       modul.types
-      |> List.map WT2PT.PackageType.toPT
+      |> List.map (WT2PT.PackageType.toPT resolver)
       |> List.map NameResolution.PackageType.resolveNames
     { fns = fns; types = types }
   // in the parsed package, types are being read as user, as opposed to the package that's right there

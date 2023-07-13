@@ -222,6 +222,8 @@ module Expr =
         | PT.EPipeVariable(id, name) -> RT.EVariable(id, name) |> applyFn
         | PT.EPipeLambda(id, vars, body) ->
           RT.ELambda(id, vars, toRT body) |> applyFn
+        | PT.EPipeError(id, msg, exprs) ->
+          RT.EError(id, msg, prev :: List.map toRT exprs)
 
       let init = toRT expr1
       List.fold init folder (expr2 :: rest)
@@ -235,6 +237,7 @@ module Expr =
     | PT.EEnum(id, typeName, caseName, fields) ->
       RT.EEnum(id, TypeName.toRT typeName, caseName, List.map toRT fields)
     | PT.EDict(id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)
+    | PT.EError(id, msg, exprs) -> RT.EError(id, msg, List.map toRT exprs)
 
 
 

@@ -12,11 +12,12 @@ module PT = LibExecution.ProgramTypes
 /// Returns an incomplete parse of a PT expression. Requires calling
 /// Expr.resolveNames before using
 let initialParse (filename : string) (code : string) : PT.Expr =
+  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
   code
   |> Utils.parseAsFSharpSourceFile filename
   |> Utils.singleExprFromImplFile
   |> FS2WT.Expr.fromSynExpr
-  |> WT2PT.Expr.toPT
+  |> WT2PT.Expr.toPT resolver
 
 
 // Shortcut function for tests that ignore user functions and types

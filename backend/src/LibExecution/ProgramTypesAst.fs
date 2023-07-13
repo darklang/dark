@@ -18,6 +18,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
+    | EPipeError(id, msg, exprs) -> EPipeError(id, msg, List.map f exprs)
 
   match expr with
   | EInt _
@@ -59,6 +60,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     )
   | EEnum(id, typeName, caseName, fields) ->
     EEnum(id, typeName, caseName, List.map f fields)
+  | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs)
 
 let rec preTraversal
   (exprFn : Expr -> Expr)
@@ -137,6 +139,7 @@ let rec preTraversal
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
+    | EPipeError(id, msg, exprs) -> EPipeError(id, msg, List.map f exprs)
 
   match exprFn expr with
   | EInt _
@@ -206,6 +209,7 @@ let rec preTraversal
       f record,
       List.map (fun (name, expr) -> (name, f expr)) updates
     )
+  | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs)
 
 let rec postTraversal (f : Expr -> Expr) (expr : Expr) : Expr =
   let r = postTraversal f in

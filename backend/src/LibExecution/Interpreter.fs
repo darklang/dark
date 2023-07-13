@@ -653,6 +653,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   })
                 (DEnum(typeName, caseName, []))
                 fields
+    | EError(id, msg, exprs) ->
+      let! args = Ply.List.mapSequentially (eval state st) exprs
+
+      return
+        args
+        |> List.tryFind Dval.isFake
+        |> Option.defaultValue (DError(sourceID id, msg))
   }
 
 /// Interprets an expression and reduces to a Dark value

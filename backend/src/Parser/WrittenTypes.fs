@@ -3,9 +3,16 @@ module Parser.WrittenTypes
 
 open Prelude
 
+// Unless otherwise noted, all types in this file correspond pretty directly to
+// LibExecution.ProgramTypes.
+
 // TODO: stop using ProgramTypes
 // We borrow this for now to use FQNames, but they will be removed soon
 module PT = LibExecution.ProgramTypes
+
+type Name =
+  | KnownBuiltin of List<string> * string * int
+  | Unresolved of List<string>
 
 type LetPattern =
   | LPVariable of id * name : string
@@ -91,7 +98,7 @@ type Expr =
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
   | ERecord of id * PT.TypeName.T * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
-  | EEnum of id * typeName : PT.TypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of id * Name * caseName : string * fields : List<Expr> // Name includes both CaseName and TypeName
   | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
 
 and StringSegment =
@@ -99,23 +106,15 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and FnTarget =
-  | FnTargetName of PT.FnName.T
+  | FnTargetName of Name
   | FnTargetExpr of Expr
 
 and PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of
-    id *
-    PT.FnName.T *
-    typeArgs : List<TypeReference> *
-    args : List<Expr>
-  | EPipeEnum of
-    id *
-    typeName : PT.TypeName.T *
-    caseName : string *
-    fields : List<Expr>
+  | EPipeFnCall of id * Name * typeArgs : List<TypeReference> * args : List<Expr>
+  | EPipeEnum of id * typeName : Name * caseName : string * fields : List<Expr>
 
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }

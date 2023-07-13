@@ -305,6 +305,7 @@ module Expr =
         List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
+    | PT.EError(id, msg, exprs) -> ST.EError(id, msg, List.map toST exprs)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
@@ -328,6 +329,7 @@ module Expr =
       )
     | PT.EPipeEnum(id, typeName, caseName, fields) ->
       ST.EPipeEnum(id, TypeName.toST typeName, caseName, List.map toST fields)
+    | PT.EPipeError(id, msg, exprs) -> ST.EPipeError(id, msg, List.map toST exprs)
 
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
@@ -382,6 +384,7 @@ module Expr =
     | ST.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
+    | ST.EError(id, msg, exprs) -> PT.EError(id, msg, List.map toPT exprs)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with
@@ -403,6 +406,7 @@ module Expr =
       )
     | ST.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(id, TypeName.toPT typeName, caseName, List.map toPT fields)
+    | ST.EPipeError(id, msg, exprs) -> PT.EPipeError(id, msg, List.map toPT exprs)
 
 module Deprecation =
   type Deprecation<'name> =

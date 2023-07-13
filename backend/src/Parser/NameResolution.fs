@@ -120,14 +120,14 @@ module Expr =
         // pipes with variables might be fn calls
         | PT.EPipeVariable(id, name) ->
           match FS2WT.Expr.parseFn name with
-          | Some(name, version) ->
+          | Ok(name, version) ->
             if
               Set.contains (PT.FnName.userProgram [] name version) userFunctions
             then
               PT.EPipeFnCall(id, PT.FnName.fqUserProgram [] name version, [], [])
             else
               e
-          | None -> e
+          | Error _ -> e
         | _ -> e)
 
     LibExecution.ProgramTypesAst.preTraversal

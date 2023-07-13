@@ -166,16 +166,16 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : WTModule =
   parseModule emptyWTModule decls
 
 
-let rec toPT (m : WTModule) : PTModule =
-  { fns = m.fns |> List.map WT2PT.UserFunction.toPT
-    types = m.types |> List.map WT2PT.UserType.toPT
-    dbs = m.dbs |> List.map WT2PT.DB.toPT
-    modules = m.modules |> List.map (fun (name, m) -> (name, toPT m))
+let rec toPT (resolver : WT2PT.NameResolver) (m : WTModule) : PTModule =
+  { fns = m.fns |> List.map (WT2PT.UserFunction.toPT resolver)
+    types = m.types |> List.map (WT2PT.UserType.toPT resolver)
+    dbs = m.dbs |> List.map (WT2PT.DB.toPT resolver)
+    modules = m.modules |> List.map (fun (name, m) -> (name, toPT resolver m))
     tests =
       m.tests
       |> List.map (fun test ->
-        { actual = WT2PT.Expr.toPT test.actual
-          expected = WT2PT.Expr.toPT test.expected
+        { actual = WT2PT.Expr.toPT resolver test.actual
+          expected = WT2PT.Expr.toPT resolver test.expected
           lineNumber = test.lineNumber
           name = test.name }) }
 
@@ -201,14 +201,16 @@ let rec resolveNames (m : PTModule) : PTModule =
 
 // Below are the fns that we intend to expose to the rest of the codebase
 let parseTestFile (filename : string) : PTModule =
+  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
   filename
   |> System.IO.File.ReadAllText
   |> parseAsFSharpSourceFile filename
   |> parseFile
-  |> toPT
+  |> toPT resolver
   |> resolveNames
 
 let parseSingleTestFromFile (filename : string) (testSource : string) : RTTest =
+  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
   let wtTest =
     testSource
     |> parseAsFSharpSourceFile filename
@@ -216,12 +218,12 @@ let parseSingleTestFromFile (filename : string) (testSource : string) : RTTest =
     |> parseTest
   { actual =
       wtTest.actual
-      |> WT2PT.Expr.toPT
+      |> WT2PT.Expr.toPT resolver
       |> NameResolution.Expr.resolveNames Set.empty Set.empty
       |> PT2RT.Expr.toRT
     expected =
       wtTest.expected
-      |> WT2PT.Expr.toPT
+      |> WT2PT.Expr.toPT resolver
       |> NameResolution.Expr.resolveNames Set.empty Set.empty
       |> PT2RT.Expr.toRT
     lineNumber = wtTest.lineNumber

@@ -668,6 +668,7 @@ let partiallyEvaluate
         | EDict _
         | EEnum _
         | EMatch _
+        | EError _
         | EAnd _
         | EOr _ -> return expr
       }
@@ -770,6 +771,7 @@ let partiallyEvaluate
               let! left = r left
               let! right = r right
               return EOr(id, left, right)
+            | EError _ -> return expr
           }
 
         return! f result

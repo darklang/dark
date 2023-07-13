@@ -617,6 +617,9 @@ module Expect =
     | EOr(_, l, r), EOr(_, l', r') ->
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
+    | EError(_, msg, exprs), EError(_, msg', exprs') ->
+      check path msg msg'
+      eqList path exprs exprs'
 
     // exhaustiveness check
     | EUnit _, _
@@ -639,7 +642,8 @@ module Expect =
     | ELambda _, _
     | EMatch _, _
     | EAnd _, _
-    | EOr _, _ -> check path actual expected
+    | EOr _, _
+    | EError _, _ -> check path actual expected
 
 
 
