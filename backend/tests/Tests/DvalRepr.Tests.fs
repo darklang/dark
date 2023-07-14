@@ -101,7 +101,7 @@ module ToHashableRepr =
 
     testList
       "hashv2"
-      [ t [ DBytes [||] ] "diEjLGQC8oE"; t [ DBytes [| 128uy |] ] "kQHs0urT3N4" ]
+      [ t [ DBytes [||] ] "Bu4AH9NVqA0"; t [ DBytes [| 128uy |] ] "ARIiVvuJZTo" ]
 
   let tests = testList "hashing" [ testHashV2 ]
 
@@ -133,7 +133,7 @@ let testInternalRoundtrippableNew =
   testList
     "internalNew"
     [ test "tuples serialize correctly" {
-        let expected = """["DTuple",["DInt",1],["DInt",2],[["DInt",3]]]"""
+        let expected = """{"DTuple":[{"DInt":[1]},{"DInt":[2]},[{"DInt":[3]}]]}"""
 
         let actual =
           RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ])
