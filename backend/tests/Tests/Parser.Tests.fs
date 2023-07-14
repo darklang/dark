@@ -15,7 +15,7 @@ let parserTests =
   let t name testStr expectedExpr =
     testTask name {
       let actual =
-        Parser.Parser.parseRTExpr Set.empty Set.empty "parser.tests.fs" testStr
+        Parser.Parser.parseRTExpr builtinResolver "parser.tests.fs" testStr
       return Expect.equalExprIgnoringIDs actual (PT2RT.Expr.toRT expectedExpr)
     }
   let id = 0UL // since we're ignoring IDs, just use the same one everywhere

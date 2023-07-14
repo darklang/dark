@@ -173,7 +173,8 @@ let fileTests () : Test =
     else
       try
         (baseDir + filename)
-        |> Parser.TestModule.parseTestFile
+        // NAMETODO add userProgram to resolver
+        |> Parser.TestModule.parseTestFile builtinResolver
         |> moduleToTests testName
       with e ->
         print $"Exception in {file}: {e.Message}"

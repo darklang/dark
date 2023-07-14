@@ -23,7 +23,7 @@ let testPipesToRuntimeTypes =
   test "pipes to runtime types" {
     let actual =
       "value.age |> (-) 2 |> (+) value.age |> (<) 3"
-      |> Parser.Parser.parseRTExpr Set.empty Set.empty "programTypes.tests.fs"
+      |> Parser.Parser.parseRTExpr builtinResolver "programTypes.tests.fs"
 
     let expected =
       S.eFn

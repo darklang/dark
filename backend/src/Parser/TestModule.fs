@@ -160,7 +160,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : WTModule =
   parseModule emptyWTModule decls
 
 
-let rec toPT (resolver : WT2PT.NameResolver) (m : WTModule) : PTModule =
+let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
   { fns = m.fns |> List.map (WT2PT.UserFunction.toPT resolver)
     types = m.types |> List.map (WT2PT.UserType.toPT resolver)
     dbs = m.dbs |> List.map (WT2PT.DB.toPT resolver)
@@ -177,16 +177,21 @@ let rec toPT (resolver : WT2PT.NameResolver) (m : WTModule) : PTModule =
 
 
 // Below are the fns that we intend to expose to the rest of the codebase
-let parseTestFile (filename : string) : PTModule =
-  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
+let parseTestFile
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  : PTModule =
   filename
   |> System.IO.File.ReadAllText
   |> parseAsFSharpSourceFile filename
   |> parseFile
   |> toPT resolver
 
-let parseSingleTestFromFile (filename : string) (testSource : string) : RTTest =
-  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
+let parseSingleTestFromFile
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  (testSource : string)
+  : RTTest =
   let wtTest =
     testSource
     |> parseAsFSharpSourceFile filename

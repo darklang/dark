@@ -86,7 +86,7 @@ let rec parseDecls
 
 
 let parse (filename : string) (contents : string) : PTPackageModule =
-  let resolver = WrittenTypesToProgramTypes.NameResolver.empty
+  let resolver = NameResolver.empty
   match parseAsFSharpSourceFile filename contents with
   | ParsedImplFileInput(_,
                         _,

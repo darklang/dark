@@ -15,6 +15,7 @@
     <Compile Include="Utils.fs" />
     <Compile Include="WrittenTypes.fs" />
     <Compile Include="FSharpToWrittenTypes.fs" />
+    <Compile Include="NameResolver.fs" />
     <Compile Include="WrittenTypesToProgramTypes.fs" />
     <Compile Include="TestModule.fs" />
     <Compile Include="Package.fs" />

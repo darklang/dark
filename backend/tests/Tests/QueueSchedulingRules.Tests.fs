@@ -20,7 +20,7 @@ module Serialize = LibBackend.Serialize
 module SR = LibBackend.QueueSchedulingRules
 
 let p (code : string) : PT.Expr =
-  Parser.Parser.parseIgnoringUser "queueschedulingrules.fs" code
+  Parser.Parser.parse builtinResolver "queueschedulingrules.fs" code
 
 
 let testGetWorkerSchedulesForCanvas =

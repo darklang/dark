@@ -27,7 +27,7 @@ module SR = LibBackend.QueueSchedulingRules
 module TCS = LibBackend.TraceCloudStorage
 
 let p (code : string) : PT.Expr =
-  Parser.Parser.parseIgnoringUser "Queue.Tests.fs" code
+  Parser.Parser.parse builtinResolver "Queue.Tests.fs" code
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 
