@@ -3,17 +3,28 @@
 
 set -euo pipefail
 
+TEST=false
 PUBLISHED=false
+
+grey="\033[1;30m"
+reset="\033[0m"
 
 for i in "$@"
 do
   case "${i}" in
-    --published)
-    PUBLISHED=true
+    --test)
+    TEST=true
     shift
     ;;
+    --published) PUBLISHED=true ;;
   esac
 done
+
+if [[ "$TEST" == "true" ]]; then
+  LOG="${DARK_CONFIG_RUNDIR}/logs/test-packages.log"
+else
+  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
+fi
 
 # Not used but they need to be running
 ./scripts/run-pubsub-emulator
@@ -25,4 +36,5 @@ else
   EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
 fi
 
-"${EXE}" "$@"
+echo -e "Loading packages ${grey}($LOG)${reset}"
+"${EXE}" "$@" > $LOG 2>&1
