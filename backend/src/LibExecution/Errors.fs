@@ -509,7 +509,7 @@ let toSegments (e : Error) : ErrorOutput =
       expected = expected }
 
   | NameResolutionError(NotFound(names)) ->
-    let summary = [ String "Package not found"; String(String.concat "." names) ]
+    let summary = [ String "Package not found: "; String(String.concat "." names) ]
 
     let extraExplanation = []
     let actual = []
