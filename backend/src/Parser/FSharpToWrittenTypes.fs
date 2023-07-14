@@ -379,6 +379,8 @@ module Expr =
     | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
       WT.EApply(id, WT.FnTargetName(WT.KnownBuiltin([ "Int" ], "negate", 0)), [], [])
 
+    // Variables
+    | SynExpr.Ident ident -> WT.EVariable(id, ident.idText)
 
     // List literals
     | SynExpr.ArrayOrList(_, exprs, _) -> WT.EList(id, exprs |> List.map c)
