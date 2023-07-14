@@ -189,6 +189,11 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
 
+let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
+  let fns = canvas.fns |> List.map (fun fn -> fn.name)
+  let types = canvas.types |> List.map (fun typ -> typ.name)
+  NameResolver.create fns types [] []
+
 let toPT
   (nameResolver : NameResolver.NameResolver)
   (m : WTCanvasModule)
@@ -220,9 +225,9 @@ let parse (filename : string) (source : string) : PTCanvasModule =
       Exception.raiseInternal
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
-  let resolver = NameResolver.empty
-
-  decls |> parseDecls |> toPT resolver
+  let module' = parseDecls decls
+  let resolver = toResolver module'
+  toPT resolver module'
 
 
 let parseFromFile (filename : string) : PTCanvasModule =
