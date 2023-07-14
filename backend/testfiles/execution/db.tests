@@ -21,6 +21,61 @@ type SortedX = { x: String; sortBy: Int }
 [<DB>]
 type SortedXDB = SortedX
 
+type MyEnum =
+  | A
+  | B
+  | C
+
+type MyEnum2 =
+  | D
+  | E
+  | F of MyEnum
+
+type EnumTestRecord = { x : String; y: MyEnum}
+
+[<DB>] type TestEnumDB = EnumTestRecord
+
+[<DB>]
+type TestEnumDB2 = MyEnum
+
+[<DB>]
+type TestEnumDB3 = MyEnum2
+
+module AddToTestEnumDBs =
+  ( let test1 = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
+    let test2 = DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
+    (DB.getAll TestEnumDB)) = [EnumTestRecord { x = "hello"; y = MyEnum.A}; EnumTestRecord { x = "goodbye"; y = MyEnum.B}]
+
+  (let test1 = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
+   let test2 = DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
+   (DB.get "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(EnumTestRecord { x = "hello"; y = MyEnum.A})
+
+  (let test1 = DB.set MyEnum.A "test1" TestEnumDB2 in
+   let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
+   (DB.getAll TestEnumDB2)) = [MyEnum.A; MyEnum.B]
+
+  (let test1 = DB.set MyEnum.C "test1" TestEnumDB2 in
+   let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
+   (DB.get "test1" TestEnumDB2)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(MyEnum.C)
+
+  (let test1 = DB.set MyEnum2.D "test1" TestEnumDB3 in
+   let test2 = DB.set MyEnum2.E "test2" TestEnumDB3 in
+   let test3 = DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
+   (DB.getAll TestEnumDB3)) = [MyEnum2.D; MyEnum2.E ; MyEnum2.F MyEnum.A]
+
+  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in
+   (DB.getAll TestEnumDB2)) = Test.typeError_v0 "There is no case named `D` in MyEnum"
+
+  (let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
+   (DB.query TestEnumDB (fun p -> p.x == "hello"))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+
+
+  // TODO: Make this work. we need to enable certain types before we can use DB.query for this
+  //(let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test2" TestEnumDB in
+    //(DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+
+
+
 module Roundtrip =
   type Sample =
     { iNsEnSiTiVe: String
