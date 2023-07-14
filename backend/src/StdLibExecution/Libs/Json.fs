@@ -356,7 +356,8 @@ let parse
     | TCustomType(typeName, typeArgs), jsonValueKind ->
 
       match Types.find typeName types with
-      | None -> Exception.raiseInternal "TODO - type not found" []
+      | None ->
+        Exception.raiseInternal "TODO - type not found" [ "typeName", typeName ]
       | Some decl ->
         match decl.definition with
         | TypeDeclaration.Alias alias ->
@@ -378,7 +379,10 @@ let parse
           | [ (caseName, j) ] ->
             let matchingCase =
               (firstCase :: additionalCases)
-              |> List.find (fun c -> c.name = caseName)
+              |> List.tryFind (fun c -> c.name = caseName)
+              |> Exception.unwrapOptionInternal
+                "Couldn't find matching case"
+                [ "caseName ", caseName ]
             let j = j.EnumerateArray() |> Seq.toList
 
             if List.length matchingCase.fields <> List.length j then

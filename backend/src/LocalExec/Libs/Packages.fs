@@ -102,6 +102,28 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn [ "LocalExec"; "Packages" ] "parse" 0
+      typeParams = []
+      parameters =
+        [ Param.make "package source" TString "The source code of the package"
+          Param.make "filename" TString "Used for error message" ]
+      returnType = TypeReference.result TString TString
+      description = "Parse a package"
+      fn =
+        function
+        | _, _, [ DString contents; DString path ] ->
+          uply {
+            let (fns, types) = Parser.Parser.parsePackage path contents
+            let packagesFns = fns |> Json.Vanilla.serialize
+
+            return Dval.resultOk (DString packagesFns)
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn [ "LocalExec"; "Packages" ] "listFunctions" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

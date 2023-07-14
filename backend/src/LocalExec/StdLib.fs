@@ -15,4 +15,9 @@ let typeRenames : StdLib.TypeRenames =
   []
 
 let contents : StdLib.Contents =
-  StdLib.combine [ Libs.Packages.contents; Libs.Cli.contents ] fnRenames typeRenames
+  StdLib.combine
+    [ Libs.Packages.contents
+      Libs.Cli.contents
+      StdLibCloudExecution.Libs.HttpClient.contents ]
+    fnRenames
+    typeRenames

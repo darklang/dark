@@ -373,6 +373,9 @@ def mark(should, f):
   elif ("/LocalExec/" in f) and (f.endswith(".dark")):
     should.reload_packages = True
 
+  elif ("/local-exec.dark" in f):
+    should.reload_backend_server = True
+
   elif "/scripts/run-backend-server" in f:
     should.shellcheck += [f]
     should.reload_backend_server = True
