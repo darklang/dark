@@ -100,12 +100,10 @@ let resolve
   | WT.Unresolved names ->
     match List.rev names with
     | [] -> Error(LibExecution.Errors.MissingModuleName names)
-    | name :: moduleLast :: moduleInit ->
+    | name :: modules ->
       match parser name with
       | Error _msg -> Error(LibExecution.Errors.InvalidPackageName names)
       | Ok(name, version) ->
-        let modules = List.rev (moduleLast :: moduleInit)
-
         // 2. Exact name is UserProgram
         let (userProgram : PT.FQName.UserProgram<'name>) =
           { modules = modules; name = constructor name; version = version }
@@ -113,8 +111,9 @@ let resolve
           Ok(
             PT.FQName.fqUserProgram nameValidator modules (constructor name) version
           )
+        else if List.isEmpty modules then
+          Error(LibExecution.Errors.MissingModuleName names)
         else
-
           // 3. Exact name is BuiltIn
           let (builtIn : PT.FQName.BuiltIn<'name>) =
             { modules = modules; name = constructor name; version = version }
@@ -127,7 +126,6 @@ let resolve
             //   - b. parent module(s) // NOT IMPLEMENTED
             //   - c. darklang.stdlib package space
             Error(LibExecution.Errors.NotFound names)
-    | _ -> Error(LibExecution.Errors.MissingModuleName names)
 
 
 module TypeName =
