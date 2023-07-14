@@ -4,10 +4,11 @@ module Parser.NameResolver
 open Prelude
 open Tablecloth
 
+module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
-module FS2WT = FSharpToWrittenTypes
 
 type NameResolver =
   { userFns : Set<PT.FnName.UserProgram>
@@ -32,27 +33,47 @@ let create
     builtinFns = Set.ofList builtinFns
     builtinTypes = Set.ofList builtinTypes }
 
+// TODO: this isn't a great way to deal with this but it'll do for now. When packages
+// are included, this doesn't make much sense.
+let merge (a : NameResolver) (b : NameResolver) : NameResolver =
+  { userFns = Set.union a.userFns b.userFns
+    userTypes = Set.union a.userTypes b.userTypes
+    builtinFns = Set.union a.builtinFns b.builtinFns
+    builtinTypes = Set.union a.builtinTypes b.builtinTypes }
+
 
 let fromContents ((fns, types) : LibExecution.StdLib.Contents) : NameResolver =
   { userFns = Set.empty
     userTypes = Set.empty
     builtinFns =
-      fns
-      |> List.map (fun fn -> fn.name)
-      |> List.map (fun ({ name = RT.FnName.FnName name } as n) ->
-        { PT.FQName.modules = n.modules
-          PT.FQName.name = PT.FnName.FnName name
-          PT.FQName.version = n.version })
-      |> Set.ofList
+      fns |> List.map (fun fn -> PT2RT.FnName.BuiltIn.fromRT fn.name) |> Set.ofList
     builtinTypes =
       types
-      |> List.map (fun typ -> typ.name)
-      |> List.map (fun ({ name = RT.TypeName.TypeName name } as n) ->
-        { PT.FQName.modules = n.modules
-          PT.FQName.name = PT.TypeName.TypeName name
-          PT.FQName.version = n.version })
+      |> List.map (fun typ -> PT2RT.TypeName.BuiltIn.fromRT typ.name)
       |> Set.ofList }
 
+
+let fromExecutionState (state : RT.ExecutionState) : NameResolver =
+  { userFns =
+      state.program.fns
+      |> Map.keys
+      |> List.map PT2RT.FnName.UserProgram.fromRT
+      |> Set.ofList
+    userTypes =
+      state.program.types
+      |> Map.keys
+      |> List.map PT2RT.TypeName.UserProgram.fromRT
+      |> Set.ofList
+    builtinFns =
+      state.libraries.builtInFns
+      |> Map.keys
+      |> List.map PT2RT.FnName.BuiltIn.fromRT
+      |> Set.ofList
+    builtinTypes =
+      state.libraries.builtInTypes
+      |> Map.keys
+      |> List.map PT2RT.TypeName.BuiltIn.fromRT
+      |> Set.ofList }
 
 
 // TODO: there's a lot going on her to resolve the outer portion of the name and to
@@ -104,16 +125,17 @@ let resolve
       match parser name with
       | Error _msg -> Error(LibExecution.Errors.InvalidPackageName names)
       | Ok(name, version) ->
+        let modules = List.reverse modules
+
         // 2. Exact name is UserProgram
         let (userProgram : PT.FQName.UserProgram<'name>) =
           { modules = modules; name = constructor name; version = version }
         if Set.contains userProgram userThings then
-          Ok(
-            PT.FQName.fqUserProgram nameValidator modules (constructor name) version
-          )
+          Ok(PT.FQName.UserProgram userProgram)
         else if List.isEmpty modules then
           Error(LibExecution.Errors.MissingModuleName names)
         else
+
           // 3. Exact name is BuiltIn
           let (builtIn : PT.FQName.BuiltIn<'name>) =
             { modules = modules; name = constructor name; version = version }
@@ -125,6 +147,10 @@ let resolve
             //   - a. current module // NOT IMPLEMENTED
             //   - b. parent module(s) // NOT IMPLEMENTED
             //   - c. darklang.stdlib package space
+            debuGSet "builtins" builtinThings
+            debuG "builtIn" builtIn
+            debuG "not found names" names
+            System.Environment.Exit(1)
             Error(LibExecution.Errors.NotFound names)
 
 

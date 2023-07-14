@@ -207,7 +207,11 @@ let toPT
         (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT nameResolver expr))
     exprs = m.exprs |> List.map (WT2PT.Expr.toPT nameResolver) }
 
-let parse (filename : string) (source : string) : PTCanvasModule =
+let parse
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  (source : string)
+  : PTCanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
   let decls =
@@ -226,9 +230,12 @@ let parse (filename : string) (source : string) : PTCanvasModule =
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
   let module' = parseDecls decls
-  let resolver = toResolver module'
+  let resolver = toResolver module' |> NameResolver.merge resolver
   toPT resolver module'
 
 
-let parseFromFile (filename : string) : PTCanvasModule =
-  filename |> System.IO.File.ReadAllText |> parse filename
+let parseFromFile
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  : PTCanvasModule =
+  filename |> System.IO.File.ReadAllText |> parse resolver filename
