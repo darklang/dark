@@ -114,8 +114,12 @@ let main (args : string[]) =
   try
     initSerializers ()
 
+    let resolver = Parser.NameResolver.fromContents (builtInFns, builtInTypes)
+
     let hostScript =
-      Parser.CanvasV2.parseFromFile "/home/dark/app/backend/src/Cli/cli-host.dark"
+      Parser.CanvasV2.parseFromFile
+        resolver
+        "/home/dark/app/backend/src/Cli/cli-host.dark"
 
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
 

@@ -92,7 +92,8 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString code; DString filename ] ->
           uply {
             try
-              let canvas = Parser.CanvasV2.parse filename code
+              let canvas =
+                Parser.CanvasV2.parse Parser.NameResolver.empty filename code
 
               let types = List.map PT2RT.UserType.toRT canvas.types
               let fns = List.map PT2RT.UserFunction.toRT canvas.fns

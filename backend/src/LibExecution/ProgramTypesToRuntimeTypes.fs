@@ -15,10 +15,18 @@ module TypeName =
       let (PT.TypeName.TypeName name) = s.name
       { modules = s.modules; name = RT.TypeName.TypeName name; version = s.version }
 
+    let fromRT (s : RT.TypeName.BuiltIn) : PT.TypeName.BuiltIn =
+      let (RT.TypeName.TypeName name) = s.name
+      { modules = s.modules; name = PT.TypeName.TypeName name; version = s.version }
+
   module UserProgram =
     let toRT (u : PT.TypeName.UserProgram) : RT.TypeName.UserProgram =
       let (PT.TypeName.TypeName name) = u.name
       { modules = u.modules; name = RT.TypeName.TypeName name; version = u.version }
+
+    let fromRT (u : RT.TypeName.UserProgram) : PT.TypeName.UserProgram =
+      let (RT.TypeName.TypeName name) = u.name
+      { modules = u.modules; name = PT.TypeName.TypeName name; version = u.version }
 
   module Package =
     let toRT (p : PT.TypeName.Package) : RT.TypeName.Package =
@@ -28,11 +36,24 @@ module TypeName =
         name = RT.TypeName.TypeName name
         version = p.version }
 
+    let fromRT (p : RT.TypeName.Package) : PT.TypeName.Package =
+      let (RT.TypeName.TypeName name) = p.name
+      { owner = p.owner
+        modules = p.modules
+        name = PT.TypeName.TypeName name
+        version = p.version }
+
   let toRT (fqtn : PT.TypeName.T) : RT.TypeName.T =
     match fqtn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
+
+  let fromRT (fqtn : RT.TypeName.T) : PT.TypeName.T =
+    match fqtn with
+    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s)
+    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u)
+    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p)
 
 module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
@@ -64,10 +85,18 @@ module FnName =
       let (PT.FnName.FnName name) = s.name
       { modules = s.modules; name = RT.FnName.FnName name; version = s.version }
 
+    let fromRT (s : RT.FnName.BuiltIn) : PT.FnName.BuiltIn =
+      let (RT.FnName.FnName name) = s.name
+      { modules = s.modules; name = PT.FnName.FnName name; version = s.version }
+
   module UserProgram =
     let toRT (u : PT.FnName.UserProgram) : RT.FnName.UserProgram =
       let (PT.FnName.FnName name) = u.name
       { modules = u.modules; name = RT.FnName.FnName name; version = u.version }
+
+    let fromRT (u : RT.FnName.UserProgram) : PT.FnName.UserProgram =
+      let (RT.FnName.FnName name) = u.name
+      { modules = u.modules; name = PT.FnName.FnName name; version = u.version }
 
   module Package =
     let toRT (p : PT.FnName.Package) : RT.FnName.Package =
@@ -77,11 +106,24 @@ module FnName =
         name = RT.FnName.FnName name
         version = p.version }
 
+    let fromRT (p : RT.FnName.Package) : PT.FnName.Package =
+      let (RT.FnName.FnName name) = p.name
+      { owner = p.owner
+        modules = p.modules
+        name = PT.FnName.FnName name
+        version = p.version }
+
   let toRT (fqfn : PT.FnName.T) : RT.FnName.T =
     match fqfn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
+
+  let fromRT (fqfn : RT.FnName.T) : PT.FnName.T =
+    match fqfn with
+    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s)
+    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u)
+    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p)
 
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =

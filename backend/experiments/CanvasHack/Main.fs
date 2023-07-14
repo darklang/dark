@@ -50,8 +50,12 @@ let seedCanvas (canvasName : string) =
     let! ownerID = LibBackend.Account.createUser ()
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
+    let resolver =
+      Parser.NameResolver.fromContents StdLibCloudExecution.StdLib.contents
+
     let tls =
-      let modul = Parser.CanvasV2.parseFromFile $"{canvasDir}/{config.Main}.dark"
+      let modul =
+        Parser.CanvasV2.parseFromFile resolver $"{canvasDir}/{config.Main}.dark"
 
       let types = modul.types |> List.map PT.Toplevel.TLType
       let fns = modul.fns |> List.map PT.Toplevel.TLFunction

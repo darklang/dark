@@ -353,6 +353,20 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
   list
 
+let debuGSet (msg : string) (set : Set<'a>) : unit =
+  if set = Set.empty then
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+  else
+    [ $"DEBUG: {msg} (len {Set.count set}, [" ]
+    @ (set |> Set.toList |> List.map (fun item -> $"  {item}"))
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
+
+let debugSet (msg : string) (set : Set<'a>) : Set<'a> =
+  debuGSet msg set
+  set
+
 let debuGArray (msg : string) (array : 'a[]) : unit =
   if array.Length = 0 then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
