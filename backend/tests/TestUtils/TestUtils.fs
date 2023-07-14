@@ -120,20 +120,26 @@ let testUserRecordType
 let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
+let builtins =
+  LibExecution.StdLib.combine
+    [ LibTest.contents
+      LibRealExecution.RealExecution.builtins
+      StdLibCli.StdLib.contents ]
+    []
+    []
+
+// A resolver that only knows about builtins. If you need user code in the parser,
+// you need to add in the names of the fns/types/etc
+let builtinResolver = Parser.NameResolver.fromContents builtins
+
 /// Library function to be usable within tests.
 /// Includes normal StdLib fns, as well as test-specific fns.
 /// In the case of a fn existing in both places, the test fn is the one used.
 let libraries : Lazy<Task<RT.Libraries>> =
   lazy
     task {
+      let (builtinFns, builtinTypes) = builtins
 
-      let (fns, types) =
-        LibExecution.StdLib.combine
-          [ LibTest.contents
-            LibRealExecution.RealExecution.builtins
-            StdLibCli.StdLib.contents ]
-          []
-          []
       let! packageFns = LibBackend.PackageManager.allFunctions ()
       let packageFns =
         packageFns
@@ -148,8 +154,8 @@ let libraries : Lazy<Task<RT.Libraries>> =
         |> Map.ofList
 
       return
-        { builtInTypes = types |> Map.fromListBy (fun typ -> typ.name)
-          builtInFns = fns |> Map.fromListBy (fun fn -> fn.name)
+        { builtInTypes = builtinTypes |> Map.fromListBy (fun typ -> typ.name)
+          builtInFns = builtinFns |> Map.fromListBy (fun fn -> fn.name)
           packageFns = packageFns
           packageTypes = packageTypes }
     }
