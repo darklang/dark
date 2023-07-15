@@ -378,6 +378,11 @@ module Darklang =
         | StringInterpolation expr ->
           $"{{{PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr}}}"
 
+      let fnTarget (t: PACKAGE.Darklang.Stdlib.ProgramTypes.FnTarget) : String =
+        match t with
+        | FnTargetName name -> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.fullForReference name
+        | FnTargetExpr expr ->  $"({PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr expr})"
+
       let pipeExpr (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PipeExpr) : String =
         match p with
         | EPipeVariable(_id, varName) -> varName
@@ -620,10 +625,8 @@ module Darklang =
 
           $"(fun {argsPart} -> \n {PACKAGE.Darklang.PrettyPrinter.indent bodyPart})"
 
-        | EFnCall(_id, fnName, typeArgs, args) ->
-          let fnNamePart =
-            PACKAGE.Darklang.PrettyPrinter.ProgramTypes.FnName.fullForReference
-              fnName
+        | EApply(_id, fnName, typeArgs, args) ->
+          let fnNamePart = PACKAGE.Darklang.PrettyPrinter.ProgramTypes.fnTarget fnName
 
           let argsPart =
             args
