@@ -23,43 +23,8 @@ let builtIns : RT.BuiltIns =
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
-// TODO
-let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
-  (task {
-    let! packages = LibBackend.PackageManager.allFunctions ()
-
-    return
-      packages
-      |> List.map (fun (f : PT.PackageFn.T) ->
-        (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-      |> Map.ofList
-  })
-
-let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
-  (task {
-    let! packages = LibBackend.PackageManager.allTypes ()
-
-    return
-      packages
-      |> List.map (fun (t : PT.PackageType.T) ->
-        (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-      |> Map.ofList
-  })
-
-let packageManager () : Task<RT.PackageManager> =
-  (task {
-    let! packageTypes = packageTypes ()
-    let! packageFns = packageFns ()
-
-    // TODO: this keeps a cached version so we're not loading them all the time.
-    // Of course, this won't be up to date if we add more functions. This should be
-    // some sort of LRU cache.
-    return { types = packageTypes; fns = packageFns }
-  })
-
 
 let defaultTLID = 7UL
-
 
 let execute
   (mod' : Parser.CanvasV2.PTCanvasModule)
@@ -83,7 +48,6 @@ let execute
         dbs = Map.empty
         secrets = [] }
 
-    let! packageManager = packageManager ()
     let tracing = Exe.noTracing RT.Real
 
     let extraMetadata (state : RT.ExecutionState) : Metadata =
@@ -105,7 +69,7 @@ let execute
     let state =
       Exe.createState
         builtIns
-        packageManager
+        LibBackend.PackageManager.packageManager
         tracing
         sendException
         notify

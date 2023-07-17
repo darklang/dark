@@ -8,18 +8,6 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-let rec getUnderlyingTypeFromAlias
-  (typ : TypeDeclaration.T)
-  (types : Types)
-  : TypeDeclaration.T =
-  match typ with
-  | { definition = TypeDeclaration.Alias(TCustomType(innerType, _)) } ->
-    match Types.find innerType types with
-    | Some alias -> getUnderlyingTypeFromAlias alias types
-    | None -> Exception.raiseCode "Alias not found"
-  | _ -> typ
-
-
 
 let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   let equals = equals types
@@ -43,17 +31,13 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
       a
   | DRecord(tn1, a), DRecord(tn2, b) ->
-    match Types.find tn1 types, Types.find tn2 types with
-    | Some t1, Some t2 ->
-      let tn1 = getUnderlyingTypeFromAlias t1 types
-      let tn2 = getUnderlyingTypeFromAlias t2 types
-      tn1 = tn2
-      && Map.count a = Map.count b
-      && Map.forall
-        (fun k v ->
-          Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
-        a
-    | _ -> Exception.raiseInternal "Type not found" []
+    // CLEANUP: use the resolved type, not a type that may be an alias of something else
+    tn1 = tn2
+    && Map.count a = Map.count b
+    && Map.forall
+      (fun k v ->
+        Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+      a
   | DFnVal a, DFnVal b ->
     match a, b with
     | Lambda a, Lambda b -> equalsLambdaImpl types a b

@@ -69,103 +69,116 @@ let rec unify
   (types : Types)
   (expected : TypeReference)
   (value : Dval)
-  : Result<unit, Error> =
-  let resolvedType = getTypeReferenceFromAlias types expected
-  match (resolvedType, value) with
-  // Any should be removed, but we currently allow it as a param type
-  // in user functions, so we should allow it here.
-  //
-  // Potentially needs to be removed before we use this type checker for DBs?
-  //   - Could always have a type checking context that allows/disallows any
-  | TVariable _, _ -> Ok() // TYPESCLEANUP actually unify this
-  | TInt, DInt _ -> Ok()
-  | TFloat, DFloat _ -> Ok()
-  | TBool, DBool _ -> Ok()
-  | TUnit, DUnit -> Ok()
-  | TString, DString _ -> Ok()
-  // TYPESCLEANUP unify nested types too
-  | TList _, DList _ -> Ok()
-  | TDateTime, DDateTime _ -> Ok()
-  | TDict _, DDict _ -> Ok()
-  | TFn _, DFnVal _ -> Ok()
-  | TPassword, DPassword _ -> Ok()
-  | TUuid, DUuid _ -> Ok()
-  | TChar, DChar _ -> Ok()
-  | TDB _, DDB _ -> Ok()
-  | TBytes, DBytes _ -> Ok()
-  | TTuple _, DTuple _ -> Ok()
+  : Ply<Result<unit, Error>> =
+  uply {
+    let! resolvedType = getTypeReferenceFromAlias types expected
 
-  // TYPESCLEANUP: handle typeArgs
-  | TCustomType(typeName, typeArgs), value ->
+    match (resolvedType, value) with
+    // Any should be removed, but we currently allow it as a param type
+    // in user functions, so we should allow it here.
+    //
+    // Potentially needs to be removed before we use this type checker for DBs?
+    //   - Could always have a type checking context that allows/disallows any
+    | TVariable _, _ -> return Ok() // TYPESCLEANUP actually unify this
+    | TInt, DInt _ -> return Ok()
+    | TFloat, DFloat _ -> return Ok()
+    | TBool, DBool _ -> return Ok()
+    | TUnit, DUnit -> return Ok()
+    | TString, DString _ -> return Ok()
+    // TYPESCLEANUP unify nested types too
+    | TList _, DList _ -> return Ok()
+    | TDateTime, DDateTime _ -> return Ok()
+    | TDict _, DDict _ -> return Ok()
+    | TFn _, DFnVal _ -> return Ok()
+    | TPassword, DPassword _ -> return Ok()
+    | TUuid, DUuid _ -> return Ok()
+    | TChar, DChar _ -> return Ok()
+    | TDB _, DDB _ -> return Ok()
+    | TBytes, DBytes _ -> return Ok()
+    | TTuple _, DTuple _ -> return Ok()
 
-    match Types.find typeName types with
-    | None -> Error(TypeDoesntExist(typeName, context))
-    | Some ut ->
-      let err = Error(ValueNotExpectedType(value, resolvedType, context))
+    // TYPESCLEANUP: handle typeArgs
+    | TCustomType(typeName, typeArgs), value ->
 
-      match ut, value with
-      | { definition = TypeDeclaration.Alias aliasType }, _ ->
-        let resolvedAliasType = getTypeReferenceFromAlias types aliasType
-        unify context types resolvedAliasType value
+      match! Types.find typeName types with
+      | None -> return Error(TypeDoesntExist(typeName, context))
+      | Some ut ->
+        let err = Error(ValueNotExpectedType(value, resolvedType, context))
 
-      | { definition = TypeDeclaration.Record(firstField, additionalFields) },
-        DRecord(tn, dmap) ->
-        let aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
-        match aliasedType with
-        | TCustomType(concreteTn, typeArgs) ->
-          if concreteTn <> typeName then
-            Error(ValueNotExpectedType(value, aliasedType, context))
-          else
-            unifyRecordFields
-              concreteTn
-              context
-              types
-              (firstField :: additionalFields)
-              dmap
-        | _ -> err
+        match ut, value with
+        | { definition = TypeDeclaration.Alias aliasType }, _ ->
+          let! resolvedAliasType = getTypeReferenceFromAlias types aliasType
+          return! unify context types resolvedAliasType value
 
-      | { definition = TypeDeclaration.Enum(firstCase, additionalCases) },
-        DEnum(tn, caseName, valFields) ->
-        // TODO: deal with aliased type?
-        if tn <> typeName then
-          Error(ValueNotExpectedType(value, resolvedType, context))
-        else
-          let matchingCase : Option<TypeDeclaration.EnumCase> =
-            firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
-
-          match matchingCase with
-          | None -> err
-          | Some case ->
-            if List.length case.fields = List.length valFields then
-              List.zip case.fields valFields
-              |> List.mapi (fun i (expected, actual) ->
-                let context =
-                  EnumField(tn, expected, case.name, i, Context.toLocation context)
-                unify context types expected.typ actual)
-              |> combineErrorsUnit
+        | { definition = TypeDeclaration.Record(firstField, additionalFields) },
+          DRecord(tn, dmap) ->
+          let! aliasedType = getTypeReferenceFromAlias types (TCustomType(tn, []))
+          match aliasedType with
+          | TCustomType(concreteTn, typeArgs) ->
+            if concreteTn <> typeName then
+              return Error(ValueNotExpectedType(value, aliasedType, context))
             else
-              err
-      | _, _ -> err
+              return!
+                unifyRecordFields
+                  concreteTn
+                  context
+                  types
+                  (firstField :: additionalFields)
+                  dmap
+          | _ -> return err
 
-  // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
-  // TODO: exhaustiveness check
-  | TTuple _, _
-  | TCustomType _, _
-  | TVariable _, _
-  | TInt, _
-  | TFloat, _
-  | TBool, _
-  | TUnit, _
-  | TString, _
-  | TList _, _
-  | TDateTime, _
-  | TDict _, _
-  | TFn _, _
-  | TPassword, _
-  | TUuid, _
-  | TChar, _
-  | TDB _, _
-  | TBytes, _ -> Error(ValueNotExpectedType(value, resolvedType, context))
+        | { definition = TypeDeclaration.Enum(firstCase, additionalCases) },
+          DEnum(tn, caseName, valFields) ->
+          // TODO: deal with aliased type?
+          if tn <> typeName then
+            return Error(ValueNotExpectedType(value, resolvedType, context))
+          else
+            let matchingCase : Option<TypeDeclaration.EnumCase> =
+              firstCase :: additionalCases |> List.find (fun c -> c.name = caseName)
+
+            match matchingCase with
+            | None -> return err
+            | Some case ->
+              if List.length case.fields = List.length valFields then
+                let! unified =
+                  List.zip case.fields valFields
+                  |> List.mapi (fun i (expected, actual) ->
+                    let context =
+                      EnumField(
+                        tn,
+                        expected,
+                        case.name,
+                        i,
+                        Context.toLocation context
+                      )
+                    unify context types expected.typ actual)
+                  |> Ply.List.mapSequentially identity
+
+                return combineErrorsUnit unified
+              else
+                return err
+        | _, _ -> return err
+
+    // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
+    // TODO: exhaustiveness check
+    | TTuple _, _
+    | TCustomType _, _
+    | TVariable _, _
+    | TInt, _
+    | TFloat, _
+    | TBool, _
+    | TUnit, _
+    | TString, _
+    | TList _, _
+    | TDateTime, _
+    | TDict _, _
+    | TFn _, _
+    | TPassword, _
+    | TUuid, _
+    | TChar, _
+    | TDB _, _
+    | TBytes, _ -> return Error(ValueNotExpectedType(value, resolvedType, context))
+  }
 
 
 
@@ -175,7 +188,7 @@ and unifyRecordFields
   (types : Types)
   (defs : List<TypeDeclaration.RecordField>)
   (values : DvalMap)
-  : Result<unit, Error> =
+  : Ply<Result<unit, Error>> =
   let completeDefinition =
     defs
     |> List.filterMap (fun (d : TypeDeclaration.RecordField) ->
@@ -197,11 +210,13 @@ and unifyRecordFields
           [ "fieldName", fieldName ]
       let context = RecordField(recordType, fieldDef, location)
       unify context types fieldDef.typ fieldValue)
-    |> combineErrorsUnit
+    |> Ply.List.flatten
+    |> Ply.map combineErrorsUnit
   else
     let extraFields = Set.difference valueNames defNames
     let missingFields = Set.difference defNames valueNames
     Error(MismatchedRecordFields(recordType, extraFields, missingFields, context))
+    |> Ply
 
 
 // TODO: there are missing type checks around type arguments that we should backfill.
@@ -229,20 +244,21 @@ let checkFunctionCall
   (fn : Fn)
   (_typeArgs : List<TypeReference>)
   (args : List<Dval>)
-  : Result<unit, Error> =
+  : Ply<Result<unit, Error>> =
   fn.parameters
   |> List.mapi2
     (fun i value param ->
       let context = FunctionCallParameter(fn.name, param, i, None)
       unify context types param.typ value)
     args
-  |> combineErrorsUnit
+  |> Ply.List.mapSequentially identity
+  |> Ply.map combineErrorsUnit
 
 
 let checkFunctionReturnType
   (types : Types)
   (fn : Fn)
   (result : Dval)
-  : Result<unit, Error> =
+  : Ply<Result<unit, Error>> =
   let context = FunctionCallResult(fn.name, fn.returnType, None)
   unify context types fn.returnType result

@@ -21,8 +21,7 @@ module S = TestUtils.RTShortcuts
 
 
 let defaultTypes () =
-  { RT.Types.empty with
-      packageTypes = TestUtils.TestUtils.packageManager.Force().Result.types }
+  { RT.Types.empty with package = LibBackend.PackageManager.packageManager.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv
@@ -34,36 +33,47 @@ let queryableRoundtripsSuccessfullyInRecord
   (
     dv : RT.Dval,
     fieldTyp : RT.TypeReference
-  ) : bool =
+  ) : Task<bool> =
 
-  let typeName = S.userTypeName [] "MyType" 0
-  let record = RT.DRecord(RT.FQName.UserProgram typeName, Map.ofList [ "field", dv ])
-  let typeRef = S.userTypeReference [] "MyType" 0
+  task {
+    let typeName = S.userTypeName [] "MyType" 0
+    let record =
+      RT.DRecord(RT.FQName.UserProgram typeName, Map.ofList [ "field", dv ])
+    let typeRef = S.userTypeReference [] "MyType" 0
 
-  let types : RT.Types =
-    { defaultTypes () with
-        userProgramTypes =
-          Map
-            [ typeName,
-              { name = typeName
-                tlid = 8UL
-                declaration = S.customTypeRecord [ "field", fieldTyp ] } ] }
+    let types : RT.Types =
+      { defaultTypes () with
+          userProgram =
+            Map
+              [ typeName,
+                { name = typeName
+                  tlid = 8UL
+                  declaration = S.customTypeRecord [ "field", fieldTyp ] } ] }
 
 
-  record
-  |> DvalReprInternalQueryable.toJsonStringV0 types typeRef
-  |> DvalReprInternalQueryable.parseJsonV0 types typeRef
-  |> Expect.dvalEquality record
+    let! roundtripped =
+      record
+      |> DvalReprInternalQueryable.toJsonStringV0 types typeRef
+      |> Ply.bind (DvalReprInternalQueryable.parseJsonV0 types typeRef)
 
-let queryableRoundtripsSuccessfully (dv : RT.Dval, typ : RT.TypeReference) : bool =
-  dv
-  |> DvalReprInternalQueryable.toJsonStringV0 (defaultTypes ()) typ
-  |> DvalReprInternalQueryable.parseJsonV0 (defaultTypes ()) typ
-  |> Expect.dvalEquality dv
+    return Expect.dvalEquality record roundtripped
+  }
+
+let queryableRoundtripsSuccessfully
+  (
+    dv : RT.Dval,
+    typ : RT.TypeReference
+  ) : Task<bool> =
+  task {
+    let! serialized =
+      DvalReprInternalQueryable.toJsonStringV0 (defaultTypes ()) typ dv
+    let! roundtripped =
+      DvalReprInternalQueryable.parseJsonV0 (defaultTypes ()) typ serialized
+    return Expect.dvalEquality dv roundtripped
+  }
 
 
 let testDvalRoundtrippableRoundtrips =
-
   testMany
     "special roundtrippable dvals roundtrip"
     roundtrippableRoundtripsSuccessfully
@@ -107,23 +117,23 @@ module ToHashableRepr =
 
 
 let allRoundtrips =
-  let t = testListUsingProperty
-
   let dvs (filter : RT.Dval -> bool) : List<string * (RT.Dval * RT.TypeReference)> =
     List.filter (fun (_, (dv, _)) -> filter dv) sampleDvals
 
   testList
     "roundtrips"
-    [ t
+    [ testListUsingProperty
         "roundtrippable"
         roundtrippableRoundtripsSuccessfully
         (dvs DvalReprInternalRoundtrippable.Test.isRoundtrippableDval
          |> List.map (fun (name, (v, _)) -> name, v))
-      t
+
+      testListUsingPropertyAsync
         "queryable v0"
         queryableRoundtripsSuccessfully
         (dvs DvalReprInternalQueryable.Test.isQueryableDval)
-      t
+
+      testListUsingPropertyAsync
         "queryable record v0"
         queryableRoundtripsSuccessfullyInRecord
         (dvs DvalReprInternalQueryable.Test.isQueryableDval) ]
@@ -203,7 +213,7 @@ module Password =
     }
 
   let testSerialization2 =
-    test "serialization in object" {
+    testTask "serialization in object" {
       let bytes = UTF8.toBytes "encryptedbytes"
       let typeName = S.userTypeName [] "MyType" 0
       let password =
@@ -216,7 +226,7 @@ module Password =
 
       let availableTypes =
         { RT.Types.empty with
-            userProgramTypes =
+            userProgram =
               Map
                 [ typeName,
                   { tlid = 8UL
@@ -226,9 +236,18 @@ module Password =
 
       let serialize = DvalReprInternalQueryable.toJsonStringV0 availableTypes typeRef
       let deserialize = DvalReprInternalQueryable.parseJsonV0 availableTypes typeRef
+      let! roundtripped =
+        task {
+          let! serialized1 = serialize password
+          let! deserialized1 = deserialize serialized1
+          let! serialized2 = serialize deserialized1
+          let! deserialized2 = deserialize serialized2
+          return deserialized2
+        }
+
       Expect.equalDval
         password
-        (password |> serialize |> deserialize |> serialize |> deserialize)
+        roundtripped
         "Passwords serialize in non-redaction function: toInternalQueryableV1"
     }
 

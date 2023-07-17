@@ -17,7 +17,7 @@ let getStateForEval
       fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map }
 
   // TODO
-  let packageManager : PackageManager = { fns = Map.empty; types = Map.empty }
+  let packageManager : PackageManager = PackageManager.Empty
 
   let config : Config = { allowLocalHttpAccess = true; httpclientTimeoutInMs = 5000 }
 

@@ -62,8 +62,17 @@ module Alias =
   type Person = { name: String }
   type MyPerson = Person
   type MyPerson2 = Person
-  (MyPerson{ name = "test" } == Person{ name = "test" }) = true
-  (MyPerson{ name = "test" } == MyPerson2{ name = "test" }) = true
+
+  //CLEANUP type aliases are not currently resolved in == equality checks
+  // (previously these tests passed as we took extra effort to resolve at runtime,
+  //  but we had to disable this type-fetching became async)
+  //
+  // Soon, type aliases will be resolved as the RT values are created,
+  //  such that resolution won't need to happen at all in the equality checks
+  //
+  //(MyPerson{ name = "test" } == Person{ name = "test" }) = true
+  //(MyPerson{ name = "test" } == MyPerson2{ name = "test" }) = true
+
   let getName(p:MyPerson) : String = p.name
   getName(MyPerson{ name = "test" }) = "test"
 
