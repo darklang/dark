@@ -146,8 +146,8 @@ let typecheckDval
   uply {
     let context = TypeChecker.DBQueryVariable(name, None)
     match! TypeChecker.unify context types expectedType dval with
-    | Ok() -> ()
-    | Error err -> error (Errors.toString (Errors.TypeError err))
+    | Ok() -> return ()
+    | Error err -> return error (Errors.toString (Errors.TypeError err))
   }
 
 let escapeFieldname (str : string) : string =
@@ -279,6 +279,7 @@ let rec lambdaToSql
         match expr with
         | EApply(_, FnTargetName(FQName.BuiltIn name as fqName), [], args) ->
           let nameStr = FnName.toString fqName
+
           match Map.get name fns with
           | Some fn ->
             // check the abstract type here. We will check the concrete type later
@@ -294,6 +295,11 @@ let rec lambdaToSql
                   // types so that we can compare them and give a good error message as well
                   // as have the types for the correct Npgsql wrapper for lists and other
                   // polymorphic values
+
+                  let zipped =
+                    // Tablecloth's List.zip reverses the order..
+                    List.zip args fn.parameters |> List.rev
+
                   return!
                     Ply.List.foldSequentially
                       (fun
@@ -318,7 +324,7 @@ let rec lambdaToSql
                             prevVars @ compiled.vars
                         })
                       (Map.empty, [], [])
-                      (List.zip args fn.parameters)
+                      (zipped)
                 else
                   return
                     error

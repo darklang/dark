@@ -540,18 +540,18 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, [ typeArg ], [ arg ] ->
-          // TODO: somehow collect list of TVariable -> TypeReference
-          // "'b = Int",
-          // so we can Json.serialize<'b>, if 'b is in the surrounding context
+          uply {
+            // TODO: somehow collect list of TVariable -> TypeReference
+            // "'b = Int",
+            // so we can Json.serialize<'b>, if 'b is in the surrounding context
 
-          try
-            uply {
+            try
               let types = ExecutionState.availableTypes state
               let! response = writeJson (fun w -> serialize types w typeArg arg)
               return Dval.resultOk (DString response)
-            }
-          with ex ->
-            Ply(Dval.resultError (DString ex.Message))
+            with ex ->
+              return Dval.resultError (DString ex.Message)
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

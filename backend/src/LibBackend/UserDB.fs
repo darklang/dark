@@ -62,7 +62,7 @@ let rec set
     match! LibExecution.TypeChecker.unify context types db.typ dv with
     | Error err ->
       let msg = Errors.toString (Errors.TypeError err)
-      Exception.raiseCode msg
+      return Exception.raiseCode msg
     | Ok _ -> ()
 
     let upsertQuery =
@@ -73,7 +73,7 @@ let rec set
 
     let! data = dvalToDB types db dv
 
-    let! _ =
+    do!
       Sql.query
         $"INSERT INTO user_data_v0
           (id, canvas_id, table_tlid, user_version, dark_version, key, data)
@@ -101,6 +101,7 @@ and getOption
   : Ply<Option<RT.Dval>> =
   uply {
     let types = RT.ExecutionState.availableTypes state
+
     let! result =
       Sql.query
         "SELECT data
@@ -131,7 +132,8 @@ and getMany
   : Ply<List<RT.Dval>> =
   uply {
     let types = RT.ExecutionState.availableTypes state
-    let! executed =
+
+    let! result =
       Sql.query
         "SELECT data
           FROM user_data_v0
@@ -148,7 +150,7 @@ and getMany
           "keys", Sql.stringArray (Array.ofList keys) ]
       |> Sql.executeAsync (fun read -> read.string "data")
 
-    return! executed |> List.map (dbToDval types db) |> Ply.List.flatten
+    return! result |> List.map (dbToDval types db) |> Ply.List.flatten
   }
 
 
@@ -160,7 +162,8 @@ and getManyWithKeys
   : Ply<List<string * RT.Dval>> =
   uply {
     let types = RT.ExecutionState.availableTypes state
-    let! executed =
+
+    let! result =
       Sql.query
         "SELECT key, data
           FROM user_data_v0
@@ -178,7 +181,8 @@ and getManyWithKeys
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
     return!
-      executed
+
+      result
       |> List.map (fun (key, data) ->
         dbToDval types db data |> Ply.map (fun dval -> (key, dval)))
       |> Ply.List.flatten
@@ -189,7 +193,8 @@ and getManyWithKeys
 let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dval>> =
   uply {
     let types = RT.ExecutionState.availableTypes state
-    let! executed =
+
+    let! result =
       Sql.query
         "SELECT key, data
           FROM user_data_v0
@@ -205,7 +210,7 @@ let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dva
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
     return!
-      executed
+      result
       |> List.map (fun (key, data) ->
         dbToDval types db data |> Ply.map (fun dval -> (key, dval)))
       |> Ply.List.flatten
@@ -253,6 +258,7 @@ let query
   uply {
     let types = RT.ExecutionState.availableTypes state
     let! query = doQuery state db b "key, data"
+
     let! results =
       query |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 

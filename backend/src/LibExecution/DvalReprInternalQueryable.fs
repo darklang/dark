@@ -148,7 +148,8 @@ let rec private toJsonV0
                   uply {
                     w.WritePropertyName f.name
                     let dval = Map.find f.name dm
-                    do! writeDval f.typ dval
+                    let typ = Types.substitute decl.typeParams typeArgs f.typ
+                    do! writeDval typ dval
                   })
                 fields)
 
