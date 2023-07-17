@@ -885,16 +885,16 @@ module Darklang =
             p.name
 
         let typeParamPart =
-          match p.typeParams with
+          match p.declaration.typeParams with
           | [] -> ""
           | _ ->
-            p.typeParams
+            p.declaration.typeParams
             |> List.map (fun typeParam -> $"'{typeParam}")
             |> String.join ", "
             |> fun parts -> $"<{parts}>"
 
         let defPart =
-          (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.customType p.definition)
+          (PACKAGE.Darklang.PrettyPrinter.ProgramTypes.customType p.declaration)
           |> PACKAGE.Darklang.PrettyPrinter.indent
 
         $"type {namePart}{typeParamPart} =\n{defPart}"
