@@ -107,7 +107,13 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "package source" TString "The source code of the package"
           Param.make "filename" TString "Used for error message" ]
-      returnType = TypeReference.result TString TString
+      returnType =
+        TypeReference.result
+          (TCustomType(
+            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
+            []
+          ))
+          TString
       description = "Parse a package"
       fn =
         function
@@ -115,8 +121,18 @@ let fns : List<BuiltInFn> =
           uply {
             let (fns, types) = Parser.Parser.parsePackage path contents
             let packagesFns = fns |> Json.Vanilla.serialize
+            let packagesTypes = types |> Json.Vanilla.serialize
 
-            return Dval.resultOk (DString packagesFns)
+            return
+              Dval.resultOk (
+                DRecord(
+                  FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
+                  Map(
+                    [ ("fns", DString packagesFns)
+                      ("types", DString packagesTypes) ]
+                  )
+                )
+              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

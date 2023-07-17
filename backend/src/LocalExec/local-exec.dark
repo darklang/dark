@@ -30,6 +30,22 @@ let saveFunctionToCanvas
 
   ()
 
+let saveTypeToCanvas (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T) : Unit =
+  let reqBody =
+    p
+    |> Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T>
+    |> unwrap
+    |> String.toBytes
+
+  let _ =
+    HttpClient.request
+      "POST"
+      ("http://dark-packages.dlio.localhost:11003/types")
+      []
+      reqBody
+
+  ()
+
 let loadPackageFile (filename: String) : Unit =
   filename
   |> LocalExec.File.read
@@ -47,11 +63,17 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> unwrap
 
   let fns =
-    packages
+    packages.fns
     |> Json.parse<List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>>
     |> unwrap
 
+  let types =
+    packages.types
+    |> Json.parse<List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T>>
+    |> unwrap
+
   fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
+  types |> List.iter (fun t -> saveTypeToCanvas t)
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
