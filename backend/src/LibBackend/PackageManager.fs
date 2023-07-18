@@ -91,6 +91,7 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
 let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
   constants
   |> Task.iterInParallel (fun c ->
+    let (PT.ConstantName.ConstantName name) = c.name.name
     Sql.query
       "INSERT INTO package_constants_v0 (tlid, id, owner, modules, fnname, version, definition)
        VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
@@ -99,7 +100,7 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
         "id", Sql.uuid c.id
         "owner", Sql.string c.name.owner
         "modules", Sql.string (c.name.modules |> String.concat ".")
-        "constantname", Sql.string c.name.constant
+        "constantname", Sql.string name
         "version", Sql.int c.name.version
         "definition", Sql.bytea (BinarySerialization.serializePackageConstant c) ]
     |> Sql.executeStatementAsync)

@@ -10,14 +10,15 @@ open System.Text.RegularExpressions
 
 let types : List<BuiltInType> = []
 
-let fn = fn [ "Bytes" ]
+let modules = [ "Bytes" ]
+let fn = fn modules
+let constant = constant modules
+
 let constants : List<BuiltInConstant> =
   [ { name = constant "empty" 0
-      returnType = TBytes
+      typ = TBytes
       description = "Returns an empty list of bytes"
-      constant = DBytes [||] |> Ply
-      sqlSpec = NotYetImplemented
-      previewable = Pure
+      body = DBytes [||]
       deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =

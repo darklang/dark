@@ -50,7 +50,7 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Map.fromListBy (fun typ -> typ.name)
-        userConstants =
+        constants =
           mod'.constants
           |> List.map (fun c -> PT2RT.UserConstant.toRT c)
           |> Map.fromListBy (fun c -> c.name)

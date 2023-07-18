@@ -18,6 +18,7 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
+    | EPipeConstant(id, name) -> EPipeConstant(id, name)
 
   match expr with
   | EInt _
@@ -42,7 +43,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
   | EInfix(id, op, left, right) -> EInfix(id, op, f left, f right)
   | EPipe(id, expr1, expr2, exprs) ->
     EPipe(id, f expr1, traversePipeExpr expr2, List.map traversePipeExpr exprs)
-  | EFnCall(id, name, _, []) -> EConstant(id, FQConstantName.fromFnName name)
   | EFnCall(id, name, typeArgs, args) -> EFnCall(id, name, typeArgs, List.map f args)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)
   | EList(id, exprs) -> EList(id, List.map f exprs)
@@ -143,6 +143,7 @@ let rec preTraversal
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
+    | EPipeConstant(id, name) -> EPipeConstant(id, name)
 
   match exprFn expr with
   | EInt _
@@ -173,7 +174,7 @@ let rec preTraversal
       List.map preTraversalPipeExpr exprs
     )
   | EFnCall(id, name, _, []) ->
-    EConstant(id, name |> FQConstantName.fromFnName |> fqctFn)
+    EConstant(id, name |> ConstantName.fromFnName |> fqctFn)
   | EFnCall(id, name, typeArgs, args) ->
     EFnCall(id, fqfnFn name, List.map preTraversalTypeRef typeArgs, List.map f args)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)

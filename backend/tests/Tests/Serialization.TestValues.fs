@@ -614,6 +614,9 @@ module ProgramTypes =
         PT.TFn([ PT.TInt ], PT.TInt) ]
     )
 
+  let constType : PT.Const = PT.Const.CInt(314L)
+
+
   module Handler =
     let cronIntervals : List<PT.Handler.CronInterval> =
       [ PT.Handler.EveryDay
@@ -695,11 +698,11 @@ module ProgramTypes =
 
   let userConstant : PT.UserConstant.T =
     { tlid = 0UL
-      name = { modules = []; constant = "Pi"; version = 0 }
+      name = { modules = []; name = PT.ConstantName.ConstantName "Pi"; version = 0 }
       typ = PT.TFloat
       description = "constant description"
       deprecated = PT.DeprecatedBecause "some reason"
-      body = expr }
+      body = constType }
 
   let userConstants : List<PT.UserConstant.T> = [ userConstant ]
 
@@ -744,9 +747,9 @@ module ProgramTypes =
     { name =
         { owner = "dark"
           modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
-          constant = "Pi"
+          name = PT.ConstantName.ConstantName "Pi"
           version = 0 }
-      body = expr
+      body = constType
       typ = dtype
       description = "test"
       deprecated = PT.NotDeprecated

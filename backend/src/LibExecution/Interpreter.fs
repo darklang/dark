@@ -93,18 +93,18 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | EChar(_id, s) -> return DChar s
     | EConstant(id, name) ->
       match name with
-      | FQConstantName.User c ->
-        match state.program.userConstants.TryFind c with
-        | None -> return err id $"There is no constant named: {name}"
-        | Some constant -> return! eval' state st constant.body
-      | FQConstantName.Stdlib c ->
-        match state.libraries.stdlibConstants.TryFind c with
-        | None -> return err id $"There is no constant named: {name}"
-        | Some constant -> return! constant.constant
-      | FQConstantName.Package c ->
+      | FQName.UserProgram c ->
+        match state.program.constants.TryFind c with
+        | None -> return err id $"There is no user defined constant named: {name}"
+        | Some constant -> return constant.body
+      | FQName.BuiltIn c ->
+        match state.libraries.builtInConstants.TryFind c with
+        | None -> return err id $"There is no bultin constant named: {name}"
+        | Some constant -> return constant.body
+      | FQName.Package c ->
         match state.libraries.packageConstants.TryFind c with
-        | None -> return err id $"There is no constant named: {name}"
-        | Some constant -> return! eval' state st constant.body
+        | None -> return err id $"There is no package constant named: {name}"
+        | Some constant -> return constant.body
     | ELet(id, pattern, rhs, body) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
       let traceIncompleteWithArgs id argPatterns =

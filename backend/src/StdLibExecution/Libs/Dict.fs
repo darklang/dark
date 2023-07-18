@@ -14,17 +14,18 @@ module Interpreter = LibExecution.Interpreter
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let types : List<BuiltInType> = []
-let constants : List<BuiltInConstant> =
-  [ { name = constant "Dict" "empty" 0
-      returnType = TDict varA
-      description = "Returns an empty dictionary"
-      constant = Ply(DDict Map.empty)
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated } ]
+let modules = [ "Dict" ]
+let fn = fn modules
+let constant = constant modules
 
-let fn = fn [ "Dict" ]
+let types : List<BuiltInType> = []
+
+let constants : List<BuiltInConstant> =
+  [ { name = constant "empty" 0
+      typ = TDict varA
+      description = "Returns an empty dictionary"
+      body = DDict Map.empty
+      deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "singleton" 0
@@ -399,7 +400,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "Dict" "isEmpty" 0
+    { name = fn "isEmpty" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TBool

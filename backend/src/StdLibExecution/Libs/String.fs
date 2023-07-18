@@ -16,17 +16,19 @@ open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 
+
+let modules = [ "String" ]
+let fn = fn modules
+let constant = constant modules
+
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> =
-  [ { name = constant "String" "newline" 0
-      returnType = TString
+  [ { name = constant "newline" 0
+      typ = TString
       description = "Returns a string containing a single '\n'"
-      constant = Ply(DString "\n")
-      sqlSpec = NotYetImplemented
-      previewable = Pure
+      body = DString "\n"
       deprecated = NotDeprecated } ]
 
-let fn = fn [ "String" ]
 
 let fns : List<BuiltInFn> =
   [ { name = fn "isEmpty" 0

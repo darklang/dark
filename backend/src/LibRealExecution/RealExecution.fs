@@ -48,38 +48,36 @@ let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
       |> Map.ofList
   })
 
-let packageConstants: Task<Map<RT.ConstantName.Package, RT.PackageConstant.T>> =
-    (task {
-      let! packages = PackageManager.allConstants ()
+let packageConstants () : Task<Map<RT.ConstantName.Package, RT.PackageConstant.T>> =
+  (task {
+    let! packages = PackageManager.allConstants ()
 
-      return
-        packages
-        |> List.map (fun (c : PT.PackageConstant.T) ->
-          (c.name |> PT2RT.ConstantName.Package.toRT,
-           PT2RT.PackageConstant.toRT c))
-        |> Map.ofList
-    })
+    return
+      packages
+      |> List.map (fun (c : PT.PackageConstant.T) ->
+        (c.name |> PT2RT.ConstantName.Package.toRT,
+          PT2RT.PackageConstant.toRT c))
+      |> Map.ofList
+  })
 
 let libraries () : Task<RT.Libraries> =
-  task {
+  (task {
     let! packageFns = packageFns ()
     let! packageTypes = packageTypes ()
-
-      let fns = contents |> Tuple2.first |> Map.fromListBy (fun fn -> fn.name)
-      let types = contents |> Tuple2.second |> Map.fromListBy (fun typ -> typ.name)
-      let! packageConstants = Lazy.force packageConstants
-
+    let! packageConstants = packageConstants ()
+    let (fns, types, constants) = builtins
     // TODO: this keeps a cached version so we're not loading them all the time.
     // Of course, this won't be up to date if we add more functions. This should be
     // some sort of LRU cache.
     return
-      { builtInTypes = builtinTypes
-        builtInFns = builtinFns
-        builtInConstants = builtinConstants
+      { builtInTypes = types |> Map.fromListBy (fun typ -> typ.name)
+        builtInFns = fns |> Map.fromListBy (fun fn -> fn.name)
+        builtInConstants = constants |> Map.fromListBy (fun c -> c.name)
         packageFns = packageFns
         packageTypes = packageTypes
         packageConstants = packageConstants }
-  }
+    }
+  )
 
 let createState
   (traceID : AT.TraceID.T)
@@ -106,7 +104,15 @@ let createState
       let metadata = extraMetadata state @ metadata
       LibService.Rollbar.sendException None metadata exn
 
-    return Exe.createState libraries tracing sendException notify tlid program config
+    return
+      Exe.createState
+        libraries
+        tracing
+        sendException
+        notify
+        tlid
+        program
+        config
   }
 
 type ExecutionReason =

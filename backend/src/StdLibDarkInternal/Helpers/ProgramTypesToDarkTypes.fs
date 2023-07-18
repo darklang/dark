@@ -112,6 +112,27 @@ module FnName =
 
   let toDT (u : PT.FnName.T) : Dval = FQName.toDT Name.toDT u
 
+module ConstantName =
+  module Name =
+    let toDT (u : PT.ConstantName.Name) : Dval =
+      let caseName, fields =
+        match u with
+        | PT.ConstantName.ConstantName name -> "ConstantName", [ DString name ]
+
+      DEnum(ptTyp [ "ConstantName" ] "Name" 0, caseName, fields)
+
+  module BuiltIn =
+    let toDT (u : PT.ConstantName.BuiltIn) : Dval = FQName.BuiltIn.toDT Name.toDT u
+
+  module UserProgram =
+    let toDT (u : PT.ConstantName.UserProgram) : Dval = FQName.UserProgram.toDT Name.toDT u
+
+  module Package =
+    let toDT (u : PT.ConstantName.Package) : Dval = FQName.Package.toDT Name.toDT u
+
+  let toDT (u : PT.ConstantName.T) : Dval = FQName.toDT Name.toDT u
+
+
 
 module TypeReference =
   let rec toDT (t : PT.TypeReference) : Dval =
@@ -238,7 +259,8 @@ module PipeExpr =
       match s with
       | PT.EPipeVariable(id, varName) ->
         "EPipeVariable", [ DInt(int64 id); DString varName ]
-
+      | PT.EPipeConstant(id, constName) ->
+        "EPipeConstant", [ DInt(int64 id); ConstantName.toDT constName ]
       | PT.EPipeLambda(id, args, body) ->
         let variables =
           args
@@ -357,7 +379,8 @@ module Expr =
           |> DList
 
         "ELambda", [ DInt(int64 id); variables; toDT body ]
-
+      | PT.EConstant(id, name) ->
+        "EConstant", [DInt(int64 id); ConstantName.toDT name]
       | PT.EFnCall(id, name, typeArgs, args) ->
         "EFnCall",
         [ DInt(int64 id)
@@ -374,6 +397,29 @@ module Expr =
 
     DEnum(ptTyp [] "Expr" 0, name, fields)
 
+
+module Const =
+  let rec toDT (c : PT.Const) : Dval =
+    let name, fields =
+      match c with
+      | PT.Const.CInt i -> "CInt", [DInt i]
+      | PT.Const.CBool b -> "CBool", [DBool b]
+      | PT.Const.CString s -> "CString", [DString s]
+      | PT.Const.CChar c -> "CChar", [DChar c]
+      | PT.Const.CFloat f -> "CFloat", [DFloat f]
+      | PT.Const.CPassword p -> "CPassword", [DPassword p]
+      | PT.Const.CUuid u -> "CUuid", [DUuid u]
+      | PT.Const.CTuple (first, second, rest) ->
+          "CTuple",
+          [toDT first
+           toDT second
+           DList(List.map toDT rest) ]
+      | PT.Const.CEnum (typeName, caseName, fields) ->
+          "CEnum",
+          [ TypeName.toDT typeName
+            DString caseName
+            DList(List.map toDT fields) ]
+    DEnum(ptTyp [] "Const" 0, name, fields)
 
 module Deprecation =
   let toDT (inner : 'a -> Dval) (d : PT.Deprecation<'a>) : Dval =
@@ -520,6 +566,20 @@ module UserFunction =
           "deprecated", Deprecation.toDT FnName.toDT userFn.deprecated ]
     )
 
+module UserConstant =
+  let toDT (userConstant : PT.UserConstant.T) : Dval =
+    DRecord(
+      ptTyp [ "UserConstant" ] "T" 0,
+      Map
+        [ "tlid", DInt(int64 userConstant.tlid)
+          "name", ConstantName.UserProgram.toDT userConstant.name
+          "typ", TypeReference.toDT userConstant.typ
+          "body", Const.toDT userConstant.body
+          "description", DString userConstant.description
+          "deprecated", Deprecation.toDT ConstantName.toDT userConstant.deprecated ]
+    )
+
+
 module Secret =
   let toDT (s : PT.Secret.T) : Dval =
     DRecord(
@@ -570,4 +630,18 @@ module PackageFn =
           "returnType", TypeReference.toDT p.returnType
           "description", DString p.description
           "deprecated", Deprecation.toDT FnName.toDT p.deprecated ]
+    )
+
+module PackageConstant =
+  let toDT (p : PT.PackageConstant.T) : Dval =
+    DRecord(
+      ptTyp [ "PackageConstant" ] "T" 0,
+      Map
+        [ "tlid", DInt(int64 p.tlid)
+          "id", DUuid p.id
+          "name", ConstantName.Package.toDT p.name
+          "body", Const.toDT p.body
+          "typ", TypeReference.toDT p.typ
+          "description", DString p.description
+          "deprecated", Deprecation.toDT ConstantName.toDT p.deprecated ]
     )

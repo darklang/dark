@@ -221,40 +221,68 @@ module FnName =
 
 /// A Fully-Qualified Constant Name
 /// Includes package, module, and version information where relevant.
-module FQConstantName =
-  /// Standard Library Constant Name
-  type StdlibConstantName =
-    { modules : List<string>; constant : string; version : int }
+module ConstantName =
+  type Name = ConstantName of string
+  type T = FQName.T<Name>
+  type BuiltIn = FQName.BuiltIn<Name>
+  type UserProgram = FQName.UserProgram<Name>
+  type Package = FQName.Package<Name>
 
-  /// A UserConstant is a constant written by a Developer in their canvas
-  type UserConstantName =
-    { modules : List<string>; constant : string; version : int }
+  let pattern = @"^[a-z][a-z0-9A-Z_']*$"
+  let assert' (ConstantName name : Name) : unit =
+    assertRe "Constant name must match" pattern name
 
-  /// The name of a constant in the package manager
-  type PackageConstantName =
-    { owner : string
-      modules : NonEmptyList<string>
-      constant : string
-      version : int }
+  let builtIn (modules : List<string>) (name : string) (version : int) : BuiltIn =
+    FQName.builtin assert' modules (ConstantName name) version
 
-  type T =
-    | User of UserConstantName
-    | Stdlib of StdlibConstantName
-    | Package of PackageConstantName
+  let fqBuiltIn (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqBuiltIn assert' modules (ConstantName name) version
+
+  let userProgram
+    (modules : List<string>)
+    (name : string)
+    (version : int)
+    : UserProgram =
+    FQName.userProgram assert' modules (ConstantName name) version
+
+  let fqUserProgram (modules : List<string>) (name : string) (version : int) : T =
+    FQName.fqUserProgram assert' modules (ConstantName name) version
+
+  let package
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : Package =
+    FQName.package assert' owner modules (ConstantName name) version
+
+  let fqPackage
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (name : string)
+    (version : int)
+    : T =
+    FQName.fqPackage assert' owner modules (ConstantName name) version
+
+  let toString (name : T) : string = FQName.toString name (fun (ConstantName name) -> name)
+
 
   /// Used in a transformation from fn with the empty args list to constant
-  let fromFnName (name : FQFnName.T) : T =
+  let fromFnName (name : FnName.T) : T =
     match name with
-    | FQFnName.T.User f ->
-      User { modules = f.modules; constant = f.function_; version = f.version }
-    | FQFnName.T.Stdlib f ->
-      Stdlib { modules = f.modules; constant = f.function_; version = f.version }
-    | FQFnName.T.Package f ->
-      Package
-        { owner = f.owner
-          modules = f.modules
-          constant = f.function_
-          version = f.version }
+    | FQName.BuiltIn fn ->
+        let (FnName.FnName fnName) = fn.name
+        let newBuiltIn = FQName.builtin assert' fn.modules (ConstantName fnName) fn.version
+        FQName.BuiltIn newBuiltIn
+    | FQName.UserProgram fn ->
+        let (FnName.FnName fnName) = fn.name
+        let newUserProgram = FQName.userProgram assert' fn.modules (ConstantName fnName) fn.version
+        FQName.UserProgram newUserProgram
+    | FQName.Package fn ->
+        let (FnName.FnName fnName) = fn.name
+        let newPackage = FQName.package assert' fn.owner fn.modules (ConstantName fnName) fn.version
+        FQName.Package newPackage
+
 
 
 type LetPattern =
@@ -341,7 +369,6 @@ type TypeReference =
   // and the Result module defines the custom `Result` type
   | TResult of TypeReference * TypeReference
 
-
 /// Expressions - the main part of the language.
 type Expr =
   | EInt of id * int64
@@ -355,7 +382,7 @@ type Expr =
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
   | EUnit of id
-  | EConstant of id * FQConstantName.T
+  | EConstant of id * ConstantName.T
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * Expr * Expr * Expr
   | EInfix of id * Infix * Expr * Expr
@@ -401,6 +428,7 @@ and StringSegment =
 
 and PipeExpr =
   | EPipeVariable of id * string
+  | EPipeConstant of id * ConstantName.T
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
@@ -436,6 +464,7 @@ module PipeExpr =
   let toID (expr : PipeExpr) : id =
     match expr with
     | EPipeVariable(id, _)
+    | EPipeConstant(id, _)
     | EPipeLambda(id, _, _)
     | EPipeInfix(id, _, _)
     | EPipeFnCall(id, _, _, _)
@@ -503,14 +532,25 @@ module UserType =
       typeParams : List<string>
       definition : CustomType.T }
 
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of double
+  | CPassword of Password
+  | CUuid of System.Guid
+  | CTuple of fist: Const * second: Const * rest: List<Const>
+  | CEnum of TypeName.T * caseName : string * List<Const>
+
 module UserConstant =
   type T =
     { tlid : tlid
-      name : FQConstantName.UserConstantName
+      name : ConstantName.UserProgram
       typ : TypeReference
       description : string
-      deprecated : Deprecation<FQConstantName.T>
-      body : Expr }
+      deprecated : Deprecation<ConstantName.T>
+      body : Const }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference; description : string }
@@ -548,11 +588,11 @@ module PackageConstant =
   type T =
     { tlid : tlid
       id : System.Guid
-      name : FQConstantName.PackageConstantName
-      body : Expr
+      name : ConstantName.Package
       typ : TypeReference
       description : string
-      deprecated : Deprecation<FQConstantName.T> }
+      deprecated : Deprecation<ConstantName.T>
+      body : Const }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }

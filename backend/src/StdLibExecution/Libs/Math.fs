@@ -13,27 +13,25 @@ open LibExecution.StdLib.Shortcuts
 let varA = TVariable "a"
 
 
-let fn = fn [ "Math" ]
+let modules = [ "Math" ]
+let fn = fn modules
+let constant = constant modules
 
 let constants : List<BuiltInConstant> =
-  [ { name = constant "Math" "pi" 0
-      returnType = TFloat
+  [ { name = constant "pi" 0
+      typ = TFloat
       description =
         "Returns an approximation for the mathematical constant {{π}},
         the ratio of a circle's circumference to its diameter."
-      constant = Ply(DFloat System.Math.PI)
-      sqlSpec = NotYetImplemented
-      previewable = Pure
+      body = DFloat System.Math.PI
       deprecated = NotDeprecated }
 
-    { name = constant "Math" "tau" 0
-      returnType = TFloat
+    { name = constant "tau" 0
+      typ = TFloat
       description =
         "Returns an approximation for the mathematical constant {{τ}}, the number of
          radians in one turn. Equivalent to {{Float.multiply Math.pi 2}}."
-      constant = Ply(DFloat System.Math.Tau)
-      sqlSpec = NotYetImplemented
-      previewable = Pure
+      body = DFloat System.Math.Tau
       deprecated = NotDeprecated }
 
     ]

@@ -22,42 +22,35 @@ open LibBackend.Db
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let fn = fn [ "Test" ]
+let modules = [ "Test" ]
+let constant = constant modules
+let fn = fn modules
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> =
-  [ { name = constant "Test" "incomplete" 0
-      returnType = TVariable "a"
+  [ { name = constant "incomplete" 0
+      typ = TVariable "a"
       description = "Return a DIncomplet"
-      constant = Ply(DIncomplete(SourceNone))
-      sqlSpec = NotQueryable
-      previewable = Pure
+      body = DIncomplete(SourceNone)
       deprecated = NotDeprecated }
 
-    { name = constant "Test" "nan" 0
-      returnType = TFloat
+    { name = constant "nan" 0
+      typ = TFloat
       description = "Return a NaN"
-      constant = Ply(DFloat(System.Double.NaN))
-      sqlSpec = NotQueryable
-      previewable = Pure
+      body = DFloat(System.Double.NaN)
       deprecated = NotDeprecated }
 
-    { name = constant "Test" "infinity" 0
-      returnType = TFloat
+    { name = constant "infinity" 0
+      typ = TFloat
       description = "Returns positive infitity"
-      constant = Ply(DFloat(System.Double.PositiveInfinity))
-      sqlSpec = NotQueryable
-      previewable = Pure
+      body = DFloat(System.Double.PositiveInfinity)
       deprecated = NotDeprecated }
 
-    { name = constant "Test" "negativeInfinity" 0
-      returnType = TFloat
+    { name = constant "negativeInfinity" 0
+      typ = TFloat
       description = "Returns negative infinity"
-      constant = Ply(DFloat(System.Double.NegativeInfinity))
-      sqlSpec = NotQueryable
-      previewable = Pure
+      body = DFloat(System.Double.NegativeInfinity)
       deprecated = NotDeprecated }
-
     ]
 
 let fns : List<BuiltInFn> =

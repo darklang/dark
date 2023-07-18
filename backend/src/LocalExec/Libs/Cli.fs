@@ -13,7 +13,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 
-let (builtInFns, builtInTypes) =
+let (builtInFns, builtInTypes, builtInConstants) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCli.StdLib.contents
@@ -24,8 +24,11 @@ let (builtInFns, builtInTypes) =
 let libraries : RT.Libraries =
   { builtInTypes = builtInTypes |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
     builtInFns = builtInFns |> Tablecloth.Map.fromListBy (fun fn -> fn.name)
+    builtInConstants = builtInConstants |> Tablecloth.Map.fromListBy (fun c -> c.name)
     packageFns = Map.empty
-    packageTypes = Map.empty }
+    packageTypes = Map.empty
+    packageConstants = Map.empty
+    }
 
 
 let execute
@@ -48,6 +51,11 @@ let execute
           mod'.types
           |> List.map (fun typ -> PT2RT.UserType.toRT typ)
           |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
+        constants =
+          mod'.constants
+          |> List.map (fun c -> PT2RT.UserConstant.toRT c)
+          |> Tablecloth.Map.fromListBy (fun c -> c.name)
+
         dbs = Map.empty
         secrets = [] }
 
@@ -64,6 +72,8 @@ let execute
     else // mod'.exprs.Length > 1
       return DError(SourceNone, "Multiple expressions to execute")
   }
+
+let constants : List<BuiltInConstant> = []
 
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec" ] "ExecutionError" 0
@@ -140,4 +150,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, types)
+let contents = (fns, types, constants)

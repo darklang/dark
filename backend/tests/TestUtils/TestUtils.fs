@@ -145,7 +145,7 @@ let libraries : Lazy<Task<RT.Libraries>> =
       let packageConstants =
         packageConstants
         |> List.map (fun (c : PT.PackageConstant.T) ->
-          (c.name |> PT2RT.FQConstantName.PackageConstantName.toRT,
+          (c.name |> PT2RT.ConstantName.Package.toRT,
            PT2RT.PackageConstant.toRT c))
         |> Map.ofList
       return

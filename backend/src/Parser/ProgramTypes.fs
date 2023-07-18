@@ -80,35 +80,35 @@ module FnName =
       else
         PT.FQName.BuiltIn(n)
 
-module FQConstantName =
+module ConstantName =
   let resolveNames
-    (userConstants : Set<PT.FQConstantName.UserConstantName>)
-    (name : PT.FQConstantName.T)
-    : PT.FQConstantName.T =
-
+    (userConstants : Set<PT.ConstantName.UserProgram>)
+    (name : PT.ConstantName.T)
+    : PT.ConstantName.T =
     match name with
-    | PT.FQConstantName.Package _ -> name
-    | PT.FQConstantName.User n ->
+    | PT.FQName.Package _ ->
+      name
+    | PT.FQName.UserProgram n ->
       match n.modules with
       | "PACKAGE" :: owner :: package :: rest ->
-        PT.FQConstantName.Package
+        PT.FQName.Package
           { owner = owner
             modules = NonEmptyList.ofList (package :: rest)
-            constant = n.constant
+            name = n.name
             version = n.version }
       | _ ->
         if Set.contains n userConstants then
-          PT.FQConstantName.User n
+          PT.FQName.UserProgram n
         else
-          PT.FQConstantName.Stdlib
-            { constant = n.constant; version = n.version; modules = n.modules }
-    | PT.FQConstantName.Stdlib n ->
-      let userName : PT.FQConstantName.UserConstantName =
-        { modules = n.modules; constant = n.constant; version = n.version }
+          PT.FQName.BuiltIn
+            { name = n.name; version = n.version; modules = n.modules }
+    | PT.FQName.BuiltIn n ->
+      let userName : PT.ConstantName.UserProgram =
+        { modules = n.modules; name = n.name; version = n.version }
       if Set.contains userName userConstants then
-        PT.FQConstantName.User(userName)
+        PT.FQName.UserProgram(userName)
       else
-        PT.FQConstantName.Stdlib(n)
+        PT.FQName.BuiltIn(n)
 
 
 module TypeReference =
@@ -1045,9 +1045,9 @@ module UserFunction =
 module UserConstant =
 
   let resolveNames
-    (userFunctions : Set<PT.FQFnName.UserFnName>)
-    (userTypes : Set<PT.FQTypeName.UserTypeName>)
-    (userConstants : Set<PT.FQConstantName.UserConstantName>)
+    (userFunctions : Set<PT.FnName.UserProgram>)
+    (userTypes : Set<PT.TypeName.UserProgram>)
+    (userConstants : Set<PT.ConstantName.UserProgram>)
     (c : PT.UserConstant.T)
     : PT.UserConstant.T =
     { tlid = c.tlid
@@ -1055,7 +1055,7 @@ module UserConstant =
       typ = TypeReference.resolveNames userTypes c.typ
       description = c.description
       deprecated = c.deprecated
-      body = Expr.resolveNames userFunctions userTypes userConstants c.body }
+      body = c.body }
 
 module PackageFn =
   let fromSynBinding

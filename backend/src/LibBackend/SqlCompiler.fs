@@ -268,15 +268,14 @@ let rec lambdaToSql
 
   let (sql, vars, actualType) =
     match expr with
-    | EConstant(_, (ConstantName.Stdlib name as fqName)) ->
+    | EConstant(_, (FQName.BuiltIn name as fqName)) ->
       let nameStr = ConstantName.toString fqName
       match Map.get name constants with
       | Some c ->
-        typecheck nameStr c.returnType expectedType
+        typecheck nameStr c.typ expectedType
         let random = randomString 8
         let newname = $"{nameStr}_{random}"
-        // let! constant = c.constant
-        let (sqlValue, actualType) = dvalToSql expectedType c.constant.Result
+        let (sqlValue, actualType) = dvalToSql expectedType c.body
         $"(@{newname})", [ newname, sqlValue ], actualType
       | None ->
         error

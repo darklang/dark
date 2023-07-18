@@ -5,6 +5,7 @@ module LibBinarySerialization.SerializedTypes
 type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
+type Password = Prelude.Password
 
 // The types in this files are serialized using MessagePack.
 //
@@ -168,8 +169,8 @@ module ConstantName =
 
   [<MessagePack.MessagePackObject>]
   type T =
-    | User of UserProgram
-    | Stdlib of BuiltIn
+    | UserProgram of UserProgram
+    | BuiltIn of BuiltIn
     | Package of Package
 
 
@@ -275,6 +276,7 @@ and StringSegment =
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string
+  | EPipeConstant of id * ConstantName.T
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
@@ -375,6 +377,18 @@ module UserType =
       [<MessagePack.Key 3>]
       definition : CustomType.T }
 
+[<MessagePack.MessagePackObject>]
+type Const =
+  | CInt of int64
+  | CBool of bool
+  | CString of string
+  | CChar of string
+  | CFloat of double
+  | CPassword of Password
+  | CUuid of System.Guid
+  | CTuple of fist: Const * second: Const * rest: List<Const>
+  | CEnum of TypeName.T * caseName : string * List<Const>
+
 module UserConstant =
   [<MessagePack.MessagePackObject>]
   type T =
@@ -389,7 +403,7 @@ module UserConstant =
       [<MessagePack.Key 4>]
       deprecated : Deprecation<ConstantName.T>
       [<MessagePack.Key 5>]
-      body : Expr }
+      body : Const }
 
 module UserFunction =
   [<MessagePack.MessagePackObject>]
@@ -476,10 +490,10 @@ module PackageConstant =
       tlid : tlid
       [<MessagePack.Key 1>]
       id : System.Guid
-      [<MessagePack.Key 2>
+      [<MessagePack.Key 2>]
       name : ConstantName.Package
       [<MessagePack.Key 3>]
-      body : Expr
+      body : Const
       [<MessagePack.Key 4>]
       typ : TypeReference
       [<MessagePack.Key 5>]

@@ -18,7 +18,7 @@ module Interpreter = LibExecution.Interpreter
 
 open LibBackend
 
-let (builtInFns, builtInTypes) =
+let (builtInFns, builtInTypes, builtInConstants) =
   LibExecution.StdLib.combine
     [ StdLibExecution.StdLib.contents
       StdLibCloudExecution.StdLib.contents
@@ -50,18 +50,32 @@ let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
       |> Map.ofList
   })
 
+let packageConstants () : Task<Map<RT.ConstantName.Package, RT.PackageConstant.T>> =
+  (task {
+    let! packages = PackageManager.allConstants ()
+
+    return
+      packages
+      |> List.map (fun (c : PT.PackageConstant.T) ->
+        (c.name |> PT2RT.ConstantName.Package.toRT, PT2RT.PackageConstant.toRT c))
+      |> Map.ofList
+  })
+
 let libraries () : Task<RT.Libraries> =
   (task {
     let! packageFns = packageFns ()
     let! packageTypes = packageTypes ()
+    let! packageConstants = packageConstants ()
     // TODO: this keeps a cached version so we're not loading them all the time.
     // Of course, this won't be up to date if we add more functions. This should be
     // some sort of LRU cache.
     return
       { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
         builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
+        builtInConstants = builtInConstants |> Map.fromListBy (fun c -> c.name)
         packageFns = packageFns
-        packageTypes = packageTypes }
+        packageTypes = packageTypes
+        packageConstants = packageConstants }
   })
 
 let createState
