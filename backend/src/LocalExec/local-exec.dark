@@ -158,7 +158,6 @@ let main (args: List<String>) : Int =
         loadPackageFile f)
 
     print "Done loading packages"
-    printAllPackages ()
     0
 
   | RunScript(path, args) ->
