@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 
-. ./scripts/run-local-exec load-packages
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+./scripts/run-local-exec load-packages
 echo "Finished loading packages"
