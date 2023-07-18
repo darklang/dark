@@ -1,6 +1,38 @@
 #!/usr/bin/env bash
-
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-./scripts/run-local-exec load-packages
-echo "Finished loading packages"
+set -euo pipefail
+
+grey="\033[1;30m"
+reset="\033[0m"
+
+TEST=false
+PUBLISHED=false
+
+for i in "$@"
+do
+  case "${i}" in
+    --test)
+    TEST=true
+    shift
+    ;;
+    --published) PUBLISHED=true ;;
+  esac
+done
+
+if [[ "$TEST" == "true" ]]; then
+  LOG="${DARK_CONFIG_RUNDIR}/logs/test-packages.log"
+else
+  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
+fi
+
+
+# Note: doesn't support release/published
+if [[ "$PUBLISHED" == "true" ]]; then
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net7.0/linux-x64/publish/LocalExec"
+else
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net7.0/LocalExec"
+fi
+
+echo -e "Loading packages ${grey}($LOG)${reset}"
+"${LOCALEXEC_EXE}" load-packages > $LOG 2>&1

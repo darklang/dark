@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-./scripts/run-local-exec load-packages-dark
-echo "Finished loading packages into dark canvas"
+if [[ "$TEST" == "true" ]]; then
+  LOG="${DARK_CONFIG_RUNDIR}/logs/test-packages.log"
+else
+  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
+fi
+
+./scripts/run-local-exec load-packages-dark > $LOG 2>&1
