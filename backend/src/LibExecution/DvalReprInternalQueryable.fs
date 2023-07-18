@@ -288,19 +288,19 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Ply.map (Map >> DDict)
 
 
-    | TCustomType(typeName, typeArgs), _ ->
+    | TCustomType(typeName, typeArgs), valueKind ->
       uply {
         match! Types.find typeName types with
         | None ->
           return Exception.raiseInternal "Type not found" [ "typeName", typeName ]
         | Some decl ->
-          match decl.definition with
-          | TypeDeclaration.Alias(typeRef) ->
+          match decl.definition, valueKind with
+          | TypeDeclaration.Alias(typeRef), _ ->
             let typ = Types.substitute decl.typeParams typeArgs typeRef
             return! convert typ j
 
           // JS object with the named fields
-          | TypeDeclaration.Record(f1, fs) ->
+          | TypeDeclaration.Record(f1, fs), JsonValueKind.Object ->
             let fields = f1 :: fs
             let objFields =
               j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
@@ -325,8 +325,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                   "Record has incorrect field count"
                   [ "expected", List.length fields; "actual", Map.count objFields ]
 
-
-          | TypeDeclaration.Enum(f1, fs) ->
+          | TypeDeclaration.Enum(f1, fs), JsonValueKind.Object ->
             let fieldDefs = f1 :: fs
             let objFields =
               j.EnumerateObject()
@@ -354,6 +353,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               return DEnum(typeName, caseName, fields)
+          | _, _ -> return Exception.raiseInternal "Unhandled case" []
       }
     | TBytes _, _ -> Exception.raiseInternal "Bytes values not supported yet" []
 
