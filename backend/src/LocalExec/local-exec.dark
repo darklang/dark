@@ -137,20 +137,6 @@ let parseArgs (args: List<String>) : CliOptions =
   | _ -> CliOptions.BadOption "Invalid arguments"
 
 
-let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
-  let modules = p.modules |> String.join "."
-  print $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
-
-let printPackageType (p: LocalExec.Packages.Type) : Unit =
-  let modules = p.modules |> String.join "."
-  print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
-
-let printPackages () : Unit =
-  let functions = LocalExec.Packages.listFunctions ()
-  functions |> List.iter (fun p -> printPackageFunction p)
-  let types = LocalExec.Packages.listTypes ()
-  types |> List.iter (fun p -> printPackageType p)
-
 
 let main (args: List<String>) : Int =
   match parseArgs args with
