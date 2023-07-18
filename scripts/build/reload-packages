@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-./scripts/run-local-exec load-packages
+. ./scripts/run-local-exec load-packages
 echo "Finished loading packages"
