@@ -62,18 +62,9 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> LocalExec.Packages.parse filename
     |> unwrap
 
-  let fns =
-    packages.fns
-    |> Json.parse<List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>>
-    |> unwrap
+  packages.fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
 
-  // let types =
-  //   packages.types
-  //   |> Json.parse<List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T>>
-  //   |> unwrap
-
-  fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
-// types |> List.iter (fun t -> saveTypeToCanvas t)
+  packages.types |> List.iter (fun t -> saveTypeToCanvas t)
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =

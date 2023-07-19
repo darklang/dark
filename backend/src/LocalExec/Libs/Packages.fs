@@ -13,6 +13,8 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
+module PT2DT = ProgramTypes2DarkTypes
+
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
       description = "The name of a package function"
@@ -120,17 +122,17 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString contents; DString path ] ->
           uply {
             let (fns, types) = Parser.Parser.parsePackage path contents
-            let packagesFns = fns |> Json.Vanilla.serialize
-            let packagesTypes = types |> Json.Vanilla.serialize
+
+            let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
+
+            let packagesTypes =
+              types |> List.map (fun typ -> PT2DT.PackageType.toDT typ)
 
             return
               Dval.resultOk (
                 DRecord(
                   FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
-                  Map(
-                    [ ("fns", DString packagesFns)
-                      ("types", DString packagesTypes) ]
-                  )
+                  Map([ ("fns", DList packagesFns); ("types", DList packagesTypes) ])
                 )
               )
           }
