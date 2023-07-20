@@ -117,6 +117,8 @@ let sourceOf
 let initSerializers () =
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageFn.T>>
     "Parse packageFn list"
+  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageType.T>>
+    "Parse packageType list"
 
 [<EntryPoint>]
 let main (args : string[]) : int =

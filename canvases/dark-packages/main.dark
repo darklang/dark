@@ -1,15 +1,12 @@
 type PackageFns = PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T
 
+// CLEANUP : reference package type directly
 [<DB>]
 type PackageFnsDB = PackageFns
 
 [<HttpHandler("POST", "/functions")>]
 let _handler _req =
-  let fn =
-    request.body
-    |> String.fromBytes
-    |> Json.parse<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
-    |> unwrap
+  let fn = request.body |> String.fromBytes |> Json.parse<PackageFns> |> unwrap
 
   let fnToSave =
     PackageFns
@@ -23,7 +20,7 @@ let _handler _req =
         description = fn.description
         deprecated = fn.deprecated }
 
-  let key = DB.generateKey_v0 () //use id instead
+  let key = DB.generateKey_v0 () //TODO: use id instead
   DB.set fnToSave key PackageFnsDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
@@ -32,4 +29,45 @@ let _handler _req =
 let _handler _req =
   let count = (DB.count PackageFnsDB) |> Int.toString
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes count) 200
+  let allFns =
+    (DB.getAll PackageFnsDB)
+    |> List.map (fun x -> (Json.serialize<PackageFns> x) |> unwrap)
+    |> String.join "\n"
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allFns) 200
+
+
+type PackageTypes = PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T
+
+// CLEANUP : reference package type directly
+[<DB>]
+type PackageTypesDB = PackageTypes
+
+[<HttpHandler("POST", "/types")>]
+let _handler _req =
+  let typ = request.body |> String.fromBytes |> Json.parse<PackageTypes> |> unwrap
+
+  let typeToSave =
+    PackageTypes
+      { tlid = typ.tlid
+        id = typ.id
+        name = typ.name
+        declaration = typ.declaration
+        description = typ.description
+        deprecated = typ.deprecated }
+
+  let key = DB.generateKey_v0 () //TODO: use id instead
+  DB.set typeToSave key PackageTypesDB
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
+
+[<HttpHandler("GET", "/all-types")>]
+let _handler _req =
+  let count = (DB.count PackageTypesDB) |> Int.toString
+
+  let allTypes =
+    (DB.getAll PackageTypesDB)
+    |> List.map (fun x -> (Json.serialize<PackageTypes> x) |> unwrap)
+    |> String.join "\n"
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allTypes) 200
