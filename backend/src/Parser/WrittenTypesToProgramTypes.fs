@@ -175,10 +175,20 @@ module Expr =
   and pipeExprToPT (resolver : NameResolver) (pipeExpr : WT.PipeExpr) : PT.PipeExpr =
     let toPT = toPT resolver
     match pipeExpr with
-    | WT.EPipeVariable(id, name) -> PT.EPipeVariable(id, name)
+    | WT.EPipeVariableOrUserFunction(id, name) ->
+      let resolved =
+        let asUserFnName = WT.Name.Unresolved [ name ]
+        NameResolver.FnName.resolve resolver asUserFnName
+
+      match resolved with
+      | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
+      | Error _ -> PT.EPipeVariable(id, name)
+
     | WT.EPipeLambda(id, args, body) -> PT.EPipeLambda(id, args, toPT body)
+
     | WT.EPipeInfix(id, infix, first) ->
       PT.EPipeInfix(id, Infix.toPT infix, toPT first)
+
     | WT.EPipeFnCall(id, name, typeArgs, args) ->
       PT.EPipeFnCall(
         id,

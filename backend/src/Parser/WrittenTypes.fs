@@ -113,11 +113,27 @@ and FnTarget =
   | FnTargetExpr of Expr
 
 and PipeExpr =
-  | EPipeVariable of id * string
-  | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of id * Name * typeArgs : List<TypeReference> * args : List<Expr>
+
+  | EPipeLambda of id * List<id * string> * Expr
+
   | EPipeEnum of id * typeName : Name * caseName : string * fields : List<Expr>
+
+  | EPipeFnCall of
+    id *
+    fnName : Name *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+
+  /// When parsing, the following is a bit ambiguous:
+  ///   `dir |> listDirectoryRecursive`
+  ///
+  /// It could either be a local variable,
+  ///   or a user function with only one argument or type args.
+  ///
+  /// We resolve this ambiguity during name resolution of WT2PT.
+  | EPipeVariableOrUserFunction of id * string
+
 
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }

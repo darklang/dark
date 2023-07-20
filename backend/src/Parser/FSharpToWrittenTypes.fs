@@ -14,7 +14,8 @@ open Utils
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = WT.EString(12345678UL, [ WT.StringText "PLACEHOLDER VALUE" ])
-let pipePlaceholder = WT.EPipeVariable(12345678UL, "PIPE PLACEHOLDER VALUE")
+let pipePlaceholder =
+  WT.EPipeVariableOrUserFunction(12345678UL, "PIPE PLACEHOLDER VALUE")
 
 // This is a "Partial active pattern" that you can use as a Pattern to match a Placeholder value
 let (|Placeholder|_|) (input : WT.Expr) =
@@ -313,7 +314,7 @@ module Expr =
       | WT.EInfix(id, op, arg1, Placeholder) -> WT.EPipeInfix(id, op, arg1)
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EPipeEnum(id, typeName, caseName, fields)
-      | WT.EVariable(id, name) -> WT.EPipeVariable(id, name)
+      | WT.EVariable(id, name) -> WT.EPipeVariableOrUserFunction(id, name)
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EPipeEnum(id, typeName, caseName, fields)
       | WT.ELambda(id, vars, body) -> WT.EPipeLambda(id, vars, body)
