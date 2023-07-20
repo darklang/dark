@@ -353,7 +353,11 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
                 |> Ply.List.flatten
 
               return DEnum(typeName, caseName, fields)
-          | _, _ -> return Exception.raiseInternal "Unhandled case" []
+          | _, _ ->
+            return
+              Exception.raiseInternal
+                "Couldn't parse custom type"
+                [ "typeName", typeName; "valueKind", valueKind ]
       }
     | TBytes _, _ -> Exception.raiseInternal "Bytes values not supported yet" []
 
