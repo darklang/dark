@@ -1,15 +1,6 @@
-type PackageFns =
-  { tlid: PACKAGE.Darklang.Stdlib.TLID
-    id: Uuid
-    name: PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.Package
-    body: PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
-    typeParams: List<String>
-    parameters: List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.Parameter>
-    returnType: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference
-    description: String
-    deprecated:
-      PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.FnName.T> }
+type PackageFns = PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T
 
+// CLEANUP : reference package type directly
 [<DB>]
 type PackageFnsDB = PackageFns
 
@@ -46,15 +37,9 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allFns) 200
 
 
-type PackageTypes =
-  { tlid: PACKAGE.Darklang.Stdlib.TLID
-    id: Uuid
-    name: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.Package
-    declaration: PACKAGE.Darklang.Stdlib.ProgramTypes.TypeDeclaration.T
-    description: String
-    deprecated:
-      PACKAGE.Darklang.Stdlib.ProgramTypes.Deprecation<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> }
+type PackageTypes = PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T
 
+// CLEANUP : reference package type directly
 [<DB>]
 type PackageTypesDB = PackageTypes
 
