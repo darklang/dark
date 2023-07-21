@@ -133,16 +133,22 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+
     let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
     let resolver =
+      // TODO: this may need more builtins, and packages
       Parser.NameResolver.fromBuiltins (
         Map.values builtIns.fns |> Seq.toList,
         Map.values builtIns.types |> Seq.toList
       )
     let modul = Parser.CanvasV2.parseFromFile resolver mainFile
+
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
+
     let result = execute modul (Map [ "args", args ])
+
     NonBlockingConsole.wait ()
+
     match result.Result with
     | RT.DError(RT.SourceID(tlid, id), msg) ->
       System.Console.WriteLine $"Error: {msg}"

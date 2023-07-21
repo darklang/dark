@@ -51,6 +51,7 @@ let seedCanvas (canvasName : string) =
     do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
 
     let resolver =
+      // TODO: this needs more builtins, and packages
       Parser.NameResolver.fromBuiltins StdLibCloudExecution.StdLib.contents
 
     let tls =

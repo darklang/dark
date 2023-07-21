@@ -104,6 +104,7 @@ let fns : List<BuiltInFn> =
                   StdLibCloudExecution.StdLib.contents ]
                 []
                 []
+              // TODO: this may need more builtins, and packages
               |> Parser.NameResolver.fromBuiltins
 
             let (fns, types) = Parser.Parser.parsePackage resolver path contents

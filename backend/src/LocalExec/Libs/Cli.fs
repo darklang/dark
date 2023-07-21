@@ -121,6 +121,7 @@ let fns : List<BuiltInFn> =
             let parsedScript =
               try
                 let resolver =
+                  // TODO: this may need more builtins, and packages
                   Parser.NameResolver.fromBuiltins (
                     Map.values builtIns.fns |> Seq.toList,
                     Map.values builtIns.types |> Seq.toList

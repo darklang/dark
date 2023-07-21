@@ -93,6 +93,7 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let canvas =
+                // TODO: this needs builtins and packages
                 Parser.CanvasV2.parse Parser.NameResolver.empty filename code
 
               let types = List.map PT2RT.UserType.toRT canvas.types

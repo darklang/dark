@@ -115,6 +115,7 @@ let main (args : string[]) =
     initSerializers ()
 
     let resolver =
+      // TODO: this may need more builtins, and packages
       Parser.NameResolver.fromBuiltins (
         Map.values builtIns.fns,
         Map.values builtIns.types
