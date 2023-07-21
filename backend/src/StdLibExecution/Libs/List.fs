@@ -354,7 +354,7 @@ let fns : List<BuiltInFn> =
           uply {
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! result = Interpreter.applyFnVal state fn [ dv ]
+                let! result = Interpreter.applyFnVal state 0UL fn [] [ dv ]
 
                 return result = DBool true
               }
@@ -461,7 +461,7 @@ let fns : List<BuiltInFn> =
             let f (accum : DvalTask) (item : Dval) : DvalTask =
               uply {
                 let! accum = accum
-                return! Interpreter.applyFnVal state b [ accum; item ]
+                return! Interpreter.applyFnVal state 0UL b [] [ accum; item ]
               }
 
             return! List.fold f (Ply init) l
@@ -564,7 +564,7 @@ let fns : List<BuiltInFn> =
                 Ply.List.mapSequentially
                   (fun dv ->
                     uply {
-                      let! key = Interpreter.applyFnVal state b [ dv ]
+                      let! key = Interpreter.applyFnVal state 0UL b [] [ dv ]
 
                       // TODO: type check to ensure `varB` is "comparable"
                       return (dv, key)
@@ -684,7 +684,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList list; DFnVal b ] ->
           uply {
             try
-              let fn dv = Interpreter.applyFnVal state b [ dv ]
+              let fn dv = Interpreter.applyFnVal state 0UL b [] [ dv ]
               let! withKeys =
                 list
                 |> Ply.List.mapSequentially (fun v ->
@@ -734,7 +734,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList list; DFnVal f ] ->
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
-              let! result = Interpreter.applyFnVal state f [ dv1; dv2 ]
+              let! result = Interpreter.applyFnVal state 0UL f [] [ dv1; dv2 ]
 
               match result with
               | DInt i when i = 1L || i = 0L || i = -1L -> return int i
@@ -797,7 +797,7 @@ let fns : List<BuiltInFn> =
 
             let f (dv : Dval) : Ply<bool> =
               uply {
-                let! r = Interpreter.applyFnVal state b [ dv ]
+                let! r = Interpreter.applyFnVal state 0UL b [] [ dv ]
 
                 match r with
                 | DBool b -> return b
@@ -844,7 +844,7 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result = Interpreter.applyFnVal state fn [ dv ]
+                  let! result = Interpreter.applyFnVal state 0UL fn [] [ dv ]
 
                   match result with
                   | DBool b -> return b
@@ -902,7 +902,7 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result = Interpreter.applyFnVal state b [ dv ]
+                  let! result = Interpreter.applyFnVal state 0UL b [] [ dv ]
 
                   match result with
                   | DEnum(FQName.Package { owner = "Darklang"
@@ -982,7 +982,7 @@ let fns : List<BuiltInFn> =
                   let run = abortReason = None
 
                   if run then
-                    let! result = Interpreter.applyFnVal state b [ dv ]
+                    let! result = Interpreter.applyFnVal state 0UL b [] [ dv ]
 
                     match result with
                     | DBool true -> return! f dvs
@@ -1048,7 +1048,7 @@ let fns : List<BuiltInFn> =
                   let run = abortReason = None
 
                   if run then
-                    let! result = Interpreter.applyFnVal state b [ dv ]
+                    let! result = Interpreter.applyFnVal state 0UL b [] [ dv ]
 
                     match result with
                     | DBool true ->
@@ -1094,7 +1094,7 @@ let fns : List<BuiltInFn> =
           uply {
             let! result =
               Ply.List.mapSequentially
-                (fun dv -> Interpreter.applyFnVal state b [ dv ])
+                (fun dv -> Interpreter.applyFnVal state 0UL b [] [ dv ])
                 l
 
             return Dval.list result
@@ -1125,7 +1125,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((i, dv) : int * Dval) ->
-                  Interpreter.applyFnVal state b [ DInt(int64 i); dv ])
+                  Interpreter.applyFnVal state 0UL b [] [ DInt(int64 i); dv ])
                 list
 
             return Dval.list result
@@ -1167,7 +1167,7 @@ let fns : List<BuiltInFn> =
             let! result =
               Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
-                  Interpreter.applyFnVal state b [ dv1; dv2 ])
+                  Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ])
                 list
 
             return Dval.list result
@@ -1209,7 +1209,7 @@ let fns : List<BuiltInFn> =
               let! result =
                 Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
-                    Interpreter.applyFnVal state b [ dv1; dv2 ])
+                    Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ])
                   list
 
               return Dval.optionJust (Dval.list result)
@@ -1395,7 +1395,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList l; DFnVal fn ] ->
           uply {
             let applyFn (dval : Dval) : DvalTask =
-              Interpreter.applyFnVal state fn [ dval ]
+              Interpreter.applyFnVal state 0UL fn [] [ dval ]
 
             // apply the function to each element in the list
             let! result =
@@ -1445,7 +1445,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList l; DFnVal fn ] ->
           uply {
             let partition l =
-              let applyFn dval = Interpreter.applyFnVal state fn [ dval ]
+              let applyFn dval = Interpreter.applyFnVal state 0UL fn [] [ dval ]
 
               let rec loop acc l =
                 uply {
@@ -1494,7 +1494,7 @@ let fns : List<BuiltInFn> =
               l
               |> Ply.List.iterSequentially (fun e ->
                 uply {
-                  match! Interpreter.applyFnVal state b [ e ] with
+                  match! Interpreter.applyFnVal state 0UL b [] [ e ] with
                   | DUnit -> return ()
                   | DError _ as dv -> return Errors.foundFakeDval dv
                   | v ->

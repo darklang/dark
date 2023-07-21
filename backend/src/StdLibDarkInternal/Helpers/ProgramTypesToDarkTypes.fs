@@ -723,23 +723,14 @@ module Expr =
 
         "ELambda", [ DInt(int64 id); variables; toDT body ]
 
-      | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
+      | PT.EApply(id, name, typeArgs, args) ->
         "EApply",
         [ DInt(int64 id)
-          DEnum(
-            ptTyp [] "FnTarget" 0,
-            "FnTargetName",
-            [ NameResolution.toDT FnName.toDT name ]
-          )
+          toDT name
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map toDT args) ]
-
-      | PT.EApply(id, PT.FnTargetExpr expr, typeArgs, args) ->
-        "EApply",
-        [ DInt(int64 id)
-          DEnum(ptTyp [] "FnTarget" 0, "FnTargetExpr", [ toDT expr ])
-          DList(List.map TypeReference.toDT typeArgs)
-          DList(List.map toDT args) ]
+      | PT.EFnName(id, name) ->
+        "EFnName", [ DInt(int64 id); NameResolution.toDT FnName.toDT name ]
 
       | PT.ERecordUpdate(id, record, updates) ->
         let updates =

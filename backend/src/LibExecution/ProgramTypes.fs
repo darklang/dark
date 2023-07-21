@@ -344,7 +344,8 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+  | EFnName of id * NameResolution<FnName.T>
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -383,10 +384,6 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
-and FnTarget =
-  | FnTargetName of NameResolution<FnName.T>
-  | FnTargetExpr of Expr
-
 and PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
@@ -415,6 +412,7 @@ module Expr =
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
     | ELambda(id, _, _)
+    | EFnName(id, _)
     | EFieldAccess(id, _, _)
     | EVariable(id, _)
     | EApply(id, _, _, _)

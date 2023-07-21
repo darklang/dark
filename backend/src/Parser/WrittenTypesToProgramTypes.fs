@@ -110,21 +110,15 @@ module Expr =
     | WT.EUnit id -> PT.EUnit id
     | WT.EVariable(id, var) -> PT.EVariable(id, var)
     | WT.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
-    | WT.EApply(id, WT.FnTargetName name, typeArgs, args) ->
-      let name = NameResolver.FnName.resolve resolver currentModule name
+    | WT.EApply(id, name, typeArgs, args) ->
       PT.EApply(
         id,
-        PT.FnTargetName name,
-        List.map (TypeReference.toPT resolver currentModule) typeArgs,
+        toPT name,
+        List.map (TypeReference.toPT resolver) typeArgs,
         List.map toPT args
       )
-    | WT.EApply(id, WT.FnTargetExpr name, typeArgs, args) ->
-      PT.EApply(
-        id,
-        PT.FnTargetExpr(toPT name),
-        List.map (TypeReference.toPT resolver currentModule) typeArgs,
-        List.map toPT args
-      )
+    | WT.EFnName(id, name) ->
+      PT.EFnName(id, NameResolver.FnName.resolve resolver name)
     | WT.ELambda(id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | WT.ELet(id, pat, rhs, body) ->
       PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)

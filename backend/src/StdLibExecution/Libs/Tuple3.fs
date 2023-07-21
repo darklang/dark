@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newFirst = Interpreter.applyFnVal state fn [ first ]
+            let! newFirst = Interpreter.applyFnVal state 0UL fn [] [ first ]
             return DTuple(newFirst, second, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -131,7 +131,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newSecond = Interpreter.applyFnVal state fn [ second ]
+            let! newSecond = Interpreter.applyFnVal state 0UL fn [] [ second ]
             return DTuple(first, newSecond, [ third ])
           }
         | _ -> incorrectArgs ())
@@ -158,7 +158,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DFnVal fn; DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newThird = Interpreter.applyFnVal state fn [ third ]
+            let! newThird = Interpreter.applyFnVal state 0UL fn [] [ third ]
             return DTuple(first, second, [ newThird ])
           }
         | _ -> incorrectArgs ())
@@ -203,12 +203,11 @@ let fns : List<BuiltInFn> =
             DFnVal fnThird
             DTuple(first, second, [ third ]) ] ->
           uply {
-            let! newFirst = Interpreter.applyFnVal state fnFirst [ first ]
+            let! newFirst = Interpreter.applyFnVal state 0UL fnFirst [] [ first ]
+            let! newSecond = Interpreter.applyFnVal state 0UL fnSecond [] [ second ]
+            let! newThird = Interpreter.applyFnVal state 0UL fnThird [] [ third ]
 
-            let! newSecond = Interpreter.applyFnVal state fnSecond [ second ]
-
-            let! newThird = Interpreter.applyFnVal state fnThird [ third ]
-
+            // TODO: handle fakevals
             return DTuple(newFirst, newSecond, [ newThird ])
           }
         | _ -> incorrectArgs ())

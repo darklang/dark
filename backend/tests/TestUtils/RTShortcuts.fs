@@ -8,11 +8,15 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
 
-let eStdFnName (modules : List<string>) (name : string) (version : int) : FnTarget =
-  PT.FnName.fqBuiltIn modules name version |> PT2RT.FnName.toRT |> FnTargetName
+let eStdFnName (modules : List<string>) (name : string) (version : int) : Expr =
+  PT.FnName.fqBuiltIn modules name version
+  |> PT2RT.FnName.toRT
+  |> fun x -> EFnName(gid (), x)
 
-let eUserFnName (name : string) : FnTarget =
-  PT.FnName.fqUserProgram [] name 0 |> PT2RT.FnName.toRT |> FnTargetName
+let eUserFnName (name : string) : Expr =
+  PT.FnName.fqUserProgram [] name 0
+  |> PT2RT.FnName.toRT
+  |> fun x -> EFnName(gid (), x)
 
 
 let eFn'
@@ -40,20 +44,12 @@ let eUserFn
   : Expr =
   EApply(gid (), (eUserFnName function_), typeArgs, args)
 
-let eApply'
-  (target : FnTarget)
-  (typeArgs : List<TypeReference>)
-  (args : List<Expr>)
-  : Expr =
-  EApply(gid (), target, typeArgs, args)
-
 let eApply
   (target : Expr)
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : Expr =
-  eApply' (FnTargetExpr target) typeArgs args
-
+  EApply(gid (), target, typeArgs, args)
 
 let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 

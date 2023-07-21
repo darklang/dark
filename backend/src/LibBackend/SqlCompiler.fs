@@ -247,9 +247,10 @@ let rec inline'
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
   | EApply(_,
-           FnTargetName(FQName.BuiltIn({ modules = modules
-                                         name = FnName.FnName name
-                                         version = version })),
+           EFnName(_,
+                   FQName.BuiltIn({ modules = modules
+                                    name = FnName.FnName name
+                                    version = version })),
            [],
            args) when modules = [ mName ] && name = fName && version = v -> Some args
   | _ -> None
@@ -631,6 +632,7 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
+        | EFnName(_, _) -> return! exec expr
         | EApply(_, _, typeArgs, args) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
@@ -692,9 +694,11 @@ let partiallyEvaluate
               let! rhs = r rhs
               let! next = r next
               return ELet(id, pat, rhs, next)
-            | EApply(id, fnName, typeArgs, exprs) ->
+            | EApply(id, fn, typeArgs, exprs) ->
+              let! fn = r fn
               let! exprs = Ply.List.mapSequentially r exprs
-              return EApply(id, fnName, typeArgs, exprs)
+              return EApply(id, fn, typeArgs, exprs)
+            | EFnName _ -> return expr
             | EIf(id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr

@@ -32,7 +32,12 @@ let hardToRepresentTests =
       let fnArgList = List.map (fun (name, _) -> PT.EVariable(gid (), name)) args
 
       let ast =
-        PT.EApply(gid (), PT.FnTargetName(Ok(PT.FQName.BuiltIn fn)), [], fnArgList)
+        PT.EApply(
+          gid (),
+          PT.EFnName(4534534UL, Ok(PT.FQName.BuiltIn fn)),
+          [],
+          fnArgList
+        )
 
       let symtable = Map.ofList args
 
