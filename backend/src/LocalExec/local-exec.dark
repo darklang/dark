@@ -145,10 +145,9 @@ let main (args: List<String>) : Int =
     LocalExec.Packages.clear ()
     let files = listPackageFilesOnDisk "/home/dark/app/packages"
 
-    do // can we get rid of this do?
-      List.iter files (fun f ->
-        print $"Loading {f}"
-        loadPackageFile f)
+    List.iter files (fun f ->
+      print $"Loading {f}"
+      loadPackageFile f)
 
     print "Done loading packages"
     0

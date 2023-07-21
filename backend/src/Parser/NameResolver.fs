@@ -11,68 +11,74 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
 
 type NameResolver =
-  { userFns : Set<PT.FnName.UserProgram>
-    userTypes : Set<PT.TypeName.UserProgram>
+  { builtinTypes : Set<PT.TypeName.BuiltIn>
     builtinFns : Set<PT.FnName.BuiltIn>
-    builtinTypes : Set<PT.TypeName.BuiltIn> }
+
+    userTypes : Set<PT.TypeName.UserProgram>
+    userFns : Set<PT.FnName.UserProgram> }
 
 let empty : NameResolver =
-  { userFns = Set.empty
-    userTypes = Set.empty
+  { builtinTypes = Set.empty
     builtinFns = Set.empty
-    builtinTypes = Set.empty }
+
+    userTypes = Set.empty
+    userFns = Set.empty }
 
 let create
-  (userFns : List<PT.FnName.UserProgram>)
-  (userTypes : List<PT.TypeName.UserProgram>)
-  (builtinFns : List<PT.FnName.BuiltIn>)
   (builtinTypes : List<PT.TypeName.BuiltIn>)
+  (builtinFns : List<PT.FnName.BuiltIn>)
+  (userTypes : List<PT.TypeName.UserProgram>)
+  (userFns : List<PT.FnName.UserProgram>)
   : NameResolver =
-  { userFns = Set.ofList userFns
-    userTypes = Set.ofList userTypes
+  { builtinTypes = Set.ofList builtinTypes
     builtinFns = Set.ofList builtinFns
-    builtinTypes = Set.ofList builtinTypes }
+
+    userTypes = Set.ofList userTypes
+    userFns = Set.ofList userFns }
 
 // TODO: this isn't a great way to deal with this but it'll do for now. When packages
 // are included, this doesn't make much sense.
 let merge (a : NameResolver) (b : NameResolver) : NameResolver =
-  { userFns = Set.union a.userFns b.userFns
-    userTypes = Set.union a.userTypes b.userTypes
+  { builtinTypes = Set.union a.builtinTypes b.builtinTypes
     builtinFns = Set.union a.builtinFns b.builtinFns
-    builtinTypes = Set.union a.builtinTypes b.builtinTypes }
+
+    userTypes = Set.union a.userTypes b.userTypes
+    userFns = Set.union a.userFns b.userFns }
 
 
-let fromContents ((fns, types) : LibExecution.StdLib.Contents) : NameResolver =
-  { userFns = Set.empty
-    userTypes = Set.empty
-    builtinFns =
-      fns |> List.map (fun fn -> PT2RT.FnName.BuiltIn.fromRT fn.name) |> Set.ofList
-    builtinTypes =
+let fromBuiltins ((fns, types) : LibExecution.StdLib.Contents) : NameResolver =
+  { builtinTypes =
       types
       |> List.map (fun typ -> PT2RT.TypeName.BuiltIn.fromRT typ.name)
-      |> Set.ofList }
+      |> Set.ofList
+    builtinFns =
+      fns |> List.map (fun fn -> PT2RT.FnName.BuiltIn.fromRT fn.name) |> Set.ofList
+
+    userTypes = Set.empty
+    userFns = Set.empty }
 
 
 let fromExecutionState (state : RT.ExecutionState) : NameResolver =
-  { userFns =
-      state.program.fns
+  { builtinTypes =
+      state.builtIns.types
       |> Map.keys
-      |> List.map PT2RT.FnName.UserProgram.fromRT
+      |> List.map PT2RT.TypeName.BuiltIn.fromRT
       |> Set.ofList
+    builtinFns =
+      state.builtIns.fns
+      |> Map.keys
+      |> List.map PT2RT.FnName.BuiltIn.fromRT
+      |> Set.ofList
+
     userTypes =
       state.program.types
       |> Map.keys
       |> List.map PT2RT.TypeName.UserProgram.fromRT
       |> Set.ofList
-    builtinFns =
-      state.libraries.builtInFns
+    userFns =
+      state.program.fns
       |> Map.keys
-      |> List.map PT2RT.FnName.BuiltIn.fromRT
-      |> Set.ofList
-    builtinTypes =
-      state.libraries.builtInTypes
-      |> Map.keys
-      |> List.map PT2RT.TypeName.BuiltIn.fromRT
+      |> List.map PT2RT.FnName.UserProgram.fromRT
       |> Set.ofList }
 
 
@@ -94,8 +100,8 @@ let resolve
   (nameValidator : PT.FQName.NameValidator<'name>)
   (constructor : string -> 'name)
   (parser : string -> Result<string * int, string>)
-  (userThings : Set<PT.FQName.UserProgram<'name>>)
   (builtinThings : Set<PT.FQName.BuiltIn<'name>>)
+  (userThings : Set<PT.FQName.UserProgram<'name>>)
   (name : WT.Name)
   : PT.NameResolution<PT.FQName.T<'name>> =
 
@@ -172,8 +178,8 @@ module TypeName =
       PT.TypeName.TypeName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseTypeName
-      resolver.userTypes
       resolver.builtinTypes
+      resolver.userTypes
       name
 
 module FnName =
@@ -186,6 +192,6 @@ module FnName =
       PT.FnName.FnName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseFn
-      resolver.userFns
       resolver.builtinFns
+      resolver.userFns
       name

@@ -93,6 +93,7 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
+            // TODO: do we need to pass anything in? (i.e. builtins; other packages)
             let (fns, types) = Parser.Parser.parsePackage path contents
             do! LibBackend.PackageManager.savePackageFunctions fns
             do! LibBackend.PackageManager.savePackageTypes types

@@ -121,7 +121,7 @@ let fns : List<BuiltInFn> =
             let parsedScript =
               try
                 let resolver =
-                  Parser.NameResolver.fromContents (builtInFns, builtInTypes)
+                  Parser.NameResolver.fromBuiltins (Map.values builtIns.fns |> Seq.toList, Map.values builtIns.types |> Seq.toList)
                 Parser.CanvasV2.parse resolver filename code |> Ok
               with e ->
                 Error(exnError e)

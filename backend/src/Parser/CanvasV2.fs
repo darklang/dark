@@ -192,7 +192,7 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
 let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
   let fns = canvas.fns |> List.map (fun fn -> fn.name)
   let types = canvas.types |> List.map (fun typ -> typ.name)
-  NameResolver.create fns types [] []
+  NameResolver.create [] [] types fns
 
 let toPT
   (nameResolver : NameResolver.NameResolver)

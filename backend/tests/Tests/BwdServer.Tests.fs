@@ -187,7 +187,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
   task {
     let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
     let resolver =
-      Parser.NameResolver.fromContents LibRealExecution.RealExecution.builtins
+      Parser.NameResolver.fromBuiltins LibRealExecution.RealExecution.builtins
 
     // Handlers
     let oplists =

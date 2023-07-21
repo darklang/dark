@@ -98,6 +98,7 @@ let parse (filename : string) (contents : string) : PTPackageModule =
                         _,
                         _) ->
     // At the toplevel, the module names will from the filenames
+    // CLEANUP not sure what this is trying to say ^
     let names = []
     let modul = parseDecls names decls
     let fns = modul.fns |> List.map (WT2PT.PackageFn.toPT resolver)
