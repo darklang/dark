@@ -136,7 +136,8 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let (fns, types) = Parser.Parser.parsePackage path contents
+            let resolver = Parser.NameResolver.empty // TODO
+            let (fns, types) = Parser.Parser.parsePackage resolver path contents
 
             let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
 

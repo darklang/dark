@@ -85,7 +85,11 @@ let rec parseDecls
     decls
 
 
-let parse (resolver: NameResolver.NameResolver) (filename : string) (contents : string) : PTPackageModule =
+let parse
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  (contents : string)
+  : PTPackageModule =
   match parseAsFSharpSourceFile filename contents with
   | ParsedImplFileInput(_,
                         _,
@@ -99,9 +103,12 @@ let parse (resolver: NameResolver.NameResolver) (filename : string) (contents : 
     // At the toplevel, the module names will from the filenames
     // CLEANUP not sure what this is trying to say ^
     let names = []
-    let modul = parseDecls names decls
+
+    let modul : WTPackageModule = parseDecls names decls
+
     let fns = modul.fns |> List.map (WT2PT.PackageFn.toPT resolver)
     let types = modul.types |> List.map (WT2PT.PackageType.toPT resolver)
+
     { fns = fns; types = types }
   // in the parsed package, types are being read as user, as opposed to the package that's right there
   | decl ->

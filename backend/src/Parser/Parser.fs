@@ -17,7 +17,7 @@ let initialParse (filename : string) (code : string) : WT.Expr =
   |> FS2WT.Expr.fromSynExpr
 
 /// Returns an incomplete parse of a PT expression
-let parse
+let parsePTExpr
   (resolver : NameResolver.NameResolver)
   (filename : string)
   (code : string)
@@ -25,7 +25,7 @@ let parse
   code |> initialParse filename |> WT2PT.Expr.toPT resolver
 
 let parseSimple (filename : string) (code : string) : PT.Expr =
-  parse NameResolver.empty filename code
+  parsePTExpr NameResolver.empty filename code
 
 
 let parseRTExpr
@@ -34,7 +34,7 @@ let parseRTExpr
   (code : string)
   : LibExecution.RuntimeTypes.Expr =
   code
-  |> parse resolver filename
+  |> parsePTExpr resolver filename
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
 let parsePackage

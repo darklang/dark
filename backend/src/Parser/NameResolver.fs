@@ -105,7 +105,6 @@ let resolve
   (name : WT.Name)
   : PT.NameResolution<PT.FQName.T<'name>> =
 
-
   // These are named exactly during parsing
   match name with
   | WT.KnownBuiltin(modules, name, version) ->
@@ -161,10 +160,10 @@ let resolve
             //   - a. current module // NOT IMPLEMENTED
             //   - b. parent module(s) // NOT IMPLEMENTED
             //   - c. darklang.stdlib package space
-            debuGSet "builtins" builtinThings
-            debuG "builtIn" builtIn
-            debuG "not found names" names
-            System.Environment.Exit(1)
+            // debuGSet "builtins" builtinThings
+            // debuG "builtIn" builtIn
+            // debuG "not found names" names
+            //System.Environment.Exit(1)
             Error(LibExecution.Errors.NotFound names)
 
 
