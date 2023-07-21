@@ -114,7 +114,11 @@ let main (args : string[]) =
   try
     initSerializers ()
 
-    let resolver = Parser.NameResolver.fromBuiltins (Map.values builtIns.fns, Map.values builtIns.types)
+    let resolver =
+      Parser.NameResolver.fromBuiltins (
+        Map.values builtIns.fns,
+        Map.values builtIns.types
+      )
 
     let hostScript =
       Parser.CanvasV2.parseFromFile
