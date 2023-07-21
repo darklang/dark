@@ -93,10 +93,24 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            // TODO: do we need to pass anything in? (i.e. builtins; other packages)
-            let (fns, types) = Parser.Parser.parsePackage path contents
+            let resolver =
+              // CLEANUP we need a better way to determine what builtins should be
+              // available to the name resolver, as this currently assumes builtins
+              // from _all_ environments are available
+              LibExecution.StdLib.combine
+                [ StdLibExecution.StdLib.contents
+                  StdLibCli.StdLib.contents
+                  TestUtils.LibTest.contents
+                  StdLibCloudExecution.StdLib.contents ]
+                []
+                []
+              |> Parser.NameResolver.fromBuiltins
+
+            let (fns, types) = Parser.Parser.parsePackage resolver path contents
+
             do! LibBackend.PackageManager.savePackageFunctions fns
             do! LibBackend.PackageManager.savePackageTypes types
+
             return DUnit
           }
         | _ -> incorrectArgs ()

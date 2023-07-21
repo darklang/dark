@@ -161,42 +161,44 @@ module Darklang =
           httpOnly: Bool
           sameSite: String }
 
-      /// Returns an HTTP Set-Cookie header <type (String*String)> suitable for use with <fn
-      /// Http.responseWithHeaders>, given a cookie <param name>, a <type String>
-      /// <param value> for it, and a <type Dict> of Set-Cookie <param params>
-      /// ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}},
-      /// and/or {{SameSite}}).
-      let cookie
-        (name: String)
-        (value: String)
-        (cookie: Cookie)
-        : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
-        if
-          not (
-            List.contains
-              (String.toLowercase cookie.sameSite)
-              [ "strict"; "lax"; "none" ]
-          )
-        then
-          Error "SameSite must be either \"Strict\" or \"Lax\" or \"None\""
-        else
-          let expires =
-            let e = Cookie.expires
-            $"{DateTime.dayOfWeek e}, {DateTime.day e} {DateTime.month e} {DateTime.year e} {DateTime.hour e}:{DateTime.minute e}:{DateTime.second} GMT"
+      // TODO: this references several things that don't actually exist
+      // (e.g. DateTime.dayOfWeek)
+      // /// Returns an HTTP Set-Cookie header <type (String*String)> suitable for use with <fn
+      // /// Http.responseWithHeaders>, given a cookie <param name>, a <type String>
+      // /// <param value> for it, and a <type Dict> of Set-Cookie <param params>
+      // /// ({{Expires}}, {{Max-Age}}, {{Domain}}, {{Path}}, {{Secure}}, {{HttpOnly}},
+      // /// and/or {{SameSite}}).
+      // let cookie
+      //   (name: String)
+      //   (value: String)
+      //   (cookie: Cookie)
+      //   : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
+      //   if
+      //     not (
+      //       List.contains
+      //         [ "strict"; "lax"; "none" ]
+      //         (String.toLowercase cookie.sameSite)
+      //     )
+      //   then
+      //     Error "SameSite must be either \"Strict\" or \"Lax\" or \"None\""
+      //   else
+      //     let expires =
+      //       let e = cookie.expires
+      //       $"{DateTime.dayOfWeek e}, {DateTime.day e} {DateTime.month e} {DateTime.year e} {DateTime.hour e}:{DateTime.minute e}:{DateTime.second} GMT"
 
-          let cookie =
-            [ ("Expires", expires)
-              ("Max-Age", cookie.maxAge |> Int.toString)
-              ("Domain", cookie.domain)
-              ("Path", cookie.path)
-              ("Secure", cookie.secure |> Bool.toString)
-              ("HttpOnly", cookie.httpOnly |> Bool.toString)
-              ("SameSite", cookie.sameSite) ]
-            |> List.filterMap (fun (k, v) -> if v == "" then PACKAGE.Darklang.Stdlib.Option.Option.Nothing else PACKAGE.Darklang.Stdlib.Option.Option.Just(k, v))
-            |> List.map (fun (k, v) -> k ++ "=" ++ v)
-            |> String.join "; "
+      //     let cookie =
+      //       [ ("Expires", expires)
+      //         ("Max-Age", cookie.maxAge |> Int.toString)
+      //         ("Domain", cookie.domain)
+      //         ("Path", cookie.path)
+      //         ("Secure", cookie.secure |> Bool.toString)
+      //         ("HttpOnly", cookie.httpOnly |> Bool.toString)
+      //         ("SameSite", cookie.sameSite) ]
+      //       |> List.filterMap (fun (k, v) -> if v == "" then PACKAGE.Darklang.Stdlib.Option.Option.Nothing else PACKAGE.Darklang.Stdlib.Option.Option.Just(k, v))
+      //       |> List.map (fun (k, v) -> k ++ "=" ++ v)
+      //       |> String.join "; "
 
-          if cookie == "" then
-            Error "Cookie must have at least one parameter"
-          else
-            Ok("Set-Cookie", name ++ "=" ++ value ++ "; " ++ cookie)
+      //     if cookie == "" then
+      //       Error "Cookie must have at least one parameter"
+      //     else
+      //       Ok("Set-Cookie", name ++ "=" ++ value ++ "; " ++ cookie)

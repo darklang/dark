@@ -24,6 +24,10 @@
     <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
     <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
     <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+
+    <!-- only really needed for parsing -->
+    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

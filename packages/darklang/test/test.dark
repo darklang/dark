@@ -3,7 +3,7 @@ module Darklang =
   module Test =
     let stringFn (key: String) : String = key ++ " appended string"
 
-    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = JSON.parse<'a> arg
+    let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = Json.parse<'a> arg
 
     let twoStringFn (str1: String) (str2: String) : String =
       str1 ++ " appended " ++ str2

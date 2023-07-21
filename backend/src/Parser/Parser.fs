@@ -38,8 +38,9 @@ let parseRTExpr
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
 let parsePackage
+  (resolver: NameResolver.NameResolver)
   (path : string)
   (contents : string)
   : List<PT.PackageFn.T> * List<PT.PackageType.T> =
-  let pModule = Package.parse path contents
+  let pModule = Package.parse resolver path contents
   (pModule.fns, pModule.types)
