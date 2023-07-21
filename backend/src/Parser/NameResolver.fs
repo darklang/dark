@@ -81,6 +81,7 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
 // complexity. Perhaps this changes when packages become identified by ID
 
 
+
 // Desired resolution order:
 // - 1. PACKAGE.* -> Exact package name
 // - 2. Check exact name is a user name
@@ -98,6 +99,7 @@ let resolve
   (name : WT.Name)
   : PT.NameResolution<PT.FQName.T<'name>> =
 
+
   // These are named exactly during parsing
   match name with
   | WT.KnownBuiltin(modules, name, version) ->
@@ -108,41 +110,47 @@ let resolve
   | WT.Unresolved(("PACKAGE" :: owner :: rest) as names) ->
     match List.rev rest with
     | [] -> Error(LibExecution.Errors.MissingModuleName names)
-    | name :: moduleLast :: moduleInit ->
+    | name :: moduleLast :: moduleBeforeLast ->
       match parser name with
       | Ok(name, version) ->
-        let modules = List.rev (moduleLast :: moduleInit) |> NonEmptyList.ofList
+        let modules =
+          List.rev (moduleLast :: moduleBeforeLast) |> NonEmptyList.ofList
         Ok(
           PT.FQName.fqPackage nameValidator owner modules (constructor name) version
         )
       | Error _ -> Error(LibExecution.Errors.InvalidPackageName names)
     | _ -> Error(LibExecution.Errors.InvalidPackageName names)
 
+
   | WT.Unresolved names ->
     match List.rev names with
-    | [] -> Error(LibExecution.Errors.MissingModuleName names)
+    | [] ->
+      // This is a totally empty name, which _really_ shouldn't happen.
+      // Should we handle this in some extra way? CLEANUP
+      Error(LibExecution.Errors.MissingModuleName names)
+
     | name :: modules ->
       match parser name with
       | Error _msg -> Error(LibExecution.Errors.InvalidPackageName names)
       | Ok(name, version) ->
         let modules = List.reverse modules
 
-        // 2. Exact name is UserProgram
+        // 2. Name exactly matches something in the UserProgram space
         let (userProgram : PT.FQName.UserProgram<'name>) =
           { modules = modules; name = constructor name; version = version }
+
         if Set.contains userProgram userThings then
           Ok(PT.FQName.UserProgram userProgram)
-        else if List.isEmpty modules then
-          Error(LibExecution.Errors.MissingModuleName names)
         else
-
-          // 3. Exact name is BuiltIn
+          // 3. Name exactly matches a BuiltIn thing
           let (builtIn : PT.FQName.BuiltIn<'name>) =
             { modules = modules; name = constructor name; version = version }
+
           if Set.contains builtIn builtinThings then
             Ok(PT.FQName.BuiltIn builtIn)
+          else if List.isEmpty modules then
+            Error(LibExecution.Errors.MissingModuleName names)
           else
-
             // 4. Check exact name in
             //   - a. current module // NOT IMPLEMENTED
             //   - b. parent module(s) // NOT IMPLEMENTED

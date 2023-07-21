@@ -207,6 +207,8 @@ module FnName =
   let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
 
 
+  // CLEANUP: this isn't referenced anywhere - delete? (ideally, I suppose, we'd
+  // derive this list from the stdlib, rather than maintain this list)
   let oneWordFunctions =
     Set
       [ "equals"

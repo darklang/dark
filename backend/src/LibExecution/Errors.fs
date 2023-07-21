@@ -208,6 +208,9 @@ type ErrorOutput =
 
 
 type NameResolutionError =
+  // note: all of the `List<string>`s are the `.`-delimited name _parts_
+  // e.g. `List.fakeFunction` is `["List"; "fakeFunction"]`
+
   | NotFound of List<string>
   | MissingModuleName of List<string>
   | InvalidPackageName of List<string>
