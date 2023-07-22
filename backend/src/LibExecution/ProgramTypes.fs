@@ -92,28 +92,28 @@ module FQName =
     : T<'name> =
     Package(package nameValidator owner modules name version)
 
-  let builtinToString (s : BuiltIn<'name>) (f : NamePrinter<'name>) : string =
+  let builtinToString (f : NamePrinter<'name>) (s : BuiltIn<'name>) : string =
     let name = s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let userProgramToString
-    (s : UserProgram<'name>)
     (f : NamePrinter<'name>)
+    (s : UserProgram<'name>)
     : string =
     let name = s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
+  let packageToString (f : NamePrinter<'name>) (s : Package<'name>) : string =
     let name =
       [ "PACKAGE"; s.owner ] @ NonEmptyList.toList s.modules @ [ f s.name ]
       |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let toString (name : T<'name>) (f : NamePrinter<'name>) : string =
+  let toString (f : NamePrinter<'name>) (name : T<'name>) : string =
     match name with
-    | BuiltIn b -> builtinToString b f
-    | UserProgram user -> userProgramToString user f
-    | Package pkg -> packageToString pkg f
+    | BuiltIn b -> builtinToString f b
+    | UserProgram user -> userProgramToString f user
+    | Package pkg -> packageToString f pkg
 
 module TypeName =
   type Name = TypeName of string
@@ -158,7 +158,7 @@ module TypeName =
     FQName.fqPackage assert' owner modules (TypeName name) version
 
   let toString (name : T) : string =
-    FQName.toString name (fun (TypeName name) -> name)
+    FQName.toString (fun (TypeName name) -> name) name
 
 
 module FnName =
@@ -204,7 +204,7 @@ module FnName =
     : T =
     FQName.fqPackage assert' owner modules (FnName name) version
 
-  let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
+  let toString (name : T) : string = FQName.toString (fun (FnName name) -> name) name
 
 
   // CLEANUP: this isn't referenced anywhere - delete? (ideally, I suppose, we'd
