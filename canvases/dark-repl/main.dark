@@ -9,7 +9,11 @@ let _handler _req =
     |> PACKAGE.Stdlib.PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
 
   let contentType =
-    match (String.split path ".") |> List.last |> Option.withDefault "" with
+    match
+      (String.split path ".")
+      |> List.last
+      |> PACKAGE.Darklang.Stdlib.Option.withDefault ""
+    with
     | "js" -> "text/javascript"
     | "json" -> "application/json"
     | "html" -> "text/html"
@@ -20,7 +24,7 @@ let _handler _req =
     request.headers
     |> List.findFirst (fun t -> Tuple2.first t == "origin")
     |> PACKAGE.Darklang.Stdlib.Option.map (fun t -> Tuple2.second t)
-    |> Option.withDefault
+    |> PACKAGE.Darklang.Stdlib.Option.withDefault
       "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
@@ -57,9 +61,14 @@ let _handler _req =
 
   match program with
   | Ok program ->
-    let types = Option.withDefault (Dict.get program "types") "[]"
-    let fns = Option.withDefault (Dict.get program "fns") "[]"
-    let exprs = Option.withDefault (Dict.get program "exprs") "[]"
+    let types =
+      PACKAGE.Darklang.Stdlib.Option.withDefault (Dict.get program "types") "[]"
+
+    let fns =
+      PACKAGE.Darklang.Stdlib.Option.withDefault (Dict.get program "fns") "[]"
+
+    let exprs =
+      PACKAGE.Darklang.Stdlib.Option.withDefault (Dict.get program "exprs") "[]"
 
     let json =
       "{ \"types\": "

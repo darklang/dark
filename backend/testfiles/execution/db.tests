@@ -75,6 +75,15 @@ module AddToTestEnumDBs =
     //(DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
 
 
+type MyTlid = { mytlid: PACKAGE.Darklang.Stdlib.TLID}
+
+[<DB>]
+type MyTlidDB = MyTlid
+
+module addToTest =
+  (let test = DB.set (MyTlid { mytlid = 1234 }) "test" MyTlidDB in
+   (DB.getAll MyTlidDB)) = [MyTlid { mytlid = 1234 }]
+
 
 module Roundtrip =
   type Sample =

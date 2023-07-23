@@ -13,6 +13,8 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
+module PT2DT = ProgramTypes2DarkTypes
+
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
       description = "The name of a package function"
@@ -107,16 +109,32 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "package source" TString "The source code of the package"
           Param.make "filename" TString "Used for error message" ]
-      returnType = TypeReference.result TString TString
+      returnType =
+        TypeReference.result
+          (TCustomType(
+            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
+            []
+          ))
+          TString
       description = "Parse a package"
       fn =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
             let (fns, types) = Parser.Parser.parsePackage path contents
-            let packagesFns = fns |> Json.Vanilla.serialize
 
-            return Dval.resultOk (DString packagesFns)
+            let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
+
+            let packagesTypes =
+              types |> List.map (fun typ -> PT2DT.PackageType.toDT typ)
+
+            return
+              Dval.resultOk (
+                DRecord(
+                  FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
+                  Map([ ("fns", DList packagesFns); ("types", DList packagesTypes) ])
+                )
+              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

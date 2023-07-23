@@ -8,7 +8,7 @@ module Darklang =
 
       type Module =
         { name: String
-          types: List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
+          types: List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T>
           fns: List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
           submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> }
 
@@ -189,7 +189,7 @@ module Darklang =
           |> List.map (fun t ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageType t)
           |> String.join "\n\n"
-          |> Just
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
 
       let fnsPart =
         match m.fns with
@@ -199,7 +199,7 @@ module Darklang =
           |> List.map (fun f ->
             PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn f)
           |> String.join "\n\n"
-          |> Just
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
 
       let submodulesPart =
         match m.submodules with
@@ -208,7 +208,7 @@ module Darklang =
           submodules
           |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)
           |> String.join "\n\n"
-          |> Just
+          |> PACKAGE.Darklang.Stdlib.Option.Option.Just
 
       let parts =
         [ typesPart; fnsPart; submodulesPart ] |> List.filterMap (fun s -> s)
