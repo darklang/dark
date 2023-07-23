@@ -62,7 +62,6 @@ module RuntimeTypes =
         [ RT.TBool ]
       )
       RT.TBytes
-      RT.TResult(RT.TBool, RT.TString)
       RT.TVariable "test"
       RT.TFn([ RT.TBool ], RT.TBool) ]
 
@@ -265,7 +264,6 @@ module ProgramTypes =
         [ PT.TBool ]
       )
       PT.TBytes
-      PT.TResult(PT.TBool, PT.TString)
       PT.TVariable "test"
       PT.TFn([ PT.TBool ], PT.TBool) ]
 
@@ -330,12 +328,14 @@ module ProgramTypes =
                       PT.LPVariable(44124UL, "i"),
                       PT.EIf(
                         46231874UL,
-                        PT.EFnCall(
+                        PT.EApply(
                           898531080UL,
-                          PT.FQName.BuiltIn
-                            { modules = [ "Int" ]
-                              name = PT.FnName.FnName "toString"
-                              version = 0 },
+                          PT.FnTargetName(
+                            PT.FQName.BuiltIn
+                              { modules = [ "Int" ]
+                                name = PT.FnName.FnName "toString"
+                                version = 0 }
+                          ),
                           dtypes,
                           [ PT.EInt(160106123UL, 6L) ]
                         ),
@@ -375,12 +375,14 @@ module ProgramTypes =
                               PT.EVariable(1002893266UL, "x"),
                               "y"
                             ),
-                            PT.EFnCall(
+                            PT.EApply(
                               173079901UL,
-                              PT.FQName.BuiltIn
-                                { modules = [ "Int" ]
-                                  name = PT.FnName.FnName "add"
-                                  version = 0 },
+                              PT.FnTargetName(
+                                PT.FQName.BuiltIn
+                                  { modules = [ "Int" ]
+                                    name = PT.FnName.FnName "add"
+                                    version = 0 }
+                              ),
                               [],
                               [ PT.EInt(250221144UL, 6L); PT.EInt(298149318UL, 2L) ]
                             )
@@ -425,8 +427,10 @@ module ProgramTypes =
                                "Ok",
                                [ PT.EEnum(
                                    646107057UL,
-                                   PT.FQName.BuiltIn(
-                                     { modules = []
+                                   PT.FQName.Package(
+                                     { owner = "Darklang"
+                                       modules =
+                                         NonEmptyList.ofList [ "Stdlib"; "Result" ]
                                        name = PT.TypeName.TypeName "Result"
                                        version = 0 }
                                    ),
@@ -466,12 +470,14 @@ module ProgramTypes =
                             PT.LPVariable(17461UL, "m"),
                             PT.EMatch(
                               889712088UL,
-                              PT.EFnCall(
+                              PT.EApply(
                                 203239466UL,
-                                PT.FQName.BuiltIn
-                                  { modules = [ "Mod" ]
-                                    name = PT.FnName.FnName "function"
-                                    version = 2 },
+                                PT.FnTargetName(
+                                  PT.FQName.BuiltIn
+                                    { modules = [ "Mod" ]
+                                      name = PT.FnName.FnName "function"
+                                      version = 2 }
+                                ),
                                 [],
                                 []
                               ),
@@ -584,11 +590,7 @@ module ProgramTypes =
   // Note: This is aimed to contain all cases of `TypeReference`
   let dtype =
     PT.TTuple(
-      PT.TList(
-        PT.TDict(
-          PT.TDB(PT.TOption(PT.TResult(PT.TInt, PT.TFn([ PT.TFloat ], PT.TUnit))))
-        )
-      ),
+      PT.TList(PT.TDict(PT.TDB(PT.TFn([ PT.TFloat ], PT.TUnit)))),
       PT.TInt,
       [ PT.TFloat
         PT.TBool
@@ -602,14 +604,12 @@ module ProgramTypes =
         PT.TChar
         PT.TPassword
         PT.TUuid
-        PT.TOption(PT.TInt)
         PT.TCustomType(
           PT.FQName.UserProgram
             { modules = [ "Mod" ]; name = PT.TypeName.TypeName "name"; version = 0 },
           []
         )
         PT.TBytes
-        PT.TResult(PT.TInt, PT.TString)
         PT.TVariable "v"
         PT.TFn([ PT.TInt ], PT.TInt) ]
     )
@@ -676,23 +676,29 @@ module ProgramTypes =
   let userRecordType : PT.UserType.T =
     { tlid = 0UL
       name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
-      typeParams = [ "a" ]
-      definition =
-        let firstField : PT.CustomType.RecordField =
-          { name = "prop1"; typ = dtype; description = "desc1" }
-        PT.CustomType.Record(firstField, []) }
+      description = "test description"
+      deprecated = PT.NotDeprecated
+      declaration =
+        { typeParams = [ "a" ]
+          definition =
+            let firstField : PT.TypeDeclaration.RecordField =
+              { name = "prop1"; typ = dtype; description = "desc1" }
+            PT.TypeDeclaration.Record(firstField, []) } }
 
   let userEnumType : PT.UserType.T =
     { tlid = 0UL
       name = { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
-      typeParams = [ "a" ]
-      definition =
-        PT.CustomType.Enum(
-          { name = "caseA"; fields = []; description = "" },
-          [ { name = "caseB"
-              fields = [ { typ = dtype; label = Some "i"; description = "" } ]
-              description = "" } ]
-        ) }
+      deprecated = PT.NotDeprecated
+      description = "test description"
+      declaration =
+        { typeParams = [ "a" ]
+          definition =
+            PT.TypeDeclaration.Enum(
+              { name = "caseA"; fields = []; description = "" },
+              [ { name = "caseB"
+                  fields = [ { typ = dtype; label = Some "i"; description = "" } ]
+                  description = "" } ]
+            ) } }
 
   let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
 
@@ -730,14 +736,15 @@ module ProgramTypes =
           modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
           name = PT.TypeName.TypeName "T"
           version = 0 }
-      typeParams = [ "a" ]
-      definition =
-        PT.CustomType.Enum(
-          { name = "caseA"; fields = []; description = "" },
-          [ { name = "caseB"
-              fields = [ { typ = dtype; label = Some "i"; description = "" } ]
-              description = "" } ]
-        )
+      declaration =
+        { typeParams = [ "a" ]
+          definition =
+            PT.TypeDeclaration.Enum(
+              { name = "caseA"; fields = []; description = "" },
+              [ { name = "caseB"
+                  fields = [ { typ = dtype; label = Some "i"; description = "" } ]
+                  description = "" } ]
+            ) }
       id = uuid
       description = "test"
       deprecated = PT.NotDeprecated

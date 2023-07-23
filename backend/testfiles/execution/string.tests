@@ -100,36 +100,36 @@ String.fromChar (c "👱🏾") = "👱🏾"
 String.fromChar (c "Z̤͔ͧ̑̓") = "Z̤͔ͧ̑̓"
 
 
-String.base64Decode_v0 "random string" = Error "Not a valid base64 string"
-String.base64Decode_v0 "illegal chars&@:" = Error "Not a valid base64 string"
-String.base64Decode_v0 "Kw" = Ok "+"
-String.base64Decode_v0 "yLo" = Ok "Ⱥ"
-String.base64Decode_v0 "xbzDs8WCdw" = Ok  "żółw"
-String.base64Decode_v0 "LyotKygmQDk4NTIx" = Ok  "/*-+(&@98521"
-String.base64Decode_v0 "" = Ok "" // empty case
+String.base64Decode_v0 "random string" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
+String.base64Decode_v0 "illegal chars&@:" = PACKAGE.Darklang.Stdlib.Result.Result.Error "Not a valid base64 string"
+String.base64Decode_v0 "Kw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "+"
+String.base64Decode_v0 "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "Ⱥ"
+String.base64Decode_v0 "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "żółw"
+String.base64Decode_v0 "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "/*-+(&@98521"
+String.base64Decode_v0 "" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "" // empty case
 // Test cases from the spec with padding added
-String.base64Decode_v0 "Zg" = Ok "f"
-String.base64Decode_v0 "Zg==" = Ok "f"
-String.base64Decode_v0 "Zm8" = Ok "fo"
-String.base64Decode_v0 "Zm8=" = Ok "fo"
-String.base64Decode_v0 "Zm9v" = Ok "foo"
-String.base64Decode_v0 "Zm9vYg" = Ok "foob"
-String.base64Decode_v0 "Zm9vYg==" = Ok "foob"
-String.base64Decode_v0 "Zm9vYmE" = Ok "fooba"
-String.base64Decode_v0 "Zm9vYmE=" = Ok "fooba"
-String.base64Decode_v0 "Zm9vYmFy" = Ok "foobar"
+String.base64Decode_v0 "Zg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f"
+String.base64Decode_v0 "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f"
+String.base64Decode_v0 "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fo"
+String.base64Decode_v0 "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fo"
+String.base64Decode_v0 "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foo"
+String.base64Decode_v0 "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob"
+String.base64Decode_v0 "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob"
+String.base64Decode_v0 "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fooba"
+String.base64Decode_v0 "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "fooba"
+String.base64Decode_v0 "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foobar"
 // "Impossible cases" from apache
 // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-String.base64Decode_v0 "ZE==" = Ok "d"
-String.base64Decode_v0 "ZmC=" = Ok "f`"
-String.base64Decode_v0 "Zm9vYE==" = Ok "foo`"
-String.base64Decode_v0 "Zm9vYmC=" = Ok "foob`"
-String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = Ok "from=06/07/2013 query=\"Καλώς ορίσατε\""
-String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+String.base64Decode_v0 "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "d"
+String.base64Decode_v0 "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "f`"
+String.base64Decode_v0 "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foo`"
+String.base64Decode_v0 "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "foob`"
+String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "from=06/07/2013 query=\"Καλώς ορίσατε\""
+String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 // These produce strings of bytes which are technically legal it seems
-String.base64Decode_v0 "-p" = Ok "�"
-String.base64Decode_v0 "lI" = Ok "�"
-String.base64Decode_v0 "5Sk" = Ok "�)"
+String.base64Decode_v0 "-p" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
+String.base64Decode_v0 "lI" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�"
+String.base64Decode_v0 "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok "�)"
 
 
 String.base64Encode_v0 "+" = "Kw"
@@ -161,7 +161,7 @@ String.digest_v0  "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️�
 
 
 (String.random 5) == (String.random 5) = false
-String.random -1 = Error "Expected `length` to be positive, but it was `-1`"
+String.random -1 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `length` to be positive, but it was `-1`"
 String.length ((String.random 10) |> unwrap) = 10
 String.length ((String.random 5) |> unwrap) = 5
 String.length ((String.random 0) |> unwrap) = 0
@@ -545,49 +545,49 @@ String.first_v0 "🧟‍♀️🧟‍♂️" 1 = "🧟‍♀️"
 String.first_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" 3 = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️"
 
 
-String.padStart_v0 "123" "0" 3 = Ok "123"
-String.padStart_v0 "123" "0" -3 = Ok "123"
-String.padStart_v0 "123" "_-" 4 = Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padStart_v0 "123" "" 10 = Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
-String.padStart_v0 "123" "0" 6 = Ok "000123"
-String.padStart_v0 "" "0" 0 = Ok ""
-String.padStart_v0 "123🍊🍊" "0" 3 = Ok "123🍊🍊"
-String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = Ok "000🍍🍍🍊🍊"
-String.padStart_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = Ok "0żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-String.padStart_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = Ok  "00000Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
-String.padStart_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = Ok "0000﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
-String.padStart_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = Ok "0000👱👱🏻👱🏼👱🏽👱🏾👱🏿"
-String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = Ok "000🧟‍♀️🧟‍♂️"
-String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = Ok  "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
-String.padStart_v0 "鷝" "觌഻" 0 = Ok "鷝"
+String.padStart_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+String.padStart_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+String.padStart_v0 "123" "_-" 4 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padStart_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
+String.padStart_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000123"
+String.padStart_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+String.padStart_v0 "123🍊🍊" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123🍊🍊"
+String.padStart_v0 "🍍🍍🍊🍊" "0" 7 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000🍍🍍🍊🍊"
+String.padStart_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
+String.padStart_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "00000Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
+String.padStart_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0000﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"
+String.padStart_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "0000👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+String.padStart_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "000🧟‍♀️🧟‍♂️"
+String.padStart_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok  "000000👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
+String.padStart_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
 
 
-String.padEnd_v0 "123" "0" 3 = Ok "123"
-String.padEnd_v0 "123" "0" -3 = Ok "123"
-String.padEnd_v0 "123" "_-" 3 = Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
-String.padEnd_v0 "123" "" 10 = Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
-String.padEnd_v0 "123" "0" 6 = Ok "123000"
-String.padEnd_v0 "" "0" 0 = Ok ""
-String.padEnd_v0 "123🍊🍊" "0" 8 = Ok "123🍊🍊000"
-String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = Ok "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0"
-String.padEnd_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = Ok "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇00000"
-String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = Ok "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽0000"
-String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000"
-String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = Ok "🧟‍♀️🧟‍♂️000"
-String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
-String.padEnd_v0 "鷝" "觌഻" 0 = Ok "鷝"
+String.padEnd_v0 "123" "0" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+String.padEnd_v0 "123" "0" -3 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123"
+String.padEnd_v0 "123" "_-" 3 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"_-\"`"
+String.padEnd_v0 "123" "" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
+String.padEnd_v0 "123" "0" 6 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123000"
+String.padEnd_v0 "" "0" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok ""
+String.padEnd_v0 "123🍊🍊" "0" 8 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "123🍊🍊000"
+String.padEnd_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿0"
+String.padEnd_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇00000"
+String.padEnd_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "0" 20 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽0000"
+String.padEnd_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿0000"
+String.padEnd_v0 "🧟‍♀️🧟‍♂️" "0" 5 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "🧟‍♀️🧟‍♂️000"
+String.padEnd_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "0" 10 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷000000"
+String.padEnd_v0 "鷝" "觌഻" 0 = PACKAGE.Darklang.Stdlib.Result.Result.Ok "鷝"
 
-String.indexOf_v0 "hello world" "world" = Just 6
-String.indexOf_v0 "hello world" "earth" = Nothing
-String.indexOf_v0 "" "" =  Just 0
-String.indexOf_v0 "hello" "" =  Just 0
-String.indexOf_v0 "" "hello" = Nothing
-String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"  = Just 6
-String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"  = Nothing
-String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = Just 11
-String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = Just 4
-String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = Nothing
-String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = Nothing
+String.indexOf_v0 "hello world" "world" = PACKAGE.Darklang.Stdlib.Option.Option.Just 6
+String.indexOf_v0 "hello world" "earth" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+String.indexOf_v0 "" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+String.indexOf_v0 "hello" "" =  PACKAGE.Darklang.Stdlib.Option.Option.Just 0
+String.indexOf_v0 "" "hello" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽"  = PACKAGE.Darklang.Stdlib.Option.Option.Just 6
+String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿"  = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = PACKAGE.Darklang.Stdlib.Option.Option.Just 11
+String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
+String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
 
 // Check that map executes the right number of times

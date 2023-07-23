@@ -100,61 +100,37 @@ let testUserRecordType
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
   : PT.UserType.T =
-  let mapField (name, typ) : PT.CustomType.RecordField =
+  let mapField (name, typ) : PT.TypeDeclaration.RecordField =
     { name = name; typ = typ; description = "" }
 
   { tlid = gid ()
     name = name
-    typeParams = []
-    definition =
-      PT.CustomType.Record(mapField firstField, List.map mapField additionalFields) }
+    description = ""
+    deprecated = PT.NotDeprecated
+    declaration =
+      { typeParams = []
+        definition =
+          PT.TypeDeclaration.Record(
+            mapField firstField,
+            List.map mapField additionalFields
+          ) } }
 
 
 
 let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
-/// Library function to be usable within tests.
-/// Includes normal StdLib fns, as well as test-specific fns.
-/// In the case of a fn existing in both places, the test fn is the one used.
-let libraries : Lazy<Task<RT.Libraries>> =
-  lazy
-    task {
-
-      let (fns, types, constants) =
-        LibExecution.StdLib.combine
-          [ LibTest.contents
-            LibRealExecution.RealExecution.builtins
-            StdLibCli.StdLib.contents ]
-          []
-          []
-      let! packageFns = LibBackend.PackageManager.allFunctions ()
-      let packageFns =
-        packageFns
-        |> List.map (fun (f : PT.PackageFn.T) ->
-          (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-        |> Map.ofList
-      let! packageTypes = LibBackend.PackageManager.allTypes ()
-      let packageTypes =
-        packageTypes
-        |> List.map (fun (t : PT.PackageType.T) ->
-          (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-        |> Map.ofList
-
-      let! packageConstants = LibBackend.PackageManager.allConstants ()
-      let packageConstants =
-        packageConstants
-        |> List.map (fun (c : PT.PackageConstant.T) ->
-          (c.name |> PT2RT.ConstantName.Package.toRT,
-           PT2RT.PackageConstant.toRT c))
-        |> Map.ofList
-      return
-        { builtInTypes = types |> Map.fromListBy (fun typ -> typ.name)
-          builtInFns = fns |> Map.fromListBy (fun fn -> fn.name)
-          builtInConstants = constants |> Map.fromListBy (fun c -> c.name)
-          packageFns = packageFns
-          packageTypes = packageTypes
-          packageConstants = packageConstants }
+let builtIns : RT.BuiltIns =
+  let (fns, types, constants) =
+    LibExecution.StdLib.combine
+      [ LibTest.contents
+        LibRealExecution.RealExecution.builtins
+        StdLibCli.StdLib.contents ]
+      []
+      []
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name)
     }
 
 let executionStateFor
@@ -224,11 +200,10 @@ let executionStateFor
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
-    let! libraries = libraries.Force()
-
     let state =
       Exe.createState
-        libraries
+        builtIns
+        LibBackend.PackageManager.packageManager
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier
@@ -311,6 +286,22 @@ let testListUsingProperty
         testTask $"{name} {doc}" { return (Expect.isTrue (prop testCase) "") })
       list)
 
+let testListUsingPropertyAsync
+  (name : string)
+  (prop : 'a -> Task<bool>)
+  (list : (string * 'a) list)
+  =
+  testList
+    name
+    (List.map
+      (fun (doc, testCase) ->
+        let doc = if doc = "" then testCase.ToString() else doc
+        testTask $"{name} {doc}" {
+          let! result = prop testCase
+          return (Expect.isTrue result "")
+        })
+      list)
+
 // Remove random things like IDs to make the tests stable
 let normalizeDvalResult (dv : RT.Dval) : RT.Dval =
   match dv with
@@ -372,13 +363,7 @@ module Expect =
     | DDB _
     | DUuid _
     | DBytes _
-    | DOption None
     | DFloat _ -> true
-
-    | DResult(Ok v)
-    | DResult(Error v)
-    | DOption(Some v) -> check v
-
     | DList vs -> List.all check vs
     | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
     | DDict vs -> vs |> Map.values |> List.all check
@@ -422,7 +407,6 @@ module Expect =
 
 
   let rec userTypeNameEqualityBaseFn
-    (types : Types)
     (path : Path)
     (actual : TypeName.T)
     (expected : TypeName.T)
@@ -435,7 +419,14 @@ module Expect =
     | FQName.UserProgram a, FQName.UserProgram e ->
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
-    | _ -> err ()
+    | FQName.Package a, FQName.Package e ->
+      if a.owner <> e.owner then err ()
+      if a.modules <> e.modules then err ()
+      if a.name <> e.name then err ()
+      if a.version <> e.version then err ()
+    | FQName.BuiltIn _, _
+    | FQName.UserProgram _, _
+    | FQName.Package _, _ -> err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -512,22 +503,19 @@ module Expect =
     | TBytes, _
     | TVariable(_), _
     | TFn(_, _), _
-    | TCustomType(_, _), _
-    | TOption(_), _
-    | TResult(_, _), _ ->
+    | TCustomType(_, _), _ ->
       if actual <> expected then errorFn path (string actual) (string expected)
 
 
 
   let rec exprEqualityBaseFn
-    (types : Types)
     (checkIDs : bool)
     (path : Path)
     (actual : Expr)
     (expected : Expr)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let eq path a e = exprEqualityBaseFn types checkIDs path a e errorFn
+    let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
 
     let check path (a : 'a) (e : 'a) =
       if a <> e then errorFn path (string actual) (string expected)
@@ -582,7 +570,7 @@ module Expect =
       eqList path args args'
 
     | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
-      userTypeNameEqualityBaseFn types path typeName typeName' errorFn
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
       List.iter2
         (fun (k, v) (k', v') ->
           check path k k'
@@ -610,7 +598,7 @@ module Expect =
       check path f f'
 
     | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn types path typeName typeName' errorFn
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check path caseName caseName'
       eqList path fields fields'
       ()
@@ -664,13 +652,12 @@ module Expect =
   // If the dvals are not the same, call errorFn. This is in this form to allow
   // both an equality function and a test expectation function
   let rec dvalEqualityBaseFn
-    (types : Types)
     (path : Path)
     (actual : Dval)
     (expected : Dval)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    let de p a e = dvalEqualityBaseFn types p a e errorFn
+    let de p a e = dvalEqualityBaseFn p a e errorFn
     let error path = errorFn path (string actual) (string expected)
 
     let check (path : Path) (a : 'a) (e : 'a) : unit =
@@ -691,9 +678,6 @@ module Expect =
         ()
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
         error path
-    | DResult(Ok l), DResult(Ok r) -> de ("Ok" :: path) l r
-    | DResult(Error l), DResult(Error r) -> de ("Error" :: path) l r
-    | DOption(Some l), DOption(Some r) -> de ("Just" :: path) l r
     | DDateTime l, DDateTime r ->
       // Two dates can be the same millisecond and not be equal if they don't
       // have the same number of ticks. For testing, we shall consider them
@@ -729,7 +713,7 @@ module Expect =
       check (".Length" :: path) (Map.count ls) (Map.count rs)
 
     | DRecord(ltn, ls), DRecord(rtn, rs) ->
-      userTypeNameEqualityBaseFn types path ltn rtn errorFn
+      userTypeNameEqualityBaseFn path ltn rtn errorFn
       // check keys from ls are in both, check matching values
       Map.forEachWithIndex
         (fun key v1 ->
@@ -748,7 +732,7 @@ module Expect =
 
 
     | DEnum(typeName, caseName, fields), DEnum(typeName', caseName', fields') ->
-      userTypeNameEqualityBaseFn types path typeName typeName' errorFn
+      userTypeNameEqualityBaseFn path typeName typeName' errorFn
       check ("caseName" :: path) caseName caseName'
 
       check ("fields.Length" :: path) (List.length fields) (List.length fields)
@@ -762,7 +746,7 @@ module Expect =
       let vals l = List.map Tuple2.second l
       check ("lambdaVars" :: path) (vals l1.parameters) (vals l2.parameters)
       check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
-      exprEqualityBaseFn types false path l1.body l2.body errorFn
+      exprEqualityBaseFn false path l1.body l2.body errorFn
     | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
     // Keep for exhaustiveness checking
     | DDict _, _
@@ -770,8 +754,6 @@ module Expect =
     | DEnum _, _
     | DList _, _
     | DTuple _, _
-    | DResult _, _
-    | DOption _, _
     | DString _, _
     | DInt _, _
     | DDateTime _, _
@@ -787,13 +769,8 @@ module Expect =
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
 
-  let rec equalDval
-    (types : Types)
-    (actual : Dval)
-    (expected : Dval)
-    (msg : string)
-    : unit =
-    dvalEqualityBaseFn types [] actual expected (fun path a e ->
+  let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
+    dvalEqualityBaseFn [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path} (overall: {actual})")
 
   let rec equalMatchPattern
@@ -817,24 +794,20 @@ module Expect =
     (expected : Expr)
     (msg : string)
     : unit =
-    exprEqualityBaseFn types true [] actual expected (fun path a e ->
+    exprEqualityBaseFn true [] actual expected (fun path a e ->
       Expect.equal a e $"{msg}: {pathToString path}")
 
-  let rec equalExprIgnoringIDs
-    (types : Types)
-    (actual : Expr)
-    (expected : Expr)
-    : unit =
-    exprEqualityBaseFn types false [] actual expected (fun path a e ->
+  let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
+    exprEqualityBaseFn false [] actual expected (fun path a e ->
       Expect.equal a e (pathToString path))
 
-  let dvalEquality (types : Types) (left : Dval) (right : Dval) : bool =
+  let dvalEquality (left : Dval) (right : Dval) : bool =
     let success = ref true
-    dvalEqualityBaseFn types [] left right (fun _ _ _ -> success.Value <- false)
+    dvalEqualityBaseFn [] left right (fun _ _ _ -> success.Value <- false)
     success.Value
 
-  let dvalMapEquality (types : Types) (m1 : DvalMap) (m2 : DvalMap) =
-    dvalEquality types (DDict m1) (DDict m2)
+  let dvalMapEquality (m1 : DvalMap) (m2 : DvalMap) =
+    dvalEquality (DDict m1) (DDict m2)
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
@@ -849,10 +822,6 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DList dvs -> List.map visit dvs |> ignore<List<unit>>
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
-    | DResult(Error v)
-    | DResult(Ok v)
-    | DOption(Some v) -> visit v
-    | DOption None
     | DString _
     | DInt _
     | DDateTime _
@@ -1086,15 +1055,10 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("password", DPassword(Password(UTF8.toBytes "somebytes")), TPassword)
     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-    ("option", DOption None, TOption TInt)
-    ("option2", DOption(Some(Dval.int 15)), TOption TInt)
-    ("option3", DOption(Some(DString "a string")), TOption TString)
+    ("option", Dval.optionNothing, TypeReference.option TInt)
+    ("option2", Dval.optionJust (Dval.int 15), TypeReference.option TInt)
+    ("option3", Dval.optionJust (DString "a string"), TypeReference.option TString)
     ("character", DChar "s", TChar)
-    ("result", DResult(Ok(Dval.int 15)), TResult(TInt, TString))
-    ("result2",
-     DResult(Error(DList [ DString "supported" ])),
-     TResult(TInt, TList TString))
-    ("result3", DResult(Ok(DString "a string")), TResult(TString, TBool))
     ("bytes", "JyIoXCg=" |> System.Convert.FromBase64String |> DBytes, TBytes)
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
@@ -1114,8 +1078,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DTuple(Dval.int 1, Dval.int 2, [ DUnit ]),
      TTuple(TInt, TInt, [ TUnit ]))
     ("tupleWithError",
-     DTuple(Dval.int 1, DResult(Error(DString "error")), []),
-     TTuple(TInt, TResult(TInt, TString), [])) ]
+     DTuple(Dval.int 1, Dval.resultError (DString "error"), []),
+     TTuple(TInt, TypeReference.result TInt TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =
   (List.map (fun (k, v) -> k, DInt v, TInt) interestingInts

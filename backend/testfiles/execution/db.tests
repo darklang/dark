@@ -21,6 +21,61 @@ type SortedX = { x: String; sortBy: Int }
 [<DB>]
 type SortedXDB = SortedX
 
+type MyEnum =
+  | A
+  | B
+  | C
+
+type MyEnum2 =
+  | D
+  | E
+  | F of MyEnum
+
+type EnumTestRecord = { x : String; y: MyEnum}
+
+[<DB>] type TestEnumDB = EnumTestRecord
+
+[<DB>]
+type TestEnumDB2 = MyEnum
+
+[<DB>]
+type TestEnumDB3 = MyEnum2
+
+module AddToTestEnumDBs =
+  ( let test1 = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
+    let test2 = DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
+    (DB.getAll TestEnumDB)) = [EnumTestRecord { x = "hello"; y = MyEnum.A}; EnumTestRecord { x = "goodbye"; y = MyEnum.B}]
+
+  (let test1 = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
+   let test2 = DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
+   (DB.get "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(EnumTestRecord { x = "hello"; y = MyEnum.A})
+
+  (let test1 = DB.set MyEnum.A "test1" TestEnumDB2 in
+   let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
+   (DB.getAll TestEnumDB2)) = [MyEnum.A; MyEnum.B]
+
+  (let test1 = DB.set MyEnum.C "test1" TestEnumDB2 in
+   let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
+   (DB.get "test1" TestEnumDB2)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(MyEnum.C)
+
+  (let test1 = DB.set MyEnum2.D "test1" TestEnumDB3 in
+   let test2 = DB.set MyEnum2.E "test2" TestEnumDB3 in
+   let test3 = DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
+   (DB.getAll TestEnumDB3)) = [MyEnum2.D; MyEnum2.E ; MyEnum2.F MyEnum.A]
+
+  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in
+   (DB.getAll TestEnumDB2)) = Test.typeError_v0 "There is no case named `D` in MyEnum"
+
+  (let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
+   (DB.query TestEnumDB (fun p -> p.x == "hello"))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+
+
+  // TODO: Make this work. we need to enable certain types before we can use DB.query for this
+  //(let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test2" TestEnumDB in
+    //(DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+
+
+
 module Roundtrip =
   type Sample =
     { iNsEnSiTiVe: String
@@ -36,6 +91,8 @@ module Roundtrip =
       char: Char
       emojiChar: Char
       uuid: Uuid
+      resultOk: PACKAGE.Darklang.Stdlib.Result.Result<Int,String>
+      resultError: PACKAGE.Darklang.Stdlib.Result.Result<Int,String>
       list: List<Int>
       datetime: DateTime
       unit: Unit }
@@ -57,6 +114,8 @@ module Roundtrip =
         ``false`` = false
         list = [ 1; 2; 3 ]
         char = 'c'
+        resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
+        resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
         emojiChar = (Test.toChar "👍") |> unwrap
         uuid = (Uuid.parse "00000050-0000-0000-0000-000000000000") |> unwrap
         datetime = (DateTime.parse "2020-01-01T00:00:00Z") |> unwrap
@@ -78,6 +137,8 @@ module Roundtrip =
         ``false`` = true
         list = [ 1; 3; 45 ]
         char = 'd'
+        resultOk = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6
+        resultError = PACKAGE.Darklang.Stdlib.Result.Result.Error "other test"
         emojiChar = 'e'
         uuid = (Uuid.parse "55555555-5555-5555-5555-555555555555") |> unwrap
         datetime = (DateTime.parse "2011-11-11T11:11:11Z") |> unwrap
@@ -88,7 +149,7 @@ module Roundtrip =
   // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
   (let v = sample ()
    let z = DB.set v "all" SampleDB in
-   (z, DB.get "all" SampleDB)) = (sample (), Just(sample ()))
+   (z, DB.get "all" SampleDB)) = (sample (), PACKAGE.Darklang.Stdlib.Option.Option.Just(sample ()))
 
 
   type Passwords = { password: Password }
@@ -244,26 +305,34 @@ module SetCharUpserts =
 
 module Get =
   // return nothing for empty store
-  (DB.get "lol" XDB) = Nothing
+  (DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // return nothing for invalid key
-  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "lol" XDB) = Nothing
+  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // returns single value
-  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "key" XDB) = Just(
+  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
     X { x = "hello" }
   )
 
   // returns correct value given reassigned entry
   (let _ = DB.set (X { x = "hello" }) "key" XDB in
    let _ = DB.set (X { x = "goodbye" }) "key" XDB in
-   DB.get "key" XDB) = Just(X { x = "goodbye" })
+   DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(X { x = "goodbye" })
 
   // returns value given multiple entries
   (let _ = DB.set (X { x = "pancake" }) "key1" XDB in
    let _ = DB.set (X { x = "waffle" }) "key2" XDB in
    let _ = DB.set (X { x = "scone" }) "key3" XDB in
-   DB.get "key2" XDB) = Just(X { x = "waffle" })
+   DB.get "key2" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(X { x = "waffle" })
+
+
+module Params =
+  type Param<'a> =  { x : 'a; b : Int}
+  [<DB>] type ParamDB = Param<String>
+
+  (let _ = DB.set (Param { x = "hello"; b = 5 }) "key" ParamDB
+   DB.get "key" ParamDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(Param { x = "hello"; b = 5 })
 
 
 
@@ -313,7 +382,7 @@ module GetExisting =
 module GetMany =
   (let one = DB.set (X { x = "hello" }) "one" XDB in
    let two = DB.set (X { x = "goodbye" }) "two" XDB in
-   DB.getMany [ "three"; "two" ] XDB) = Nothing
+   DB.getMany [ "three"; "two" ] XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   (let one = DB.set (X { x = "hello" }) "one" XDB in
    let two = DB.set (X { x = "goodbye" }) "two" XDB in
@@ -623,10 +692,10 @@ module PartialEvaluation =
 
 module QueryOneWithKey =
   // multiple
-  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.human)) = Nothing
+  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.human)) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // none
-  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = Nothing
+  (let _ = prepFriends () in DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // one
   (let _ = prepFriends () in
@@ -636,11 +705,11 @@ module QueryOneWithKey =
    |> (fun v -> (Tuple2.second v).name)) = "Rachel"
 
   // interpolated
-  (let _ = prepFriends () in
-   let test = "ache" in
+  (let _ = prepFriends ()
+   let test = "ache"
 
    (DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
-   |> Option.map (fun v -> (Tuple2.second v).name)) = Just "Rachel"
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> (Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Just "Rachel"
 
 
 module QueryWithKey =

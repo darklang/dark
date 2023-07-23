@@ -1,17 +1,23 @@
-module Parser.Package
+module internal Parser.Package
 
 open FSharp.Compiler.Syntax
 
 open Prelude
 open Tablecloth
 
+module FS2WT = FSharpToWrittenTypes
+module WT = WrittenTypes
+module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 
 open Utils
 
-type PackageModule = { fns : List<PT.PackageFn.T>; types : List<PT.PackageType.T> }
+type WTPackageModule = { fns : List<WT.PackageFn.T>; types : List<WT.PackageType.T> }
+let emptyWTModule = { fns = []; types = [] }
 
-let emptyModule = { fns = []; types = [] }
+type PTPackageModule = { fns : List<PT.PackageFn.T>; types : List<PT.PackageType.T> }
+
+let emptyPTModule = { fns = []; types = [] }
 
 
 /// Update a CanvasModule by parsing a single F# let binding
@@ -19,21 +25,21 @@ let emptyModule = { fns = []; types = [] }
 let parseLetBinding
   (modules : List<string>)
   (letBinding : SynBinding)
-  : PT.PackageFn.T =
+  : WT.PackageFn.T =
   match modules with
   | owner :: modules ->
     let modules = NonEmptyList.ofList modules
-    ProgramTypes.PackageFn.fromSynBinding owner modules letBinding
+    FS2WT.PackageFn.fromSynBinding owner modules letBinding
   | _ ->
     Exception.raiseInternal
       "Expected owner, and at least 1 other modules"
       [ "modules", modules; "binding", letBinding ]
 
-let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : PT.PackageType.T =
+let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : WT.PackageType.T =
   match modules with
   | owner :: modules ->
     let modules = NonEmptyList.ofList modules
-    ProgramTypes.PackageType.fromSynTypeDefn owner modules defn
+    FS2WT.PackageType.fromSynTypeDefn owner modules defn
   | _ ->
     Exception.raiseInternal
       "Expected owner, and at least 1 other modules"
@@ -43,9 +49,9 @@ let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : PT.PackageType.
 let rec parseDecls
   (modules : List<string>)
   (decls : List<SynModuleDecl>)
-  : PackageModule =
+  : WTPackageModule =
   List.fold
-    emptyModule
+    emptyWTModule
     (fun m decl ->
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
@@ -79,7 +85,7 @@ let rec parseDecls
     decls
 
 
-let parse (filename : string) (contents : string) : PackageModule =
+let parse (filename : string) (contents : string) : PTPackageModule =
   match parseAsFSharpSourceFile filename contents with
   | ParsedImplFileInput(_,
                         _,
@@ -93,8 +99,14 @@ let parse (filename : string) (contents : string) : PackageModule =
     // At the toplevel, the module names will from the filenames
     let names = []
     let modul = parseDecls names decls
-    let fns = modul.fns |> List.map ProgramTypes.PackageFn.resolveNames
-    let types = modul.types |> List.map ProgramTypes.PackageType.resolveNames
+    let fns =
+      modul.fns
+      |> List.map WT2PT.PackageFn.toPT
+      |> List.map NameResolution.PackageFn.resolveNames
+    let types =
+      modul.types
+      |> List.map WT2PT.PackageType.toPT
+      |> List.map NameResolution.PackageType.resolveNames
     { fns = fns; types = types }
   // in the parsed package, types are being read as user, as opposed to the package that's right there
   | decl ->

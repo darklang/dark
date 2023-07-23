@@ -101,14 +101,14 @@ let userTypeReference
   : TypeReference =
   TCustomType(fqUserTypeName modules name version, [])
 
-let customTypeRecord (fields : List<string * TypeReference>) : CustomType.T =
+let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =
   let fields =
     fields
     |> List.map (fun (name, typ) ->
-      { name = name; typ = typ; description = "" } : CustomType.RecordField)
+      { name = name; typ = typ; description = "" } : TypeDeclaration.RecordField)
   match fields with
   | [] -> Exception.raiseInternal "userRecord must have at least one field" []
-  | hd :: rest -> CustomType.Record(hd, rest)
+  | hd :: rest -> { typeParams = []; definition = TypeDeclaration.Record(hd, rest) }
 
 let userTypeRecord
   (modules : List<string>)
@@ -118,5 +118,4 @@ let userTypeRecord
   : UserType.T =
   { tlid = gid ()
     name = { modules = modules; name = TypeName.TypeName name; version = version }
-    typeParams = []
-    definition = customTypeRecord fields }
+    declaration = customTypeRecord fields }

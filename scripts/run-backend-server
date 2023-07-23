@@ -108,4 +108,7 @@ echo "Running queueworker"
 echo "Running bwddangerserver"
 "${BWDDANGERSERVER_EXE}" > "$LOGS/bwddangerserver.log" 2>&1 &
 
+echo "Loading packages into dark canvas"
+./scripts/build/load-packages-into-dark-canvas $PUBLISHED_FLAG $PUBLISHED_FLAG
+
 echo "Finished loading server"

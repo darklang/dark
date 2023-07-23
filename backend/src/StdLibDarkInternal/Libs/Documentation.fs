@@ -17,23 +17,25 @@ let fn = fn modules
 
 let types : List<BuiltInType> =
   [ { name = typ "Function" 0
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "name"; typ = TString; description = "" },
-          [ { name = "description"; typ = TString; description = "" }
-            { name = "parameters"; typ = TList(TString); description = "" }
-            { name = "returnType"; typ = TString; description = "" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "name"; typ = TString; description = "" },
+              [ { name = "description"; typ = TString; description = "" }
+                { name = "parameters"; typ = TList(TString); description = "" }
+                { name = "returnType"; typ = TString; description = "" } ]
+            ) }
       deprecated = NotDeprecated
       description = "A Darklang stdlib function" }
     { name = typ "Parameter" 0
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "name"; typ = TString; description = "" },
-          [ { name = "type"; typ = TString; description = "" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "name"; typ = TString; description = "" },
+              [ { name = "type"; typ = TString; description = "" } ]
+            ) }
       deprecated = NotDeprecated
       description = "A function parameter" } ]
 
@@ -50,7 +52,7 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUnit ] ->
           let typeNameToStr = LibExecution.DvalReprDeveloper.typeName
-          state.libraries.builtInFns
+          state.builtIns.fns
           |> Map.toList
           |> List.filter (fun (key, data) ->
             (not (FnName.isInternalFn key)) && data.deprecated = NotDeprecated)

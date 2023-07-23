@@ -41,18 +41,6 @@ module DvalComparator =
     | DRecord(tn1, o1), DRecord(tn2, o2) ->
       let c = compare tn1 tn2
       if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
-    | DOption o1, DOption o2 ->
-      match o1, o2 with
-      | None, None -> 0
-      | None, Some _ -> -1
-      | Some _, None -> 1
-      | Some v1, Some v2 -> compareDval v1 v2
-    | DResult r1, DResult r2 ->
-      match r1, r2 with
-      | Ok v1, Ok v2 -> compareDval v1 v2
-      | Ok _, Error _ -> -1
-      | Error _, Ok _ -> 1
-      | Error e1, Error e2 -> compareDval e1 e2
     | DEnum(tn1, c1, f1), DEnum(tn2, c2, f2) ->
       let c = compare tn1 tn2
       if c = 0 then
@@ -79,8 +67,6 @@ module DvalComparator =
     | DBytes _, _
     | DDict _, _
     | DRecord _, _
-    | DOption _, _
-    | DResult _, _
     | DEnum _, _ ->
       Exception.raiseCode "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
 
@@ -254,7 +240,7 @@ let fns : List<BuiltInFn> =
     { name = fn "head" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "Returns {{Just}} the head (first value) of a list. Returns {{Nothing}} if
          the list is empty."
@@ -270,7 +256,7 @@ let fns : List<BuiltInFn> =
     { name = fn "tail" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TOption(TList varA)
+      returnType = TypeReference.option (TList varA)
       description =
         "If <param list> contains at least one value, returns {{Just}} with a list of
          every value other than the first. Otherwise, returns {{Nothing}}."
@@ -280,7 +266,7 @@ let fns : List<BuiltInFn> =
         // unless the passed list is truly empty (which shouldn't happen in most practical uses).
         (function
         | _, _, [ DList l ] ->
-          (if List.isEmpty l then None else Some(DList l.Tail)) |> DOption |> Ply
+          (if List.isEmpty l then None else Some(DList l.Tail)) |> Dval.option |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -318,7 +304,7 @@ let fns : List<BuiltInFn> =
     { name = fn "last" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "Returns the last value in <param list>, wrapped in an option (<param
          Nothing> if the list is empty)"
@@ -350,7 +336,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA ], TBool)) "" [ "val" ] ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "Returns {{Just firstMatch}} where <var firstMatch> is the first value of the
          list for which <param fn> returns {{true}}. Returns {{Nothing}} if no such
@@ -392,20 +378,20 @@ let fns : List<BuiltInFn> =
     { name = fn "repeat" 0
       typeParams = []
       parameters = [ Param.make "times" TInt ""; Param.make "val" varA "" ]
-      returnType = TResult(TList varA, TString)
+      returnType = TypeReference.result (TList varA) TString
       description =
         "Returns a list containing <param val> repeated <param times> times"
       fn =
         (function
         | _, _, [ DInt times; v ] ->
-          let errPipe e = e |> DString |> Error |> DResult |> Ply
+          let errPipe e = e |> DString |> Dval.resultError |> Ply
           if times < 0L then
             Errors.argumentWasnt "positive" "times" (DInt times) |> errPipe
           else if times > 2147483647L then
             Errors.argumentWasnt "less than 2147483647" "times" (DInt times)
             |> errPipe
           else
-            List.replicate (int times) v |> DList |> Ok |> DResult |> Ply
+            List.replicate (int times) v |> DList |> Dval.resultOk |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -725,7 +711,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "list" (TList varA) ""
           Param.makeWithArgs "fn" (TFn([ varA; varA ], TInt)) "" [ "a"; "b" ] ]
-      returnType = TResult(varA, TString)
+      returnType = TypeReference.result varA TString
       description =
         "Returns a copy of <param list>, sorted using {{fn a b}} to compare values
          <var a> and <var b>.
@@ -757,9 +743,9 @@ let fns : List<BuiltInFn> =
               let array = List.toArray list
               do! Sort.sort fn array
               // CLEANUP: check fakevals
-              return array |> Array.toList |> DList |> Ok |> DResult
+              return array |> Array.toList |> DList |> Dval.resultOk
             with e ->
-              return DResult(Error(DString e.Message))
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -881,7 +867,11 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "list" (TList varA) ""
-          Param.makeWithArgs "fn" (TFn([ varA ], TOption varB)) "" [ "val" ] ]
+          Param.makeWithArgs
+            "fn"
+            (TFn([ varA ], TypeReference.option varB))
+            ""
+            [ "val" ] ]
       returnType = TList varB
       description =
         "Calls <param fn> on every <var val> in <param list>, returning a list that
@@ -900,7 +890,7 @@ let fns : List<BuiltInFn> =
           uply {
             let abortReason = ref None
 
-            let f (dv : Dval) : Ply<Dval option> =
+            let f (dv : Dval) : Ply<Option<Dval>> =
               uply {
                 let run = abortReason.Value = None
 
@@ -908,15 +898,27 @@ let fns : List<BuiltInFn> =
                   let! result = Interpreter.applyFnVal state b [ dv ]
 
                   match result with
-                  | DOption(Some o) -> return Some o
-                  | DOption None -> return None
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Just",
+                          [ o ]) -> return Some o
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Nothing",
+                          []) -> return None
                   | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
                   | v ->
                     return
                       Exception.raiseCode (
-                        Errors.expectedLambdaType "fn" (TOption varB) v
+                        Errors.expectedLambdaType "fn" (TypeReference.option varB) v
                       )
                 else
                   return None
@@ -1175,7 +1177,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "as" (TList varA) ""
           Param.make "bs" (TList varB) ""
           Param.makeWithArgs "fn" (TFn([ varA; varB ], varC)) "" [ "a"; "b" ] ]
-      returnType = TOption varC
+      returnType = TypeReference.option varC
       description =
         "If the lists are the same length, returns {{Just list}} formed by mapping
          <param fn> over <param as> and <param bs> in parallel, calling {{fn a b}} on
@@ -1193,7 +1195,7 @@ let fns : List<BuiltInFn> =
         | state, _, [ DList l1; DList l2; DFnVal b ] ->
           uply {
             if List.length l1 <> List.length l2 then
-              return DOption None
+              return Dval.optionNothing
             else
               let list = List.zip l1 l2
 
@@ -1203,7 +1205,7 @@ let fns : List<BuiltInFn> =
                     Interpreter.applyFnVal state b [ dv1; dv2 ])
                   list
 
-              return DOption(Some(Dval.list result))
+              return Dval.optionJust (Dval.list result)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1252,7 +1254,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
-      returnType = TOption(TList(TTuple(varA, varB, [])))
+      returnType = TypeReference.option (TList(TTuple(varA, varB, [])))
       description =
         "If the lists have the same length, returns {{Just list of tuples}} formed from
         parallel pairs in <param as> and <param bs>.
@@ -1270,13 +1272,12 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DList l1; DList l2 ] ->
           if List.length l1 <> List.length l2 then
-            Ply(DOption None)
+            Ply(Dval.optionNothing)
           else
             List.zip l1 l2
             |> List.map (fun (val1, val2) -> DTuple(val1, val2, []))
             |> Dval.list
-            |> Some
-            |> DOption
+            |> Dval.optionJust
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -1331,7 +1332,7 @@ let fns : List<BuiltInFn> =
     { name = fn "getAt" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "Returns {{Just value}} at <param index> in <param list> if <param index> is
          less than the length of the list otherwise returns {{Nothing}}."
@@ -1348,14 +1349,14 @@ let fns : List<BuiltInFn> =
     { name = fn "randomElement" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
          selected value in <param list>. Returns {{Nothing}} if <param list> is
          empty."
       fn =
         (function
-        | _, _, [ DList [] ] -> Ply(DOption None)
+        | _, _, [ DList [] ] -> Ply(Dval.optionNothing)
         | _, _, [ DList l ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but

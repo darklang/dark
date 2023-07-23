@@ -31,7 +31,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TResult(TDateTime, TString)
+      returnType = TypeReference.result TDateTime TString
       description =
         "Parses a string representing a date and time in the ISO 8601 format exactly {{"
         + ISO8601Format
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
           ISO8601DateParser s
           |> Result.map DDateTime
           |> Result.mapError (fun () -> DString "Invalid date format")
-          |> DResult
+          |> Dval.result
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

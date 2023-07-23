@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
     { name = fn "toChar" 0
       typeParams = []
       parameters = [ Param.make "c" TString "" ]
-      returnType = TOption TChar
+      returnType = TypeReference.option TChar
       description = "Turns a string of length 1 into a character"
       fn =
         (function
@@ -94,9 +94,9 @@ let fns : List<BuiltInFn> =
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
-            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Some |> DOption |> Ply)
+            chars |> Seq.toList |> (fun l -> l[0] |> DChar |> Dval.optionJust |> Ply)
           else
-            Ply(DOption None)
+            Ply(Dval.optionNothing)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -154,11 +154,11 @@ let fns : List<BuiltInFn> =
     { name = fn "justWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description = "Returns a DError in a Just"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(DOption(Some(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(Dval.optionJust (DError(SourceNone, msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -168,11 +168,11 @@ let fns : List<BuiltInFn> =
     { name = fn "okWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
-      returnType = TResult(varA, varB)
+      returnType = TypeReference.result varA varB
       description = "Returns a DError in an OK"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -182,11 +182,11 @@ let fns : List<BuiltInFn> =
     { name = fn "errorWithTypeError" 0
       typeParams = []
       parameters = [ Param.make "msg" TString "" ]
-      returnType = TResult(varA, varB)
+      returnType = TypeReference.result varA varB
       description = "Returns a DError in a Result.Error"
       fn =
         (function
-        | _, _, [ DString msg ] -> Ply(DResult(Ok(DError(SourceNone, msg))))
+        | _, _, [ DString msg ] -> Ply(Dval.resultOk (DError(SourceNone, msg)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -196,7 +196,7 @@ let fns : List<BuiltInFn> =
     { name = fn "deleteUser" 0
       typeParams = []
       parameters = [ Param.make "username" TString "" ]
-      returnType = TResult(TUnit, varB)
+      returnType = TypeReference.result TUnit varB
       description = "Delete a user (test only)"
       fn =
         (function
@@ -324,37 +324,6 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "unwrap" 0
-      typeParams = []
-      parameters = [ Param.make "value" (TOption(TVariable "a")) "" ]
-      returnType = TVariable "a"
-      description =
-        "Unwrap an Option or Result, returning the value or a DError if Nothing"
-      fn =
-        (function
-        | _, _, [ DOption opt ] ->
-          uply {
-            match opt with
-            | Some value -> return value
-            | None -> return (DError(SourceNone, "Nothing"))
-          }
-        | _, _, [ DResult res ] ->
-          uply {
-            match res with
-            | Ok value -> return value
-            | Error e ->
-              return
-                (DError(
-                  SourceNone,
-                  ("Error: " + LibExecution.DvalReprDeveloper.toRepr e)
-                ))
-          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -1,4 +1,4 @@
-module Parser.Utils
+module internal Parser.Utils
 
 open FSharp.Compiler
 open FSharp.Compiler.CodeAnalysis
@@ -64,4 +64,4 @@ let singleExprFromImplFile (parsedAsFSharp : ParsedImplFileInput) : SynExpr =
 
 type AvailableTypes =
   Map<string, (LibExecution.ProgramTypes.TypeName.T *
-  LibExecution.ProgramTypes.CustomType.T)>
+  LibExecution.ProgramTypes.TypeDeclaration.T)>

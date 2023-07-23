@@ -1,8 +1,8 @@
 Dict.empty_v0 = Dict {}
 
 Dict.filterMap_v0 (Dict {}) (fun (key, value) -> 0) = (Dict {})
-Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) -> if value == "y" then Nothing else (Just (key ++ value))) = (Dict { c = "cz"; a = "ax"})
-Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) -> if value == "y" then false else (Just (key ++ value))) = Test.typeError_v0 "Expected `fn` to return a Option<'b>, but it returned `false`"
+Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) -> if value == "y" then PACKAGE.Darklang.Stdlib.Option.Option.Nothing else (PACKAGE.Darklang.Stdlib.Option.Option.Just (key ++ value))) = (Dict { c = "cz"; a = "ax"})
+Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun (key, value) -> if value == "y" then false else (PACKAGE.Darklang.Stdlib.Option.Option.Just (key ++ value))) = Test.typeError_v0 "Expected `fn` to return a PACKAGE.Darklang.Stdlib.Option.Option<'b>, but it returned `false`"
 Dict.filter (Dict { key1 = "val1"; key2 = "val2" }) (fun (k, v) -> k == "key1") = (Dict { key1 = "val1"})
 Dict.filter (Dict { key1 = 1; key2 = 3 })  (fun (k, v) -> v < 2) = (Dict { key1 = 1 })
 Dict.filter (Dict {}) (fun (k, v) -> 0) = (Dict {})
@@ -17,16 +17,16 @@ Dict.fromListOverwritingDuplicates_v0 [("a",1); 2; ("c",3)] = Test.typeError_v0 
 Dict.fromListOverwritingDuplicates_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
 // CLEANUP the first test here feels surprising - should it error or something?
-Dict.fromList_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = Nothing
-Dict.fromList_v0 [("a",1); ("b",2); ("c",3)] = Just (Dict { c = 3; b = 2; a = 1 })
-Dict.fromList_v0 [("Content-Length",0); ("Server", "dark") ] = Just (Dict {``Content-Length`` = 0; Server = "dark"})
+Dict.fromList_v0 [("duplicate_key",1); ("b",2); ("duplicate_key",3)] = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+Dict.fromList_v0 [("a",1); ("b",2); ("c",3)] = PACKAGE.Darklang.Stdlib.Option.Option.Just (Dict { c = 3; b = 2; a = 1 })
+Dict.fromList_v0 [("Content-Length",0); ("Server", "dark") ] = PACKAGE.Darklang.Stdlib.Option.Option.Just (Dict {``Content-Length`` = 0; Server = "dark"})
 Dict.fromList_v0 [("a",1); ("b",2); ("c",3,3)] = Test.typeError_v0 "All list items must be `(key, value)`"
 Dict.fromList_v0 [(1,1)] = Test.typeError_v0 "Expected `key` to be a `String`, but it was `1`"
 Dict.fromList_v0 [("a",1); 2; ("c",3)] = Test.typeError_v0 "All list items must be `(key, value)`"
-Dict.fromList_v0 [] = Just (Dict {})
+Dict.fromList_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Just (Dict {})
 Dict.fromList_v0 [Test.typeError_v0 ""] = Test.typeError_v0 ""
 
-Dict.get (Dict { key1 = "val1" }) "key1" = Just "val1"
+Dict.get (Dict { key1 = "val1" }) "key1" = PACKAGE.Darklang.Stdlib.Option.Option.Just "val1"
 
 Dict.isEmpty_v0 (Dict { a = 1 }) = false
 Dict.isEmpty_v0 (Dict {}) = true

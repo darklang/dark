@@ -19,7 +19,7 @@
     <Compile Include="Libs/DateTime.fs" />
     <Compile Include="Libs/Dict.fs" />
     <Compile Include="Libs/Float.fs" />
-    <Compile Include="Libs/HttpClient.fs" />
+    <Compile Include="Libs/HttpClientAuth.fs" />
     <Compile Include="Libs/Int.fs" />
     <Compile Include="Libs/Json.fs" />
     <Compile Include="Libs/List.fs" />
@@ -31,7 +31,6 @@
     <Compile Include="Libs/Tuple2.fs" />
     <Compile Include="Libs/Tuple3.fs" />
     <Compile Include="Libs/Uuid.fs" />
-    <Compile Include="Libs/HttpClientAuth.fs" />
     <Compile Include="StdLib.fs" />
   </ItemGroup>
   <ItemGroup>

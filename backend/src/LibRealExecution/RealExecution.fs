@@ -25,59 +25,14 @@ let builtins : LibExecution.StdLib.Contents =
       StdLibDarkInternal.StdLib.contents ]
     []
     []
+let builtIns : RT.BuiltIns =
+  let (fns, types, constants ) = builtins
+  {
+    types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name)}
 
-let packageFns () : Task<Map<RT.FnName.Package, RT.PackageFn.T>> =
-  (task {
-    let! packages = PackageManager.allFunctions ()
-
-    return
-      packages
-      |> List.map (fun (f : PT.PackageFn.T) ->
-        (f.name |> PT2RT.FnName.Package.toRT, PT2RT.PackageFn.toRT f))
-      |> Map.ofList
-  })
-
-let packageTypes () : Task<Map<RT.TypeName.Package, RT.PackageType.T>> =
-  (task {
-    let! packages = PackageManager.allTypes ()
-
-    return
-      packages
-      |> List.map (fun (t : PT.PackageType.T) ->
-        (t.name |> PT2RT.TypeName.Package.toRT, PT2RT.PackageType.toRT t))
-      |> Map.ofList
-  })
-
-let packageConstants () : Task<Map<RT.ConstantName.Package, RT.PackageConstant.T>> =
-  (task {
-    let! packages = PackageManager.allConstants ()
-
-    return
-      packages
-      |> List.map (fun (c : PT.PackageConstant.T) ->
-        (c.name |> PT2RT.ConstantName.Package.toRT,
-          PT2RT.PackageConstant.toRT c))
-      |> Map.ofList
-  })
-
-let libraries () : Task<RT.Libraries> =
-  (task {
-    let! packageFns = packageFns ()
-    let! packageTypes = packageTypes ()
-    let! packageConstants = packageConstants ()
-    let (fns, types, constants) = builtins
-    // TODO: this keeps a cached version so we're not loading them all the time.
-    // Of course, this won't be up to date if we add more functions. This should be
-    // some sort of LRU cache.
-    return
-      { builtInTypes = types |> Map.fromListBy (fun typ -> typ.name)
-        builtInFns = fns |> Map.fromListBy (fun fn -> fn.name)
-        builtInConstants = constants |> Map.fromListBy (fun c -> c.name)
-        packageFns = packageFns
-        packageTypes = packageTypes
-        packageConstants = packageConstants }
-    }
-  )
+let packageManager = PackageManager.packageManager
 
 let createState
   (traceID : AT.TraceID.T)
@@ -87,8 +42,6 @@ let createState
   (tracing : RT.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let! libraries = libraries ()
-
     let extraMetadata (state : RT.ExecutionState) : Metadata =
       [ "tlid", tlid
         "trace_id", traceID
@@ -106,7 +59,8 @@ let createState
 
     return
       Exe.createState
-        libraries
+        builtIns
+        packageManager
         tracing
         sendException
         notify
@@ -190,6 +144,6 @@ let reexecuteFunction
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =
   task {
-    let! (_ : RT.Libraries) = libraries ()
+    do! packageManager.init
     return ()
   }

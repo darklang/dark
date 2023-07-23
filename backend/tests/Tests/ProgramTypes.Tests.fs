@@ -23,7 +23,7 @@ let testPipesToRuntimeTypes =
   test "pipes to runtime types" {
     let actual =
       "value.age |> (-) 2 |> (+) value.age |> (<) 3"
-      |> Parser.ProgramTypes.parseRTExpr
+      |> Parser.Parser.parseRTExpr
         Set.empty
         Set.empty
         Set.empty
@@ -48,8 +48,7 @@ let testPipesToRuntimeTypes =
                 [ S.eFieldAccess (S.eVar "value") "age"; S.eInt 2 ]
               S.eFieldAccess (S.eVar "value") "age" ]
           S.eInt 3 ]
-    let types = RT.Types.empty
-    Expect.equalExprIgnoringIDs types actual expected
+    Expect.equalExprIgnoringIDs actual expected
   }
 
 let testProgramTypesToRuntimeTypes =

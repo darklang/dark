@@ -13,26 +13,22 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module StdLibCli = StdLibCli.StdLib
 
-let (builtInFns, builtInTypes, builtInConstants) =
-  LibExecution.StdLib.combine
-    [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
-    []
-    []
 
+let builtIns : RT.BuiltIns =
+  let (fns, types, constants) =
+    LibExecution.StdLib.combine
+      [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
+      []
+      []
+  { types = types |> Map.fromListBy (fun typ -> typ.name)
+    fns = fns |> Map.fromListBy (fun fn -> fn.name)
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
-let libraries : RT.Libraries =
-  { builtInTypes = builtInTypes |> Map.fromListBy (fun typ -> typ.name)
-    builtInFns = builtInFns |> Map.fromListBy (fun fn -> fn.name)
-    builtInConstants = builtInConstants |> Map.fromListBy (fun c -> c.name)
-    packageFns = Map.empty
-    packageTypes = Map.empty
-    packageConstants = Map.empty }
 
 let defaultTLID = 7UL
 
-
 let execute
-  (mod' : Parser.CanvasV2.CanvasModule)
+  (mod' : Parser.CanvasV2.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Task<RT.Dval> =
   task {
@@ -77,7 +73,8 @@ let execute
 
     let state =
       Exe.createState
-        libraries
+        builtIns
+        LibBackend.PackageManager.packageManager
         tracing
         sendException
         notify
@@ -91,7 +88,7 @@ let execute
 let sourceOf
   (tlid : tlid)
   (id : id)
-  (modul : Parser.CanvasV2.CanvasModule)
+  (modul : Parser.CanvasV2.PTCanvasModule)
   : string =
   let ast =
     if tlid = defaultTLID then
@@ -123,7 +120,9 @@ let sourceOf
 
 
 
-let initSerializers () = ()
+let initSerializers () =
+  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageFn.T>>
+    "Parse packageFn list"
 
 [<EntryPoint>]
 let main (args : string[]) : int =

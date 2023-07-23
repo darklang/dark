@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "read" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TResult(TBytes, TString)
+      returnType = TypeReference.result TBytes TString
       description =
         "Reads the contents of a file specified by <param path> asynchronously and returns its contents as Bytes wrapped in a Result"
       fn =
@@ -28,9 +28,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return DResult(Ok(DBytes contents))
+              return Dval.resultOk (DBytes contents)
             with e ->
-              return DResult(Error(DString($"Error reading file: {e.Message}")))
+              return Dval.resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
     { name = fn "write" 0
       typeParams = []
       parameters = [ Param.make "contents" TBytes ""; Param.make "path" TString "" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TypeReference.result TUnit TString
       description =
         "Writes the specified byte array <param contents> to the file specified by <param path> asynchronously"
       fn =
@@ -50,9 +50,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, contents)
-              return DResult(Ok(DUnit))
+              return Dval.resultOk (DUnit)
             with e ->
-              return DResult(Error(DString($"Error writing file: {e.Message}")))
+              return Dval.resultError (DString($"Error writing file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
     { name = fn "append" 0
       typeParams = []
       parameters = [ Param.make "path" TString ""; Param.make "content" TBytes "" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TypeReference.result TUnit TString
       description =
         "Appends the given <param content> to the file at the specified <param path>. If the file does not exist, a new file is created with the content. Returns a Result type indicating success or failure."
       fn =
@@ -72,9 +72,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               do! System.IO.File.WriteAllBytesAsync(path, content)
-              return DResult(Ok DUnit)
+              return Dval.resultOk DUnit
             with e ->
-              return DResult(Error(DString e.Message))
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -85,7 +85,7 @@ let fns : List<BuiltInFn> =
     { name = fn "createTemp" 0
       typeParams = []
       parameters = [ Param.make "" TUnit "" ]
-      returnType = TResult(TString, TString)
+      returnType = TypeReference.result TString TString
       description =
         "Creates a new temporary file with a unique name in the system's temporary directory. Returns a Result type containing the temporary file path or an error if the creation fails."
       fn =
@@ -94,9 +94,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let tempPath = System.IO.Path.GetTempFileName()
-              return DResult(Ok(DString tempPath))
+              return Dval.resultOk (DString tempPath)
             with e ->
-              return DResult(Error(DString e.Message))
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -178,7 +178,7 @@ let fns : List<BuiltInFn> =
     { name = fn "size" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TResult(TInt, TString)
+      returnType = TypeReference.result TInt TString
       description =
         "Returns the size of the file at the specified <param path> in bytes, or an error if the file does not exist or an error occurs"
       fn =
@@ -187,9 +187,9 @@ let fns : List<BuiltInFn> =
           uply {
             try
               let fileInfo = System.IO.FileInfo(path)
-              return DResult(Ok(DInt fileInfo.Length))
+              return Dval.resultOk (DInt fileInfo.Length)
             with e ->
-              return DResult(Error(DString e.Message))
+              return Dval.resultError (DString e.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

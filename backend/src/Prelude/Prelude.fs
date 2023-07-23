@@ -342,9 +342,12 @@ let debuGList (msg : string) (list : List<'a>) : unit =
   if list = [] then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
   else
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {List.length list}, ["
-    List.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}") list
-    NonBlockingConsole.WriteLine $"])"
+
+    [ $"DEBUG: {msg} (len {List.length list}, [" ]
+    @ List.map (fun item -> $"  {item}") list
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
 
 let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
@@ -354,18 +357,25 @@ let debuGArray (msg : string) (array : 'a[]) : unit =
   if array.Length = 0 then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
   else
-    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {array.Length}, ["
-    array |> Array.iter (fun item -> NonBlockingConsole.WriteLine $"  {item}")
-    NonBlockingConsole.WriteLine $"])"
+    [ $"DEBUG: {msg} (len {array.Length}, [" ]
+    @ (array |> Array.toList |> List.map (fun item -> $"  {item}"))
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
 
 let debugArray (msg : string) (array : 'a[]) : 'a[] =
   debuGArray msg array
   array
 
 let debuGMap (msg : string) (map : Map<'k, 'v>) : unit =
-  NonBlockingConsole.WriteLine $"DEBUG: {msg} (len {Map.count map}, ["
-  map |> Map.iter (fun k v -> NonBlockingConsole.WriteLine $"  {k} -> {v}")
-  NonBlockingConsole.WriteLine $"])"
+  if map = Map.empty then
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+  else
+    [ $"DEBUG: {msg} (len {Map.count map}, [" ]
+    @ (Map.toList map |> List.map (fun (k, v) -> $"  ({k}, {v})"))
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
 
 let debugMap (msg : string) (map : Map<'k, 'v>) : Map<'k, 'v> =
   debuGMap msg map
@@ -898,6 +908,8 @@ module Dictionary =
   let get (k : 'k) (t : T<'k, 'v>) : Option<'v> =
     FSharpPlus.Dictionary.tryGetValue k t
 
+  let containsKey (k : 'k) (t : T<'k, 'v>) : bool = t.ContainsKey k
+
   let add (k : 'k) (v : 'v) (d : T<'k, 'v>) : unit =
     d[k] <- v
     ()
@@ -1037,6 +1049,50 @@ module Json =
       override _.Write(writer : Utf8JsonWriter, _ : Password, _options) =
         writer.WriteStringValue("Redacted")
 
+    type NonEmptyListValueConverter<'TValue>() =
+      inherit JsonConverter<FSharpPlus.Data.NonEmptyList<'TValue>>()
+
+      override this.Read
+        (
+          reader : byref<Utf8JsonReader>,
+          typeToConvert : System.Type,
+          options : JsonSerializerOptions
+        ) =
+        JsonSerializer.Deserialize<'TValue seq>(&reader, options)
+        |> Seq.toList
+        |> FSharpPlus.Data.NonEmptyList.ofList
+
+
+      override this.Write
+        (
+          writer : Utf8JsonWriter,
+          value : FSharpPlus.Data.NonEmptyList<'TValue>,
+          options : JsonSerializerOptions
+        ) =
+        let value = FSharpPlus.Data.NonEmptyList.toList value
+        JsonSerializer.Serialize(writer, (List.toSeq value), options)
+
+
+    type NonEmptyListConverter() =
+      inherit JsonConverterFactory()
+      override this.CanConvert(typeToConvert : System.Type) : bool =
+        typeToConvert.IsGenericType
+        && List.contains
+          (typeToConvert.GetGenericTypeDefinition())
+          [ typedefof<FSharpPlus.Data.NonEmptyList<_>>
+            typedefof<System.Collections.Generic.IReadOnlyCollection<_>> ]
+
+      override this.CreateConverter
+        (
+          typeToConvert : System.Type,
+          _options : JsonSerializerOptions
+        ) : JsonConverter =
+        let typArgs = typeToConvert.GetGenericArguments()
+        let converterType =
+          typedefof<NonEmptyListValueConverter<_>>.MakeGenericType(typArgs)
+        System.Activator.CreateInstance(converterType) :?> JsonConverter
+
+
     // Since we're getting this back from OCaml in DDates, we need to use the
     // timezone even though there isn't one in the type
     type LocalDateTimeConverter() =
@@ -1086,10 +1142,7 @@ module Json =
 
     let getDefaultOptions () =
       let fsharpConverter =
-        JsonFSharpConverter(
-          unionEncoding =
-            (JsonUnionEncoding.InternalTag ||| JsonUnionEncoding.UnwrapOption)
-        )
+        JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.ExternalTag))
       let options = JsonSerializerOptions()
       options.MaxDepth <- System.Int32.MaxValue // infinite
       options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
@@ -1099,6 +1152,7 @@ module Json =
       options.Converters.Add(Int64Converter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
+      options.Converters.Add(NonEmptyListConverter())
       options.Converters.Add(fsharpConverter)
 
       options

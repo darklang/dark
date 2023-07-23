@@ -6,7 +6,7 @@ type DirectoryContents = { files: List<String> }
 
 type DockerBuildResponse = { id: String }
 
-let unwrap (result: Result<String, 'a>) : String =
+let unwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<String, 'a>) : String =
   match result with
   | Ok value -> value
   | Error error -> ()

@@ -8,21 +8,6 @@ let logErr (s: String) : Unit =
   let _ = WASM.Editor.callJSFunction "console.error" [ s ]
   ()
 
-let rUnwrap (result: Result<'a, 'b>) : 'a =
-  match result with
-  | Ok s -> s
-  | Error e ->
-    // TODO: handle non-string errors with Json.serialize<'b>, or using RuntimeTypes somehow
-    // match Json.serialize<'b> e with
-    // | Ok serializedError ->
-    //   logErr (
-    //     "Couldn't unwrap Result - instead of an OK, got this Error: "
-    //     ++ serializedError
-    //   )
-    // | Error err -> logErr ("couldn't serialize error to log: " ++ err)
-
-    logErr ("Couldn't unwrap Result - instead of an OK, got this Error: " ++ e)
-
 
 // todo: throw this stuff into an OpenAI module?
 type OpenAIChatCompletionRequestMessage = { role: String; content: String }
@@ -41,7 +26,9 @@ type OpenAIChatCompletionResponseChoice =
 type OpenAIChatCompletionResponse =
   { choices: List<OpenAIChatCompletionResponseChoice> }
 
-let openAIcompletion (prompt: String) : Result<String, String> =
+let openAIcompletion
+  (prompt: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
   let apiKey =
     let url = "http://dark-editor.dlio.localhost:11003/openai-apikey-yikes"
 
@@ -82,7 +69,9 @@ let openAIcompletion (prompt: String) : Result<String, String> =
   | Error e -> Error("Couldn't serialize request" ++ e)
 
 
-let parseAndSerializeProgram (userProgram: String) : Result<String, String> =
+let parseAndSerializeProgram
+  (userProgram: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
   let response =
     WASM.HttpClient.request
       "POST"
@@ -90,11 +79,11 @@ let parseAndSerializeProgram (userProgram: String) : Result<String, String> =
       []
       (String.toBytes userProgram)
 
-  let statusCode = response |> rUnwrap |> (fun r -> r.statusCode)
+  let statusCode = response |> unwrap |> (fun r -> r.statusCode)
 
   match statusCode with
-  | 200 -> Ok(response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
-  | 400 -> Error(response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes)
+  | 200 -> Ok(response |> unwrap |> (fun r -> r.body) |> String.fromBytes)
+  | 400 -> Error(response |> unwrap |> (fun r -> r.body) |> String.fromBytes)
   | _ -> Error("Unexpected response code: " ++ Int.toString statusCode)
 
 
@@ -131,7 +120,7 @@ type ChatHistoryItem =
 type CodeSnippet =
   { id: String
     code: String
-    eval: Option<String> }
+    eval: PACKAGE.Darklang.Stdlib.Option.Option<String> }
 
 type Model =
   { isLoading: Bool
@@ -199,7 +188,7 @@ let update (model: Model) (msg: Msg) : Model =
           chatHistory =
             List.append
               model.chatHistory
-              [ ChatHistoryItem.UserPrompt (rUnwrap (String.random 5)) userPrompt ]
+              [ ChatHistoryItem.UserPrompt (unwrap (String.random 5)) userPrompt ]
           codeSnippets = model.codeSnippets
           tasks = model.tasks
           actions = model.actions
@@ -214,7 +203,7 @@ let update (model: Model) (msg: Msg) : Model =
         "http://dark-editor.dlio.localhost:11003/task-creation-prompt"
         []
         Bytes.empty)
-      |> rUnwrap
+      |> unwrap
       |> (fun r -> r.body)
       |> String.fromBytes
       |> String.append $"\n\n {userPrompt}"
@@ -236,7 +225,7 @@ let update (model: Model) (msg: Msg) : Model =
           |> String.split "\n"
           |> List.map (fun line ->
             Task
-              { id = (String.random 5) |> rUnwrap
+              { id = (String.random 5) |> unwrap
                 description = line
                 status = Status.Todo })
 
@@ -251,7 +240,7 @@ let update (model: Model) (msg: Msg) : Model =
           if text == "" then
             acc
           else if i % 2 == 1 then
-            let snippetId = rUnwrap (String.random 5)
+            let snippetId = unwrap (String.random 5)
 
             let updatedCodeSnippets =
               List.append
@@ -259,7 +248,7 @@ let update (model: Model) (msg: Msg) : Model =
                 [ CodeSnippet
                     { id = snippetId
                       code = text
-                      eval = Nothing } ]
+                      eval = PACKAGE.Darklang.Stdlib.Option.Option.Nothing } ]
 
             let updatedResponseParts =
               List.append responseParts [ BotResponseItem.CodeSnippet snippetId ]
@@ -269,8 +258,8 @@ let update (model: Model) (msg: Msg) : Model =
             codeSnippets, (List.append responseParts [ BotResponseItem.Text text ]))
 
       let newChatItemsItems =
-        [ ChatHistoryItem.UserPrompt (rUnwrap (String.random 5)) userPrompt
-          ChatHistoryItem.BotResponse (rUnwrap (String.random 5)) botResponseParts ]
+        [ ChatHistoryItem.UserPrompt (unwrap (String.random 5)) userPrompt
+          ChatHistoryItem.BotResponse (unwrap (String.random 5)) botResponseParts ]
 
       Model
         { isLoading = false
@@ -311,7 +300,7 @@ let update (model: Model) (msg: Msg) : Model =
               [ CodeSnippet
                   { id = snippetToUpdate.id
                     code = codeSnippet
-                    eval = Just evalPgm } ]
+                    eval = PACKAGE.Darklang.Stdlib.Option.Option.Just evalPgm } ]
               otherSnippets
 
           Model
@@ -343,7 +332,7 @@ let update (model: Model) (msg: Msg) : Model =
           CodeSnippet
             { id = "evaluated-program"
               code = code
-              eval = Just evalPgm }
+              eval = PACKAGE.Darklang.Stdlib.Option.Option.Just evalPgm }
 
         Model
           { isLoading = false
@@ -364,7 +353,9 @@ let update (model: Model) (msg: Msg) : Model =
 ///
 /// Let the JS host know that the state has been updated,
 /// so that it can update the UI accordingly.
-let updateStateInJS (newState: Model) : Result<Unit, String> =
+let updateStateInJS
+  (newState: Model)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   match Json.serialize<Model> newState with
   | Ok serialized ->
     let _ = WASM.Editor.callJSFunction "self.receiveEvalResult" [ serialized ]
@@ -379,7 +370,9 @@ let updateStateInJS (newState: Model) : Result<Unit, String> =
 /// Single point of communication from JS host
 ///
 /// Listen for events from the JS host, and update the state accordingly.
-let handleEvent (evt: String) : Result<String, String> =
+let handleEvent
+  (evt: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<String, String> =
   match Json.parse<Msg> evt with
   | Ok msg ->
     match WASM.Editor.getState<Model> () with
@@ -405,23 +398,23 @@ let init () : Model =
   let initState =
     let demoSnippet =
       CodeSnippet
-        { id = (String.random 5) |> rUnwrap
+        { id = (String.random 5) |> unwrap
           code = "let incr (i: Int): Int = i + 1\n\nincr 5"
-          eval = Nothing }
+          eval = PACKAGE.Darklang.Stdlib.Option.Option.Nothing }
 
     let demoAction =
       [ Action
-          { id = (String.random 5) |> rUnwrap
+          { id = (String.random 5) |> unwrap
             description = "Demo action"
             status = Status.InProgress } ]
 
     let chatHistory =
       [ ChatHistoryItem.UserPrompt
-          (rUnwrap (String.random 5))
+          (unwrap (String.random 5))
           "Hello, I want a function that increments an integer!"
 
         ChatHistoryItem.BotResponse
-          (rUnwrap (String.random 5))
+          (unwrap (String.random 5))
           [ BotResponseItem.Text "OK - here's some code:"
             BotResponseItem.CodeSnippet demoSnippet.id
             BotResponseItem.Actions demoAction ] ]
@@ -482,12 +475,12 @@ let init () : Model =
 // type BotResponseJS
 
 // type ChatHistoryItemJS =
-//   | BotResponse of { author : string; body : String  }
+//   | BotResponse of { author : String; body : String  }
 
 // type ModelForJS =
 //   // should be 1:1 with Model, but nice and serializeable
-//   { systemPrompt : string
-//     state : string
+//   { systemPrompt : String
+//     state : String
 //     code: String
 //     chatHistory: List<ChatHistoryItemJS> }
 

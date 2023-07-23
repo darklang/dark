@@ -15,7 +15,7 @@ module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 
 let p (code : string) : Expr =
-  Parser.ProgramTypes.parseRTExpr
+  Parser.Parser.parseRTExpr
     Set.empty
     Set.empty
     Set.empty
@@ -33,13 +33,13 @@ let compile
 
     let typeName : TypeName.UserProgram =
       { modules = []; name = TypeName.TypeName "MyType"; version = 0 }
-    let field : CustomType.RecordField =
+    let field : TypeDeclaration.RecordField =
       { name = rowName; typ = rowType; description = "" }
     let userType : UserType.T =
       { tlid = gid ()
         name = typeName
-        typeParams = []
-        definition = CustomType.Record(field, []) }
+        declaration =
+          { typeParams = []; definition = TypeDeclaration.Record(field, []) } }
     let userTypes = Map [ typeName, userType ]
     let typeReference = TCustomType(FQName.UserProgram typeName, [])
 
@@ -132,7 +132,7 @@ let compileTests =
 let inlineWorksAtRoot =
   test "inlineWorksAtRoot" {
     let expr =
-      Parser.ProgramTypes.parseRTExpr
+      Parser.Parser.parseRTExpr
         Set.empty
         Set.empty
         Set.empty
@@ -141,8 +141,7 @@ let inlineWorksAtRoot =
 
     let expected = p "3 + 5"
     let result = C.inline' "value" Map.empty expr
-    let types = Types.empty
-    Expect.equalExprIgnoringIDs types result expected
+    Expect.equalExprIgnoringIDs result expected
   }
 
 let inlineWorksWithNested =
@@ -151,8 +150,7 @@ let inlineWorksWithNested =
 
     let expected = p "3 + 7"
     let result = C.inline' "value" Map.empty expr
-    let types = Types.empty
-    Expect.equalExprIgnoringIDs types result expected
+    Expect.equalExprIgnoringIDs result expected
   }
 
 let partialEvaluation =

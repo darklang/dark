@@ -1,9 +1,9 @@
-Math.acos_v0 -1.0 = Just 3.14159265359
-Math.acos_v0 1.0 = Just 0.0
-Math.acos_v0 5.0 = Nothing
-Math.asin_v0 0.0 = Just 0.0
-Math.asin_v0 1.0 = Just 1.57079632679
-Math.asin_v0 5.0 = Nothing
+Math.acos_v0 -1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 3.14159265359
+Math.acos_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 0.0
+Math.acos_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+Math.asin_v0 0.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 0.0
+Math.asin_v0 1.0 = PACKAGE.Darklang.Stdlib.Option.Option.Just 1.57079632679
+Math.asin_v0 5.0 = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 Math.atan2_v0 -1.0 -1.0 = -2.35619449019
 Math.atan2_v0 -1.0 1.0 = -0.785398163397
 Math.atan2_v0 0.0 1.0 = 0.0

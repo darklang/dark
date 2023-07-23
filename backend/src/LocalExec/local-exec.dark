@@ -11,19 +11,53 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
   |> listDirectoryRecursive
   |> List.filter (fun x -> x |> String.endsWith ".dark")
 
+
+let saveFunctionToCanvas
+  (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
+  : Unit =
+  let reqBody =
+    p
+    |> Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
+    |> unwrap
+    |> String.toBytes
+
+  let _ =
+    HttpClient.request
+      "POST"
+      ("http://dark-packages.dlio.localhost:11003/functions")
+      []
+      reqBody
+
+  ()
+
 let loadPackageFile (filename: String) : Unit =
   filename
-  |> File.read
-  |> unwrap
+  |> LocalExec.File.read
   |> String.fromBytes
   |> LocalExec.Packages.parseAndSave filename
-  |> unwrap
+
+
+let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
+  let packages =
+    filename
+    |> File.read
+    |> unwrap
+    |> String.fromBytes
+    |> LocalExec.Packages.parse filename
+    |> unwrap
+
+  let fns =
+    packages
+    |> Json.parse<List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>>
+    |> unwrap
+
+  fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
+
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
   let modules = p.modules |> String.join "."
 
-  print
-    $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+  print $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
 let printPackageType (p: LocalExec.Packages.Type) : Unit =
   let modules = p.modules |> String.join "."
@@ -48,45 +82,65 @@ let runScript (path: String) (args: List<String>) : Int =
 type CliOptions =
   | Help
   | LoadPackages
+  | LoadPackagesIntoDarkCanvas
   | ListPackages
   | RunScript of path: String * args: List<String>
+  | BadOption of String
 
 let usage () : String =
   "Usage: LocalExec [options]
 
     Options:
-      -h, --help     Show this help message and exit
-      load-packages  Load packages from packages
-      list-packages  List packages
-      run-script     Parse and run .dark script
+      -h, --help          Show this help message and exit
+      load-packages       Load packages from packages
+      load-packages-dark  Load packages from dark packages canvas
+      list-packages       List packages
+      run-script          Parse and run .dark script
   "
 
-let parseArgs (args: List<String>) : Result<CliOptions, String> =
+
+let parseArgs (args: List<String>) : CliOptions =
   match args with
-  | [] -> Ok CliOptions.Help
-  | [ "-h" ] -> Ok CliOptions.Help
-  | [ "--help" ] -> Ok CliOptions.Help
+  | [] -> CliOptions.Help
+  | [ "-h" ] -> CliOptions.Help
+  | [ "--help" ] -> CliOptions.Help
 
-  | [ "list-packages" ] -> Ok CliOptions.ListPackages
-  | [ "load-packages" ] -> Ok CliOptions.LoadPackages
+  | [ "list-packages" ] -> CliOptions.ListPackages
+  | [ "load-packages" ] -> CliOptions.LoadPackages
+  | [ "load-packages-dark" ] -> CliOptions.LoadPackagesIntoDarkCanvas
 
-  | [ "run-script" ] -> Error "Missing path to script after `run-script`"
-  | "run-script" :: path :: args -> Ok(CliOptions.RunScript (path, args))
+  | [ "run-script" ] ->
+    CliOptions.BadOption "Missing path to script after `run-script`"
+  | "run-script" :: path :: args -> CliOptions.RunScript(path, args)
+  | _ -> CliOptions.BadOption "Invalid arguments"
 
-  | _ -> Error "Invalid arguments"
+
+let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
+  let modules = p.modules |> String.join "."
+  print $"Package Function {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+
+let printPackageType (p: LocalExec.Packages.Type) : Unit =
+  let modules = p.modules |> String.join "."
+  print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+
+let printPackages () : Unit =
+  let functions = LocalExec.Packages.listFunctions ()
+  functions |> List.iter (fun p -> printPackageFunction p)
+  let types = LocalExec.Packages.listTypes ()
+  types |> List.iter (fun p -> printPackageType p)
 
 
 let main (args: List<String>) : Int =
   match parseArgs args with
-  | Ok Help ->
+  | Help ->
     print (usage ())
     0
 
-  | Ok ListPackages ->
+  | ListPackages ->
     printAllPackages ()
     0
 
-  | Ok LoadPackages ->
+  | LoadPackages ->
     LocalExec.Packages.clear ()
     let files = listPackageFilesOnDisk "/home/dark/app/packages"
 
@@ -96,19 +150,25 @@ let main (args: List<String>) : Int =
         loadPackageFile f)
 
     print "Done loading packages"
-    printAllPackages ()
     0
 
-  | Ok(RunScript(path, args)) ->
+  | RunScript(path, args) ->
     print $"Running script with LocalExec: {path}"
     runScript path args
 
-  | Ok _ ->
-    print "Parsed args but not implemented yet"
-    1
+  | LoadPackagesIntoDarkCanvas ->
+    let files = listPackageFilesOnDisk "/home/dark/app/packages"
 
-  | Error msg ->
-    print (usage ())
+    do // can we get rid of this do?
+      List.iter files (fun f ->
+        print $"Loading {f}"
+        loadPackageFileIntoDarkCanvas f)
+
+    print "Done loading packages from dark packages canvas"
+    printAllPackages ()
+    0
+
+  | BadOption msg ->
     print ("Error: " ++ msg)
     1
 

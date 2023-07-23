@@ -1,16 +1,16 @@
-Option.andThen_v0 (Just 5) (fun x -> Just (1 + x)) = Just 6
-Option.andThen_v0 (Just 5) (fun x -> Nothing) = Nothing
-Option.andThen_v0 Nothing (fun x -> Just 5) = Nothing
-Option.andThen_v0 Nothing (fun x -> Nothing) = Nothing
-Option.andThen_v0 (Just 8) (fun x -> Just (Int.divide_v0 x 2)) = Just 4
+PACKAGE.Darklang.Stdlib.Option.andThen_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 5) (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Just (1 + x)) = PACKAGE.Darklang.Stdlib.Option.Option.Just 6
+PACKAGE.Darklang.Stdlib.Option.andThen_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 5) (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+PACKAGE.Darklang.Stdlib.Option.andThen_v0 PACKAGE.Darklang.Stdlib.Option.Option.Nothing (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Just 5) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+PACKAGE.Darklang.Stdlib.Option.andThen_v0 PACKAGE.Darklang.Stdlib.Option.Option.Nothing (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+PACKAGE.Darklang.Stdlib.Option.andThen_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 8) (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Just (Int.divide_v0 x 2)) = PACKAGE.Darklang.Stdlib.Option.Option.Just 4
 
-Option.map (Just 4) (fun x -> Int.divide_v0 x 2) = Just 2
-Option.map Nothing (fun x -> Int.divide_v0 x 2) = Nothing
+PACKAGE.Darklang.Stdlib.Option.map (PACKAGE.Darklang.Stdlib.Option.Option.Just 4) (fun x -> Int.divide_v0 x 2) = PACKAGE.Darklang.Stdlib.Option.Option.Just 2
+PACKAGE.Darklang.Stdlib.Option.map PACKAGE.Darklang.Stdlib.Option.Option.Nothing (fun x -> Int.divide_v0 x 2) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
-Option.map2_v0 (Just 10) (Just 1) (fun (a, b) -> a - b) = Just 9
-Option.map2_v0 (Just 10) Nothing (fun (a, b) -> a - b) = Nothing
-Option.map2_v0 Nothing (Just 1) (fun (a, b) -> a - b) = Nothing
-Option.map2_v0 Nothing Nothing (fun (a, b) -> a - b) = Nothing
+Option.map2_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 10) (PACKAGE.Darklang.Stdlib.Option.Option.Just 1) (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Just 9
+Option.map2_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 10) PACKAGE.Darklang.Stdlib.Option.Option.Nothing (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+Option.map2_v0 PACKAGE.Darklang.Stdlib.Option.Option.Nothing (PACKAGE.Darklang.Stdlib.Option.Option.Just 1) (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+Option.map2_v0 PACKAGE.Darklang.Stdlib.Option.Option.Nothing PACKAGE.Darklang.Stdlib.Option.Option.Nothing (fun (a, b) -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
-Option.withDefault_v0 (Just 6) 5 = 6
-Option.withDefault_v0 Nothing 5 = 5
+PACKAGE.Darklang.Stdlib.Option.withDefault_v0 (PACKAGE.Darklang.Stdlib.Option.Option.Just 6) 5 = 6
+PACKAGE.Darklang.Stdlib.Option.withDefault_v0 PACKAGE.Darklang.Stdlib.Option.Option.Nothing 5 = 5

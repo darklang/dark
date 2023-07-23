@@ -183,7 +183,7 @@ module Darklang =
 
       let typesPart =
         match m.types with
-        | [] -> Nothing
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
         | types ->
           m.types
           |> List.map (fun t ->
@@ -193,7 +193,7 @@ module Darklang =
 
       let fnsPart =
         match m.fns with
-        | [] -> Nothing
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
         | fns ->
           m.fns
           |> List.map (fun f ->
@@ -203,7 +203,7 @@ module Darklang =
 
       let submodulesPart =
         match m.submodules with
-        | [] -> Nothing
+        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Nothing
         | submodules ->
           submodules
           |> List.map (fun m -> PACKAGE.Darklang.PrettyPrinter.packageModule m)

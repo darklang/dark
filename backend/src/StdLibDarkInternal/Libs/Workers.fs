@@ -45,15 +45,16 @@ let ruleToDval (r : SchedulingRules.SchedulingRule.T) : Dval =
 
 let types : List<BuiltInType> =
   [ { name = schedulingRuleTypeName
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "id"; typ = TInt; description = "" },
-          [ { name = "ruleType"; typ = TString; description = "" }
-            { name = "canvasID"; typ = TUuid; description = "" }
-            { name = "handlerName"; typ = TString; description = "" }
-            { name = "createdAt"; typ = TDateTime; description = "" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "id"; typ = TInt; description = "" },
+              [ { name = "ruleType"; typ = TString; description = "" }
+                { name = "canvasID"; typ = TUuid; description = "" }
+                { name = "handlerName"; typ = TString; description = "" }
+                { name = "createdAt"; typ = TDateTime; description = "" } ]
+            ) }
       deprecated = NotDeprecated
       description = "A scheduling rule for a worker" } ]
 

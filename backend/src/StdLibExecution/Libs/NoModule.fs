@@ -8,18 +8,6 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-let rec getUnderlyingTypeFromAlias
-  (typ : CustomType.T)
-  (types : Types)
-  : CustomType.T =
-  match typ with
-  | CustomType.Alias(TCustomType(innerType, _)) ->
-    match Types.find innerType types with
-    | Some alias -> getUnderlyingTypeFromAlias alias types
-    | None -> Exception.raiseCode "Alias not found"
-  | _ -> typ
-
-
 
 let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   let equals = equals types
@@ -43,35 +31,19 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
         Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
       a
   | DRecord(tn1, a), DRecord(tn2, b) ->
-    match Types.find tn1 types, Types.find tn2 types with
-    | Some t1, Some t2 ->
-      let tn1 = getUnderlyingTypeFromAlias t1 types
-      let tn2 = getUnderlyingTypeFromAlias t2 types
-      tn1 = tn2
-      && Map.count a = Map.count b
-      && Map.forall
-        (fun k v ->
-          Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
-        a
-    | _ -> Exception.raiseInternal "Type not found" []
+    // CLEANUP: use the resolved type, not a type that may be an alias of something else
+    tn1 = tn2
+    && Map.count a = Map.count b
+    && Map.forall
+      (fun k v ->
+        Map.tryFind k b |> Option.map (equals v) |> Option.defaultValue false)
+      a
   | DFnVal a, DFnVal b ->
     match a, b with
     | Lambda a, Lambda b -> equalsLambdaImpl types a b
   | DDateTime a, DDateTime b -> a = b
   | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
-  | DOption a, DOption b ->
-    match a, b with
-    | Some a, Some b -> equals a b
-    | None, None -> true
-    | Some _, None
-    | None, Some _ -> false
-  | DResult a, DResult b ->
-    match a, b with
-    | Ok a, Ok b
-    | Error a, Error b -> equals a b
-    | Ok _, Error _
-    | Error _, Ok _ -> false
   | DBytes a, DBytes b -> a = b
   | DDB a, DDB b -> a = b
   | DEnum(a1, a2, a3), DEnum(b1, b2, b3) ->
@@ -91,8 +63,6 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DDateTime _, _
   | DPassword _, _
   | DUuid _, _
-  | DOption _, _
-  | DResult _, _
   | DBytes _, _
   | DDB _, _
   | DEnum _, _
@@ -330,17 +300,35 @@ let fns : List<BuiltInFn> =
         "Unwrap an Option or Result, returning the value or a DError if Nothing"
       fn =
         (function
-        | _, _, [ DOption opt ] ->
+        | _,
+          _,
+          [ DEnum(FQName.Package({ owner = "Darklang"
+                                   modules = { Head = "Stdlib"; Tail = [ "Option" ] }
+                                   name = TypeName.TypeName "Option"
+                                   version = 0 }),
+                  caseName,
+                  [ value ]) ] ->
           uply {
-            match opt with
-            | Some value -> return value
-            | None -> return (DError(SourceNone, "Nothing"))
+            match caseName with
+            | "Just" -> return value
+            | "Nothing" ->
+              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
+            | _ -> return (DError(SourceNone, "Invalid Result"))
           }
-        | _, _, [ DResult res ] ->
+        | _,
+          _,
+          [ DEnum(FQName.Package({ owner = "Darklang"
+                                   modules = { Head = "Stdlib"; Tail = [ "Result" ] }
+                                   name = TypeName.TypeName "Result"
+                                   version = 0 }),
+                  caseName,
+                  [ value ]) ] ->
           uply {
-            match res with
-            | Ok value -> return value
-            | Error e -> return (DError(SourceNone, DvalReprDeveloper.toRepr e))
+            match caseName with
+            | "Ok" -> return value
+            | "Error" ->
+              return DError(SourceNone, LibExecution.DvalReprDeveloper.toRepr value)
+            | _ -> return (DError(SourceNone, "Invalid Result"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -16,17 +16,18 @@ let fn = fn modules
 
 let types : List<BuiltInType> =
   [ { name = typ "F404" 0
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "space"
-            typ = TString
-            description = "Name of the space (eg WORKER, HTTP, REPL)" },
-          [ { name = "path"; typ = TString; description = "" }
-            { name = "modifier"; typ = TString; description = "" }
-            { name = "timestamp"; typ = TDateTime; description = "" }
-            { name = "traceID"; typ = TUuid; description = "" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "space"
+                typ = TString
+                description = "Name of the space (eg WORKER, HTTP, REPL)" },
+              [ { name = "path"; typ = TString; description = "" }
+                { name = "modifier"; typ = TString; description = "" }
+                { name = "timestamp"; typ = TDateTime; description = "" }
+                { name = "traceID"; typ = TUuid; description = "" } ]
+            ) }
       deprecated = NotDeprecated
       description = "404 record" } ]
 

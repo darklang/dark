@@ -50,15 +50,18 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
   let recordMaybe
     (typeName : TypeName.T)
-    : Option<TypeName.T * List<CustomType.RecordField>> =
+    : Ply<Option<TypeName.T * List<TypeDeclaration.RecordField>>> =
     let types = ExecutionState.availableTypes state
     let rec inner (typeName : TypeName.T) =
-      match Types.find typeName types with
-      | Some(CustomType.Alias(TCustomType(innerTypeName, _))) -> inner innerTypeName
-      | Some(CustomType.Record(firstField, otherFields)) ->
-        Some(typeName, firstField :: otherFields)
-      | Some(CustomType.Enum _) -> None
-      | _ -> None
+      uply {
+        match! Types.find typeName types with
+        | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
+          return! inner innerTypeName
+        | Some({ definition = TypeDeclaration.Record(firstField, otherFields) }) ->
+          return Some(typeName, firstField :: otherFields)
+        | Some({ definition = TypeDeclaration.Enum _ }) -> return None
+        | _ -> return None
+      }
     inner typeName
 
   uply {
@@ -208,13 +211,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
     | ERecord(id, typeName, fields) ->
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
-      let typ = Types.find typeName types
+      let! typ = Types.find typeName types
 
-      match recordMaybe typeName with
+      match! recordMaybe typeName with
       | None ->
         match typ with
         | None -> return err id $"There is no type named `{typeStr}`"
-        | Some(CustomType.Enum _) ->
+        | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
       | Some(typename, expected) ->
@@ -236,7 +239,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   else
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match TypeChecker.unify context types field.typ v with
+                    match! TypeChecker.unify context types field.typ v with
                     | Ok() ->
                       match r with
                       | DRecord(typeName, m) ->
@@ -263,12 +266,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       | DRecord(typeName, _) ->
         let typeStr = TypeName.toString typeName
         let types = ExecutionState.availableTypes state
-        match recordMaybe typeName with
+        match! recordMaybe typeName with
         | None ->
-          let typ = Types.find typeName types
-          match typ with
+          match! Types.find typeName types with
           | None -> return err id $"There is no type named `{typeStr}`"
-          | Some(CustomType.Enum _) ->
+          | Some({ definition = TypeDeclaration.Enum _ }) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
         | Some(typeName, expected) ->
@@ -287,7 +289,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   | DRecord(typeName, m), k, v ->
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match TypeChecker.unify context types field.typ v with
+                    match! TypeChecker.unify context types field.typ v with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
@@ -414,51 +416,39 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | MPVariable(id, varName) ->
           not (Dval.isFake dv), [ (varName, dv) ], [ (id, dv) ]
 
+
         | MPEnum(id, caseName, fieldPats) ->
-          match (caseName, fieldPats, dv) with
-          | "Nothing", [], v -> (v = DOption None), [], [ (id, DOption None) ]
+          match dv with
+          | DEnum(_dTypeName, dCaseName, dFields) when
+            List.length dFields = List.length fieldPats && caseName = dCaseName
+            ->
+            let (passResults, newVarResults, traceResults) =
+              List.zip dFields fieldPats
+              |> List.map (fun (dv, pat) -> checkPattern dv pat)
+              |> List.unzip3
 
-          | "Just", [ p ], DOption(Some v)
-          | "Ok", [ p ], DResult(Ok v)
-          | "Error", [ p ], DResult(Error v) ->
-            let (passes, newVars, traces) = checkPattern v p
+            let allPass = passResults |> List.forall identity
+            let allVars = newVarResults |> List.collect identity
+            let allSubTraces = traceResults |> List.collect identity
 
-            if passes then
-              true, newVars, (id, dv) :: traces
+            if allPass then
+              true, allVars, (id, dv) :: allSubTraces
             else
-              false, newVars, traceIncompleteWithArgs id [ p ] @ traces
+              false, allVars, (id, incomplete id) :: allSubTraces
 
           // Trace this with incompletes to avoid type errors
-          | "Just", [ p ], _
-          | "Ok", [ p ], _
-          | "Error", [ p ], _ ->
-            let pID = MatchPattern.toID p
-            let (_, newVars, traces) = checkPattern (incomplete pID) p
-            false, newVars, traceIncompleteWithArgs id [] @ traces
+          | _dv ->
+            let (newVarResults, traceResults) =
+              fieldPats
+              |> List.map (fun fp ->
+                let pID = MatchPattern.toID fp
+                let (_, newVars, traces) = checkPattern (incomplete pID) fp
+                newVars, (id, incomplete id) :: traces)
+              |> List.unzip
+            let allVars = newVarResults |> List.collect identity
+            let allSubTraces = traceResults |> List.collect identity
+            (false, allVars, (id, incomplete id) :: allSubTraces)
 
-          | caseName, fieldPats, DEnum(_dTypeName, dCaseName, dFields) ->
-
-            if
-              List.length dFields = List.length fieldPats && caseName = dCaseName
-            then
-              let (passResults, newVarResults, traceResults) =
-                List.zip dFields fieldPats
-                |> List.map (fun (dv, pat) -> checkPattern dv pat)
-                |> List.unzip3
-
-              let allPass = passResults |> List.forall identity
-              let allVars = newVarResults |> List.collect identity
-              let allSubTraces = traceResults |> List.collect identity
-
-              if allPass then
-                true, allVars, (id, dv) :: allSubTraces
-              else
-                false, allVars, traceIncompleteWithArgs id fieldPats @ allSubTraces
-            else
-              false, [], traceIncompleteWithArgs id fieldPats
-
-          | _caseName, fieldPats, _dv ->
-            false, [], traceIncompleteWithArgs id fieldPats
 
         | MPTuple(id, firstPat, secondPat, theRestPat) ->
           let allPatterns = firstPat :: secondPat :: theRestPat
@@ -484,6 +474,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
             else
               false, [], traceIncompleteWithArgs id allPatterns
           | _ -> false, [], traceIncompleteWithArgs id allPatterns
+
 
         | MPListCons(id, headPat, tailPat) ->
           match dv with
@@ -623,91 +614,58 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
 
 
     | EEnum(id, typeName, caseName, fields) ->
-      match typeName with
-      | FQName.BuiltIn({ modules = []
-                         name = TypeName.TypeName "Option"
-                         version = 0 }) ->
-        match (caseName, fields) with
-        | "Nothing", [] -> return DOption None
-        | "Nothing", _ ->
-          return err id $"Option.Nothing expects 0 arguments but got {fields.Length}"
-        | "Just", [ arg ] ->
-          let! dv = (eval state st arg)
-          return Dval.optionJust dv
-        | "Just", _ ->
-          return err id $"Option.Just expects 1 argument but got {fields.Length}"
-        | name, _ -> return err id $"Invalid name for enum {name}"
-      | FQName.BuiltIn({ modules = []
-                         name = TypeName.TypeName "Result"
-                         version = 0 }) ->
-        match (caseName, fields) with
-        | "Ok", [ arg ] ->
-          let! dv = eval state st arg
-          return Dval.resultOk dv
-        | "Ok", _ ->
-          return err id $"Result.Ok expects 1 argument but got {fields.Length}"
-        | "Error", [ arg ] ->
-          let! dv = eval state st arg
-          return Dval.resultError dv
-        | "Error", _ ->
-          return err id $"Result.Error expects 1 argument but got {fields.Length}"
-        | name, _ -> return err id $"Invalid name for enum {name}"
-      | typeName ->
-        let typeStr = TypeName.toString typeName
-        let types = ExecutionState.availableTypes state
-        match Types.find typeName types with
-        | None -> return err id $"There is no type named `{typeStr}`"
-        | Some(CustomType.Alias _) ->
-          return err id $"Expected an enum but {typeStr} is an alias"
-        | Some(CustomType.Record _) ->
-          return err id $"Expected an enum but {typeStr} is a record"
-        | Some(CustomType.Enum(case, cases)) ->
-          let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
-          match case with
-          | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
-          | Some case ->
-            if case.fields.Length <> fields.Length then
-              let msg =
-                $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
-              return err id msg
-            else
-              let fields = List.zip case.fields fields
-              return!
-                Ply.List.foldSequentiallyWithIndex
-                  (fun i r ((enumField : CustomType.EnumField), expr) ->
-                    uply {
-                      if Dval.isFake r then
-                        do! preview st expr
-                        return r
+      let typeStr = TypeName.toString typeName
+      let types = ExecutionState.availableTypes state
+      match! Types.find typeName types with
+      | None -> return err id $"There is no type named `{typeStr}`"
+      | Some({ definition = TypeDeclaration.Alias _ }) ->
+        return err id $"Expected an enum but {typeStr} is an alias"
+      | Some({ definition = TypeDeclaration.Record _ }) ->
+        return err id $"Expected an enum but {typeStr} is a record"
+      | Some({ definition = TypeDeclaration.Enum(case, cases) }) ->
+        let case = (case :: cases) |> List.tryFind (fun c -> c.name = caseName)
+        match case with
+        | None -> return err id $"There is no case named `{caseName}` in {typeStr}"
+        | Some case ->
+          if case.fields.Length <> fields.Length then
+            let msg =
+              $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
+            return err id msg
+          else
+            let fields = List.zip case.fields fields
+            return!
+              Ply.List.foldSequentiallyWithIndex
+                (fun i r ((enumField : TypeDeclaration.EnumField), expr) ->
+                  uply {
+                    if Dval.isFake r then
+                      do! preview st expr
+                      return r
+                    else
+                      let! v = eval state st expr
+                      if Dval.isFake v then
+                        return v
                       else
-                        let! v = eval state st expr
-                        if Dval.isFake v then
-                          return v
-                        else
-                          let context =
-                            TypeChecker.EnumField(
-                              typeName,
-                              enumField,
-                              case.name,
-                              i,
-                              None
-                            )
-                          match TypeChecker.unify context types enumField.typ v with
-                          | Ok() ->
-                            match r with
-                            | DEnum(typeName, caseName, existing) ->
-                              return
-                                DEnum(
-                                  typeName,
-                                  caseName,
-                                  List.append existing [ v ]
-                                )
-                            | _ -> return err id "Expected an enum"
-                          | Error e ->
-                            return err id (Errors.toString (Errors.TypeError(e)))
-                    })
-                  (DEnum(typeName, caseName, []))
-                  fields
+                        let context =
+                          TypeChecker.EnumField(
+                            typeName,
+                            enumField,
+                            case.name,
+                            i,
+                            None
+                          )
+
+                        match! TypeChecker.unify context types enumField.typ v with
+                        | Ok() ->
+                          match r with
+                          | DEnum(typeName, caseName, existing) ->
+                            return
+                              DEnum(typeName, caseName, List.append existing [ v ])
+                          | _ -> return err id "Expected an enum"
+                        | Error e ->
+                          return err id (Errors.toString (Errors.TypeError(e)))
+                  })
+                (DEnum(typeName, caseName, []))
+                fields
   }
 
 /// Interprets an expression and reduces to a Dark value
@@ -828,14 +786,17 @@ and callFn
     match List.tryFind Dval.isFake args with
     | Some fakeArg -> return fakeArg
     | None ->
-      let fn =
+      let! fn =
         match desc with
         | FQName.BuiltIn std ->
-          state.libraries.builtInFns.TryFind std |> Option.map builtInFnToFn
+          state.builtIns.fns.TryFind std |> Option.map builtInFnToFn |> Ply
         | FQName.UserProgram u ->
-          state.program.fns.TryFind u |> Option.map userFnToFn
+          state.program.fns.TryFind u |> Option.map userFnToFn |> Ply
         | FQName.Package pkg ->
-          state.libraries.packageFns.TryFind pkg |> Option.map packageFnToFn
+          uply {
+            let! fn = state.packageManager.getFn pkg
+            return Option.map packageFnToFn fn
+          }
 
       match fn with
       | None -> return handleMissingFunction ()
@@ -877,7 +838,7 @@ and execFn
 
       let name = FnName.toString fnDesc
       let types = ExecutionState.availableTypes state
-      match TypeChecker.checkFunctionCall types fn typeArgs args with
+      match! TypeChecker.checkFunctionCall types fn typeArgs args with
       | Error err ->
         let msg = Errors.toString (Errors.TypeError(err))
         return DError(sourceID, msg)
@@ -938,7 +899,7 @@ and execFn
         if Dval.isFake result then
           return result
         else
-          match TypeChecker.checkFunctionReturnType types fn result with
+          match! TypeChecker.checkFunctionReturnType types fn result with
           | Error err ->
             let msg = Errors.toString (Errors.TypeError(err))
             return DError(sourceID, msg)

@@ -104,12 +104,6 @@ let t
           rtTypes
           rtFunctions
           rtConstants
-      let state =
-        { state with
-            libraries =
-              { state.libraries with
-                  packageFns = state.libraries.packageFns
-                  packageTypes = state.libraries.packageTypes } }
 
       let msg = $"\n\n{actualExpr}\n=\n{expectedExpr} ->"
 
@@ -139,7 +133,7 @@ let t
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
       let availableTypes = RT.ExecutionState.availableTypes state
-      return Expect.equalDval availableTypes actual expected msg
+      return Expect.equalDval actual expected msg
     with e ->
       let metadata = Exception.toMetadata e
       printMetadata "" metadata
@@ -162,7 +156,10 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests (moduleName : string) (modul : Parser.TestModule.T) =
+    let rec moduleToTests
+      (moduleName : string)
+      (modul : Parser.TestModule.PTModule)
+      =
 
       let nestedModules =
         List.map (fun (name, m) -> moduleToTests name m) modul.modules

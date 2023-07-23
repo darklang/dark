@@ -563,7 +563,7 @@ let toProgram (c : T) : RT.Program =
   let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
   { canvasID = c.id
-    internalFnsAllowed = c.id = Config.allowedDarkInternalCanvasID
+    internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
     fns = userFns
     types = userTypes
     constants = userConstants

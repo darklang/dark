@@ -25,8 +25,6 @@ let rec typeName (t : TypeReference) : string =
   | TDateTime -> "DateTime"
   | TPassword -> "Password"
   | TUuid -> "Uuid"
-  | TOption nested -> $"Option<{typeName nested}>"
-  | TResult(ok, err) -> $"Result<{typeName ok}, {typeName err}>"
   | TCustomType(t, typeArgs) ->
     let typeArgsPortion =
       match typeArgs with
@@ -57,10 +55,6 @@ let rec dvalTypeName (dv : Dval) : string =
   | DDateTime _ -> "DateTime"
   | DPassword _ -> "Password"
   | DUuid _ -> "Uuid"
-  | DOption(Some v) -> "Option<" + dvalTypeName v + ">"
-  | DOption None -> "Option<'a>"
-  | DResult(Ok v) -> "Result<" + dvalTypeName v + ", 'err>"
-  | DResult(Error v) -> "Result<'ok, " + dvalTypeName v + ">"
   | DTuple(t1, t2, trest) ->
     "(" + (t1 :: t2 :: trest |> List.map dvalTypeName |> String.concat ", ") + ")"
   | DBytes _ -> "Bytes"
@@ -142,17 +136,15 @@ let toRepr (dv : Dval) : string =
 
         let elems = String.concat $",{inl}" strs
         "{" + $"{inl}{elems}{nl}" + "}"
-    | DOption None -> "Nothing"
-    | DOption(Some dv) -> "Just " + toRepr_ indent dv
-    | DResult(Ok dv) -> "Ok " + toRepr_ indent dv
-    | DResult(Error dv) -> "Error " + toRepr_ indent dv
     | DBytes bytes -> Base64.defaultEncodeToString bytes
     | DEnum(typeName, caseName, fields) ->
       let fieldStr =
         fields |> List.map (fun value -> toRepr_ indent value) |> String.concat ", "
 
+      let fieldStr = if fieldStr = "" then "" else $"({fieldStr})"
+
       let typeStr = TypeName.toString typeName
-      $"{typeStr}.{caseName}({fieldStr})"
+      $"{typeStr}.{caseName}{fieldStr}"
 
 
   toRepr_ 0 dv

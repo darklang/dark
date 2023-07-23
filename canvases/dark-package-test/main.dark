@@ -50,7 +50,7 @@ let _handler _req =
   let result =
     (PACKAGE.OpenAI.ChatCompletion.completionWithOption
       "create a function that adds two numbers"
-      Just((PACKAGE.OpenAI.ChatCompletion.CompletionOptions
+      PACKAGE.Darklang.Stdlib.Option.Option.Just((PACKAGE.OpenAI.ChatCompletion.CompletionOptions
         { model = "gpt-3.5-turbo"
           messages =
             [ PACKAGE.OpenAI.ChatCompletion.RequestMessage
@@ -70,7 +70,7 @@ let _handler _req =
   let result =
     (PACKAGE.OpenAI.ChatCompletion.completionWithOption
       "create a function that multiplies two numbers"
-      Nothing)
+      PACKAGE.Darklang.Stdlib.Option.Option.Nothing)
     |> rUnwrap
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes result) 200

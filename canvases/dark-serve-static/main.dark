@@ -3,7 +3,7 @@ let _handler _req =
   let body =
 
     (Experiments.readFromStaticDir $"{path}")
-    |> Result.withDefault Bytes.empty
+    |> PACKAGE.Darklang.Stdlib.Result.withDefault Bytes.empty
 
   let contentType =
     match (String.split path ".") |> List.last |> Option.withDefault "" with
@@ -18,17 +18,14 @@ let _handler _req =
   let incomingHost =
     request.headers
     |> List.findFirst (fun t -> Tuple2.first t == "origin")
-    |> Option.map (fun t -> Tuple2.second t)
-    |> Option.withDefault "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
+    |> PACKAGE.Darklang.Stdlib.Option.map (fun t -> Tuple2.second t)
+    |> Option.withDefault
+      "Couldn't find 'origin' request header to determine Access-Control-Allow-Origin"
 
   let headers =
-    [
-      ("Access-Control-Allow-Origin", incomingHost)
+    [ ("Access-Control-Allow-Origin", incomingHost)
       ("Access-Control-Allow-Credentials", "true")
       ("Content-type", contentType)
-      ("Accept-Ranges", "bytes")
-    ]
+      ("Accept-Ranges", "bytes") ]
 
   PACKAGE.Darklang.Stdlib.Http.responseWithHeaders body headers 200
-
-

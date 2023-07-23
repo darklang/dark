@@ -188,10 +188,8 @@ type TypeReference =
   | TChar
   | TPassword
   | TUuid
-  | TOption of TypeReference
   | TCustomType of typeName : TypeName.T * typeArgs : List<TypeReference>
   | TBytes
-  | TResult of TypeReference * TypeReference
   | TVariable of string
   | TFn of List<TypeReference> * TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
@@ -259,7 +257,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ERecord of id * typeName : TypeName.T * fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
@@ -273,6 +271,10 @@ type Expr =
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
+
+and FnTarget =
+  | FnTargetName of FnName.T
+  | FnTargetExpr of Expr
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string
@@ -290,7 +292,7 @@ type Deprecation<'name> =
   | DeprecatedBecause of string
 
 
-module CustomType =
+module TypeDeclaration =
   [<MessagePack.MessagePackObject>]
   type RecordField =
     { [<MessagePack.Key 0>]
@@ -319,10 +321,18 @@ module CustomType =
       description : string }
 
   [<MessagePack.MessagePackObject>]
-  type T =
+  type Definition =
     | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      typeParams : List<string>
+      [<MessagePack.Key 1>]
+      definition : Definition }
+
 
 
 module Handler =
@@ -372,10 +382,12 @@ module UserType =
       tlid : tlid
       [<MessagePack.Key 1>]
       name : TypeName.UserProgram
-      [<MessagePack.Key 2>]
-      typeParams : List<string>
       [<MessagePack.Key 3>]
-      definition : CustomType.T }
+      declaration : TypeDeclaration.T
+      [<MessagePack.Key 4>]
+      description : string
+      [<MessagePack.Key 5>]
+      deprecated : Deprecation<TypeName.T> }
 
 [<MessagePack.MessagePackObject>]
 type Const =
@@ -475,12 +487,10 @@ module PackageType =
       [<MessagePack.Key 2>]
       name : TypeName.Package
       [<MessagePack.Key 3>]
-      typeParams : List<string>
+      declaration : TypeDeclaration.T
       [<MessagePack.Key 4>]
-      definition : CustomType.T
-      [<MessagePack.Key 5>]
       description : string
-      [<MessagePack.Key 6>]
+      [<MessagePack.Key 5>]
       deprecated : Deprecation<TypeName.T> }
 
 module PackageConstant =

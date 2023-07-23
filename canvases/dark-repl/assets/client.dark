@@ -2,7 +2,7 @@ let log (s: String) : Unit =
   let _ = WASM.Editor.callJSFunction "console.log" [ s ]
   ()
 
-let rUnwrap (result: Result<'a, 'b>) : 'a =
+let rUnwrap (result: PACKAGE.Darklang.Stdlib.Result.Result<'a, 'b>) : 'a =
   match result with
   | Ok s -> s
   | Error e -> e // TODO: this won't work if non-string
@@ -17,7 +17,9 @@ let parseAndSerializeProgram (userProgram: String) : String =
 
   response |> rUnwrap |> (fun r -> r.body) |> String.fromBytes
 
-let handleEvent (userProgramSource: String) : Result<Unit, String> =
+let handleEvent
+  (userProgramSource: String)
+  : PACKAGE.Darklang.Stdlib.Result.Result<Unit, String> =
   let parsedAndSerialized = parseAndSerializeProgram userProgramSource
   let evalResult = (WASM.Editor.evalUserProgram parsedAndSerialized) |> rUnwrap
   WASM.Editor.callJSFunction "self.receiveEvalResult" [ evalResult ]

@@ -149,7 +149,7 @@ let fns : List<BuiltInFn> =
     { name = fn "fromList" 0
       typeParams = []
       parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
-      returnType = TOption(TDict varB)
+      returnType = TypeReference.option (TDict varB)
       description =
         "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
          key> is a <type String>.
@@ -176,8 +176,8 @@ let fns : List<BuiltInFn> =
           let result = List.fold (Some Map.empty) f l
 
           match result with
-          | Some map -> Ply(DOption(Some(DDict(map))))
-          | None -> Ply(DOption None)
+          | Some map -> Ply(Dval.optionJust (DDict(map)))
+          | None -> Ply(Dval.optionNothing)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -187,7 +187,7 @@ let fns : List<BuiltInFn> =
     { name = fn "get" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
-      returnType = TOption varA
+      returnType = TypeReference.option varA
       description =
         "If the <param dict> contains <param key>, returns the corresponding value,
          wrapped in an <type Option>: {{Just value}}. Otherwise, returns {{Nothing}}."
@@ -350,7 +350,7 @@ let fns : List<BuiltInFn> =
         [ Param.make "dict" (TDict varA) ""
           Param.makeWithArgs
             "fn"
-            (TFn([ TString; varA ], TOption varB))
+            (TFn([ TString; varA ], TypeReference.option varB))
             ""
             [ "key"; "value" ] ]
       returnType = TDict varB
@@ -365,7 +365,7 @@ let fns : List<BuiltInFn> =
           uply {
             let abortReason = ref None
 
-            let f (key : string) (data : Dval) : Ply<Dval option> =
+            let f (key : string) (data : Dval) : Ply<Option<Dval>> =
               uply {
                 let run = abortReason.Value = None
 
@@ -373,14 +373,26 @@ let fns : List<BuiltInFn> =
                   let! result = Interpreter.applyFnVal state b [ DString key; data ]
 
                   match result with
-                  | DOption(Some o) -> return Some o
-                  | DOption None -> return None
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Just",
+                          [ o ]) -> return Some o
+                  | DEnum(FQName.Package { owner = "Darklang"
+                                           modules = { Head = "Stdlib"
+                                                       Tail = [ "Option" ] }
+                                           name = TypeName.TypeName "Option"
+                                           version = 0 },
+                          "Nothing",
+                          []) -> return None
                   | (DIncomplete _ | DError _) as dv ->
                     abortReason.Value <- Some dv
                     return None
                   | v ->
                     Exception.raiseCode (
-                      Errors.expectedLambdaType "fn" (TOption varB) v
+                      Errors.expectedLambdaType "fn" (TypeReference.option varB) v
                     )
 
                     return None

@@ -16,39 +16,45 @@ open LibExecution.StdLib.Shortcuts
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
       description = "The name of a package function"
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "owner"
-            typ = TString
-            description = "The username of the owner of the function" },
-          [ { name = "modules"
-              typ = TList TString
-              description = "The modules the function is in" }
-            { name = "name"
-              typ = TString
-              description = "The name of the function" }
-            { name = "version"
-              typ = TInt
-              description = "The version of the function" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "owner"
+                typ = TString
+                description = "The username of the owner of the function" },
+              [ { name = "modules"
+                  typ = TList TString
+                  description = "The modules the function is in" }
+                { name = "name"
+                  typ = TString
+                  description = "The name of the function" }
+                { name = "version"
+                  typ = TInt
+                  description = "The version of the function" } ]
+            ) }
       deprecated = NotDeprecated }
 
 
     { name = typ [ "LocalExec"; "Packages" ] "Type" 0
       description = "The name of a package type"
-      typeParams = []
-      definition =
-        CustomType.Record(
-          { name = "owner"
-            typ = TString
-            description = "The username of the owner of the function" },
-          [ { name = "modules"
-              typ = TList TString
-              description = "The module the type is in" }
-            { name = "name"; typ = TString; description = "The name of the type" }
-            { name = "version"; typ = TInt; description = "The version of the type" } ]
-        )
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "owner"
+                typ = TString
+                description = "The username of the owner of the function" },
+              [ { name = "modules"
+                  typ = TList TString
+                  description = "The module the type is in" }
+                { name = "name"
+                  typ = TString
+                  description = "The name of the type" }
+                { name = "version"
+                  typ = TInt
+                  description = "The version of the type" } ]
+            ) }
       deprecated = NotDeprecated } ]
 
 
@@ -79,16 +85,38 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "package source" TString "The source code of the package"
           Param.make "filename" TString "Used for error message" ]
-      returnType = TResult(TUnit, TString)
+      returnType = TUnit
       description = "Parse a package and save it to the database"
       fn =
         function
         | _, _, [ DString contents; DString path ] ->
           uply {
-            let packages = Parser.Package.parse path contents
-            do! LibBackend.PackageManager.savePackageFunctions packages.fns
-            do! LibBackend.PackageManager.savePackageTypes packages.types
-            return DResult(Ok(DUnit))
+            let (fns, types) = Parser.Parser.parsePackage path contents
+            do! LibBackend.PackageManager.savePackageFunctions fns
+            do! LibBackend.PackageManager.savePackageTypes types
+            return DUnit
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn [ "LocalExec"; "Packages" ] "parse" 0
+      typeParams = []
+      parameters =
+        [ Param.make "package source" TString "The source code of the package"
+          Param.make "filename" TString "Used for error message" ]
+      returnType = TypeReference.result TString TString
+      description = "Parse a package"
+      fn =
+        function
+        | _, _, [ DString contents; DString path ] ->
+          uply {
+            let (fns, types) = Parser.Parser.parsePackage path contents
+            let packagesFns = fns |> Json.Vanilla.serialize
+
+            return Dval.resultOk (DString packagesFns)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

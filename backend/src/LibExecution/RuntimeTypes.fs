@@ -341,8 +341,6 @@ type TypeReference =
   | TDB of TypeReference
   | TVariable of string
   | TCustomType of TypeName.T * typeArgs : List<TypeReference> // CLEANUP check all uses
-  | TOption of TypeReference // CLEANUP remove
-  | TResult of TypeReference * TypeReference // CLEANUP remove
   | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
@@ -360,8 +358,6 @@ type TypeReference =
       | TFn(ts, t) -> List.forall isConcrete ts && isConcrete t
       | TDB t -> isConcrete t
       | TCustomType(_, ts) -> List.forall isConcrete ts
-      | TOption t -> isConcrete t
-      | TResult(t1, t2) -> isConcrete t1 && isConcrete t2
       | TDict t -> isConcrete t
       // exhaustiveness
       | TUnit
@@ -376,7 +372,26 @@ type TypeReference =
       | TPassword -> true
     isConcrete this
 
+module TypeReference =
+  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
+    TCustomType(
+      TypeName.fqPackage
+        "Darklang"
+        (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+        "Result"
+        0,
+      [ t1; t2 ]
+    )
 
+  let option (t : TypeReference) : TypeReference =
+    TCustomType(
+      TypeName.fqPackage
+        "Darklang"
+        (NonEmptyList.ofList [ "Stdlib"; "Option" ])
+        "Option"
+        0,
+      [ t ]
+    )
 
 
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
@@ -527,12 +542,6 @@ and [<NoComparison>] Dval =
   | DBytes of byte array
 
   | DDict of DvalMap
-
-  // TODO: merge DOption and DResult into DEnum once the Option and Result types
-  // are defined in the Option and Result modules of the standard library
-  | DOption of Option<Dval>
-  | DResult of Result<Dval, Dval>
-
   | DRecord of TypeName.T * DvalMap
   | DEnum of TypeName.T * caseName : string * List<Dval>
 
@@ -578,9 +587,22 @@ and BuiltInParam =
 
 and Param = { name : string; typ : TypeReference }
 
+// Used to mark whether a function/type has been deprecated, and if so,
+// details about possible replacements/alternatives, and reasoning
+type Deprecation<'name> =
+  | NotDeprecated
 
-module CustomType =
-  // TYPESCLEANUP support type parameters
+  // The exact same thing is available under a new, preferred name
+  | RenamedTo of 'name
+
+  /// This has been deprecated and has a replacement we can suggest
+  | ReplacedBy of 'name
+
+  /// This has been deprecated and not replaced, provide a message for the user
+  | DeprecatedBecause of string
+
+
+module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
   type Alias = { typ : TypeReference }
 
@@ -589,10 +611,12 @@ module CustomType =
 
   type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
-  type T =
+  type Definition =
     | Alias of TypeReference
     | Record of firstField : RecordField * additionalFields : List<RecordField>
     | Enum of firstCase : EnumCase * additionalCases : List<EnumCase>
+
+  type T = { typeParams : List<string>; definition : Definition }
 
 // Functions for working with Dark runtime expressions
 module Expr =
@@ -705,10 +729,6 @@ module Dval =
     | DDict m, TDict t -> Map.all (typeMatches t) m
     | DFnVal(Lambda l), TFn(parameters, _) ->
       List.length parameters = List.length l.parameters
-    | DOption None, TOption _ -> true
-    | DOption(Some v), TOption t
-    | DResult(Ok v), TResult(t, _) -> typeMatches t v
-    | DResult(Error v), TResult(_, t) -> typeMatches t v
 
     | DRecord(typeName, fields), TCustomType(typeName', typeArgs) ->
       // TYPESCLEANUP: should load type by name
@@ -742,8 +762,6 @@ module Dval =
     | DDict _, _
     | DRecord _, _
     | DFnVal _, _
-    | DOption _, _
-    | DResult _, _
     | DEnum _, _ -> false
 
 
@@ -805,24 +823,42 @@ module Dval =
       fields
 
 
+  let resultType =
+    TypeName.fqPackage
+      "Darklang"
+      (NonEmptyList.ofList [ "Stdlib"; "Result" ])
+      "Result"
+      0
 
-  let resultOk (dv : Dval) : Dval = if isFake dv then dv else DResult(Ok dv)
+  let optionType =
+    TypeName.fqPackage
+      "Darklang"
+      (NonEmptyList.ofList [ "Stdlib"; "Option" ])
+      "Option"
+      0
 
-  let resultError (dv : Dval) : Dval = if isFake dv then dv else DResult(Error dv)
+  let resultOk (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(resultType, "Ok", [ dv ])
+  let resultError (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(resultType, "Error", [ dv ])
 
-  // Wraps in a DResult after checking that the value is not a fakeval
+  // Wraps in a Result after checking that the value is not a fakeval
   let result (dv : Result<Dval, Dval>) : Dval =
     match dv with
     | Ok dv -> resultOk dv
     | Error dv -> resultError dv
 
-  let optionJust (dv : Dval) : Dval = if isFake dv then dv else DOption(Some dv)
 
-  // Wraps in a DOption after checking that the value is not a fakeval
+  let optionJust (dv : Dval) : Dval =
+    if isFake dv then dv else DEnum(optionType, "Just", [ dv ])
+
+  let optionNothing : Dval = DEnum(optionType, "Nothing", [])
+
+  // Wraps in an Option after checking that the value is not a fakeval
   let option (dv : Option<Dval>) : Dval =
     match dv with
     | Some dv -> optionJust dv // checks isFake
-    | None -> DOption None
+    | None -> optionNothing
 
   let errStr (s : string) : Dval = DError(SourceNone, s)
 
@@ -850,10 +886,7 @@ module DB =
 
 module UserType =
   type T =
-    { tlid : tlid
-      name : TypeName.UserProgram
-      typeParams : List<string>
-      definition : CustomType.T }
+    { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
 module UserConstant =
   type T =
@@ -909,8 +942,7 @@ module PackageFn =
       body : Expr }
 
 module PackageType =
-  type T =
-    { name : TypeName.Package; typeParams : List<string>; definition : CustomType.T }
+  type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
   type T =
@@ -942,20 +974,6 @@ type Previewable =
   // Can only be run on the server. e.g. `DB.update`
   // We should save the results.
   | Impure
-
-// Used to mark whether a function/type has been deprecated, and if so,
-// details about possible replacements/alternatives, and reasoning
-type Deprecation<'name> =
-  | NotDeprecated
-
-  // The exact same thing is available under a new, preferred name
-  | RenamedTo of 'name
-
-  /// This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of 'name
-
-  /// This has been deprecated and not replaced, provide a message for the user
-  | DeprecatedBecause of string
 
 // Used to mark whether a function has an equivalent that can be
 // used within a Postgres query.
@@ -1005,8 +1023,10 @@ type SqlSpec =
 // A built-in standard library type
 type BuiltInType =
   { name : TypeName.BuiltIn
-    typeParams : List<string>
-    definition : CustomType.T
+    declaration : TypeDeclaration.T
+    // description and deprecated are here because they're not needed in
+    // TypeDeclaration for Package and UserProgram types, where we have them in
+    // ProgramTypes and don't propagate them to RuntimeTypes
     description : string
     deprecated : Deprecation<TypeName.T> }
 
@@ -1109,15 +1129,24 @@ and TestContext =
     mutable expectedExceptionCount : int
     postTestExecutionHook : TestContext -> Dval -> unit }
 
-// Non-user-specific functionality needed to run code
-and Libraries =
-  { builtInFns : Map<FnName.BuiltIn, BuiltInFn>
-    builtInTypes : Map<TypeName.BuiltIn, BuiltInType>
-    builtInConstants : Map<ConstantName.BuiltIn, BuiltInConstant>
+// Functionally written in F# and shipped with the executable
+and BuiltIns =
+  { types : Map<TypeName.BuiltIn, BuiltInType>
+    constants : Map<ConstantName.BuiltIn, BuiltInConstant>
+    fns : Map<FnName.BuiltIn, BuiltInFn> }
 
-    packageFns : Map<FnName.Package, PackageFn.T>
-    packageTypes : Map<TypeName.Package, PackageType.T>
-    packageConstants : Map<ConstantName.Package, PackageConstant.T> }
+// Functionality written in Dark stored and managed outside of user space
+and PackageManager =
+  { getType : TypeName.Package -> Ply<Option<PackageType.T>>
+    getFn : FnName.Package -> Ply<Option<PackageFn.T>>
+    getConstant: ConstantName.Package -> Ply<Option<PackageConstant.T>>
+    init : Ply<unit> }
+
+  static member Empty =
+    { getType = (fun _ -> Ply None)
+      getFn = (fun _ -> Ply None)
+      getConstant = (fun _ -> Ply None)
+      init = uply { return () } }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1125,7 +1154,8 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 
 // All state used while running a program
 and ExecutionState =
-  { libraries : Libraries
+  { builtIns : BuiltIns
+    packageManager : PackageManager
     tracing : Tracing
     program : Program
     config : Config
@@ -1162,43 +1192,89 @@ and ExecutionState =
     onExecutionPath : bool }
 
 and Types =
-  { builtInTypes : Map<TypeName.BuiltIn, BuiltInType>
-    packageTypes : Map<TypeName.Package, PackageType.T>
-    userProgramTypes : Map<TypeName.UserProgram, UserType.T> }
+  { builtIn : Map<TypeName.BuiltIn, BuiltInType>
+    package : TypeName.Package -> Ply<Option<PackageType.T>>
+    userProgram : Map<TypeName.UserProgram, UserType.T> }
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
-    { builtInTypes = state.libraries.builtInTypes
-      packageTypes = state.libraries.packageTypes
-      userProgramTypes = state.program.types }
+    { builtIn = state.builtIns.types
+      package = state.packageManager.getType
+      userProgram = state.program.types }
 
 module Types =
   let empty =
-    { builtInTypes = Map.empty
-      packageTypes = Map.empty
-      userProgramTypes = Map.empty }
+    { builtIn = Map.empty; package = (fun _ -> Ply None); userProgram = Map.empty }
 
-  let find (name : TypeName.T) (types : Types) : Option<CustomType.T> =
+  let find (name : TypeName.T) (types : Types) : Ply<Option<TypeDeclaration.T>> =
     match name with
     | FQName.BuiltIn b ->
-      Map.tryFind b types.builtInTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind b types.builtIn |> Option.map (fun t -> t.declaration) |> Ply
     | FQName.UserProgram user ->
-      Map.tryFind user types.userProgramTypes |> Option.map (fun t -> t.definition)
+      Map.tryFind user types.userProgram
+      |> Option.map (fun t -> t.declaration)
+      |> Ply
     | FQName.Package pkg ->
-      Map.tryFind pkg types.packageTypes |> Option.map (fun t -> t.definition)
+      types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
+
+  // Swap concrete types for type parameters
+  let rec substitute
+    (typeParams : List<string>)
+    (typeArguments : List<TypeReference>)
+    (typ : TypeReference)
+    : TypeReference =
+    let substitute = substitute typeParams typeArguments
+    match typ with
+    | TVariable v ->
+      if typeParams.Length = typeArguments.Length then
+        List.zip typeParams typeArguments
+        |> List.find (fun (param, _) -> param = v)
+        |> Option.map snd
+        |> Exception.unwrapOptionInternal
+          "No type argument found for type parameter"
+          []
+      else
+        Exception.raiseInternal
+          $"typeParams and typeArguments have different lengths"
+          [ "typeParams", typeParams; "typeArguments", typeArguments ]
+
+
+    | TUnit
+    | TBool
+    | TInt
+    | TFloat
+    | TChar
+    | TString
+    | TUuid
+    | TBytes
+    | TDateTime
+    | TPassword -> typ
+
+    | TList t -> TList(substitute t)
+    | TTuple(t1, t2, rest) ->
+      TTuple(substitute t1, substitute t2, List.map substitute rest)
+    | TFn _ -> typ
+    | TDB _ -> typ
+    | TCustomType(typeName, typeArgs) ->
+      TCustomType(typeName, List.map substitute typeArgs)
+    | TDict t -> TDict(substitute t)
+
 
 
 let rec getTypeReferenceFromAlias
   (types : Types)
   (typ : TypeReference)
-  : TypeReference =
+  : Ply<TypeReference> =
   match typ with
   | TCustomType(typeName, typeArgs) ->
-    match Types.find typeName types with
-    | Some(CustomType.Alias(TCustomType(innerTypeName, _))) ->
-      getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
-    | _ -> typ
-  | _ -> typ
+    uply {
+      match! Types.find typeName types with
+      | Some({ definition = TypeDeclaration.Alias(TCustomType(innerTypeName, _)) }) ->
+        return!
+          getTypeReferenceFromAlias types (TCustomType(innerTypeName, typeArgs))
+      | _ -> return typ
+    }
+  | _ -> Ply typ
 
 
 let consoleReporter : ExceptionReporter =

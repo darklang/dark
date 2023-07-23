@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "parseAndSerializeProgram" 0
       typeParams = []
       parameters = [ Param.make "code" TString ""; Param.make "filename" TString "" ]
-      returnType = TResult(TDict TString, TString)
+      returnType = TypeReference.result (TDict TString) TString
       description =
         "Parses Dark code and serializes the result to JSON. Expects only types, fns, and exprs."
       fn =
@@ -104,16 +104,14 @@ let fns : List<BuiltInFn> =
                   "exprs", DString(Json.Vanilla.serialize exprs) ]
                 |> Map.ofList
                 |> DDict
-                |> Ok
-                |> DResult
+                |> Dval.resultOk
             with e ->
               let error = Exception.getMessages e |> String.concat " "
               let metadata = Exception.nestedMetadata e
               let metadataDval = metadata |> Map.ofList
               return
                 DString($"Error parsing code: {error} {metadataDval}")
-                |> Error
-                |> DResult
+                |> Dval.resultError
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -124,7 +122,7 @@ let fns : List<BuiltInFn> =
     { name = fn "readFromStaticDir" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TResult(TBytes, TString)
+      returnType = TypeReference.result TBytes TString
       description =
         "Reads a file at backend/static/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
@@ -136,9 +134,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.BackendStatic
                   path
-              return DResult(Ok(DBytes contents))
+              return DBytes contents |> Dval.resultOk
             with e ->
-              return DResult(Error(DString($"Error reading file: {e.Message}")))
+              return DString($"Error reading file: {e.Message}") |> Dval.resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -149,7 +147,7 @@ let fns : List<BuiltInFn> =
     { name = fn "readFromCanvases" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TResult(TBytes, TString)
+      returnType = TypeReference.result TBytes TString
       description =
         "Reads a file at canvases/<param path>, and returns its contents as Bytes wrapped in a Result"
       fn =
@@ -161,9 +159,9 @@ let fns : List<BuiltInFn> =
                 RestrictedFileIO.readfileBytes
                   RestrictedFileIO.Config.CanvasesFiles
                   path
-              return DResult(Ok(DBytes contents))
+              return Dval.resultOk (DBytes contents)
             with e ->
-              return DResult(Error(DString($"Error reading file: {e.Message}")))
+              return Dval.resultError (DString($"Error reading file: {e.Message}"))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

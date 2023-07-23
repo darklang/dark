@@ -16,9 +16,9 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "username" TString ""; Param.make "password" TString "" ]
-      returnType = TDict TString
+      returnType = TTuple(TString, TString, [])
       description =
-        "Returns a header <type Dict> with {{'Authorization'}} created using HTTP basic auth"
+        "Returns a header <type (String*String)> with {{'authorization'}} created using HTTP basic auth"
       fn =
         (function
         | _, _, [ DString u; DString p ] ->
@@ -30,9 +30,9 @@ let fns : List<BuiltInFn> =
               else
                 toBytes $"{u}:{p}"
 
-            $"Basic {Base64.defaultEncodeToString input}"
+            $"basic {Base64.defaultEncodeToString input}"
 
-          Ply(DDict(Map [ "Authorization", (DString(encodeBasicAuth u p)) ]))
+          Ply(DTuple(DString "authorization", DString(encodeBasicAuth u p), []))
         | _ -> incorrectArgs ())
       previewable = Pure
       sqlSpec = NotQueryable

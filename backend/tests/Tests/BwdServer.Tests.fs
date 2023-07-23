@@ -191,11 +191,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
     let oplists =
       test.handlers
       |> List.map (fun handler ->
-        let (source : PT.Expr) =
-          Parser.ProgramTypes.initialParse "BwdServer.Tests.fs" handler.code
-          |> Parser.ProgramTypes.Expr.resolveNames Set.empty Set.empty Set.empty
-
-        let gid = Prelude.gid
+        let source = Parser.Parser.parsePTExpr "BwdServer.Tests.fs" handler.code
 
         let spec =
           match handler.version with

@@ -2,12 +2,13 @@
   "input": [
     [
       "var",
-      [
-        "DIncomplete",
-        [
-          "SourceNone"
+      {
+        "DIncomplete": [
+          {
+            "SourceNone": []
+          }
         ]
-      ]
+      }
     ]
   ],
   "functionResults": [
@@ -16,12 +17,13 @@
       7,
       "hash",
       0,
-      [
-        "DIncomplete",
-        [
-          "SourceNone"
+      {
+        "DIncomplete": [
+          {
+            "SourceNone": []
+          }
         ]
-      ]
+      }
     ]
   ]
 }
