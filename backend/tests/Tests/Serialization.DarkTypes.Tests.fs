@@ -23,10 +23,9 @@ module V = SerializationTestValues
 
 
 
-
 module RoundtripTests =
   // for each type/value:
-  // perform domain val -> DT -> domain -> DT -> domain
+  // perform internal -> DT -> internal -> DT -> internal
   // most of the time, it should end up being the same as the source.
   // if there are known exceptions, break down individual mappings as separate tests
 
@@ -72,7 +71,6 @@ module RoundtripTests =
     }
 
 
-  //TODO: add type checking
   let testRoundtripList
     (testName : string)
     (typeName : RT.TypeName.T)
