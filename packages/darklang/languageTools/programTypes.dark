@@ -1,5 +1,15 @@
 module Darklang =
   module LanguageTools =
+    module Errors =
+      type NameResolutionErrorType =
+        | NotFound
+        | MissingModuleName
+        | InvalidPackageName
+
+      type NameResolutionError =
+        { errorType: NameResolutionErrorType
+          names: List<string> }
+
     module ProgramTypes =
       /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
       /// or a Package module.
@@ -65,6 +75,9 @@ module Darklang =
         type Package =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name>
 
+      type NameResolution<'a> =
+        PACKAGE.Darklang.Stdlib.Result.Result<'a, NameResolutionError>
+
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
       type TypeReference =
         // A named variable, eg `a` in `List<a>`, matches anything
@@ -96,6 +109,8 @@ module Darklang =
         | TCustomType of
           PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
           typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference>
+          PACKAGE.Darklang.Stdlib.ProgramTypes.NameResolution<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> *
+          typeArgs: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference>
 
         | TDB of PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
 
@@ -176,8 +191,9 @@ module Darklang =
         | StringInterpolation of PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr
 
       type FnTarget =
-        | FnTargetName of PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T
-        | FnTargetExpr of PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr
+        | FnTargetName of
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
+        | FnTargetExpr of PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
 
 
       type PipeExpr =
@@ -195,13 +211,14 @@ module Darklang =
 
         | EPipeFnCall of
           PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T> *
           typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference> *
           args: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
         | EPipeEnum of
           PACKAGE.Darklang.LanguageTools.ID *
-          typeName: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
+          typeName:
+            PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
           caseName: String *
           fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
@@ -261,7 +278,7 @@ module Darklang =
 
         | ERecord of
           PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
           List<String * PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
         // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
@@ -276,7 +293,8 @@ module Darklang =
         /// TODO: the UserTypeName should eventually be a non-optional TypeName.
         | EEnum of
           PACKAGE.Darklang.LanguageTools.ID *
-          typeName: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
+          typeName:
+            PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
           caseName: String *
           fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
