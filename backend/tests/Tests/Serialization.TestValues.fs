@@ -195,6 +195,9 @@ module RuntimeTypes =
     |> RT.Dval.record typeName
 
 module ProgramTypes =
+
+  let signs = [ Sign.Positive; Sign.Negative ]
+
   let fqFnNames : List<PT.FnName.T> =
     [ PT.FQName.UserProgram
         { modules = []; name = PT.FnName.FnName "fn"; version = 0 }
@@ -206,7 +209,26 @@ module ProgramTypes =
           name = PT.FnName.FnName "sms"
           version = 1 } ]
 
-  let letPatterns : List<PT.LetPattern> = [ PT.LPVariable(123UL, "test") ]
+
+  let letPatterns : List<PT.LetPattern> =
+    [ PT.LPVariable(123UL, "test")
+      PT.LPTuple(
+        189271UL,
+        PT.LPVariable(18274132UL, "x0"),
+        PT.LPTuple(
+          189272UL,
+          PT.LPVariable(18274133UL, "x1"),
+          PT.LPVariable(27838183UL, "x2"),
+          []
+        ),
+        [ PT.LPTuple(
+            189273UL,
+            PT.LPVariable(18274134UL, "x3"),
+            PT.LPVariable(27838184UL, "x4"),
+            []
+          ) ]
+      ) ]
+
 
   let matchPatterns : List<PT.MatchPattern> =
     [ PT.MPVariable(1234123UL, "var8481")
@@ -569,7 +591,15 @@ module ProgramTypes =
                                       PT.EBool(234234UL, true),
                                       PT.EBool(234234UL, false)
                                     ),
-                                    e
+                                    PT.ELet(
+                                      831830073UL,
+                                      PT.LPVariable(7567123UL, "dict"),
+                                      PT.EDict(
+                                        109539183UL,
+                                        [ ("a string", PT.EInt(450951790UL, 2L)) ]
+                                      ),
+                                      e
+                                    )
                                   )
                                 )
                               )
