@@ -538,7 +538,6 @@ module Expr =
       | PT.EUnit id -> "EUnit", [ DInt(int64 id) ]
 
       // simple data
-
       | PT.EBool(id, b) -> "EBool", [ DInt(int64 id); DBool b ]
       | PT.EInt(id, i) -> "EInt", [ DInt(int64 id); DInt i ]
       | PT.EFloat(id, sign, whole, remainder) ->
@@ -647,7 +646,6 @@ module Expr =
     | DEnum(_, "EUnit", [ DInt id ]) -> PT.EUnit(uint64 id)
 
     // simple data
-
     | DEnum(_, "EBool", [ DInt id; DBool b ]) -> PT.EBool(uint64 id, b)
     | DEnum(_, "EInt", [ DInt id; DInt i ]) -> PT.EInt(uint64 id, i)
     | DEnum(_, "EFloat", [ DInt id; sign; DString whole; DString remainder ]) ->
@@ -697,7 +695,6 @@ module Expr =
       PT.EVariable(uint64 id, varName)
 
     // control flow
-
     | DEnum(_, "EIf", [ DInt id; cond; ifTrue; ifFalse ]) ->
       PT.EIf(uint64 id, fromDT cond, fromDT ifTrue, fromDT ifFalse)
 
@@ -724,7 +721,6 @@ module Expr =
       PT.EInfix(uint64 id, Infix.fromDT infix, fromDT lhs, fromDT rhs)
 
     | DEnum(_, "ELambda", [ DInt id; DList variables; body ]) ->
-      // args [DInt 1, DList [DTuple (DInt 1, DString "a", []); DTuple (DInt 2, DString "b", [])]
       let args =
         variables
         |> List.collect (fun arg ->
@@ -785,7 +781,6 @@ module Deprecation =
     | _ -> Exception.raiseInternal "Invalid Deprecation" []
 
 
-//TODO: Recheck option in fromDT (label)
 module TypeDeclaration =
   module RecordField =
     let toDT (rf : PT.TypeDeclaration.RecordField) : Dval =
