@@ -151,7 +151,7 @@ let rec serialize
             | [] ->
               Exception.raiseInternal
                 $"Couldn't find matching case for {caseName}"
-                []
+                ["typeName", dTypeName]
 
             | [ matchingCase ] ->
               let fieldDefs =
