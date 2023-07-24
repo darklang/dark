@@ -9,6 +9,6 @@ fi
 
 grey="\033[1;30m"
 reset="\033[0m"
-echo -e "Loading packages into dark canvas${grey}($LOG)${reset}"
+echo -e "Loading packages into dark canvas ${grey}($LOG)${reset}"
 
 ./scripts/run-local-exec load-packages-dark > $LOG 2>&1
