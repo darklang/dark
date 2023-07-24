@@ -39,6 +39,7 @@ module FormatV0 =
       | BuiltIn of BuiltIn<'name>
       | UserProgram of UserProgram<'name>
       | Package of Package<'name>
+      | Unknown of List<string>
 
 
   module TypeName =
@@ -64,6 +65,7 @@ module FormatV0 =
             modules = modules
             name = RT.TypeName.TypeName name
             version = version }
+      | FQName.Unknown names -> RT.FQName.Unknown names
 
     let fromRT (t : RT.TypeName.T) : T =
       match t with
@@ -85,6 +87,7 @@ module FormatV0 =
             modules = modules
             name = TypeName name
             version = version }
+      | RT.FQName.Unknown names -> FQName.Unknown names
 
   module FnName =
     type Name = FnName of string
@@ -109,6 +112,7 @@ module FormatV0 =
             modules = modules
             name = RT.FnName.FnName name
             version = version }
+      | FQName.Unknown names -> RT.FQName.Unknown names
 
     let fromRT (t : RT.FnName.T) : T =
       match t with
@@ -127,6 +131,7 @@ module FormatV0 =
                             version = version } ->
         FQName.Package
           { owner = owner; modules = modules; name = FnName name; version = version }
+      | RT.FQName.Unknown names -> FQName.Unknown names
 
 
 

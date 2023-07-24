@@ -27,11 +27,8 @@ module InfixFnName =
     | WT.StringConcat -> PT.StringConcat
 
 module TypeReference =
-  let rec toPT
-    (nameResolver : NameResolver)
-    (t : WT.TypeReference)
-    : PT.TypeReference =
-    let toPT = toPT nameResolver
+  let rec toPT (resolver : NameResolver) (t : WT.TypeReference) : PT.TypeReference =
+    let toPT = toPT resolver
     match t with
     | WT.TInt -> PT.TInt
     | WT.TFloat -> PT.TFloat
@@ -47,7 +44,9 @@ module TypeReference =
     | WT.TChar -> PT.TChar
     | WT.TPassword -> PT.TPassword
     | WT.TUuid -> PT.TUuid
-    | WT.TCustomType(t, typeArgs) -> PT.TCustomType(t, List.map toPT typeArgs)
+    | WT.TCustomType(t, typeArgs) ->
+      let t = NameResolver.TypeName.resolve resolver t
+      PT.TCustomType(t, List.map toPT typeArgs)
     | WT.TBytes -> PT.TBytes
     | WT.TVariable(name) -> PT.TVariable(name)
     | WT.TFn(paramTypes, returnType) ->

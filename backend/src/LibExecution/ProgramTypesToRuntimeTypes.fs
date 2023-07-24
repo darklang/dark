@@ -49,11 +49,14 @@ module TypeName =
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
 
-  let fromRT (fqtn : RT.TypeName.T) : PT.TypeName.T =
+  let fromRT (fqtn : RT.TypeName.T) : Option<PT.TypeName.T> =
     match fqtn with
-    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s)
-    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u)
-    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p)
+    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s) |> Some
+    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u) |> Some
+    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p) |> Some
+    | RT.FQName.Unknown _ -> None
+
+
 
 module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
@@ -72,8 +75,10 @@ module TypeReference =
     | PT.TChar -> RT.TChar
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
-    | PT.TCustomType(typeName, typArgs) ->
+    | PT.TCustomType(Ok typeName, typArgs) ->
       RT.TCustomType(TypeName.toRT typeName, List.map toRT typArgs)
+    | PT.TCustomType(Error e, typArgs) ->
+      RT.TCustomType(RT.FQName.Unknown e.names, List.map toRT typArgs)
     | PT.TBytes -> RT.TBytes
     | PT.TVariable(name) -> RT.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
@@ -119,11 +124,12 @@ module FnName =
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
 
-  let fromRT (fqfn : RT.FnName.T) : PT.FnName.T =
+  let fromRT (fqfn : RT.FnName.T) : Option<PT.FnName.T> =
     match fqfn with
-    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s)
-    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u)
-    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p)
+    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s) |> Some
+    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u) |> Some
+    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p) |> Some
+    | RT.FQName.Unknown _ -> None
 
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =

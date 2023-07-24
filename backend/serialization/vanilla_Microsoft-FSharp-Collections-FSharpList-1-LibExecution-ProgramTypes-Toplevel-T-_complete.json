@@ -278,17 +278,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -302,17 +306,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -326,19 +334,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -1563,17 +1575,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -1587,17 +1603,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -1611,19 +1631,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -2851,17 +2875,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -2875,17 +2903,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -2899,19 +2931,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -4136,17 +4172,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -4160,17 +4200,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -4184,19 +4228,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -5152,15 +5200,19 @@
         "typ": {
           "TCustomType": [
             {
-              "UserProgram": [
+              "Ok": [
                 {
-                  "modules": [],
-                  "name": {
-                    "TypeName": [
-                      "User"
-                    ]
-                  },
-                  "version": 0
+                  "UserProgram": [
+                    {
+                      "modules": [],
+                      "name": {
+                        "TypeName": [
+                          "User"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
                 }
               ]
             },
@@ -5278,17 +5330,21 @@
                   {
                     "TCustomType": [
                       {
-                        "UserProgram": [
+                        "Ok": [
                           {
-                            "modules": [
-                              "Mod"
-                            ],
-                            "name": {
-                              "TypeName": [
-                                "name"
-                              ]
-                            },
-                            "version": 0
+                            "UserProgram": [
+                              {
+                                "modules": [
+                                  "Mod"
+                                ],
+                                "name": {
+                                  "TypeName": [
+                                    "name"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
                           }
                         ]
                       },
@@ -5410,17 +5466,21 @@
               {
                 "TCustomType": [
                   {
-                    "UserProgram": [
+                    "Ok": [
                       {
-                        "modules": [
-                          "Mod"
-                        ],
-                        "name": {
-                          "TypeName": [
-                            "name"
-                          ]
-                        },
-                        "version": 0
+                        "UserProgram": [
+                          {
+                            "modules": [
+                              "Mod"
+                            ],
+                            "name": {
+                              "TypeName": [
+                                "name"
+                              ]
+                            },
+                            "version": 0
+                          }
+                        ]
                       }
                     ]
                   },
@@ -5731,17 +5791,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -5755,17 +5819,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -5779,19 +5847,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -6842,17 +6914,21 @@
                       {
                         "TCustomType": [
                           {
-                            "UserProgram": [
+                            "Ok": [
                               {
-                                "modules": [
-                                  "Mod"
-                                ],
-                                "name": {
-                                  "TypeName": [
-                                    "name"
-                                  ]
-                                },
-                                "version": 0
+                                "UserProgram": [
+                                  {
+                                    "modules": [
+                                      "Mod"
+                                    ],
+                                    "name": {
+                                      "TypeName": [
+                                        "name"
+                                      ]
+                                    },
+                                    "version": 0
+                                  }
+                                ]
                               }
                             ]
                           },
@@ -7013,17 +7089,21 @@
                             {
                               "TCustomType": [
                                 {
-                                  "UserProgram": [
+                                  "Ok": [
                                     {
-                                      "modules": [
-                                        "Mod"
-                                      ],
-                                      "name": {
-                                        "TypeName": [
-                                          "name"
-                                        ]
-                                      },
-                                      "version": 0
+                                      "UserProgram": [
+                                        {
+                                          "modules": [
+                                            "Mod"
+                                          ],
+                                          "name": {
+                                            "TypeName": [
+                                              "name"
+                                            ]
+                                          },
+                                          "version": 0
+                                        }
+                                      ]
                                     }
                                   ]
                                 },

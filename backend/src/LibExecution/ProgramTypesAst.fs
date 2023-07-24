@@ -109,7 +109,8 @@ let rec preTraversal
     | TList tr -> TList(f tr)
     | TTuple(tr1, tr2, trs) -> TTuple(f tr1, f tr2, List.map f trs)
     | TDB tr -> TDB(f tr)
-    | TCustomType(name, trs) -> TCustomType(fqtnFn name, List.map f trs)
+    | TCustomType(name, trs) ->
+      TCustomType(Result.map fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
     | TFn(trs, tr) -> TFn(List.map f trs, f tr)
 

@@ -103,41 +103,49 @@ module FnName =
     | ST.FnName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
     | ST.FnName.Package p -> PT.FQName.Package(Package.toPT p)
 
-// type NameResolutionError = NotFound of List<string>
 module NameResolution =
-  module NameResultionError =
+  module NameResultionErrorType =
+    let toST
+      (err : LibExecution.Errors.NameResolutionErrorType)
+      : ST.NameResolutionErrorType =
+      match err with
+      | LibExecution.Errors.NotFound -> ST.NameResolutionErrorType.NotFound
+      | LibExecution.Errors.MissingModuleName ->
+        ST.NameResolutionErrorType.MissingModuleName
+      | LibExecution.Errors.InvalidPackageName ->
+        ST.NameResolutionErrorType.InvalidPackageName
+
+    let toPT
+      (err : ST.NameResolutionErrorType)
+      : LibExecution.Errors.NameResolutionErrorType =
+      match err with
+      | ST.NameResolutionErrorType.NotFound -> LibExecution.Errors.NotFound
+      | ST.NameResolutionErrorType.MissingModuleName ->
+        LibExecution.Errors.MissingModuleName
+      | ST.NameResolutionErrorType.InvalidPackageName ->
+        LibExecution.Errors.InvalidPackageName
+
+  module NameResolutionError =
     let toST
       (err : LibExecution.Errors.NameResolutionError)
       : ST.NameResolutionError =
-      match err with
-      | LibExecution.Errors.NotFound modules ->
-        ST.NameResolutionError.NotFound modules
-      | LibExecution.Errors.MissingModuleName moduleName ->
-        ST.NameResolutionError.MissingModuleName moduleName
-      | LibExecution.Errors.InvalidPackageName packageName ->
-        ST.NameResolutionError.InvalidPackageName packageName
+      { errorType = NameResultionErrorType.toST err.errorType; names = err.names }
 
     let toPT
       (err : ST.NameResolutionError)
       : LibExecution.Errors.NameResolutionError =
-      match err with
-      | ST.NameResolutionError.NotFound modules ->
-        LibExecution.Errors.NotFound modules
-      | ST.NameResolutionError.MissingModuleName moduleName ->
-        LibExecution.Errors.MissingModuleName moduleName
-      | ST.NameResolutionError.InvalidPackageName packageName ->
-        LibExecution.Errors.InvalidPackageName packageName
+      { errorType = NameResultionErrorType.toPT err.errorType; names = err.names }
 
   // type NameResolution = Result<x, NameResolutionError>
   let toST (f : 'p -> 's) (result : PT.NameResolution<'p>) : ST.NameResolution<'s> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResultionError.toST err)
+    | Error err -> Error(NameResolutionError.toST err)
 
   let toPT (f : 's -> 'p) (result : ST.NameResolution<'s>) : PT.NameResolution<'p> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResultionError.toPT err)
+    | Error err -> Error(NameResolutionError.toPT err)
 
 
 module InfixFnName =
@@ -191,7 +199,7 @@ module TypeReference =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TCustomType(t, typeArgs) ->
-      ST.TCustomType(TypeName.toST t, List.map toST typeArgs)
+      ST.TCustomType(NameResolution.toST TypeName.toST t, List.map toST typeArgs)
     | PT.TBytes -> ST.TBytes
     | PT.TVariable(name) -> ST.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
@@ -214,7 +222,7 @@ module TypeReference =
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TCustomType(t, typeArgs) ->
-      PT.TCustomType(TypeName.toPT t, List.map toPT typeArgs)
+      PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
     | ST.TBytes -> PT.TBytes
     | ST.TVariable(name) -> PT.TVariable(name)
     | ST.TFn(paramTypes, returnType) ->

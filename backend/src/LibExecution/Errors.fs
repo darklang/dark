@@ -207,13 +207,17 @@ type ErrorOutput =
     expected : List<ErrorSegment> }
 
 
-type NameResolutionError =
-  // note: all of the `List<string>`s are the `.`-delimited name _parts_
-  // e.g. `List.fakeFunction` is `["List"; "fakeFunction"]`
+type NameResolutionErrorType =
+  | NotFound
+  | MissingModuleName
+  | InvalidPackageName
 
-  | NotFound of List<string>
-  | MissingModuleName of List<string>
-  | InvalidPackageName of List<string>
+type NameResolutionError =
+  { errorType : NameResolutionErrorType
+    // The `.`-delimited name _parts_ e.g. `List.fakeFunction` is `["List";
+    // "fakeFunction"]`
+    names : List<string> }
+
 
 type Error =
   | TypeError of TypeChecker.Error
@@ -511,21 +515,9 @@ let toSegments (e : Error) : ErrorOutput =
       actual = actual
       expected = expected }
 
-  | NameResolutionError(NotFound(names)) ->
-    let summary = [ String "Could not find name: "; String(String.concat "." names) ]
-
-    let extraExplanation = []
-    let actual = []
-    let expected = []
-
-    { summary = summary
-      extraExplanation = extraExplanation
-      actual = actual
-      expected = expected }
-
-  | NameResolutionError(MissingModuleName(names)) ->
+  | NameResolutionError({ errorType = NotFound } as e) ->
     let summary =
-      [ String "We need more modules: "; String(String.concat "." names) ]
+      [ String "Could not find name: "; String(String.concat "." e.names) ]
 
     let extraExplanation = []
     let actual = []
@@ -536,8 +528,22 @@ let toSegments (e : Error) : ErrorOutput =
       actual = actual
       expected = expected }
 
-  | NameResolutionError(InvalidPackageName(names)) ->
-    let summary = [ String "Invalid package name"; String(String.concat "." names) ]
+  | NameResolutionError({ errorType = MissingModuleName } as e) ->
+    let summary =
+      [ String "We need more modules: "; String(String.concat "." e.names) ]
+
+    let extraExplanation = []
+    let actual = []
+    let expected = []
+
+    { summary = summary
+      extraExplanation = extraExplanation
+      actual = actual
+      expected = expected }
+
+  | NameResolutionError({ errorType = InvalidPackageName } as e) ->
+    let summary =
+      [ String "Invalid package name"; String(String.concat "." e.names) ]
 
     let extraExplanation = []
     let actual = []

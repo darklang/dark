@@ -62,6 +62,10 @@ type Infix =
   | BinOp of BinaryOperation
 
 type TypeReference =
+  // TODO
+  // | Named of Name * typeArgs : List<TypeReference>
+  // | Fn of int // ...
+  // | Variable of string
   | TInt
   | TFloat
   | TBool
@@ -78,7 +82,7 @@ type TypeReference =
   | TBytes
   | TVariable of string
   | TFn of List<TypeReference> * TypeReference
-  | TCustomType of PT.TypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of Name * typeArgs : List<TypeReference>
 
 
 type Expr =

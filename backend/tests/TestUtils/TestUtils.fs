@@ -428,6 +428,8 @@ module Expect =
       if a.modules <> e.modules then err ()
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
+    | FQName.Unknown a, FQName.Unknown e -> if a <> e then err ()
+    | FQName.Unknown _, _
     | FQName.BuiltIn _, _
     | FQName.UserProgram _, _
     | FQName.Package _, _ -> err ()

@@ -114,7 +114,8 @@ let resolve
   // Packages are unambiguous
   | WT.Unresolved(("PACKAGE" :: owner :: rest) as names) ->
     match List.rev rest with
-    | [] -> Error(LibExecution.Errors.MissingModuleName names)
+    | [] ->
+      Error({ errorType = LibExecution.Errors.MissingModuleName; names = names })
     | name :: moduleLast :: moduleBeforeLast ->
       match parser name with
       | Ok(name, version) ->
@@ -123,20 +124,24 @@ let resolve
         Ok(
           PT.FQName.fqPackage nameValidator owner modules (constructor name) version
         )
-      | Error _ -> Error(LibExecution.Errors.InvalidPackageName names)
-    | _ -> Error(LibExecution.Errors.InvalidPackageName names)
+      | Error _ ->
+        Error({ errorType = LibExecution.Errors.InvalidPackageName; names = names })
+    | _ ->
+      Error({ errorType = LibExecution.Errors.InvalidPackageName; names = names })
 
 
   | WT.Unresolved names ->
+    debuG "resolving" names
     match List.rev names with
     | [] ->
       // This is a totally empty name, which _really_ shouldn't happen.
       // Should we handle this in some extra way? CLEANUP
-      Error(LibExecution.Errors.MissingModuleName names)
+      Error({ errorType = LibExecution.Errors.MissingModuleName; names = names })
 
     | name :: modules ->
       match parser name with
-      | Error _msg -> Error(LibExecution.Errors.InvalidPackageName names)
+      | Error _msg ->
+        Error({ errorType = LibExecution.Errors.InvalidPackageName; names = names })
       | Ok(name, version) ->
         let modules = List.reverse modules
 
@@ -154,7 +159,9 @@ let resolve
           if Set.contains builtIn builtinThings then
             Ok(PT.FQName.BuiltIn builtIn)
           else if List.isEmpty modules then
-            Error(LibExecution.Errors.MissingModuleName names)
+            Error(
+              { errorType = LibExecution.Errors.MissingModuleName; names = names }
+            )
           else
             // 4. Check exact name in
             //   - a. current module // NOT IMPLEMENTED
@@ -164,7 +171,7 @@ let resolve
             // debuG "builtIn" builtIn
             // debuG "not found names" names
             //System.Environment.Exit(1)
-            Error(LibExecution.Errors.NotFound names)
+            Error({ errorType = LibExecution.Errors.NotFound; names = names })
 
 
 module TypeName =

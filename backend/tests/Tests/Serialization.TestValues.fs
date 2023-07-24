@@ -267,22 +267,27 @@ module ProgramTypes =
       PT.TDict PT.TBool
       PT.TDB PT.TBool
       PT.TCustomType(
-        PT.FQName.UserProgram
-          { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 },
-
+        Ok(
+          PT.FQName.UserProgram
+            { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ PT.TBool ]
       )
       PT.TCustomType(
-        PT.FQName.BuiltIn
-          { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 },
+        Ok(
+          PT.FQName.BuiltIn
+            { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 }
+        ),
         [ PT.TBool ]
       )
       PT.TCustomType(
-        PT.FQName.Package
-          { owner = "dark"
-            modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
-            name = PT.TypeName.TypeName "Pack"
-            version = 0 },
+        Ok(
+          PT.FQName.Package
+            { owner = "dark"
+              modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
+              name = PT.TypeName.TypeName "Pack"
+              version = 0 }
+        ),
         [ PT.TBool ]
       )
       PT.TBytes
@@ -651,8 +656,12 @@ module ProgramTypes =
         PT.TPassword
         PT.TUuid
         PT.TCustomType(
-          PT.FQName.UserProgram
-            { modules = [ "Mod" ]; name = PT.TypeName.TypeName "name"; version = 0 },
+          Ok(
+            PT.FQName.UserProgram
+              { modules = [ "Mod" ]
+                name = PT.TypeName.TypeName "name"
+                version = 0 }
+          ),
           []
         )
         PT.TBytes
@@ -699,8 +708,10 @@ module ProgramTypes =
       version = 0
       typ =
         PT.TCustomType(
-          PT.FQName.UserProgram
-            { modules = []; name = PT.TypeName.TypeName "User"; version = 0 },
+          Ok(
+            PT.FQName.UserProgram
+              { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
+          ),
           []
         ) }
 

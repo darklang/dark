@@ -317,7 +317,7 @@ type TypeReference =
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of TypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
 
 
 /// Expressions - the main part of the language.

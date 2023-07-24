@@ -14,7 +14,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT2DT = ProgramTypes2DarkTypes
+module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
 
 let resolver =
   let stdlibResolver =

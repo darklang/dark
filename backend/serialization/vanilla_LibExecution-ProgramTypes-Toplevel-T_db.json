@@ -7,15 +7,19 @@
       "typ": {
         "TCustomType": [
           {
-            "UserProgram": [
+            "Ok": [
               {
-                "modules": [],
-                "name": {
-                  "TypeName": [
-                    "User"
-                  ]
-                },
-                "version": 0
+                "UserProgram": [
+                  {
+                    "modules": [],
+                    "name": {
+                      "TypeName": [
+                        "User"
+                      ]
+                    },
+                    "version": 0
+                  }
+                ]
               }
             ]
           },

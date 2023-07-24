@@ -130,6 +130,22 @@ module FnName =
     | Package of Package
 
 
+[<MessagePack.MessagePackObject>]
+type NameResolutionErrorType =
+  | NotFound
+  | MissingModuleName
+  | InvalidPackageName
+
+[<MessagePack.MessagePackObject>]
+type NameResolutionError =
+  { [<MessagePack.Key 0>]
+    errorType : NameResolutionErrorType
+    [<MessagePack.Key 1>]
+    names : List<string> }
+
+[<MessagePack.MessagePackObject>]
+type NameResolution<'a> = Result<'a, NameResolutionError>
+
 
 [<MessagePack.MessagePackObject>]
 type TypeReference =
@@ -145,7 +161,9 @@ type TypeReference =
   | TChar
   | TPassword
   | TUuid
-  | TCustomType of typeName : TypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of
+    typeName : NameResolution<TypeName.T> *
+    typeArgs : List<TypeReference>
   | TBytes
   | TVariable of string
   | TFn of List<TypeReference> * TypeReference
@@ -166,15 +184,6 @@ type InfixFnName =
   | ComparisonEquals
   | ComparisonNotEquals
   | StringConcat
-
-[<MessagePack.MessagePackObject>]
-type NameResolutionError =
-  | NotFound of List<string>
-  | MissingModuleName of List<string>
-  | InvalidPackageName of List<string>
-
-[<MessagePack.MessagePackObject>]
-type NameResolution<'a> = Result<'a, NameResolutionError>
 
 [<MessagePack.MessagePackObject>]
 type LetPattern =

@@ -44,13 +44,6 @@ let (|IdentExprPat|_|) (input : SynExpr) =
 
 module TypeReference =
 
-  let private parseTypeRef (name : string) : string * int =
-    match name with
-    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
-    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
-    | _ -> Exception.raiseInternal "Bad format in typeRef" [ "name", name ]
-
-
   let rec fromNamesAndTypeArgs
     (names : List<Ident>)
     (typeArgs : List<SynType>)
@@ -60,29 +53,27 @@ module TypeReference =
       |> Option.defaultValue []
       |> List.map (fun name -> name.idText)
     let name = List.last names |> Exception.unwrapOptionInternal "typeName" []
-    match modules, parseTypeRef name.idText, typeArgs with
+    match modules, name.idText, typeArgs with
     // no type args
-    | [], ("Bool", 0), [] -> WT.TBool
-    | [], ("Bytes", 0), [] -> WT.TBytes
-    | [], ("Int", 0), [] -> WT.TInt
-    | [], ("String", 0), [] -> WT.TString
-    | [], ("Char", 0), [] -> WT.TChar
-    | [], ("Float", 0), [] -> WT.TFloat
-    | [], ("DateTime", 0), [] -> WT.TDateTime
-    | [], ("Uuid", 0), [] -> WT.TUuid
-    | [], ("Unit", 0), [] -> WT.TUnit
-    | [], ("Password", 0), [] -> WT.TPassword
+    | [], "Bool", [] -> WT.TBool
+    | [], "Bytes", [] -> WT.TBytes
+    | [], "Int", [] -> WT.TInt
+    | [], "String", [] -> WT.TString
+    | [], "Char", [] -> WT.TChar
+    | [], "Float", [] -> WT.TFloat
+    | [], "DateTime", [] -> WT.TDateTime
+    | [], "Uuid", [] -> WT.TUuid
+    | [], "Unit", [] -> WT.TUnit
+    | [], "Password", [] -> WT.TPassword
 
     // with type args
-    | [], ("List", 0), [ arg ] -> WT.TList(fromSynType arg)
-    | [], ("Dict", 0), [ valArg ] -> WT.TDict(fromSynType valArg)
+    | [], "List", [ arg ] -> WT.TList(fromSynType arg)
+    | [], "Dict", [ valArg ] -> WT.TDict(fromSynType valArg)
     // TYPESCLEANUP - don't use word Tuple here
-    | [], ("Tuple", 0), first :: second :: theRest ->
+    | [], "Tuple", first :: second :: theRest ->
       WT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-    | modules, (name, version), args ->
-      let tn =
-        PT.FQName.UserProgram
-          { modules = modules; name = PT.TypeName.TypeName name; version = version }
+    | _ ->
+      let tn = WT.Unresolved(modules @ [ name.idText ])
       WT.TCustomType(tn, List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : WT.TypeReference =

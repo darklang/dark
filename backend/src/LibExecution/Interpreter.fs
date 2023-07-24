@@ -791,6 +791,10 @@ and callFn
             let! fn = state.packageManager.getFn pkg
             return Option.map packageFnToFn fn
           }
+        | FQName.Unknown fn ->
+          Exception.raiseInternal
+            "Unknown function should have been converted to EError by PT2RT"
+            [ "fn", fn ]
 
       match fn with
       | None -> return handleMissingFunction ()

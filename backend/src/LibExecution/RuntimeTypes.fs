@@ -54,6 +54,7 @@ module FQName =
     | BuiltIn of BuiltIn<'name>
     | UserProgram of UserProgram<'name>
     | Package of Package<'name>
+    | Unknown of List<string>
 
   type NameValidator<'name> = 'name -> unit
   type NamePrinter<'name> = 'name -> string
@@ -145,6 +146,7 @@ module FQName =
     | BuiltIn b -> builtinToString b f
     | UserProgram user -> userProgramToString user f
     | Package pkg -> packageToString pkg f
+    | Unknown names -> String.concat "." names
 
 module TypeName =
   type Name = TypeName of string
@@ -1150,6 +1152,7 @@ module Types =
       |> Ply
     | FQName.Package pkg ->
       types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
+    | FQName.Unknown _ -> Ply None
 
   // Swap concrete types for type parameters
   let rec substitute
