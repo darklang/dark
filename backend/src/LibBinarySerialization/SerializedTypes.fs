@@ -26,12 +26,12 @@ type Sign = Prelude.Sign
 // saved in files in the old format to continue to be read by the serializers for the
 // new format.
 //
-// The follow changes appear to be safe:
+// The following changes appear to be safe:
 // - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
 // - renaming a variant in an Enum (even if that variant is used)
 // - rename a field in a record (does not have to be the last field, don't change the keys of other fields)
 // - remove a field from a record (do not change the index of the other fields)
-// - adding a variant at the end of an Enum
+// - adding a new variant at the end of an Enum
 //
 // The following changes appear to be unsafe (and would require migrating data):
 // - adding a new variant to an Enum that is not at the end
