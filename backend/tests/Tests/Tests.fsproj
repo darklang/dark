@@ -44,6 +44,7 @@
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />
     <Compile Include="Serialization.Vanilla.Tests.fs" />
+    <Compile Include="Serialization.DarkTypes.Tests.fs" />
     <Compile Include="StdLib.Tests.fs" />
     <Compile Include="SqlCompiler.Tests.fs" />
     <Compile Include="Tests.fs" />
