@@ -85,17 +85,33 @@ let rec unify
     | TBool, DBool _ -> return Ok()
     | TUnit, DUnit -> return Ok()
     | TString, DString _ -> return Ok()
-    // TYPESCLEANUP unify nested types too
-    | TList _, DList _ -> return Ok()
     | TDateTime, DDateTime _ -> return Ok()
-    | TDict _, DDict _ -> return Ok()
-    | TFn _, DFnVal _ -> return Ok()
     | TPassword, DPassword _ -> return Ok()
     | TUuid, DUuid _ -> return Ok()
     | TChar, DChar _ -> return Ok()
-    | TDB _, DDB _ -> return Ok()
     | TBytes, DBytes _ -> return Ok()
-    | TTuple _, DTuple _ -> return Ok()
+    | TDB _, DDB _ -> return Ok() // TODO: check DB type
+    | TList nested, DList dvs ->
+      let! results = Ply.List.mapSequentially (unify context types nested) dvs
+      return combineErrorsUnit results
+    | TDict valueType, DDict dmap ->
+      let! results =
+        dmap
+        |> Map.values
+        |> Ply.List.mapSequentially (unify context types valueType)
+      return combineErrorsUnit results
+
+    | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TODO check lambdas and fnVals
+    | TTuple(t1, t2, tRest), DTuple(v1, v2, vRest) ->
+      let ts = t1 :: t2 :: tRest
+      let vs = v1 :: v2 :: vRest
+      if List.length ts <> List.length vs then
+        return Error(ValueNotExpectedType(value, resolvedType, context))
+      else
+        let! results =
+          List.zip ts vs
+          |> Ply.List.mapSequentially (fun (t, v) -> unify context types t v)
+        return combineErrorsUnit results
 
     // TYPESCLEANUP: handle typeArgs
     | TCustomType(typeName, typeArgs), value ->
