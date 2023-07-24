@@ -8,13 +8,13 @@ module Darklang =
 
       type Module =
         { name: String
-          types: List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T>
-          fns: List<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
+          types: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
+          fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
           submodules: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> }
 
       let withType
         (ms: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>)
-        (t: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T)
+        (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T)
         : List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> =
         match t.name.modules with
         | [] ->
@@ -90,7 +90,7 @@ module Darklang =
 
       let withFn
         (ms: List<PACKAGE.Darklang.PrettyPrinter.Packages.Module>)
-        (f: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
+        (f: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T)
         : List<PACKAGE.Darklang.PrettyPrinter.Packages.Module> =
         match f.name.modules with
         | [] ->
