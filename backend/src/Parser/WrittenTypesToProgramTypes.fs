@@ -27,8 +27,12 @@ module InfixFnName =
     | WT.StringConcat -> PT.StringConcat
 
 module TypeReference =
-  let rec toPT (resolver : NameResolver) (t : WT.TypeReference) : PT.TypeReference =
-    let toPT = toPT resolver
+  let rec toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (t : WT.TypeReference)
+    : PT.TypeReference =
+    let toPT = toPT resolver currentModule
     match t with
     | WT.TInt -> PT.TInt
     | WT.TFloat -> PT.TFloat
@@ -45,7 +49,7 @@ module TypeReference =
     | WT.TPassword -> PT.TPassword
     | WT.TUuid -> PT.TUuid
     | WT.TCustomType(t, typeArgs) ->
-      let t = NameResolver.TypeName.resolve resolver t
+      let t = NameResolver.TypeName.resolve resolver currentModule t
       PT.TCustomType(t, List.map toPT typeArgs)
     | WT.TBytes -> PT.TBytes
     | WT.TVariable(name) -> PT.TVariable(name)
@@ -90,31 +94,35 @@ module MatchPattern =
 
 
 module Expr =
-  let rec toPT (resolver : NameResolver) (e : WT.Expr) : PT.Expr =
-    let toPT = toPT resolver
+  let rec toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (e : WT.Expr)
+    : PT.Expr =
+    let toPT = toPT resolver currentModule
     match e with
     | WT.EChar(id, char) -> PT.EChar(id, char)
     | WT.EInt(id, num) -> PT.EInt(id, num)
     | WT.EString(id, segment) ->
-      PT.EString(id, List.map (stringSegmentToPT resolver) segment)
+      PT.EString(id, List.map (stringSegmentToPT resolver currentModule) segment)
     | WT.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | WT.EBool(id, b) -> PT.EBool(id, b)
     | WT.EUnit id -> PT.EUnit id
     | WT.EVariable(id, var) -> PT.EVariable(id, var)
     | WT.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
     | WT.EApply(id, WT.FnTargetName name, typeArgs, args) ->
-      let name = NameResolver.FnName.resolve resolver name
+      let name = NameResolver.FnName.resolve resolver currentModule name
       PT.EApply(
         id,
         PT.FnTargetName name,
-        List.map (TypeReference.toPT resolver) typeArgs,
+        List.map (TypeReference.toPT resolver currentModule) typeArgs,
         List.map toPT args
       )
     | WT.EApply(id, WT.FnTargetExpr name, typeArgs, args) ->
       PT.EApply(
         id,
         PT.FnTargetExpr(toPT name),
-        List.map (TypeReference.toPT resolver) typeArgs,
+        List.map (TypeReference.toPT resolver currentModule) typeArgs,
         List.map toPT args
       )
     | WT.ELambda(id, vars, body) -> PT.ELambda(id, vars, toPT body)
@@ -128,7 +136,7 @@ module Expr =
     | WT.ERecord(id, typeName, fields) ->
       PT.ERecord(
         id,
-        NameResolver.TypeName.resolve resolver typeName,
+        NameResolver.TypeName.resolve resolver currentModule typeName,
         List.map (Tuple2.mapSecond toPT) fields
       )
     | WT.ERecordUpdate(id, record, updates) ->
@@ -141,15 +149,15 @@ module Expr =
       PT.EPipe(
         pipeID,
         toPT expr1,
-        pipeExprToPT resolver expr2,
-        List.map (pipeExprToPT resolver) rest
+        pipeExprToPT resolver currentModule expr2,
+        List.map (pipeExprToPT resolver currentModule) rest
       )
     | WT.EEnum(id, typeName, caseName, exprs) ->
       // NAMETODO: Should we be checking casenames here? At least for warnings? Do we
       // check them in the interpreter at construction time?
       PT.EEnum(
         id,
-        NameResolver.TypeName.resolve resolver typeName,
+        NameResolver.TypeName.resolve resolver currentModule typeName,
         caseName,
         List.map toPT exprs
       )
@@ -165,19 +173,25 @@ module Expr =
 
   and stringSegmentToPT
     (resolver : NameResolver)
+    (currentModule : List<string>)
     (segment : WT.StringSegment)
     : PT.StringSegment =
     match segment with
     | WT.StringText text -> PT.StringText text
-    | WT.StringInterpolation expr -> PT.StringInterpolation(toPT resolver expr)
+    | WT.StringInterpolation expr ->
+      PT.StringInterpolation(toPT resolver currentModule expr)
 
-  and pipeExprToPT (resolver : NameResolver) (pipeExpr : WT.PipeExpr) : PT.PipeExpr =
-    let toPT = toPT resolver
+  and pipeExprToPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (pipeExpr : WT.PipeExpr)
+    : PT.PipeExpr =
+    let toPT = toPT resolver currentModule
     match pipeExpr with
     | WT.EPipeVariableOrUserFunction(id, name) ->
       let resolved =
         let asUserFnName = WT.Name.Unresolved [ name ]
-        NameResolver.FnName.resolve resolver asUserFnName
+        NameResolver.FnName.resolve resolver currentModule asUserFnName
 
       match resolved with
       | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
@@ -191,14 +205,14 @@ module Expr =
     | WT.EPipeFnCall(id, name, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
-        NameResolver.FnName.resolve resolver name,
-        List.map (TypeReference.toPT resolver) typeArgs,
+        NameResolver.FnName.resolve resolver currentModule name,
+        List.map (TypeReference.toPT resolver currentModule) typeArgs,
         List.map toPT args
       )
     | WT.EPipeEnum(id, typeName, caseName, fields) ->
       PT.EPipeEnum(
         id,
-        NameResolver.TypeName.resolve resolver typeName,
+        NameResolver.TypeName.resolve resolver currentModule typeName,
         caseName,
         List.map toPT fields
       )
@@ -209,19 +223,21 @@ module TypeDeclaration =
 
     let toPT
       (resolver : NameResolver)
+      (currentModule : List<string>)
       (f : WT.TypeDeclaration.RecordField)
       : PT.TypeDeclaration.RecordField =
       { name = f.name
-        typ = TypeReference.toPT resolver f.typ
+        typ = TypeReference.toPT resolver currentModule f.typ
         description = f.description }
 
   module EnumField =
 
     let toPT
       (resolver : NameResolver)
+      (currentModule : List<string>)
       (f : WT.TypeDeclaration.EnumField)
       : PT.TypeDeclaration.EnumField =
-      { typ = TypeReference.toPT resolver f.typ
+      { typ = TypeReference.toPT resolver currentModule f.typ
         label = f.label
         description = f.description }
 
@@ -229,37 +245,41 @@ module TypeDeclaration =
 
     let toPT
       (resolver : NameResolver)
+      (currentModule : List<string>)
       (c : WT.TypeDeclaration.EnumCase)
       : PT.TypeDeclaration.EnumCase =
       { name = c.name
-        fields = List.map (EnumField.toPT resolver) c.fields
+        fields = List.map (EnumField.toPT resolver currentModule) c.fields
         description = c.description }
 
   module Definition =
     let toPT
       (resolver : NameResolver)
+      (currentModule : List<string>)
       (d : WT.TypeDeclaration.Definition)
       : PT.TypeDeclaration.Definition =
       match d with
       | WT.TypeDeclaration.Alias typ ->
-        PT.TypeDeclaration.Alias(TypeReference.toPT resolver typ)
+        PT.TypeDeclaration.Alias(TypeReference.toPT resolver currentModule typ)
       | WT.TypeDeclaration.Record(firstField, additionalFields) ->
         PT.TypeDeclaration.Record(
-          RecordField.toPT resolver firstField,
-          List.map (RecordField.toPT resolver) additionalFields
+          RecordField.toPT resolver currentModule firstField,
+          List.map (RecordField.toPT resolver currentModule) additionalFields
         )
       | WT.TypeDeclaration.Enum(firstCase, additionalCases) ->
         PT.TypeDeclaration.Enum(
-          EnumCase.toPT resolver firstCase,
-          List.map (EnumCase.toPT resolver) additionalCases
+          EnumCase.toPT resolver currentModule firstCase,
+          List.map (EnumCase.toPT resolver currentModule) additionalCases
         )
 
 
   let toPT
     (resolver : NameResolver)
+    (currentModule : List<string>)
     (d : WT.TypeDeclaration.T)
     : PT.TypeDeclaration.T =
-    { typeParams = d.typeParams; definition = Definition.toPT resolver d.definition }
+    { typeParams = d.typeParams
+      definition = Definition.toPT resolver currentModule d.definition }
 
 
 module Handler =
@@ -282,21 +302,35 @@ module Handler =
         PT.Handler.Cron(name, CronInterval.toPT interval)
       | WT.Handler.REPL name -> PT.Handler.REPL name
 
-  let toPT (nameResolver : NameResolver) (h : WT.Handler.T) : PT.Handler.T =
-    { tlid = gid (); ast = Expr.toPT nameResolver h.ast; spec = Spec.toPT h.spec }
+  let toPT
+    (nameResolver : NameResolver)
+    (currentModule : List<string>)
+    (h : WT.Handler.T)
+    : PT.Handler.T =
+    { tlid = gid ()
+      ast = Expr.toPT nameResolver currentModule h.ast
+      spec = Spec.toPT h.spec }
 
 module DB =
-  let toPT (nameResolver : NameResolver) (db : WT.DB.T) : PT.DB.T =
+  let toPT
+    (nameResolver : NameResolver)
+    (currentModule : List<string>)
+    (db : WT.DB.T)
+    : PT.DB.T =
     { tlid = gid ()
       name = db.name
       version = db.version
-      typ = TypeReference.toPT nameResolver db.typ }
+      typ = TypeReference.toPT nameResolver currentModule db.typ }
 
 module UserType =
-  let toPT (resolver : NameResolver) (t : WT.UserType.T) : PT.UserType.T =
+  let toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (t : WT.UserType.T)
+    : PT.UserType.T =
     { tlid = gid ()
       name = t.name
-      declaration = TypeDeclaration.toPT resolver t.declaration
+      declaration = TypeDeclaration.toPT resolver currentModule t.declaration
       description = t.description
       deprecated = PT.NotDeprecated }
 
@@ -305,48 +339,62 @@ module UserFunction =
   module Parameter =
     let toPT
       (resolver : NameResolver)
+      (currentModule : List<string>)
       (p : WT.UserFunction.Parameter)
       : PT.UserFunction.Parameter =
       { name = p.name
-        typ = TypeReference.toPT resolver p.typ
+        typ = TypeReference.toPT resolver currentModule p.typ
         description = p.description }
 
-  let toPT (resolver : NameResolver) (f : WT.UserFunction.T) : PT.UserFunction.T =
+  let toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (f : WT.UserFunction.T)
+    : PT.UserFunction.T =
     { tlid = gid ()
       name = f.name
       typeParams = f.typeParams
-      parameters = List.map (Parameter.toPT resolver) f.parameters
-      returnType = TypeReference.toPT resolver f.returnType
+      parameters = List.map (Parameter.toPT resolver currentModule) f.parameters
+      returnType = TypeReference.toPT resolver currentModule f.returnType
       description = f.description
       deprecated = PT.NotDeprecated
-      body = Expr.toPT resolver f.body }
+      body = Expr.toPT resolver currentModule f.body }
 
 module PackageFn =
   module Parameter =
     let toPT
       (resolver : NameResolver)
+      (currentModule : List<string>)
       (p : WT.PackageFn.Parameter)
       : PT.PackageFn.Parameter =
       { name = p.name
-        typ = TypeReference.toPT resolver p.typ
+        typ = TypeReference.toPT resolver currentModule p.typ
         description = p.description }
 
-  let toPT (resolver : NameResolver) (fn : WT.PackageFn.T) : PT.PackageFn.T =
+  let toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (fn : WT.PackageFn.T)
+    : PT.PackageFn.T =
     { name = fn.name
-      parameters = List.map (Parameter.toPT resolver) fn.parameters
-      returnType = TypeReference.toPT resolver fn.returnType
+      parameters = List.map (Parameter.toPT resolver currentModule) fn.parameters
+      returnType = TypeReference.toPT resolver currentModule fn.returnType
       description = fn.description
       deprecated = PT.NotDeprecated
-      body = Expr.toPT resolver fn.body
+      body = Expr.toPT resolver currentModule fn.body
       typeParams = fn.typeParams
       id = System.Guid.NewGuid()
       tlid = gid () }
 
 module PackageType =
-  let toPT (resolver : NameResolver) (pt : WT.PackageType.T) : PT.PackageType.T =
+  let toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (pt : WT.PackageType.T)
+    : PT.PackageType.T =
     { name = pt.name
       description = pt.description
-      declaration = TypeDeclaration.toPT resolver pt.declaration
+      declaration = TypeDeclaration.toPT resolver currentModule pt.declaration
       deprecated = PT.NotDeprecated
       id = System.Guid.NewGuid()
       tlid = gid () }

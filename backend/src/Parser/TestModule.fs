@@ -17,38 +17,38 @@ type WTTest =
   { name : string; lineNumber : int; actual : WT.Expr; expected : WT.Expr }
 
 type WTModule =
-  { types : List<WT.UserType.T>
+  { name : List<string>
+    types : List<WT.UserType.T>
     dbs : List<WT.DB.T>
     fns : List<WT.UserFunction.T>
-    modules : List<string * WTModule>
     tests : List<WTTest> }
 
-let emptyWTModule = { types = []; dbs = []; fns = []; modules = []; tests = [] }
+let emptyWTModule = { name = []; types = []; dbs = []; fns = []; tests = [] }
 
 type PTTest =
   { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
 
 type PTModule =
-  { types : List<PT.UserType.T>
+  { name : List<string>
+    types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
-    modules : List<string * PTModule>
     tests : List<PTTest> }
 
-let emptyPTModule = { types = []; dbs = []; fns = []; modules = []; tests = [] }
+let emptyPTModule = { name = []; types = []; dbs = []; fns = []; tests = [] }
 
 type RTTest =
   { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
 
 type RTModule =
-  { types : List<PT.UserType.T>
+  { name : List<string>
+    types : List<PT.UserType.T>
     dbs : List<PT.DB.T>
     fns : List<PT.UserFunction.T>
-    modules : List<string * RTModule>
     tests : List<RTTest> }
 
 
-let emptyRTModule = { types = []; dbs = []; fns = []; modules = []; tests = [] }
+let emptyRTModule = { name = []; types = []; dbs = []; fns = []; tests = [] }
 
 
 module UserDB =
@@ -88,7 +88,7 @@ let parseTest (ast : SynExpr) : WTTest =
   | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
 
-let parseFile (parsedAsFSharp : ParsedImplFileInput) : WTModule =
+let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
   let parseTypeDecl (typeDefn : SynTypeDefn) : List<WT.DB.T> * List<WT.UserType.T> =
     match typeDefn with
     | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
@@ -102,45 +102,46 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : WTModule =
       else
         [], [ FS2WT.UserType.fromSynTypeDefn typeDefn ]
 
-  let rec parseModule (parent : WTModule) (decls : List<SynModuleDecl>) : WTModule =
-    List.fold
-      { types = parent.types
-        fns = parent.fns
-        dbs = parent.dbs
-        modules = []
-        tests = [] }
-      (fun m decl ->
-        match decl with
-        | SynModuleDecl.Let(_, bindings, _) ->
-          let newUserFns = List.map FS2WT.UserFunction.fromSynBinding bindings
-          { m with fns = m.fns @ newUserFns }
+  let rec parseModule
+    (name : List<string>)
+    (decls : List<SynModuleDecl>)
+    : List<WTModule> =
+    let (m, nested) =
+      List.fold
+        ({ emptyWTModule with name = name }, [])
+        (fun (m, nested) decl ->
+          match decl with
+          | SynModuleDecl.Let(_, bindings, _) ->
+            let newUserFns = List.map FS2WT.UserFunction.fromSynBinding bindings
+            ({ m with fns = m.fns @ newUserFns }, nested)
 
-        | SynModuleDecl.Types(defns, _) ->
-          let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
-          { m with
-              types = m.types @ List.concat types
-              dbs = m.dbs @ List.concat dbs }
+          | SynModuleDecl.Types(defns, _) ->
+            let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
+            ({ m with
+                types = m.types @ List.concat types
+                dbs = m.dbs @ List.concat dbs },
+             nested)
 
-        | SynModuleDecl.Expr(expr, _) ->
-          { m with tests = m.tests @ [ parseTest expr ] }
+          | SynModuleDecl.Expr(expr, _) ->
+            ({ m with tests = m.tests @ [ parseTest expr ] }, nested)
 
-        | SynModuleDecl.NestedModule(SynComponentInfo(attrs,
-                                                      _,
-                                                      _,
-                                                      [ name ],
-                                                      _,
-                                                      _,
-                                                      _,
-                                                      _),
-                                     _,
-                                     decls,
-                                     _,
-                                     _,
-                                     _) ->
-          let nested = parseModule m decls
-          { m with modules = m.modules @ [ (name.idText, nested) ] }
-        | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
-      decls
+          | SynModuleDecl.NestedModule(SynComponentInfo(_,
+                                                        _,
+                                                        _,
+                                                        [ modName ],
+                                                        _,
+                                                        _,
+                                                        _,
+                                                        _),
+                                       _,
+                                       decls,
+                                       _,
+                                       _,
+                                       _) ->
+            (m, parseModule (name @ [ modName.idText ]) decls @ nested)
+          | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+        decls
+    m :: nested
 
   let decls =
     match parsedAsFSharp with
@@ -157,19 +158,19 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : WTModule =
       Exception.raiseInternal
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
-  parseModule emptyWTModule decls
+  parseModule [] decls
 
 
 let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
-  { fns = m.fns |> List.map (WT2PT.UserFunction.toPT resolver)
-    types = m.types |> List.map (WT2PT.UserType.toPT resolver)
-    dbs = m.dbs |> List.map (WT2PT.DB.toPT resolver)
-    modules = m.modules |> List.map (fun (name, m) -> (name, toPT resolver m))
+  { name = m.name
+    fns = m.fns |> List.map (WT2PT.UserFunction.toPT resolver m.name)
+    types = m.types |> List.map (WT2PT.UserType.toPT resolver m.name)
+    dbs = m.dbs |> List.map (WT2PT.DB.toPT resolver m.name)
     tests =
       m.tests
       |> List.map (fun test ->
-        { actual = WT2PT.Expr.toPT resolver test.actual
-          expected = WT2PT.Expr.toPT resolver test.expected
+        { actual = WT2PT.Expr.toPT resolver m.name test.actual
+          expected = WT2PT.Expr.toPT resolver m.name test.expected
           lineNumber = test.lineNumber
           name = test.name }) }
 
@@ -177,15 +178,30 @@ let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
 
 
 // Below are the fns that we intend to expose to the rest of the codebase
+
+/// Returns a flattened list of modules in the file.
 let parseTestFile
-  (resolver : NameResolver.NameResolver)
+  (baseResolver : NameResolver.NameResolver)
   (filename : string)
-  : PTModule =
-  filename
-  |> System.IO.File.ReadAllText
-  |> parseAsFSharpSourceFile filename
-  |> parseFile
-  |> toPT resolver
+  : List<PTModule> =
+  let modules =
+    filename
+    |> System.IO.File.ReadAllText
+    |> parseAsFSharpSourceFile filename
+    |> parseFile
+
+
+  let fns = modules |> List.map (fun m -> m.fns) |> List.concat
+  let fnNames = fns |> List.map (fun fn -> fn.name) |> Set.ofList
+
+  let types = modules |> List.map (fun m -> m.types) |> List.concat
+  let typeNames = types |> List.map (fun typ -> typ.name) |> Set.ofList
+
+  let programResolver =
+    { NameResolver.empty with userFns = fnNames; userTypes = typeNames }
+  let resolver = NameResolver.merge baseResolver programResolver
+
+  modules |> List.map (toPT resolver)
 
 let parseSingleTestFromFile
   (resolver : NameResolver.NameResolver)
@@ -197,7 +213,7 @@ let parseSingleTestFromFile
     |> parseAsFSharpSourceFile filename
     |> singleExprFromImplFile
     |> parseTest
-  { actual = wtTest.actual |> WT2PT.Expr.toPT resolver |> PT2RT.Expr.toRT
-    expected = wtTest.expected |> WT2PT.Expr.toPT resolver |> PT2RT.Expr.toRT
+  { actual = wtTest.actual |> WT2PT.Expr.toPT resolver [] |> PT2RT.Expr.toRT
+    expected = wtTest.expected |> WT2PT.Expr.toPT resolver [] |> PT2RT.Expr.toRT
     lineNumber = wtTest.lineNumber
     name = wtTest.name }

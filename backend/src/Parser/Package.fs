@@ -100,14 +100,21 @@ let parse
                         _,
                         _,
                         _) ->
-    // At the toplevel, the module names will from the filenames
-    // CLEANUP not sure what this is trying to say ^
-    let names = []
+    let baseModule = []
 
-    let modul : WTPackageModule = parseDecls names decls
+    let modul : WTPackageModule = parseDecls baseModule decls
 
-    let fns = modul.fns |> List.map (WT2PT.PackageFn.toPT resolver)
-    let types = modul.types |> List.map (WT2PT.PackageType.toPT resolver)
+    let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
+      "PACKAGE" :: (NonEmptyList.toList p.modules)
+
+    let fns =
+      modul.fns
+      |> List.map (fun fn ->
+        WT2PT.PackageFn.toPT resolver (nameToModules fn.name) fn)
+    let types =
+      modul.types
+      |> List.map (fun typ ->
+        WT2PT.PackageType.toPT resolver (nameToModules typ.name) typ)
 
     { fns = fns; types = types }
   // in the parsed package, types are being read as user, as opposed to the package that's right there

@@ -22,7 +22,7 @@ let parsePTExpr
   (filename : string)
   (code : string)
   : PT.Expr =
-  code |> initialParse filename |> WT2PT.Expr.toPT resolver
+  code |> initialParse filename |> WT2PT.Expr.toPT resolver []
 
 let parseSimple (filename : string) (code : string) : PT.Expr =
   parsePTExpr NameResolver.empty filename code

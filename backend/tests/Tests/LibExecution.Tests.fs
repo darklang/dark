@@ -141,41 +141,36 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests
-      (moduleName : string)
-      (modul : Parser.TestModule.PTModule)
-      =
-
-      let nestedModules =
-        List.map (fun (name, m) -> moduleToTests name m) modul.modules
-
-      let tests =
-        modul.tests
-        |> List.map (fun test ->
-          t
-            initializeCanvas
-            test.name
-            test.actual
-            test.expected
-            test.lineNumber
-            modul.dbs
-            modul.types
-            modul.fns
-            [])
-
-      if List.isEmpty tests && List.isEmpty nestedModules then
-        Exception.raiseInternal "No tests or modules found" [ "module", moduleName ]
-      else
-        testList moduleName (nestedModules @ tests)
-
     if shouldSkip then
       testList $"skipped - {testName}" []
     else
       try
-        (baseDir + filename)
-        // NAMETODO add userProgram to resolver
-        |> Parser.TestModule.parseTestFile builtinResolver
-        |> moduleToTests testName
+        let modules =
+          (baseDir + filename) |> Parser.TestModule.parseTestFile builtinResolver
+
+        // Within a module, tests have access to
+        let fns = modules |> List.map (fun m -> m.fns) |> List.concat
+        let dbs = modules |> List.map (fun m -> m.dbs) |> List.concat
+        let types = modules |> List.map (fun m -> m.types) |> List.concat
+        let tests =
+          modules
+          |> List.map (fun m ->
+            m.tests
+            |> List.map (fun test ->
+              t
+                initializeCanvas
+                test.name
+                test.actual
+                test.expected
+                test.lineNumber
+                dbs
+                types
+                fns
+                []))
+          |> List.concat
+
+
+        testList testName tests
       with e ->
         print $"Exception in {file}: {e.Message}"
         reraise ())

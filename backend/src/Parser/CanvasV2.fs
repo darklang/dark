@@ -13,14 +13,16 @@ module PT = LibExecution.ProgramTypes
 open Utils
 
 type WTCanvasModule =
-  { types : List<WT.UserType.T>
+  { name : List<string>
+    types : List<WT.UserType.T>
     fns : List<WT.UserFunction.T>
     dbs : List<WT.DB.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<WT.Handler.Spec * WT.Expr>
     exprs : List<WT.Expr> }
 
-let emptyWTModule = { types = []; fns = []; dbs = []; handlers = []; exprs = [] }
+let emptyWTModule =
+  { name = []; types = []; fns = []; dbs = []; handlers = []; exprs = [] }
 
 type PTCanvasModule =
   { types : List<PT.UserType.T>
@@ -198,14 +200,14 @@ let toPT
   (nameResolver : NameResolver.NameResolver)
   (m : WTCanvasModule)
   : PTCanvasModule =
-  { types = m.types |> List.map (WT2PT.UserType.toPT nameResolver)
-    fns = m.fns |> List.map (WT2PT.UserFunction.toPT nameResolver)
-    dbs = m.dbs |> List.map (WT2PT.DB.toPT nameResolver)
+  { types = m.types |> List.map (WT2PT.UserType.toPT nameResolver m.name)
+    fns = m.fns |> List.map (WT2PT.UserFunction.toPT nameResolver m.name)
+    dbs = m.dbs |> List.map (WT2PT.DB.toPT nameResolver m.name)
     handlers =
       m.handlers
       |> List.map (fun (spec, expr) ->
-        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT nameResolver expr))
-    exprs = m.exprs |> List.map (WT2PT.Expr.toPT nameResolver) }
+        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT nameResolver m.name expr))
+    exprs = m.exprs |> List.map (WT2PT.Expr.toPT nameResolver m.name) }
 
 let parse
   (resolver : NameResolver.NameResolver)

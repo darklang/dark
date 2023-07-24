@@ -102,6 +102,7 @@ let resolve
   (parser : string -> Result<string * int, string>)
   (builtinThings : Set<PT.FQName.BuiltIn<'name>>)
   (userThings : Set<PT.FQName.UserProgram<'name>>)
+  (currentModule : List<string>)
   (name : WT.Name)
   : PT.NameResolution<PT.FQName.T<'name>> =
 
@@ -115,27 +116,24 @@ let resolve
   | WT.Unresolved(("PACKAGE" :: owner :: rest) as names) ->
     match List.rev rest with
     | [] ->
+      // This is a totally empty name, which _really_ shouldn't happen.
       Error({ errorType = LibExecution.Errors.MissingModuleName; names = names })
-    | name :: moduleLast :: moduleBeforeLast ->
+    | name :: modules ->
       match parser name with
       | Ok(name, version) ->
-        let modules =
-          List.rev (moduleLast :: moduleBeforeLast) |> NonEmptyList.ofList
+        let modules = List.rev modules |> NonEmptyList.ofList
         Ok(
           PT.FQName.fqPackage nameValidator owner modules (constructor name) version
         )
       | Error _ ->
         Error({ errorType = LibExecution.Errors.InvalidPackageName; names = names })
-    | _ ->
-      Error({ errorType = LibExecution.Errors.InvalidPackageName; names = names })
 
 
   | WT.Unresolved names ->
-    debuG "resolving" names
+    // debuG "resolving" names
     match List.rev names with
     | [] ->
       // This is a totally empty name, which _really_ shouldn't happen.
-      // Should we handle this in some extra way? CLEANUP
       Error({ errorType = LibExecution.Errors.MissingModuleName; names = names })
 
     | name :: modules ->
@@ -158,10 +156,6 @@ let resolve
 
           if Set.contains builtIn builtinThings then
             Ok(PT.FQName.BuiltIn builtIn)
-          else if List.isEmpty modules then
-            Error(
-              { errorType = LibExecution.Errors.MissingModuleName; names = names }
-            )
           else
             // 4. Check exact name in
             //   - a. current module // NOT IMPLEMENTED
@@ -177,6 +171,7 @@ let resolve
 module TypeName =
   let resolve
     (resolver : NameResolver)
+    (currentModule : List<string>)
     (name : WT.Name)
     : PT.NameResolution<PT.TypeName.T> =
     resolve
@@ -186,11 +181,13 @@ module TypeName =
       FS2WT.Expr.parseTypeName
       resolver.builtinTypes
       resolver.userTypes
+      currentModule
       name
 
 module FnName =
   let resolve
     (resolver : NameResolver)
+    (currentModule : List<string>)
     (name : WT.Name)
     : PT.NameResolution<PT.FnName.T> =
     resolve
@@ -200,4 +197,5 @@ module FnName =
       FS2WT.Expr.parseFn
       resolver.builtinFns
       resolver.userFns
+      currentModule
       name
