@@ -12,4 +12,7 @@ let packageManager : RT.PackageManager =
   // TODO: fetch from internet
   // TODO: fetch one by one
   // TODO: copy back to LibBackend/LibCloudExecution
-  RT.PackageManager.Empty
+  // TODO: deal with type changes
+  { getType = (fun _ -> Ply None)
+    getFn = (fun _ -> Ply None)
+    init = uply { return () } }

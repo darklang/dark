@@ -52,7 +52,7 @@ let builtIns : RT.BuiltIns =
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
-let packageManager : RT.PackageManager = RT.PackageManager.Empty
+let packageManager = LibCliExecution.PackageManager.packageManager
 
 
 let execute
@@ -113,6 +113,9 @@ let initSerializers () = ()
 let main (args : string[]) =
   try
     initSerializers ()
+
+    // CLEANUP
+    packageManager.init |> Ply.toTask |> Async.AwaitTask |> Async.RunSynchronously
 
     let hostScript =
       Parser.CanvasV2.parseFromFile "/home/dark/app/backend/src/Cli/cli-host.dark"
