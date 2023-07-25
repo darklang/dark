@@ -415,8 +415,7 @@ let toSegments (e : Error) : ErrorOutput =
       expected = contextAsExpected context }
 
   | TypeError(TCK.MismatchedRecordFields(typeName, extra, missing, _)) ->
-    // Perhaps this should be an internal error as this shouldn't be possible
-    let summary = [ TypeName typeName; String "'s has incorrect fields" ]
+    let summary = [ TypeName typeName; String " has incorrect fields" ]
 
     let extraExplanation = []
     let actual =
