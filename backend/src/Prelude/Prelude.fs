@@ -1279,6 +1279,14 @@ module Tablecloth =
                                IsHidden = true)>]
     let unwrapUnsafe = Tablecloth.Result.unwrapUnsafe
 
+    let orElse
+      (f : unit -> Result<'ok, 'err>)
+      (t : Result<'ok, 'err>)
+      : Result<'ok, 'err> =
+      match t with
+      | Ok _ -> t
+      | Error _ -> f ()
+
   module Option =
 
     [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
