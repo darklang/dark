@@ -1391,6 +1391,20 @@ module Ply =
         []
       |> map List.rev
 
+    let mapSequentiallyWithIndex
+      (f : int -> 'a -> Ply<'b>)
+      (list : List<'a>)
+      : Ply<List<'b>> =
+      list
+      |> foldSequentiallyWithIndex
+        (fun (i : int) (accum : List<'b>) (arg : 'a) ->
+          uply {
+            let! result = f i arg
+            return result :: accum
+          })
+        []
+      |> map List.rev
+
     let filterSequentially (f : 'a -> Ply<bool>) (list : List<'a>) : Ply<List<'a>> =
       uply {
         let! filtered =

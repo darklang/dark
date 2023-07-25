@@ -144,7 +144,7 @@ let typecheckDval
   (expectedType : TypeReference)
   =
   uply {
-    let context = TypeChecker.DBQueryVariable(name, None)
+    let context = TypeChecker.DBQueryVariable(name, expectedType, None)
     match! TypeChecker.unify context types expectedType dval with
     | Ok() -> return ()
     | Error err -> return error (Errors.toString (Errors.TypeError err))

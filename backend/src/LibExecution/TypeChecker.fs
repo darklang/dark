@@ -26,28 +26,37 @@ type Context =
     recordTypeName : TypeName.T *
     fieldDef : TypeDeclaration.RecordField *
     location : Location
+  | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
     enumTypeName : TypeName.T *
     definition : TypeDeclaration.EnumField *
     caseName : string *
     paramIndex : int *  // nth argument to the enum constructor
     location : Location
-  | DBQueryVariable of varName : string * location : Location
+  | DBQueryVariable of
+    varName : string *
+    expected : TypeReference *
+    location : Location
   | DBSchemaType of
     name : string *
     expectedType : TypeReference *
     location : Location
+  | ListIndex of index : int * parent : Context
+  | TupleIndex of index : int * parent : Context
 
 
 module Context =
-  let toLocation (c : Context) : Location =
+  let rec toLocation (c : Context) : Location =
     match c with
     | FunctionCallParameter(_, _, _, location) -> location
     | FunctionCallResult(_, _, location) -> location
     | RecordField(_, _, location) -> location
+    | DictKey(_, _, location) -> location
     | EnumField(_, _, _, _, location) -> location
-    | DBQueryVariable(_, location) -> location
+    | DBQueryVariable(_, _, location) -> location
     | DBSchemaType(_, _, location) -> location
+    | ListIndex(_, parent) -> toLocation parent
+    | TupleIndex(_, parent) -> toLocation parent
 
 
 type Error =
@@ -92,13 +101,20 @@ let rec unify
     | TBytes, DBytes _ -> return Ok()
     | TDB _, DDB _ -> return Ok() // TODO: check DB type
     | TList nested, DList dvs ->
-      let! results = Ply.List.mapSequentially (unify context types nested) dvs
+      let! results =
+        dvs
+        |> Ply.List.mapSequentiallyWithIndex (fun i v ->
+          let context = ListIndex(i, context)
+          unify context types nested v)
       return combineErrorsUnit results
     | TDict valueType, DDict dmap ->
       let! results =
         dmap
-        |> Map.values
-        |> Ply.List.mapSequentially (unify context types valueType)
+        |> Map.toList
+        |> Ply.List.mapSequentially (fun (k, v) ->
+          let location = Context.toLocation context
+          let context = DictKey(k, valueType, location)
+          unify context types valueType v)
       return combineErrorsUnit results
 
     | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TODO check lambdas and fnVals
@@ -110,7 +126,9 @@ let rec unify
       else
         let! results =
           List.zip ts vs
-          |> Ply.List.mapSequentially (fun (t, v) -> unify context types t v)
+          |> Ply.List.mapSequentiallyWithIndex (fun i (t, v) ->
+            let context = TupleIndex(i, context)
+            unify context types t v)
         return combineErrorsUnit results
 
     // TYPESCLEANUP: handle typeArgs
