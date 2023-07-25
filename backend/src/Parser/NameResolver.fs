@@ -195,6 +195,8 @@ let resolve
     // A.B.C.X.Y
     // A.B.X.Y
     // A.X.Y
+
+    // List of modules lists, in order of priority. Does not include X.Y
     let modulesToTry =
       let rec loop (modules : List<string>) : List<List<string>> =
         match modules with
@@ -205,11 +207,16 @@ let resolve
       loop currentModule
 
     List.fold
-      (resolve given)
-      (fun resolved modules ->
-        match resolved with
-        | Ok _ -> resolved
-        | Error _ -> resolve modules)
+      (resolve given) // try X.Y first
+      (fun currentResult modules ->
+        match currentResult with
+        | Ok _ -> currentResult
+        | Error _ ->
+          let newResult = resolve modules
+          match newResult with
+          | Ok _ -> newResult
+          | Error _ -> currentResult // keep the first error message
+      )
       modulesToTry
 
 
