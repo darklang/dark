@@ -151,13 +151,18 @@ type ErrorSegment =
   | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
   // Functions
   | FunctionName of FnName.T
+  | InlineFunctionName of FnName.T
   | Description of string // description from StdLib description fields. Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
   | ParamName of string
+  | InlineParamName of string
   // Types
   | TypeName of TypeName.T
+  | InlineTypeName of TypeName.T
   | TypeReference of TypeReference
+  | InlineTypeReference of TypeReference
   | TypeOfValue of Dval
   | FieldName of string // records and enums
+  | InlineFieldName of string // records and enums
   // Variables
   | DBName of string
   | VarName of string
@@ -180,15 +185,21 @@ module ErrorSegment =
             match List.tryHead prevSegments with
             | None -> ""
             | Some prev -> String.articleFor prev + " "
-          | FunctionName fn -> FnName.toString fn
+          | FunctionName fn -> "`" + FnName.toString fn + "`"
+          // Inline versions don't have quotes
+          | InlineFunctionName fn -> FnName.toString fn
           | Description d -> d
-          | ParamName p -> p
-          | TypeName t -> TypeName.toString t
-          | TypeReference t -> DvalReprDeveloper.typeName t
-          | TypeOfValue dv -> DvalReprDeveloper.dvalTypeName dv
-          | FieldName f -> f
-          | DBName db -> db
-          | VarName v -> v
+          | ParamName p -> "`" + p + "`"
+          | InlineParamName p -> p
+          | TypeName t -> "`" + TypeName.toString t + "`"
+          | InlineTypeName t -> TypeName.toString t
+          | TypeReference t -> "`" + DvalReprDeveloper.typeName t + "`"
+          | InlineTypeReference t -> DvalReprDeveloper.typeName t
+          | TypeOfValue dv -> "`" + DvalReprDeveloper.dvalTypeName dv + "`"
+          | FieldName f -> "`" + f + "`"
+          | InlineFieldName f -> f
+          | DBName db -> "`" + db + "`"
+          | VarName v -> "`" + v + "`"
           | InlineValue dv ->
             DvalReprDeveloper.toRepr dv
             |> String.truncateWithElipsis 10
@@ -310,9 +321,9 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
         [ String " // "; Description fieldDef.description ]
 
     [ String "({ "
-      FieldName fieldDef.name
+      InlineFieldName fieldDef.name
       String ": "
-      TypeReference fieldDef.typ
+      InlineTypeReference fieldDef.typ
       String "; ... })" ]
     @ comment
 
@@ -321,9 +332,9 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
     // format:
     // ({ "name" : string; ... })
     [ String "({ "
-      FieldName key
+      InlineFieldName key
       String ": "
-      TypeReference typ
+      InlineTypeReference typ
       String "; ... })" ]
 
 
