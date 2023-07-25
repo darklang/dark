@@ -1,8 +1,32 @@
+// CLEANUP : reference package types directly
+type PackageType = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
 type PackageFn = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
 
-// CLEANUP : reference package type directly
+[<DB>]
+type PackageTypeDB = PackageType
+
 [<DB>]
 type PackageFnDB = PackageFn
+
+
+[<HttpHandler("POST", "/types")>]
+let _handler _req =
+  let typ = request.body |> String.fromBytes |> Json.parse<PackageType> |> unwrap
+
+  let typeToSave =
+    PackageType
+      { tlid = typ.tlid
+        id = typ.id
+        name = typ.name
+        declaration = typ.declaration
+        description = typ.description
+        deprecated = typ.deprecated }
+
+  let key = DB.generateKey_v0 () // TODO: use id instead
+  DB.set typeToSave key PackageTypeDB
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
+
 
 [<HttpHandler("POST", "/functions")>]
 let _handler _req =
@@ -20,41 +44,23 @@ let _handler _req =
         description = fn.description
         deprecated = fn.deprecated }
 
-  let key = DB.generateKey_v0 () //TODO: use id instead
+  let key = DB.generateKey_v0 () // TODO: use id instead
   DB.set fnToSave key PackageFnDB
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
 
-[<HttpHandler("GET", "/functions")>]
+
+
+[<HttpHandler("GET", "/stats")>]
 let _handler _req =
-  let allFns = (DB.getAll PackageFnDB) |> Json.serialize<List<PackageFn>> |> unwrap
+  let stats =
+    [ ("types", (DB.getAll PackageTypeDB) |> List.length)
+      ("fns", (DB.getAll PackageFnDB) |> List.length) ]
+    |> Dict.fromListOverwritingDuplicates_v0
 
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allFns) 200
+  let body = (Json.serialize<Dict<Int>> stats) |> unwrap |> String.toBytes
 
-
-type PackageType = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
-
-// CLEANUP : reference package type directly
-[<DB>]
-type PackageTypeDB = PackageType
-
-[<HttpHandler("POST", "/types")>]
-let _handler _req =
-  let typ = request.body |> String.fromBytes |> Json.parse<PackageType> |> unwrap
-
-  let typeToSave =
-    PackageType
-      { tlid = typ.tlid
-        id = typ.id
-        name = typ.name
-        declaration = typ.declaration
-        description = typ.description
-        deprecated = typ.deprecated }
-
-  let key = DB.generateKey_v0 () //TODO: use id instead
-  DB.set typeToSave key PackageTypeDB
-
-  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes "added") 200
+  PACKAGE.Darklang.Stdlib.Http.response body 200
 
 [<HttpHandler("GET", "/types")>]
 let _handler _req =
@@ -62,3 +68,9 @@ let _handler _req =
     (DB.getAll PackageTypeDB) |> Json.serialize<List<PackageType>> |> unwrap
 
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allTypes) 200
+
+[<HttpHandler("GET", "/functions")>]
+let _handler _req =
+  let allFns = (DB.getAll PackageFnDB) |> Json.serialize<List<PackageFn>> |> unwrap
+
+  PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allFns) 200

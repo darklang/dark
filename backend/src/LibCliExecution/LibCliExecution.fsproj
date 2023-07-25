@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
