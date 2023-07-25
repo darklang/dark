@@ -130,21 +130,30 @@ module FnName =
     | Package of Package
 
 
-[<MessagePack.MessagePackObject>]
-type NameResolutionErrorType =
-  | NotFound
-  | MissingModuleName
-  | InvalidPackageName
+module NameResolution =
+  [<MessagePack.MessagePackObject>]
+  type ErrorType =
+    | NotFound
+    | MissingModuleName
+    | InvalidPackageName
+
+  [<MessagePack.MessagePackObject>]
+  type NameType =
+    | Function
+    | Type
+    | Constant
+
+  [<MessagePack.MessagePackObject>]
+  type Error =
+    { [<MessagePack.Key 0>]
+      errorType : ErrorType
+      [<MessagePack.Key 1>]
+      nameType : NameType
+      [<MessagePack.Key 2>]
+      names : List<string> }
 
 [<MessagePack.MessagePackObject>]
-type NameResolutionError =
-  { [<MessagePack.Key 0>]
-    errorType : NameResolutionErrorType
-    [<MessagePack.Key 1>]
-    names : List<string> }
-
-[<MessagePack.MessagePackObject>]
-type NameResolution<'a> = Result<'a, NameResolutionError>
+type NameResolution<'a> = Result<'a, NameResolution.Error>
 
 
 [<MessagePack.MessagePackObject>]

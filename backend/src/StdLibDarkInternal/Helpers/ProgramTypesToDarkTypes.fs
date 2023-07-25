@@ -238,48 +238,68 @@ module FnName =
 
 
 module NameResolution =
-  module NameResultionErrorType =
+  module ErrorType =
 
-    let toDT (err : LibExecution.Errors.NameResolutionErrorType) : Dval =
+    let toDT (err : LibExecution.Errors.NameResolution.ErrorType) : Dval =
       let caseName, fields =
         match err with
-        | LibExecution.Errors.NotFound -> "NotFound", []
-        | LibExecution.Errors.MissingModuleName -> "MissingModuleName", []
-        | LibExecution.Errors.InvalidPackageName -> "InvalidPackageName", []
+        | LibExecution.Errors.NameResolution.NotFound -> "NotFound", []
+        | LibExecution.Errors.NameResolution.MissingModuleName ->
+          "MissingModuleName", []
+        | LibExecution.Errors.NameResolution.InvalidPackageName ->
+          "InvalidPackageName", []
 
-      DEnum(
-        ptTyp [ "NameResolutionErrorType" ] "NameResolutionErrorType" 0,
-        caseName,
-        fields
-      )
+      DEnum(ptTyp [ "NameResolution" ] "ErrorType" 0, caseName, fields)
 
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolutionErrorType =
+    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.ErrorType =
       match d with
-      | DEnum(_, "NotFound", []) -> LibExecution.Errors.NotFound
-      | DEnum(_, "MissingModuleName", []) -> LibExecution.Errors.MissingModuleName
-      | DEnum(_, "InvalidPackageName", []) -> LibExecution.Errors.InvalidPackageName
+      | DEnum(_, "NotFound", []) -> LibExecution.Errors.NameResolution.NotFound
+      | DEnum(_, "MissingModuleName", []) ->
+        LibExecution.Errors.NameResolution.MissingModuleName
+      | DEnum(_, "InvalidPackageName", []) ->
+        LibExecution.Errors.NameResolution.InvalidPackageName
       | _ -> Exception.raiseInternal "Invalid NameResolutionErrorType" []
 
-  module NameResolutionError =
-    let toDT (err : LibExecution.Errors.NameResolutionError) : Dval =
+  module NameType =
+    let toDT (err : LibExecution.Errors.NameResolution.NameType) : Dval =
+      let caseName, fields =
+        match err with
+        | LibExecution.Errors.NameResolution.Function -> "Function", []
+        | LibExecution.Errors.NameResolution.Type -> "Type", []
+        | LibExecution.Errors.NameResolution.Constant -> "Constant", []
+
+      DEnum(ptTyp [ "NameResolution" ] "NameType" 0, caseName, fields)
+
+    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.NameType =
+      match d with
+      | DEnum(_, "Function", []) -> LibExecution.Errors.NameResolution.Function
+      | DEnum(_, "Type", []) -> LibExecution.Errors.NameResolution.Type
+      | DEnum(_, "Constant", []) -> LibExecution.Errors.NameResolution.Constant
+      | _ -> Exception.raiseInternal "Invalid NameResolutionNameType" []
+
+
+  module Error =
+    let toDT (err : LibExecution.Errors.NameResolution.Error) : Dval =
       DRecord(
-        ptTyp [ "NameResolutionError" ] "NameResolutionError" 0,
+        ptTyp [ "NameResolution" ] "Error" 0,
         Map
-          [ "errorType", NameResultionErrorType.toDT err.errorType
+          [ "errorType", ErrorType.toDT err.errorType
+            "nameType", NameType.toDT err.nameType
             "names", DList(List.map DString err.names) ]
       )
 
-    let fromDT (d : Dval) : LibExecution.Errors.NameResolutionError =
+    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.Error =
       match d with
       | DRecord(_, m) ->
         let errorType =
-          match Map.find "errorType" m with
-          | DEnum(_, "NotFound", []) -> LibExecution.Errors.NotFound
-          | DEnum(_, "MissingModuleName", []) ->
-            LibExecution.Errors.MissingModuleName
-          | DEnum(_, "InvalidPackageName", []) ->
-            LibExecution.Errors.InvalidPackageName
-          | _ -> Exception.raiseInternal "Invalid NameResolutionErrorType" []
+          Map.tryFind "errorType" m
+          |> Option.map ErrorType.fromDT
+          |> Exception.unwrapOptionInternal "Invalid NameResolutionError" []
+
+        let nameType =
+          Map.tryFind "nameType" m
+          |> Option.map NameType.fromDT
+          |> Exception.unwrapOptionInternal "Invalid NameResolutionError" []
 
         let names =
           match Map.find "names" m with
@@ -292,21 +312,20 @@ module NameResolution =
               l
           | _ -> Exception.raiseInternal "Expected names to be a list" []
 
-        { errorType = errorType; names = names }
+        { errorType = errorType; names = names; nameType = nameType }
 
       | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
 
   let toDT (f : 'p -> Dval) (result : PT.NameResolution<'p>) : Dval =
     match result with
     | Ok name -> Dval.resultOk (f name)
-    | Error err -> Dval.resultError (NameResolutionError.toDT err)
+    | Error err -> Dval.resultError (Error.toDT err)
 
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
     match d with
     | DEnum(tn, "Ok", [ v ]) when tn = Dval.resultType -> Ok(f v)
-    | DEnum(tn, "Error", [ v ]) when tn = Dval.resultType ->
-      Error(NameResolutionError.fromDT v)
+    | DEnum(tn, "Error", [ v ]) when tn = Dval.resultType -> Error(Error.fromDT v)
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 module TypeReference =

@@ -206,56 +206,78 @@ type ErrorOutput =
     actual : List<ErrorSegment>
     expected : List<ErrorSegment> }
 
+module NameResolution =
+  type ErrorType =
+    | NotFound
+    | MissingModuleName
+    | InvalidPackageName
 
-type NameResolutionErrorType =
-  | NotFound
-  | MissingModuleName
-  | InvalidPackageName
+  type NameType =
+    | Function
+    | Type
+    | Constant
 
-type NameResolutionError =
-  { errorType : NameResolutionErrorType
-    // The `.`-delimited name _parts_ e.g. `List.fakeFunction` is `["List";
-    // "fakeFunction"]`
-    names : List<string> }
+  type Error =
+    { errorType : ErrorType
+      nameType : NameType
+      // The `.`-delimited name _parts_ e.g. `List.fakeFunction` is `["List";
+      // "fakeFunction"]`
+      names : List<string> }
 
 
 type Error =
   | TypeError of TypeChecker.Error
-  | NameResolutionError of NameResolutionError
+  | NameResolutionError of NameResolution.Error
 
 module TCK = TypeChecker
 
-let toSegments (e : Error) : ErrorOutput =
-  match e with
-  | TypeError(TCK.ValueNotExpectedType(argument,
-                                       expected,
-                                       TCK.FunctionCallParameter(fnName,
-                                                                 parameter,
-                                                                 paramIndex,
-                                                                 location))) ->
 
-    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
-    let summary =
-      [ FunctionName fnName
-        String "'s "
-        Ordinal(paramIndex + 1)
-        String " argument ("
-        ParamName parameter.name
-        String ") should be "
-        IndefiniteArticle
-        TypeReference parameter.typ ]
+// Return the segments describing the context as a short name, used in the description of errors
+let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
+  match context with
+  | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
+    [ FunctionName fnName
+      String "'s "
+      Ordinal(paramIndex + 1)
+      String " argument ("
+      ParamName parameter.name
+      String ")" ]
+  | TCK.FunctionCallResult(fnName, returnType, _) ->
+    [ FunctionName fnName; String "'s return value" ]
+  | TCK.RecordField(recordType, fieldDef, _) ->
+    [ TypeName recordType; String "'s "; FieldName fieldDef.name; String " field" ]
+  | TCK.DictKey(key, _, _) ->
+    let typeName =
+      FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
+    [ TypeName typeName; String "'s "; FieldName key; String " value" ]
+  | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) ->
+    let fieldName =
+      match fieldDef.label with
+      | None -> []
+      | Some l -> [ String " ("; FieldName l; String ")" ]
+    [ TypeName enumType
+      String "."
+      FieldName caseName
+      String "'s "
+      Ordinal(paramIndex + 1)
+      String " argument" ]
+    @ fieldName
 
-    let extraExplanation =
-      [ String ". However, "
-        IndefiniteArticle
-        TypeOfValue argument
-        String " ("
-        InlineValue argument
-        String ") was passed instead." ]
+  | TCK.DBSchemaType(dbName, expectedType, _) ->
+    [ String "DB "; DBName dbName; String "'s value" ]
+  | TCK.DBQueryVariable(varName, _, _) -> [ VarName varName ]
+  | TCK.TupleIndex(index, parent) ->
+    [ String "in " ]
+    @ contextSummary parent
+    @ [ String ", the "; Ordinal(index + 1); String " element" ]
+  | TCK.ListIndex(index, parent) ->
+    [ String "in " ]
+    @ contextSummary parent
+    @ [ String ", the "; Ordinal(index + 1); String " element" ]
 
-    let actual =
-      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
-
+let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
+  match context with
+  | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) ->
     // format:
     // (json : string) // some description
     let comment =
@@ -263,132 +285,22 @@ let toSegments (e : Error) : ErrorOutput =
         []
       else
         [ String " // "; Description "" (*parameter.comment*) ]
-    let expected =
-      [ String "("
-        ParamName parameter.name
+    [ String "("
+      ParamName parameter.name
 
-        String ": "
-        TypeReference parameter.typ
-        String ")" ]
-      @ comment
+      String ": "
+      TypeReference parameter.typ
+      String ")" ]
+    @ comment
 
-    { summary = summary
-      extraExplanation = extraExplanation
-      actual = actual
-      expected = expected }
-  | TypeError(TCK.ValueNotExpectedType(argument,
-                                       expected,
-                                       TCK.FunctionCallResult(fnName,
-                                                              returnType,
-                                                              location))) ->
 
-    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
-    let summary =
-      [ FunctionName fnName
-        String "'s return value should be "
-        IndefiniteArticle
-        TypeReference returnType ]
-
-    let extraExplanation =
-      [ String ". However, "
-        IndefiniteArticle
-        TypeOfValue argument
-        String " ("
-        InlineValue argument
-        String ") was returned instead." ]
-
-    let actual =
-      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
-
+  | TCK.FunctionCallResult(fnName, returnType, _) ->
     // format:
     // Option<String>
-    let expected = [ TypeReference returnType ]
+    [ TypeReference returnType ]
 
-    { summary = summary
-      extraExplanation = extraExplanation
-      actual = actual
-      expected = expected }
 
-  | TypeError(TCK.ValueNotExpectedType(argument,
-                                       expected,
-                                       TCK.EnumField(enumType,
-                                                     fieldDef,
-                                                     caseName,
-                                                     paramIndex,
-                                                     location))) ->
-
-    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
-    let fieldName =
-      match fieldDef.label with
-      | None -> []
-      | Some l -> [ String "("; FieldName l; String ") " ]
-    let summary =
-      [ TypeName enumType
-        String "."
-        FieldName caseName
-        String "'s "
-        Ordinal(paramIndex + 1)
-        String " argument " ]
-      @ fieldName
-      @ [ String "should be "; IndefiniteArticle; TypeReference fieldDef.typ ]
-
-    let extraExplanation =
-      [ String ". However, "
-        IndefiniteArticle
-        TypeOfValue argument
-        String " ("
-        InlineValue argument
-        String ") was passed instead." ]
-
-    let actual =
-      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
-
-    // format:
-    // (_unnamed : string) // some description
-    let comment =
-      if fieldDef.description = "" then
-        []
-      else
-        [ String " // "; Description fieldDef.description ]
-    let expected =
-      let paramName =
-        match fieldDef.label with
-        | None -> "_unnamed"
-        | Some l -> l
-      [ String "("
-        ParamName paramName
-        String ": "
-        TypeReference fieldDef.typ
-        String ")" ]
-      @ comment
-
-    { summary = summary
-      extraExplanation = extraExplanation
-      actual = actual
-      expected = expected }
-  | TypeError(TCK.ValueNotExpectedType(argument,
-                                       expected,
-                                       TCK.RecordField(recordType, fieldDef, location))) ->
-
-    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
-    let summary =
-      [ TypeName recordType
-        String "'s "
-        FieldName fieldDef.name
-        String " field " ]
-      @ [ String "should be "; IndefiniteArticle; TypeReference fieldDef.typ ]
-
-    let extraExplanation =
-      [ String ". However, "
-        IndefiniteArticle
-        TypeOfValue argument
-        String " ("
-        InlineValue argument
-        String ") was passed instead." ]
-
-    let actual =
-      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
-
+  | TCK.RecordField(recordType, fieldDef, _) ->
     // format:
     // ({ name : string; ... }) // some description
     let comment =
@@ -396,62 +308,95 @@ let toSegments (e : Error) : ErrorOutput =
         []
       else
         [ String " // "; Description fieldDef.description ]
-    let expected =
-      [ String "({ "
-        FieldName fieldDef.name
-        String ": "
-        TypeReference fieldDef.typ
-        String "; ... })" ]
-      @ comment
 
-    { summary = summary
-      extraExplanation = extraExplanation
-      actual = actual
-      expected = expected }
-  | TypeError(TCK.ValueNotExpectedType(argument,
-                                       expected,
-                                       TCK.DBSchemaType(dbName,
-                                                        expectedType,
-                                                        location))) ->
+    [ String "({ "
+      FieldName fieldDef.name
+      String ": "
+      TypeReference fieldDef.typ
+      String "; ... })" ]
+    @ comment
 
-    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
-    let summary =
-      [ String "DB "
-        DBName dbName
-        String "'s value should be "
-        IndefiniteArticle
-        TypeReference expectedType ]
 
-    let extraExplanation =
-      [ String ". However, "
-        IndefiniteArticle
-        TypeOfValue argument
-        String " ("
-        InlineValue argument
-        String ") was passed instead." ]
+  | TCK.DictKey(key, typ, _) ->
+    // format:
+    // ({ "name" : string; ... })
+    [ String "({ "
+      FieldName key
+      String ": "
+      TypeReference typ
+      String "; ... })" ]
 
-    let actual =
-      [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
 
+  | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) ->
+    // format:
+    // (_unnamed : string) // some description
+    let comment =
+      if fieldDef.description = "" then
+        []
+      else
+        [ String " // "; Description fieldDef.description ]
+    let paramName =
+      match fieldDef.label with
+      | None -> "_unnamed"
+      | Some l -> l
+    [ String "("
+      ParamName paramName
+      String ": "
+      TypeReference fieldDef.typ
+      String ")" ]
+    @ comment
+
+
+  | TCK.DBSchemaType(dbName, expectedType, _) ->
     // format:
     // String
-    let expected = [ TypeReference expectedType ]
+    [ TypeReference expectedType ]
 
-    { summary = summary
-      extraExplanation = extraExplanation
-      actual = actual
-      expected = expected }
 
-  | TypeError(TCK.ValueNotExpectedType(argument,
-                                       expected,
-                                       TCK.DBQueryVariable(varName, location))) ->
+  | TCK.DBQueryVariable(varName, expected, _) ->
+    // format:
+    // (varName : string) // some description
+    [ String "("
+      VarName varName
 
-    let (tlid, id) = location |> Option.defaultValue (0UL, 0UL)
+      String ": "
+      TypeReference expected
+      String ")" ]
+
+
+  | TCK.ListIndex(index, parent) ->
+    // format:
+    // [0]
+    contextAsExpected parent @ [ String "["; Int index; String "]" ]
+
+
+  | TCK.TupleIndex(index, parent) ->
+    // format:
+    // [0]
+    contextAsExpected parent @ [ String "["; Int index; String "]" ]
+
+
+
+let contextVerb (context : TCK.Context) : string =
+  match context with
+  | TCK.FunctionCallParameter _ -> "passed"
+  | TCK.FunctionCallResult _ -> "returned"
+  | TCK.RecordField _ -> "passed"
+  | TCK.DictKey _ -> "passed"
+  | TCK.EnumField _ -> "passed"
+  | TCK.DBSchemaType _ -> "passed"
+  | TCK.DBQueryVariable _ -> "passed"
+  | TCK.ListIndex _ -> "passed"
+  | TCK.TupleIndex _ -> "passed"
+
+
+let toSegments (e : Error) : ErrorOutput =
+  match e with
+  | TypeError(TCK.ValueNotExpectedType(argument, expected, context)) ->
+
     let summary =
-      [ VarName varName
-        String " should be "
-        IndefiniteArticle
-        TypeReference expected ]
+      contextSummary context
+      @ [ String " should be "; IndefiniteArticle; TypeReference expected ]
 
     let extraExplanation =
       [ String ". However, "
@@ -464,20 +409,10 @@ let toSegments (e : Error) : ErrorOutput =
     let actual =
       [ IndefiniteArticle; TypeOfValue argument; String ": "; FullValue argument ]
 
-    // format:
-    // (varName : string) // some description
-    let expected =
-      [ String "("
-        VarName varName
-
-        String ": "
-        TypeReference expected
-        String ")" ]
-
     { summary = summary
       extraExplanation = extraExplanation
       actual = actual
-      expected = expected }
+      expected = contextAsExpected context }
 
   | TypeError(TCK.MismatchedRecordFields(typeName, extra, missing, _)) ->
     // Perhaps this should be an internal error as this shouldn't be possible
@@ -502,6 +437,7 @@ let toSegments (e : Error) : ErrorOutput =
       actual = actual
       expected = expected }
 
+
   | TypeError(TCK.TypeDoesntExist(typeName, _)) ->
     // Perhaps this should be an internal error as this shouldn't be possible
     let summary = [ TypeName typeName; String " doesn't exist" ]
@@ -515,7 +451,7 @@ let toSegments (e : Error) : ErrorOutput =
       actual = actual
       expected = expected }
 
-  | NameResolutionError({ errorType = NotFound } as e) ->
+  | NameResolutionError({ errorType = NameResolution.NotFound } as e) ->
     let summary =
       [ String "Could not find name: "; String(String.concat "." e.names) ]
 
@@ -528,7 +464,7 @@ let toSegments (e : Error) : ErrorOutput =
       actual = actual
       expected = expected }
 
-  | NameResolutionError({ errorType = MissingModuleName } as e) ->
+  | NameResolutionError({ errorType = NameResolution.MissingModuleName } as e) ->
     let summary =
       [ String "We need more modules: "; String(String.concat "." e.names) ]
 
@@ -541,7 +477,7 @@ let toSegments (e : Error) : ErrorOutput =
       actual = actual
       expected = expected }
 
-  | NameResolutionError({ errorType = InvalidPackageName } as e) ->
+  | NameResolutionError({ errorType = NameResolution.InvalidPackageName } as e) ->
     let summary =
       [ String "Invalid package name"; String(String.concat "." e.names) ]
 

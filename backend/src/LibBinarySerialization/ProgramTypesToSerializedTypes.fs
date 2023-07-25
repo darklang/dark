@@ -104,48 +104,71 @@ module FnName =
     | ST.FnName.Package p -> PT.FQName.Package(Package.toPT p)
 
 module NameResolution =
-  module NameResultionErrorType =
+
+  module NameType =
     let toST
-      (err : LibExecution.Errors.NameResolutionErrorType)
-      : ST.NameResolutionErrorType =
-      match err with
-      | LibExecution.Errors.NotFound -> ST.NameResolutionErrorType.NotFound
-      | LibExecution.Errors.MissingModuleName ->
-        ST.NameResolutionErrorType.MissingModuleName
-      | LibExecution.Errors.InvalidPackageName ->
-        ST.NameResolutionErrorType.InvalidPackageName
+      (nameType : LibExecution.Errors.NameResolution.NameType)
+      : ST.NameResolution.NameType =
+      match nameType with
+      | LibExecution.Errors.NameResolution.Type -> ST.NameResolution.Type
+      | LibExecution.Errors.NameResolution.Function -> ST.NameResolution.Function
+      | LibExecution.Errors.NameResolution.Constant -> ST.NameResolution.Constant
 
     let toPT
-      (err : ST.NameResolutionErrorType)
-      : LibExecution.Errors.NameResolutionErrorType =
-      match err with
-      | ST.NameResolutionErrorType.NotFound -> LibExecution.Errors.NotFound
-      | ST.NameResolutionErrorType.MissingModuleName ->
-        LibExecution.Errors.MissingModuleName
-      | ST.NameResolutionErrorType.InvalidPackageName ->
-        LibExecution.Errors.InvalidPackageName
+      (nameType : ST.NameResolution.NameType)
+      : LibExecution.Errors.NameResolution.NameType =
+      match nameType with
+      | ST.NameResolution.Type -> LibExecution.Errors.NameResolution.Type
+      | ST.NameResolution.Function -> LibExecution.Errors.NameResolution.Function
+      | ST.NameResolution.Constant -> LibExecution.Errors.NameResolution.Constant
 
-  module NameResolutionError =
+  module ErrorType =
     let toST
-      (err : LibExecution.Errors.NameResolutionError)
-      : ST.NameResolutionError =
-      { errorType = NameResultionErrorType.toST err.errorType; names = err.names }
+      (err : LibExecution.Errors.NameResolution.ErrorType)
+      : ST.NameResolution.ErrorType =
+      match err with
+      | LibExecution.Errors.NameResolution.NotFound -> ST.NameResolution.NotFound
+      | LibExecution.Errors.NameResolution.MissingModuleName ->
+        ST.NameResolution.MissingModuleName
+      | LibExecution.Errors.NameResolution.InvalidPackageName ->
+        ST.NameResolution.InvalidPackageName
 
     let toPT
-      (err : ST.NameResolutionError)
-      : LibExecution.Errors.NameResolutionError =
-      { errorType = NameResultionErrorType.toPT err.errorType; names = err.names }
+      (err : ST.NameResolution.ErrorType)
+      : LibExecution.Errors.NameResolution.ErrorType =
+      match err with
+      | ST.NameResolution.ErrorType.NotFound ->
+        LibExecution.Errors.NameResolution.NotFound
+      | ST.NameResolution.MissingModuleName ->
+        LibExecution.Errors.NameResolution.MissingModuleName
+      | ST.NameResolution.InvalidPackageName ->
+        LibExecution.Errors.NameResolution.InvalidPackageName
 
-  // type NameResolution = Result<x, NameResolutionError>
+  module Error =
+    let toST
+      (err : LibExecution.Errors.NameResolution.Error)
+      : ST.NameResolution.Error =
+      { nameType = NameType.toST err.nameType
+        errorType = ErrorType.toST err.errorType
+        names = err.names }
+
+    let toPT
+      (err : ST.NameResolution.Error)
+      : LibExecution.Errors.NameResolution.Error =
+      { errorType = ErrorType.toPT err.errorType
+        nameType = NameType.toPT err.nameType
+        names = err.names }
+
+  // type NameResolution = Result<x, NameResolution.Error>
   let toST (f : 'p -> 's) (result : PT.NameResolution<'p>) : ST.NameResolution<'s> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResolutionError.toST err)
+    | Error err -> Error(Error.toST err)
 
   let toPT (f : 's -> 'p) (result : ST.NameResolution<'s>) : PT.NameResolution<'p> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResolutionError.toPT err)
+    | Error err -> Error(Error.toPT err)
 
 
 module InfixFnName =

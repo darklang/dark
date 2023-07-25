@@ -241,7 +241,7 @@ module FnName =
 // resolved name, and the Error case models the text name of the type and some error
 // information.
 
-type NameResolution<'a> = Result<'a, Errors.NameResolutionError>
+type NameResolution<'a> = Result<'a, Errors.NameResolution.Error>
 
 type LetPattern =
   | LPVariable of id * name : string

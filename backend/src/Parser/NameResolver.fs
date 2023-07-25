@@ -98,6 +98,7 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
 //   - c. darklang.stdlib package space // NOT IMPLEMENTED
 let resolve
   (nameValidator : PT.FQName.NameValidator<'name>)
+  (nameErrorType : LibExecution.Errors.NameResolution.NameType)
   (constructor : string -> 'name)
   (parser : string -> Result<string * int, string>)
   (builtinThings : Set<PT.FQName.BuiltIn<'name>>)
@@ -117,7 +118,11 @@ let resolve
     match List.rev rest with
     | [] ->
       // This is a totally empty name, which _really_ shouldn't happen.
-      Error({ errorType = LibExecution.Errors.MissingModuleName; names = names })
+      Error(
+        { nameType = nameErrorType
+          errorType = LibExecution.Errors.NameResolution.MissingModuleName
+          names = names }
+      )
     | name :: modules ->
       match parser name with
       | Ok(name, version) ->
@@ -126,7 +131,11 @@ let resolve
           PT.FQName.fqPackage nameValidator owner modules (constructor name) version
         )
       | Error _ ->
-        Error({ errorType = LibExecution.Errors.InvalidPackageName; names = names })
+        Error(
+          { nameType = nameErrorType
+            errorType = LibExecution.Errors.NameResolution.InvalidPackageName
+            names = names }
+        )
 
 
   | WT.Unresolved names ->
@@ -134,12 +143,20 @@ let resolve
     match List.rev names with
     | [] ->
       // This is a totally empty name, which _really_ shouldn't happen.
-      Error({ errorType = LibExecution.Errors.MissingModuleName; names = names })
+      Error(
+        { nameType = nameErrorType
+          errorType = LibExecution.Errors.NameResolution.MissingModuleName
+          names = names }
+      )
 
     | name :: modules ->
       match parser name with
       | Error _msg ->
-        Error({ errorType = LibExecution.Errors.InvalidPackageName; names = names })
+        Error(
+          { nameType = nameErrorType
+            errorType = LibExecution.Errors.NameResolution.InvalidPackageName
+            names = names }
+        )
       | Ok(name, version) ->
         let modules = List.reverse modules
 
@@ -165,7 +182,11 @@ let resolve
             // debuG "builtIn" builtIn
             // debuG "not found names" names
             //System.Environment.Exit(1)
-            Error({ errorType = LibExecution.Errors.NotFound; names = names })
+            Error(
+              { nameType = nameErrorType
+                errorType = LibExecution.Errors.NameResolution.NotFound
+                names = names }
+            )
 
 
 module TypeName =
@@ -176,6 +197,7 @@ module TypeName =
     : PT.NameResolution<PT.TypeName.T> =
     resolve
       PT.TypeName.assert'
+      LibExecution.Errors.NameResolution.Type
       PT.TypeName.TypeName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseTypeName
@@ -192,6 +214,7 @@ module FnName =
     : PT.NameResolution<PT.FnName.T> =
     resolve
       PT.FnName.assert'
+      LibExecution.Errors.NameResolution.Function
       PT.FnName.FnName
       // TODO: move parsing fn into PT or WT
       FS2WT.Expr.parseFn

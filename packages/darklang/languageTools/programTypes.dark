@@ -1,13 +1,13 @@
 module Darklang =
   module LanguageTools =
     module Errors =
-      type NameResolutionErrorType =
+      type NameResolution.ErrorType =
         | NotFound
         | MissingModuleName
         | InvalidPackageName
 
-      type NameResolutionError =
-        { errorType: NameResolutionErrorType
+      type NameResolution.Error =
+        { errorType: NameResolution.ErrorType
           names: List<string> }
 
     module ProgramTypes =
@@ -76,7 +76,7 @@ module Darklang =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name>
 
       type NameResolution<'a> =
-        PACKAGE.Darklang.Stdlib.Result.Result<'a, NameResolutionError>
+        PACKAGE.Darklang.Stdlib.Result.Result<'a, NameResolution.Error>
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
       type TypeReference =
