@@ -44,7 +44,7 @@ module RoundtripTests =
           fnName =
             (RT.FnName.fqPackage
               "Darklang"
-              (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+              (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
               "expr"
               0),
           returnType = RT.TCustomType(typeName, []),
@@ -87,7 +87,7 @@ module RoundtripTests =
           fnName =
             (RT.FnName.fqPackage
               "Darklang"
-              (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+              (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
               "expr"
               0),
           returnType = RT.TList(RT.TCustomType(typeName, [])),
@@ -121,7 +121,7 @@ module RoundtripTests =
           "PT.PackageFn"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "PackageFn"
             0)
           (V.ProgramTypes.packageFn)
@@ -132,7 +132,7 @@ module RoundtripTests =
           "PT.PackageType"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "PackageType"
             0)
           (V.ProgramTypes.packageType)
@@ -143,7 +143,7 @@ module RoundtripTests =
           "PT.UserFunction"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "UserFunction"
             0)
           (V.ProgramTypes.userFunction)
@@ -154,7 +154,7 @@ module RoundtripTests =
           "PT.UserRecordType"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "UserType"
             0)
           (V.ProgramTypes.userRecordType)
@@ -165,7 +165,7 @@ module RoundtripTests =
           "PT.UserEnumType"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "UserType"
             0)
           (V.ProgramTypes.userEnumType)
@@ -176,7 +176,7 @@ module RoundtripTests =
           "PT.Expr"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "Expr"
             0)
           (V.ProgramTypes.expr)
@@ -187,7 +187,7 @@ module RoundtripTests =
           "PT.Dtype"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "Dtype"
             0)
           V.ProgramTypes.dtype
@@ -198,7 +198,7 @@ module RoundtripTests =
           "PT.Secret"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "Secret"
             0)
           (V.ProgramTypes.userSecret)
@@ -209,7 +209,7 @@ module RoundtripTests =
           "PT.DB"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "UserDB"
             0)
           (V.ProgramTypes.userDB)
@@ -220,7 +220,7 @@ module RoundtripTests =
           "PT.LetPatterns"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "LetPattern"
             0)
           V.ProgramTypes.letPatterns
@@ -232,7 +232,7 @@ module RoundtripTests =
           "PT.CronInterval"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes"; "Handler" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
             "CronInterval"
             0)
           V.ProgramTypes.Handler.cronIntervals
@@ -244,7 +244,7 @@ module RoundtripTests =
           "PT.HandlerSpec"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes"; "Handler" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
             "HandlerSpec"
             0)
           V.ProgramTypes.Handler.specs
@@ -256,7 +256,7 @@ module RoundtripTests =
           "PT.Handler"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes"; "Handler" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
             "Handler"
             0)
           V.ProgramTypes.Handler.handlers
@@ -268,7 +268,7 @@ module RoundtripTests =
           "PT.MatchPattern"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "Stdlib"; "ProgramTypes"; "Handler" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
             "MatchPattern"
             0)
           V.ProgramTypes.matchPatterns
