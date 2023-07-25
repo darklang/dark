@@ -1,4 +1,4 @@
-type PackageFns = PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T
+type PackageFns = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T
 
 // CLEANUP : reference package type directly
 [<DB>]
@@ -37,7 +37,7 @@ let _handler _req =
   PACKAGE.Darklang.Stdlib.Http.response (String.toBytes allFns) 200
 
 
-type PackageTypes = PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T
+type PackageTypes = PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T
 
 // CLEANUP : reference package type directly
 [<DB>]

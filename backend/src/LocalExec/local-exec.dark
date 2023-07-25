@@ -13,11 +13,11 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
 
 
 let saveFunctionToCanvas
-  (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T)
   : Unit =
   let reqBody =
     p
-    |> Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
     |> unwrap
     |> String.toBytes
 
@@ -30,10 +30,12 @@ let saveFunctionToCanvas
 
   ()
 
-let saveTypeToCanvas (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T) : Unit =
+let saveTypeToCanvas
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T)
+  : Unit =
   let reqBody =
     p
-    |> Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T>
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
     |> unwrap
     |> String.toBytes
 

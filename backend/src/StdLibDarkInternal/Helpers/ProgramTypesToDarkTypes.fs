@@ -13,7 +13,7 @@ let stdlibTyp
   : TypeName.T =
   TypeName.fqPackage
     "Darklang"
-    (NonEmptyList.ofList ([ "Stdlib" ] @ submodules))
+    (NonEmptyList.ofList ([ "LanguageTools" ] @ submodules))
     name
     version
 
