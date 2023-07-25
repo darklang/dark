@@ -461,19 +461,23 @@ module Darklang =
 
 
       /// A type that a User defined within a Canvas
-      type UserType =
-        {
-          /// The toplevel identifier
-          tlid: Int // TODO: tlid should probably be an alias of TInt
+      module UserType =
+        type T =
+          {
+            /// The toplevel identifier
+            tlid: Int // TODO: tlid should probably be an alias of TInt
 
-          /// Name
-          name: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.UserProgram
+            /// Name
+            name: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.UserProgram
 
-          declaration: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.T
+            description: String
 
-          deprecated:
-            PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T>
-        }
+            declaration:
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeDeclaration.T
+
+            deprecated:
+              PACKAGE.Darklang.LanguageTools.ProgramTypes.Deprecation<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T>
+          }
 
 
       module UserFunction =
