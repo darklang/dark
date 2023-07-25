@@ -6,7 +6,7 @@ open LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 open LibExecution.StdLib.Shortcuts
 
-let stdlibTyp
+let languageToolsTyp
   (submodules : List<string>)
   (name : string)
   (version : int)
@@ -17,8 +17,19 @@ let stdlibTyp
     name
     version
 
+let stdlibTyp
+  (submodules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.T =
+  TypeName.fqPackage
+    "Darklang"
+    (NonEmptyList.ofList ([ "Stdlib" ] @ submodules))
+    name
+    version
+
 let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
-  stdlibTyp ("ProgramTypes" :: submodules) name version
+  languageToolsTyp ("ProgramTypes" :: submodules) name version
 
 
 // This isn't in PT but I'm not sure where else to put it...
