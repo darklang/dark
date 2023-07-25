@@ -67,7 +67,7 @@ let fns : List<BuiltInFn> =
     { name = fn "getAndLogTableSizes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TDict(stdlibTypeRef [ "DarkInternal" ] "TableSize" 0)
+      returnType = TDict(stdlibTypeRef [ "DarkInternal"; "Infra" ] "TableSize" 0)
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged

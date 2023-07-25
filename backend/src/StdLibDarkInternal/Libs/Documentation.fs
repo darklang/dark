@@ -68,7 +68,7 @@ let fns : List<BuiltInFn> =
                     [ ("name", DString p.name)
                       ("type", DString(typeNameToStr p.typ)) ])
               [ ("name", DString(FnName.builtinToString key))
-                ("documentation", DString data.description)
+                ("description", DString data.description)
                 ("parameters", DList parameters)
                 ("returnType", DString returnType) ]
             Dval.record typeName alist)
