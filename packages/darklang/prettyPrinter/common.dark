@@ -13,7 +13,7 @@ module Darklang =
         | line -> "  " ++ line)
       |> String.join "\n"
 
-    let sign (s: PACKAGE.Darklang.Stdlib.Sign) : String =
+    let sign (s: PACKAGE.Darklang.LanguageTools.Sign) : String =
       match s with
       | Positive -> ""
       | Negative -> "-"

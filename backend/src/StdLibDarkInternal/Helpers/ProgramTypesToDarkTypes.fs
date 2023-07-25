@@ -17,16 +17,7 @@ let languageToolsTyp
     name
     version
 
-let stdlibTyp
-  (submodules : List<string>)
-  (name : string)
-  (version : int)
-  : TypeName.T =
-  TypeName.fqPackage
-    "Darklang"
-    (NonEmptyList.ofList ([ "Stdlib" ] @ submodules))
-    name
-    version
+
 
 let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
   languageToolsTyp ("ProgramTypes" :: submodules) name version
@@ -37,8 +28,8 @@ let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName
 module Sign =
   let toDT (s : Sign) : Dval =
     match s with
-    | Positive -> DEnum(stdlibTyp [] "Sign" 0, "Positive", [])
-    | Negative -> DEnum(stdlibTyp [] "Sign" 0, "Negative", [])
+    | Positive -> DEnum(languageToolsTyp [] "Sign" 0, "Positive", [])
+    | Negative -> DEnum(languageToolsTyp [] "Sign" 0, "Negative", [])
 
   let fromDT (d : Dval) : Sign =
     match d with
