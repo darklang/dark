@@ -64,6 +64,8 @@ module RoundtripTests =
           firstDT
         |> Ply.toTask
 
+      Expect.isOk typeChecked "should succeed"
+
       let firstRoundtripped = firstDT |> fromDT
       let roundTrippedAgain = firstRoundtripped |> toDT |> fromDT
 
@@ -105,6 +107,8 @@ module RoundtripTests =
           (RT.TList(RT.TCustomType(typeName, [])))
           (RT.DList(mapped))
         |> Ply.toTask
+
+      Expect.isOk typeChecked "should succeed"
 
       let actual : List<'a> =
         mapped |> List.map fromDT |> List.map toDT |> List.map fromDT
