@@ -164,7 +164,6 @@ let fileTests () : Test =
 
         // Within a module, tests have access to
         let fns = modules |> List.map (fun m -> m.fns) |> List.concat
-        let dbs = modules |> List.map (fun m -> m.dbs) |> List.concat
         let types = modules |> List.map (fun m -> m.types) |> List.concat
         let tests =
           modules
@@ -178,7 +177,7 @@ let fileTests () : Test =
                 test.expected
                 filename
                 test.lineNumber
-                dbs
+                m.dbs
                 types
                 fns
                 []))
