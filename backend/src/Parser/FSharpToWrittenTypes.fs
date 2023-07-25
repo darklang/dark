@@ -731,9 +731,9 @@ module Function =
         body = Expr.fromSynExpr expr }
 
 module UserFunction =
-  let fromSynBinding (b : SynBinding) : WT.UserFunction.T =
+  let fromSynBinding (moduleName : List<string>) (b : SynBinding) : WT.UserFunction.T =
     let f = Function.fromSynBinding b
-    { name = PT.FnName.userProgram [] f.name f.version
+    { name = PT.FnName.userProgram moduleName f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -857,7 +857,7 @@ module TypeDeclaration =
 
 
 module UserType =
-  let fromSynTypeDefn (typeDef : SynTypeDefn) : WT.UserType.T =
+  let fromSynTypeDefn (moduleName : List<string>) (typeDef : SynTypeDefn) : WT.UserType.T =
     let (typeParams, names, definition) =
       TypeDeclaration.Definition.fromSynTypeDefn typeDef
     let (name, version) =
@@ -867,7 +867,7 @@ module UserType =
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
       |> Exception.unwrapResultInternal []
-    let modules = names |> List.initial |> Option.unwrap []
+    let modules = moduleName @ names |> List.initial |> Option.unwrap []
 
     { name = PT.TypeName.userProgram modules name version
       description = ""

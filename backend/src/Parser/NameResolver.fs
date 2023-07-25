@@ -110,7 +110,6 @@ let resolve
   // These are named exactly during parsing
   match name with
   | WT.KnownBuiltin(modules, name, version) ->
-    // TODO assert it's a valid builtin name
     Ok(PT.FQName.fqBuiltIn nameValidator modules (constructor name) version)
 
   // Packages are unambiguous
@@ -138,55 +137,58 @@ let resolve
         )
 
 
-  | WT.Unresolved names ->
-    // debuG "resolving" names
-    match List.rev names with
-    | [] ->
-      // This is a totally empty name, which _really_ shouldn't happen.
-      Error(
-        { nameType = nameErrorType
-          errorType = LibExecution.Errors.NameResolution.MissingModuleName
-          names = names }
-      )
-
-    | name :: modules ->
-      match parser name with
-      | Error _msg ->
+  | WT.Unresolved given ->
+    let resolve (names : List<string>) : PT.NameResolution<PT.FQName.T<'name>> =
+      // debuG "resolving" names
+      match List.rev names with
+      | [] ->
+        // This is a totally empty name, which _really_ shouldn't happen.
         Error(
           { nameType = nameErrorType
-            errorType = LibExecution.Errors.NameResolution.InvalidPackageName
+            errorType = LibExecution.Errors.NameResolution.MissingModuleName
             names = names }
         )
-      | Ok(name, version) ->
-        let modules = List.reverse modules
 
-        // 2. Name exactly matches something in the UserProgram space
-        let (userProgram : PT.FQName.UserProgram<'name>) =
-          { modules = modules; name = constructor name; version = version }
+      | name :: modules ->
+        match parser name with
+        | Error _msg ->
+          Error(
+            { nameType = nameErrorType
+              errorType = LibExecution.Errors.NameResolution.InvalidPackageName
+              names = names }
+          )
+        | Ok(name, version) ->
+          let modules = List.reverse modules
 
-        if Set.contains userProgram userThings then
-          Ok(PT.FQName.UserProgram userProgram)
-        else
-          // 3. Name exactly matches a BuiltIn thing
-          let (builtIn : PT.FQName.BuiltIn<'name>) =
+          // 2. Name exactly matches something in the UserProgram space
+          let (userProgram : PT.FQName.UserProgram<'name>) =
             { modules = modules; name = constructor name; version = version }
 
-          if Set.contains builtIn builtinThings then
-            Ok(PT.FQName.BuiltIn builtIn)
+          if Set.contains userProgram userThings then
+            Ok(PT.FQName.UserProgram userProgram)
           else
-            // 4. Check exact name in
-            //   - a. current module // NOT IMPLEMENTED
-            //   - b. parent module(s) // NOT IMPLEMENTED
-            //   - c. darklang.stdlib package space
-            // debuGSet "builtins" builtinThings
-            // debuG "builtIn" builtIn
-            // debuG "not found names" names
-            //System.Environment.Exit(1)
-            Error(
-              { nameType = nameErrorType
-                errorType = LibExecution.Errors.NameResolution.NotFound
-                names = names }
-            )
+            // 3. Name exactly matches a BuiltIn thing
+            let (builtIn : PT.FQName.BuiltIn<'name>) =
+              { modules = modules; name = constructor name; version = version }
+
+            if Set.contains builtIn builtinThings then
+              Ok(PT.FQName.BuiltIn builtIn)
+            else
+              Error(
+                { nameType = nameErrorType
+                  errorType = LibExecution.Errors.NameResolution.NotFound
+                  names = names }
+              )
+    // 4. Check name in
+    //   - a. exact name
+    //   - b. current module
+    //   - c. parent module(s) // NOT IMPLEMENTED
+    //   - d. darklang.stdlib package space // NOT IMPLEMENTED
+    // debuGSet "builtins" builtinThings
+    // debuG "builtIn" builtIn
+    // debuG "not found names" names
+    //System.Environment.Exit(1)
+    resolve given |> Result.orElse (fun () -> resolve (currentModule @ given))
 
 
 module TypeName =

@@ -89,7 +89,10 @@ let parseTest (ast : SynExpr) : WTTest =
 
 
 let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
-  let parseTypeDecl (typeDefn : SynTypeDefn) : List<WT.DB.T> * List<WT.UserType.T> =
+  let parseTypeDecl
+    (moduleName : List<string>)
+    (typeDefn : SynTypeDefn)
+    : List<WT.DB.T> * List<WT.UserType.T> =
     match typeDefn with
     | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map (fun attr -> attr.Attributes) |> List.concat
@@ -100,23 +103,25 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
       if isDB then
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ FS2WT.UserType.fromSynTypeDefn typeDefn ]
+        [], [ FS2WT.UserType.fromSynTypeDefn moduleName typeDefn ]
 
   let rec parseModule
-    (name : List<string>)
+    (moduleName : List<string>)
     (decls : List<SynModuleDecl>)
     : List<WTModule> =
     let (m, nested) =
       List.fold
-        ({ emptyWTModule with name = name }, [])
+        ({ emptyWTModule with name = moduleName }, [])
         (fun (m, nested) decl ->
           match decl with
           | SynModuleDecl.Let(_, bindings, _) ->
-            let newUserFns = List.map FS2WT.UserFunction.fromSynBinding bindings
+            let newUserFns =
+              List.map (FS2WT.UserFunction.fromSynBinding moduleName) bindings
             ({ m with fns = m.fns @ newUserFns }, nested)
 
           | SynModuleDecl.Types(defns, _) ->
-            let (dbs, types) = List.map parseTypeDecl defns |> List.unzip
+            let (dbs, types) =
+              List.map (parseTypeDecl moduleName) defns |> List.unzip
             ({ m with
                 types = m.types @ List.concat types
                 dbs = m.dbs @ List.concat dbs },
@@ -138,7 +143,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
                                        _,
                                        _,
                                        _) ->
-            (m, parseModule (name @ [ modName.idText ]) decls @ nested)
+            (m, parseModule (moduleName @ [ modName.idText ]) decls @ nested)
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
         decls
     m :: nested

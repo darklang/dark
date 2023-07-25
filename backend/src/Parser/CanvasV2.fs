@@ -86,7 +86,7 @@ let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasMod
           WT.ELet(gid (), FS2WT.LetPattern.fromSynPat pat, expr, WT.EUnit(gid ()))
         { m with exprs = m.exprs @ [ newExpr ] }
       | Some _ ->
-        let newFn = FS2WT.UserFunction.fromSynBinding letBinding
+        let newFn = FS2WT.UserFunction.fromSynBinding m.name letBinding
         { m with fns = newFn :: m.fns }
 
     | [ attr ] ->
@@ -155,7 +155,7 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
       if isDB then
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ FS2WT.UserType.fromSynTypeDefn typeDefn ]
+        [], [ FS2WT.UserType.fromSynTypeDefn m.name typeDefn ]
 
     { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
