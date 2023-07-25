@@ -47,6 +47,7 @@ let main (args : string array) : int =
         Tests.RuntimeTypes.tests
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests
+        Tests.DarkTypesSerialization.tests
         Tests.SqlCompiler.tests
         Tests.StdLib.tests
         Tests.StorageTraces.tests ]

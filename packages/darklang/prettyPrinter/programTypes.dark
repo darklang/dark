@@ -422,7 +422,7 @@ module Darklang =
 
           $"{fnNamePart}{typeArgsPart} {argsPart}"
 
-        // PACKAGE.Darklang.Stdlib.ID *
+        // PACKAGE.Darklang.LanguageTools.ID *
         // typeName: PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
         // caseName: String *
         // fields: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
@@ -482,7 +482,7 @@ module Darklang =
           |> fun parts -> "[" ++ parts ++ "]"
 
         // | EDict of
-        //   PACKAGE.Darklang.Stdlib.ID *
+        //   PACKAGE.Darklang.LanguageTools.ID *
         //   List<String * PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
         | ETuple(_id, first, second, theRest) ->
@@ -584,7 +584,7 @@ module Darklang =
 
 
         | EPipe(_id, expr, firstPipeExpr, otherPipeExprs) ->
-          // PACKAGE.Darklang.Stdlib.ID *
+          // PACKAGE.Darklang.LanguageTools.ID *
           // PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
           // PACKAGE.Darklang.LanguageTools.ProgramTypes.PipeExpr *
           // List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PipeExpr>
@@ -645,7 +645,7 @@ module Darklang =
 
             $"{fnNamePart}<{typeArgsPart}> {argsPart}"
 
-        // PACKAGE.Darklang.Stdlib.ID *
+        // PACKAGE.Darklang.LanguageTools.ID *
         // record: PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
         // updates: List<String * PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
         | ERecordUpdate(_id, record, updates) ->

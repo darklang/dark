@@ -13,7 +13,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT2DT = ProgramTypes2DarkTypes
+module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0

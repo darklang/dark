@@ -1,5 +1,5 @@
 module Darklang =
-  module Stdlib =
+  module LanguageTools =
     type ID = Int
 
     type TLID = Int
