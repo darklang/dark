@@ -191,23 +191,31 @@ let resolve
 
     // Look in the current module and all parent modules
     // for X.Y, and current module A.B.C, try in the following order
-    // X.Y
     // A.B.C.X.Y
     // A.B.X.Y
     // A.X.Y
+    // X.Y
 
-    // List of modules lists, in order of priority. Does not include X.Y
+    // List of modules lists, in order of priority
     let modulesToTry =
       let rec loop (modules : List<string>) : List<List<string>> =
         match modules with
-        | [] -> []
+        | [] -> [ given ]
         | _ ->
           let rest = List.initial modules |> Option.unwrap []
           [ modules @ given ] @ loop rest
       loop currentModule
 
+    let notFound =
+      Error(
+        { nameType = nameErrorType
+          errorType = LibExecution.Errors.NameResolution.NotFound
+          names = given }
+        : LibExecution.Errors.NameResolution.Error
+      )
+
     List.fold
-      (resolve given) // try X.Y first
+      notFound
       (fun currentResult modules ->
         match currentResult with
         | Ok _ -> currentResult
