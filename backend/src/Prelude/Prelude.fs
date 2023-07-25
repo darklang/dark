@@ -868,11 +868,16 @@ module String =
 
   /// Adds 'a' or 'an' (the indefinite article) in front of a string, based on
   /// whether it begins with a vowel
-  let articleFor (nextWord : string) : string =
+  let rec articleFor (nextWord : string) : string =
     let vowels = Set [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
-    if nextWord = "" then ""
-    else if Set.contains nextWord.[0] vowels then "an"
-    else "a"
+    if nextWord = "" then
+      ""
+    else if not (System.Char.IsLetter nextWord[0]) then
+      articleFor (nextWord.Substring(1))
+    else if Set.contains nextWord[0] vowels then
+      "an"
+    else
+      "a"
 
   let toOrdinal (n : int) : string =
     let suffix =
