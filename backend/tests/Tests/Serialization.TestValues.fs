@@ -33,7 +33,7 @@ module RuntimeTypes =
           name = RT.FnName.FnName "d"
           version = 2 } ]
 
-  let dtypes : List<RT.TypeReference> =
+  let typeReferences : List<RT.TypeReference> =
     [ RT.TInt
       RT.TFloat
       RT.TBool
@@ -120,7 +120,7 @@ module RuntimeTypes =
       RT.EApply(
         128384UL,
         RT.FnTargetExpr(RT.EUnit(1235123UL)),
-        dtypes,
+        typeReferences,
         [ RT.EUnit(7756UL) ]
       )
       RT.EApply(
@@ -256,7 +256,7 @@ module ProgramTypes =
         )
       ) ]
 
-  let dtypes : List<PT.TypeReference> =
+  let typeReferences : List<PT.TypeReference> =
     [ PT.TInt
       PT.TFloat
       PT.TBool
@@ -358,7 +358,7 @@ module ProgramTypes =
                                 name = PT.FnName.FnName "toString"
                                 version = 0 }
                           ),
-                          dtypes,
+                          typeReferences,
                           [ PT.EInt(160106123UL, 6L) ]
                         ),
                         PT.EIf(
@@ -618,7 +618,7 @@ module ProgramTypes =
     )
 
   // Note: This is aimed to contain all cases of `TypeReference`
-  let dtype =
+  let typeReference =
     PT.TTuple(
       PT.TList(PT.TDict(PT.TDB(PT.TFn([ PT.TFloat ], PT.TUnit)))),
       PT.TInt,
@@ -692,8 +692,9 @@ module ProgramTypes =
     { tlid = 0UL
       name = { modules = []; name = PT.FnName.FnName "User"; version = 0 }
       typeParams = [ "a" ]
-      parameters = [ { name = "myparam1"; typ = dtype; description = "param1" } ]
-      returnType = dtype
+      parameters =
+        [ { name = "myparam1"; typ = typeReference; description = "param1" } ]
+      returnType = typeReference
       description = "function description"
       deprecated = PT.DeprecatedBecause "some reason"
       body = expr }
@@ -709,7 +710,7 @@ module ProgramTypes =
         { typeParams = [ "a" ]
           definition =
             let firstField : PT.TypeDeclaration.RecordField =
-              { name = "prop1"; typ = dtype; description = "desc1" }
+              { name = "prop1"; typ = typeReference; description = "desc1" }
             PT.TypeDeclaration.Record(firstField, []) } }
 
   let userEnumType : PT.UserType.T =
@@ -723,7 +724,8 @@ module ProgramTypes =
             PT.TypeDeclaration.Enum(
               { name = "caseA"; fields = []; description = "" },
               [ { name = "caseB"
-                  fields = [ { typ = dtype; label = Some "i"; description = "" } ]
+                  fields =
+                    [ { typ = typeReference; label = Some "i"; description = "" } ]
                   description = "" } ]
             ) } }
 
@@ -741,8 +743,8 @@ module ProgramTypes =
           version = 0 }
       body = expr
       typeParams = [ "a" ]
-      parameters = [ { name = "param"; typ = dtype; description = "desc" } ]
-      returnType = dtype
+      parameters = [ { name = "param"; typ = typeReference; description = "desc" } ]
+      returnType = typeReference
       description = "test"
       deprecated = PT.NotDeprecated
       id = uuid
@@ -760,7 +762,8 @@ module ProgramTypes =
             PT.TypeDeclaration.Enum(
               { name = "caseA"; fields = []; description = "" },
               [ { name = "caseB"
-                  fields = [ { typ = dtype; label = Some "i"; description = "" } ]
+                  fields =
+                    [ { typ = typeReference; label = Some "i"; description = "" } ]
                   description = "" } ]
             ) }
       id = uuid
