@@ -56,7 +56,8 @@ module Alias =
   type Something = { ID : Id; Data : String }
   Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
   Something { ID = 2; Data = "test" } =
-    Test.typeError "Something's ID field should be an Id. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
+    // TODO: would be better if this indicated that it was an Id originally
+    Test.typeError "Something's ID field should be a String. However, an Int (2) was passed instead.\n\nExpected: ({ ID: Id; ... })\nActual: an Int: 2"
 
   // record alias
   type Person = { name: String }
@@ -103,7 +104,7 @@ module Alias =
   let getUserID(credential:UserCredential) : Id = credential |> Tuple2.second
   getUserID(("Alice", "EMP123")) = "EMP123"
   getUserID(("Alice", 123)) =
-    Test.typeError "getUserID's return value should be an Id. However, an Int (123) was returned instead.\n\nExpected: Id\nActual: an Int: 123"
+    Test.typeError "in getUserID's 1st argument (credential), the 2nd element should be a String. However, an Int (123) was passed instead"
 
   type UserProfile = { credential: UserCredential; name: String; role: UserRole }
   type EmployeeProfile = UserProfile
