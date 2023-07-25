@@ -1072,7 +1072,7 @@ module DB =
 module UserType =
   let toDT (userType : PT.UserType.T) : Dval =
     DRecord(
-      ptTyp [] "UserType" 0,
+      ptTyp [ "UserType" ] "T" 0,
       Map
         [ "tlid", DInt(int64 userType.tlid)
           "name", TypeName.UserProgram.toDT userType.name
