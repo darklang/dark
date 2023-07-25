@@ -67,7 +67,7 @@ List.findFirst [1;2;3;1;4] (fun x -> x > 1 ) = PACKAGE.Darklang.Stdlib.Option.Op
 List.findFirst [0; 5; -6; -10; ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Just -6
 List.findFirst [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Just -2
 
-List.flatten_v0 [1;2;3] = Test.typeError_v0 "Flattening non-lists"
+List.flatten_v0 [1;2;3] = Test.typeError_v0 "in List.flatten's 1st argument (list), the 1st element should be a List<'a>. However, an Int (1) was passed instead.\n\nExpected: (list: List<'a>)\nActual: an Int: 3"
 List.flatten_v0 [[1];[2];[3]] = [ 1; 2; 3 ]
 List.flatten_v0 [[1];[[2;3]]] = [ 1; [ 2; 3 ] ]
 List.flatten_v0 [[[]]] = [ [] ]
@@ -220,10 +220,12 @@ List.unique_v0 [] = []
 List.unique_v0 [6;2.0] = Test.typeError "List.unique: Unable to sort list, perhaps the list elements are different types"
 // TODO: more tests, with values of more complex types
 
-List.unzip_v0 [(1,10);10;(3,30)] = Test.typeError_v0 "Expected `pairs` to be a tuple with exactly two values, but it was `10`. It is of type Int instead of `Tuple`"
-List.unzip_v0 [(1,10);(2,20);(3,30,40)] = Test.typeError_v0 "Expected `pairs` to be a tuple with exactly two values, but it was `(\n  3, 30, 40\n)`. It has length 3 but should have length 2"
 List.unzip_v0 [(1,10);(2,20);(3,30)] = [ [ 1; 2; 3 ]; [ 10; 20; 30 ] ]
 List.unzip_v0 [(10,6)] = [[10];[6]]
+List.unzip_v0 [(1,10);10;(3,30)] =
+  Test.typeError_v0 "in List.unzip's 1st argument (pairs), the 2nd element should be a (Int, Int). However, an Int (10) was passed instead.  Expected: (Int, Int)\nActual: an Int: 10"
+List.unzip_v0 [(1,10);(2,20);(3,30,40)] =
+  Test.typeError_v0 "in List.unzip's 1st argument (pairs), the 3rd element should be a (Int, Int). However, a (Int, Int, Int) ((  3, ...) was passed instead.\n\nExpected: (Int, Int)\nActual: a (Int, Int, Int):\n (\n  3, 30, 40\n)"
 
 List.zipShortest_v0 [10;20;30] [1;2;3] = [ (10, 1); (20, 2); (30, 3) ]
 List.zipShortest_v0 [10;20;30] ["a";"bc";"d"] = [ (10, "a"); (20, "bc"); (30, "d")]
