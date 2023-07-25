@@ -150,7 +150,9 @@ let rec unify
           match aliasedType with
           | TCustomType(concreteTn, typeArgs) ->
             if concreteTn <> typeName then
-              return Error(ValueNotExpectedType(value, aliasedType, context))
+              let! expected =
+                getTypeReferenceFromAlias types (TCustomType(typeName, []))
+              return Error(ValueNotExpectedType(value, expected, context))
             else
               return!
                 unifyRecordFields
