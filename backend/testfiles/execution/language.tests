@@ -984,6 +984,8 @@ module UserDefined =
   let derrorFn (msg:String) : String =
     msg ++ Test.typeError_v0 msg
 
+  let fnWithTypeArgs<'a, 'b> (a : 'a) (b : 'b) : 'a = a
+
   module FunctionCalls =
     stringFn "string" = "string appended string"
     twoStringFn "str1" "str2" = "str1 appended str2"
@@ -995,6 +997,7 @@ module UserDefined =
     returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
     (returnsResultOk ()) |> unwrap = 5
     fnWithTypeArgAndOneParam<Int> 1 = 1
+    fnWithTypeArgs<Int, String> 5 = 5
 
   module InvalidFnCalls =
     functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
