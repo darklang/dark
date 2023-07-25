@@ -452,8 +452,14 @@ let toSegments (e : Error) : ErrorOutput =
       expected = expected }
 
   | NameResolutionError({ errorType = NameResolution.NotFound } as e) ->
+    let nameType =
+      match e.nameType with
+      | NameResolution.Function -> "function"
+      | NameResolution.Type -> "type"
+      | NameResolution.Constant -> "constant"
+
     let summary =
-      [ String "Could not find name: "; String(String.concat "." e.names) ]
+      [ String $"There is no {nameType} named "; VarName(String.concat "." e.names) ]
 
     let extraExplanation = []
     let actual = []
@@ -466,7 +472,7 @@ let toSegments (e : Error) : ErrorOutput =
 
   | NameResolutionError({ errorType = NameResolution.MissingModuleName } as e) ->
     let summary =
-      [ String "We need more modules: "; String(String.concat "." e.names) ]
+      [ String "We need more modules: "; VarName(String.concat "." e.names) ]
 
     let extraExplanation = []
     let actual = []
@@ -479,7 +485,7 @@ let toSegments (e : Error) : ErrorOutput =
 
   | NameResolutionError({ errorType = NameResolution.InvalidPackageName } as e) ->
     let summary =
-      [ String "Invalid package name"; String(String.concat "." e.names) ]
+      [ String "Invalid package name "; VarName(String.concat "." e.names) ]
 
     let extraExplanation = []
     let actual = []
@@ -494,6 +500,10 @@ let toString (e : Error) : string =
   let s = toSegments e
   let explanation = ErrorSegment.toString (s.summary @ s.extraExplanation)
   let actual = ErrorSegment.toString s.actual
+  let actual = if actual = "" then "" else "\nActual: " + actual
   let expected = ErrorSegment.toString s.expected
-
-  $"{explanation}\n\nExpected: {expected}\nActual: {actual}"
+  let expected = if expected = "" then "" else "\nExpected: " + expected
+  if actual = "" && expected = "" then
+    explanation
+  else
+    $"{explanation}\n{expected}{actual}"

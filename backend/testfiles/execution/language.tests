@@ -154,7 +154,7 @@ module Records =
   Cols1 { col1 = "" } = Test.typeError "Records.Cols1's col1 field should be an Int. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int; ... })\nActual: a String: \"\""
 
   // Invalid type
-  MyNonExistantType { col1 = 2 } = Test.typeError "There is no type named `MyNonExistantType_v0`"
+  MyNonExistantType { col1 = 2 } = Test.typeError "There is no type named MyNonExistantType"
   AnEnum { col1 = 2 } = Test.typeError "Expected a record but Records.AnEnum is an enum"
 
   module Polymorphism =
@@ -1001,7 +1001,7 @@ module UserDefined =
     fnWithTypeArgs<Int, String> 5 = 5
 
   module InvalidFnCalls =
-    functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
+    functionWhichDoesntExist 6 = Test.typeError "There is no function named functionWhichDoesntExist"
     stringFn 5 = Test.typeError "UserDefined.stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
     stringFn "str1" "str2" = Test.typeError "UserDefined.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
