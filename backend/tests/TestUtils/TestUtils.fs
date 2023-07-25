@@ -382,7 +382,7 @@ module Expect =
     if path = [] then
       ""
     else
-      let path = path |> List.reverse |> String.concat "."
+      let path = path @ [ "value" ] |> List.reverse |> String.concat "."
       $" `{path}` of\n"
 
   let rec letPatternEqualityBaseFn
@@ -695,16 +695,16 @@ module Expect =
       // equal if they print the same string.
       check path (string l) (string r)
     | DList ls, DList rs ->
-      check (".Length" :: path) (List.length ls) (List.length rs)
-      List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
+      check ("Length" :: path) (List.length ls) (List.length rs)
+      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) ls rs
 
     | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
       de path firstL firstR
 
       de path secondL secondR
 
-      check (".Length" :: path) (List.length theRestL) (List.length theRestR)
-      List.iteri2 (fun i l r -> de (string i :: path) l r) theRestL theRestR
+      check ("Length" :: path) (List.length theRestL) (List.length theRestR)
+      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) theRestL theRestR
 
     | DDict ls, DDict rs ->
       // check keys from ls are in both, check matching values
@@ -721,7 +721,7 @@ module Expect =
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check (".Length" :: path) (Map.count ls) (Map.count rs)
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
     | DRecord(ltn, ls), DRecord(rtn, rs) ->
       userTypeNameEqualityBaseFn path ltn rtn errorFn
@@ -739,7 +739,7 @@ module Expect =
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check (".Length" :: path) (Map.count ls) (Map.count rs)
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
 
     | DEnum(typeName, caseName, fields), DEnum(typeName', caseName', fields') ->
@@ -747,7 +747,7 @@ module Expect =
       check ("caseName" :: path) caseName caseName'
 
       check ("fields.Length" :: path) (List.length fields) (List.length fields)
-      List.iteri2 (fun i l r -> de (string i :: path) l r) fields fields'
+      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
       ()
 
     | DIncomplete _, DIncomplete _ -> ()
