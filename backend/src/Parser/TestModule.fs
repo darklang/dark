@@ -107,11 +107,12 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
 
   let rec parseModule
     (moduleName : List<string>)
+    (parentDBs : List<WT.DB.T>)
     (decls : List<SynModuleDecl>)
     : List<WTModule> =
     let (m, nested) =
       List.fold
-        ({ emptyWTModule with name = moduleName }, [])
+        ({ emptyWTModule with name = moduleName; dbs = parentDBs }, [])
         (fun (m, nested) decl ->
           match decl with
           | SynModuleDecl.Let(_, bindings, _) ->
@@ -143,7 +144,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
                                        _,
                                        _,
                                        _) ->
-            (m, parseModule (moduleName @ [ modName.idText ]) decls @ nested)
+            (m, parseModule (moduleName @ [ modName.idText ]) m.dbs decls @ nested)
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
         decls
     m :: nested
@@ -163,7 +164,7 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
       Exception.raiseInternal
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
-  parseModule [] decls
+  parseModule [] [] decls
 
 
 let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =

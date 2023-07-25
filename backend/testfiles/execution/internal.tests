@@ -96,7 +96,7 @@ module Toplevels =
     type X = { x: String }
 
     [<DB>]
-    type XDB = X
+    type TLXDB = X
 
     (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked |> List.length = 1
 
@@ -114,12 +114,12 @@ module UnlockedDB =
     type X = { x: String }
 
     [<DB>]
-    type XDB = X
+    type UXDB = X
     // one
     (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked |> List.length = 1
 
     // one but locked
-    (let _ = DB.set (X { x = "str" }) "test" XDB in
+    (let _ = DB.set (X { x = "str" }) "test" UXDB in
      (Test.getCanvasID ()) |> DarkInternal.Canvas.DB.unlocked) = []
 
 module Queue =
