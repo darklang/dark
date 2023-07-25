@@ -124,8 +124,8 @@ module RoundtripTests =
           "PT.PackageFn"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "PackageFn"
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "PackageFn" ])
+            "T"
             0)
           (V.ProgramTypes.packageFn)
           PT2DT.PackageFn.toDT
@@ -135,8 +135,8 @@ module RoundtripTests =
           "PT.PackageType"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "PackageType"
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "PackageType" ])
+            "T"
             0)
           (V.ProgramTypes.packageType)
           PT2DT.PackageType.toDT
@@ -146,8 +146,8 @@ module RoundtripTests =
           "PT.UserFunction"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "UserFunction"
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "UserFunction" ])
+            "T"
             0)
           (V.ProgramTypes.userFunction)
           PT2DT.UserFunction.toDT
@@ -157,8 +157,8 @@ module RoundtripTests =
           "PT.UserRecordType"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "UserType"
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "UserType" ])
+            "T"
             0)
           (V.ProgramTypes.userRecordType)
           PT2DT.UserType.toDT
@@ -168,8 +168,8 @@ module RoundtripTests =
           "PT.UserEnumType"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "UserType"
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "UserType" ])
+            "T"
             0)
           (V.ProgramTypes.userEnumType)
           PT2DT.UserType.toDT
@@ -187,13 +187,13 @@ module RoundtripTests =
           PT2DT.Expr.fromDT
 
         testRoundtrip
-          "PT.Dtype"
+          "PT.TypeReference"
           (RT.TypeName.fqPackage
             "Darklang"
             (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "Dtype"
+            "TypeReference"
             0)
-          V.ProgramTypes.dtype
+          V.ProgramTypes.typeReference
           PT2DT.TypeReference.toDT
           PT2DT.TypeReference.fromDT
 
@@ -201,8 +201,8 @@ module RoundtripTests =
           "PT.Secret"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "Secret"
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Secret" ])
+            "T"
             0)
           (V.ProgramTypes.userSecret)
           PT2DT.Secret.toDT
@@ -212,8 +212,8 @@ module RoundtripTests =
           "PT.DB"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
-            "UserDB"
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "DB" ])
+            "T"
             0)
           (V.ProgramTypes.userDB)
           PT2DT.DB.toDT
@@ -248,7 +248,7 @@ module RoundtripTests =
           (RT.TypeName.fqPackage
             "Darklang"
             (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
-            "HandlerSpec"
+            "Spec"
             0)
           V.ProgramTypes.Handler.specs
           PT2DT.Handler.Spec.toDT
@@ -260,7 +260,7 @@ module RoundtripTests =
           (RT.TypeName.fqPackage
             "Darklang"
             (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
-            "Handler"
+            "T"
             0)
           V.ProgramTypes.Handler.handlers
           PT2DT.Handler.toDT
