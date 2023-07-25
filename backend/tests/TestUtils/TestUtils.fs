@@ -379,8 +379,11 @@ module Expect =
   type Path = string list
 
   let pathToString (path : Path) : string =
-    let pathStr = (path @ [ "val" ]) |> List.reverse |> String.concat "."
-    $"in ({pathStr})"
+    if path = [] then
+      ""
+    else
+      let path = path |> List.reverse |> String.concat "."
+      $" `{path}` of\n"
 
   let rec letPatternEqualityBaseFn
     (checkIDs : bool)
@@ -777,9 +780,13 @@ module Expect =
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
 
+  let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
+    let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
+    $"{initial}Error was found in{pathToString path}:\n{actual})\n\n"
+
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
     dvalEqualityBaseFn [] actual expected (fun path a e ->
-      Expect.equal a e $"{msg}: {pathToString path} (overall: {actual})")
+      Expect.equal a e (formatMsg msg path actual))
 
   let rec equalMatchPattern
     (actual : MatchPattern)
@@ -787,14 +794,14 @@ module Expect =
     (msg : string)
     : unit =
     matchPatternEqualityBaseFn true [] actual expected (fun path a e ->
-      Expect.equal a e $"{msg}: {pathToString path}")
+      Expect.equal a e (formatMsg msg path actual))
 
   let rec equalMatchPatternIgnoringIDs
     (actual : MatchPattern)
     (expected : MatchPattern)
     : unit =
     matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
-      Expect.equal a e (pathToString path))
+      Expect.equal a e (formatMsg "" path actual))
 
   let rec equalExpr
     (types : Types)
@@ -803,11 +810,11 @@ module Expect =
     (msg : string)
     : unit =
     exprEqualityBaseFn true [] actual expected (fun path a e ->
-      Expect.equal a e $"{msg}: {pathToString path}")
+      Expect.equal a e (formatMsg msg path actual))
 
   let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
     exprEqualityBaseFn false [] actual expected (fun path a e ->
-      Expect.equal a e (pathToString path))
+      Expect.equal a e (formatMsg "" path actual))
 
   let dvalEquality (left : Dval) (right : Dval) : bool =
     let success = ref true

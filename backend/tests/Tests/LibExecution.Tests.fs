@@ -55,6 +55,7 @@ let t
   (canvasName : string)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
+  (filename : string)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
   (types : List<PT.UserType.T>)
@@ -89,8 +90,20 @@ let t
 
       let! (state : RT.ExecutionState) =
         executionStateFor canvasID internalFnsAllowed false rtDBs rtTypes rtFunctions
+      let red = "\u001b[31m"
+      let green = "\u001b[32m"
+      let bold = "\u001b[1;37m"
+      let underline = "\u001b[4m"
+      let reset = "\u001b[0m"
 
-      let msg = $"\n\n{actualExpr}\n=\n{expectedExpr} ->"
+      let rhsMsg =
+        $"{underline}Right-hand-side test code{reset} (aka {bold}\"expected\"{reset}):\n{green}\n{expectedExpr}\n{reset}"
+
+      let lhsMsg =
+        $"{underline}Left-hand-side test code{reset} (aka {bold}\"actual\"{reset}):\n{red}\n{actualExpr}\n{reset}"
+
+      let msg =
+        $"\n\n{rhsMsg}\n\n{lhsMsg}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
       let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedExpr)
 
@@ -117,9 +130,10 @@ let t
       if not canonical then
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
-      let availableTypes = RT.ExecutionState.availableTypes state
       return Expect.equalDval actual expected msg
-    with e ->
+    with
+    | :? Expecto.AssertException as e -> e.Reraise() // let this through
+    | e ->
       let metadata = Exception.toMetadata e
       printMetadata "" metadata
       return
@@ -162,6 +176,7 @@ let fileTests () : Test =
                 test.name
                 test.actual
                 test.expected
+                filename
                 test.lineNumber
                 dbs
                 types
