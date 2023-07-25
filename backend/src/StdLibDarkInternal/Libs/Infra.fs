@@ -21,10 +21,8 @@ let types : List<BuiltInType> =
         { typeParams = []
           definition =
             TypeDeclaration.Record(
-              { name = "disk"
-                typ = TFloat
-                description = "Number of bytes on disk" },
-              [ { name = "rows"; typ = TFloat; description = "Number of rows" }
+              { name = "disk"; typ = TInt; description = "Number of bytes on disk" },
+              [ { name = "rows"; typ = TInt; description = "Number of rows" }
                 { name = "diskHuman"
                   typ = TString
                   description = "Disk space in human readable form" }
