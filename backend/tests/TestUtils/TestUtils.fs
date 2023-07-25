@@ -383,7 +383,7 @@ module Expect =
       ""
     else
       let path = path @ [ "value" ] |> List.reverse |> String.concat "."
-      $" `{path}` of\n"
+      $" `{path}` of"
 
   let rec letPatternEqualityBaseFn
     (checkIDs : bool)
