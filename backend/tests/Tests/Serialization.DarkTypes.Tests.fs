@@ -29,6 +29,11 @@ module RoundtripTests =
   // most of the time, it should end up being the same as the source.
   // if there are known exceptions, break down individual mappings as separate tests
 
+  let types : RT.Types =
+    { builtIn = builtIns.types
+      package = LibBackend.PackageManager.packageManager.getType
+      userProgram = Map.empty }
+
   let testRoundtrip
     (testName : string)
     (typeName : RT.TypeName.T)
@@ -53,9 +58,8 @@ module RoundtripTests =
 
       let! typeChecked =
         LibExecution.TypeChecker.unify
-          (context)
-          //why doesn't this fail
-          (RT.Types.empty)
+          context
+          types
           (RT.TCustomType(typeName, []))
           firstDT
         |> Ply.toTask
@@ -96,9 +100,8 @@ module RoundtripTests =
 
       let! typeChecked =
         LibExecution.TypeChecker.unify
-          (context)
-          //why doesn't this fail
-          (RT.Types.empty)
+          context
+          types
           (RT.TList(RT.TCustomType(typeName, [])))
           (RT.DList(mapped))
         |> Ply.toTask
