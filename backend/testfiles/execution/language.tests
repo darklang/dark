@@ -208,7 +208,7 @@ module Enums =
       // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.typeError "TODO"
       // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Test.typeError "TODO"
       (MyEnum.C 5) =
-        Test.typeError "Enums.Errros.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
+        Test.typeError "Enums.Errors.User.MyEnum.C's 1st argument should be a String. However, an Int (5) was passed instead.\n\nExpected: (_unnamed: String)\nActual: an Int: 5"
 
 
   module Simple =
@@ -340,7 +340,7 @@ module FieldAccess =
     (let x = MyRecord { col1 = 1 } in x.___) = Test.typeError "Field name is empty"
 
     (let x = MyRecord { col1 = 1 } in x.fieldName) = Test.typeError
-      "No field named fieldName in MyRecord_v0 record"
+      "No field named fieldName in FieldAccess.MyRecord record"
 
     (Test.typeError_v0 "error").fieldName = Test.typeError_v0 "error"
 
@@ -1002,13 +1002,13 @@ module UserDefined =
 
   module InvalidFnCalls =
     functionWhichDoesntExist 6 = Test.typeError "Function functionWhichDoesntExist is not found"
-    stringFn 5 = Test.typeError "stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
-    stringFn "str1" "str2" = Test.typeError "stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+    stringFn 5 = Test.typeError "UserDefined.stringFn's 1st argument (key) should be a String. However, an Int (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int: 5"
+    stringFn "str1" "str2" = Test.typeError "UserDefined.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
 
-    fnWithTypeArgAndOneParam 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
-    fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
-    fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
-    fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+    fnWithTypeArgAndOneParam 1 = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+    fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+    fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+    fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
     //TODO: fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "type arg doesn't match arg."
 
     (let _ = Test.setExpectedExceptionCount 1 in

@@ -188,7 +188,29 @@ let resolve
     // debuG "builtIn" builtIn
     // debuG "not found names" names
     //System.Environment.Exit(1)
-    resolve given |> Result.orElse (fun () -> resolve (currentModule @ given))
+
+    // Look in the current module and all parent modules
+    // for X.Y, and current module A.B.C, try in the following order
+    // X.Y
+    // A.B.C.X.Y
+    // A.B.X.Y
+    // A.X.Y
+    let modulesToTry =
+      let rec loop (modules : List<string>) : List<List<string>> =
+        match modules with
+        | [] -> []
+        | _ ->
+          let rest = List.initial modules |> Option.unwrap []
+          [ modules @ given ] @ loop rest
+      loop currentModule
+
+    List.fold
+      (resolve given)
+      (fun resolved modules ->
+        match resolved with
+        | Ok _ -> resolved
+        | Error _ -> resolve modules)
+      modulesToTry
 
 
 module TypeName =
