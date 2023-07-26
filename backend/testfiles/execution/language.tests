@@ -987,6 +987,8 @@ module UserDefined =
 
   let fnWithTypeArgs<'a, 'b> (a : 'a) (b : 'b) : 'a = a
 
+  let fnWithTypedReturn<'a> () : 'a = 5 // errors unless Int passed for 'a
+
   module FunctionCalls =
     stringFn "string" = "string appended string"
     twoStringFn "str1" "str2" = "str1 appended str2"
@@ -998,7 +1000,8 @@ module UserDefined =
     returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
     (returnsResultOk ()) |> unwrap = 5
     fnWithTypeArgAndOneParam<Int> 1 = 1
-    fnWithTypeArgs<Int, String> 5 = 5
+    fnWithTypeArgs<Int, String> 5 "x" = 5
+    fnWithTypedReturn<Int> () = 5
 
   module InvalidFnCalls =
     functionWhichDoesntExist 6 = Test.typeError "There is no function named functionWhichDoesntExist"
@@ -1009,7 +1012,9 @@ module UserDefined =
     fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
     fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
-    //TODO: fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "type arg doesn't match arg."
+    fnWithTypeArgAndOneParam<Int> "str2" = Test.typeError "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int. However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
+
+    fnWithTypedReturn<String> () = Test.typeError "UserDefined.fnWithTypedReturn's return value should be a String. However, an Int (5) was passed instead.\n\nExpected: 'a\nActual: an Int: 5"
 
     (let _ = Test.setExpectedExceptionCount 1 in
     throwsException ()) = Test.typeError "Unknown error"

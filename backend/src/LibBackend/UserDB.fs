@@ -59,7 +59,7 @@ let rec set
     // implemented nested types in the DB yet
     let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ, None)
 
-    match! LibExecution.TypeChecker.unify context types db.typ dv with
+    match! LibExecution.TypeChecker.unify context types Map.empty db.typ dv with
     | Error err ->
       let msg = Errors.toString (Errors.TypeError err)
       return Exception.raiseCode msg

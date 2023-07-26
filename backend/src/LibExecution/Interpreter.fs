@@ -226,7 +226,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   else
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match! TypeChecker.unify context types field.typ v with
+                    match!
+                      TypeChecker.unify context types Map.empty field.typ v
+                    with
                     | Ok() ->
                       match r with
                       | DRecord(typeName, m) ->
@@ -276,7 +278,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   | DRecord(typeName, m), k, v ->
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match! TypeChecker.unify context types field.typ v with
+                    match!
+                      TypeChecker.unify context types Map.empty field.typ v
+                    with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
@@ -641,7 +645,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                             None
                           )
 
-                        match! TypeChecker.unify context types enumField.typ v with
+                        match!
+                          TypeChecker.unify context types Map.empty enumField.typ v
+                        with
                         | Ok() ->
                           match r with
                           | DEnum(typeName, caseName, existing) ->
@@ -834,9 +840,9 @@ and execFn
 
       let fnRecord = (state.tlid, fnDesc, id) in
 
-      let name = FnName.toString fnDesc
       let types = ExecutionState.availableTypes state
-      match! TypeChecker.checkFunctionCall types fn typeArgs args with
+      let typeArgSymbolTable = List.zip fn.typeParams typeArgs |> Map
+      match! TypeChecker.checkFunctionCall types typeArgSymbolTable fn args with
       | Error err ->
         let msg = Errors.toString (Errors.TypeError(err))
         return DError(sourceID, msg)
@@ -897,7 +903,9 @@ and execFn
         if Dval.isFake result then
           return result
         else
-          match! TypeChecker.checkFunctionReturnType types fn result with
+          match!
+            TypeChecker.checkFunctionReturnType types typeArgSymbolTable fn result
+          with
           | Error err ->
             let msg = Errors.toString (Errors.TypeError(err))
             return DError(sourceID, msg)

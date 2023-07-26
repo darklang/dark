@@ -145,7 +145,7 @@ let typecheckDval
   =
   uply {
     let context = TypeChecker.DBQueryVariable(name, expectedType, None)
-    match! TypeChecker.unify context types expectedType dval with
+    match! TypeChecker.unify context types Map.empty expectedType dval with
     | Ok() -> return ()
     | Error err -> return error (Errors.toString (Errors.TypeError err))
   }
