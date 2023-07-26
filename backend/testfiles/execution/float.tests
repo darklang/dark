@@ -135,7 +135,7 @@ Float.subtract_v0 1.0 0.2 = 0.8
 
 Float.sum_v0 [1.0;0.2] = 1.2
 Float.sum_v0 [1.0;"a"] =
-  Test.typeError "In Float.sum's 1st argument (a), the 2nd element should be a Float. However, a String ("a") was passed instead.\n\nExpected: Float\nActual: a String: "a""
+  Test.typeError "In Float.sum's 1st argument (`a`), the nested value `a[1]` should be a Float. However, a String (\"a\") was passed instead.\n\nExpected: Float\nActual: a String: \"a\""
 
 Test.nan_v0 == Test.nan_v0 = false
 

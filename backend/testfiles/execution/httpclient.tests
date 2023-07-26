@@ -29,7 +29,7 @@ module NoInternal =
 
 // type errors for bad `headers` are OK
 HttpClient.request "get" "https://darklang.com" [1] Bytes.empty =
-  Test.typeError "In HttpClient.request's 3rd argument (`headers`), the 1st element should be a (String, String). However, an Int (1) was passed instead.\n\nExpected: (String, String)\nActual: an Int: 1"
+  Test.typeError "In HttpClient.request's 3rd argument (`headers`), the nested value `headers[0]` should be a (String, String). However, an Int (1) was passed instead.\n\nExpected: (String, String)\nActual: an Int: 1"
 HttpClient.request "get" "https://darklang.com" [("", "")] Bytes.empty = PACKAGE.Darklang.Stdlib.Result.Result.Error "Empty request header key provided"
 
 // type errors for bad `method` are OK

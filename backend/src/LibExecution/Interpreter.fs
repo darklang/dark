@@ -203,7 +203,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       match! recordMaybe typeName with
       | None ->
         match typ with
-        | None -> return err id $"There is no type named `{typeStr}`"
+        | None -> return err id $"There is no type named {typeStr}"
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
@@ -256,7 +256,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         match! recordMaybe typeName with
         | None ->
           match! Types.find typeName types with
-          | None -> return err id $"There is no type named `{typeStr}`"
+          | None -> return err id $"There is no type named {typeStr}"
           | Some({ definition = TypeDeclaration.Enum _ }) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
@@ -604,7 +604,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
       match! Types.find typeName types with
-      | None -> return err id $"There is no type named `{typeStr}`"
+      | None -> return err id $"There is no type named {typeStr}"
       | Some({ definition = TypeDeclaration.Alias _ }) ->
         return err id $"Expected an enum but {typeStr} is an alias"
       | Some({ definition = TypeDeclaration.Record _ }) ->

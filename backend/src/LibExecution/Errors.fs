@@ -163,6 +163,7 @@ type ErrorSegment =
   // Variables
   | DBName of string
   | VarName of string
+  | InlineVarName of string
   // Dvals
   | InlineValue of Dval // possibly shortened to be shown inline
   | FullValue of Dval
@@ -194,6 +195,7 @@ module ErrorSegment =
           | InlineFieldName f -> f
           | DBName db -> db
           | VarName v -> "`" + v + "`"
+          | InlineVarName v -> v
           | InlineValue dv ->
             DvalReprDeveloper.toRepr dv
             |> String.truncateWithElipsis 10
@@ -236,6 +238,30 @@ type Error =
 
 module TCK = TypeChecker
 
+let rec valuePath (context : TCK.Context) : string =
+  match context with
+  | TCK.FunctionCallParameter(fnName, parameter, paramIndex, _) -> parameter.name
+  | TCK.FunctionCallResult(fnName, returnType, _) -> "result"
+  | TCK.RecordField(recordType, fieldDef, _) -> fieldDef.name
+  | TCK.DictKey(key, _, _) -> $".{key}"
+  | TCK.EnumField(enumType, fieldDef, caseName, paramIndex, _) -> caseName
+  | TCK.DBSchemaType(dbName, expectedType, _) -> dbName
+  | TCK.DBQueryVariable(varName, expected, _) -> varName
+  | TCK.ListIndex(index, typ, parent) -> valuePath parent + $"[{index}]"
+  | TCK.TupleIndex(index, typ, parent) -> valuePath parent + $"[{index}]"
+
+let rec rootContext (context : TCK.Context) : TCK.Context =
+  match context with
+  | TCK.FunctionCallParameter _ -> context
+  | TCK.FunctionCallResult _ -> context
+  | TCK.RecordField _ -> context
+  | TCK.DictKey _ -> context
+  | TCK.EnumField _ -> context
+  | TCK.DBSchemaType _ -> context
+  | TCK.DBQueryVariable _ -> context
+  | TCK.ListIndex(_, _, parent) -> rootContext parent
+  | TCK.TupleIndex(_, _, parent) -> rootContext parent
+
 
 // Return the segments describing the context as a short name, used in the description of errors
 let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
@@ -262,7 +288,7 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
       | Some l -> [ String " ("; FieldName l; String ")" ]
     [ TypeName enumType
       String "."
-      FieldName caseName
+      InlineFieldName caseName
       String "'s "
       Ordinal(paramIndex + 1)
       String " argument" ]
@@ -271,14 +297,12 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
   | TCK.DBSchemaType(dbName, expectedType, _) ->
     [ String "DB "; DBName dbName; String "'s value" ]
   | TCK.DBQueryVariable(varName, _, _) -> [ String "Variable "; VarName varName ]
-  | TCK.TupleIndex(index, typ, parent) ->
-    [ String "In " ]
-    @ contextSummary parent
-    @ [ String ", the "; Ordinal(index + 1); String " element" ]
+  | TCK.TupleIndex(index, typ, parent)
   | TCK.ListIndex(index, typ, parent) ->
+    let rootContext = rootContext parent
     [ String "In " ]
-    @ contextSummary parent
-    @ [ String ", the "; Ordinal(index + 1); String " element" ]
+    @ contextSummary rootContext
+    @ [ String ", the nested value "; VarName(valuePath context) ]
 
 let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
   match context with
@@ -291,7 +315,7 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
       else
         [ String " // "; Description "" (*parameter.comment*) ]
     [ String "("
-      ParamName parameter.name
+      InlineParamName parameter.name
       String ": "
       TypeReference parameter.typ
       String ")" ]
@@ -344,7 +368,7 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
       | None -> "_unnamed"
       | Some l -> l
     [ String "("
-      ParamName paramName
+      InlineParamName paramName
       String ": "
       TypeReference fieldDef.typ
       String ")" ]
@@ -361,7 +385,7 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
     // format:
     // (varName : string) // some description
     [ String "("
-      VarName varName
+      InlineVarName varName
 
       String ": "
       TypeReference expected
@@ -456,7 +480,8 @@ let toSegments (e : Error) : ErrorOutput =
       | NameResolution.Constant -> "constant"
 
     let summary =
-      [ String $"There is no {nameType} named "; VarName(String.concat "." e.names) ]
+      [ String $"There is no {nameType} named "
+        InlineVarName(String.concat "." e.names) ]
 
     let extraExplanation = []
     let actual = []
@@ -482,7 +507,7 @@ let toSegments (e : Error) : ErrorOutput =
 
   | NameResolutionError({ errorType = NameResolution.InvalidPackageName } as e) ->
     let summary =
-      [ String "Invalid package name "; VarName(String.concat "." e.names) ]
+      [ String "Invalid package name "; InlineVarName(String.concat "." e.names) ]
 
     let extraExplanation = []
     let actual = []
