@@ -49,8 +49,10 @@ module AddToTestEnumDBs =
    let test2 =
      DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
 
-   (DB.getAll TestEnumDB)) = [ EnumTestRecord { x = "hello"; y = MyEnum.A }
-                               EnumTestRecord { x = "goodbye"; y = MyEnum.B } ]
+   (DB.getAll TestEnumDB) |> List.sort) = [ EnumTestRecord
+                                              { x = "goodbye"; y = MyEnum.B }
+                                            EnumTestRecord
+                                              { x = "hello"; y = MyEnum.A } ]
 
   (let test1 =
     DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
@@ -64,7 +66,7 @@ module AddToTestEnumDBs =
 
   (let test1 = DB.set MyEnum.A "test1" TestEnumDB2 in
    let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
-   (DB.getAll TestEnumDB2)) = [ MyEnum.A; MyEnum.B ]
+   (DB.getAll TestEnumDB2) |> List.sort) = [ MyEnum.A; MyEnum.B ]
 
   (let test1 = DB.set MyEnum.C "test1" TestEnumDB2 in
    let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
@@ -75,7 +77,9 @@ module AddToTestEnumDBs =
   (let test1 = DB.set MyEnum2.D "test1" TestEnumDB3 in
    let test2 = DB.set MyEnum2.E "test2" TestEnumDB3 in
    let test3 = DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
-   (DB.getAll TestEnumDB3)) = [ MyEnum2.D; MyEnum2.E; MyEnum2.F MyEnum.A ]
+   (DB.getAll TestEnumDB3) |> List.sort) = [ MyEnum2.D
+                                             MyEnum2.E
+                                             MyEnum2.F MyEnum.A ]
 
   (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in (DB.getAll TestEnumDB2)) = Test.typeError_v0
     "There is no case named `D` in MyEnum"
@@ -580,11 +584,11 @@ module FindAll =
   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
-  type X = { x: Int }
+  type IntField = { x: Int }
 
-  (friends (fun p -> let obj = X { x = 42 } in p.height > obj.x)) = [ " Chandler "
-                                                                      "Rachel"
-                                                                      "Ross" ]
+  (friends (fun p -> let obj = IntField { x = 42 } in p.height > obj.x)) = [ " Chandler "
+                                                                             "Rachel"
+                                                                             "Ross" ]
 
   // nested fieldaccess
   friends (fun p ->
@@ -594,7 +598,7 @@ module FindAll =
 
   (let x = "not int"
    friends (fun p -> p.height > x)) = Test.sqlError
-    "variable x should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (variable x: Int)\nActual: a String: \"not int\""
+    "Variable `x` should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (`x`: Int)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
   friendsError (fun p -> "x") = Test.sqlError
