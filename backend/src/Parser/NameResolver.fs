@@ -139,7 +139,6 @@ let resolve
 
   | WT.Unresolved given ->
     let resolve (names : List<string>) : PT.NameResolution<PT.FQName.T<'name>> =
-      // debuG "resolving" names
       match List.rev names with
       | [] ->
         // This is a totally empty name, which _really_ shouldn't happen.
@@ -184,10 +183,6 @@ let resolve
     //   - b. current module
     //   - c. parent module(s) // NOT IMPLEMENTED
     //   - d. darklang.stdlib package space // NOT IMPLEMENTED
-    // debuGSet "builtins" builtinThings
-    // debuG "builtIn" builtIn
-    // debuG "not found names" names
-    //System.Environment.Exit(1)
 
     // Look in the current module and all parent modules
     // for X.Y, and current module A.B.C, try in the following order
