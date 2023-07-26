@@ -157,8 +157,9 @@ module TypeName =
     : T =
     FQName.fqPackage assert' owner modules (TypeName name) version
 
-  let toString (name : T) : string =
-    FQName.toString (fun (TypeName name) -> name) name
+  let nameToString (TypeName name) : string = name
+
+  let toString (name : T) : string = FQName.toString nameToString name
 
 
 module FnName =
@@ -204,7 +205,9 @@ module FnName =
     : T =
     FQName.fqPackage assert' owner modules (FnName name) version
 
-  let toString (name : T) : string = FQName.toString (fun (FnName name) -> name) name
+  let nameToString (FnName name) : string = name
+
+  let toString (name : T) : string = FQName.toString nameToString name
 
 
   // CLEANUP: this isn't referenced anywhere - delete? (ideally, I suppose, we'd
