@@ -270,7 +270,7 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
 
   | TCK.DBSchemaType(dbName, expectedType, _) ->
     [ String "DB "; DBName dbName; String "'s value" ]
-  | TCK.DBQueryVariable(varName, _, _) -> [ VarName varName ]
+  | TCK.DBQueryVariable(varName, _, _) -> [ String "Variable "; VarName varName ]
   | TCK.TupleIndex(index, parent) ->
     [ String "in " ]
     @ contextSummary parent

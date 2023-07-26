@@ -391,7 +391,7 @@ let rec lambdaToSql
         | EVariable(_, varname) ->
           match Map.get varname symtable with
           | Some dval ->
-            do! typecheckDval $"variable {varname}" types dval expectedType
+            do! typecheckDval varname types dval expectedType
             let random = randomString 8
             let newname = $"{varname}_{random}"
             // Fetch the actualType here as well as we might be passing in an abstract
