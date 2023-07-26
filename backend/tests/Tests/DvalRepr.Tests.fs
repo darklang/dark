@@ -89,7 +89,7 @@ let testToDeveloperRepr =
         DvalReprDeveloper.toRepr
         [ RT.DFloat(-0.0), "-0.0"
           RT.DFloat(infinity), "Infinity"
-          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(\n  1, 2, 3\n)"
+          RT.DTuple(RT.DInt 1, RT.DInt 2, [ RT.DInt 3 ]), "(1, 2, 3)"
           RT.DDict(Map.ofList [ "", RT.DUnit ]), "{\n  : unit\n}"
           RT.DList [ RT.DUnit ], "[\n  unit\n]" ] ]
 
