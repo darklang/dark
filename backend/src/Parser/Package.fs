@@ -47,25 +47,26 @@ let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : WT.PackageType.
 
 
 let rec parseDecls
-  (modules : List<string>)
+  (moduleNames : List<string>)
   (decls : List<SynModuleDecl>)
   : WTPackageModule =
   List.fold
     emptyWTModule
     (fun m decl ->
+      // debuG "decl" decl
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
-        let fns = List.map (parseLetBinding modules) bindings
+        let fns = List.map (parseLetBinding moduleNames) bindings
         { m with fns = m.fns @ fns }
 
       | SynModuleDecl.Types(defns, _) ->
-        let types = List.map (parseTypeDef modules) defns
+        let types = List.map (parseTypeDef moduleNames) defns
         { m with types = m.types @ types }
 
       | SynModuleDecl.NestedModule(SynComponentInfo(_,
                                                     _,
                                                     _,
-                                                    nestedModules,
+                                                    nestedModuleNames,
                                                     _,
                                                     _,
                                                     _,
@@ -76,8 +77,10 @@ let rec parseDecls
                                    _,
                                    _) ->
 
-        let modules = modules @ (nestedModules |> List.map (fun id -> id.idText))
-        let nestedDecls = parseDecls modules nested
+        let moduleNames =
+          moduleNames @ (nestedModuleNames |> List.map (fun id -> id.idText))
+        let nestedDecls = parseDecls moduleNames nested
+
         { fns = m.fns @ nestedDecls.fns; types = m.types @ nestedDecls.types }
 
 
