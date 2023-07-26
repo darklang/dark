@@ -182,10 +182,10 @@ module ErrorSegment =
             match List.tryHead prevSegments with
             | None -> ""
             | Some prev -> String.articleFor prev + " "
-          | FunctionName fn -> "`" + FnName.toString fn + "`"
-          // Inline versions don't have quotes
+          | FunctionName fn -> FnName.toString fn
           | Description d -> d
           | ParamName p -> "`" + p + "`"
+          // Inline versions don't have quotes
           | InlineParamName p -> p
           | TypeName t -> TypeName.toString t
           | TypeReference t -> DvalReprDeveloper.typeName t
@@ -271,12 +271,12 @@ let rec contextSummary (context : TCK.Context) : List<ErrorSegment> =
   | TCK.DBSchemaType(dbName, expectedType, _) ->
     [ String "DB "; DBName dbName; String "'s value" ]
   | TCK.DBQueryVariable(varName, _, _) -> [ String "Variable "; VarName varName ]
-  | TCK.TupleIndex(index, parent) ->
-    [ String "in " ]
+  | TCK.TupleIndex(index, typ, parent) ->
+    [ String "In " ]
     @ contextSummary parent
     @ [ String ", the "; Ordinal(index + 1); String " element" ]
-  | TCK.ListIndex(index, parent) ->
-    [ String "in " ]
+  | TCK.ListIndex(index, typ, parent) ->
+    [ String "In " ]
     @ contextSummary parent
     @ [ String ", the "; Ordinal(index + 1); String " element" ]
 
@@ -292,7 +292,6 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
         [ String " // "; Description "" (*parameter.comment*) ]
     [ String "("
       ParamName parameter.name
-
       String ": "
       TypeReference parameter.typ
       String ")" ]
@@ -369,16 +368,10 @@ let rec contextAsExpected (context : TCK.Context) : List<ErrorSegment> =
       String ")" ]
 
 
-  | TCK.ListIndex(index, parent) ->
-    // format:
-    // [0]
-    contextAsExpected parent @ [ String "["; Int index; String "]" ]
+  | TCK.ListIndex(index, typ, parent) -> [ TypeReference typ ]
 
 
-  | TCK.TupleIndex(index, parent) ->
-    // format:
-    // [0]
-    contextAsExpected parent @ [ String "["; Int index; String "]" ]
+  | TCK.TupleIndex(index, typ, parent) -> [ TypeReference typ ]
 
 
 

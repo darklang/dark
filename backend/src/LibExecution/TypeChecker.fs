@@ -43,8 +43,8 @@ type Context =
     name : string *
     expectedType : TypeReference *
     location : Location
-  | ListIndex of index : int * parent : Context
-  | TupleIndex of index : int * parent : Context
+  | ListIndex of index : int * listTyp : TypeReference * parent : Context
+  | TupleIndex of index : int * elementType : TypeReference * parent : Context
 
 
 module Context =
@@ -57,8 +57,8 @@ module Context =
     | EnumField(_, _, _, _, location) -> location
     | DBQueryVariable(_, _, location) -> location
     | DBSchemaType(_, _, location) -> location
-    | ListIndex(_, parent) -> toLocation parent
-    | TupleIndex(_, parent) -> toLocation parent
+    | ListIndex(_, _, parent) -> toLocation parent
+    | TupleIndex(_, _, parent) -> toLocation parent
 
 
 type Error =
@@ -106,7 +106,7 @@ let rec unify
       let! results =
         dvs
         |> Ply.List.mapSequentiallyWithIndex (fun i v ->
-          let context = ListIndex(i, context)
+          let context = ListIndex(i, nested, context)
           unify context types nested v)
       return combineErrorsUnit results
     | TDict valueType, DDict dmap ->
@@ -119,7 +119,7 @@ let rec unify
           unify context types valueType v)
       return combineErrorsUnit results
 
-    | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TODO check lambdas and fnVals
+    | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
     | TTuple(t1, t2, tRest), DTuple(v1, v2, vRest) ->
       let ts = t1 :: t2 :: tRest
       let vs = v1 :: v2 :: vRest
@@ -129,7 +129,7 @@ let rec unify
         let! results =
           List.zip ts vs
           |> Ply.List.mapSequentiallyWithIndex (fun i (t, v) ->
-            let context = TupleIndex(i, context)
+            let context = TupleIndex(i, t, context)
             unify context types t v)
         return combineErrorsUnit results
 
