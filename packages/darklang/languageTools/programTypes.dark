@@ -108,7 +108,7 @@ module Darklang =
         /// `typeArgs` is the list of type arguments, if any
         | TCustomType of
           PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T *
-          typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference>
+          typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference> *
           PACKAGE.Darklang.Stdlib.ProgramTypes.NameResolution<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> *
           typeArgs: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference>
 
