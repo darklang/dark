@@ -67,7 +67,7 @@ List.findFirst [1;2;3;1;4] (fun x -> x > 1 ) = PACKAGE.Darklang.Stdlib.Option.Op
 List.findFirst [0; 5; -6; -10; ] (fun x -> x < 0) = PACKAGE.Darklang.Stdlib.Option.Option.Just -6
 List.findFirst [1; -33; 3; -2; 12] (fun x -> (x < 0 && x % 2 == 0)) = PACKAGE.Darklang.Stdlib.Option.Option.Just -2
 
-List.flatten_v0 [1;2;3] = Test.typeError_v0 "in List.flatten's 1st argument (list), the 1st element should be a List<'a>. However, an Int (1) was passed instead.\n\nExpected: (list: List<'a>)\nActual: an Int: 3"
+List.flatten_v0 [1;2;3] = Test.typeError "In List.flatten's 1st argument (`list`), the 1st element should be a List<'a>. However, an Int (1) was passed instead.\n\nExpected: List<'a>\nActual: an Int: 1"
 List.flatten_v0 [[1];[2];[3]] = [ 1; 2; 3 ]
 List.flatten_v0 [[1];[[2;3]]] = [ 1; [ 2; 3 ] ]
 List.flatten_v0 [[[]]] = [ [] ]

@@ -7,7 +7,9 @@ open RuntimeTypes
 
 /// Returns `Ok ()` if no errors, or `Error first` otherwise
 let combineErrorsUnit (l : List<Result<unit, 'err>>) : Result<unit, 'err> =
-  l |> Tablecloth.Result.values |> Result.map ignore<List<unit>>
+  l |> List.find Result.isError |> Option.unwrap (Ok())
+
+
 
 type Location = Option<tlid * id>
 type Context =
