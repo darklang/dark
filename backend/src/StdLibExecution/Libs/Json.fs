@@ -155,15 +155,10 @@ let rec serialize
                 [ "typeName", dTypeName ]
 
             | [ matchingCase ] ->
-              let fieldDefs =
-                matchingCase.fields
-                |> List.map (fun def ->
-                  Types.substitute decl.typeParams typeArgs def.typ)
-
-              if List.length fieldDefs <> List.length fields then
+              if List.length matchingCase.fields <> List.length fields then
                 Exception.raiseInternal
                   $"Couldn't serialize Enum as incorrect # of fields provided"
-                  [ "defs", fieldDefs
+                  [ "defs", matchingCase.fields
                     "fields", fields
                     "typeName", typeName
                     "caseName", caseName ]
@@ -172,9 +167,11 @@ let rec serialize
                 w.writeObject (fun () ->
                   w.WritePropertyName caseName
                   w.writeArray (fun () ->
-                    List.zip fieldDefs fields
+                    List.zip matchingCase.fields fields
                     |> Ply.List.iterSequentially (fun (fieldDef, fieldVal) ->
-                      r fieldDef fieldVal)))
+                      let typ =
+                        Types.substitute decl.typeParams typeArgs fieldDef.typ
+                      r typ fieldVal)))
 
             | _ -> Exception.raiseInternal "Too many matching cases" []
 
