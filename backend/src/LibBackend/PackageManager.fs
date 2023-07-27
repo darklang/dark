@@ -1,5 +1,4 @@
-/// The package manager allows user-defined functions to be shared with other
-/// users. Currently only enabled for admins.
+/// The package manager allows types and functions to be shared with other users
 module LibBackend.PackageManager
 
 open System.Threading.Tasks
@@ -44,6 +43,7 @@ module RT = LibExecution.RuntimeTypes
 //     ~result:TextResult
 //   |> List.hd
 //   |> Option.bind ~f:(fun v -> if v = "" then None else Some (int_of_string v))
+
 let writeBody (tlid : tlid) (expr : PT.Expr) : Task<unit> =
   task {
     let binary = BinarySerialization.serializeExpr tlid expr
