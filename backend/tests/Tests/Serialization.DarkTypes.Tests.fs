@@ -277,7 +277,7 @@ module RoundtripTests =
           "PT.MatchPattern"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "MatchPattern"
             0)
           V.ProgramTypes.matchPatterns
