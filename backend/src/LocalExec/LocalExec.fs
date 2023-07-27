@@ -131,10 +131,12 @@ let main (args : string[]) : int =
   let name = "LocalExec"
   try
     initSerializers ()
+
     LibService.Init.init name
     LibService.Telemetry.Console.loadTelemetry
       name
       LibService.Telemetry.DontTraceDBQueries
+
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
 
     let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"

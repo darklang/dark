@@ -24,7 +24,7 @@ let builtIns : RT.BuiltIns =
   { types = types |> Tablecloth.Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Tablecloth.Map.fromListBy (fun fn -> fn.name) }
 
-let packageManager : RT.PackageManager = RT.PackageManager.Empty
+let packageManager = LibCliExecution.PackageManager.packageManager
 
 let execute
   (parentState : RT.ExecutionState)

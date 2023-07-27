@@ -217,7 +217,7 @@ module Darklang =
         | TVariable varName -> "'" ++ varName
 
         | TUnit -> "Unit"
-        | TBool -> "Bool "
+        | TBool -> "Bool"
         | TInt -> "Int"
         | TFloat -> "Float"
         | TChar -> "Character"

@@ -52,7 +52,7 @@ let builtIns : RT.BuiltIns =
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
-let packageManager : RT.PackageManager = RT.PackageManager.Empty
+let packageManager = LibCliExecution.PackageManager.packageManager
 
 
 let execute
@@ -107,12 +107,19 @@ let execute
       return RT.DError(RT.SourceNone, "Multiple expressions to execute")
   }
 
-let initSerializers () = ()
+let initSerializers () =
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageType.T>>
+    "PackageManager"
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageFn.T>>
+    "PackageManager"
 
 [<EntryPoint>]
 let main (args : string[]) =
   try
     initSerializers ()
+
+    // CLEANUP
+    packageManager.init |> Ply.toTask |> Async.AwaitTask |> Async.RunSynchronously
 
     let resolver =
       // TODO: this may need more builtins, and packages
@@ -120,6 +127,7 @@ let main (args : string[]) =
         Map.values builtIns.fns,
         Map.values builtIns.types
       )
+
 
     let hostScript =
       Parser.CanvasV2.parseFromFile
