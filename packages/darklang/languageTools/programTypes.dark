@@ -13,9 +13,9 @@ module Darklang =
           | Constant
 
         type Error =
-          { errorType: ErrorType
-            nameType: NameType
-            names: List<string> }
+          { errorType: PACKAGE.Darklang.LanguageTools.Errors.NameResolution.ErrorType
+            nameType: PACKAGE.Darklang.LanguageTools.Errors.NameResolution.NameType
+            names: List<String> }
 
     module ProgramTypes =
       /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
