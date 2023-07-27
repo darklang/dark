@@ -279,7 +279,7 @@ module Darklang =
           PACKAGE.Darklang.LanguageTools.ID *
           PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
           PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
-          List<Expr>
+          List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
 
         | ERecord of
           PACKAGE.Darklang.LanguageTools.ID *
