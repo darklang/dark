@@ -1190,8 +1190,8 @@ module Types =
     | TList t -> TList(substitute t)
     | TTuple(t1, t2, rest) ->
       TTuple(substitute t1, substitute t2, List.map substitute rest)
-    | TFn _ -> typ
-    | TDB _ -> typ
+    | TFn _ -> typ // TYPESTODO
+    | TDB _ -> typ // TYPESTODO
     | TCustomType(typeName, typeArgs) ->
       TCustomType(typeName, List.map substitute typeArgs)
     | TDict t -> TDict(substitute t)
