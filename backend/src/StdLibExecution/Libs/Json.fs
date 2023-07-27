@@ -204,7 +204,10 @@ let rec serialize
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
 
-          | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
+          | DRecord(actualTypeName, _) ->
+            Exception.raiseInternal
+              "Incorrect record type"
+              [ "actual", actualTypeName; "expected", typeName ]
           | _ ->
             Exception.raiseInternal
               "Expected a DRecord but got something else"
