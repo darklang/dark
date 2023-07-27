@@ -1,14 +1,21 @@
 module Darklang =
   module LanguageTools =
     module Errors =
-      type NameResolution.ErrorType =
-        | NotFound
-        | MissingModuleName
-        | InvalidPackageName
+      module NameResolution =
+        type ErrorType =
+          | NotFound
+          | MissingModuleName
+          | InvalidPackageName
 
-      type NameResolution.Error =
-        { errorType: NameResolution.ErrorType
-          names: List<string> }
+        type NameType =
+          | Function
+          | Type
+          | Constant
+
+        type Error =
+          { errorType: ErrorType
+            nameType: NameType
+            names: List<string> }
 
     module ProgramTypes =
       /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
@@ -76,7 +83,7 @@ module Darklang =
           PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.Package<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.Name>
 
       type NameResolution<'a> =
-        PACKAGE.Darklang.Stdlib.Result.Result<'a, NameResolution.Error>
+        PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.LanguageTools.Errors.NameResolution.Error>
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
       type TypeReference =
@@ -107,8 +114,8 @@ module Darklang =
         /// e.g. `PACKAGE.Darklang.Stdlib.Result.Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
         /// `typeArgs` is the list of type arguments, if any
         | TCustomType of
-          PACKAGE.Darklang.Stdlib.ProgramTypes.NameResolution<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeName.T> *
-          typeArgs: List<PACKAGE.Darklang.Stdlib.ProgramTypes.TypeReference>
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.T> *
+          typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference>
 
         | TDB of PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference
 
@@ -191,7 +198,7 @@ module Darklang =
       type FnTarget =
         | FnTargetName of
           PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
-        | FnTargetExpr of PACKAGE.Darklang.Stdlib.ProgramTypes.Expr
+        | FnTargetExpr of PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr
 
 
       type PipeExpr =
