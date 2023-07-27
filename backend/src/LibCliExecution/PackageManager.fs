@@ -24,7 +24,22 @@ module LanguageToolsTypesFork =
     | Positive
     | Negative
 
+  module NameResolution =
+    type ErrorType =
+      | NotFound
+      | MissingModuleName
+      | InvalidPackageName
+
+    type NameType =
+      | Function
+      | Type
+      | Constant
+
+    type Error = { errorType : ErrorType; nameType : NameType; names : List<string> }
+
   module ProgramTypes =
+    type NameResolution<'a> = Result<'a, NameResolution.Error>
+
     module FQName =
       type BuiltIn<'name> = { modules : List<string>; name : 'name; version : int }
 
@@ -62,7 +77,7 @@ module LanguageToolsTypesFork =
       | TList of TypeReference
       | TTuple of TypeReference * TypeReference * List<TypeReference>
       | TDict of TypeReference
-      | TCustomType of TypeName.T * typeArgs : List<TypeReference>
+      | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
       | TDB of TypeReference
       | TFn of List<TypeReference> * TypeReference
 
@@ -111,7 +126,7 @@ module LanguageToolsTypesFork =
       | StringInterpolation of Expr
 
     and FnTarget =
-      | FnTargetName of FnName.T
+      | FnTargetName of NameResolution<FnName.T>
       | FnTargetExpr of Expr
 
     and PipeExpr =
@@ -120,12 +135,12 @@ module LanguageToolsTypesFork =
       | EPipeInfix of ID * Infix * Expr
       | EPipeFnCall of
         ID *
-        FnName.T *
+        NameResolution<FnName.T> *
         typeArgs : List<TypeReference> *
         args : List<Expr>
       | EPipeEnum of
         ID *
-        typeName : TypeName.T *
+        typeName : NameResolution<TypeName.T> *
         caseName : String *
         fields : List<Expr>
 
@@ -142,8 +157,12 @@ module LanguageToolsTypesFork =
       | EList of ID * List<Expr>
       | EDict of ID * List<String * Expr>
       | ETuple of ID * Expr * Expr * List<Expr>
-      | ERecord of ID * TypeName.T * List<string * Expr>
-      | EEnum of ID * typeName : TypeName.T * caseName : String * fields : List<Expr>
+      | ERecord of ID * NameResolution<TypeName.T> * List<string * Expr>
+      | EEnum of
+        ID *
+        typeName : NameResolution<TypeName.T> *
+        caseName : String *
+        fields : List<Expr>
 
       | ELet of ID * LetPattern * Expr * Expr
       | EFieldAccess of ID * Expr * String
@@ -211,6 +230,46 @@ module ET = LanguageToolsTypesFork
 module EPT = ET.ProgramTypes
 
 module ExternalTypesToProgramTypes =
+  module NameResolution =
+    module NameType =
+
+      let toPT
+        (nameType : ET.NameResolution.NameType)
+        : LibExecution.Errors.NameResolution.NameType =
+        match nameType with
+        | ET.NameResolution.Type -> LibExecution.Errors.NameResolution.Type
+        | ET.NameResolution.Function -> LibExecution.Errors.NameResolution.Function
+        | ET.NameResolution.Constant -> LibExecution.Errors.NameResolution.Constant
+
+    module ErrorType =
+      let toPT
+        (err : ET.NameResolution.ErrorType)
+        : LibExecution.Errors.NameResolution.ErrorType =
+        match err with
+        | ET.NameResolution.ErrorType.NotFound ->
+          LibExecution.Errors.NameResolution.NotFound
+        | ET.NameResolution.MissingModuleName ->
+          LibExecution.Errors.NameResolution.MissingModuleName
+        | ET.NameResolution.InvalidPackageName ->
+          LibExecution.Errors.NameResolution.InvalidPackageName
+
+    module Error =
+      let toPT
+        (err : ET.NameResolution.Error)
+        : LibExecution.Errors.NameResolution.Error =
+        { errorType = ErrorType.toPT err.errorType
+          nameType = NameType.toPT err.nameType
+          names = err.names }
+
+    let toPT
+      (f : 's -> 'p)
+      (result : EPT.NameResolution<'s>)
+      : PT.NameResolution<'p> =
+      match result with
+      | Ok name -> Ok(f name)
+      | Error err -> Error(Error.toPT err)
+
+
   module Sign =
     let toPT (s : ET.Sign) : Sign =
       match s with
@@ -315,7 +374,7 @@ module ExternalTypesToProgramTypes =
       | EPT.TPassword -> PT.TPassword
       | EPT.TUuid -> PT.TUuid
       | EPT.TCustomType(t, typeArgs) ->
-        PT.TCustomType(TypeName.toPT t, List.map toPT typeArgs)
+        PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
       | EPT.TBytes -> PT.TBytes
       | EPT.TVariable(name) -> PT.TVariable(name)
       | EPT.TFn(paramTypes, returnType) ->
@@ -375,7 +434,7 @@ module ExternalTypesToProgramTypes =
       | EPT.EApply(id, EPT.FnTargetName name, typeArgs, args) ->
         PT.EApply(
           id,
-          PT.FnTargetName(FnName.toPT name),
+          PT.FnTargetName(NameResolution.toPT FnName.toPT name),
           List.map TypeReference.toPT typeArgs,
           List.map toPT args
         )
@@ -397,7 +456,7 @@ module ExternalTypesToProgramTypes =
       | EPT.ERecord(id, typeName, fields) ->
         PT.ERecord(
           id,
-          TypeName.toPT typeName,
+          NameResolution.toPT TypeName.toPT typeName,
           List.map (Tuple2.mapSecond toPT) fields
         )
       | EPT.ERecordUpdate(id, record, updates) ->
@@ -409,7 +468,12 @@ module ExternalTypesToProgramTypes =
       | EPT.EPipe(pipeID, expr1, expr2, rest) ->
         PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
       | EPT.EEnum(id, typeName, caseName, exprs) ->
-        PT.EEnum(id, TypeName.toPT typeName, caseName, List.map toPT exprs)
+        PT.EEnum(
+          id,
+          NameResolution.toPT TypeName.toPT typeName,
+          caseName,
+          List.map toPT exprs
+        )
       | EPT.EMatch(id, mexpr, pairs) ->
         PT.EMatch(
           id,
@@ -434,12 +498,17 @@ module ExternalTypesToProgramTypes =
       | EPT.EPipeFnCall(id, fnName, typeArgs, args) ->
         PT.EPipeFnCall(
           id,
-          FnName.toPT fnName,
+          NameResolution.toPT FnName.toPT fnName,
           List.map TypeReference.toPT typeArgs,
           List.map toPT args
         )
       | EPT.EPipeEnum(id, typeName, caseName, fields) ->
-        PT.EPipeEnum(id, TypeName.toPT typeName, caseName, List.map toPT fields)
+        PT.EPipeEnum(
+          id,
+          NameResolution.toPT TypeName.toPT typeName,
+          caseName,
+          List.map toPT fields
+        )
 
   module Deprecation =
     type Deprecation<'name> =
