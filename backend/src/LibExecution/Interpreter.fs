@@ -863,7 +863,10 @@ and execFn
                       return! f (state, typeArgs, args)
                     with e ->
                       let context : Metadata =
-                        [ "fn", fnDesc; "args", args; "id", id ]
+                        [ "fn", fnDesc
+                          "args", args
+                          "typeArgs", typeArgs
+                          "id", id ]
                       match e with
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
