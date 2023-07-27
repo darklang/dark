@@ -152,7 +152,7 @@ let rec serialize
             | [] ->
               Exception.raiseInternal
                 $"Couldn't find matching case for {caseName}"
-                ["typeName", dTypeName]
+                [ "typeName", dTypeName ]
 
             | [ matchingCase ] ->
               let fieldDefs =
@@ -212,10 +212,10 @@ let rec serialize
 
 
     // Not supported
-    | TVariable _, _ ->
+    | TVariable name, dv ->
       Exception.raiseInternal
         "Variable types (i.e. 'a in List<'a>) cannot not be used as arguments"
-        []
+        [ "variable", name; "dval", dv ]
 
     | TFn _, DFnVal _ -> Exception.raiseInternal "Cannot serialize functions" []
 
