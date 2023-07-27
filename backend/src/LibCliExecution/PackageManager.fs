@@ -523,8 +523,7 @@ module ExternalTypesToProgramTypes =
     let toPT (pt : EPT.PackageType.T) : PT.PackageType.T =
       { name = TypeName.Package.toPT pt.name
         description = pt.description
-        declaration =
-          TypeDeclaration.toPT pt.declaration
+        declaration = TypeDeclaration.toPT pt.declaration
         deprecated = Deprecation.toPT TypeName.toPT pt.deprecated
         id = pt.id
         tlid = pt.tlid }
