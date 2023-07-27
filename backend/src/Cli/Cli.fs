@@ -107,7 +107,11 @@ let execute
       return RT.DError(RT.SourceNone, "Multiple expressions to execute")
   }
 
-let initSerializers () = ()
+let initSerializers () =
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageType.T>>
+    "PackageManager"
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageFn.T>>
+    "PackageManager"
 
 [<EntryPoint>]
 let main (args : string[]) =

@@ -16,6 +16,10 @@ module LanguageToolsTypesFork =
   type ID = uint64
   type TLID = uint64
 
+  type NonStandardOption<'a> =
+    | Nothing
+    | Just of 'a
+
   type Sign =
     | Positive
     | Negative
@@ -164,7 +168,9 @@ module LanguageToolsTypesFork =
       type RecordField = { name : string; typ : TypeReference; description : string }
 
       type EnumField =
-        { typ : TypeReference; label : Option<string>; description : string }
+        { typ : TypeReference
+          label : NonStandardOption<string>
+          description : string }
 
       type EnumCase =
         { name : string; fields : List<EnumField>; description : string }
@@ -464,7 +470,10 @@ module ExternalTypesToProgramTypes =
     module EnumField =
       let toPT (f : EPT.TypeDeclaration.EnumField) : PT.TypeDeclaration.EnumField =
         { typ = TypeReference.toPT f.typ
-          label = f.label
+          label =
+            match f.label with
+            | ET.Nothing -> None
+            | ET.Just v -> Some v
           description = f.description }
 
     module EnumCase =
@@ -514,7 +523,8 @@ module ExternalTypesToProgramTypes =
     let toPT (pt : EPT.PackageType.T) : PT.PackageType.T =
       { name = TypeName.Package.toPT pt.name
         description = pt.description
-        declaration = TypeDeclaration.toPT pt.declaration
+        declaration =
+          TypeDeclaration.toPT pt.declaration
         deprecated = Deprecation.toPT TypeName.toPT pt.deprecated
         id = pt.id
         tlid = pt.tlid }
@@ -557,9 +567,20 @@ let packageManager : RT.PackageManager =
 
   { getType =
       fun typeName ->
-        getAllTypes |> Ply.map (List.find (fun typ -> typ.name = typeName))
+        uply {
+          let! allTypes = getAllTypes
+          let found =
+            List.find (fun (typ : RT.PackageType.T) -> typ.name = typeName) allTypes
+          return found
+        }
 
     getFn =
-      fun fnName -> getAllFns |> Ply.map (List.find (fun fn -> fn.name = fnName))
+      fun fnName ->
+        uply {
+          let! allFns = getAllFns
+          let found =
+            List.find (fun (typ : RT.PackageFn.T) -> typ.name = fnName) allFns
+          return found
+        }
 
     init = uply { return () } }

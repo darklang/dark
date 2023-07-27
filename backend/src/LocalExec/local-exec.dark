@@ -21,12 +21,16 @@ let saveFunctionToCanvas
     |> unwrap
     |> String.toBytes
 
-  let _ =
+  let response =
     HttpClient.request
       "POST"
       ("http://dark-packages.dlio.localhost:11003/functions")
       []
       reqBody
+
+  let response = unwrap response
+
+  // TODO: ensure 200 OK
 
   ()
 
@@ -39,12 +43,16 @@ let saveTypeToCanvas
     |> unwrap
     |> String.toBytes
 
-  let _ =
+  let response =
     HttpClient.request
       "POST"
       ("http://dark-packages.dlio.localhost:11003/types")
       []
       reqBody
+
+  let response = unwrap response
+
+  // TODO: ensure 200 OK
 
   ()
 
