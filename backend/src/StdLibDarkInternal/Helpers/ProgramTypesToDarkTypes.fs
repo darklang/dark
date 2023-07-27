@@ -22,6 +22,13 @@ let languageToolsTyp
 let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
   languageToolsTyp ("ProgramTypes" :: submodules) name version
 
+let errorsTyp
+  (submodules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.T =
+  languageToolsTyp ("Errors" :: submodules) name version
+
 
 // This isn't in PT but I'm not sure where else to put it...
 // maybe rename this file to InternalTypesToDarkTypes?
@@ -249,7 +256,7 @@ module NameResolution =
         | LibExecution.Errors.NameResolution.InvalidPackageName ->
           "InvalidPackageName", []
 
-      DEnum(ptTyp [ "NameResolution" ] "ErrorType" 0, caseName, fields)
+      DEnum(errorsTyp [ "NameResolution" ] "ErrorType" 0, caseName, fields)
 
     let fromDT (d : Dval) : LibExecution.Errors.NameResolution.ErrorType =
       match d with
@@ -268,7 +275,7 @@ module NameResolution =
         | LibExecution.Errors.NameResolution.Type -> "Type", []
         | LibExecution.Errors.NameResolution.Constant -> "Constant", []
 
-      DEnum(ptTyp [ "NameResolution" ] "NameType" 0, caseName, fields)
+      DEnum(errorsTyp [ "NameResolution" ] "NameType" 0, caseName, fields)
 
     let fromDT (d : Dval) : LibExecution.Errors.NameResolution.NameType =
       match d with
@@ -281,7 +288,7 @@ module NameResolution =
   module Error =
     let toDT (err : LibExecution.Errors.NameResolution.Error) : Dval =
       DRecord(
-        ptTyp [ "NameResolution" ] "Error" 0,
+        errorsTyp [ "NameResolution" ] "Error" 0,
         Map
           [ "errorType", ErrorType.toDT err.errorType
             "nameType", NameType.toDT err.nameType
