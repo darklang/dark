@@ -137,8 +137,9 @@ let rec serialize
       | Some decl ->
 
         match decl.definition with
-        // TODO: handle typeArgs in Alias
-        | TypeDeclaration.Alias typ -> return! r typ dv
+        | TypeDeclaration.Alias typ ->
+          let typ = Types.substitute decl.typeParams typeArgs typ
+          return! r typ dv
 
         | TypeDeclaration.Enum(firstCase, additionalCases) ->
           match dval with
