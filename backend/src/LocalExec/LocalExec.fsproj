@@ -24,11 +24,16 @@
     <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
     <ProjectReference Include="../StdLibCli/StdLibCli.fsproj" />
     <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
+
+    <!-- only really needed for parsing -->
+    <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
+    <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="Libs/Packages.fs" />
     <Compile Include="Libs/Cli.fs" />
+    <Compile Include="Libs/Packages.fs" />
+    <Compile Include="Libs/Packages2.fs" />
     <Compile Include="StdLib.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>

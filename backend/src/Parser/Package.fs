@@ -47,25 +47,26 @@ let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : WT.PackageType.
 
 
 let rec parseDecls
-  (modules : List<string>)
+  (moduleNames : List<string>)
   (decls : List<SynModuleDecl>)
   : WTPackageModule =
   List.fold
     emptyWTModule
     (fun m decl ->
+      // debuG "decl" decl
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
-        let fns = List.map (parseLetBinding modules) bindings
+        let fns = List.map (parseLetBinding moduleNames) bindings
         { m with fns = m.fns @ fns }
 
       | SynModuleDecl.Types(defns, _) ->
-        let types = List.map (parseTypeDef modules) defns
+        let types = List.map (parseTypeDef moduleNames) defns
         { m with types = m.types @ types }
 
       | SynModuleDecl.NestedModule(SynComponentInfo(_,
                                                     _,
                                                     _,
-                                                    nestedModules,
+                                                    nestedModuleNames,
                                                     _,
                                                     _,
                                                     _,
@@ -76,8 +77,10 @@ let rec parseDecls
                                    _,
                                    _) ->
 
-        let modules = modules @ (nestedModules |> List.map (fun id -> id.idText))
-        let nestedDecls = parseDecls modules nested
+        let moduleNames =
+          moduleNames @ (nestedModuleNames |> List.map (fun id -> id.idText))
+        let nestedDecls = parseDecls moduleNames nested
+
         { fns = m.fns @ nestedDecls.fns; types = m.types @ nestedDecls.types }
 
 
@@ -85,7 +88,11 @@ let rec parseDecls
     decls
 
 
-let parse (filename : string) (contents : string) : PTPackageModule =
+let parse
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  (contents : string)
+  : PTPackageModule =
   match parseAsFSharpSourceFile filename contents with
   | ParsedImplFileInput(_,
                         _,
@@ -96,17 +103,22 @@ let parse (filename : string) (contents : string) : PTPackageModule =
                         _,
                         _,
                         _) ->
-    // At the toplevel, the module names will from the filenames
-    let names = []
-    let modul = parseDecls names decls
+    let baseModule = []
+
+    let modul : WTPackageModule = parseDecls baseModule decls
+
+    let nameToModules (p : PT.FQName.Package<'a>) : List<string> =
+      "PACKAGE" :: (NonEmptyList.toList p.modules)
+
     let fns =
       modul.fns
-      |> List.map WT2PT.PackageFn.toPT
-      |> List.map NameResolution.PackageFn.resolveNames
+      |> List.map (fun fn ->
+        WT2PT.PackageFn.toPT resolver (nameToModules fn.name) fn)
     let types =
       modul.types
-      |> List.map WT2PT.PackageType.toPT
-      |> List.map NameResolution.PackageType.resolveNames
+      |> List.map (fun typ ->
+        WT2PT.PackageType.toPT resolver (nameToModules typ.name) typ)
+
     { fns = fns; types = types }
   // in the parsed package, types are being read as user, as opposed to the package that's right there
   | decl ->

@@ -15,10 +15,18 @@ module TypeName =
       let (PT.TypeName.TypeName name) = s.name
       { modules = s.modules; name = RT.TypeName.TypeName name; version = s.version }
 
+    let fromRT (s : RT.TypeName.BuiltIn) : PT.TypeName.BuiltIn =
+      let (RT.TypeName.TypeName name) = s.name
+      { modules = s.modules; name = PT.TypeName.TypeName name; version = s.version }
+
   module UserProgram =
     let toRT (u : PT.TypeName.UserProgram) : RT.TypeName.UserProgram =
       let (PT.TypeName.TypeName name) = u.name
       { modules = u.modules; name = RT.TypeName.TypeName name; version = u.version }
+
+    let fromRT (u : RT.TypeName.UserProgram) : PT.TypeName.UserProgram =
+      let (RT.TypeName.TypeName name) = u.name
+      { modules = u.modules; name = PT.TypeName.TypeName name; version = u.version }
 
   module Package =
     let toRT (p : PT.TypeName.Package) : RT.TypeName.Package =
@@ -28,11 +36,27 @@ module TypeName =
         name = RT.TypeName.TypeName name
         version = p.version }
 
+    let fromRT (p : RT.TypeName.Package) : PT.TypeName.Package =
+      let (RT.TypeName.TypeName name) = p.name
+      { owner = p.owner
+        modules = p.modules
+        name = PT.TypeName.TypeName name
+        version = p.version }
+
   let toRT (fqtn : PT.TypeName.T) : RT.TypeName.T =
     match fqtn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
+
+  let fromRT (fqtn : RT.TypeName.T) : Option<PT.TypeName.T> =
+    match fqtn with
+    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s) |> Some
+    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u) |> Some
+    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p) |> Some
+    | RT.FQName.Unknown _ -> None
+
+
 
 module TypeReference =
   let rec toRT (t : PT.TypeReference) : RT.TypeReference =
@@ -51,8 +75,10 @@ module TypeReference =
     | PT.TChar -> RT.TChar
     | PT.TPassword -> RT.TPassword
     | PT.TUuid -> RT.TUuid
-    | PT.TCustomType(typeName, typArgs) ->
+    | PT.TCustomType(Ok typeName, typArgs) ->
       RT.TCustomType(TypeName.toRT typeName, List.map toRT typArgs)
+    | PT.TCustomType(Error e, typArgs) ->
+      RT.TCustomType(RT.FQName.Unknown e.names, List.map toRT typArgs)
     | PT.TBytes -> RT.TBytes
     | PT.TVariable(name) -> RT.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
@@ -64,10 +90,18 @@ module FnName =
       let (PT.FnName.FnName name) = s.name
       { modules = s.modules; name = RT.FnName.FnName name; version = s.version }
 
+    let fromRT (s : RT.FnName.BuiltIn) : PT.FnName.BuiltIn =
+      let (RT.FnName.FnName name) = s.name
+      { modules = s.modules; name = PT.FnName.FnName name; version = s.version }
+
   module UserProgram =
     let toRT (u : PT.FnName.UserProgram) : RT.FnName.UserProgram =
       let (PT.FnName.FnName name) = u.name
       { modules = u.modules; name = RT.FnName.FnName name; version = u.version }
+
+    let fromRT (u : RT.FnName.UserProgram) : PT.FnName.UserProgram =
+      let (RT.FnName.FnName name) = u.name
+      { modules = u.modules; name = PT.FnName.FnName name; version = u.version }
 
   module Package =
     let toRT (p : PT.FnName.Package) : RT.FnName.Package =
@@ -77,11 +111,25 @@ module FnName =
         name = RT.FnName.FnName name
         version = p.version }
 
+    let fromRT (p : RT.FnName.Package) : PT.FnName.Package =
+      let (RT.FnName.FnName name) = p.name
+      { owner = p.owner
+        modules = p.modules
+        name = PT.FnName.FnName name
+        version = p.version }
+
   let toRT (fqfn : PT.FnName.T) : RT.FnName.T =
     match fqfn with
     | PT.FQName.BuiltIn s -> RT.FQName.BuiltIn(BuiltIn.toRT s)
     | PT.FQName.UserProgram u -> RT.FQName.UserProgram(UserProgram.toRT u)
     | PT.FQName.Package p -> RT.FQName.Package(Package.toRT p)
+
+  let fromRT (fqfn : RT.FnName.T) : Option<PT.FnName.T> =
+    match fqfn with
+    | RT.FQName.BuiltIn s -> PT.FQName.BuiltIn(BuiltIn.fromRT s) |> Some
+    | RT.FQName.UserProgram u -> PT.FQName.UserProgram(UserProgram.fromRT u) |> Some
+    | RT.FQName.Package p -> PT.FQName.Package(Package.fromRT p) |> Some
+    | RT.FQName.Unknown _ -> None
 
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : (List<string> * string * int) =
@@ -142,11 +190,17 @@ module Expr =
     | PT.EUnit id -> RT.EUnit id
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
-    | PT.EApply(id, PT.FnTargetName fnName, typeArgs, args) ->
+    | PT.EApply(id, PT.FnTargetName(Ok fnName), typeArgs, args) ->
       RT.EApply(
         id,
         RT.FnTargetName(FnName.toRT fnName),
         List.map TypeReference.toRT typeArgs,
+        List.map toRT args
+      )
+    | PT.EApply(id, PT.FnTargetName(Error err), typeArgs, args) ->
+      RT.EError(
+        id,
+        Errors.toString (Errors.NameResolutionError err),
         List.map toRT args
       )
     | PT.EApply(id, PT.FnTargetExpr fnName, typeArgs, args) ->
@@ -163,7 +217,7 @@ module Expr =
           { modules = modules; name = PT.FnName.FnName fn; version = version }
         )
       let typeArgs = []
-      toRT (PT.EApply(id, PT.FnTargetName name, typeArgs, [ arg1; arg2 ]))
+      toRT (PT.EApply(id, PT.FnTargetName(Ok name), typeArgs, [ arg1; arg2 ]))
     | PT.EInfix(id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix(id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
@@ -176,8 +230,14 @@ module Expr =
     | PT.EList(id, exprs) -> RT.EList(id, List.map toRT exprs)
     | PT.ETuple(id, first, second, theRest) ->
       RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
-    | PT.ERecord(id, typeName, fields) ->
+    | PT.ERecord(id, Ok typeName, fields) ->
       RT.ERecord(id, TypeName.toRT typeName, List.map (Tuple2.mapSecond toRT) fields)
+    | PT.ERecord(id, Error typeName, fields) ->
+      RT.EError(
+        id,
+        Errors.toString (Errors.NameResolutionError typeName),
+        fields |> List.map Tuple2.second |> List.map toRT
+      )
 
     | PT.ERecordUpdate(id, record, updates) ->
       RT.ERecordUpdate(id, toRT record, List.map (Tuple2.mapSecond toRT) updates)
@@ -191,7 +251,13 @@ module Expr =
           RT.EApply(pipeID, RT.FnTargetExpr(expr), typeArgs, [ prev ])
 
         match next with
-        | PT.EPipeFnCall(id, fnName, typeArgs, exprs) ->
+        | PT.EPipeFnCall(id, Error fnName, typeArgs, exprs) ->
+          RT.EError(
+            id,
+            Errors.toString (Errors.NameResolutionError fnName),
+            prev :: List.map toRT exprs
+          )
+        | PT.EPipeFnCall(id, Ok fnName, typeArgs, exprs) ->
           RT.EApply(
             id,
             RT.FnTargetName(FnName.toRT fnName),
@@ -216,9 +282,15 @@ module Expr =
           match op with
           | PT.BinOpAnd -> RT.EAnd(id, prev, toRT expr)
           | PT.BinOpOr -> RT.EOr(id, prev, toRT expr)
-        | PT.EPipeEnum(id, typeName, caseName, fields) ->
+        | PT.EPipeEnum(id, Ok typeName, caseName, fields) ->
           let fields' = prev :: List.map toRT fields
           RT.EEnum(id, TypeName.toRT typeName, caseName, fields')
+        | PT.EPipeEnum(id, Error typeName, caseName, fields) ->
+          RT.EError(
+            id,
+            Errors.toString (Errors.NameResolutionError typeName),
+            prev :: List.map toRT fields
+          )
         | PT.EPipeVariable(id, name) -> RT.EVariable(id, name) |> applyFn
         | PT.EPipeLambda(id, vars, body) ->
           RT.ELambda(id, vars, toRT body) |> applyFn
@@ -232,8 +304,14 @@ module Expr =
         toRT mexpr,
         List.map (Tuple2.mapFirst MatchPattern.toRT << Tuple2.mapSecond toRT) pairs
       )
-    | PT.EEnum(id, typeName, caseName, fields) ->
+    | PT.EEnum(id, Ok typeName, caseName, fields) ->
       RT.EEnum(id, TypeName.toRT typeName, caseName, List.map toRT fields)
+    | PT.EEnum(id, Error typeName, caseName, fields) ->
+      RT.EError(
+        id,
+        Errors.toString (Errors.NameResolutionError typeName),
+        List.map toRT fields
+      )
     | PT.EDict(id, fields) -> RT.EDict(id, List.map (Tuple2.mapSecond toRT) fields)
 
 

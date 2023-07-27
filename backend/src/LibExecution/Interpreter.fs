@@ -203,7 +203,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       match! recordMaybe typeName with
       | None ->
         match typ with
-        | None -> return err id $"There is no type named `{typeStr}`"
+        | None -> return err id $"There is no type named {typeStr}"
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
@@ -226,7 +226,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   else
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match! TypeChecker.unify context types field.typ v with
+                    match!
+                      TypeChecker.unify context types Map.empty field.typ v
+                    with
                     | Ok() ->
                       match r with
                       | DRecord(typeName, m) ->
@@ -256,7 +258,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         match! recordMaybe typeName with
         | None ->
           match! Types.find typeName types with
-          | None -> return err id $"There is no type named `{typeStr}`"
+          | None -> return err id $"There is no type named {typeStr}"
           | Some({ definition = TypeDeclaration.Enum _ }) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
@@ -276,7 +278,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   | DRecord(typeName, m), k, v ->
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match! TypeChecker.unify context types field.typ v with
+                    match!
+                      TypeChecker.unify context types Map.empty field.typ v
+                    with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
@@ -604,7 +608,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
       match! Types.find typeName types with
-      | None -> return err id $"There is no type named `{typeStr}`"
+      | None -> return err id $"There is no type named {typeStr}"
       | Some({ definition = TypeDeclaration.Alias _ }) ->
         return err id $"Expected an enum but {typeStr} is an alias"
       | Some({ definition = TypeDeclaration.Record _ }) ->
@@ -641,7 +645,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                             None
                           )
 
-                        match! TypeChecker.unify context types enumField.typ v with
+                        match!
+                          TypeChecker.unify context types Map.empty enumField.typ v
+                        with
                         | Ok() ->
                           match r with
                           | DEnum(typeName, caseName, existing) ->
@@ -653,6 +659,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   })
                 (DEnum(typeName, caseName, []))
                 fields
+    | EError(id, msg, exprs) ->
+      let! args = Ply.List.mapSequentially (eval state st) exprs
+
+      return
+        args
+        |> List.tryFind Dval.isFake
+        |> Option.defaultValue (DError(sourceID id, msg))
   }
 
 /// Interprets an expression and reduces to a Dark value
@@ -784,6 +797,10 @@ and callFn
             let! fn = state.packageManager.getFn pkg
             return Option.map packageFnToFn fn
           }
+        | FQName.Unknown fn ->
+          Exception.raiseInternal
+            "Unknown function should have been converted to EError by PT2RT"
+            [ "fn", fn ]
 
       match fn with
       | None -> return handleMissingFunction ()
@@ -823,9 +840,9 @@ and execFn
 
       let fnRecord = (state.tlid, fnDesc, id) in
 
-      let name = FnName.toString fnDesc
       let types = ExecutionState.availableTypes state
-      match! TypeChecker.checkFunctionCall types fn typeArgs args with
+      let typeArgSymbolTable = List.zip fn.typeParams typeArgs |> Map
+      match! TypeChecker.checkFunctionCall types typeArgSymbolTable fn args with
       | Error err ->
         let msg = Errors.toString (Errors.TypeError(err))
         return DError(sourceID, msg)
@@ -846,7 +863,10 @@ and execFn
                       return! f (state, typeArgs, args)
                     with e ->
                       let context : Metadata =
-                        [ "fn", fnDesc; "args", args; "id", id ]
+                        [ "fn", fnDesc
+                          "args", args
+                          "typeArgs", typeArgs
+                          "id", id ]
                       match e with
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
@@ -886,7 +906,9 @@ and execFn
         if Dval.isFake result then
           return result
         else
-          match! TypeChecker.checkFunctionReturnType types fn result with
+          match!
+            TypeChecker.checkFunctionReturnType types typeArgSymbolTable fn result
+          with
           | Error err ->
             let msg = Errors.toString (Errors.TypeError(err))
             return DError(sourceID, msg)

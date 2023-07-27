@@ -3,6 +3,7 @@ module LibExecution.ProgramTypes
 
 open Prelude
 
+
 /// Used to name where type/function/etc lives, eg a BuiltIn module, a User module,
 /// or a Package module.
 module FQName =
@@ -91,28 +92,28 @@ module FQName =
     : T<'name> =
     Package(package nameValidator owner modules name version)
 
-  let builtinToString (s : BuiltIn<'name>) (f : NamePrinter<'name>) : string =
+  let builtinToString (f : NamePrinter<'name>) (s : BuiltIn<'name>) : string =
     let name = s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let userProgramToString
-    (s : UserProgram<'name>)
     (f : NamePrinter<'name>)
+    (s : UserProgram<'name>)
     : string =
     let name = s.modules @ [ f s.name ] |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
+  let packageToString (f : NamePrinter<'name>) (s : Package<'name>) : string =
     let name =
       [ "PACKAGE"; s.owner ] @ NonEmptyList.toList s.modules @ [ f s.name ]
       |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let toString (name : T<'name>) (f : NamePrinter<'name>) : string =
+  let toString (f : NamePrinter<'name>) (name : T<'name>) : string =
     match name with
-    | BuiltIn b -> builtinToString b f
-    | UserProgram user -> userProgramToString user f
-    | Package pkg -> packageToString pkg f
+    | BuiltIn b -> builtinToString f b
+    | UserProgram user -> userProgramToString f user
+    | Package pkg -> packageToString f pkg
 
 module TypeName =
   type Name = TypeName of string
@@ -156,8 +157,9 @@ module TypeName =
     : T =
     FQName.fqPackage assert' owner modules (TypeName name) version
 
-  let toString (name : T) : string =
-    FQName.toString name (fun (TypeName name) -> name)
+  let nameToString (TypeName name) : string = name
+
+  let toString (name : T) : string = FQName.toString nameToString name
 
 
 module FnName =
@@ -203,9 +205,13 @@ module FnName =
     : T =
     FQName.fqPackage assert' owner modules (FnName name) version
 
-  let toString (name : T) : string = FQName.toString name (fun (FnName name) -> name)
+  let nameToString (FnName name) : string = name
+
+  let toString (name : T) : string = FQName.toString nameToString name
 
 
+  // CLEANUP: this isn't referenced anywhere - delete? (ideally, I suppose, we'd
+  // derive this list from the stdlib, rather than maintain this list)
   let oneWordFunctions =
     Set
       [ "equals"
@@ -219,6 +225,26 @@ module FnName =
         "unwrap"
         "unwrap_v0" ]
 
+
+// In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
+// resolved. The user wrote them in WrittenTypes, and the WrittenTypesToProgramTypes
+// pass looked them up and specified them exactly in ProgramTypes.
+//
+// However, sometimes the name/fn/type/constant could not be found, which means the
+// user specified a name that doesn't exist (it shouldn't be for any other reason -
+// things like "the internet was down" should error differently).
+//
+// When there is an error, we still want to keep the rest of the expression around,
+// as ProgramTypes's job is to keep the program as it was written by the user. We
+// also have a goal of running invalid programs as much as possible. As such, an
+// incorrectly specified name shouldn't cause a compile-time/parse-time error, nor
+// should it lose information that was specified by the user.
+//
+// As a result, we model those cases as a Result type, where the Ok case is the
+// resolved name, and the Error case models the text name of the type and some error
+// information.
+
+type NameResolution<'a> = Result<'a, Errors.NameResolution.Error>
 
 type LetPattern =
   | LPVariable of id * name : string
@@ -294,7 +320,7 @@ type TypeReference =
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int, String>` is represented as `TCustomType("Result", [TInt, TString])`
   /// `typeArgs` is the list of type arguments, if any
-  | TCustomType of TypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of NameResolution<TypeName.T> * typeArgs : List<TypeReference>
 
 
 /// Expressions - the main part of the language.
@@ -324,7 +350,8 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
 
-  | ERecord of id * TypeName.T * List<string * Expr>
+  // See NameResolution comment above
+  | ERecord of id * NameResolution<TypeName.T> * List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
 
   // Enums include `Just`, `Nothing`, `Error`, `Ok`, as well
@@ -336,8 +363,11 @@ type Expr =
   ///   `C (1, "title")`
   /// represented as
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt(1), EString("title")]`
-  /// TODO: the UserTypeName should eventually be a non-optional TypeName.
-  | EEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
 
   /// Supports `match` expressions
   /// ```fsharp
@@ -354,15 +384,23 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and FnTarget =
-  | FnTargetName of FnName.T
+  | FnTargetName of NameResolution<FnName.T>
   | FnTargetExpr of Expr
 
 and PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
-  | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EPipeFnCall of
+    id *
+    NameResolution<FnName.T> *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
 
 module Expr =
   let toID (expr : Expr) : id =

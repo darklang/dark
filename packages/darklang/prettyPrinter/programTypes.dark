@@ -1,5 +1,5 @@
 // TODO:
-//alias PT = PACKAGE.Darklang.Stdlib.ProgramTypes
+//alias PT = PACKAGE.Darklang.LanguageTools.ProgramTypes
 //alias RT = PACKAGE.Darklang.Stdlib.RuntimeTypes
 
 // TODO: update all of the 'namePart's to nameToStrings with fn inputs

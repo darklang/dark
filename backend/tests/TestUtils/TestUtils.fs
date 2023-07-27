@@ -131,6 +131,14 @@ let builtIns : RT.BuiltIns =
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name) }
 
+// A resolver that only knows about builtins. If you need user code in the parser,
+// you need to add in the names of the fns/types/etc
+let builtinResolver =
+  Parser.NameResolver.fromBuiltins (
+    Map.values builtIns.fns,
+    Map.values builtIns.types
+  )
+
 let executionStateFor
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
@@ -371,8 +379,11 @@ module Expect =
   type Path = string list
 
   let pathToString (path : Path) : string =
-    let pathStr = (path @ [ "val" ]) |> List.reverse |> String.concat "."
-    $"in ({pathStr})"
+    if path = [] then
+      ""
+    else
+      let path = path @ [ "value" ] |> List.reverse |> String.concat "."
+      $" `{path}` of"
 
   let rec letPatternEqualityBaseFn
     (checkIDs : bool)
@@ -420,6 +431,8 @@ module Expect =
       if a.modules <> e.modules then err ()
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
+    | FQName.Unknown a, FQName.Unknown e -> if a <> e then err ()
+    | FQName.Unknown _, _
     | FQName.BuiltIn _, _
     | FQName.UserProgram _, _
     | FQName.Package _, _ -> err ()
@@ -617,6 +630,9 @@ module Expect =
     | EOr(_, l, r), EOr(_, l', r') ->
       eq ("left" :: path) l l'
       eq ("right" :: path) r r'
+    | EError(_, msg, exprs), EError(_, msg', exprs') ->
+      check path msg msg'
+      eqList path exprs exprs'
 
     // exhaustiveness check
     | EUnit _, _
@@ -639,7 +655,8 @@ module Expect =
     | ELambda _, _
     | EMatch _, _
     | EAnd _, _
-    | EOr _, _ -> check path actual expected
+    | EOr _, _
+    | EError _, _ -> check path actual expected
 
 
 
@@ -678,16 +695,16 @@ module Expect =
       // equal if they print the same string.
       check path (string l) (string r)
     | DList ls, DList rs ->
-      check (".Length" :: path) (List.length ls) (List.length rs)
-      List.iteri2 (fun i l r -> de (string i :: path) l r) ls rs
+      check ("Length" :: path) (List.length ls) (List.length rs)
+      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) ls rs
 
     | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
       de path firstL firstR
 
       de path secondL secondR
 
-      check (".Length" :: path) (List.length theRestL) (List.length theRestR)
-      List.iteri2 (fun i l r -> de (string i :: path) l r) theRestL theRestR
+      check ("Length" :: path) (List.length theRestL) (List.length theRestR)
+      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) theRestL theRestR
 
     | DDict ls, DDict rs ->
       // check keys from ls are in both, check matching values
@@ -704,7 +721,7 @@ module Expect =
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check (".Length" :: path) (Map.count ls) (Map.count rs)
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
     | DRecord(ltn, ls), DRecord(rtn, rs) ->
       userTypeNameEqualityBaseFn path ltn rtn errorFn
@@ -722,7 +739,7 @@ module Expect =
           | Some _ -> () // already checked
           | None -> check (key :: path) ls rs)
         rs
-      check (".Length" :: path) (Map.count ls) (Map.count rs)
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
 
     | DEnum(typeName, caseName, fields), DEnum(typeName', caseName', fields') ->
@@ -730,7 +747,7 @@ module Expect =
       check ("caseName" :: path) caseName caseName'
 
       check ("fields.Length" :: path) (List.length fields) (List.length fields)
-      List.iteri2 (fun i l r -> de (string i :: path) l r) fields fields'
+      List.iteri2 (fun i l r -> de ($"[{i}]" :: path) l r) fields fields'
       ()
 
     | DIncomplete _, DIncomplete _ -> ()
@@ -763,9 +780,13 @@ module Expect =
     | DUuid _, _
     | DBytes _, _ -> check path actual expected
 
+  let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
+    let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
+    $"{initial}Error was found in{pathToString path}:\n{actual})\n\n"
+
   let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
     dvalEqualityBaseFn [] actual expected (fun path a e ->
-      Expect.equal a e $"{msg}: {pathToString path} (overall: {actual})")
+      Expect.equal a e (formatMsg msg path actual))
 
   let rec equalMatchPattern
     (actual : MatchPattern)
@@ -773,14 +794,14 @@ module Expect =
     (msg : string)
     : unit =
     matchPatternEqualityBaseFn true [] actual expected (fun path a e ->
-      Expect.equal a e $"{msg}: {pathToString path}")
+      Expect.equal a e (formatMsg msg path actual))
 
   let rec equalMatchPatternIgnoringIDs
     (actual : MatchPattern)
     (expected : MatchPattern)
     : unit =
     matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
-      Expect.equal a e (pathToString path))
+      Expect.equal a e (formatMsg "" path actual))
 
   let rec equalExpr
     (types : Types)
@@ -789,11 +810,11 @@ module Expect =
     (msg : string)
     : unit =
     exprEqualityBaseFn true [] actual expected (fun path a e ->
-      Expect.equal a e $"{msg}: {pathToString path}")
+      Expect.equal a e (formatMsg msg path actual))
 
   let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
     exprEqualityBaseFn false [] actual expected (fun path a e ->
-      Expect.equal a e (pathToString path))
+      Expect.equal a e (formatMsg "" path actual))
 
   let dvalEquality (left : Dval) (right : Dval) : bool =
     let success = ref true

@@ -14,7 +14,8 @@ open Utils
 
 // A placeholder is used to indicate what still needs to be filled
 let placeholder = WT.EString(12345678UL, [ WT.StringText "PLACEHOLDER VALUE" ])
-let pipePlaceholder = WT.EPipeVariable(12345678UL, "PIPE PLACEHOLDER VALUE")
+let pipePlaceholder =
+  WT.EPipeVariableOrUserFunction(12345678UL, "PIPE PLACEHOLDER VALUE")
 
 // This is a "Partial active pattern" that you can use as a Pattern to match a Placeholder value
 let (|Placeholder|_|) (input : WT.Expr) =
@@ -23,14 +24,25 @@ let (|Placeholder|_|) (input : WT.Expr) =
 let (|PipePlaceholder|_|) (input : WT.PipeExpr) =
   if input = pipePlaceholder then Some() else None
 
+let (|LongIdentPat|_|) (names : List<string>) (input : LongIdent) =
+  if longIdentToList input = names then Some() else None
+
+let (|SynExprLongIdentPat|_|) (names : List<string>) (input : SynExpr) =
+  match input with
+  | SynExpr.LongIdent(_, SynLongIdent(longIdent, _, _), _, _) when
+    longIdentToList longIdent = names
+    ->
+    Some()
+  | _ -> None
+
+let (|IdentExprPat|_|) (input : SynExpr) =
+  match input with
+  | SynExpr.LongIdent(_, SynLongIdent(longIdent, _, _), _, _) ->
+    Some(longIdentToList longIdent)
+  | SynExpr.Ident name -> Some [ name.idText ]
+  | _ -> None
+
 module TypeReference =
-
-  let private parseTypeRef (name : string) : string * int =
-    match name with
-    | Regex "^([A-Z][a-z0-9A-Z]*)_v(\d+)$" [ name; version ] -> name, (int version)
-    | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> name, 0
-    | _ -> Exception.raiseInternal "Bad format in typeRef" [ "name", name ]
-
 
   let rec fromNamesAndTypeArgs
     (names : List<Ident>)
@@ -41,29 +53,27 @@ module TypeReference =
       |> Option.defaultValue []
       |> List.map (fun name -> name.idText)
     let name = List.last names |> Exception.unwrapOptionInternal "typeName" []
-    match modules, parseTypeRef name.idText, typeArgs with
+    match modules, name.idText, typeArgs with
     // no type args
-    | [], ("Bool", 0), [] -> WT.TBool
-    | [], ("Bytes", 0), [] -> WT.TBytes
-    | [], ("Int", 0), [] -> WT.TInt
-    | [], ("String", 0), [] -> WT.TString
-    | [], ("Char", 0), [] -> WT.TChar
-    | [], ("Float", 0), [] -> WT.TFloat
-    | [], ("DateTime", 0), [] -> WT.TDateTime
-    | [], ("Uuid", 0), [] -> WT.TUuid
-    | [], ("Unit", 0), [] -> WT.TUnit
-    | [], ("Password", 0), [] -> WT.TPassword
+    | [], "Bool", [] -> WT.TBool
+    | [], "Bytes", [] -> WT.TBytes
+    | [], "Int", [] -> WT.TInt
+    | [], "String", [] -> WT.TString
+    | [], "Char", [] -> WT.TChar
+    | [], "Float", [] -> WT.TFloat
+    | [], "DateTime", [] -> WT.TDateTime
+    | [], "Uuid", [] -> WT.TUuid
+    | [], "Unit", [] -> WT.TUnit
+    | [], "Password", [] -> WT.TPassword
 
     // with type args
-    | [], ("List", 0), [ arg ] -> WT.TList(fromSynType arg)
-    | [], ("Dict", 0), [ valArg ] -> WT.TDict(fromSynType valArg)
+    | [], "List", [ arg ] -> WT.TList(fromSynType arg)
+    | [], "Dict", [ valArg ] -> WT.TDict(fromSynType valArg)
     // TYPESCLEANUP - don't use word Tuple here
-    | [], ("Tuple", 0), first :: second :: theRest ->
+    | [], "Tuple", first :: second :: theRest ->
       WT.TTuple(fromSynType first, fromSynType second, List.map fromSynType theRest)
-    | modules, (name, version), args ->
-      let tn =
-        PT.FQName.UserProgram
-          { modules = modules; name = PT.TypeName.TypeName name; version = version }
+    | _ ->
+      let tn = WT.Unresolved(modules @ [ name.idText ])
       WT.TCustomType(tn, List.map fromSynType typeArgs)
 
   and fromSynType (typ : SynType) : WT.TypeReference =
@@ -218,12 +228,12 @@ module Expr =
   // CLEANUP - blanks here aren't allowed
   let private nameOrBlank (v : string) : string = if v = "___" then "" else v
 
-  let parseFn (fnName : string) : Option<string * int> =
+  let parseFn (fnName : string) : Result<string * int, string> =
     match fnName with
     | Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
-      Some(name, (int version))
-    | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Some(name, 0)
-    | _ -> None
+      Ok(name, (int version))
+    | Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | _ -> Error "Bad format in fn name"
 
   let parseEnum (enumName : string) : Option<string> =
     // No version on the Enum case, that's on the type
@@ -231,12 +241,12 @@ module Expr =
     | Regex "^([A-Z][a-z0-9A-Z]*)$" [ name ] -> Some name
     | _ -> None
 
-  let parseTypeName (typeName : string) : string * int =
+  let parseTypeName (typeName : string) : Result<string * int, string> =
     match typeName with
     | Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
-      name, (int version)
-    | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> name, 0
-    | _ -> Exception.raiseInternal "Bad format in type name" [ "typeName", typeName ]
+      Ok(name, (int version))
+    | Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+    | _ -> Error "Bad format in type name"
 
   let parseNames (e : SynExpr) : List<string> =
     match e with
@@ -295,7 +305,7 @@ module Expr =
       | WT.EInfix(id, op, arg1, Placeholder) -> WT.EPipeInfix(id, op, arg1)
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EPipeEnum(id, typeName, caseName, fields)
-      | WT.EVariable(id, name) -> WT.EPipeVariable(id, name)
+      | WT.EVariable(id, name) -> WT.EPipeVariableOrUserFunction(id, name)
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EPipeEnum(id, typeName, caseName, fields)
       | WT.ELambda(id, vars, body) -> WT.EPipeLambda(id, vars, body)
@@ -351,32 +361,18 @@ module Expr =
 
 
     // Binary Ops: && / ||
-    | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
-      List.contains ident.idText [ "op_BooleanAnd"; "op_BooleanOr" ]
-      ->
-      let op =
-        match ident.idText with
-        | "op_BooleanAnd" -> WT.BinOpAnd
-        | "op_BooleanOr" -> WT.BinOpOr
-        | _ -> Exception.raiseInternal "unhandled operation" [ "name", ident.idText ]
+    | SynExprLongIdentPat [ "op_BooleanAnd" ] ->
+      WT.EInfix(id, WT.BinOp WT.BinOpAnd, placeholder, placeholder)
 
-      WT.EInfix(id, WT.BinOp op, placeholder, placeholder)
-
+    | SynExprLongIdentPat [ "op_BooleanOr" ] ->
+      WT.EInfix(id, WT.BinOp WT.BinOpOr, placeholder, placeholder)
 
     // Negation
-    | SynExpr.LongIdent(_, SynLongIdent([ ident ], _, _), _, _) when
-      ident.idText = "op_UnaryNegation"
-      ->
-      let name = PT.FnName.fqBuiltIn [ "Int" ] "negate" 0
-      WT.EApply(id, WT.FnTargetName name, [], [])
+    | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
+      WT.EApply(id, WT.FnTargetName(WT.KnownBuiltin([ "Int" ], "negate", 0)), [], [])
 
-
-    // One word functions like `equals`
-    | SynExpr.Ident ident when Set.contains ident.idText PT.FnName.oneWordFunctions ->
-      match parseFn ident.idText with
-      | Some(name, version) ->
-        WT.EApply(id, WT.FnTargetName(PT.FnName.fqBuiltIn [] name version), [], [])
-      | None -> WT.EVariable(id, ident.idText)
+    // Variables
+    | SynExpr.Ident ident -> WT.EVariable(id, ident.idText)
 
     // List literals
     | SynExpr.ArrayOrList(_, exprs, _) -> WT.EList(id, exprs |> List.map c)
@@ -401,57 +397,17 @@ module Expr =
     | SynExpr.Tuple(_, first :: second :: rest, _, _) ->
       WT.ETuple(id, c first, c second, List.map c rest)
 
-    // Enum values (EEnums)
-    // TODO: remove this explicit handling
-    // when the Option type are defined in StdLib
-    | SynExpr.App(_, _, SynExpr.Ident name, arg, _) when
-      List.contains name.idText [ "Nothing"; "Just" ]
-      ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
-      WT.EEnum(id, typeName, name.idText, convertEnumArg arg)
-
-    // Enum values (EEnums)
-    | SynExpr.Ident name when List.contains name.idText [ "Nothing"; "Just" ] ->
-      let typeName = PT.TypeName.fqBuiltIn [] "Option" 0
-      WT.EEnum(id, typeName, name.idText, [])
-
-
     // Enum/FnCalls - e.g. `Result.Ok` or `Result.mapSecond`
-    | SynExpr.LongIdent(_, SynLongIdent(names, _, _), _, _) when
-      (names
-       |> List.initial
-       |> Option.unwrap []
-       |> List.all (fun n -> n.idText <> "" && (System.Char.IsUpper(n.idText[0]))))
+    | IdentExprPat names when
+      (names |> List.initial |> Option.unwrap [] |> List.all String.isCapitalized)
       ->
-      let modules =
-        List.initial names |> Option.unwrap [] |> List.map (fun i -> i.idText)
-      let name =
-        List.last names
-        |> Exception.unwrapOptionInternal "empty list" []
-        |> fun i -> i.idText
+      let modules = List.initial names |> Option.unwrap []
+      let name = List.last names |> Exception.unwrapOptionInternal "empty list" []
 
-      match parseFn name with
-      | Some(name, version) ->
-        WT.EApply(
-          gid (),
-          WT.FnTargetName(PT.FnName.fqUserProgram modules name version),
-          [],
-          []
-        )
-      | None ->
-        match parseEnum name with
-        | Some enumName ->
-          let typename =
-            List.last modules |> Exception.unwrapOptionInternal "empty list" []
-          let (typ, version) = parseTypeName typename
-          let modules = List.initial modules |> Option.unwrap []
-          WT.EEnum(
-            gid (),
-            PT.TypeName.fqUserProgram modules typ version,
-            enumName,
-            []
-          )
-        | None -> Exception.raiseInternal "invalid enum name" [ "name", name ]
+      if String.isCapitalized name then
+        WT.EEnum(gid (), WT.Unresolved modules, name, [])
+      else
+        WT.EApply(gid (), WT.FnTargetName(WT.Unresolved(modules @ [ name ])), [], [])
 
 
     // Enums are expected to be fully qualified
@@ -459,57 +415,13 @@ module Expr =
 
 
     // e.g. `Json.serialize<T>`
-    | SynExpr.TypeApp(SynExpr.Ident name, _, typeArgs, _, _, _, _) ->
+    // e.g. `Module1.Module2.fnName<String>`
+    | SynExpr.TypeApp(IdentExprPat names, _, typeArgs, _, _, _, _) ->
+
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-
-      let name, version =
-        parseFn name.idText
-        |> Exception.unwrapOptionInternal
-          "invalid fn name"
-          [ "name", name.idText; "ast", ast ]
-      WT.EApply(
-        gid (),
-        WT.FnTargetName(PT.FnName.fqUserProgram [] name version),
-        typeArgs,
-        []
-      )
-
-    // e.g. `Module1.Module2.fnName<String>`
-    | SynExpr.TypeApp(SynExpr.LongIdent(_,
-                                        SynLongIdent(first :: second :: theRest, _, _),
-                                        _,
-                                        _),
-                      _,
-                      typeArgs,
-                      _,
-                      _,
-                      _,
-                      _) ->
-
-      match List.rev (first :: second :: theRest) with
-      // the last item is the function name
-      // the preceding items are the module names
-      | fnName :: modNameParts ->
-        let modules = modNameParts |> List.rev |> List.map (fun i -> i.idText)
-
-        let name, version =
-          parseFn fnName.idText |> Exception.unwrapOptionInternal "invalid fn" []
-
-        let typeArgs =
-          typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
-
-        WT.EApply(
-          gid (),
-          WT.FnTargetName(PT.FnName.fqUserProgram modules name version),
-          typeArgs,
-          []
-        )
-
-      | _ ->
-        // should never happen
-        Exception.raiseInternal "invalid fn" []
+      WT.EApply(gid (), WT.FnTargetName(WT.Unresolved names), typeArgs, [])
 
 
 
@@ -659,7 +571,6 @@ module Expr =
       let names = parseNames name
       let typename =
         List.last names |> Exception.unwrapOptionInternal "empty list" []
-      let (typ, version) = parseTypeName typename
       let modules = List.initial names |> Option.unwrap []
 
       let fields =
@@ -673,10 +584,7 @@ module Expr =
       if names = [ "Dict" ] then
         WT.EDict(id, fields)
       else
-        // We use a user name here, and we'll resolve it in the post pass when we
-        // have the types available
-        let typeName = PT.TypeName.fqUserProgram modules typ version
-        WT.ERecord(id, typeName, fields)
+        WT.ERecord(id, WT.Unresolved(modules @ [ typename ]), fields)
 
     // Record update: {myRecord with x = 5 }
     | SynExpr.Record(_, Some(baseRecord, _), updates, _) ->
@@ -704,28 +612,10 @@ module Expr =
       | WT.EPipe(id, arg1, arg2, rest) ->
         WT.EPipe(id, arg1, arg2, rest @ [ synToPipeExpr arg ])
       | WT.EVariable(id, name) ->
-        parseFn name
-        |> Option.map (fun (name, version) ->
-          WT.EApply(
-            id,
-            WT.FnTargetName(PT.FnName.fqUserProgram [] name version),
-            [],
-            [ c arg ]
-          ))
-        |> Option.orElseWith (fun () ->
-          parseEnum name
-          |> Option.map (fun name ->
-            WT.EEnum(
-              id,
-              PT.TypeName.fqUserProgram [] name 0,
-              name,
-              convertEnumArg arg
-            )))
-        |> Exception.unwrapOptionInternal
-          "Unsupported function call"
-          [ "fnCall expr", funcExpr
-            "converted specific fncall exp", c funcExpr
-            "argument", arg ]
+        if String.isCapitalized name then
+          WT.EEnum(id, WT.Unresolved [], name, convertEnumArg arg)
+        else
+          WT.EApply(id, WT.FnTargetName(WT.Unresolved [ name ]), [], [ c arg ])
       // Enums
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)
@@ -832,9 +722,7 @@ module Function =
       let returnType = parseReturnInfo returnInfo
       let (name, version) =
         Expr.parseFn name
-        |> Exception.unwrapOptionInternal
-          "invalid fn name"
-          [ "name", name; "binding", binding ]
+        |> Exception.unwrapResultInternal [ "name", name; "binding", binding ]
       { name = name
         version = version
         typeParams = typeParams
@@ -843,18 +731,18 @@ module Function =
         body = Expr.fromSynExpr expr }
 
 module UserFunction =
-  let fromSynBinding (b : SynBinding) : WT.UserFunction.T =
+  let fromSynBinding
+    (moduleName : List<string>)
+    (b : SynBinding)
+    : WT.UserFunction.T =
     let f = Function.fromSynBinding b
-    { tlid = gid ()
-
-      name = PT.FnName.userProgram [] f.name f.version
+    { name = PT.FnName.userProgram moduleName f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
         |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""
-      deprecated = WT.NotDeprecated
       body = f.body }
 
 
@@ -865,16 +753,13 @@ module PackageFn =
     (b : SynBinding)
     : WT.PackageFn.T =
     let f = Function.fromSynBinding b
-    { tlid = gid ()
-      id = System.Guid.NewGuid()
-      name = PT.FnName.package owner modules f.name f.version
+    { name = PT.FnName.package owner modules f.name f.version
       typeParams = f.typeParams
       parameters =
         f.parameters
         |> List.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
       description = ""
-      deprecated = WT.NotDeprecated
       body = f.body }
 
 module TypeDeclaration =
@@ -975,7 +860,10 @@ module TypeDeclaration =
 
 
 module UserType =
-  let fromSynTypeDefn (typeDef : SynTypeDefn) : WT.UserType.T =
+  let fromSynTypeDefn
+    (moduleName : List<string>)
+    (typeDef : SynTypeDefn)
+    : WT.UserType.T =
     let (typeParams, names, definition) =
       TypeDeclaration.Definition.fromSynTypeDefn typeDef
     let (name, version) =
@@ -984,12 +872,11 @@ module UserType =
         "user type should have name"
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
-    let modules = names |> List.initial |> Option.unwrap []
+      |> Exception.unwrapResultInternal []
+    let modules = moduleName @ names |> List.initial |> Option.unwrap []
 
-    { tlid = gid ()
-      name = PT.TypeName.userProgram modules name version
+    { name = PT.TypeName.userProgram modules name version
       description = ""
-      deprecated = WT.NotDeprecated
       declaration = { definition = definition; typeParams = typeParams } }
 
 module PackageType =
@@ -1006,11 +893,9 @@ module PackageType =
         "user type should have name"
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
-    { tlid = gid ()
-      id = System.Guid.NewGuid()
-      name = PT.TypeName.package owner modules name version
+      |> Exception.unwrapResultInternal []
+    { name = PT.TypeName.package owner modules name version
       description = ""
-      deprecated = WT.NotDeprecated
       declaration = { typeParams = typeParams; definition = definition } }
 
 

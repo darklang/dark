@@ -121,8 +121,18 @@ let main (args : string[]) =
     // CLEANUP
     packageManager.init |> Ply.toTask |> Async.AwaitTask |> Async.RunSynchronously
 
+    let resolver =
+      // TODO: this may need more builtins, and packages
+      Parser.NameResolver.fromBuiltins (
+        Map.values builtIns.fns,
+        Map.values builtIns.types
+      )
+
+
     let hostScript =
-      Parser.CanvasV2.parseFromFile "/home/dark/app/backend/src/Cli/cli-host.dark"
+      Parser.CanvasV2.parseFromFile
+        resolver
+        "/home/dark/app/backend/src/Cli/cli-host.dark"
 
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
 

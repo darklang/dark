@@ -158,6 +158,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
       (fun (k1, v1) (k2, v2) -> k1 = k2 && equalsExpr v1 v2)
       fields1
       fields2
+  | EError(_, msg, exprs), EError(_, msg2, exprs2) ->
+    msg = msg2 && List.forall2 equalsExpr exprs exprs2
 
   // exhaustiveness check
   | EInt _, _
@@ -181,7 +183,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EAnd _, _
   | EOr _, _
   | EDict _, _
-  | EEnum _, _ -> false
+  | EEnum _, _
+  | EError _, _ -> false
 
 
 and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =

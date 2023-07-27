@@ -137,8 +137,9 @@ let rec serialize
       | Some decl ->
 
         match decl.definition with
-        // TODO: handle typeArgs in Alias
-        | TypeDeclaration.Alias typ -> return! r typ dv
+        | TypeDeclaration.Alias typ ->
+          let typ = Types.substitute decl.typeParams typeArgs typ
+          return! r typ dv
 
         | TypeDeclaration.Enum(firstCase, additionalCases) ->
           match dval with
@@ -151,18 +152,13 @@ let rec serialize
             | [] ->
               Exception.raiseInternal
                 $"Couldn't find matching case for {caseName}"
-                []
+                [ "typeName", dTypeName ]
 
             | [ matchingCase ] ->
-              let fieldDefs =
-                matchingCase.fields
-                |> List.map (fun def ->
-                  Types.substitute decl.typeParams typeArgs def.typ)
-
-              if List.length fieldDefs <> List.length fields then
+              if List.length matchingCase.fields <> List.length fields then
                 Exception.raiseInternal
                   $"Couldn't serialize Enum as incorrect # of fields provided"
-                  [ "defs", fieldDefs
+                  [ "defs", matchingCase.fields
                     "fields", fields
                     "typeName", typeName
                     "caseName", caseName ]
@@ -171,9 +167,11 @@ let rec serialize
                 w.writeObject (fun () ->
                   w.WritePropertyName caseName
                   w.writeArray (fun () ->
-                    List.zip fieldDefs fields
+                    List.zip matchingCase.fields fields
                     |> Ply.List.iterSequentially (fun (fieldDef, fieldVal) ->
-                      r fieldDef fieldVal)))
+                      let typ =
+                        Types.substitute decl.typeParams typeArgs fieldDef.typ
+                      r typ fieldVal)))
 
             | _ -> Exception.raiseInternal "Too many matching cases" []
 
@@ -203,7 +201,10 @@ let rec serialize
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
 
-          | DRecord(_, _) -> Exception.raiseInternal "Incorrect record type" []
+          | DRecord(actualTypeName, _) ->
+            Exception.raiseInternal
+              "Incorrect record type"
+              [ "actual", actualTypeName; "expected", typeName ]
           | _ ->
             Exception.raiseInternal
               "Expected a DRecord but got something else"
@@ -211,10 +212,10 @@ let rec serialize
 
 
     // Not supported
-    | TVariable _, _ ->
+    | TVariable name, dv ->
       Exception.raiseInternal
         "Variable types (i.e. 'a in List<'a>) cannot not be used as arguments"
-        []
+        [ "variable", name; "dval", dv ]
 
     | TFn _, DFnVal _ -> Exception.raiseInternal "Cannot serialize functions" []
 

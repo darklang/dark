@@ -26,12 +26,12 @@ type Sign = Prelude.Sign
 // saved in files in the old format to continue to be read by the serializers for the
 // new format.
 //
-// The follow changes appear to be safe:
+// The following changes appear to be safe:
 // - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
 // - renaming a variant in an Enum (even if that variant is used)
 // - rename a field in a record (does not have to be the last field, don't change the keys of other fields)
 // - remove a field from a record (do not change the index of the other fields)
-// - adding a variant at the end of an Enum
+// - adding a new variant at the end of an Enum
 //
 // The following changes appear to be unsafe (and would require migrating data):
 // - adding a new variant to an Enum that is not at the end
@@ -130,6 +130,31 @@ module FnName =
     | Package of Package
 
 
+module NameResolution =
+  [<MessagePack.MessagePackObject>]
+  type ErrorType =
+    | NotFound
+    | MissingModuleName
+    | InvalidPackageName
+
+  [<MessagePack.MessagePackObject>]
+  type NameType =
+    | Function
+    | Type
+    | Constant
+
+  [<MessagePack.MessagePackObject>]
+  type Error =
+    { [<MessagePack.Key 0>]
+      errorType : ErrorType
+      [<MessagePack.Key 1>]
+      nameType : NameType
+      [<MessagePack.Key 2>]
+      names : List<string> }
+
+[<MessagePack.MessagePackObject>]
+type NameResolution<'a> = Result<'a, NameResolution.Error>
+
 
 [<MessagePack.MessagePackObject>]
 type TypeReference =
@@ -145,7 +170,9 @@ type TypeReference =
   | TChar
   | TPassword
   | TUuid
-  | TCustomType of typeName : TypeName.T * typeArgs : List<TypeReference>
+  | TCustomType of
+    typeName : NameResolution<TypeName.T> *
+    typeArgs : List<TypeReference>
   | TBytes
   | TVariable of string
   | TFn of List<TypeReference> * TypeReference
@@ -215,10 +242,17 @@ type Expr =
   | EVariable of id * string
   | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
-  | ERecord of id * typeName : TypeName.T * fields : List<string * Expr>
+  | ERecord of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EPipe of id * Expr * PipeExpr * List<PipeExpr>
-  | EEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
   | EMatch of id * Expr * List<MatchPattern * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
@@ -229,15 +263,23 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and FnTarget =
-  | FnTargetName of FnName.T
+  | FnTargetName of NameResolution<FnName.T>
   | FnTargetExpr of Expr
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
-  | EPipeFnCall of id * FnName.T * typeArgs : List<TypeReference> * args : List<Expr>
-  | EPipeEnum of id * typeName : TypeName.T * caseName : string * fields : List<Expr>
+  | EPipeFnCall of
+    id *
+    NameResolution<FnName.T> *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+  | EPipeEnum of
+    id *
+    typeName : NameResolution<TypeName.T> *
+    caseName : string *
+    fields : List<Expr>
 
 [<MessagePack.MessagePackObject>]
 type Deprecation<'name> =

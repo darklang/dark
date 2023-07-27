@@ -115,7 +115,7 @@ let toRepr (dv : Dval) : string =
     | DTuple(first, second, theRest) ->
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
-      $"({inl}{elems}{nl})"
+      $"({elems})"
     | DRecord(typeName, o) ->
       let strs =
         o

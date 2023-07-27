@@ -22,6 +22,13 @@ let languageToolsTyp
 let ptTyp (submodules : List<string>) (name : string) (version : int) : TypeName.T =
   languageToolsTyp ("ProgramTypes" :: submodules) name version
 
+let errorsTyp
+  (submodules : List<string>)
+  (name : string)
+  (version : int)
+  : TypeName.T =
+  languageToolsTyp ("Errors" :: submodules) name version
+
 
 // This isn't in PT but I'm not sure where else to put it...
 // maybe rename this file to InternalTypesToDarkTypes?
@@ -237,6 +244,97 @@ module FnName =
   let fromDT (d : Dval) : PT.FnName.T = FQName.fromDT Name.fromDT d
 
 
+module NameResolution =
+  module ErrorType =
+
+    let toDT (err : LibExecution.Errors.NameResolution.ErrorType) : Dval =
+      let caseName, fields =
+        match err with
+        | LibExecution.Errors.NameResolution.NotFound -> "NotFound", []
+        | LibExecution.Errors.NameResolution.MissingModuleName ->
+          "MissingModuleName", []
+        | LibExecution.Errors.NameResolution.InvalidPackageName ->
+          "InvalidPackageName", []
+
+      DEnum(errorsTyp [ "NameResolution" ] "ErrorType" 0, caseName, fields)
+
+    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.ErrorType =
+      match d with
+      | DEnum(_, "NotFound", []) -> LibExecution.Errors.NameResolution.NotFound
+      | DEnum(_, "MissingModuleName", []) ->
+        LibExecution.Errors.NameResolution.MissingModuleName
+      | DEnum(_, "InvalidPackageName", []) ->
+        LibExecution.Errors.NameResolution.InvalidPackageName
+      | _ -> Exception.raiseInternal "Invalid NameResolutionErrorType" []
+
+  module NameType =
+    let toDT (err : LibExecution.Errors.NameResolution.NameType) : Dval =
+      let caseName, fields =
+        match err with
+        | LibExecution.Errors.NameResolution.Function -> "Function", []
+        | LibExecution.Errors.NameResolution.Type -> "Type", []
+        | LibExecution.Errors.NameResolution.Constant -> "Constant", []
+
+      DEnum(errorsTyp [ "NameResolution" ] "NameType" 0, caseName, fields)
+
+    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.NameType =
+      match d with
+      | DEnum(_, "Function", []) -> LibExecution.Errors.NameResolution.Function
+      | DEnum(_, "Type", []) -> LibExecution.Errors.NameResolution.Type
+      | DEnum(_, "Constant", []) -> LibExecution.Errors.NameResolution.Constant
+      | _ -> Exception.raiseInternal "Invalid NameResolutionNameType" []
+
+
+  module Error =
+    let toDT (err : LibExecution.Errors.NameResolution.Error) : Dval =
+      DRecord(
+        errorsTyp [ "NameResolution" ] "Error" 0,
+        Map
+          [ "errorType", ErrorType.toDT err.errorType
+            "nameType", NameType.toDT err.nameType
+            "names", DList(List.map DString err.names) ]
+      )
+
+    let fromDT (d : Dval) : LibExecution.Errors.NameResolution.Error =
+      match d with
+      | DRecord(_, m) ->
+        let errorType =
+          Map.tryFind "errorType" m
+          |> Option.map ErrorType.fromDT
+          |> Exception.unwrapOptionInternal "Invalid NameResolutionError" []
+
+        let nameType =
+          Map.tryFind "nameType" m
+          |> Option.map NameType.fromDT
+          |> Exception.unwrapOptionInternal "Invalid NameResolutionError" []
+
+        let names =
+          match Map.find "names" m with
+          | DList l ->
+            List.map
+              (function
+              | DString s -> s
+              | _ ->
+                Exception.raiseInternal "Expected string values in names list" [])
+              l
+          | _ -> Exception.raiseInternal "Expected names to be a list" []
+
+        { errorType = errorType; names = names; nameType = nameType }
+
+      | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
+
+  let toDT (f : 'p -> Dval) (result : PT.NameResolution<'p>) : Dval =
+    match result with
+    | Ok name -> Dval.resultOk (f name)
+    | Error err -> Dval.resultError (Error.toDT err)
+
+
+  let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
+    match d with
+    | DEnum(tn, "Ok", [ v ]) when tn = Dval.resultType -> Ok(f v)
+    | DEnum(tn, "Error", [ v ]) when tn = Dval.resultType -> Error(Error.fromDT v)
+    | _ -> Exception.raiseInternal "Invalid NameResolution" []
+
 module TypeReference =
   let rec toDT (t : PT.TypeReference) : Dval =
     let name, fields =
@@ -262,7 +360,8 @@ module TypeReference =
       | PT.TDict inner -> "TDict", [ toDT inner ]
 
       | PT.TCustomType(typeName, typeArgs) ->
-        "TCustomType", [ TypeName.toDT typeName; DList(List.map toDT typeArgs) ]
+        "TCustomType",
+        [ NameResolution.toDT TypeName.toDT typeName; DList(List.map toDT typeArgs) ]
 
       | PT.TDB inner -> "TDB", [ toDT inner ]
       | PT.TFn(args, ret) -> "TFn", [ DList(List.map toDT args); toDT ret ]
@@ -292,7 +391,10 @@ module TypeReference =
     | DEnum(_, "TDict", [ inner ]) -> PT.TDict(fromDT inner)
 
     | DEnum(_, "TCustomType", [ typeName; DList typeArgs ]) ->
-      PT.TCustomType(TypeName.fromDT typeName, List.map fromDT typeArgs)
+      PT.TCustomType(
+        NameResolution.fromDT TypeName.fromDT typeName,
+        List.map fromDT typeArgs
+      )
 
     | DEnum(_, "TDB", [ inner ]) -> PT.TDB(fromDT inner)
     | DEnum(_, "TFn", [ DList args; ret ]) ->
@@ -481,14 +583,14 @@ module PipeExpr =
       | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
         "EPipeFnCall",
         [ DInt(int64 id)
-          FnName.toDT fnName
+          NameResolution.toDT FnName.toDT fnName
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map exprToDT args) ]
 
       | PT.EPipeEnum(id, typeName, caseName, fields) ->
         "EPipeEnum",
         [ DInt(int64 id)
-          TypeName.toDT typeName
+          NameResolution.toDT TypeName.toDT typeName
           DString caseName
           DList(List.map exprToDT fields) ]
 
@@ -517,7 +619,7 @@ module PipeExpr =
     | DEnum(_, "EPipeFnCall", [ DInt id; fnName; DList typeArgs; DList args ]) ->
       PT.EPipeFnCall(
         uint64 id,
-        FnName.fromDT fnName,
+        NameResolution.fromDT FnName.fromDT fnName,
         List.map TypeReference.fromDT typeArgs,
         List.map exprFromDT args
       )
@@ -525,7 +627,7 @@ module PipeExpr =
     | DEnum(_, "EPipeEnum", [ DInt id; typeName; DString caseName; DList fields ]) ->
       PT.EPipeEnum(
         uint64 id,
-        TypeName.fromDT typeName,
+        NameResolution.fromDT TypeName.fromDT typeName,
         caseName,
         List.map exprFromDT fields
       )
@@ -568,12 +670,13 @@ module Expr =
           fields
           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
 
-        "ERecord", [ DInt(int64 id); TypeName.toDT name; DList(fields) ]
+        "ERecord",
+        [ DInt(int64 id); NameResolution.toDT TypeName.toDT name; DList(fields) ]
 
       | PT.EEnum(id, typeName, caseName, fields) ->
         "EEnum",
         [ DInt(int64 id)
-          TypeName.toDT typeName
+          NameResolution.toDT TypeName.toDT typeName
           DString caseName
           DList(List.map toDT fields) ]
 
@@ -623,7 +726,11 @@ module Expr =
       | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
         "EApply",
         [ DInt(int64 id)
-          DEnum(ptTyp [] "FnTarget" 0, "FnTargetName", [ FnName.toDT name ])
+          DEnum(
+            ptTyp [] "FnTarget" 0,
+            "FnTargetName",
+            [ NameResolution.toDT FnName.toDT name ]
+          )
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map toDT args) ]
 
@@ -680,11 +787,16 @@ module Expr =
           match field with
           | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
           | _ -> [])
-      PT.ERecord(uint64 id, TypeName.fromDT typeName, fields)
+      PT.ERecord(uint64 id, NameResolution.fromDT TypeName.fromDT typeName, fields)
 
 
     | DEnum(_, "EEnum", [ DInt id; typeName; DString caseName; DList fields ]) ->
-      PT.EEnum(uint64 id, TypeName.fromDT typeName, caseName, List.map fromDT fields)
+      PT.EEnum(
+        uint64 id,
+        NameResolution.fromDT TypeName.fromDT typeName,
+        caseName,
+        List.map fromDT fields
+      )
 
     // declaring and accessing variables
     | DEnum(_, "ELet", [ DInt id; lp; expr; body ]) ->
@@ -736,7 +848,7 @@ module Expr =
       let fnTarget =
         match fnTarget with
         | DEnum(_, "FnTargetName", [ fnName ]) ->
-          PT.FnTargetName(FnName.fromDT fnName)
+          PT.FnTargetName(NameResolution.fromDT FnName.fromDT fnName)
         | DEnum(_, "FnTargetExpr", [ expr ]) -> PT.FnTargetExpr(fromDT expr)
         | _ -> Exception.raiseInternal "Invalid FnTarget" []
 

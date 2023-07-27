@@ -54,6 +54,7 @@ module FQName =
     | BuiltIn of BuiltIn<'name>
     | UserProgram of UserProgram<'name>
     | Package of Package<'name>
+    | Unknown of List<string>
 
   type NameValidator<'name> = 'name -> unit
   type NamePrinter<'name> = 'name -> string
@@ -145,6 +146,7 @@ module FQName =
     | BuiltIn b -> builtinToString b f
     | UserProgram user -> userProgramToString user f
     | Package pkg -> packageToString pkg f
+    | Unknown names -> String.concat "." names
 
 module TypeName =
   type Name = TypeName of string
@@ -397,6 +399,13 @@ type Expr =
   | EAnd of id * Expr * Expr
   | EOr of id * Expr * Expr
 
+  // A runtime error. This is included so that we can allow the program to run in the
+  // presence of compile-time errors (which are converted to this error). We may
+  // adapt this to include more information as we go, possibly using a standard Error
+  // type (the same as used in DErrors and Results). This list of exprs is the
+  // subexpressions to evaluate before evaluating the error.
+  | EError of id * string * List<Expr>
+
 and LetPattern =
   | LPVariable of id * name : string
   | LPTuple of
@@ -594,6 +603,7 @@ module Expr =
     | EDict(id, _)
     | EEnum(id, _, _, _)
     | EMatch(id, _, _)
+    | EError(id, _, _)
     | EAnd(id, _, _)
     | EOr(id, _, _) -> id
 
@@ -1142,6 +1152,7 @@ module Types =
       |> Ply
     | FQName.Package pkg ->
       types.package pkg |> Ply.map (Option.map (fun t -> t.declaration))
+    | FQName.Unknown _ -> Ply None
 
   // Swap concrete types for type parameters
   let rec substitute
@@ -1179,8 +1190,8 @@ module Types =
     | TList t -> TList(substitute t)
     | TTuple(t1, t2, rest) ->
       TTuple(substitute t1, substitute t2, List.map substitute rest)
-    | TFn _ -> typ
-    | TDB _ -> typ
+    | TFn _ -> typ // TYPESTODO
+    | TDB _ -> typ // TYPESTODO
     | TCustomType(typeName, typeArgs) ->
       TCustomType(typeName, List.map substitute typeArgs)
     | TDict t -> TDict(substitute t)

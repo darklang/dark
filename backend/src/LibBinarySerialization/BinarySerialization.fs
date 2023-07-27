@@ -40,7 +40,14 @@ let wrapSerializationException (id : string) (f : unit -> 'a) : 'a =
     f ()
   with e ->
     Exception.callExceptionCallback e
-    raise (InternalException("error deserializing toplevel", [ "id", id ], e))
+    raise (
+      InternalException(
+        "error deserializing toplevel",
+        [ "id", id
+          "suggestion", "maybe annotation are missing in SerializationTypes" ],
+        e
+      )
+    )
 
 let serializeExpr (tlid : tlid) (e : PT.Expr) : byte[] =
   wrapSerializationException (string tlid) (fun () ->

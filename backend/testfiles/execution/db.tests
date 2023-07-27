@@ -31,9 +31,10 @@ type MyEnum2 =
   | E
   | F of MyEnum
 
-type EnumTestRecord = { x : String; y: MyEnum}
+type EnumTestRecord = { x: String; y: MyEnum }
 
-[<DB>] type TestEnumDB = EnumTestRecord
+[<DB>]
+type TestEnumDB = EnumTestRecord
 
 [<DB>]
 type TestEnumDB2 = MyEnum
@@ -42,47 +43,69 @@ type TestEnumDB2 = MyEnum
 type TestEnumDB3 = MyEnum2
 
 module AddToTestEnumDBs =
-  ( let test1 = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
-    let test2 = DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
-    (DB.getAll TestEnumDB)) = [EnumTestRecord { x = "hello"; y = MyEnum.A}; EnumTestRecord { x = "goodbye"; y = MyEnum.B}]
+  (let test1 =
+    DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
 
-  (let test1 = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
-   let test2 = DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
-   (DB.get "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(EnumTestRecord { x = "hello"; y = MyEnum.A})
+   let test2 =
+     DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
+
+   (DB.getAll TestEnumDB) |> List.sort) = [ EnumTestRecord
+                                              { x = "goodbye"; y = MyEnum.B }
+                                            EnumTestRecord
+                                              { x = "hello"; y = MyEnum.A } ]
+
+  (let test1 =
+    DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+
+   let test2 =
+     DB.set (EnumTestRecord { x = "goodbye"; y = MyEnum.B }) "test2" TestEnumDB in
+
+   (DB.get "test1" TestEnumDB)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    EnumTestRecord { x = "hello"; y = MyEnum.A }
+  )
 
   (let test1 = DB.set MyEnum.A "test1" TestEnumDB2 in
    let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
-   (DB.getAll TestEnumDB2)) = [MyEnum.A; MyEnum.B]
+   (DB.getAll TestEnumDB2) |> List.sort) = [ MyEnum.A; MyEnum.B ]
 
   (let test1 = DB.set MyEnum.C "test1" TestEnumDB2 in
    let test2 = DB.set MyEnum.B "test2" TestEnumDB2 in
-   (DB.get "test1" TestEnumDB2)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(MyEnum.C)
+   (DB.get "test1" TestEnumDB2)) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    MyEnum.C
+  )
 
   (let test1 = DB.set MyEnum2.D "test1" TestEnumDB3 in
    let test2 = DB.set MyEnum2.E "test2" TestEnumDB3 in
    let test3 = DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3 in
-   (DB.getAll TestEnumDB3)) = [MyEnum2.D; MyEnum2.E ; MyEnum2.F MyEnum.A]
+   (DB.getAll TestEnumDB3) |> List.sort) = [ MyEnum2.D
+                                             MyEnum2.E
+                                             MyEnum2.F MyEnum.A ]
 
-  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in
-   (DB.getAll TestEnumDB2)) = Test.typeError_v0 "There is no case named `D` in MyEnum"
+  (let test1 = DB.set MyEnum.D "test1" TestEnumDB2 in (DB.getAll TestEnumDB2)) = Test.typeError_v0
+    "There is no case named `D` in MyEnum"
 
-  (let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test1" TestEnumDB in
-   (DB.query TestEnumDB (fun p -> p.x == "hello"))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+  (let testQuery =
+    DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB in
+
+   (DB.query TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
+                                                          { x = "hello"
+                                                            y = MyEnum.A } ]
 
 
-  // TODO: Make this work. we need to enable certain types before we can use DB.query for this
-  //(let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test2" TestEnumDB in
-    //(DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
+// TODO: Make this work. we need to enable certain types before we can use DB.query for this
+//(let testQuery = DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A}) "test2" TestEnumDB in
+//(DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [EnumTestRecord { x = "hello"; y = MyEnum.A}]
 
 
-type MyTlid = { mytlid: PACKAGE.Darklang.LanguageTools.TLID}
+type MyTlid =
+  { mytlid: PACKAGE.Darklang.Stdlib.TLID }
 
 [<DB>]
 type MyTlidDB = MyTlid
 
 module addToTest =
   (let test = DB.set (MyTlid { mytlid = 1234 }) "test" MyTlidDB in
-   (DB.getAll MyTlidDB)) = [MyTlid { mytlid = 1234 }]
+   (DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234 } ]
 
 
 module Roundtrip =
@@ -100,8 +123,8 @@ module Roundtrip =
       char: Char
       emojiChar: Char
       uuid: Uuid
-      resultOk: PACKAGE.Darklang.Stdlib.Result.Result<Int,String>
-      resultError: PACKAGE.Darklang.Stdlib.Result.Result<Int,String>
+      resultOk: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
+      resultError: PACKAGE.Darklang.Stdlib.Result.Result<Int, String>
       list: List<Int>
       datetime: DateTime
       unit: Unit }
@@ -158,7 +181,10 @@ module Roundtrip =
   // TODO: Add roundtrip for records, unit, tuple, option, result, bytes
   (let v = sample ()
    let z = DB.set v "all" SampleDB in
-   (z, DB.get "all" SampleDB)) = (sample (), PACKAGE.Darklang.Stdlib.Option.Option.Just(sample ()))
+   (z, DB.get "all" SampleDB)) = (sample (),
+                                  PACKAGE.Darklang.Stdlib.Option.Option.Just(
+                                    sample ()
+                                  ))
 
 
   type Passwords = { password: Password }
@@ -320,28 +346,39 @@ module Get =
   (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "lol" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
   // returns single value
-  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
-    X { x = "hello" }
-  )
+  (let _ = DB.set (X { x = "hello" }) "key" XDB in DB.get "key" XDB) = PACKAGE
+    .Darklang
+    .Stdlib
+    .Option
+    .Option
+    .Just(X { x = "hello" })
 
   // returns correct value given reassigned entry
   (let _ = DB.set (X { x = "hello" }) "key" XDB in
    let _ = DB.set (X { x = "goodbye" }) "key" XDB in
-   DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(X { x = "goodbye" })
+   DB.get "key" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    X { x = "goodbye" }
+  )
 
   // returns value given multiple entries
   (let _ = DB.set (X { x = "pancake" }) "key1" XDB in
    let _ = DB.set (X { x = "waffle" }) "key2" XDB in
    let _ = DB.set (X { x = "scone" }) "key3" XDB in
-   DB.get "key2" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(X { x = "waffle" })
+   DB.get "key2" XDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    X { x = "waffle" }
+  )
 
 
 module Params =
-  type Param<'a> =  { x : 'a; b : Int}
-  [<DB>] type ParamDB = Param<String>
+  type Param<'a> = { x: 'a; b: Int }
+
+  [<DB>]
+  type ParamDB = Param<String>
 
   (let _ = DB.set (Param { x = "hello"; b = 5 }) "key" ParamDB
-   DB.get "key" ParamDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(Param { x = "hello"; b = 5 })
+   DB.get "key" ParamDB) = PACKAGE.Darklang.Stdlib.Option.Option.Just(
+    Param { x = "hello"; b = 5 }
+  )
 
 
 
@@ -495,7 +532,7 @@ let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 let friendsError (lambda: ('a -> Bool)) : List<Person> =
   let _ = prepFriends () in DB.query PersonDB lambda
 
-let friends (lambda: ('a -> Bool)) : List<Person> =
+let friends (lambda: ('a -> Bool)) : List<String> =
   let _ = prepFriends () in
   (DB.query PersonDB lambda) |> List.map_v0 (fun p -> p.name) |> List.sort_v0
 
@@ -547,11 +584,11 @@ module FindAll =
   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
   // fieldaccess
-  type X = { x: Int }
+  type IntField = { x: Int }
 
-  (friends (fun p -> let obj = X { x = 42 } in p.height > obj.x)) = [ " Chandler "
-                                                                      "Rachel"
-                                                                      "Ross" ]
+  (friends (fun p -> let obj = IntField { x = 42 } in p.height > obj.x)) = [ " Chandler "
+                                                                             "Rachel"
+                                                                             "Ross" ]
 
   // nested fieldaccess
   friends (fun p ->
@@ -561,7 +598,7 @@ module FindAll =
 
   (let x = "not int"
    friends (fun p -> p.height > x)) = Test.sqlError
-    "variable x should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (variable x: Int)\nActual: a String: \"not int\""
+    "Variable `x` should be an Int. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int)\nActual: a String: \"not int\""
 
   // lambda doesnt return a bool
   friendsError (fun p -> "x") = Test.sqlError
@@ -718,7 +755,8 @@ module QueryOneWithKey =
    let test = "ache"
 
    (DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
-   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> (Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Just "Rachel"
+   |> PACKAGE.Darklang.Stdlib.Option.map (fun v -> (Tuple2.second v).name)) = PACKAGE.Darklang.Stdlib.Option.Option.Just
+    "Rachel"
 
 
 module QueryWithKey =

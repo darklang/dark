@@ -353,6 +353,20 @@ let debugList (msg : string) (list : List<'a>) : List<'a> =
   debuGList msg list
   list
 
+let debuGSet (msg : string) (set : Set<'a>) : unit =
+  if set = Set.empty then
+    NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
+  else
+    [ $"DEBUG: {msg} (len {Set.count set}, [" ]
+    @ (set |> Set.toList |> List.map (fun item -> $"  {item}"))
+    @ [ $"])" ]
+    |> String.concat "\n"
+    |> NonBlockingConsole.WriteLine
+
+let debugSet (msg : string) (set : Set<'a>) : Set<'a> =
+  debuGSet msg set
+  set
+
 let debuGArray (msg : string) (array : 'a[]) : unit =
   if array.Length = 0 then
     NonBlockingConsole.WriteLine $"DEBUG: {msg} (len 0, [])"
@@ -854,11 +868,16 @@ module String =
 
   /// Adds 'a' or 'an' (the indefinite article) in front of a string, based on
   /// whether it begins with a vowel
-  let articleFor (nextWord : string) : string =
+  let rec articleFor (nextWord : string) : string =
     let vowels = Set [ 'A'; 'E'; 'I'; 'O'; 'U'; 'a'; 'e'; 'i'; 'o'; 'u' ]
-    if nextWord = "" then ""
-    else if Set.contains nextWord.[0] vowels then "an"
-    else "a"
+    if nextWord = "" then
+      ""
+    else if not (System.Char.IsLetter nextWord[0]) then
+      articleFor (nextWord.Substring(1))
+    else if Set.contains nextWord[0] vowels then
+      "an"
+    else
+      "a"
 
   let toOrdinal (n : int) : string =
     let suffix =
@@ -872,6 +891,8 @@ module String =
 
   let truncateWithElipsis (maxLen : int) (s : string) : string =
     if s.Length <= maxLen then s else s.Substring(0, maxLen - 3) + "..."
+
+  let isCapitalized (s : string) : bool = s.Length > 0 && System.Char.IsUpper(s.[0])
 
 
 module Map =
@@ -1263,6 +1284,14 @@ module Tablecloth =
                                IsHidden = true)>]
     let unwrapUnsafe = Tablecloth.Result.unwrapUnsafe
 
+    let orElse
+      (f : unit -> Result<'ok, 'err>)
+      (t : Result<'ok, 'err>)
+      : Result<'ok, 'err> =
+      match t with
+      | Ok _ -> t
+      | Error _ -> f ()
+
   module Option =
 
     [<CompilerMessageAttribute("Option.unwrapUnsafe is banned, use Prelude.Exception.unwrapOption* instead",
@@ -1370,6 +1399,20 @@ module Ply =
         (fun (accum : List<'b>) (arg : 'a) ->
           uply {
             let! result = f arg
+            return result :: accum
+          })
+        []
+      |> map List.rev
+
+    let mapSequentiallyWithIndex
+      (f : int -> 'a -> Ply<'b>)
+      (list : List<'a>)
+      : Ply<List<'b>> =
+      list
+      |> foldSequentiallyWithIndex
+        (fun (i : int) (accum : List<'b>) (arg : 'a) ->
+          uply {
+            let! result = f i arg
             return result :: accum
           })
         []

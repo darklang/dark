@@ -109,7 +109,7 @@ let rec preTraversal
     | TList tr -> TList(f tr)
     | TTuple(tr1, tr2, trs) -> TTuple(f tr1, f tr2, List.map f trs)
     | TDB tr -> TDB(f tr)
-    | TCustomType(name, trs) -> TCustomType(fqtnFn name, List.map f trs)
+    | TCustomType(name, trs) -> TCustomType(Result.map fqtnFn name, List.map f trs)
     | TDict(tr) -> TDict(f tr)
     | TFn(trs, tr) -> TFn(List.map f trs, f tr)
 
@@ -128,7 +128,7 @@ let rec preTraversal
     | EPipeFnCall(id, name, typeArgs, args) ->
       EPipeFnCall(
         id,
-        fqfnFn name,
+        Result.map fqfnFn name,
         List.map preTraversalTypeRef typeArgs,
         List.map f args
       )
@@ -168,7 +168,7 @@ let rec preTraversal
   | EApply(id, FnTargetName name, typeArgs, args) ->
     EApply(
       id,
-      FnTargetName(fqfnFn name),
+      FnTargetName(Result.map fqfnFn name),
       List.map preTraversalTypeRef typeArgs,
       List.map f args
     )
@@ -185,7 +185,7 @@ let rec preTraversal
   | ETuple(id, first, second, theRest) ->
     ETuple(id, f first, f second, List.map f theRest)
   | EEnum(id, typeName, caseName, fields) ->
-    EEnum(id, fqtnFn typeName, caseName, List.map f fields)
+    EEnum(id, Result.map fqtnFn typeName, caseName, List.map f fields)
   | EMatch(id, mexpr, pairs) ->
     EMatch(
       id,
@@ -197,7 +197,7 @@ let rec preTraversal
   | ERecord(id, typeName, fields) ->
     ERecord(
       id,
-      fqtnFn typeName,
+      Result.map fqtnFn typeName,
       List.map (fun (name, expr) -> (name, f expr)) fields
     )
   | ERecordUpdate(id, record, updates) ->

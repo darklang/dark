@@ -60,6 +60,7 @@ module RoundtripTests =
         LibExecution.TypeChecker.unify
           context
           types
+          Map.empty
           (RT.TCustomType(typeName, []))
           firstDT
         |> Ply.toTask
@@ -104,6 +105,7 @@ module RoundtripTests =
         LibExecution.TypeChecker.unify
           context
           types
+          Map.empty
           (RT.TList(RT.TCustomType(typeName, [])))
           (RT.DList(mapped))
         |> Ply.toTask
@@ -275,7 +277,7 @@ module RoundtripTests =
           "PT.MatchPattern"
           (RT.TypeName.fqPackage
             "Darklang"
-            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes"; "Handler" ])
+            (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
             "MatchPattern"
             0)
           V.ProgramTypes.matchPatterns

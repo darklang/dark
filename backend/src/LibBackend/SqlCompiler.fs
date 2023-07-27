@@ -144,8 +144,8 @@ let typecheckDval
   (expectedType : TypeReference)
   =
   uply {
-    let context = TypeChecker.DBQueryVariable(name, None)
-    match! TypeChecker.unify context types expectedType dval with
+    let context = TypeChecker.DBQueryVariable(name, expectedType, None)
+    match! TypeChecker.unify context types Map.empty expectedType dval with
     | Ok() -> return ()
     | Error err -> return error (Errors.toString (Errors.TypeError err))
   }
@@ -391,7 +391,7 @@ let rec lambdaToSql
         | EVariable(_, varname) ->
           match Map.get varname symtable with
           | Some dval ->
-            do! typecheckDval $"variable {varname}" types dval expectedType
+            do! typecheckDval varname types dval expectedType
             let random = randomString 8
             let newname = $"{varname}_{random}"
             // Fetch the actualType here as well as we might be passing in an abstract
@@ -668,6 +668,7 @@ let partiallyEvaluate
         | EDict _
         | EEnum _
         | EMatch _
+        | EError _
         | EAnd _
         | EOr _ -> return expr
       }
@@ -770,6 +771,7 @@ let partiallyEvaluate
               let! left = r left
               let! right = r right
               return EOr(id, left, right)
+            | EError _ -> return expr
           }
 
         return! f result

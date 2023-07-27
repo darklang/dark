@@ -17,7 +17,10 @@ module StdLibCli = StdLibCli.StdLib
 let builtIns : RT.BuiltIns =
   let (fns, types) =
     LibExecution.StdLib.combine
-      [ StdLibExecution.StdLib.contents; StdLibCli.StdLib.contents; StdLib.contents ]
+      [ StdLibExecution.StdLib.contents
+        StdLibCli.StdLib.contents
+        StdLib.contents
+        StdLibCloudExecution.StdLib.contents ]
       []
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
@@ -81,26 +84,28 @@ let execute
   }
 
 let sourceOf
+  (filename : string)
   (tlid : tlid)
   (id : id)
   (modul : Parser.CanvasV2.PTCanvasModule)
   : string =
-  let ast =
+  let data =
     if tlid = defaultTLID then
-      Some modul.exprs[0]
+      Some(filename, modul.exprs[0])
     else
       modul.fns
       |> List.find (fun fn -> fn.tlid = tlid)
-      |> Option.map (fun fn -> fn.body)
-  let mutable result = "unknown"
-  ast
-  |> Option.tap (fun e ->
+      |> Option.map (fun fn -> string fn.name, fn.body)
+  let mutable result = "unknown caller", "unknown body", "unknown expr"
+  data
+  |> Option.tap (fun (fnName, e) ->
     LibExecution.ProgramTypesAst.preTraversal
       (fun expr ->
-        if PT.Expr.toID expr = id then result <- string expr
+        if PT.Expr.toID expr = id then result <- fnName, string e, string expr
         expr)
       (fun pipeExpr ->
-        if PT.PipeExpr.toID pipeExpr = id then result <- string pipeExpr
+        if PT.PipeExpr.toID pipeExpr = id then
+          result <- fnName, string e, string pipeExpr
         pipeExpr)
       identity
       identity
@@ -109,7 +114,8 @@ let sourceOf
       identity
       e
     |> ignore<PT.Expr>)
-  result
+  let (fnName, body, expr) = result
+  $"fn {fnName}\nexpr:\n{expr}\n, body:\n{body}"
 
 
 
@@ -134,14 +140,24 @@ let main (args : string[]) : int =
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
 
     let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
-    let modul = Parser.CanvasV2.parseFromFile mainFile
+    let resolver =
+      // TODO: this may need more builtins, and packages
+      Parser.NameResolver.fromBuiltins (
+        Map.values builtIns.fns |> Seq.toList,
+        Map.values builtIns.types |> Seq.toList
+      )
+    let modul = Parser.CanvasV2.parseFromFile resolver mainFile
+
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
+
     let result = execute modul (Map [ "args", args ])
+
     NonBlockingConsole.wait ()
+
     match result.Result with
     | RT.DError(RT.SourceID(tlid, id), msg) ->
       System.Console.WriteLine $"Error: {msg}"
-      System.Console.WriteLine $"Failure at: {sourceOf tlid id modul}"
+      System.Console.WriteLine $"Failure at: {sourceOf mainFile tlid id modul}"
       // System.Console.WriteLine $"module is: {modul}"
       // System.Console.WriteLine $"(source {tlid}, {id})"
       1

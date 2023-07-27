@@ -1295,15 +1295,15 @@ let fns : List<BuiltInFn> =
     { name = fn "unzip" 0
       typeParams = []
       parameters = [ Param.make "pairs" (TList(TTuple(varA, varB, []))) "" ]
-      returnType = TList(TList varA)
+      returnType = TTuple(TList varA, TList varB, [])
       description =
         "Given a <param pairs> list where each value is a tuple of two values (such
          lists are constructed by <fn List.zip> and <fn List.zipShortest>), returns
-         a list of two lists, one with every first value, and one with every second
+         a tuple of two lists, one with every first value, and one with every second
          value.
 
          For example, if <fn pairs> is {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}, returns
-         {{[[1,2,3], [\"x\",\"y\",\"z\"]]}}."
+         {{([1,2,3], [\"x\",\"y\",\"z\"])}}."
       fn =
         (function
         | _, _, [ DList l ] ->
@@ -1328,11 +1328,10 @@ let fns : List<BuiltInFn> =
           let result = l |> List.rev |> List.fold f ([], [])
 
           match result with
-          | (l, l2) -> Ply(DList [ DList l; DList l2 ])
+          | (l, l2) -> Ply(DTuple(DList l, DList l2, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      // CLEANUP deprecate and replace with tuples
       deprecated = NotDeprecated }
 
 
