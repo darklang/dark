@@ -1,25 +1,46 @@
 (let typeReferences: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference> =
-  [ PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
+  [ PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TVariable "test"
+
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TFloat
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
     PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TString
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBytes
 
-    // PT.TList PT.TInt
-    // PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
-    // PT.TDict PT.TBool
-    // PT.TDB PT.TBool
-    // PT.TCustomType(
-    //   PT.FQName.UserProgram
-    //     { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 },
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TList
+      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TInt
 
-    //   [ PT.TBool ]
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TTuple(
+      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool,
+      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool,
+      [ PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ]
+    )
+
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TDict
+      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
+
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TDB
+      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
+
+    // PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+    //   PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.UserProgram
+    //     { modules = [ "Mod" ]
+    //       name =
+    //         PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName "User"
+    //       version = 0 },
+    //   [ PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ]
     // )
-    // PT.TCustomType(
-    //   PT.FQName.BuiltIn
-    //     { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 },
-    //   [ PT.TBool ]
+
+    // PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType(
+    //   PACKAGE.Darklang.LanguageTools.ProgramTypes.FQName.BuiltIn
+    //     { modules = [ "Mod" ]
+    //       name =
+    //         PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeName.Name.TypeName "User"
+    //       version = 0 },
+    //   [ PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ]
     // )
+
     // PT.TCustomType(
     //   PT.FQName.Package
     //     { owner = "dark"
@@ -28,10 +49,11 @@
     //       version = 0 },
     //   [ PT.TBool ]
     // )
-    // PT.TBytes
-    // PT.TVariable "test"
-    // PT.TFn([ PT.TBool ], PT.TBool)
-    ]
+
+    PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TFn(
+      [ PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool ],
+      PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference.TBool
+    ) ]
 
  let prettyPrinted =
    typeReferences
