@@ -18,11 +18,8 @@ do
   fi
 done
 
-
-if [ "$1" == "load-from-disk" ]; then
-  echo "Clearing canvas before loading from disk"
-  ./scripts/clear-canvas.sh $2
-fi
+echo "Clearing canvas before loading from disk"
+./scripts/clear-canvas.sh $2
 
 echo "Running canvashack"
 "${EXE}" "${@}"
