@@ -120,7 +120,7 @@ let allTypes : Task<List<PT.PackageType.T>> =
 
 open System
 
-let cachedTask (expiration: TimeSpan) (f: Task<'a>): Task<'a> =
+let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
   let mutable value = None
   let mutable lastUpdate = DateTime.MinValue
 
