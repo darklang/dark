@@ -567,7 +567,7 @@ module Expect =
 
     | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
       let path = (string name :: path)
-      check path name name'
+      eq path name name'
 
       check path (List.length typeArgs) (List.length typeArgs')
       List.iteri2
