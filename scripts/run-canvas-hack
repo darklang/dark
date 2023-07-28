@@ -19,7 +19,7 @@ do
 done
 
 echo "Clearing canvas before loading from disk"
-./scripts/clear-canvas.sh $2
+./scripts/clear-canvas.sh $1
 
 echo "Running canvashack"
 "${EXE}" "${@}"
