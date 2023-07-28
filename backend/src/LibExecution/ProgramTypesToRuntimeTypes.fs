@@ -206,8 +206,7 @@ module Expr =
         RT.FQName.BuiltIn(
           { modules = modules; name = RT.FnName.FnName fn; version = version }
         )
-      let typeArgs = []
-      RT.EApply(id, RT.EFnName(id, name), typeArgs, [ toRT arg1; toRT arg2 ])
+      RT.EApply(id, RT.EFnName(id, name), [], [ toRT arg1; toRT arg2 ])
     | PT.EInfix(id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix(id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
