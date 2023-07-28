@@ -327,18 +327,10 @@ module Expr =
     | PT.EUnit id -> ST.EUnit id
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
-    | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
-      let name = NameResolution.toST FnName.toST name
+    | PT.EApply(id, fn, typeArgs, args) ->
       ST.EApply(
         id,
-        ST.FnTargetName name,
-        List.map TypeReference.toST typeArgs,
-        List.map toST args
-      )
-    | PT.EApply(id, PT.FnTargetExpr name, typeArgs, args) ->
-      ST.EApply(
-        id,
-        ST.FnTargetExpr(toST name),
+        toST fn,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
@@ -382,6 +374,8 @@ module Expr =
         List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
+    | PT.EFnName(id, fnName) ->
+      ST.EFnName(id, NameResolution.toST FnName.toST fnName)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
@@ -421,17 +415,10 @@ module Expr =
     | ST.EUnit id -> PT.EUnit id
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
-    | ST.EApply(id, ST.FnTargetName name, typeArgs, args) ->
+    | ST.EApply(id, fn, typeArgs, args) ->
       PT.EApply(
         id,
-        PT.FnTargetName(NameResolution.toPT FnName.toPT name),
-        List.map TypeReference.toPT typeArgs,
-        List.map toPT args
-      )
-    | ST.EApply(id, ST.FnTargetExpr name, typeArgs, args) ->
-      PT.EApply(
-        id,
-        PT.FnTargetExpr(toPT name),
+        toPT fn,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
@@ -473,6 +460,8 @@ module Expr =
     | ST.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
+    | ST.EFnName(id, fnName) ->
+      PT.EFnName(id, NameResolution.toPT FnName.toPT fnName)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with

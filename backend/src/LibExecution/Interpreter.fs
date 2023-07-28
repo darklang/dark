@@ -309,15 +309,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           fields
 
 
+    | EFnName(id, name) -> return DFnVal(NamedFn name)
 
     | EApply(id, fnTarget, typeArgs, exprs) ->
-      let! args = Ply.List.mapSequentially (eval state st) exprs
-
-      match fnTarget with
-      | FnTargetName name -> return! callFn state id name typeArgs (Seq.toList args)
-      | FnTargetExpr e ->
-        let! target = eval' state st e
-        return! applyFn state target id args
+      match! eval' state st fnTarget with
+      | DFnVal fnVal ->
+        let! args = Ply.List.mapSequentially (eval state st) exprs
+        return! applyFnVal state id fnVal typeArgs args
+      | other when Dval.isFake other -> return other
+      | other ->
+        return
+          Dval.errSStr
+            (SourceID(state.tlid, id))
+            $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
 
 
     | EFieldAccess(id, e, field) ->
@@ -678,31 +682,16 @@ and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   }
 
 /// Unwrap the dval, which we expect to be a function, and error if it's not
-and applyFn
-  (state : ExecutionState)
-  (fn : Dval)
-  (id : id)
-  (args : List<Dval>)
-  : DvalTask =
-  uply {
-    // Unwrap
-    match fn with
-    | DFnVal fnVal -> return! applyFnVal state fnVal args
-    | other when Dval.isFake other -> return other
-    | other ->
-      return
-        Dval.errSStr
-          (SourceID(state.tlid, id))
-          $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
-  }
-
 and applyFnVal
   (state : ExecutionState)
+  (id : id)
   (fnVal : FnValImpl)
-  (argList : List<Dval>)
+  (typeArgs : List<TypeReference>)
+  (args : List<Dval>)
   : DvalTask =
   match fnVal with
-  | Lambda l -> executeLambda state l argList
+  | Lambda l -> executeLambda state l args
+  | NamedFn fn -> callFn state id fn typeArgs args
 
 and executeLambda
   (state : ExecutionState)

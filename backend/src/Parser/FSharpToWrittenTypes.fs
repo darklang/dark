@@ -299,7 +299,7 @@ module Expr =
 
     let synToPipeExpr (e : SynExpr) : WT.PipeExpr =
       match c e with
-      | WT.EApply(id, WT.FnTargetName name, typeArgs, args) ->
+      | WT.EApply(id, WT.EFnName(_id, name), typeArgs, args) ->
         WT.EPipeFnCall(id, name, typeArgs, args)
       | WT.EInfix(id, op, Placeholder, arg2) -> WT.EPipeInfix(id, op, arg2)
       | WT.EInfix(id, op, arg1, Placeholder) -> WT.EPipeInfix(id, op, arg1)
@@ -369,7 +369,12 @@ module Expr =
 
     // Negation
     | SynExprLongIdentPat [ "op_UnaryNegation" ] ->
-      WT.EApply(id, WT.FnTargetName(WT.KnownBuiltin([ "Int" ], "negate", 0)), [], [])
+      WT.EApply(
+        id,
+        WT.EFnName(gid (), WT.KnownBuiltin([ "Int" ], "negate", 0)),
+        [],
+        []
+      )
 
     // Variables
     | SynExpr.Ident ident -> WT.EVariable(id, ident.idText)
@@ -407,7 +412,12 @@ module Expr =
       if String.isCapitalized name then
         WT.EEnum(gid (), WT.Unresolved modules, name, [])
       else
-        WT.EApply(gid (), WT.FnTargetName(WT.Unresolved(modules @ [ name ])), [], [])
+        WT.EApply(
+          gid (),
+          WT.EFnName(gid (), WT.Unresolved(modules @ [ name ])),
+          [],
+          []
+        )
 
 
     // Enums are expected to be fully qualified
@@ -421,7 +431,7 @@ module Expr =
       let typeArgs =
         typeArgs |> List.map (fun synType -> TypeReference.fromSynType synType)
 
-      WT.EApply(gid (), WT.FnTargetName(WT.Unresolved names), typeArgs, [])
+      WT.EApply(gid (), WT.EFnName(gid (), WT.Unresolved names), typeArgs, [])
 
 
 
@@ -615,7 +625,7 @@ module Expr =
         if String.isCapitalized name then
           WT.EEnum(id, WT.Unresolved [], name, convertEnumArg arg)
         else
-          WT.EApply(id, WT.FnTargetName(WT.Unresolved [ name ]), [], [ c arg ])
+          WT.EApply(id, WT.EFnName(gid (), WT.Unresolved [ name ]), [], [ c arg ])
       // Enums
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EEnum(id, typeName, caseName, fields @ convertEnumArg arg)

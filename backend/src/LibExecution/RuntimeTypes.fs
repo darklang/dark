@@ -387,7 +387,8 @@ type Expr =
   | EVariable of id * string
 
   // This is a function call, the first expression is the value of the function.
-  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+  | EFnName of id * FnName.T
 
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -418,10 +419,6 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
-and FnTarget =
-  | FnTargetName of FnName.T
-  | FnTargetExpr of Expr
-
 and MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
@@ -439,7 +436,9 @@ type DvalMap = Map<string, Dval>
 
 and LambdaImpl = { parameters : List<id * string>; symtable : Symtable; body : Expr }
 
-and FnValImpl = Lambda of LambdaImpl
+and FnValImpl =
+  | Lambda of LambdaImpl // A fn value
+  | NamedFn of FnName.T // A reference to an Fn in the executionState
 
 and DDateTime = NodaTime.LocalDate
 
@@ -596,6 +595,7 @@ module Expr =
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     | EApply(id, _, _, _)
+    | EFnName(id, _)
     | EList(id, _)
     | ETuple(id, _, _, _)
     | ERecord(id, _, _)

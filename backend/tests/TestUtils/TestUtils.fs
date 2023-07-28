@@ -567,7 +567,7 @@ module Expect =
 
     | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
       let path = (string name :: path)
-      check path name name'
+      eq path name name'
 
       check path (List.length typeArgs) (List.length typeArgs')
       List.iteri2
@@ -576,6 +576,7 @@ module Expect =
         typeArgs'
 
       eqList path args args'
+    | EFnName(_, name), EFnName(_, name') -> check path name name'
 
     | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
       userTypeNameEqualityBaseFn path typeName typeName' errorFn
@@ -647,6 +648,7 @@ module Expect =
     | EList _, _
     | ETuple _, _
     | EApply _, _
+    | EFnName _, _
     | ERecord _, _
     | ERecordUpdate _, _
     | EDict _, _
@@ -1022,28 +1024,32 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
          { body =
              EApply(
                92356985UL,
-               (FnTargetName(
+               (EFnName(
+                 957274UL,
                  FQName.BuiltIn
                    { modules = [ "List" ]; name = FnName.FnName "push"; version = 0 }
                )),
                [],
                [ EApply(
                    93459985UL,
-                   (FnTargetName(
+                   (EFnName(
+                     123123UL,
                      FQName.BuiltIn
                        { modules = []; name = FnName.FnName "+"; version = 0 }
                    )),
                    [],
                    [ EApply(
                        394567785UL,
-                       (FnTargetName(
+                       (EFnName(
+                         95723UL,
                          FQName.BuiltIn
                            { modules = []; name = FnName.FnName "+"; version = 0 }
                        )),
                        [],
                        [ EApply(
                            44444485UL,
-                           (FnTargetName(
+                           (EFnName(
+                             9473UL,
                              FQName.BuiltIn
                                { modules = []
                                  name = FnName.FnName "+"

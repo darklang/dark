@@ -240,7 +240,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | ERecord of
     id *
@@ -257,14 +257,11 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
+  | EFnName of id * NameResolution<FnName.T>
 
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
-
-and FnTarget =
-  | FnTargetName of NameResolution<FnName.T>
-  | FnTargetExpr of Expr
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string

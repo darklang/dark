@@ -98,7 +98,7 @@ type Expr =
   | ELambda of id * List<id * string> * Expr
   | EFieldAccess of id * Expr * string
   | EVariable of id * string
-  | EApply of id * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : List<Expr>
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
@@ -107,14 +107,11 @@ type Expr =
   | ERecordUpdate of id * record : Expr * updates : List<string * Expr>
   | EEnum of id * Name * caseName : string * fields : List<Expr> // Name includes both CaseName and TypeName
   | EMatch of id * arg : Expr * cases : List<MatchPattern * Expr>
+  | EFnName of id * Name
 
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
-
-and FnTarget =
-  | FnTargetName of Name
-  | FnTargetExpr of Expr
 
 and PipeExpr =
   | EPipeInfix of id * Infix * Expr

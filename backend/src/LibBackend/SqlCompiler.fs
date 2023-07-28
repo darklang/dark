@@ -247,9 +247,10 @@ let rec inline'
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
   | EApply(_,
-           FnTargetName(FQName.BuiltIn({ modules = modules
-                                         name = FnName.FnName name
-                                         version = version })),
+           EFnName(_,
+                   FQName.BuiltIn({ modules = modules
+                                    name = FnName.FnName name
+                                    version = version })),
            [],
            args) when modules = [ mName ] && name = fName && version = v -> Some args
   | _ -> None
@@ -277,7 +278,7 @@ let rec lambdaToSql
     let! (sql, vars, actualType) =
       uply {
         match expr with
-        | EApply(_, FnTargetName(FQName.BuiltIn name as fqName), [], args) ->
+        | EApply(_, EFnName(_, (FQName.BuiltIn name as fqName)), [], args) ->
           let nameStr = FnName.toString fqName
 
           match Map.get name fns with
@@ -670,7 +671,8 @@ let partiallyEvaluate
         | EMatch _
         | EError _
         | EAnd _
-        | EOr _ -> return expr
+        | EOr _
+        | EFnName _ -> return expr
       }
 
     // This is a copy of Ast.postTraversal, made to  work with uplys
@@ -692,9 +694,11 @@ let partiallyEvaluate
               let! rhs = r rhs
               let! next = r next
               return ELet(id, pat, rhs, next)
-            | EApply(id, fnName, typeArgs, exprs) ->
+            | EApply(id, fn, typeArgs, exprs) ->
+              let! fn = r fn
               let! exprs = Ply.List.mapSequentially r exprs
-              return EApply(id, fnName, typeArgs, exprs)
+              return EApply(id, fn, typeArgs, exprs)
+            | EFnName _ -> return expr
             | EIf(id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr

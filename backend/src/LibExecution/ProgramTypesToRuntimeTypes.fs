@@ -190,34 +190,23 @@ module Expr =
     | PT.EUnit id -> RT.EUnit id
     | PT.EVariable(id, var) -> RT.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
-    | PT.EApply(id, PT.FnTargetName(Ok fnName), typeArgs, args) ->
+    | PT.EApply(id, fnName, typeArgs, args) ->
       RT.EApply(
         id,
-        RT.FnTargetName(FnName.toRT fnName),
+        toRT fnName,
         List.map TypeReference.toRT typeArgs,
         List.map toRT args
       )
-    | PT.EApply(id, PT.FnTargetName(Error err), typeArgs, args) ->
-      RT.EError(
-        id,
-        Errors.toString (Errors.NameResolutionError err),
-        List.map toRT args
-      )
-    | PT.EApply(id, PT.FnTargetExpr fnName, typeArgs, args) ->
-      RT.EApply(
-        id,
-        RT.FnTargetExpr(toRT fnName),
-        List.map TypeReference.toRT typeArgs,
-        List.map toRT args
-      )
+    | PT.EFnName(id, Ok name) -> RT.EFnName(id, FnName.toRT name)
+    | PT.EFnName(id, Error name) ->
+      RT.EError(id, Errors.toString (Errors.NameResolutionError name), [])
     | PT.EInfix(id, PT.InfixFnCall fnName, arg1, arg2) ->
       let (modules, fn, version) = InfixFnName.toFnName fnName
       let name =
-        PT.FQName.BuiltIn(
-          { modules = modules; name = PT.FnName.FnName fn; version = version }
+        RT.FQName.BuiltIn(
+          { modules = modules; name = RT.FnName.FnName fn; version = version }
         )
-      let typeArgs = []
-      toRT (PT.EApply(id, PT.FnTargetName(Ok name), typeArgs, [ arg1; arg2 ]))
+      RT.EApply(id, RT.EFnName(id, name), [], [ toRT arg1; toRT arg2 ])
     | PT.EInfix(id, PT.BinOp PT.BinOpAnd, expr1, expr2) ->
       RT.EAnd(id, toRT expr1, toRT expr2)
     | PT.EInfix(id, PT.BinOp PT.BinOpOr, expr1, expr2) ->
@@ -248,7 +237,7 @@ module Expr =
 
         let applyFn (expr : RT.Expr) =
           let typeArgs = []
-          RT.EApply(pipeID, RT.FnTargetExpr(expr), typeArgs, [ prev ])
+          RT.EApply(pipeID, expr, typeArgs, [ prev ])
 
         match next with
         | PT.EPipeFnCall(id, Error fnName, typeArgs, exprs) ->
@@ -260,7 +249,7 @@ module Expr =
         | PT.EPipeFnCall(id, Ok fnName, typeArgs, exprs) ->
           RT.EApply(
             id,
-            RT.FnTargetName(FnName.toRT fnName),
+            RT.EFnName(id, FnName.toRT fnName),
             List.map TypeReference.toRT typeArgs,
             prev :: List.map toRT exprs
           )
@@ -273,7 +262,7 @@ module Expr =
           let typeArgs = []
           RT.EApply(
             id,
-            RT.FnTargetName(FnName.toRT name),
+            RT.EFnName(id, FnName.toRT name),
             typeArgs,
             [ prev; toRT expr ]
           )

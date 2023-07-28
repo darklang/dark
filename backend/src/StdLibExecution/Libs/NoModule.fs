@@ -41,6 +41,9 @@ let rec equals (types : Types) (a : Dval) (b : Dval) : bool =
   | DFnVal a, DFnVal b ->
     match a, b with
     | Lambda a, Lambda b -> equalsLambdaImpl types a b
+    | NamedFn a, NamedFn b -> a = b
+    | Lambda _, _
+    | NamedFn _, _ -> false
   | DDateTime a, DDateTime b -> a = b
   | DPassword _, DPassword _ -> false
   | DUuid a, DUuid b -> a = b
@@ -112,9 +115,10 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     equalsExpr target1 target2 && fieldName1 = fieldName2
   | EVariable(_, name1), EVariable(_, name2) -> name1 = name2
   | EApply(_, name1, typeArgs1, args1), EApply(_, name2, typeArgs2, args2) ->
-    name1 = name2
+    equalsExpr name1 name2
     && List.forall2 (=) typeArgs1 typeArgs2
     && List.forall2 equalsExpr args1 args2
+  | EFnName(_, name1), EFnName(_, name2) -> name1 = name2
   | EList(_, elems1), EList(_, elems2) ->
     elems1.Length = elems2.Length && List.forall2 equalsExpr elems1 elems2
   | ETuple(_, elem1_1, elem2_1, elems1), ETuple(_, elem1_2, elem2_2, elems2) ->
@@ -174,6 +178,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | EFieldAccess _, _
   | EVariable _, _
   | EApply _, _
+  | EFnName _, _
   | EList _, _
   | ETuple _, _
   | ERecord _, _

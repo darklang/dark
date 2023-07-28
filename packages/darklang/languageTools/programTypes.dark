@@ -195,11 +195,6 @@ module Darklang =
         | StringText of String
         | StringInterpolation of PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr
 
-      type FnTarget =
-        | FnTargetName of
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
-        | FnTargetExpr of PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr
-
 
       type PipeExpr =
         | EPipeVariable of PACKAGE.Darklang.LanguageTools.ID * String
@@ -357,9 +352,13 @@ module Darklang =
 
         | EApply of
           PACKAGE.Darklang.LanguageTools.ID *
-          PACKAGE.Darklang.LanguageTools.ProgramTypes.FnTarget *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr *
           typeArgs: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.TypeReference> *
           args: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.Expr>
+
+        | EFnName of
+          PACKAGE.Darklang.LanguageTools.ID *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.FnName.T>
 
         | ERecordUpdate of
           PACKAGE.Darklang.LanguageTools.ID *
