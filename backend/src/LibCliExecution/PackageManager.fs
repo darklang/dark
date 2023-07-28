@@ -591,43 +591,56 @@ module ExternalTypesToProgramTypes =
 
 module ET2PT = ExternalTypesToProgramTypes
 
+let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : Ply<'a> =
+  let mutable value = None
+  let mutable lastUpdate = DateTime.MinValue
+
+  uply {
+    match value, DateTime.Now - lastUpdate > expiration with
+    | Some value, false -> return value
+    | _ ->
+      let! newValue = f
+      value <- Some newValue
+      lastUpdate <- DateTime.Now
+      return newValue
+  }
+
 // TODO: fetch one by one
 // TODO: copy back to LibBackend/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
 let packageManager : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient()
 
-  let getAllTypes =
+  let allTypes =
     uply {
       let! response =
         httpClient.GetAsync "http://dark-packages.dlio.localhost:11003/types"
       let! allTypesStr = response.Content.ReadAsStringAsync()
 
-      let parsedTypes =
+      return
         Json.Vanilla.deserialize<List<LanguageToolsTypesFork.ProgramTypes.PackageType.T>>
           allTypesStr
-
-      return
-        parsedTypes |> List.map (ET2PT.PackageType.toPT >> PT2RT.PackageType.toRT)
+        |> List.map (ET2PT.PackageType.toPT >> PT2RT.PackageType.toRT)
     }
+    |> cachedPly (TimeSpan.FromMinutes 1.)
 
-  let getAllFns =
+  let allFns =
     uply {
       let! response =
         httpClient.GetAsync "http://dark-packages.dlio.localhost:11003/functions"
       let! allTypesStr = response.Content.ReadAsStringAsync()
 
-      let parsedTypes =
+      return
         Json.Vanilla.deserialize<List<LanguageToolsTypesFork.ProgramTypes.PackageFn.T>>
           allTypesStr
-
-      return parsedTypes |> List.map (ET2PT.PackageFn.toPT >> PT2RT.PackageFn.toRT)
+        |> List.map (ET2PT.PackageFn.toPT >> PT2RT.PackageFn.toRT)
     }
+    |> cachedPly (TimeSpan.FromMinutes 1.)
 
   { getType =
       fun typeName ->
         uply {
-          let! allTypes = getAllTypes
+          let! allTypes = allTypes
           let found =
             List.find (fun (typ : RT.PackageType.T) -> typ.name = typeName) allTypes
           return found
@@ -636,7 +649,7 @@ let packageManager : RT.PackageManager =
     getFn =
       fun fnName ->
         uply {
-          let! allFns = getAllFns
+          let! allFns = allFns
           let found =
             List.find (fun (typ : RT.PackageFn.T) -> typ.name = fnName) allFns
           return found
