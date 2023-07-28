@@ -729,6 +729,7 @@ module Expr =
           toDT name
           DList(List.map TypeReference.toDT typeArgs)
           DList(List.map toDT args) ]
+
       | PT.EFnName(id, name) ->
         "EFnName", [ DInt(int64 id); NameResolution.toDT FnName.toDT name ]
 
@@ -835,20 +836,16 @@ module Expr =
       PT.ELambda(uint64 id, args, fromDT body)
 
 
-    | DEnum(_, "EApply", [ DInt id; fnTarget; DList typeArgs; DList args ]) ->
-      let fnTarget =
-        match fnTarget with
-        | DEnum(_, "FnTargetName", [ fnName ]) ->
-          PT.FnTargetName(NameResolution.fromDT FnName.fromDT fnName)
-        | DEnum(_, "FnTargetExpr", [ expr ]) -> PT.FnTargetExpr(fromDT expr)
-        | _ -> Exception.raiseInternal "Invalid FnTarget" []
-
+    | DEnum(_, "EApply", [ DInt id; name; DList typeArgs; DList args ]) ->
       PT.EApply(
         uint64 id,
-        fnTarget,
+        fromDT name,
         List.map TypeReference.fromDT typeArgs,
         List.map fromDT args
       )
+
+    | DEnum(_, "EFnName", [ DInt id; name ]) ->
+      PT.EFnName(uint64 id, NameResolution.fromDT FnName.fromDT name)
 
     | DEnum(_, "ERecordUpdate", [ DInt id; record; DList updates ]) ->
       let updates =

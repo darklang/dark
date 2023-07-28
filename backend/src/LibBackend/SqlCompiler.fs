@@ -278,7 +278,7 @@ let rec lambdaToSql
     let! (sql, vars, actualType) =
       uply {
         match expr with
-        | EApply(_, FnTargetName(FQName.BuiltIn name as fqName), [], args) ->
+        | EApply(_, EFnName(_, (FQName.BuiltIn name as fqName)), [], args) ->
           let nameStr = FnName.toString fqName
 
           match Map.get name fns with

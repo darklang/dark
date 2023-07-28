@@ -125,10 +125,6 @@ module LanguageToolsTypesFork =
       | StringText of string
       | StringInterpolation of Expr
 
-    and FnTarget =
-      | FnTargetName of NameResolution<FnName.T>
-      | FnTargetExpr of Expr
-
     and PipeExpr =
       | EPipeVariable of ID * string
       | EPipeLambda of ID * List<ID * string> * Expr
@@ -174,7 +170,8 @@ module LanguageToolsTypesFork =
 
       | EInfix of ID * Infix * Expr * Expr
       | ELambda of ID * List<ID * string> * Expr
-      | EApply of ID * FnTarget * typeArgs : List<TypeReference> * args : List<Expr>
+      | EApply of ID * Expr * typeArgs : List<TypeReference> * args : List<Expr>
+      | EFnName of ID * NameResolution<FnName.T>
       | ERecordUpdate of ID * record : Expr * updates : List<String * Expr>
 
     type Deprecation<'name> =
@@ -431,17 +428,10 @@ module ExternalTypesToProgramTypes =
       | EPT.EVariable(id, var) -> PT.EVariable(id, var)
       | EPT.EFieldAccess(id, obj, fieldname) ->
         PT.EFieldAccess(id, toPT obj, fieldname)
-      | EPT.EApply(id, EPT.FnTargetName name, typeArgs, args) ->
+      | EPT.EApply(id, name, typeArgs, args) ->
         PT.EApply(
           id,
-          PT.FnTargetName(NameResolution.toPT FnName.toPT name),
-          List.map TypeReference.toPT typeArgs,
-          List.map toPT args
-        )
-      | EPT.EApply(id, EPT.FnTargetExpr name, typeArgs, args) ->
-        PT.EApply(
-          id,
-          PT.FnTargetExpr(toPT name),
+          toPT name,
           List.map TypeReference.toPT typeArgs,
           List.map toPT args
         )
@@ -483,6 +473,7 @@ module ExternalTypesToProgramTypes =
       | EPT.EInfix(id, infix, arg1, arg2) ->
         PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
       | EPT.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
+      | EPT.EFnName(id, name) -> PT.EFnName(id, NameResolution.toPT FnName.toPT name)
 
     and stringSegmentToPT (segment : EPT.StringSegment) : PT.StringSegment =
       match segment with

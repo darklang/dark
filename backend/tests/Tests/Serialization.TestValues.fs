@@ -117,16 +117,11 @@ module RuntimeTypes =
       RT.ELambda(7587123UL, [ 758123UL, "var3" ], RT.EUnit(17384UL))
       RT.EFieldAccess(74875UL, RT.EUnit(737463UL), "field")
       RT.EVariable(8737583UL, "var4")
-      RT.EApply(128384UL, RT.EUnit(1235123UL), dtypes, [ RT.EUnit(7756UL) ])
+      RT.EApply(128384UL, RT.EUnit(1235123UL), typeReferences, [ RT.EUnit(7756UL) ])
       RT.EApply(
         128384UL,
-        RT.FnTargetExpr(RT.EUnit(1235123UL)),
-        typeReferences,
-        [ RT.EUnit(7756UL) ]
-      )
-      RT.EApply(
-        128384UL,
-        RT.FnTargetName(
+        RT.EFnName(
+          2236UL,
           RT.FQName.UserProgram
             { modules = []; name = RT.FnName.FnName "fn"; version = 0 }
         ),

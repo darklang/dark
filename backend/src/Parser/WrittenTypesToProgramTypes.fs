@@ -114,11 +114,11 @@ module Expr =
       PT.EApply(
         id,
         toPT name,
-        List.map (TypeReference.toPT resolver) typeArgs,
+        List.map (TypeReference.toPT resolver currentModule) typeArgs,
         List.map toPT args
       )
     | WT.EFnName(id, name) ->
-      PT.EFnName(id, NameResolver.FnName.resolve resolver name)
+      PT.EFnName(id, NameResolver.FnName.resolve resolver currentModule name)
     | WT.ELambda(id, vars, body) -> PT.ELambda(id, vars, toPT body)
     | WT.ELet(id, pat, rhs, body) ->
       PT.ELet(id, LetPattern.toPT pat, toPT rhs, toPT body)
