@@ -632,7 +632,6 @@ let partiallyEvaluate
           name1 <> paramName && name2 <> paramName
           ->
           return! exec expr
-        | EFnName(_, _) -> return! exec expr
         | EApply(_, _, typeArgs, args) ->
           let rec fullySpecified (expr : Expr) =
             match expr with
@@ -672,7 +671,8 @@ let partiallyEvaluate
         | EMatch _
         | EError _
         | EAnd _
-        | EOr _ -> return expr
+        | EOr _
+        | EFnName _ -> return expr
       }
 
     // This is a copy of Ast.postTraversal, made to  work with uplys
