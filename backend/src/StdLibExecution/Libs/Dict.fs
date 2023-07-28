@@ -364,7 +364,8 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result = Interpreter.applyFnVal state 0UL b [] [ DString key; data ]
+                  let! result =
+                    Interpreter.applyFnVal state 0UL b [] [ DString key; data ]
 
                   match result with
                   | DEnum(FQName.Package { owner = "Darklang"

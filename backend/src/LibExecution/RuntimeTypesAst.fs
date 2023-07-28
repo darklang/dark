@@ -188,12 +188,7 @@ let rec postTraversal
    | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
    | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
    | EApply(id, name, typeArgs, args) ->
-     EApply(
-       id,
-       f name,
-       List.map postTraversalTypeRef typeArgs,
-       List.map f args
-     )
+     EApply(id, f name, List.map postTraversalTypeRef typeArgs, List.map f args)
    | EFnName(id, name) -> EFnName(id, fqfnFn name)
    | EAnd(id, left, right) -> EAnd(id, f left, f right)
    | EOr(id, left, right) -> EOr(id, f left, f right)

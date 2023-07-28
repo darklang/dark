@@ -57,7 +57,10 @@ let rec dvalTypeName (dv : Dval) : string =
   | DPassword _ -> "Password"
   | DUuid _ -> "Uuid"
   | DTuple(t1, t2, trest) ->
-    t1 :: t2 :: trest |> List.map dvalTypeName |> String.concat ", " |> fun s -> $"({s})"
+    t1 :: t2 :: trest
+    |> List.map dvalTypeName
+    |> String.concat ", "
+    |> fun s -> $"({s})"
   | DBytes _ -> "Bytes"
   | DRecord(typeName, _) -> TypeName.toString typeName
   | DEnum(typeName, _, _) -> TypeName.toString typeName
