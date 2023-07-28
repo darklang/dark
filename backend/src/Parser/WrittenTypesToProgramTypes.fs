@@ -108,8 +108,26 @@ module Expr =
     | WT.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | WT.EBool(id, b) -> PT.EBool(id, b)
     | WT.EUnit id -> PT.EUnit id
-    | WT.EVariable(id, var) -> PT.EVariable(id, var)
+    | WT.EVariable(id, var) ->
+      // This could be a UserConstant
+      let constant =
+        NameResolver.ConstantName.resolve
+          resolver
+          currentModule
+          (WT.Unresolved [ var ])
+      match constant with
+      | Ok _ as name -> PT.EConstant(id, name)
+      | Error _ -> PT.EVariable(id, var)
     | WT.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
+    | WT.EApply(id, (WT.EFnName(_, name) as eFnName), [], []) ->
+      // This must be a constant, as there are no arguments?
+      let constant = NameResolver.ConstantName.resolve resolver currentModule name
+      match constant with
+      | Ok _ as name -> PT.EConstant(id, name)
+      | Error _ ->
+        // There are no arguments, so surely this is an error? TODO: maybe we
+        // can have a better error message here
+        PT.EApply(id, toPT eFnName, [], [])
     | WT.EApply(id, name, typeArgs, args) ->
       PT.EApply(
         id,
