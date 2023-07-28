@@ -55,6 +55,7 @@ let t
   (canvasName : string)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
+  (filename : string)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
   (types : List<PT.UserType.T>)
@@ -104,8 +105,20 @@ let t
           rtTypes
           rtFunctions
           rtConstants
+      let red = "\u001b[31m"
+      let green = "\u001b[32m"
+      let bold = "\u001b[1;37m"
+      let underline = "\u001b[4m"
+      let reset = "\u001b[0m"
 
-      let msg = $"\n\n{actualExpr}\n=\n{expectedExpr} ->"
+      let rhsMsg =
+        $"{underline}Right-hand-side test code{reset} (aka {bold}\"expected\"{reset}):\n{green}\n{expectedExpr}\n{reset}"
+
+      let lhsMsg =
+        $"{underline}Left-hand-side test code{reset} (aka {bold}\"actual\"{reset}):\n{red}\n{actualExpr}\n{reset}"
+
+      let msg =
+        $"\n\n{rhsMsg}\n\n{lhsMsg}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
       let! expected = Exe.executeExpr state Map.empty (PT2RT.Expr.toRT expectedExpr)
 
@@ -132,9 +145,10 @@ let t
       if not canonical then
         debugDval actual |> debuG "not canonicalized"
         Expect.isTrue canonical "expected is canonicalized"
-      let availableTypes = RT.ExecutionState.availableTypes state
       return Expect.equalDval actual expected msg
-    with e ->
+    with
+    | :? Expecto.AssertException as e -> e.Reraise() // let this through
+    | e ->
       let metadata = Exception.toMetadata e
       printMetadata "" metadata
       return
@@ -156,41 +170,38 @@ let fileTests () : Test =
     let initializeCanvas = testName = "internal"
     let shouldSkip = String.startsWith "_" filename
 
-    let rec moduleToTests
-      (moduleName : string)
-      (modul : Parser.TestModule.PTModule)
-      =
-
-      let nestedModules =
-        List.map (fun (name, m) -> moduleToTests name m) modul.modules
-
-      let tests =
-        modul.tests
-        |> List.map (fun test ->
-          t
-            initializeCanvas
-            test.name
-            test.actual
-            test.expected
-            test.lineNumber
-            modul.dbs
-            modul.types
-            modul.fns
-            modul.constants
-            [])
-
-      if List.isEmpty tests && List.isEmpty nestedModules then
-        Exception.raiseInternal "No tests or modules found" [ "module", moduleName ]
-      else
-        testList moduleName (nestedModules @ tests)
-
     if shouldSkip then
       testList $"skipped - {testName}" []
     else
       try
-        (baseDir + filename)
-        |> Parser.TestModule.parseTestFile
-        |> moduleToTests testName
+        let modules =
+          (baseDir + filename) |> Parser.TestModule.parseTestFile builtinResolver
+
+        // Within a module, tests have access to
+        let fns = modules |> List.map (fun m -> m.fns) |> List.concat
+        let types = modules |> List.map (fun m -> m.types) |> List.concat
+        let constants = modules |> List.map (fun m -> m.constants) |> List.concat
+        let tests =
+          modules
+          |> List.map (fun m ->
+            m.tests
+            |> List.map (fun test ->
+              t
+                initializeCanvas
+                test.name
+                test.actual
+                test.expected
+                filename
+                test.lineNumber
+                m.dbs
+                types
+                fns
+                constants
+                []))
+          |> List.concat
+
+
+        testList testName tests
       with e ->
         print $"Exception in {file}: {e.Message}"
         reraise ())

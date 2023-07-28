@@ -7,7 +7,9 @@ open RuntimeTypes
 
 /// Returns `Ok ()` if no errors, or `Error first` otherwise
 let combineErrorsUnit (l : List<Result<unit, 'err>>) : Result<unit, 'err> =
-  l |> Tablecloth.Result.values |> Result.map ignore<List<unit>>
+  l |> List.find Result.isError |> Option.unwrap (Ok())
+
+
 
 type Location = Option<tlid * id>
 type Context =
@@ -26,28 +28,37 @@ type Context =
     recordTypeName : TypeName.T *
     fieldDef : TypeDeclaration.RecordField *
     location : Location
+  | DictKey of key : string * typ : TypeReference * Location
   | EnumField of
     enumTypeName : TypeName.T *
     definition : TypeDeclaration.EnumField *
     caseName : string *
     paramIndex : int *  // nth argument to the enum constructor
     location : Location
-  | DBQueryVariable of varName : string * location : Location
+  | DBQueryVariable of
+    varName : string *
+    expected : TypeReference *
+    location : Location
   | DBSchemaType of
     name : string *
     expectedType : TypeReference *
     location : Location
+  | ListIndex of index : int * listTyp : TypeReference * parent : Context
+  | TupleIndex of index : int * elementType : TypeReference * parent : Context
 
 
 module Context =
-  let toLocation (c : Context) : Location =
+  let rec toLocation (c : Context) : Location =
     match c with
     | FunctionCallParameter(_, _, _, location) -> location
     | FunctionCallResult(_, _, location) -> location
     | RecordField(_, _, location) -> location
+    | DictKey(_, _, location) -> location
     | EnumField(_, _, _, _, location) -> location
-    | DBQueryVariable(_, location) -> location
+    | DBQueryVariable(_, _, location) -> location
     | DBSchemaType(_, _, location) -> location
+    | ListIndex(_, _, parent) -> toLocation parent
+    | TupleIndex(_, _, parent) -> toLocation parent
 
 
 type Error =
@@ -67,6 +78,7 @@ type Error =
 let rec unify
   (context : Context)
   (types : Types)
+  (typeArgSymbolTable : Map<string, TypeReference>)
   (expected : TypeReference)
   (value : Dval)
   : Ply<Result<unit, Error>> =
@@ -79,26 +91,57 @@ let rec unify
     //
     // Potentially needs to be removed before we use this type checker for DBs?
     //   - Could always have a type checking context that allows/disallows any
-    | TVariable _, _ -> return Ok() // TYPESCLEANUP actually unify this
+    | TVariable name, _ ->
+      match Map.get name typeArgSymbolTable with
+      // for now, allow undefined type variables. In the future, we would create a
+      // type from the value and return any variables defined this way for usage in
+      // further arguments and return values.
+      | None -> return Ok()
+      | Some t -> return! unify context types typeArgSymbolTable t value
     | TInt, DInt _ -> return Ok()
     | TFloat, DFloat _ -> return Ok()
     | TBool, DBool _ -> return Ok()
     | TUnit, DUnit -> return Ok()
     | TString, DString _ -> return Ok()
-    // TYPESCLEANUP unify nested types too
-    | TList _, DList _ -> return Ok()
     | TDateTime, DDateTime _ -> return Ok()
-    | TDict _, DDict _ -> return Ok()
-    | TFn _, DFnVal _ -> return Ok()
     | TPassword, DPassword _ -> return Ok()
     | TUuid, DUuid _ -> return Ok()
     | TChar, DChar _ -> return Ok()
-    | TDB _, DDB _ -> return Ok()
     | TBytes, DBytes _ -> return Ok()
-    | TTuple _, DTuple _ -> return Ok()
+    | TDB _, DDB _ -> return Ok() // TODO: check DB type
+    | TList nested, DList dvs ->
+      let! results =
+        dvs
+        |> Ply.List.mapSequentiallyWithIndex (fun i v ->
+          let context = ListIndex(i, nested, context)
+          unify context types typeArgSymbolTable nested v)
+      return combineErrorsUnit results
+    | TDict valueType, DDict dmap ->
+      let! results =
+        dmap
+        |> Map.toList
+        |> Ply.List.mapSequentially (fun (k, v) ->
+          let location = Context.toLocation context
+          let context = DictKey(k, valueType, location)
+          unify context types typeArgSymbolTable valueType v)
+      return combineErrorsUnit results
+
+    | TFn(argTypes, returnType), DFnVal fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
+    | TTuple(t1, t2, tRest), DTuple(v1, v2, vRest) ->
+      let ts = t1 :: t2 :: tRest
+      let vs = v1 :: v2 :: vRest
+      if List.length ts <> List.length vs then
+        return Error(ValueNotExpectedType(value, resolvedType, context))
+      else
+        let! results =
+          List.zip ts vs
+          |> Ply.List.mapSequentiallyWithIndex (fun i (t, v) ->
+            let context = TupleIndex(i, t, context)
+            unify context types typeArgSymbolTable t v)
+        return combineErrorsUnit results
 
     // TYPESCLEANUP: handle typeArgs
-    | TCustomType(typeName, typeArgs), value ->
+    | TCustomType(typeName, _typeArgs), value ->
 
       match! Types.find typeName types with
       | None -> return Error(TypeDoesntExist(typeName, context))
@@ -108,7 +151,7 @@ let rec unify
         match ut, value with
         | { definition = TypeDeclaration.Alias aliasType }, _ ->
           let! resolvedAliasType = getTypeReferenceFromAlias types aliasType
-          return! unify context types resolvedAliasType value
+          return! unify context types typeArgSymbolTable resolvedAliasType value
 
         | { definition = TypeDeclaration.Record(firstField, additionalFields) },
           DRecord(tn, dmap) ->
@@ -116,13 +159,16 @@ let rec unify
           match aliasedType with
           | TCustomType(concreteTn, typeArgs) ->
             if concreteTn <> typeName then
-              return Error(ValueNotExpectedType(value, aliasedType, context))
+              let! expected =
+                getTypeReferenceFromAlias types (TCustomType(typeName, []))
+              return Error(ValueNotExpectedType(value, expected, context))
             else
               return!
                 unifyRecordFields
                   concreteTn
                   context
                   types
+                  typeArgSymbolTable
                   (firstField :: additionalFields)
                   dmap
           | _ -> return err
@@ -151,7 +197,7 @@ let rec unify
                         i,
                         Context.toLocation context
                       )
-                    unify context types expected.typ actual)
+                    unify context types typeArgSymbolTable expected.typ actual)
                   |> Ply.List.mapSequentially identity
 
                 return combineErrorsUnit unified
@@ -186,6 +232,7 @@ and unifyRecordFields
   (recordType : TypeName.T)
   (context : Context)
   (types : Types)
+  (typeArgSymbolTable : Map<string, TypeReference>)
   (defs : List<TypeDeclaration.RecordField>)
   (values : DvalMap)
   : Ply<Result<unit, Error>> =
@@ -209,7 +256,7 @@ and unifyRecordFields
           "field name missing from type"
           [ "fieldName", fieldName ]
       let context = RecordField(recordType, fieldDef, location)
-      unify context types fieldDef.typ fieldValue)
+      unify context types typeArgSymbolTable fieldDef.typ fieldValue)
     |> Ply.List.flatten
     |> Ply.map combineErrorsUnit
   else
@@ -241,15 +288,16 @@ and unifyRecordFields
 
 let checkFunctionCall
   (types : Types)
+  (typeArgSymbolTable : Map<string, TypeReference>)
   (fn : Fn)
-  (_typeArgs : List<TypeReference>)
   (args : List<Dval>)
   : Ply<Result<unit, Error>> =
+  // The interpreter checks these are the same length
   fn.parameters
   |> List.mapi2
     (fun i value param ->
       let context = FunctionCallParameter(fn.name, param, i, None)
-      unify context types param.typ value)
+      unify context types typeArgSymbolTable param.typ value)
     args
   |> Ply.List.mapSequentially identity
   |> Ply.map combineErrorsUnit
@@ -257,8 +305,9 @@ let checkFunctionCall
 
 let checkFunctionReturnType
   (types : Types)
+  (typeArgSymbolTable : Map<string, TypeReference>)
   (fn : Fn)
   (result : Dval)
   : Ply<Result<unit, Error>> =
   let context = FunctionCallResult(fn.name, fn.returnType, None)
-  unify context types fn.returnType result
+  unify context types typeArgSymbolTable fn.returnType result

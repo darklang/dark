@@ -51,9 +51,9 @@ let builtIns : RT.BuiltIns =
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
-    constants = constants |> Map.fromListBy (fun c -> c.name)}
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
-let packageManager : RT.PackageManager = RT.PackageManager.Empty
+let packageManager = LibCliExecution.PackageManager.packageManager
 
 
 let execute
@@ -112,15 +112,33 @@ let execute
       return RT.DError(RT.SourceNone, "Multiple expressions to execute")
   }
 
-let initSerializers () = ()
+let initSerializers () =
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageType.T>>
+    "PackageManager"
+  Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageFn.T>>
+    "PackageManager"
 
 [<EntryPoint>]
 let main (args : string[]) =
   try
     initSerializers ()
 
+    // CLEANUP
+    packageManager.init |> Ply.toTask |> Async.AwaitTask |> Async.RunSynchronously
+
+    let resolver =
+      // TODO: this may need more builtins, and packages
+      Parser.NameResolver.fromBuiltins (
+        Map.values builtIns.fns,
+        Map.values builtIns.types,
+        Map.values builtIns.constants
+      )
+
+
     let hostScript =
-      Parser.CanvasV2.parseFromFile "/home/dark/app/backend/src/Cli/cli-host.dark"
+      Parser.CanvasV2.parseFromFile
+        resolver
+        "/home/dark/app/backend/src/Cli/cli-host.dark"
 
     let args = args |> Array.toList |> List.map RT.DString |> RT.DList
 

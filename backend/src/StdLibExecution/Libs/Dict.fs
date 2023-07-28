@@ -115,7 +115,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromListOverwritingDuplicates" 0
       typeParams = []
-      parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
+      parameters = [ Param.make "entries" (TList(TTuple(TString, varB, []))) "" ]
       returnType = TDict varA
       description =
         "Returns a <type dict> with <param entries>. Each value in <param entries>
@@ -148,7 +148,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "fromList" 0
       typeParams = []
-      parameters = [ Param.make "entries" (TList(TTuple(varA, varB, []))) "" ]
+      parameters = [ Param.make "entries" (TList(TTuple(TString, varB, []))) "" ]
       returnType = TypeReference.option (TDict varB)
       description =
         "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
@@ -234,14 +234,14 @@ let fns : List<BuiltInFn> =
          Consider <fn Dict.filterMap> if you also want to drop some of the entries."
       fn =
         (function
-        | state, _, [ DDict o; DFnVal b ] ->
+        | state, [], [ DDict o; DFnVal b ] ->
           uply {
             let mapped = Map.mapWithIndex (fun i v -> (i, v)) o
 
             let! result =
               Ply.Map.mapSequentially
                 (fun ((key, dv) : string * Dval) ->
-                  Interpreter.applyFnVal state b [ DString key; dv ])
+                  Interpreter.applyFnVal state 0UL b [] [ DString key; dv ])
                 mapped
 
             return DDict result
@@ -273,7 +273,9 @@ let fns : List<BuiltInFn> =
               Ply.List.iterSequentially
                 (fun ((key, dv) : string * Dval) ->
                   uply {
-                    match! Interpreter.applyFnVal state b [ DString key; dv ] with
+                    match!
+                      Interpreter.applyFnVal state 0UL b [] [ DString key; dv ]
+                    with
                     | DUnit -> return ()
                     | dv ->
                       if Dval.isFake dv then
@@ -317,7 +319,8 @@ let fns : List<BuiltInFn> =
               | Error dv -> Ply(Error dv)
               | Ok m ->
                 uply {
-                  let! result = Interpreter.applyFnVal state b [ DString key; data ]
+                  let! result =
+                    Interpreter.applyFnVal state 0UL b [] [ DString key; data ]
 
                   match result with
                   | DBool true -> return Ok(Map.add key data m)
@@ -370,7 +373,8 @@ let fns : List<BuiltInFn> =
                 let run = abortReason.Value = None
 
                 if run then
-                  let! result = Interpreter.applyFnVal state b [ DString key; data ]
+                  let! result =
+                    Interpreter.applyFnVal state 0UL b [] [ DString key; data ]
 
                   match result with
                   | DEnum(FQName.Package { owner = "Darklang"

@@ -103,46 +103,105 @@ module FnName =
     | ST.FnName.UserProgram u -> PT.FQName.UserProgram(UserProgram.toPT u)
     | ST.FnName.Package p -> PT.FQName.Package(Package.toPT p)
 
+module NameResolution =
+
+  module NameType =
+    let toST
+      (nameType : LibExecution.Errors.NameResolution.NameType)
+      : ST.NameResolution.NameType =
+      match nameType with
+      | LibExecution.Errors.NameResolution.Type -> ST.NameResolution.Type
+      | LibExecution.Errors.NameResolution.Function -> ST.NameResolution.Function
+      | LibExecution.Errors.NameResolution.Constant -> ST.NameResolution.Constant
+
+    let toPT
+      (nameType : ST.NameResolution.NameType)
+      : LibExecution.Errors.NameResolution.NameType =
+      match nameType with
+      | ST.NameResolution.Type -> LibExecution.Errors.NameResolution.Type
+      | ST.NameResolution.Function -> LibExecution.Errors.NameResolution.Function
+      | ST.NameResolution.Constant -> LibExecution.Errors.NameResolution.Constant
+
+  module ErrorType =
+    let toST
+      (err : LibExecution.Errors.NameResolution.ErrorType)
+      : ST.NameResolution.ErrorType =
+      match err with
+      | LibExecution.Errors.NameResolution.NotFound -> ST.NameResolution.NotFound
+      | LibExecution.Errors.NameResolution.MissingModuleName ->
+        ST.NameResolution.MissingModuleName
+      | LibExecution.Errors.NameResolution.InvalidPackageName ->
+        ST.NameResolution.InvalidPackageName
+
+    let toPT
+      (err : ST.NameResolution.ErrorType)
+      : LibExecution.Errors.NameResolution.ErrorType =
+      match err with
+      | ST.NameResolution.ErrorType.NotFound ->
+        LibExecution.Errors.NameResolution.NotFound
+      | ST.NameResolution.MissingModuleName ->
+        LibExecution.Errors.NameResolution.MissingModuleName
+      | ST.NameResolution.InvalidPackageName ->
+        LibExecution.Errors.NameResolution.InvalidPackageName
+
+  module Error =
+    let toST
+      (err : LibExecution.Errors.NameResolution.Error)
+      : ST.NameResolution.Error =
+      { nameType = NameType.toST err.nameType
+        errorType = ErrorType.toST err.errorType
+        names = err.names }
+
+    let toPT
+      (err : ST.NameResolution.Error)
+      : LibExecution.Errors.NameResolution.Error =
+      { errorType = ErrorType.toPT err.errorType
+        nameType = NameType.toPT err.nameType
+        names = err.names }
+
+  // type NameResolution = Result<x, NameResolution.Error>
+  let toST (f : 'p -> 's) (result : PT.NameResolution<'p>) : ST.NameResolution<'s> =
+    match result with
+    | Ok name -> Ok(f name)
+    | Error err -> Error(Error.toST err)
+
+  let toPT (f : 's -> 'p) (result : ST.NameResolution<'s>) : PT.NameResolution<'p> =
+    match result with
+    | Ok name -> Ok(f name)
+    | Error err -> Error(Error.toPT err)
+
 
 
 module ConstantName =
   module BuiltIn =
-    let toST
-      (b : PT.ConstantName.BuiltIn)
-      : ST.ConstantName.BuiltIn =
+    let toST (b : PT.ConstantName.BuiltIn) : ST.ConstantName.BuiltIn =
       let (PT.ConstantName.ConstantName name) = b.name
       { modules = b.modules; name = name; version = b.version }
 
-    let toPT
-      (b : ST.ConstantName.BuiltIn)
-      : PT.ConstantName.BuiltIn =
-      { modules = b.modules; name =PT.ConstantName.ConstantName b.name; version = b.version }
+    let toPT (b : ST.ConstantName.BuiltIn) : PT.ConstantName.BuiltIn =
+      { modules = b.modules
+        name = PT.ConstantName.ConstantName b.name
+        version = b.version }
 
   module UserProgram =
-    let toST
-      (u : PT.ConstantName.UserProgram)
-      : ST.ConstantName.UserProgram =
+    let toST (u : PT.ConstantName.UserProgram) : ST.ConstantName.UserProgram =
       let (PT.ConstantName.ConstantName name) = u.name
       { modules = u.modules; name = name; version = u.version }
 
-    let toPT
-      (u : ST.ConstantName.UserProgram)
-      : PT.ConstantName.UserProgram =
-      { modules = u.modules; name = PT.ConstantName.ConstantName u.name; version = u.version }
+    let toPT (u : ST.ConstantName.UserProgram) : PT.ConstantName.UserProgram =
+      { modules = u.modules
+        name = PT.ConstantName.ConstantName u.name
+        version = u.version }
 
   module Package =
-    let toST
-      (p : PT.ConstantName.Package)
-      : ST.ConstantName.Package =
+    let toST (p : PT.ConstantName.Package) : ST.ConstantName.Package =
       let (PT.ConstantName.ConstantName name) = p.name
       { owner = p.owner
         modules = { head = p.modules.Head; tail = p.modules.Tail }
         name = name
         version = p.version }
 
-    let toPT
-      (p : ST.ConstantName.Package)
-      : PT.ConstantName.Package =
+    let toPT (p : ST.ConstantName.Package) : PT.ConstantName.Package =
       { owner = p.owner
         modules = { Head = p.modules.head; Tail = p.modules.tail }
         name = PT.ConstantName.ConstantName p.name
@@ -150,7 +209,7 @@ module ConstantName =
 
   let toST (fqConstant : PT.ConstantName.T) : ST.ConstantName.T =
     match fqConstant with
-    | PT.FQName.BuiltIn s -> ST.ConstantName.BuiltIn(BuiltIn.toST s)   // ConstantName.BuiltIn(BuiltIn.toST s)
+    | PT.FQName.BuiltIn s -> ST.ConstantName.BuiltIn(BuiltIn.toST s) // ConstantName.BuiltIn(BuiltIn.toST s)
     | PT.FQName.UserProgram u -> ST.ConstantName.UserProgram(UserProgram.toST u)
     | PT.FQName.Package p -> ST.ConstantName.Package(Package.toST p)
 
@@ -212,7 +271,7 @@ module TypeReference =
     | PT.TPassword -> ST.TPassword
     | PT.TUuid -> ST.TUuid
     | PT.TCustomType(t, typeArgs) ->
-      ST.TCustomType(TypeName.toST t, List.map toST typeArgs)
+      ST.TCustomType(NameResolution.toST TypeName.toST t, List.map toST typeArgs)
     | PT.TBytes -> ST.TBytes
     | PT.TVariable(name) -> ST.TVariable(name)
     | PT.TFn(paramTypes, returnType) ->
@@ -235,7 +294,7 @@ module TypeReference =
     | ST.TPassword -> PT.TPassword
     | ST.TUuid -> PT.TUuid
     | ST.TCustomType(t, typeArgs) ->
-      PT.TCustomType(TypeName.toPT t, List.map toPT typeArgs)
+      PT.TCustomType(NameResolution.toPT TypeName.toPT t, List.map toPT typeArgs)
     | ST.TBytes -> PT.TBytes
     | ST.TVariable(name) -> PT.TVariable(name)
     | ST.TFn(paramTypes, returnType) ->
@@ -315,20 +374,14 @@ module Expr =
     | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
     | PT.EBool(id, b) -> ST.EBool(id, b)
     | PT.EUnit id -> ST.EUnit id
-    | PT.EConstant(id, name) -> ST.EConstant(id, ConstantName.toST name)
+    | PT.EConstant(id, name) ->
+      ST.EConstant(id, NameResolution.toST ConstantName.toST name)
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
     | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
-    | PT.EApply(id, PT.FnTargetName name, typeArgs, args) ->
+    | PT.EApply(id, fn, typeArgs, args) ->
       ST.EApply(
         id,
-        ST.FnTargetName(FnName.toST name),
-        List.map TypeReference.toST typeArgs,
-        List.map toST args
-      )
-    | PT.EApply(id, PT.FnTargetExpr name, typeArgs, args) ->
-      ST.EApply(
-        id,
-        ST.FnTargetExpr(toST name),
+        toST fn,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
@@ -345,7 +398,11 @@ module Expr =
     | PT.ETuple(id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
     | PT.ERecord(id, typeName, fields) ->
-      ST.ERecord(id, TypeName.toST typeName, List.map (Tuple2.mapSecond toST) fields)
+      ST.ERecord(
+        id,
+        NameResolution.toST TypeName.toST typeName,
+        List.map (Tuple2.mapSecond toST) fields
+      )
     | PT.ERecordUpdate(id, record, updates) ->
       ST.ERecordUpdate(
         id,
@@ -355,7 +412,12 @@ module Expr =
     | PT.EPipe(pipeID, expr1, expr2, rest) ->
       ST.EPipe(pipeID, toST expr1, pipeExprToST expr2, List.map pipeExprToST rest)
     | PT.EEnum(id, typeName, caseName, fields) ->
-      ST.EEnum(id, TypeName.toST typeName, caseName, List.map toST fields)
+      ST.EEnum(
+        id,
+        NameResolution.toST TypeName.toST typeName,
+        caseName,
+        List.map toST fields
+      )
     | PT.EMatch(id, mexpr, cases) ->
       ST.EMatch(
         id,
@@ -363,6 +425,8 @@ module Expr =
         List.map (Tuple2.mapFirst MatchPattern.toST << Tuple2.mapSecond toST) cases
       )
     | PT.EDict(id, fields) -> ST.EDict(id, List.map (Tuple2.mapSecond toST) fields)
+    | PT.EFnName(id, fnName) ->
+      ST.EFnName(id, NameResolution.toST FnName.toST fnName)
 
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
@@ -381,12 +445,17 @@ module Expr =
     | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
       ST.EPipeFnCall(
         id,
-        FnName.toST fnName,
+        NameResolution.toST FnName.toST fnName,
         List.map TypeReference.toST typeArgs,
         List.map toST args
       )
     | PT.EPipeEnum(id, typeName, caseName, fields) ->
-      ST.EPipeEnum(id, TypeName.toST typeName, caseName, List.map toST fields)
+      ST.EPipeEnum(
+        id,
+        NameResolution.toST TypeName.toST typeName,
+        caseName,
+        List.map toST fields
+      )
 
   let rec toPT (e : ST.Expr) : PT.Expr =
     match e with
@@ -396,20 +465,13 @@ module Expr =
     | ST.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool(id, b) -> PT.EBool(id, b)
     | ST.EUnit id -> PT.EUnit id
-    | ST.EConstant(id, name) -> PT.EConstant(id, ConstantName.toPT name)
+    | ST.EConstant(id, name) -> PT.EConstant(id, NameResolution.toPT ConstantName.toPT name)
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
-    | ST.EApply(id, ST.FnTargetName name, typeArgs, args) ->
+    | ST.EApply(id, fn, typeArgs, args) ->
       PT.EApply(
         id,
-        PT.FnTargetName(FnName.toPT name),
-        List.map TypeReference.toPT typeArgs,
-        List.map toPT args
-      )
-    | ST.EApply(id, ST.FnTargetExpr name, typeArgs, args) ->
-      PT.EApply(
-        id,
-        PT.FnTargetExpr(toPT name),
+        toPT fn,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
@@ -422,7 +484,11 @@ module Expr =
     | ST.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
     | ST.ERecord(id, typeName, fields) ->
-      PT.ERecord(id, TypeName.toPT typeName, List.map (Tuple2.mapSecond toPT) fields)
+      PT.ERecord(
+        id,
+        NameResolution.toPT TypeName.toPT typeName,
+        List.map (Tuple2.mapSecond toPT) fields
+      )
     | ST.ERecordUpdate(id, record, updates) ->
       PT.ERecordUpdate(
         id,
@@ -432,7 +498,12 @@ module Expr =
     | ST.EPipe(pipeID, expr1, expr2, rest) ->
       PT.EPipe(pipeID, toPT expr1, pipeExprToPT expr2, List.map pipeExprToPT rest)
     | ST.EEnum(id, typeName, caseName, exprs) ->
-      PT.EEnum(id, TypeName.toPT typeName, caseName, List.map toPT exprs)
+      PT.EEnum(
+        id,
+        NameResolution.toPT TypeName.toPT typeName,
+        caseName,
+        List.map toPT exprs
+      )
     | ST.EMatch(id, mexpr, pairs) ->
       PT.EMatch(
         id,
@@ -442,6 +513,8 @@ module Expr =
     | ST.EInfix(id, infix, arg1, arg2) ->
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
+    | ST.EFnName(id, fnName) ->
+      PT.EFnName(id, NameResolution.toPT FnName.toPT fnName)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with
@@ -458,12 +531,17 @@ module Expr =
     | ST.EPipeFnCall(id, fnName, typeArgs, args) ->
       PT.EPipeFnCall(
         id,
-        FnName.toPT fnName,
+        NameResolution.toPT FnName.toPT fnName,
         List.map TypeReference.toPT typeArgs,
         List.map toPT args
       )
     | ST.EPipeEnum(id, typeName, caseName, fields) ->
-      PT.EPipeEnum(id, TypeName.toPT typeName, caseName, List.map toPT fields)
+      PT.EPipeEnum(
+        id,
+        NameResolution.toPT TypeName.toPT typeName,
+        caseName,
+        List.map toPT fields
+      )
 
 
 module Const =
@@ -473,11 +551,17 @@ module Const =
     | PT.Const.CBool b -> ST.Const.CBool b
     | PT.Const.CString s -> ST.Const.CString s
     | PT.Const.CChar c -> ST.Const.CChar c
-    | PT.Const.CFloat f -> ST.Const.CFloat f
+    | PT.Const.CFloat(sign, w, f) -> ST.Const.CFloat(sign, w, f)
     | PT.Const.CPassword p -> ST.Const.CPassword p
     | PT.Const.CUuid u -> ST.Const.CUuid u
-    | PT.Const.CTuple (first, second, rest) -> ST.Const.CTuple(toST first, toST second, List.map toST rest)
-    | PT.Const.CEnum (typeName, caseName, fields) -> ST.Const.CEnum(TypeName.toST typeName, caseName, List.map toST fields)
+    | PT.Const.CTuple(first, second, rest) ->
+      ST.Const.CTuple(toST first, toST second, List.map toST rest)
+    | PT.Const.CEnum(typeName, caseName, fields) ->
+      ST.Const.CEnum(
+        NameResolution.toST TypeName.toST typeName,
+        caseName,
+        List.map toST fields
+      )
 
   let rec toPT (c : ST.Const) : PT.Const =
     match c with
@@ -485,11 +569,17 @@ module Const =
     | ST.Const.CBool b -> PT.Const.CBool b
     | ST.Const.CString s -> PT.Const.CString s
     | ST.Const.CChar c -> PT.Const.CChar c
-    | ST.Const.CFloat f -> PT.Const.CFloat f
+    | ST.Const.CFloat(sign, w, f) -> PT.Const.CFloat(sign, w, f)
     | ST.Const.CPassword p -> PT.Const.CPassword p
     | ST.Const.CUuid u -> PT.Const.CUuid u
-    | ST.Const.CTuple (first, second, rest) -> PT.Const.CTuple(toPT first, toPT second, List.map toPT rest)
-    | ST.Const.CEnum (typeName, caseName, fields) -> PT.Const.CEnum(TypeName.toPT typeName, caseName, List.map toPT fields)
+    | ST.Const.CTuple(first, second, rest) ->
+      PT.Const.CTuple(toPT first, toPT second, List.map toPT rest)
+    | ST.Const.CEnum(typeName, caseName, fields) ->
+      PT.Const.CEnum(
+        NameResolution.toPT TypeName.toPT typeName,
+        caseName,
+        List.map toPT fields
+      )
 
 
 module Deprecation =
@@ -788,4 +878,3 @@ module PackageConstant =
       typ = TypeReference.toPT pc.typ
       description = pc.description
       deprecated = Deprecation.toPT ConstantName.toPT pc.deprecated }
-

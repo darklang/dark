@@ -9,42 +9,38 @@ module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 
-/// Returns an incomplete parse of a PT expression. Requires calling
-/// Expr.resolveNames before using
-let initialParse (filename : string) (code : string) : PT.Expr =
+// Parse the program, returning a WrittenTypes expression which doesn't have any names resolved. Call `WT2PT.toPT resolver`
+let initialParse (filename : string) (code : string) : WT.Expr =
   code
   |> Utils.parseAsFSharpSourceFile filename
   |> Utils.singleExprFromImplFile
   |> FS2WT.Expr.fromSynExpr
-  |> WT2PT.Expr.toPT
 
+/// Returns an incomplete parse of a PT expression
+let parsePTExpr
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  (code : string)
+  : PT.Expr =
+  code |> initialParse filename |> WT2PT.Expr.toPT resolver []
 
-// Shortcut function for tests that ignore user functions and types
-let parseIgnoringUser (filename : string) (code : string) : PT.Expr =
-  code
-  |> initialParse filename
-  |> NameResolution.Expr.resolveNames Set.empty Set.empty
+let parseSimple (filename : string) (code : string) : PT.Expr =
+  parsePTExpr NameResolver.empty filename code
+
 
 let parseRTExpr
-  (fns : Set<PT.FnName.UserProgram>)
-  (types : Set<PT.TypeName.UserProgram>)
+  (resolver : NameResolver.NameResolver)
   (filename : string)
   (code : string)
   : LibExecution.RuntimeTypes.Expr =
   code
-  |> initialParse filename
-  |> NameResolution.Expr.resolveNames fns types
+  |> parsePTExpr resolver filename
   |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
 
-let parsePTExpr (filename : string) (code : string) : PT.Expr =
-  code
-  |> initialParse filename
-  |> NameResolution.Expr.resolveNames Set.empty Set.empty
-
-
 let parsePackage
+  (resolver : NameResolver.NameResolver)
   (path : string)
   (contents : string)
   : List<PT.PackageFn.T> * List<PT.PackageType.T> =
-  let pModule = Package.parse path contents
+  let pModule = Package.parse resolver path contents
   (pModule.fns, pModule.types)

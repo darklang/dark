@@ -2,9 +2,17 @@
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
 if [[ "$TEST" == "true" ]]; then
-  LOG="${DARK_CONFIG_RUNDIR}/logs/test-packages.log"
+  LOG="${DARK_CONFIG_RUNDIR}/logs/test-packages-canvas.log"
 else
-  LOG="${DARK_CONFIG_RUNDIR}/logs/packages.log"
+  LOG="${DARK_CONFIG_RUNDIR}/logs/packages-canvas.log"
 fi
+
+grey="\033[1;30m"
+reset="\033[0m"
+echo -e "Loading packages into dark canvas ${grey}($LOG)${reset}"
+
+# make sure the target canvas exists
+./scripts/run-canvas-hack dark-packages
+
 
 ./scripts/run-local-exec load-packages-dark > $LOG 2>&1

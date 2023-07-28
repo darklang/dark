@@ -144,8 +144,8 @@ let typecheckDval
   (expectedType : TypeReference)
   =
   uply {
-    let context = TypeChecker.DBQueryVariable(name, None)
-    match! TypeChecker.unify context types expectedType dval with
+    let context = TypeChecker.DBQueryVariable(name, expectedType, None)
+    match! TypeChecker.unify context types Map.empty expectedType dval with
     | Ok() -> return ()
     | Error err -> return error (Errors.toString (Errors.TypeError err))
   }
@@ -247,9 +247,10 @@ let rec inline'
 let (|Fn|_|) (mName : string) (fName : string) (v : int) (expr : Expr) =
   match expr with
   | EApply(_,
-           FnTargetName(FQName.BuiltIn({ modules = modules
-                                         name = FnName.FnName name
-                                         version = version })),
+           EFnName(_,
+                   FQName.BuiltIn({ modules = modules
+                                    name = FnName.FnName name
+                                    version = version })),
            [],
            args) when modules = [ mName ] && name = fName && version = v -> Some args
   | _ -> None
@@ -263,8 +264,8 @@ type CompiledSqlQuery =
 /// bound to it, and the actual type of the expression.
 let rec lambdaToSql
   (fns : Map<FnName.BuiltIn, BuiltInFn>)
-  (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
   (types : Types)
+  (constants : Map<ConstantName.BuiltIn, BuiltInConstant>)
   (symtable : DvalMap)
   (paramName : string)
   (dbTypeRef : TypeReference)
@@ -273,7 +274,7 @@ let rec lambdaToSql
   : Ply<CompiledSqlQuery> =
   uply {
     let lts (expectedType : TypeReference) (expr : Expr) : Ply<CompiledSqlQuery> =
-      lambdaToSql fns constants types symtable paramName dbTypeRef expectedType expr
+      lambdaToSql fns types constants symtable paramName dbTypeRef expectedType expr
 
     let! (sql, vars, actualType) =
       uply {
@@ -286,12 +287,13 @@ let rec lambdaToSql
             let random = randomString 8
             let newname = $"{nameStr}_{random}"
             let (sqlValue, actualType) = dvalToSql expectedType c.body
-            $"(@{newname})", [ newname, sqlValue ], actualType
+            return ($"(@{newname})", [ newname, sqlValue ], actualType)
           | None ->
-            error
-              $"Only builtin constants can be used in queries right now; {nameStr} is not a builtin constant"
+            return
+              error
+                $"Only builtin constants can be used in queries right now; {nameStr} is not a builtin constant"
 
-        | EApply(_, FnTargetName(FQName.BuiltIn name as fqName), [], args) ->
+        | EApply(_, EFnName(_, (FQName.BuiltIn name as fqName)), [], args) ->
           let nameStr = FnName.toString fqName
           match Map.get name fns with
           | Some fn ->
@@ -404,7 +406,7 @@ let rec lambdaToSql
         | EVariable(_, varname) ->
           match Map.get varname symtable with
           | Some dval ->
-            do! typecheckDval $"variable {varname}" types dval expectedType
+            do! typecheckDval varname types dval expectedType
             let random = randomString 8
             let newname = $"{varname}_{random}"
             // Fetch the actualType here as well as we might be passing in an abstract
@@ -682,8 +684,10 @@ let partiallyEvaluate
         | EDict _
         | EEnum _
         | EMatch _
+        | EError _
         | EAnd _
-        | EOr _ -> return expr
+        | EOr _
+        | EFnName _ -> return expr
       }
 
     // This is a copy of Ast.postTraversal, made to  work with uplys
@@ -706,9 +710,11 @@ let partiallyEvaluate
               let! rhs = r rhs
               let! next = r next
               return ELet(id, pat, rhs, next)
-            | EApply(id, fnName, typeArgs, exprs) ->
+            | EApply(id, fn, typeArgs, exprs) ->
+              let! fn = r fn
               let! exprs = Ply.List.mapSequentially r exprs
-              return EApply(id, fnName, typeArgs, exprs)
+              return EApply(id, fn, typeArgs, exprs)
+            | EFnName _ -> return expr
             | EIf(id, cond, ifexpr, elseexpr) ->
               let! cond = r cond
               let! ifexpr = r ifexpr
@@ -785,6 +791,7 @@ let partiallyEvaluate
               let! left = r left
               let! right = r right
               return EOr(id, left, right)
+            | EError _ -> return expr
           }
 
         return! f result
@@ -819,7 +826,15 @@ let compileLambda
     let types = ExecutionState.availableTypes state
 
     let! compiled =
-      lambdaToSql state.builtIns.fns types symtable paramName dbType TBool body
+      lambdaToSql
+        state.builtIns.fns
+        types
+        state.builtIns.constants
+        symtable
+        paramName
+        dbType
+        TBool
+        body
 
     return (compiled.sql, compiled.vars)
   }

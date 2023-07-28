@@ -116,7 +116,7 @@ let testRecursionInEditor : Test =
         // calls self ("recurse") resulting in recursion
         PT.EApply(
           skippedCallerID,
-          PT.FnTargetName(PT.FnName.fqUserProgram [] "recurse" 0),
+          PT.EFnName(9375UL, Ok(PT.FnName.fqUserProgram [] "recurse" 0)),
           [],
           [ PT.EInt(gid (), 2) ]
         )
@@ -410,9 +410,10 @@ let testMatchPreview : Test =
       (MPEnum(pOkVarOkId, "Ok", [ MPVariable(pOkVarVarId, "x") ]),
        EApply(
          okVarRhsId,
-         PT.FnName.fqBuiltIn [ "String" ] "append" 0
-         |> PT2RT.FnName.toRT
-         |> FnTargetName,
+         EFnName(
+           6374UL,
+           PT.FnName.fqBuiltIn [ "String" ] "append" 0 |> PT2RT.FnName.toRT
+         ),
          [],
          [ EString(okVarRhsStrId, [ StringText "ok: " ])
            EVariable(okVarRhsVarId, "x") ]
@@ -731,9 +732,10 @@ let testLetPreview : Test =
         let divisionExpr =
           EApply(
             divID,
-            PT.FnName.fqBuiltIn [ "Int" ] "divide" 0
-            |> PT2RT.FnName.toRT
-            |> FnTargetName,
+            EFnName(
+              36284UL,
+              PT.FnName.fqBuiltIn [ "Int" ] "divide" 0 |> PT2RT.FnName.toRT
+            ),
             [],
             [ eInt 1; eInt 0 ]
           )

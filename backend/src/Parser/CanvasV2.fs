@@ -13,14 +13,23 @@ module PT = LibExecution.ProgramTypes
 open Utils
 
 type WTCanvasModule =
-  { types : List<WT.UserType.T>
+  { name : List<string>
+    types : List<WT.UserType.T>
     fns : List<WT.UserFunction.T>
+    constants : List<WT.UserConstant.T>
     dbs : List<WT.DB.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<WT.Handler.Spec * WT.Expr>
     exprs : List<WT.Expr> }
 
-let emptyWTModule = { types = []; fns = []; dbs = []; handlers = []; exprs = [] }
+let emptyWTModule =
+  { name = []
+    types = []
+    fns = []
+    constants = []
+    dbs = []
+    handlers = []
+    exprs = [] }
 
 type PTCanvasModule =
   { types : List<PT.UserType.T>
@@ -85,7 +94,7 @@ let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasMod
           WT.ELet(gid (), FS2WT.LetPattern.fromSynPat pat, expr, WT.EUnit(gid ()))
         { m with exprs = m.exprs @ [ newExpr ] }
       | Some _ ->
-        let newFn = FS2WT.UserFunction.fromSynBinding letBinding
+        let newFn = FS2WT.UserFunction.fromSynBinding m.name letBinding
         { m with fns = newFn :: m.fns }
 
     | [ attr ] ->
@@ -137,10 +146,7 @@ module UserDB =
                   _,
                   _,
                   _) ->
-      { tlid = gid ()
-        name = id.idText
-        version = 0
-        typ = FS2WT.TypeReference.fromSynType typ }
+      { name = id.idText; version = 0; typ = FS2WT.TypeReference.fromSynType typ }
     | _ ->
       Exception.raiseInternal $"Unsupported db definition" [ "typeDef", typeDef ]
 
@@ -157,7 +163,7 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
       if isDB then
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ FS2WT.UserType.fromSynTypeDefn typeDefn ]
+        [], [ FS2WT.UserType.fromSynTypeDefn m.name typeDefn ]
 
     { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
@@ -193,49 +199,31 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
       | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
     decls
 
-let toPT (m : WTCanvasModule) : PTCanvasModule =
-  { types = m.types |> List.map WT2PT.UserType.toPT
-    fns = m.fns |> List.map WT2PT.UserFunction.toPT
-    dbs = m.dbs |> List.map WT2PT.DB.toPT
+let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
+  let fns = canvas.fns |> List.map (fun fn -> fn.name)
+  let types = canvas.types |> List.map (fun typ -> typ.name)
+  let constants = canvas.constants |> List.map (fun c -> c.name)
+  NameResolver.create [] [] [] types fns constants
+
+let toPT
+  (nameResolver : NameResolver.NameResolver)
+  (m : WTCanvasModule)
+  : PTCanvasModule =
+  { types = m.types |> List.map (WT2PT.UserType.toPT nameResolver m.name)
+    fns = m.fns |> List.map (WT2PT.UserFunction.toPT nameResolver m.name)
+    constants = m.constants |> List.map (WT2PT.UserConstant.toPT nameResolver m.name)
+    dbs = m.dbs |> List.map (WT2PT.DB.toPT nameResolver m.name)
     handlers =
       m.handlers
       |> List.map (fun (spec, expr) ->
-        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT expr))
-    exprs = m.exprs |> List.map WT2PT.Expr.toPT }
+        (WT2PT.Handler.Spec.toPT spec, WT2PT.Expr.toPT nameResolver m.name expr))
+    exprs = m.exprs |> List.map (WT2PT.Expr.toPT nameResolver m.name) }
 
-let postProcessModule (m : PTCanvasModule) : PTCanvasModule =
-  let userFnNames = m.fns |> List.map (fun f -> f.name) |> Set
-  let userTypeNames = m.types |> List.map (fun t -> t.name) |> Set
-  let userConstantNames = m.constants |> List.map (fun c -> c.name) |> Set
-
-  let fixExpr =
-    NameResolution.Expr.resolveNames userFnNames userTypeNames userConstantNames
-  { handlers = m.handlers |> List.map (fun (spec, expr) -> (spec, fixExpr expr))
-    exprs = m.exprs |> List.map fixExpr
-    fns =
-      m.fns
-      |> List.map (
-        NameResolution.UserFunction.resolveNames
-          userFnNames
-          userTypeNames
-          userConstantNames
-      )
-    types = m.types |> List.map (NameResolution.UserType.resolveNames userTypeNames)
-    constants =
-      m.constants
-      |> List.map (
-        NameResolution.UserConstant.resolveNames
-          userFnNames
-          userTypeNames
-          userConstantNames
-      )
-    dbs =
-      m.dbs
-      |> List.map (fun db ->
-        { db with
-            typ = NameResolution.TypeReference.resolveNames userTypeNames db.typ }) }
-
-let parse (filename : string) (source : string) : PTCanvasModule =
+let parse
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  (source : string)
+  : PTCanvasModule =
   let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
   let decls =
@@ -253,9 +241,13 @@ let parse (filename : string) (source : string) : PTCanvasModule =
       Exception.raiseInternal
         $"wrong shape tree - ensure that input is a single expression, perhaps by wrapping the existing code in parens"
         [ "parsedAsFsharp", parsedAsFSharp ]
+  let module' = parseDecls decls
+  let resolver = toResolver module' |> NameResolver.merge resolver
+  toPT resolver module'
 
-  decls |> parseDecls |> toPT |> postProcessModule
 
-
-let parseFromFile (filename : string) : PTCanvasModule =
-  filename |> System.IO.File.ReadAllText |> parse filename
+let parseFromFile
+  (resolver : NameResolver.NameResolver)
+  (filename : string)
+  : PTCanvasModule =
+  filename |> System.IO.File.ReadAllText |> parse resolver filename

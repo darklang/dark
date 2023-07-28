@@ -108,17 +108,21 @@
                     {
                       "TCustomType": [
                         {
-                          "UserProgram": [
+                          "Ok": [
                             {
-                              "modules": [
-                                "Mod"
-                              ],
-                              "name": {
-                                "TypeName": [
-                                  "name"
-                                ]
-                              },
-                              "version": 0
+                              "UserProgram": [
+                                {
+                                  "modules": [
+                                    "Mod"
+                                  ],
+                                  "name": {
+                                    "TypeName": [
+                                      "name"
+                                    ]
+                                  },
+                                  "version": 0
+                                }
+                              ]
                             }
                           ]
                         },

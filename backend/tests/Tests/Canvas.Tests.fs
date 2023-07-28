@@ -20,7 +20,7 @@ module PTParser = LibExecution.ProgramTypesParser
 module Account = LibBackend.Account
 
 let parse (code : string) : PT.Expr =
-  Parser.Parser.parseIgnoringUser "tests.canvas.fs" code
+  Parser.Parser.parseSimple "tests.canvas.fs" code
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {

@@ -201,19 +201,24 @@
                                                   "EApply": [
                                                     898531080,
                                                     {
-                                                      "FnTargetName": [
+                                                      "EFnName": [
+                                                        63953,
                                                         {
-                                                          "BuiltIn": [
+                                                          "Ok": [
                                                             {
-                                                              "modules": [
-                                                                "Int"
-                                                              ],
-                                                              "name": {
-                                                                "FnName": [
-                                                                  "toString"
-                                                                ]
-                                                              },
-                                                              "version": 0
+                                                              "BuiltIn": [
+                                                                {
+                                                                  "modules": [
+                                                                    "Int"
+                                                                  ],
+                                                                  "name": {
+                                                                    "FnName": [
+                                                                      "toString"
+                                                                    ]
+                                                                  },
+                                                                  "version": 0
+                                                                }
+                                                              ]
                                                             }
                                                           ]
                                                         }
@@ -274,17 +279,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -298,17 +307,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -322,19 +335,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -500,19 +517,24 @@
                                                           "EApply": [
                                                             173079901,
                                                             {
-                                                              "FnTargetName": [
+                                                              "EFnName": [
+                                                                638434,
                                                                 {
-                                                                  "BuiltIn": [
+                                                                  "Ok": [
                                                                     {
-                                                                      "modules": [
-                                                                        "Int"
-                                                                      ],
-                                                                      "name": {
-                                                                        "FnName": [
-                                                                          "add"
-                                                                        ]
-                                                                      },
-                                                                      "version": 0
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Int"
+                                                                          ],
+                                                                          "name": {
+                                                                            "FnName": [
+                                                                              "add"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
                                                                     }
                                                                   ]
                                                                 }
@@ -579,18 +601,22 @@
                                                   "ERecord": [
                                                     109539183,
                                                     {
-                                                      "UserProgram": [
+                                                      "Ok": [
                                                         {
-                                                          "modules": [
-                                                            "dark",
-                                                            "stdlib"
-                                                          ],
-                                                          "name": {
-                                                            "TypeName": [
-                                                              "NonEmptyList"
-                                                            ]
-                                                          },
-                                                          "version": 0
+                                                          "UserProgram": [
+                                                            {
+                                                              "modules": [
+                                                                "dark",
+                                                                "stdlib"
+                                                              ],
+                                                              "name": {
+                                                                "TypeName": [
+                                                                  "NonEmptyList"
+                                                                ]
+                                                              },
+                                                              "version": 0
+                                                            }
+                                                          ]
                                                         }
                                                       ]
                                                     },
@@ -634,15 +660,19 @@
                                                           "EEnum": [
                                                             567764301,
                                                             {
-                                                              "BuiltIn": [
+                                                              "Ok": [
                                                                 {
-                                                                  "modules": [],
-                                                                  "name": {
-                                                                    "TypeName": [
-                                                                      "Result"
-                                                                    ]
-                                                                  },
-                                                                  "version": 0
+                                                                  "BuiltIn": [
+                                                                    {
+                                                                      "modules": [],
+                                                                      "name": {
+                                                                        "TypeName": [
+                                                                          "Result"
+                                                                        ]
+                                                                      },
+                                                                      "version": 0
+                                                                    }
+                                                                  ]
                                                                 }
                                                               ]
                                                             },
@@ -652,19 +682,23 @@
                                                                 "EEnum": [
                                                                   646107057,
                                                                   {
-                                                                    "Package": [
+                                                                    "Ok": [
                                                                       {
-                                                                        "owner": "Darklang",
-                                                                        "modules": [
-                                                                          "Stdlib",
-                                                                          "Result"
-                                                                        ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
-                                                                        "version": 0
+                                                                        "Package": [
+                                                                          {
+                                                                            "owner": "Darklang",
+                                                                            "modules": [
+                                                                              "Stdlib",
+                                                                              "Result"
+                                                                            ],
+                                                                            "name": {
+                                                                              "TypeName": [
+                                                                                "Result"
+                                                                              ]
+                                                                            },
+                                                                            "version": 0
+                                                                          }
+                                                                        ]
                                                                       }
                                                                     ]
                                                                   },
@@ -674,15 +708,19 @@
                                                                       "EEnum": [
                                                                         689802831,
                                                                         {
-                                                                          "BuiltIn": [
+                                                                          "Ok": [
                                                                             {
-                                                                              "modules": [],
-                                                                              "name": {
-                                                                                "TypeName": [
-                                                                                  "Option"
-                                                                                ]
-                                                                              },
-                                                                              "version": 0
+                                                                              "BuiltIn": [
+                                                                                {
+                                                                                  "modules": [],
+                                                                                  "name": {
+                                                                                    "TypeName": [
+                                                                                      "Option"
+                                                                                    ]
+                                                                                  },
+                                                                                  "version": 0
+                                                                                }
+                                                                              ]
                                                                             }
                                                                           ]
                                                                         },
@@ -692,15 +730,19 @@
                                                                             "EEnum": [
                                                                               957916875,
                                                                               {
-                                                                                "BuiltIn": [
+                                                                                "Ok": [
                                                                                   {
-                                                                                    "modules": [],
-                                                                                    "name": {
-                                                                                      "TypeName": [
-                                                                                        "Option"
-                                                                                      ]
-                                                                                    },
-                                                                                    "version": 0
+                                                                                    "BuiltIn": [
+                                                                                      {
+                                                                                        "modules": [],
+                                                                                        "name": {
+                                                                                          "TypeName": [
+                                                                                            "Option"
+                                                                                          ]
+                                                                                        },
+                                                                                        "version": 0
+                                                                                      }
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -768,19 +810,24 @@
                                                               "EApply": [
                                                                 203239466,
                                                                 {
-                                                                  "FnTargetName": [
+                                                                  "EFnName": [
+                                                                    342954,
                                                                     {
-                                                                      "BuiltIn": [
+                                                                      "Ok": [
                                                                         {
-                                                                          "modules": [
-                                                                            "Mod"
-                                                                          ],
-                                                                          "name": {
-                                                                            "FnName": [
-                                                                              "function"
-                                                                            ]
-                                                                          },
-                                                                          "version": 2
+                                                                          "BuiltIn": [
+                                                                            {
+                                                                              "modules": [
+                                                                                "Mod"
+                                                                              ],
+                                                                              "name": {
+                                                                                "FnName": [
+                                                                                  "function"
+                                                                                ]
+                                                                              },
+                                                                              "version": 2
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       ]
                                                                     }
@@ -1180,9 +1227,36 @@
                                                                           ]
                                                                         },
                                                                         {
-                                                                          "EInt": [
-                                                                            34545,
-                                                                            5
+                                                                          "ELet": [
+                                                                            831830073,
+                                                                            {
+                                                                              "LPVariable": [
+                                                                                7567123,
+                                                                                "dict"
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EDict": [
+                                                                                109539183,
+                                                                                [
+                                                                                  [
+                                                                                    "a string",
+                                                                                    {
+                                                                                      "EInt": [
+                                                                                        450951790,
+                                                                                        2
+                                                                                      ]
+                                                                                    }
+                                                                                  ]
+                                                                                ]
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EInt": [
+                                                                                34545,
+                                                                                5
+                                                                              ]
+                                                                            }
                                                                           ]
                                                                         }
                                                                       ]
@@ -1427,19 +1501,24 @@
                                                   "EApply": [
                                                     898531080,
                                                     {
-                                                      "FnTargetName": [
+                                                      "EFnName": [
+                                                        63953,
                                                         {
-                                                          "BuiltIn": [
+                                                          "Ok": [
                                                             {
-                                                              "modules": [
-                                                                "Int"
-                                                              ],
-                                                              "name": {
-                                                                "FnName": [
-                                                                  "toString"
-                                                                ]
-                                                              },
-                                                              "version": 0
+                                                              "BuiltIn": [
+                                                                {
+                                                                  "modules": [
+                                                                    "Int"
+                                                                  ],
+                                                                  "name": {
+                                                                    "FnName": [
+                                                                      "toString"
+                                                                    ]
+                                                                  },
+                                                                  "version": 0
+                                                                }
+                                                              ]
                                                             }
                                                           ]
                                                         }
@@ -1500,17 +1579,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -1524,17 +1607,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -1548,19 +1635,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -1726,19 +1817,24 @@
                                                           "EApply": [
                                                             173079901,
                                                             {
-                                                              "FnTargetName": [
+                                                              "EFnName": [
+                                                                638434,
                                                                 {
-                                                                  "BuiltIn": [
+                                                                  "Ok": [
                                                                     {
-                                                                      "modules": [
-                                                                        "Int"
-                                                                      ],
-                                                                      "name": {
-                                                                        "FnName": [
-                                                                          "add"
-                                                                        ]
-                                                                      },
-                                                                      "version": 0
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Int"
+                                                                          ],
+                                                                          "name": {
+                                                                            "FnName": [
+                                                                              "add"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
                                                                     }
                                                                   ]
                                                                 }
@@ -1805,18 +1901,22 @@
                                                   "ERecord": [
                                                     109539183,
                                                     {
-                                                      "UserProgram": [
+                                                      "Ok": [
                                                         {
-                                                          "modules": [
-                                                            "dark",
-                                                            "stdlib"
-                                                          ],
-                                                          "name": {
-                                                            "TypeName": [
-                                                              "NonEmptyList"
-                                                            ]
-                                                          },
-                                                          "version": 0
+                                                          "UserProgram": [
+                                                            {
+                                                              "modules": [
+                                                                "dark",
+                                                                "stdlib"
+                                                              ],
+                                                              "name": {
+                                                                "TypeName": [
+                                                                  "NonEmptyList"
+                                                                ]
+                                                              },
+                                                              "version": 0
+                                                            }
+                                                          ]
                                                         }
                                                       ]
                                                     },
@@ -1860,15 +1960,19 @@
                                                           "EEnum": [
                                                             567764301,
                                                             {
-                                                              "BuiltIn": [
+                                                              "Ok": [
                                                                 {
-                                                                  "modules": [],
-                                                                  "name": {
-                                                                    "TypeName": [
-                                                                      "Result"
-                                                                    ]
-                                                                  },
-                                                                  "version": 0
+                                                                  "BuiltIn": [
+                                                                    {
+                                                                      "modules": [],
+                                                                      "name": {
+                                                                        "TypeName": [
+                                                                          "Result"
+                                                                        ]
+                                                                      },
+                                                                      "version": 0
+                                                                    }
+                                                                  ]
                                                                 }
                                                               ]
                                                             },
@@ -1878,19 +1982,23 @@
                                                                 "EEnum": [
                                                                   646107057,
                                                                   {
-                                                                    "Package": [
+                                                                    "Ok": [
                                                                       {
-                                                                        "owner": "Darklang",
-                                                                        "modules": [
-                                                                          "Stdlib",
-                                                                          "Result"
-                                                                        ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
-                                                                        "version": 0
+                                                                        "Package": [
+                                                                          {
+                                                                            "owner": "Darklang",
+                                                                            "modules": [
+                                                                              "Stdlib",
+                                                                              "Result"
+                                                                            ],
+                                                                            "name": {
+                                                                              "TypeName": [
+                                                                                "Result"
+                                                                              ]
+                                                                            },
+                                                                            "version": 0
+                                                                          }
+                                                                        ]
                                                                       }
                                                                     ]
                                                                   },
@@ -1900,15 +2008,19 @@
                                                                       "EEnum": [
                                                                         689802831,
                                                                         {
-                                                                          "BuiltIn": [
+                                                                          "Ok": [
                                                                             {
-                                                                              "modules": [],
-                                                                              "name": {
-                                                                                "TypeName": [
-                                                                                  "Option"
-                                                                                ]
-                                                                              },
-                                                                              "version": 0
+                                                                              "BuiltIn": [
+                                                                                {
+                                                                                  "modules": [],
+                                                                                  "name": {
+                                                                                    "TypeName": [
+                                                                                      "Option"
+                                                                                    ]
+                                                                                  },
+                                                                                  "version": 0
+                                                                                }
+                                                                              ]
                                                                             }
                                                                           ]
                                                                         },
@@ -1918,15 +2030,19 @@
                                                                             "EEnum": [
                                                                               957916875,
                                                                               {
-                                                                                "BuiltIn": [
+                                                                                "Ok": [
                                                                                   {
-                                                                                    "modules": [],
-                                                                                    "name": {
-                                                                                      "TypeName": [
-                                                                                        "Option"
-                                                                                      ]
-                                                                                    },
-                                                                                    "version": 0
+                                                                                    "BuiltIn": [
+                                                                                      {
+                                                                                        "modules": [],
+                                                                                        "name": {
+                                                                                          "TypeName": [
+                                                                                            "Option"
+                                                                                          ]
+                                                                                        },
+                                                                                        "version": 0
+                                                                                      }
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -1994,19 +2110,24 @@
                                                               "EApply": [
                                                                 203239466,
                                                                 {
-                                                                  "FnTargetName": [
+                                                                  "EFnName": [
+                                                                    342954,
                                                                     {
-                                                                      "BuiltIn": [
+                                                                      "Ok": [
                                                                         {
-                                                                          "modules": [
-                                                                            "Mod"
-                                                                          ],
-                                                                          "name": {
-                                                                            "FnName": [
-                                                                              "function"
-                                                                            ]
-                                                                          },
-                                                                          "version": 2
+                                                                          "BuiltIn": [
+                                                                            {
+                                                                              "modules": [
+                                                                                "Mod"
+                                                                              ],
+                                                                              "name": {
+                                                                                "FnName": [
+                                                                                  "function"
+                                                                                ]
+                                                                              },
+                                                                              "version": 2
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       ]
                                                                     }
@@ -2406,9 +2527,36 @@
                                                                           ]
                                                                         },
                                                                         {
-                                                                          "EInt": [
-                                                                            34545,
-                                                                            5
+                                                                          "ELet": [
+                                                                            831830073,
+                                                                            {
+                                                                              "LPVariable": [
+                                                                                7567123,
+                                                                                "dict"
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EDict": [
+                                                                                109539183,
+                                                                                [
+                                                                                  [
+                                                                                    "a string",
+                                                                                    {
+                                                                                      "EInt": [
+                                                                                        450951790,
+                                                                                        2
+                                                                                      ]
+                                                                                    }
+                                                                                  ]
+                                                                                ]
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EInt": [
+                                                                                34545,
+                                                                                5
+                                                                              ]
+                                                                            }
                                                                           ]
                                                                         }
                                                                       ]
@@ -2656,19 +2804,24 @@
                                                   "EApply": [
                                                     898531080,
                                                     {
-                                                      "FnTargetName": [
+                                                      "EFnName": [
+                                                        63953,
                                                         {
-                                                          "BuiltIn": [
+                                                          "Ok": [
                                                             {
-                                                              "modules": [
-                                                                "Int"
-                                                              ],
-                                                              "name": {
-                                                                "FnName": [
-                                                                  "toString"
-                                                                ]
-                                                              },
-                                                              "version": 0
+                                                              "BuiltIn": [
+                                                                {
+                                                                  "modules": [
+                                                                    "Int"
+                                                                  ],
+                                                                  "name": {
+                                                                    "FnName": [
+                                                                      "toString"
+                                                                    ]
+                                                                  },
+                                                                  "version": 0
+                                                                }
+                                                              ]
                                                             }
                                                           ]
                                                         }
@@ -2729,17 +2882,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -2753,17 +2910,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -2777,19 +2938,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -2955,19 +3120,24 @@
                                                           "EApply": [
                                                             173079901,
                                                             {
-                                                              "FnTargetName": [
+                                                              "EFnName": [
+                                                                638434,
                                                                 {
-                                                                  "BuiltIn": [
+                                                                  "Ok": [
                                                                     {
-                                                                      "modules": [
-                                                                        "Int"
-                                                                      ],
-                                                                      "name": {
-                                                                        "FnName": [
-                                                                          "add"
-                                                                        ]
-                                                                      },
-                                                                      "version": 0
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Int"
+                                                                          ],
+                                                                          "name": {
+                                                                            "FnName": [
+                                                                              "add"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
                                                                     }
                                                                   ]
                                                                 }
@@ -3034,18 +3204,22 @@
                                                   "ERecord": [
                                                     109539183,
                                                     {
-                                                      "UserProgram": [
+                                                      "Ok": [
                                                         {
-                                                          "modules": [
-                                                            "dark",
-                                                            "stdlib"
-                                                          ],
-                                                          "name": {
-                                                            "TypeName": [
-                                                              "NonEmptyList"
-                                                            ]
-                                                          },
-                                                          "version": 0
+                                                          "UserProgram": [
+                                                            {
+                                                              "modules": [
+                                                                "dark",
+                                                                "stdlib"
+                                                              ],
+                                                              "name": {
+                                                                "TypeName": [
+                                                                  "NonEmptyList"
+                                                                ]
+                                                              },
+                                                              "version": 0
+                                                            }
+                                                          ]
                                                         }
                                                       ]
                                                     },
@@ -3089,15 +3263,19 @@
                                                           "EEnum": [
                                                             567764301,
                                                             {
-                                                              "BuiltIn": [
+                                                              "Ok": [
                                                                 {
-                                                                  "modules": [],
-                                                                  "name": {
-                                                                    "TypeName": [
-                                                                      "Result"
-                                                                    ]
-                                                                  },
-                                                                  "version": 0
+                                                                  "BuiltIn": [
+                                                                    {
+                                                                      "modules": [],
+                                                                      "name": {
+                                                                        "TypeName": [
+                                                                          "Result"
+                                                                        ]
+                                                                      },
+                                                                      "version": 0
+                                                                    }
+                                                                  ]
                                                                 }
                                                               ]
                                                             },
@@ -3107,19 +3285,23 @@
                                                                 "EEnum": [
                                                                   646107057,
                                                                   {
-                                                                    "Package": [
+                                                                    "Ok": [
                                                                       {
-                                                                        "owner": "Darklang",
-                                                                        "modules": [
-                                                                          "Stdlib",
-                                                                          "Result"
-                                                                        ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
-                                                                        "version": 0
+                                                                        "Package": [
+                                                                          {
+                                                                            "owner": "Darklang",
+                                                                            "modules": [
+                                                                              "Stdlib",
+                                                                              "Result"
+                                                                            ],
+                                                                            "name": {
+                                                                              "TypeName": [
+                                                                                "Result"
+                                                                              ]
+                                                                            },
+                                                                            "version": 0
+                                                                          }
+                                                                        ]
                                                                       }
                                                                     ]
                                                                   },
@@ -3129,15 +3311,19 @@
                                                                       "EEnum": [
                                                                         689802831,
                                                                         {
-                                                                          "BuiltIn": [
+                                                                          "Ok": [
                                                                             {
-                                                                              "modules": [],
-                                                                              "name": {
-                                                                                "TypeName": [
-                                                                                  "Option"
-                                                                                ]
-                                                                              },
-                                                                              "version": 0
+                                                                              "BuiltIn": [
+                                                                                {
+                                                                                  "modules": [],
+                                                                                  "name": {
+                                                                                    "TypeName": [
+                                                                                      "Option"
+                                                                                    ]
+                                                                                  },
+                                                                                  "version": 0
+                                                                                }
+                                                                              ]
                                                                             }
                                                                           ]
                                                                         },
@@ -3147,15 +3333,19 @@
                                                                             "EEnum": [
                                                                               957916875,
                                                                               {
-                                                                                "BuiltIn": [
+                                                                                "Ok": [
                                                                                   {
-                                                                                    "modules": [],
-                                                                                    "name": {
-                                                                                      "TypeName": [
-                                                                                        "Option"
-                                                                                      ]
-                                                                                    },
-                                                                                    "version": 0
+                                                                                    "BuiltIn": [
+                                                                                      {
+                                                                                        "modules": [],
+                                                                                        "name": {
+                                                                                          "TypeName": [
+                                                                                            "Option"
+                                                                                          ]
+                                                                                        },
+                                                                                        "version": 0
+                                                                                      }
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -3223,19 +3413,24 @@
                                                               "EApply": [
                                                                 203239466,
                                                                 {
-                                                                  "FnTargetName": [
+                                                                  "EFnName": [
+                                                                    342954,
                                                                     {
-                                                                      "BuiltIn": [
+                                                                      "Ok": [
                                                                         {
-                                                                          "modules": [
-                                                                            "Mod"
-                                                                          ],
-                                                                          "name": {
-                                                                            "FnName": [
-                                                                              "function"
-                                                                            ]
-                                                                          },
-                                                                          "version": 2
+                                                                          "BuiltIn": [
+                                                                            {
+                                                                              "modules": [
+                                                                                "Mod"
+                                                                              ],
+                                                                              "name": {
+                                                                                "FnName": [
+                                                                                  "function"
+                                                                                ]
+                                                                              },
+                                                                              "version": 2
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       ]
                                                                     }
@@ -3635,9 +3830,36 @@
                                                                           ]
                                                                         },
                                                                         {
-                                                                          "EInt": [
-                                                                            34545,
-                                                                            5
+                                                                          "ELet": [
+                                                                            831830073,
+                                                                            {
+                                                                              "LPVariable": [
+                                                                                7567123,
+                                                                                "dict"
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EDict": [
+                                                                                109539183,
+                                                                                [
+                                                                                  [
+                                                                                    "a string",
+                                                                                    {
+                                                                                      "EInt": [
+                                                                                        450951790,
+                                                                                        2
+                                                                                      ]
+                                                                                    }
+                                                                                  ]
+                                                                                ]
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EInt": [
+                                                                                34545,
+                                                                                5
+                                                                              ]
+                                                                            }
                                                                           ]
                                                                         }
                                                                       ]
@@ -3882,19 +4104,24 @@
                                                   "EApply": [
                                                     898531080,
                                                     {
-                                                      "FnTargetName": [
+                                                      "EFnName": [
+                                                        63953,
                                                         {
-                                                          "BuiltIn": [
+                                                          "Ok": [
                                                             {
-                                                              "modules": [
-                                                                "Int"
-                                                              ],
-                                                              "name": {
-                                                                "FnName": [
-                                                                  "toString"
-                                                                ]
-                                                              },
-                                                              "version": 0
+                                                              "BuiltIn": [
+                                                                {
+                                                                  "modules": [
+                                                                    "Int"
+                                                                  ],
+                                                                  "name": {
+                                                                    "FnName": [
+                                                                      "toString"
+                                                                    ]
+                                                                  },
+                                                                  "version": 0
+                                                                }
+                                                              ]
                                                             }
                                                           ]
                                                         }
@@ -3955,17 +4182,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -3979,17 +4210,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -4003,19 +4238,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -4181,19 +4420,24 @@
                                                           "EApply": [
                                                             173079901,
                                                             {
-                                                              "FnTargetName": [
+                                                              "EFnName": [
+                                                                638434,
                                                                 {
-                                                                  "BuiltIn": [
+                                                                  "Ok": [
                                                                     {
-                                                                      "modules": [
-                                                                        "Int"
-                                                                      ],
-                                                                      "name": {
-                                                                        "FnName": [
-                                                                          "add"
-                                                                        ]
-                                                                      },
-                                                                      "version": 0
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Int"
+                                                                          ],
+                                                                          "name": {
+                                                                            "FnName": [
+                                                                              "add"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
                                                                     }
                                                                   ]
                                                                 }
@@ -4260,18 +4504,22 @@
                                                   "ERecord": [
                                                     109539183,
                                                     {
-                                                      "UserProgram": [
+                                                      "Ok": [
                                                         {
-                                                          "modules": [
-                                                            "dark",
-                                                            "stdlib"
-                                                          ],
-                                                          "name": {
-                                                            "TypeName": [
-                                                              "NonEmptyList"
-                                                            ]
-                                                          },
-                                                          "version": 0
+                                                          "UserProgram": [
+                                                            {
+                                                              "modules": [
+                                                                "dark",
+                                                                "stdlib"
+                                                              ],
+                                                              "name": {
+                                                                "TypeName": [
+                                                                  "NonEmptyList"
+                                                                ]
+                                                              },
+                                                              "version": 0
+                                                            }
+                                                          ]
                                                         }
                                                       ]
                                                     },
@@ -4315,15 +4563,19 @@
                                                           "EEnum": [
                                                             567764301,
                                                             {
-                                                              "BuiltIn": [
+                                                              "Ok": [
                                                                 {
-                                                                  "modules": [],
-                                                                  "name": {
-                                                                    "TypeName": [
-                                                                      "Result"
-                                                                    ]
-                                                                  },
-                                                                  "version": 0
+                                                                  "BuiltIn": [
+                                                                    {
+                                                                      "modules": [],
+                                                                      "name": {
+                                                                        "TypeName": [
+                                                                          "Result"
+                                                                        ]
+                                                                      },
+                                                                      "version": 0
+                                                                    }
+                                                                  ]
                                                                 }
                                                               ]
                                                             },
@@ -4333,19 +4585,23 @@
                                                                 "EEnum": [
                                                                   646107057,
                                                                   {
-                                                                    "Package": [
+                                                                    "Ok": [
                                                                       {
-                                                                        "owner": "Darklang",
-                                                                        "modules": [
-                                                                          "Stdlib",
-                                                                          "Result"
-                                                                        ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
-                                                                        "version": 0
+                                                                        "Package": [
+                                                                          {
+                                                                            "owner": "Darklang",
+                                                                            "modules": [
+                                                                              "Stdlib",
+                                                                              "Result"
+                                                                            ],
+                                                                            "name": {
+                                                                              "TypeName": [
+                                                                                "Result"
+                                                                              ]
+                                                                            },
+                                                                            "version": 0
+                                                                          }
+                                                                        ]
                                                                       }
                                                                     ]
                                                                   },
@@ -4355,15 +4611,19 @@
                                                                       "EEnum": [
                                                                         689802831,
                                                                         {
-                                                                          "BuiltIn": [
+                                                                          "Ok": [
                                                                             {
-                                                                              "modules": [],
-                                                                              "name": {
-                                                                                "TypeName": [
-                                                                                  "Option"
-                                                                                ]
-                                                                              },
-                                                                              "version": 0
+                                                                              "BuiltIn": [
+                                                                                {
+                                                                                  "modules": [],
+                                                                                  "name": {
+                                                                                    "TypeName": [
+                                                                                      "Option"
+                                                                                    ]
+                                                                                  },
+                                                                                  "version": 0
+                                                                                }
+                                                                              ]
                                                                             }
                                                                           ]
                                                                         },
@@ -4373,15 +4633,19 @@
                                                                             "EEnum": [
                                                                               957916875,
                                                                               {
-                                                                                "BuiltIn": [
+                                                                                "Ok": [
                                                                                   {
-                                                                                    "modules": [],
-                                                                                    "name": {
-                                                                                      "TypeName": [
-                                                                                        "Option"
-                                                                                      ]
-                                                                                    },
-                                                                                    "version": 0
+                                                                                    "BuiltIn": [
+                                                                                      {
+                                                                                        "modules": [],
+                                                                                        "name": {
+                                                                                          "TypeName": [
+                                                                                            "Option"
+                                                                                          ]
+                                                                                        },
+                                                                                        "version": 0
+                                                                                      }
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -4449,19 +4713,24 @@
                                                               "EApply": [
                                                                 203239466,
                                                                 {
-                                                                  "FnTargetName": [
+                                                                  "EFnName": [
+                                                                    342954,
                                                                     {
-                                                                      "BuiltIn": [
+                                                                      "Ok": [
                                                                         {
-                                                                          "modules": [
-                                                                            "Mod"
-                                                                          ],
-                                                                          "name": {
-                                                                            "FnName": [
-                                                                              "function"
-                                                                            ]
-                                                                          },
-                                                                          "version": 2
+                                                                          "BuiltIn": [
+                                                                            {
+                                                                              "modules": [
+                                                                                "Mod"
+                                                                              ],
+                                                                              "name": {
+                                                                                "FnName": [
+                                                                                  "function"
+                                                                                ]
+                                                                              },
+                                                                              "version": 2
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       ]
                                                                     }
@@ -4861,9 +5130,36 @@
                                                                           ]
                                                                         },
                                                                         {
-                                                                          "EInt": [
-                                                                            34545,
-                                                                            5
+                                                                          "ELet": [
+                                                                            831830073,
+                                                                            {
+                                                                              "LPVariable": [
+                                                                                7567123,
+                                                                                "dict"
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EDict": [
+                                                                                109539183,
+                                                                                [
+                                                                                  [
+                                                                                    "a string",
+                                                                                    {
+                                                                                      "EInt": [
+                                                                                        450951790,
+                                                                                        2
+                                                                                      ]
+                                                                                    }
+                                                                                  ]
+                                                                                ]
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EInt": [
+                                                                                34545,
+                                                                                5
+                                                                              ]
+                                                                            }
                                                                           ]
                                                                         }
                                                                       ]
@@ -4916,15 +5212,19 @@
         "typ": {
           "TCustomType": [
             {
-              "UserProgram": [
+              "Ok": [
                 {
-                  "modules": [],
-                  "name": {
-                    "TypeName": [
-                      "User"
-                    ]
-                  },
-                  "version": 0
+                  "UserProgram": [
+                    {
+                      "modules": [],
+                      "name": {
+                        "TypeName": [
+                          "User"
+                        ]
+                      },
+                      "version": 0
+                    }
+                  ]
                 }
               ]
             },
@@ -5042,17 +5342,21 @@
                   {
                     "TCustomType": [
                       {
-                        "UserProgram": [
+                        "Ok": [
                           {
-                            "modules": [
-                              "Mod"
-                            ],
-                            "name": {
-                              "TypeName": [
-                                "name"
-                              ]
-                            },
-                            "version": 0
+                            "UserProgram": [
+                              {
+                                "modules": [
+                                  "Mod"
+                                ],
+                                "name": {
+                                  "TypeName": [
+                                    "name"
+                                  ]
+                                },
+                                "version": 0
+                              }
+                            ]
                           }
                         ]
                       },
@@ -5174,17 +5478,21 @@
               {
                 "TCustomType": [
                   {
-                    "UserProgram": [
+                    "Ok": [
                       {
-                        "modules": [
-                          "Mod"
-                        ],
-                        "name": {
-                          "TypeName": [
-                            "name"
-                          ]
-                        },
-                        "version": 0
+                        "UserProgram": [
+                          {
+                            "modules": [
+                              "Mod"
+                            ],
+                            "name": {
+                              "TypeName": [
+                                "name"
+                              ]
+                            },
+                            "version": 0
+                          }
+                        ]
                       }
                     ]
                   },
@@ -5418,19 +5726,24 @@
                                                   "EApply": [
                                                     898531080,
                                                     {
-                                                      "FnTargetName": [
+                                                      "EFnName": [
+                                                        63953,
                                                         {
-                                                          "BuiltIn": [
+                                                          "Ok": [
                                                             {
-                                                              "modules": [
-                                                                "Int"
-                                                              ],
-                                                              "name": {
-                                                                "FnName": [
-                                                                  "toString"
-                                                                ]
-                                                              },
-                                                              "version": 0
+                                                              "BuiltIn": [
+                                                                {
+                                                                  "modules": [
+                                                                    "Int"
+                                                                  ],
+                                                                  "name": {
+                                                                    "FnName": [
+                                                                      "toString"
+                                                                    ]
+                                                                  },
+                                                                  "version": 0
+                                                                }
+                                                              ]
                                                             }
                                                           ]
                                                         }
@@ -5491,17 +5804,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "UserProgram": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "UserProgram": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -5515,17 +5832,21 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "BuiltIn": [
+                                                            "Ok": [
                                                               {
-                                                                "modules": [
-                                                                  "Mod"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "User"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "BuiltIn": [
+                                                                  {
+                                                                    "modules": [
+                                                                      "Mod"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "User"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -5539,19 +5860,23 @@
                                                       {
                                                         "TCustomType": [
                                                           {
-                                                            "Package": [
+                                                            "Ok": [
                                                               {
-                                                                "owner": "dark",
-                                                                "modules": [
-                                                                  "Mod1",
-                                                                  "Mod2"
-                                                                ],
-                                                                "name": {
-                                                                  "TypeName": [
-                                                                    "Pack"
-                                                                  ]
-                                                                },
-                                                                "version": 0
+                                                                "Package": [
+                                                                  {
+                                                                    "owner": "dark",
+                                                                    "modules": [
+                                                                      "Mod1",
+                                                                      "Mod2"
+                                                                    ],
+                                                                    "name": {
+                                                                      "TypeName": [
+                                                                        "Pack"
+                                                                      ]
+                                                                    },
+                                                                    "version": 0
+                                                                  }
+                                                                ]
                                                               }
                                                             ]
                                                           },
@@ -5717,19 +6042,24 @@
                                                           "EApply": [
                                                             173079901,
                                                             {
-                                                              "FnTargetName": [
+                                                              "EFnName": [
+                                                                638434,
                                                                 {
-                                                                  "BuiltIn": [
+                                                                  "Ok": [
                                                                     {
-                                                                      "modules": [
-                                                                        "Int"
-                                                                      ],
-                                                                      "name": {
-                                                                        "FnName": [
-                                                                          "add"
-                                                                        ]
-                                                                      },
-                                                                      "version": 0
+                                                                      "BuiltIn": [
+                                                                        {
+                                                                          "modules": [
+                                                                            "Int"
+                                                                          ],
+                                                                          "name": {
+                                                                            "FnName": [
+                                                                              "add"
+                                                                            ]
+                                                                          },
+                                                                          "version": 0
+                                                                        }
+                                                                      ]
                                                                     }
                                                                   ]
                                                                 }
@@ -5796,18 +6126,22 @@
                                                   "ERecord": [
                                                     109539183,
                                                     {
-                                                      "UserProgram": [
+                                                      "Ok": [
                                                         {
-                                                          "modules": [
-                                                            "dark",
-                                                            "stdlib"
-                                                          ],
-                                                          "name": {
-                                                            "TypeName": [
-                                                              "NonEmptyList"
-                                                            ]
-                                                          },
-                                                          "version": 0
+                                                          "UserProgram": [
+                                                            {
+                                                              "modules": [
+                                                                "dark",
+                                                                "stdlib"
+                                                              ],
+                                                              "name": {
+                                                                "TypeName": [
+                                                                  "NonEmptyList"
+                                                                ]
+                                                              },
+                                                              "version": 0
+                                                            }
+                                                          ]
                                                         }
                                                       ]
                                                     },
@@ -5851,15 +6185,19 @@
                                                           "EEnum": [
                                                             567764301,
                                                             {
-                                                              "BuiltIn": [
+                                                              "Ok": [
                                                                 {
-                                                                  "modules": [],
-                                                                  "name": {
-                                                                    "TypeName": [
-                                                                      "Result"
-                                                                    ]
-                                                                  },
-                                                                  "version": 0
+                                                                  "BuiltIn": [
+                                                                    {
+                                                                      "modules": [],
+                                                                      "name": {
+                                                                        "TypeName": [
+                                                                          "Result"
+                                                                        ]
+                                                                      },
+                                                                      "version": 0
+                                                                    }
+                                                                  ]
                                                                 }
                                                               ]
                                                             },
@@ -5869,19 +6207,23 @@
                                                                 "EEnum": [
                                                                   646107057,
                                                                   {
-                                                                    "Package": [
+                                                                    "Ok": [
                                                                       {
-                                                                        "owner": "Darklang",
-                                                                        "modules": [
-                                                                          "Stdlib",
-                                                                          "Result"
-                                                                        ],
-                                                                        "name": {
-                                                                          "TypeName": [
-                                                                            "Result"
-                                                                          ]
-                                                                        },
-                                                                        "version": 0
+                                                                        "Package": [
+                                                                          {
+                                                                            "owner": "Darklang",
+                                                                            "modules": [
+                                                                              "Stdlib",
+                                                                              "Result"
+                                                                            ],
+                                                                            "name": {
+                                                                              "TypeName": [
+                                                                                "Result"
+                                                                              ]
+                                                                            },
+                                                                            "version": 0
+                                                                          }
+                                                                        ]
                                                                       }
                                                                     ]
                                                                   },
@@ -5891,15 +6233,19 @@
                                                                       "EEnum": [
                                                                         689802831,
                                                                         {
-                                                                          "BuiltIn": [
+                                                                          "Ok": [
                                                                             {
-                                                                              "modules": [],
-                                                                              "name": {
-                                                                                "TypeName": [
-                                                                                  "Option"
-                                                                                ]
-                                                                              },
-                                                                              "version": 0
+                                                                              "BuiltIn": [
+                                                                                {
+                                                                                  "modules": [],
+                                                                                  "name": {
+                                                                                    "TypeName": [
+                                                                                      "Option"
+                                                                                    ]
+                                                                                  },
+                                                                                  "version": 0
+                                                                                }
+                                                                              ]
                                                                             }
                                                                           ]
                                                                         },
@@ -5909,15 +6255,19 @@
                                                                             "EEnum": [
                                                                               957916875,
                                                                               {
-                                                                                "BuiltIn": [
+                                                                                "Ok": [
                                                                                   {
-                                                                                    "modules": [],
-                                                                                    "name": {
-                                                                                      "TypeName": [
-                                                                                        "Option"
-                                                                                      ]
-                                                                                    },
-                                                                                    "version": 0
+                                                                                    "BuiltIn": [
+                                                                                      {
+                                                                                        "modules": [],
+                                                                                        "name": {
+                                                                                          "TypeName": [
+                                                                                            "Option"
+                                                                                          ]
+                                                                                        },
+                                                                                        "version": 0
+                                                                                      }
+                                                                                    ]
                                                                                   }
                                                                                 ]
                                                                               },
@@ -5985,19 +6335,24 @@
                                                               "EApply": [
                                                                 203239466,
                                                                 {
-                                                                  "FnTargetName": [
+                                                                  "EFnName": [
+                                                                    342954,
                                                                     {
-                                                                      "BuiltIn": [
+                                                                      "Ok": [
                                                                         {
-                                                                          "modules": [
-                                                                            "Mod"
-                                                                          ],
-                                                                          "name": {
-                                                                            "FnName": [
-                                                                              "function"
-                                                                            ]
-                                                                          },
-                                                                          "version": 2
+                                                                          "BuiltIn": [
+                                                                            {
+                                                                              "modules": [
+                                                                                "Mod"
+                                                                              ],
+                                                                              "name": {
+                                                                                "FnName": [
+                                                                                  "function"
+                                                                                ]
+                                                                              },
+                                                                              "version": 2
+                                                                            }
+                                                                          ]
                                                                         }
                                                                       ]
                                                                     }
@@ -6397,9 +6752,36 @@
                                                                           ]
                                                                         },
                                                                         {
-                                                                          "EInt": [
-                                                                            34545,
-                                                                            5
+                                                                          "ELet": [
+                                                                            831830073,
+                                                                            {
+                                                                              "LPVariable": [
+                                                                                7567123,
+                                                                                "dict"
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EDict": [
+                                                                                109539183,
+                                                                                [
+                                                                                  [
+                                                                                    "a string",
+                                                                                    {
+                                                                                      "EInt": [
+                                                                                        450951790,
+                                                                                        2
+                                                                                      ]
+                                                                                    }
+                                                                                  ]
+                                                                                ]
+                                                                              ]
+                                                                            },
+                                                                            {
+                                                                              "EInt": [
+                                                                                34545,
+                                                                                5
+                                                                              ]
+                                                                            }
                                                                           ]
                                                                         }
                                                                       ]
@@ -6547,17 +6929,21 @@
                       {
                         "TCustomType": [
                           {
-                            "UserProgram": [
+                            "Ok": [
                               {
-                                "modules": [
-                                  "Mod"
-                                ],
-                                "name": {
-                                  "TypeName": [
-                                    "name"
-                                  ]
-                                },
-                                "version": 0
+                                "UserProgram": [
+                                  {
+                                    "modules": [
+                                      "Mod"
+                                    ],
+                                    "name": {
+                                      "TypeName": [
+                                        "name"
+                                      ]
+                                    },
+                                    "version": 0
+                                  }
+                                ]
                               }
                             ]
                           },
@@ -6718,17 +7104,21 @@
                             {
                               "TCustomType": [
                                 {
-                                  "UserProgram": [
+                                  "Ok": [
                                     {
-                                      "modules": [
-                                        "Mod"
-                                      ],
-                                      "name": {
-                                        "TypeName": [
-                                          "name"
-                                        ]
-                                      },
-                                      "version": 0
+                                      "UserProgram": [
+                                        {
+                                          "modules": [
+                                            "Mod"
+                                          ],
+                                          "name": {
+                                            "TypeName": [
+                                              "name"
+                                            ]
+                                          },
+                                          "version": 0
+                                        }
+                                      ]
                                     }
                                   ]
                                 },

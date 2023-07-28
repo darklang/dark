@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
             | "Nothing", _, _, _
             | _, _, "Nothing", _ -> return Dval.optionNothing
             | "Just", [ dv1 ], "Just", [ dv2 ] ->
-              let! result = Interpreter.applyFnVal state b [ dv1; dv2 ]
+              let! result = Interpreter.applyFnVal state 0UL b [] [ dv1; dv2 ]
 
               return Dval.optionJust result
             | _ ->

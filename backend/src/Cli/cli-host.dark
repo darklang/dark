@@ -15,6 +15,7 @@ let parseArguments (args: List<String>) : Command =
 let executeCommand (command: Command) : Int =
   match command with
   | RunScript(scriptPath, args) ->
+    print $"Running Dark script {scriptPath}"
     match File.read scriptPath with
     | Error e ->
       print e

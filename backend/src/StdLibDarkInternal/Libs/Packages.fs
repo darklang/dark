@@ -10,7 +10,7 @@ open LibExecution.StdLib.Shortcuts
 module PT = LibExecution.ProgramTypes
 module Canvas = LibBackend.Canvas
 module Serialize = LibBackend.Serialize
-module PT2DT = ProgramTypes2DarkTypes
+module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
 
 
 let stdlibPackageTyp

@@ -13,36 +13,46 @@ let listPackageFilesOnDisk (dir: String) : List<String> =
 
 
 let saveFunctionToCanvas
-  (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T)
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T)
   : Unit =
   let reqBody =
     p
-    |> Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageFn.T>
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.T>
     |> unwrap
     |> String.toBytes
 
-  let _ =
+  let response =
     HttpClient.request
       "POST"
       ("http://dark-packages.dlio.localhost:11003/functions")
       []
       reqBody
 
+  let response = unwrap response
+
+  // TODO: ensure 200 OK
+
   ()
 
-let saveTypeToCanvas (p: PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T) : Unit =
+let saveTypeToCanvas
+  (p: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T)
+  : Unit =
   let reqBody =
     p
-    |> Json.serialize<PACKAGE.Darklang.Stdlib.ProgramTypes.PackageType.T>
+    |> Json.serialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType.T>
     |> unwrap
     |> String.toBytes
 
-  let _ =
+  let response =
     HttpClient.request
       "POST"
       ("http://dark-packages.dlio.localhost:11003/types")
       []
       reqBody
+
+  let response = unwrap response
+
+  // TODO: ensure 200 OK
 
   ()
 
@@ -54,7 +64,7 @@ let loadPackageFile (filename: String) : Unit =
 
 
 let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
-  let packages =
+  let package =
     filename
     |> File.read
     |> unwrap
@@ -62,9 +72,9 @@ let loadPackageFileIntoDarkCanvas (filename: String) : Unit =
     |> LocalExec.Packages.parse filename
     |> unwrap
 
-  packages.fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
+  package.fns |> List.iter (fun fn -> saveFunctionToCanvas fn)
 
-  packages.types |> List.iter (fun t -> saveTypeToCanvas t)
+  package.types |> List.iter (fun t -> saveTypeToCanvas t)
 
 
 let printPackageFunction (p: LocalExec.Packages.Function) : Unit =
@@ -105,8 +115,8 @@ let usage () : String =
 
     Options:
       -h, --help          Show this help message and exit
-      load-packages       Load packages from packages
-      load-packages-dark  Load packages from dark packages canvas
+      load-packages       Load packages from disk into internal DB
+      load-packages-dark  Load packages from disk into dark packages canvas
       list-packages       List packages
       run-script          Parse and run .dark script
   "
@@ -143,10 +153,9 @@ let main (args: List<String>) : Int =
     LocalExec.Packages.clear ()
     let files = listPackageFilesOnDisk "/home/dark/app/packages"
 
-    do // can we get rid of this do?
-      List.iter files (fun f ->
-        print $"Loading {f}"
-        loadPackageFile f)
+    List.iter files (fun f ->
+      print $"Loading {f}"
+      loadPackageFile f)
 
     print "Done loading packages"
     0
@@ -158,10 +167,11 @@ let main (args: List<String>) : Int =
   | LoadPackagesIntoDarkCanvas ->
     let files = listPackageFilesOnDisk "/home/dark/app/packages"
 
-    do // can we get rid of this do?
-      List.iter files (fun f ->
-        print $"Loading {f}"
-        loadPackageFileIntoDarkCanvas f)
+    // TODO: clear packages from dark canvas first?
+
+    List.iter files (fun f ->
+      print $"Loading {f}"
+      loadPackageFileIntoDarkCanvas f)
 
     print "Done loading packages from dark packages canvas"
     printAllPackages ()

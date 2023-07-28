@@ -13,7 +13,7 @@ open LibExecution.RuntimeTypes
 
 open LibExecution.StdLib.Shortcuts
 
-module PT2DT = ProgramTypes2DarkTypes
+module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
 
 let types : List<BuiltInType> =
   [ { name = typ [ "LocalExec"; "Packages" ] "Function" 0
@@ -75,66 +75,6 @@ let fns : List<BuiltInFn> =
               |> Sql.executeStatementAsync
             do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
             return DUnit
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn [ "LocalExec"; "Packages" ] "parseAndSave" 0
-      typeParams = []
-      parameters =
-        [ Param.make "package source" TString "The source code of the package"
-          Param.make "filename" TString "Used for error message" ]
-      returnType = TUnit
-      description = "Parse a package and save it to the database"
-      fn =
-        function
-        | _, _, [ DString contents; DString path ] ->
-          uply {
-            let (fns, types) = Parser.Parser.parsePackage path contents
-            do! LibBackend.PackageManager.savePackageFunctions fns
-            do! LibBackend.PackageManager.savePackageTypes types
-            return DUnit
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn [ "LocalExec"; "Packages" ] "parse" 0
-      typeParams = []
-      parameters =
-        [ Param.make "package source" TString "The source code of the package"
-          Param.make "filename" TString "Used for error message" ]
-      returnType =
-        TypeReference.result
-          (TCustomType(
-            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
-            []
-          ))
-          TString
-      description = "Parse a package"
-      fn =
-        function
-        | _, _, [ DString contents; DString path ] ->
-          uply {
-            let (fns, types) = Parser.Parser.parsePackage path contents
-
-            let packagesFns = fns |> List.map (fun fn -> PT2DT.PackageFn.toDT fn)
-
-            let packagesTypes =
-              types |> List.map (fun typ -> PT2DT.PackageType.toDT typ)
-
-            return
-              Dval.resultOk (
-                DRecord(
-                  FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Package" 0),
-                  Map([ ("fns", DList packagesFns); ("types", DList packagesTypes) ])
-                )
-              )
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

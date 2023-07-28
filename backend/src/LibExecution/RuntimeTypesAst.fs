@@ -82,20 +82,9 @@ let rec preTraversal
   | ELet(id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
   | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
-  | EApply(id, FnTargetName name, typeArgs, args) ->
-    EApply(
-      id,
-      FnTargetName(fqfnFn name),
-      List.map preTraversalTypeRef typeArgs,
-      List.map f args
-    )
-  | EApply(id, FnTargetExpr name, typeArgs, args) ->
-    EApply(
-      id,
-      FnTargetExpr(f name),
-      List.map preTraversalTypeRef typeArgs,
-      List.map f args
-    )
+  | EApply(id, name, typeArgs, args) ->
+    EApply(id, f name, List.map preTraversalTypeRef typeArgs, List.map f args)
+  | EFnName(id, name) -> EFnName(id, fqfnFn name)
   | EAnd(id, left, right) -> EAnd(id, f left, f right)
   | EOr(id, left, right) -> EOr(id, f left, f right)
   | ELambda(id, names, expr) -> ELambda(id, names, f expr)
@@ -125,6 +114,7 @@ let rec preTraversal
       f record,
       List.map (fun (name, expr) -> (name, f expr)) updates
     )
+  | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs)
 
 let rec postTraversal
   (exprFn : Expr -> Expr)
@@ -199,21 +189,9 @@ let rec postTraversal
    | ELet(id, pat, rhs, next) -> ELet(id, postTraversalLetPattern pat, f rhs, f next)
    | EIf(id, cond, ifexpr, elseexpr) -> EIf(id, f cond, f ifexpr, f elseexpr)
    | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
-   | EApply(id, FnTargetName name, typeArgs, args) ->
-     EApply(
-       id,
-       FnTargetName(fqfnFn name),
-       List.map postTraversalTypeRef typeArgs,
-       List.map f args
-     )
-   | EApply(id, FnTargetExpr name, typeArgs, args) ->
-
-     EApply(
-       id,
-       FnTargetExpr(f name),
-       List.map postTraversalTypeRef typeArgs,
-       List.map f args
-     )
+   | EApply(id, name, typeArgs, args) ->
+     EApply(id, f name, List.map postTraversalTypeRef typeArgs, List.map f args)
+   | EFnName(id, name) -> EFnName(id, fqfnFn name)
    | EAnd(id, left, right) -> EAnd(id, f left, f right)
    | EOr(id, left, right) -> EOr(id, f left, f right)
    | ELambda(id, names, expr) -> ELambda(id, names, f expr)
@@ -243,5 +221,6 @@ let rec postTraversal
        id,
        f record,
        List.map (fun (name, expr) -> (name, f expr)) updates
-     ))
+     )
+   | EError(id, msg, exprs) -> EError(id, msg, List.map f exprs))
   |> exprFn

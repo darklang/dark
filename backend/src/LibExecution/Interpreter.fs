@@ -101,13 +101,17 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | None -> return err id $"There is no user defined constant named: {name}"
         | Some constant -> return constant.body
       | FQName.BuiltIn c ->
-        match state.libraries.builtInConstants.TryFind c with
-        | None -> return err id $"There is no bultin constant named: {name}"
+        match state.builtIns.constants.TryFind c with
+        | None -> return err id $"There is no builtin constant named: {name}"
         | Some constant -> return constant.body
       | FQName.Package c ->
-        match state.libraries.packageConstants.TryFind c with
-        | None -> return err id $"There is no package constant named: {name}"
+        match! state.packageManager.getConstant c with
+        | None -> return err id $"There is no builtin constant named: {name}"
         | Some constant -> return constant.body
+      | FQName.Unknown names ->
+        let name = String.concat "." names
+        return err id $"There is no builtin constant named: {name}"
+
     | ELet(id, pattern, rhs, body) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
       let traceIncompleteWithArgs id argPatterns =
@@ -216,7 +220,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       match! recordMaybe typeName with
       | None ->
         match typ with
-        | None -> return err id $"There is no type named `{typeStr}`"
+        | None -> return err id $"There is no type named {typeStr}"
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return err id $"Expected a record but {typeStr} is an enum"
         | _ -> return err id $"Expected a record but {typeStr} is something else"
@@ -239,7 +243,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   else
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match! TypeChecker.unify context types field.typ v with
+                    match!
+                      TypeChecker.unify context types Map.empty field.typ v
+                    with
                     | Ok() ->
                       match r with
                       | DRecord(typeName, m) ->
@@ -269,7 +275,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         match! recordMaybe typeName with
         | None ->
           match! Types.find typeName types with
-          | None -> return err id $"There is no type named `{typeStr}`"
+          | None -> return err id $"There is no type named {typeStr}"
           | Some({ definition = TypeDeclaration.Enum _ }) ->
             return err id $"Expected a record but {typeStr} is an enum"
           | _ -> return err id $"Expected a record but {typeStr} is something else"
@@ -289,7 +295,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   | DRecord(typeName, m), k, v ->
                     let field = Map.find k expectedFields
                     let context = TypeChecker.RecordField(typeName, field, None)
-                    match! TypeChecker.unify context types field.typ v with
+                    match!
+                      TypeChecker.unify context types Map.empty field.typ v
+                    with
                     | Ok() -> return DRecord(typeName, Map.add k v m)
                     | Error e ->
                       return err id (Errors.toString (Errors.TypeError(e)))
@@ -318,15 +326,19 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
           fields
 
 
+    | EFnName(id, name) -> return DFnVal(NamedFn name)
 
     | EApply(id, fnTarget, typeArgs, exprs) ->
-      let! args = Ply.List.mapSequentially (eval state st) exprs
-
-      match fnTarget with
-      | FnTargetName name -> return! callFn state id name typeArgs (Seq.toList args)
-      | FnTargetExpr e ->
-        let! target = eval' state st e
-        return! applyFn state target id args
+      match! eval' state st fnTarget with
+      | DFnVal fnVal ->
+        let! args = Ply.List.mapSequentially (eval state st) exprs
+        return! applyFnVal state id fnVal typeArgs args
+      | other when Dval.isFake other -> return other
+      | other ->
+        return
+          Dval.errSStr
+            (SourceID(state.tlid, id))
+            $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
 
 
     | EFieldAccess(id, e, field) ->
@@ -617,7 +629,7 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
       let typeStr = TypeName.toString typeName
       let types = ExecutionState.availableTypes state
       match! Types.find typeName types with
-      | None -> return err id $"There is no type named `{typeStr}`"
+      | None -> return err id $"There is no type named {typeStr}"
       | Some({ definition = TypeDeclaration.Alias _ }) ->
         return err id $"Expected an enum but {typeStr} is an alias"
       | Some({ definition = TypeDeclaration.Record _ }) ->
@@ -654,7 +666,9 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                             None
                           )
 
-                        match! TypeChecker.unify context types enumField.typ v with
+                        match!
+                          TypeChecker.unify context types Map.empty enumField.typ v
+                        with
                         | Ok() ->
                           match r with
                           | DEnum(typeName, caseName, existing) ->
@@ -666,6 +680,13 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
                   })
                 (DEnum(typeName, caseName, []))
                 fields
+    | EError(id, msg, exprs) ->
+      let! args = Ply.List.mapSequentially (eval state st) exprs
+
+      return
+        args
+        |> List.tryFind Dval.isFake
+        |> Option.defaultValue (DError(sourceID id, msg))
   }
 
 /// Interprets an expression and reduces to a Dark value
@@ -678,31 +699,16 @@ and eval (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
   }
 
 /// Unwrap the dval, which we expect to be a function, and error if it's not
-and applyFn
-  (state : ExecutionState)
-  (fn : Dval)
-  (id : id)
-  (args : List<Dval>)
-  : DvalTask =
-  uply {
-    // Unwrap
-    match fn with
-    | DFnVal fnVal -> return! applyFnVal state fnVal args
-    | other when Dval.isFake other -> return other
-    | other ->
-      return
-        Dval.errSStr
-          (SourceID(state.tlid, id))
-          $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
-  }
-
 and applyFnVal
   (state : ExecutionState)
+  (id : id)
   (fnVal : FnValImpl)
-  (argList : List<Dval>)
+  (typeArgs : List<TypeReference>)
+  (args : List<Dval>)
   : DvalTask =
   match fnVal with
-  | Lambda l -> executeLambda state l argList
+  | Lambda l -> executeLambda state l args
+  | NamedFn fn -> callFn state id fn typeArgs args
 
 and executeLambda
   (state : ExecutionState)
@@ -797,6 +803,10 @@ and callFn
             let! fn = state.packageManager.getFn pkg
             return Option.map packageFnToFn fn
           }
+        | FQName.Unknown fn ->
+          Exception.raiseInternal
+            "Unknown function should have been converted to EError by PT2RT"
+            [ "fn", fn ]
 
       match fn with
       | None -> return handleMissingFunction ()
@@ -836,9 +846,9 @@ and execFn
 
       let fnRecord = (state.tlid, fnDesc, id) in
 
-      let name = FnName.toString fnDesc
       let types = ExecutionState.availableTypes state
-      match! TypeChecker.checkFunctionCall types fn typeArgs args with
+      let typeArgSymbolTable = List.zip fn.typeParams typeArgs |> Map
+      match! TypeChecker.checkFunctionCall types typeArgSymbolTable fn args with
       | Error err ->
         let msg = Errors.toString (Errors.TypeError(err))
         return DError(sourceID, msg)
@@ -859,7 +869,10 @@ and execFn
                       return! f (state, typeArgs, args)
                     with e ->
                       let context : Metadata =
-                        [ "fn", fnDesc; "args", args; "id", id ]
+                        [ "fn", fnDesc
+                          "args", args
+                          "typeArgs", typeArgs
+                          "id", id ]
                       match e with
                       | Errors.IncorrectArgs ->
                         return Errors.incorrectArgsToDError sourceID fn args
@@ -899,7 +912,9 @@ and execFn
         if Dval.isFake result then
           return result
         else
-          match! TypeChecker.checkFunctionReturnType types fn result with
+          match!
+            TypeChecker.checkFunctionReturnType types typeArgSymbolTable fn result
+          with
           | Error err ->
             let msg = Errors.toString (Errors.TypeError(err))
             return DError(sourceID, msg)

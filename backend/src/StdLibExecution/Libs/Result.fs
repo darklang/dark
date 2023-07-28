@@ -49,7 +49,7 @@ let fns : List<BuiltInFn> =
             | "Error", _ -> return Dval.resultError arg1
             | "Ok", "Error" -> return Dval.resultError arg2
             | "Ok", "Ok" ->
-              let! result = Interpreter.applyFnVal state b [ arg1; arg2 ]
+              let! result = Interpreter.applyFnVal state 0UL b [] [ arg1; arg2 ]
               return Dval.resultOk result
             | _, _ ->
               return

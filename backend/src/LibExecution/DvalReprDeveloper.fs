@@ -51,12 +51,16 @@ let rec dvalTypeName (dv : Dval) : string =
   | DList(v :: _) -> "List<" + dvalTypeName v + ">"
   | DDict _ -> "Dict"
   | DFnVal(Lambda _) -> "Lambda"
+  | DFnVal(NamedFn n) -> FnName.toString n
   | DDB _ -> "Datastore"
   | DDateTime _ -> "DateTime"
   | DPassword _ -> "Password"
   | DUuid _ -> "Uuid"
   | DTuple(t1, t2, trest) ->
-    "(" + (t1 :: t2 :: trest |> List.map dvalTypeName |> String.concat ", ") + ")"
+    t1 :: t2 :: trest
+    |> List.map dvalTypeName
+    |> String.concat ", "
+    |> fun s -> $"({s})"
   | DBytes _ -> "Bytes"
   | DRecord(typeName, _) -> TypeName.toString typeName
   | DEnum(typeName, _, _) -> TypeName.toString typeName
@@ -115,7 +119,7 @@ let toRepr (dv : Dval) : string =
     | DTuple(first, second, theRest) ->
       let l = [ first; second ] @ theRest
       let elems = String.concat ", " (List.map (toRepr_ indent) l)
-      $"({inl}{elems}{nl})"
+      $"({elems})"
     | DRecord(typeName, o) ->
       let strs =
         o

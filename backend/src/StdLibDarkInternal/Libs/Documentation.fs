@@ -23,7 +23,9 @@ let types : List<BuiltInType> =
             TypeDeclaration.Record(
               { name = "name"; typ = TString; description = "" },
               [ { name = "description"; typ = TString; description = "" }
-                { name = "parameters"; typ = TList(TString); description = "" }
+                { name = "parameters"
+                  typ = TList(TCustomType(FQName.BuiltIn(typ "Parameter" 0), []))
+                  description = "" }
                 { name = "returnType"; typ = TString; description = "" } ]
             ) }
       deprecated = NotDeprecated
@@ -69,7 +71,7 @@ let fns : List<BuiltInFn> =
                     [ ("name", DString p.name)
                       ("type", DString(typeNameToStr p.typ)) ])
               [ ("name", DString(FnName.builtinToString key))
-                ("documentation", DString data.description)
+                ("description", DString data.description)
                 ("parameters", DList parameters)
                 ("returnType", DString returnType) ]
             Dval.record typeName alist)
