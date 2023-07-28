@@ -115,7 +115,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     equalsExpr target1 target2 && fieldName1 = fieldName2
   | EVariable(_, name1), EVariable(_, name2) -> name1 = name2
   | EApply(_, name1, typeArgs1, args1), EApply(_, name2, typeArgs2, args2) ->
-    name1 = name2
+    equalsExpr name1 name2
     && List.forall2 (=) typeArgs1 typeArgs2
     && List.forall2 equalsExpr args1 args2
   | EFnName(_, name1), EFnName(_, name2) -> name1 = name2
