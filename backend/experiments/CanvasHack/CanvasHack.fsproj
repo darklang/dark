@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
     <ProjectReference Include="../../src/Parser/Parser.fsproj" />
+    <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../../src/StdLibCloudExecution/StdLibCloudExecution.fsproj" />
 
   </ItemGroup>
