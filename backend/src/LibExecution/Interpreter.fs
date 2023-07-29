@@ -106,11 +106,11 @@ let rec eval' (state : ExecutionState) (st : Symtable) (e : Expr) : DvalTask =
         | Some constant -> return constant.body
       | FQName.Package c ->
         match! state.packageManager.getConstant c with
-        | None -> return err id $"There is no builtin constant named: {name}"
+        | None -> return err id $"There is no package constant named: {name}"
         | Some constant -> return constant.body
       | FQName.Unknown names ->
         let name = String.concat "." names
-        return err id $"There is no builtin constant named: {name}"
+        return err id $"There is no constant named: {name}"
 
     | ELet(id, pattern, rhs, body) ->
       /// Returns `incomplete` traces for subpatterns of an unmatched pattern
