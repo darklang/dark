@@ -57,6 +57,27 @@ let types : List<BuiltInType> =
                   typ = TInt
                   description = "The version of the type" } ]
             ) }
+      deprecated = NotDeprecated }
+
+    { name = typ [ "LocalExec"; "Packages" ] "Constant" 0
+      description = "The name of a package constant"
+      declaration =
+        { typeParams = []
+          definition =
+            TypeDeclaration.Record(
+              { name = "owner"
+                typ = TString
+                description = "The username of the owner of the function" },
+              [ { name = "modules"
+                  typ = TList TString
+                  description = "The module the constant is in" }
+                { name = "name"
+                  typ = TString
+                  description = "The name of the constant" }
+                { name = "version"
+                  typ = TInt
+                  description = "The version of the constant" } ]
+            ) }
       deprecated = NotDeprecated } ]
 
 
@@ -74,6 +95,9 @@ let fns : List<BuiltInFn> =
               Sql.query "DELETE FROM package_functions_v0"
               |> Sql.executeStatementAsync
             do! Sql.query "DELETE FROM package_types_v0" |> Sql.executeStatementAsync
+            do!
+              Sql.query "DELETE FROM package_constants_v0"
+              |> Sql.executeStatementAsync
             return DUnit
           }
         | _ -> incorrectArgs ()
@@ -158,6 +182,51 @@ let fns : List<BuiltInFn> =
                         ("modules",
                          modules |> String.split "." |> List.map DString |> DList)
                         ("name", DString typename)
+                        ("version", DInt version) ]
+                    )
+                  ))
+              ))
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn [ "LocalExec"; "Packages" ] "listConstants" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TList(
+          TCustomType(
+            FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0),
+            []
+          )
+        )
+      description = "List all package constants"
+      fn =
+        function
+        | _, _, [ DUnit ] ->
+          uply {
+            let! packages =
+              Sql.query
+                "SELECT owner, modules, name, version FROM package_constants_v0"
+              |> Sql.executeAsync (fun read ->
+                (read.string "owner",
+                 read.string "name",
+                 read.string "modules",
+                 read.int "version"))
+            return
+              (DList(
+                packages
+                |> List.map (fun (owner, fnname, modules, version) ->
+                  DRecord(
+                    FQName.BuiltIn(typ [ "LocalExec"; "Packages" ] "Constant" 0),
+                    Map(
+                      [ ("owner", DString owner)
+                        ("modules",
+                         modules |> String.split "." |> List.map DString |> DList)
+                        ("name", DString fnname)
                         ("version", DInt version) ]
                     )
                   ))
