@@ -17,7 +17,7 @@ let getStateForEval
     let builtInFns, builtInTypes, builtInConstants = stdlib
     { types = builtInTypes |> List.map (fun typ -> typ.name, typ) |> Map
       fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
-      constants = builtInConstants |> List.map (fun c -> c.name, c) |> Map}
+      constants = builtInConstants |> List.map (fun c -> c.name, c) |> Map }
 
   // TODO
   let packageManager : PackageManager = PackageManager.Empty

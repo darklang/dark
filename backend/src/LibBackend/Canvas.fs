@@ -138,7 +138,7 @@ let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
     map PT.Toplevel.TLDB c.dbs
     map PT.Toplevel.TLType c.userTypes
     map PT.Toplevel.TLFunction c.userFunctions
-    map PT.Toplevel.TLConstant c.userConstants]
+    map PT.Toplevel.TLConstant c.userConstants ]
   |> Seq.concat
   |> Map
 

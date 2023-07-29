@@ -130,8 +130,7 @@ let builtIns : RT.BuiltIns =
       []
   { types = types |> Map.fromListBy (fun typ -> typ.name)
     fns = fns |> Map.fromListBy (fun fn -> fn.name)
-    constants = constants |> Map.fromListBy (fun c -> c.name)
-    }
+    constants = constants |> Map.fromListBy (fun c -> c.name) }
 
 // A resolver that only knows about builtins. If you need user code in the parser,
 // you need to add in the names of the fns/types/etc

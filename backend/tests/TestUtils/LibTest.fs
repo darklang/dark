@@ -50,8 +50,7 @@ let constants : List<BuiltInConstant> =
       typ = TFloat
       description = "Returns negative infinity"
       body = DFloat(System.Double.NegativeInfinity)
-      deprecated = NotDeprecated }
-    ]
+      deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
 
