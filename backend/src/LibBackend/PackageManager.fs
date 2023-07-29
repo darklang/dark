@@ -110,7 +110,7 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
 // Fetching
 // ------------------
 
-let allFunctions () : Task<List<PT.PackageFn.T>> =
+let allFunctions : Task<List<PT.PackageFn.T>> =
   task {
     let! fns =
       Sql.query "SELECT id, definition FROM package_functions_v0"
@@ -122,7 +122,7 @@ let allFunctions () : Task<List<PT.PackageFn.T>> =
       |> List.map (fun (id, def) -> BinarySerialization.deserializePackageFn id def)
   }
 
-let allTypes () : Task<List<PT.PackageType.T>> =
+let allTypes : Task<List<PT.PackageType.T>> =
   task {
     let! types =
       Sql.query "SELECT id, definition FROM package_types_v0"
@@ -135,7 +135,7 @@ let allTypes () : Task<List<PT.PackageType.T>> =
         BinarySerialization.deserializePackageType id def)
   }
 
-let allConstants () : Task<List<PT.PackageConstant.T>> =
+let allConstants : Task<List<PT.PackageConstant.T>> =
   task {
     let! constants =
       Sql.query "SELECT id, definition FROM package_constants_v0"
@@ -148,12 +148,31 @@ let allConstants () : Task<List<PT.PackageConstant.T>> =
         BinarySerialization.deserializePackageConstant id def)
   }
 
+open System
+
+let cachedTask (expiration : TimeSpan) (f : Task<'a>) : Task<'a> =
+  let mutable value = None
+  let mutable lastUpdate = DateTime.MinValue
+
+  task {
+    match value, DateTime.Now - lastUpdate > expiration with
+    | Some value, false -> return value
+    | _ ->
+      let! newValue = f
+      value <- Some newValue
+      lastUpdate <- DateTime.Now
+      return newValue
+  }
+
 let packageManager : RT.PackageManager =
-  // TODO: caching
+  let allTypes = cachedTask (TimeSpan.FromMinutes 1.) allTypes
+  let allFunctions = cachedTask (TimeSpan.FromMinutes 1.) allFunctions
+  let allConstants = cachedTask (TimeSpan.FromMinutes 1.) allConstants
+
   { getType =
       fun typ ->
         uply {
-          let! types = allTypes ()
+          let! types = allTypes
 
           let types =
             types
@@ -167,7 +186,7 @@ let packageManager : RT.PackageManager =
     getFn =
       fun fn ->
         uply {
-          let! fns = allFunctions ()
+          let! fns = allFunctions
 
           let fns =
             fns
@@ -181,7 +200,7 @@ let packageManager : RT.PackageManager =
     getConstant =
       fun c ->
         uply {
-          let! constants = allConstants ()
+          let! constants = allConstants
 
           let constants =
             constants
