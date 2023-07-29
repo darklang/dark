@@ -755,6 +755,59 @@ module UserFunction =
       description = ""
       body = f.body }
 
+module Constant =
+
+  type T = { name : string; version : int; body : WT.Const }
+
+  let fromSynExpr (expr : SynExpr) : WT.Const =
+    let rec c (e : WT.Expr) : WT.Const =
+      match e with
+      | WT.EUnit _ -> WT.CUnit
+      | WT.EInt(_, n) -> WT.CInt n
+      | WT.EChar(_, c) -> WT.CChar c
+      | WT.EBool(_, b) -> WT.CBool b
+      | WT.EFloat(_, sign, whole, fraction) -> WT.CFloat(sign, whole, fraction)
+      | WT.EString(_, [ WT.StringText str ]) -> WT.CString str
+      | WT.ETuple(_, first, second, rest) ->
+        WT.CTuple(c first, c second, List.map c rest)
+      | WT.EEnum(_, typeName, caseName, fields) ->
+        WT.CEnum(typeName, caseName, List.map c fields)
+      | _ -> Exception.raiseInternal "Unsupported constant" [ "expr", expr ]
+    expr |> Expr.fromSynExpr |> c
+
+  let fromSynBinding (binding : SynBinding) : T =
+    match binding with
+    | SynBinding(_,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 SynPat.Named(SynIdent(name, _), _, _, _),
+                 _,
+                 expr,
+                 _,
+                 _,
+                 _) ->
+      match Expr.parseFn name.idText with
+      | Ok(name, version) ->
+        { name = name; version = version; body = fromSynExpr expr }
+      | Error _ ->
+        Exception.raiseInternal "Unsupported constant" [ "binding", binding ]
+    | _ -> Exception.raiseInternal "Unsupported constant" [ "binding", binding ]
+
+
+module UserConstant =
+  let fromSynBinding
+    (moduleName : List<string>)
+    (b : SynBinding)
+    : WT.UserConstant.T =
+    let c = Constant.fromSynBinding b
+    { name = PT.ConstantName.userProgram moduleName c.name c.version
+      description = ""
+      body = c.body }
+
 
 module PackageFn =
   let fromSynBinding

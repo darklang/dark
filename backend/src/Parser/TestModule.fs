@@ -111,6 +111,19 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
       else
         [], [ FS2WT.UserType.fromSynTypeDefn moduleName typeDefn ]
 
+  let parseSynBinding
+    (moduleName : List<string>)
+    (binding : SynBinding)
+    : List<WT.UserFunction.T> * List<WT.UserConstant.T> =
+    match binding with
+    | SynBinding(_, _, _, _, _, _, _, signature, _, expr, _, _, _) ->
+      match signature with
+      | SynPat.LongIdent(SynLongIdent _, _, _, _, _, _) ->
+        [ FS2WT.UserFunction.fromSynBinding moduleName binding ], []
+      | SynPat.Named _ ->
+        [], [ FS2WT.UserConstant.fromSynBinding moduleName binding ]
+      | _ -> Exception.raiseInternal $"Unsupported binding" [ "binding", binding ]
+
   let rec parseModule
     (moduleName : List<string>)
     (parentDBs : List<WT.DB.T>)
@@ -122,9 +135,12 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
         (fun (m, nested) decl ->
           match decl with
           | SynModuleDecl.Let(_, bindings, _) ->
-            let newUserFns =
-              List.map (FS2WT.UserFunction.fromSynBinding moduleName) bindings
-            ({ m with fns = m.fns @ newUserFns }, nested)
+            let (newUserFns, newUserConstants) =
+              bindings |> List.map (parseSynBinding moduleName) |> List.unzip
+            ({ m with
+                fns = m.fns @ List.concat newUserFns
+                constants = m.constants @ List.concat newUserConstants },
+             nested)
 
           | SynModuleDecl.Types(defns, _) ->
             let (dbs, types) =
@@ -204,6 +220,7 @@ let parseTestFile
     |> parseFile
 
 
+
   let fns = modules |> List.map (fun m -> m.fns) |> List.concat
   let fnNames = fns |> List.map (fun fn -> fn.name) |> Set.ofList
 
@@ -214,7 +231,10 @@ let parseTestFile
   let constantNames = constants |> List.map (fun c -> c.name) |> Set.ofList
 
   let programResolver =
-    { NameResolver.empty with userFns = fnNames; userTypes = typeNames }
+    { NameResolver.empty with
+        userFns = fnNames
+        userTypes = typeNames
+        userConstants = constantNames }
   let resolver = NameResolver.merge baseResolver programResolver
 
   modules |> List.map (toPT resolver)

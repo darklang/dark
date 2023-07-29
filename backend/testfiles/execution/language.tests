@@ -1027,6 +1027,41 @@ module UserDefined =
   // user function with  in it
   (myUserFunction "x") = 6
 
+  module Constants =
+    let stringConst = "test"
+    stringConst = "test"
+    "test" = stringConst
+    Constants.stringConst = "test"
+
+    let intConst = 5
+    intConst = 5
+    Constants.intConst = 5
+
+    let floatConst = 5.6
+    floatConst = 5.6
+    Constants.floatConst = 5.6
+
+    let boolConst = true
+    boolConst = true
+    Constants.boolConst = true
+
+    let tupleConst = (1,2,3)
+    tupleConst = (1,2,3)
+    Constants.tupleConst = (1,2,3)
+
+    let charConst = 'c'
+    charConst = 'c'
+    Constants.charConst = 'c'
+
+    // let unitConst = ()
+    // unitConst = ()
+    // Constants.unitConst = ()
+
+    let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+    enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+    Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+
+
 // ---------------------------
 // Package manager function calls
 // ---------------------------
