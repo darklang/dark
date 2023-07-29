@@ -110,6 +110,10 @@ let printPackageType (p: LocalExec.Packages.Type) : Unit =
   let modules = p.modules |> String.join "."
   print $"Package Type {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
 
+let printPackageConstant (p: LocalExec.Packages.Constant) : Unit =
+  let modules = p.modules |> String.join "."
+  print $"Package Constant {p.owner}.{modules}.{p.name}_v{Int.toString_v0 p.version}"
+
 let printAllPackages () : Unit =
   let functions = LocalExec.Packages.listFunctions ()
   functions |> List.iter (fun p -> printPackageFunction p)
@@ -118,7 +122,7 @@ let printAllPackages () : Unit =
   types |> List.iter (fun p -> printPackageType p)
 
   let constants = LocalExec.Packages.listConstants ()
-  constants |> List.iter (fun p -> printPackageFunction p)
+  constants |> List.iter (fun p -> printPackageConstant p)
 
 
 // Running scripts
