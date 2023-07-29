@@ -252,43 +252,51 @@ module ProgramTypes =
         )
       ) ]
 
-  let typeReferences : List<PT.TypeReference> =
-    [ PT.TInt
-      PT.TFloat
-      PT.TBool
-      PT.TUnit
-      PT.TString
-      PT.TList PT.TInt
-      PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
-      PT.TDict PT.TBool
-      PT.TDB PT.TBool
-      PT.TCustomType(
-        Ok(
-          PT.FQName.UserProgram
-            { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 }
-        ),
-        [ PT.TBool ]
-      )
-      PT.TCustomType(
-        Ok(
-          PT.FQName.BuiltIn
-            { modules = [ "Mod" ]; name = PT.TypeName.TypeName "User"; version = 0 }
-        ),
-        [ PT.TBool ]
-      )
-      PT.TCustomType(
-        Ok(
-          PT.FQName.Package
-            { owner = "dark"
-              modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
-              name = PT.TypeName.TypeName "Pack"
-              version = 0 }
-        ),
-        [ PT.TBool ]
-      )
-      PT.TBytes
-      PT.TVariable "test"
-      PT.TFn([ PT.TBool ], PT.TBool) ]
+
+  // Note: This is aimed to contain all cases of `TypeReference`
+  let typeReference : PT.TypeReference =
+    PT.TTuple(
+      PT.TInt,
+      PT.TFloat,
+      [ PT.TBool
+        PT.TUnit
+        PT.TString
+        PT.TList PT.TInt
+        PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
+        PT.TDict PT.TBool
+        PT.TDB PT.TBool
+        PT.TCustomType(
+          Ok(
+            PT.FQName.UserProgram
+              { modules = [ "Mod" ]
+                name = PT.TypeName.TypeName "User"
+                version = 0 }
+          ),
+          [ PT.TBool ]
+        )
+        PT.TCustomType(
+          Ok(
+            PT.FQName.BuiltIn
+              { modules = [ "Mod" ]
+                name = PT.TypeName.TypeName "User"
+                version = 0 }
+          ),
+          [ PT.TBool ]
+        )
+        PT.TCustomType(
+          Ok(
+            PT.FQName.Package
+              { owner = "dark"
+                modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
+                name = PT.TypeName.TypeName "Pack"
+                version = 0 }
+          ),
+          [ PT.TBool ]
+        )
+        PT.TBytes
+        PT.TVariable "test"
+        PT.TFn([ PT.TBool ], PT.TBool) ]
+    )
 
 
 
@@ -362,7 +370,7 @@ module ProgramTypes =
                                   version = 0 }
                             )
                           ),
-                          typeReferences,
+                          [ typeReference ],
                           [ PT.EInt(160106123UL, 6L) ]
                         ),
                         PT.EIf(
@@ -637,38 +645,17 @@ module ProgramTypes =
       )
     )
 
-  // Note: This is aimed to contain all cases of `TypeReference`
-  let typeReference =
-    PT.TTuple(
-      PT.TList(PT.TDict(PT.TDB(PT.TFn([ PT.TFloat ], PT.TUnit)))),
-      PT.TInt,
-      [ PT.TFloat
-        PT.TBool
-        PT.TUnit
-        PT.TString
-        PT.TList(PT.TInt)
-        PT.TTuple(PT.TInt, PT.TString, [])
-        PT.TDict(PT.TInt)
-        PT.TDB(PT.TInt)
-        PT.TDateTime
-        PT.TChar
-        PT.TPassword
-        PT.TUuid
-        PT.TCustomType(
-          Ok(
-            PT.FQName.UserProgram
-              { modules = [ "Mod" ]
-                name = PT.TypeName.TypeName "name"
-                version = 0 }
-          ),
-          []
-        )
-        PT.TBytes
-        PT.TVariable "v"
-        PT.TFn([ PT.TInt ], PT.TInt) ]
-    )
 
-  let constType : PT.Const = PT.Const.CInt(314L)
+  let constValue : PT.Const =
+    PT.Const.CTuple(
+      PT.Const.CInt(314L),
+      PT.Const.CBool(true),
+      [ PT.Const.CString("string")
+        PT.Const.CUnit
+        PT.Const.CFloat(Positive, "3", "14")
+        PT.Const.CChar("c")
+        PT.Const.CUnit ]
+    )
 
 
   module Handler =
@@ -705,17 +692,9 @@ module ProgramTypes =
     let handlers = List.map snd handlersWithName
 
   let userDB : PT.DB.T =
-    { tlid = 0UL
-      name = "User"
-      version = 0
-      typ =
-        PT.TCustomType(
-          Ok(
-            PT.FQName.UserProgram
-              { modules = []; name = PT.TypeName.TypeName "User"; version = 0 }
-          ),
-          []
-        ) }
+    { tlid = 0UL; name = "User"; version = 0; typ = typeReference }
+
+  let userDBs : List<PT.DB.T> = [ userDB ]
 
   let userFunction : PT.UserFunction.T =
     { tlid = 0UL
@@ -765,7 +744,7 @@ module ProgramTypes =
       name = { modules = []; name = PT.ConstantName.ConstantName "Pi"; version = 0 }
       description = "constant description"
       deprecated = PT.DeprecatedBecause "some reason"
-      body = constType }
+      body = constValue }
 
   let userConstants : List<PT.UserConstant.T> = [ userConstant ]
 
@@ -786,6 +765,8 @@ module ProgramTypes =
       deprecated = PT.NotDeprecated
       id = uuid
       tlid = tlid }
+
+  let packageFns = [ packageFn ]
 
   let packageType : PT.PackageType.T =
     { name =
@@ -808,23 +789,30 @@ module ProgramTypes =
       deprecated = PT.NotDeprecated
       tlid = tlid }
 
+  let packageTypes = [ packageType ]
+
   let packageConstant : PT.PackageConstant.T =
     { name =
         { owner = "dark"
           modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
           name = PT.ConstantName.ConstantName "testConstant"
           version = 0 }
-      body = constType
+      body = constValue
       description = "test"
       deprecated = PT.NotDeprecated
       id = uuid
       tlid = tlid }
 
+  let packageConstants = [ packageConstant ]
+
   let toplevels : List<PT.Toplevel.T> =
     [ List.map PT.Toplevel.TLHandler Handler.handlers
       List.map PT.Toplevel.TLDB [ userDB ]
       List.map PT.Toplevel.TLFunction userFunctions
+      List.map PT.Toplevel.TLConstant userConstants
       List.map PT.Toplevel.TLType userTypes ]
     |> List.concat
 
   let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }
+
+  let userSecrets = [ userSecret ]

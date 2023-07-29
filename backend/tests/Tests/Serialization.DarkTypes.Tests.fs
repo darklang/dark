@@ -108,89 +108,61 @@ module RoundtripTests =
         v
 
     let tests =
-      [ testRoundtrip
+      [ testRoundtripList
           "PT.PackageFn"
           (pkg [ "PackageFn" ] "T" 0)
-          (V.ProgramTypes.packageFn)
+          V.ProgramTypes.packageFns
           PT2DT.PackageFn.toDT
           PT2DT.PackageFn.fromDT
 
-        testRoundtrip
+        testRoundtripList
           "PT.PackageType"
           (pkg [ "PackageType" ] "T" 0)
-          (V.ProgramTypes.packageType)
+          V.ProgramTypes.packageTypes
           PT2DT.PackageType.toDT
           PT2DT.PackageType.fromDT
 
-        testRoundtrip
+        testRoundtripList
+          "PT.PackageConstant"
+          (pkg [ "PackageConstant" ] "T" 0)
+          V.ProgramTypes.packageConstants
+          PT2DT.PackageConstant.toDT
+          PT2DT.PackageConstant.fromDT
+
+        testRoundtripList
           "PT.UserFunction"
           (pkg [ "UserFunction" ] "T" 0)
-          (V.ProgramTypes.userFunction)
+          V.ProgramTypes.userFunctions
           PT2DT.UserFunction.toDT
           PT2DT.UserFunction.fromDT
 
-        testRoundtrip
-          "PT.UserRecordType"
+        testRoundtripList
+          "PT.UserTypes"
           (pkg [ "UserType" ] "T" 0)
-          (V.ProgramTypes.userRecordType)
+          V.ProgramTypes.userTypes
           PT2DT.UserType.toDT
           PT2DT.UserType.fromDT
 
-        testRoundtrip
-          "PT.UserEnumType"
-          (pkg [ "UserType" ] "T" 0)
-          (V.ProgramTypes.userEnumType)
-          PT2DT.UserType.toDT
-          PT2DT.UserType.fromDT
+        testRoundtripList
+          "PT.UserConstants"
+          (pkg [ "UserConstant" ] "T" 0)
+          V.ProgramTypes.userConstants
+          PT2DT.UserConstant.toDT
+          PT2DT.UserConstant.fromDT
 
-        testRoundtrip
-          "PT.Expr"
-          (pkg [] "Expr" 0)
-          (V.ProgramTypes.expr)
-          PT2DT.Expr.toDT
-          PT2DT.Expr.fromDT
-
-        testRoundtrip
-          "PT.TypeReference"
-          (pkg [] "TypeReference" 0)
-          V.ProgramTypes.typeReference
-          PT2DT.TypeReference.toDT
-          PT2DT.TypeReference.fromDT
-
-        testRoundtrip
+        testRoundtripList
           "PT.Secret"
           (pkg [ "Secret" ] "T" 0)
-          (V.ProgramTypes.userSecret)
+          V.ProgramTypes.userSecrets
           PT2DT.Secret.toDT
           PT2DT.Secret.fromDT
 
-        testRoundtrip
+        testRoundtripList
           "PT.DB"
           (pkg [ "DB" ] "T" 0)
-          (V.ProgramTypes.userDB)
+          V.ProgramTypes.userDBs
           PT2DT.DB.toDT
           PT2DT.DB.fromDT
-
-        testRoundtripList
-          "PT.LetPatterns"
-          (pkg [] "LetPattern" 0)
-          V.ProgramTypes.letPatterns
-          PT2DT.LetPattern.toDT
-          PT2DT.LetPattern.fromDT
-
-        testRoundtripList
-          "PT.CronInterval"
-          (pkg [ "Handler" ] "CronInterval" 0)
-          V.ProgramTypes.Handler.cronIntervals
-          PT2DT.Handler.CronInterval.toDT
-          PT2DT.Handler.CronInterval.fromDT
-
-        testRoundtripList
-          "PT.HandlerSpec"
-          (pkg [ "Handler" ] "Spec" 0)
-          V.ProgramTypes.Handler.specs
-          PT2DT.Handler.Spec.toDT
-          PT2DT.Handler.Spec.fromDT
 
         testRoundtripList
           "PT.Handler"
@@ -199,12 +171,7 @@ module RoundtripTests =
           PT2DT.Handler.toDT
           PT2DT.Handler.fromDT
 
-        testRoundtripList
-          "PT.MatchPattern"
-          (pkg [] "MatchPattern" 0)
-          V.ProgramTypes.matchPatterns
-          PT2DT.MatchPattern.toDT
-          PT2DT.MatchPattern.fromDT ]
+        ]
 
 
 let tests =
