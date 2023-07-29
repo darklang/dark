@@ -5,25 +5,166 @@
       "name": "User",
       "version": 0,
       "typ": {
-        "TCustomType": [
+        "TTuple": [
           {
-            "Ok": [
-              {
-                "UserProgram": [
+            "TInt": []
+          },
+          {
+            "TFloat": []
+          },
+          [
+            {
+              "TBool": []
+            },
+            {
+              "TUnit": []
+            },
+            {
+              "TString": []
+            },
+            {
+              "TList": [
+                {
+                  "TInt": []
+                }
+              ]
+            },
+            {
+              "TTuple": [
+                {
+                  "TBool": []
+                },
+                {
+                  "TBool": []
+                },
+                [
                   {
-                    "modules": [],
-                    "name": {
-                      "TypeName": [
-                        "User"
-                      ]
-                    },
-                    "version": 0
+                    "TBool": []
                   }
                 ]
-              }
-            ]
-          },
-          []
+              ]
+            },
+            {
+              "TDict": [
+                {
+                  "TBool": []
+                }
+              ]
+            },
+            {
+              "TDB": [
+                {
+                  "TBool": []
+                }
+              ]
+            },
+            {
+              "TCustomType": [
+                {
+                  "Ok": [
+                    {
+                      "UserProgram": [
+                        {
+                          "modules": [
+                            "Mod"
+                          ],
+                          "name": {
+                            "TypeName": [
+                              "User"
+                            ]
+                          },
+                          "version": 0
+                        }
+                      ]
+                    }
+                  ]
+                },
+                [
+                  {
+                    "TBool": []
+                  }
+                ]
+              ]
+            },
+            {
+              "TCustomType": [
+                {
+                  "Ok": [
+                    {
+                      "BuiltIn": [
+                        {
+                          "modules": [
+                            "Mod"
+                          ],
+                          "name": {
+                            "TypeName": [
+                              "User"
+                            ]
+                          },
+                          "version": 0
+                        }
+                      ]
+                    }
+                  ]
+                },
+                [
+                  {
+                    "TBool": []
+                  }
+                ]
+              ]
+            },
+            {
+              "TCustomType": [
+                {
+                  "Ok": [
+                    {
+                      "Package": [
+                        {
+                          "owner": "dark",
+                          "modules": [
+                            "Mod1",
+                            "Mod2"
+                          ],
+                          "name": {
+                            "TypeName": [
+                              "Pack"
+                            ]
+                          },
+                          "version": 0
+                        }
+                      ]
+                    }
+                  ]
+                },
+                [
+                  {
+                    "TBool": []
+                  }
+                ]
+              ]
+            },
+            {
+              "TBytes": []
+            },
+            {
+              "TVariable": [
+                "test"
+              ]
+            },
+            {
+              "TFn": [
+                [
+                  {
+                    "TBool": []
+                  }
+                ],
+                {
+                  "TBool": []
+                }
+              ]
+            }
+          ]
         ]
       }
     }
