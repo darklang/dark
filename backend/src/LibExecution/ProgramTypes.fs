@@ -586,8 +586,7 @@ type Const =
   | CString of string
   | CChar of string
   | CFloat of Sign * string * string
-  | CPassword of Password
-  | CUuid of System.Guid
+  | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
 
@@ -595,7 +594,6 @@ module UserConstant =
   type T =
     { tlid : tlid
       name : ConstantName.UserProgram
-      typ : TypeReference
       description : string
       deprecated : Deprecation<ConstantName.T>
       body : Const }
@@ -637,7 +635,6 @@ module PackageConstant =
     { tlid : tlid
       id : System.Guid
       name : ConstantName.Package
-      typ : TypeReference
       description : string
       deprecated : Deprecation<ConstantName.T>
       body : Const }

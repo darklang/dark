@@ -250,8 +250,7 @@ module Const =
         caseName,
         List.map toPT fields
       )
-    | WT.CUuid u -> PT.CUuid u
-    | WT.CPassword p -> PT.CPassword p
+    | WT.CUnit -> PT.CUnit
 
 
 module TypeDeclaration =
@@ -404,7 +403,6 @@ module UserConstant =
     : PT.UserConstant.T =
     { tlid = gid ()
       name = c.name
-      typ = TypeReference.toPT resolver currentModule c.typ
       description = c.description
       deprecated = PT.NotDeprecated
       body = Const.toPT resolver currentModule c.body }

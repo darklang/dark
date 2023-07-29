@@ -465,7 +465,8 @@ module Expr =
     | ST.EFloat(id, sign, whole, fraction) -> PT.EFloat(id, sign, whole, fraction)
     | ST.EBool(id, b) -> PT.EBool(id, b)
     | ST.EUnit id -> PT.EUnit id
-    | ST.EConstant(id, name) -> PT.EConstant(id, NameResolution.toPT ConstantName.toPT name)
+    | ST.EConstant(id, name) ->
+      PT.EConstant(id, NameResolution.toPT ConstantName.toPT name)
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
     | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
     | ST.EApply(id, fn, typeArgs, args) ->
@@ -552,8 +553,7 @@ module Const =
     | PT.Const.CString s -> ST.Const.CString s
     | PT.Const.CChar c -> ST.Const.CChar c
     | PT.Const.CFloat(sign, w, f) -> ST.Const.CFloat(sign, w, f)
-    | PT.Const.CPassword p -> ST.Const.CPassword p
-    | PT.Const.CUuid u -> ST.Const.CUuid u
+    | PT.Const.CUnit -> ST.Const.CUnit
     | PT.Const.CTuple(first, second, rest) ->
       ST.Const.CTuple(toST first, toST second, List.map toST rest)
     | PT.Const.CEnum(typeName, caseName, fields) ->
@@ -570,8 +570,7 @@ module Const =
     | ST.Const.CString s -> PT.Const.CString s
     | ST.Const.CChar c -> PT.Const.CChar c
     | ST.Const.CFloat(sign, w, f) -> PT.Const.CFloat(sign, w, f)
-    | ST.Const.CPassword p -> PT.Const.CPassword p
-    | ST.Const.CUuid u -> PT.Const.CUuid u
+    | ST.Const.CUnit -> PT.Const.CUnit
     | ST.Const.CTuple(first, second, rest) ->
       PT.Const.CTuple(toPT first, toPT second, List.map toPT rest)
     | ST.Const.CEnum(typeName, caseName, fields) ->
@@ -783,7 +782,6 @@ module UserConstant =
   let toST (c : PT.UserConstant.T) : ST.UserConstant.T =
     { tlid = c.tlid
       name = ConstantName.UserProgram.toST c.name
-      typ = TypeReference.toST c.typ
       description = c.description
       deprecated = Deprecation.toST ConstantName.toST c.deprecated
       body = Const.toST c.body }
@@ -791,7 +789,6 @@ module UserConstant =
   let toPT (c : ST.UserConstant.T) : PT.UserConstant.T =
     { tlid = c.tlid
       name = ConstantName.UserProgram.toPT c.name
-      typ = TypeReference.toPT c.typ
       description = c.description
       deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
       body = Const.toPT c.body }
@@ -866,7 +863,6 @@ module PackageConstant =
       id = pc.id
       name = ConstantName.Package.toST pc.name
       body = Const.toST pc.body
-      typ = TypeReference.toST pc.typ
       description = pc.description
       deprecated = Deprecation.toST ConstantName.toST pc.deprecated }
 
@@ -875,6 +871,5 @@ module PackageConstant =
       id = pc.id
       name = ConstantName.Package.toPT pc.name
       body = Const.toPT pc.body
-      typ = TypeReference.toPT pc.typ
       description = pc.description
       deprecated = Deprecation.toPT ConstantName.toPT pc.deprecated }

@@ -239,8 +239,7 @@ module LanguageToolsTypesFork =
       | CString of string
       | CChar of string
       | CFloat of Sign * string * string
-      | CPassword of Password
-      | CUuid of System.Guid
+      | CUnit
       | CTuple of first : Const * second : Const * rest : List<Const>
       | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const> // TYPESTODO NameResolution
 
@@ -249,7 +248,6 @@ module LanguageToolsTypesFork =
         { tlid : TLID
           id : Guid
           name : ConstantName.Package
-          typ : TypeReference
           description : String
           deprecated : Deprecation<ConstantName.T>
           body : Const }
@@ -664,8 +662,7 @@ module ExternalTypesToProgramTypes =
       | EPT.CString s -> PT.CString s
       | EPT.CChar c -> PT.CChar c
       | EPT.CFloat(s, w, f) -> PT.CFloat(Sign.toPT s, w, f)
-      | EPT.CPassword p -> PT.CPassword p
-      | EPT.CUuid u -> PT.CUuid u
+      | EPT.CUnit -> PT.CUnit
       | EPT.CTuple(first, second, rest) ->
         PT.CTuple(toPT first, toPT second, List.map toPT rest)
       | EPT.CEnum(typeName, caseName, fields) ->
@@ -678,7 +675,6 @@ module ExternalTypesToProgramTypes =
   module PackageConstant =
     let toPT (c : EPT.PackageConstant.T) : PT.PackageConstant.T =
       { name = ConstantName.Package.toPT c.name
-        typ = TypeReference.toPT c.typ
         description = c.description
         deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
         id = c.id

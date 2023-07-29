@@ -435,9 +435,8 @@ type Const =
   | CString of string
   | CChar of string
   | CFloat of Sign * string * string
-  | CPassword of Password
-  | CUuid of System.Guid
-  | CTuple of fist : Const * second : Const * rest : List<Const>
+  | CUnit
+  | CTuple of first : Const * second : Const * rest : List<Const>
   | CEnum of NameResolution<TypeName.T> * caseName : string * List<Const>
 
 module UserConstant =
@@ -448,12 +447,10 @@ module UserConstant =
       [<MessagePack.Key 1>]
       name : ConstantName.UserProgram
       [<MessagePack.Key 2>]
-      typ : TypeReference
-      [<MessagePack.Key 3>]
       description : string
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       deprecated : Deprecation<ConstantName.T>
-      [<MessagePack.Key 5>]
+      [<MessagePack.Key 4>]
       body : Const }
 
 module UserFunction =
@@ -544,10 +541,8 @@ module PackageConstant =
       [<MessagePack.Key 3>]
       body : Const
       [<MessagePack.Key 4>]
-      typ : TypeReference
-      [<MessagePack.Key 5>]
       description : string
-      [<MessagePack.Key 6>]
+      [<MessagePack.Key 5>]
       deprecated : Deprecation<ConstantName.T> }
 
 module Toplevel =

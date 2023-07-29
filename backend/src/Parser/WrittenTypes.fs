@@ -142,8 +142,7 @@ type Const =
   | CString of string
   | CChar of string
   | CFloat of Sign * string * string
-  | CPassword of Password
-  | CUuid of System.Guid
+  | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CEnum of Name * caseName : string * List<Const>
 
@@ -203,12 +202,7 @@ module UserFunction =
       body : Expr }
 
 module UserConstant =
-  type T =
-    { tlid : tlid
-      name : PT.ConstantName.UserProgram
-      typ : TypeReference
-      description : string
-      body : Const }
+  type T = { name : PT.ConstantName.UserProgram; description : string; body : Const }
 
 
 module PackageFn =
@@ -229,4 +223,4 @@ module PackageType =
       description : string }
 
 module PackageConstant =
-  type T = { name : Name; typ : TypeReference; description : string; body : Const }
+  type T = { name : Name; description : string; body : Const }

@@ -303,7 +303,8 @@ module ConstantName =
     : T =
     FQName.fqPackage assert' owner modules (ConstantName name) version
 
-  let toString (name : T) : string = FQName.toString name (fun (ConstantName name) -> name)
+  let toString (name : T) : string =
+    FQName.toString name (fun (ConstantName name) -> name)
 
 
 module DarkDateTime =
@@ -899,11 +900,7 @@ module UserType =
     { tlid : tlid; name : TypeName.UserProgram; declaration : TypeDeclaration.T }
 
 module UserConstant =
-  type T =
-    { tlid : tlid
-      name : ConstantName.UserProgram
-      typ : TypeReference
-      body : Dval }
+  type T = { tlid : tlid; name : ConstantName.UserProgram; body : Dval }
 
 module UserFunction =
   type Parameter = { name : string; typ : TypeReference }
@@ -955,11 +952,7 @@ module PackageType =
   type T = { name : TypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  type T =
-    { tlid : tlid
-      name : ConstantName.Package
-      typ : TypeReference
-      body : Dval}
+  type T = { tlid : tlid; name : ConstantName.Package; body : Dval }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.
@@ -1149,7 +1142,7 @@ and BuiltIns =
 and PackageManager =
   { getType : TypeName.Package -> Ply<Option<PackageType.T>>
     getFn : FnName.Package -> Ply<Option<PackageFn.T>>
-    getConstant: ConstantName.Package -> Ply<Option<PackageConstant.T>>
+    getConstant : ConstantName.Package -> Ply<Option<PackageConstant.T>>
     init : Ply<unit> }
 
   static member Empty =

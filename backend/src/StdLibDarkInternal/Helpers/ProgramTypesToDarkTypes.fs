@@ -895,8 +895,7 @@ module Const =
       | PT.Const.CChar c -> "CChar", [ DChar c ]
       | PT.Const.CFloat(sign, w, f) ->
         "CFloat", [ Sign.toDT sign; DString w; DString f ]
-      | PT.Const.CPassword p -> "CPassword", [ DPassword p ]
-      | PT.Const.CUuid u -> "CUuid", [ DUuid u ]
+      | PT.Const.CUnit -> "CUnit", []
       | PT.Const.CTuple(first, second, rest) ->
         "CTuple", [ toDT first; toDT second; DList(List.map toDT rest) ]
       | PT.Const.CEnum(typeName, caseName, fields) ->
@@ -1346,7 +1345,6 @@ module UserConstant =
       Map
         [ "tlid", DInt(int64 userConstant.tlid)
           "name", ConstantName.UserProgram.toDT userConstant.name
-          "typ", TypeReference.toDT userConstant.typ
           "body", Const.toDT userConstant.body
           "description", DString userConstant.description
           "deprecated", Deprecation.toDT ConstantName.toDT userConstant.deprecated ]
@@ -1539,7 +1537,6 @@ module PackageConstant =
           "id", DUuid p.id
           "name", ConstantName.Package.toDT p.name
           "body", Const.toDT p.body
-          "typ", TypeReference.toDT p.typ
           "description", DString p.description
           "deprecated", Deprecation.toDT ConstantName.toDT p.deprecated ]
     )

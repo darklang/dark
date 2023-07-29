@@ -365,8 +365,7 @@ module Const =
     | PT.Const.CString s -> RT.DString s
     | PT.Const.CChar c -> RT.DChar c
     | PT.Const.CFloat(sign, w, f) -> RT.DFloat(makeFloat sign w f)
-    | PT.Const.CPassword p -> RT.DPassword p
-    | PT.Const.CUuid u -> RT.DUuid u
+    | PT.Const.CUnit -> RT.DUnit
     | PT.Const.CTuple(first, second, rest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT rest)
     | PT.Const.CEnum(Ok typeName, caseName, fields) ->
@@ -451,7 +450,6 @@ module UserConstant =
   let toRT (c : PT.UserConstant.T) : RT.UserConstant.T =
     { tlid = c.tlid
       name = ConstantName.UserProgram.toRT c.name
-      typ = TypeReference.toRT c.typ
       body = Const.toRT c.body }
 
 module UserFunction =
@@ -501,5 +499,4 @@ module PackageConstant =
   let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
     { tlid = c.tlid
       name = ConstantName.Package.toRT c.name
-      typ = TypeReference.toRT c.typ
       body = Const.toRT c.body }
