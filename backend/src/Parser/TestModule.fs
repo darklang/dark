@@ -205,7 +205,6 @@ let rec toPT (resolver : NameResolver.NameResolver) (m : WTModule) : PTModule =
 
 
 
-
 // Below are the fns that we intend to expose to the rest of the codebase
 
 /// Returns a flattened list of modules in the file.
@@ -218,8 +217,6 @@ let parseTestFile
     |> System.IO.File.ReadAllText
     |> parseAsFSharpSourceFile filename
     |> parseFile
-
-
 
   let fns = modules |> List.map (fun m -> m.fns) |> List.concat
   let fnNames = fns |> List.map (fun fn -> fn.name) |> Set.ofList

@@ -223,4 +223,4 @@ module PackageType =
       description : string }
 
 module PackageConstant =
-  type T = { name : Name; description : string; body : Const }
+  type T = { name : PT.ConstantName.Package; description : string; body : Const }

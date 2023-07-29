@@ -445,3 +445,16 @@ module PackageType =
       deprecated = PT.NotDeprecated
       id = System.Guid.NewGuid()
       tlid = gid () }
+
+module PackageConstant =
+  let toPT
+    (resolver : NameResolver)
+    (currentModule : List<string>)
+    (c : WT.PackageConstant.T)
+    : PT.PackageConstant.T =
+    { name = c.name
+      description = c.description
+      deprecated = PT.NotDeprecated
+      body = Const.toPT resolver currentModule c.body
+      id = System.Guid.NewGuid()
+      tlid = gid () }

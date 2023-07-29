@@ -961,11 +961,18 @@ module PackageType =
       description = ""
       declaration = { typeParams = typeParams; definition = definition } }
 
+module PackageConstant =
+  let fromSynBinding
+    (owner : string)
+    (modules : NonEmptyList<string>)
+    (b : SynBinding)
+    : WT.PackageConstant.T =
+    let c = Constant.fromSynBinding b
+    { name = PT.ConstantName.package owner modules c.name c.version
+      description = ""
+      body = c.body }
 
-/// Returns an incomplete parse of a WT expression. Requires calling
-/// Expr.resolveNames before using
-// TODO it's hard to use the type system here since there's a lot of places we stash
-// WT.Expr, but that's even more reason to try and prevent partial parses.
+
 let initialParse (filename : string) (code : string) : WT.Expr =
   code
   |> Utils.parseAsFSharpSourceFile filename
