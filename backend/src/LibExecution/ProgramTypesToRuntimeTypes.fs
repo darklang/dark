@@ -327,7 +327,6 @@ module Expr =
             prev :: List.map toRT fields
           )
         | PT.EPipeVariable(id, name) -> RT.EVariable(id, name) |> applyFn
-        | PT.EPipeConstant(id, name) -> RT.EConstant(id, ConstantName.toRT name)
         | PT.EPipeLambda(id, vars, body) ->
           RT.ELambda(id, vars, toRT body) |> applyFn
 

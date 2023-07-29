@@ -309,7 +309,6 @@ and StringSegment =
 
 and [<MessagePack.MessagePackObject>] PipeExpr =
   | EPipeVariable of id * string
-  | EPipeConstant of id * ConstantName.T
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of

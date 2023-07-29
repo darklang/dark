@@ -18,7 +18,6 @@ let traverse (f : Expr -> Expr) (expr : Expr) : Expr =
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
-    | EPipeConstant(id, name) -> EPipeConstant(id, name)
 
   match expr with
   | EInt _
@@ -142,7 +141,6 @@ let rec preTraversal
     | EPipeEnum(id, typeName, caseName, fields) ->
       EPipeEnum(id, typeName, caseName, List.map f fields)
     | EPipeVariable(id, name) -> EPipeVariable(id, name)
-    | EPipeConstant(id, name) -> EPipeConstant(id, name)
 
   match exprFn expr with
   | EInt _

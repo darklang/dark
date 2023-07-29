@@ -456,7 +456,6 @@ and StringSegment =
 
 and PipeExpr =
   | EPipeVariable of id * string
-  | EPipeConstant of id * ConstantName.T
   | EPipeLambda of id * List<id * string> * Expr
   | EPipeInfix of id * Infix * Expr
   | EPipeFnCall of
@@ -501,7 +500,6 @@ module PipeExpr =
   let toID (expr : PipeExpr) : id =
     match expr with
     | EPipeVariable(id, _)
-    | EPipeConstant(id, _)
     | EPipeLambda(id, _, _)
     | EPipeInfix(id, _, _)
     | EPipeFnCall(id, _, _, _)

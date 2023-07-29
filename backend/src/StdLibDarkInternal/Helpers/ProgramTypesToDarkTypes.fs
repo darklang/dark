@@ -602,8 +602,6 @@ module PipeExpr =
       match s with
       | PT.EPipeVariable(id, varName) ->
         "EPipeVariable", [ DInt(int64 id); DString varName ]
-      | PT.EPipeConstant(id, constName) ->
-        "EPipeConstant", [ DInt(int64 id); ConstantName.toDT constName ]
       | PT.EPipeLambda(id, args, body) ->
         let variables =
           args
