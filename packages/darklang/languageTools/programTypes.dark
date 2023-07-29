@@ -345,6 +345,10 @@ module Darklang =
 
         | EVariable of PACKAGE.Darklang.LanguageTools.ID * String
 
+        | EConstant of
+          PACKAGE.Darklang.LanguageTools.ID *
+          PACKAGE.Darklang.LanguageTools.ProgramTypes.NameResolution<PACKAGE.Darklang.LanguageTools.ProgramTypes.ConstantName.T>
+
 
         // control flow
 
