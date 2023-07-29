@@ -12,9 +12,11 @@ module Darklang =
 
     let returnsString () : String = "string"
 
-    let returnsOptionJust () : PACKAGE.Darklang.Stdlib.Option.Option<Int> = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+    let returnsOptionJust () : PACKAGE.Darklang.Stdlib.Option.Option<Int> =
+      PACKAGE.Darklang.Stdlib.Option.Option.Just 5
 
-    let returnsOptionNothing () : PACKAGE.Darklang.Stdlib.Option.Option<'a> = PACKAGE.Darklang.Stdlib.Option.Option.Nothing
+    let returnsOptionNothing () : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      PACKAGE.Darklang.Stdlib.Option.Option.Nothing
 
     let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int, String> =
       PACKAGE.Darklang.Stdlib.Result.Result.Ok 5
@@ -26,3 +28,13 @@ module Darklang =
       Test.raiseException "throwsException message"
 
     let derrorFn (msg: String) : String = msg ++ Test.typeError_v0 msg
+
+    module Constants =
+      let stringConst = "test"
+      let intConst = 5
+      let floatConst = 5.6
+      let boolConst = true
+      let tupleConst = (1, 2, 3)
+      let charConst = 'c'
+      let unitConst = ()
+      let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5

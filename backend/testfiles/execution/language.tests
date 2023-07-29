@@ -1053,9 +1053,9 @@ module UserDefined =
     charConst = 'c'
     Constants.charConst = 'c'
 
-    // let unitConst = ()
-    // unitConst = ()
-    // Constants.unitConst = ()
+    let unitConst = ()
+    unitConst = ()
+    Constants.unitConst = ()
 
     let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
     enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
@@ -1089,6 +1089,33 @@ module Packages =
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int> 1 "str2" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int, String> 1 "str" = Test.typeError "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+
+  module Constants =
+    PACKAGE.Darklang.Test.Constants.stringConst = "test"
+    "test" = PACKAGE.Darklang.Test.Constants.stringConst
+    PACKAGE.Darklang.Test.Constants.stringConst = "test"
+
+    PACKAGE.Darklang.Test.Constants.intConst = 5
+    PACKAGE.Darklang.Test.Constants.intConst = 5
+
+    PACKAGE.Darklang.Test.Constants.floatConst = 5.6
+    PACKAGE.Darklang.Test.Constants.floatConst = 5.6
+
+    PACKAGE.Darklang.Test.Constants.boolConst = true
+    PACKAGE.Darklang.Test.Constants.boolConst = true
+
+    PACKAGE.Darklang.Test.Constants.tupleConst = (1,2,3)
+    PACKAGE.Darklang.Test.Constants.tupleConst = (1,2,3)
+
+    PACKAGE.Darklang.Test.Constants.charConst = 'c'
+    PACKAGE.Darklang.Test.Constants.charConst = 'c'
+
+    PACKAGE.Darklang.Test.Constants.unitConst = ()
+    PACKAGE.Darklang.Test.Constants.unitConst = ()
+
+    PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+    PACKAGE.Darklang.Test.Constants.enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Just 5
+
 
 
 module TypeChecking =
