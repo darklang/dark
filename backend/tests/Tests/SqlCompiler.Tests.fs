@@ -10,7 +10,7 @@ open FSharp.Control.Tasks
 module PT = LibExecution.ProgramTypes
 open LibExecution.RuntimeTypes
 
-module C = LibBackend.SqlCompiler
+module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
 module Errors = LibExecution.Errors
 

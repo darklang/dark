@@ -12,9 +12,9 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module Cron = LibBackend.Cron
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
+module Cron = LibCloud.Cron
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
 
 let p (code : string) : PT.Expr = Parser.Parser.parseSimple "cron.tests.fs" code
 

@@ -51,7 +51,7 @@ nuget OpenTelemetry.Instrumentation.AspNetCore = 1.0.0-rc9.14
 nuget OpenTelemetry.Extensions.Hosting = 1.5.0-rc.1
 nuget OpenTelemetry.Instrumentation.Http = 1.0.0-rc9.14
 
-// LibBackend
+// LibCloud
 nuget Npgsql.FSharp = 5.7.0
 nuget Npgsql = 7.0.4
 nuget Npgsql.NodaTime = 7.0.4

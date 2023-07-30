@@ -21,7 +21,7 @@ let typeRenames : StdLib.TypeRenames =
   // eg: typ "Http" "Response" 0, typ "Http" "Response" 1
   []
 
-// only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
+// only accessible to the LibCloud.Config.allowedDarkInternalCanvasID canvas
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
   (fun (state, typeArgs, args) ->
     uply {

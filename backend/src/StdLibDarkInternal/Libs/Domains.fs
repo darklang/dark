@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-module Canvas = LibBackend.Canvas
+module Canvas = LibCloud.Canvas
 
 let modules = [ "DarkInternal"; "Canvas"; "Domain" ]
 

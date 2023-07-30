@@ -17,14 +17,14 @@ open LibExecution.RuntimeTypes
 
 module Shortcuts = TestUtils.RTShortcuts
 
-module Canvas = LibBackend.Canvas
+module Canvas = LibCloud.Canvas
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module RealExecution = LibRealExecution.RealExecution
-module Tracing = LibBackend.Tracing
+module CloudExecution = LibCloudExecution.CloudExecution
+module Tracing = LibCloud.Tracing
 module TSR = Tracing.TraceSamplingRule
-module TCS = LibBackend.TraceCloudStorage
+module TCS = LibCloud.TraceCloudStorage
 
 
 // let testFilterSlash =
@@ -272,7 +272,7 @@ let testTraceRoundtrip =
 
 //     // call the user fn, which should result in a trace being stored
 //     let! (_, _) =
-//       RealExecution.reexecuteFunction
+//       CloudExecution.reexecuteFunction
 //         meta
 //         program
 //         callerTLID
@@ -325,7 +325,7 @@ let testTraceRoundtrip =
 
 //     let tracer = Tracing.createStandardTracer canvasID traceID
 //     let! state =
-//       RealExecution.createState traceID (gid ()) program tracer.executionTracing
+//       CloudExecution.createState traceID (gid ()) program tracer.executionTracing
 
 //     // the DB has no columns, but the code expects one, causing it to fail
 //     let code = "DB.set_v1 { a = \"y\" } \"key\" MyDB"

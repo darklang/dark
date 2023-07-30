@@ -22,8 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../../src/HttpMiddleware/HttpMiddleware.fsproj" />
+    <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
+    <ProjectReference Include="../../src/LibHttpMiddleware/LibHttpMiddleware.fsproj" />
     <ProjectReference Include="../../src/ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
     <ProjectReference Include="../../src/Parser/Parser.fsproj" />
     <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />

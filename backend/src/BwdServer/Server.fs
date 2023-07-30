@@ -31,14 +31,14 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-module Account = LibBackend.Account
-module Canvas = LibBackend.Canvas
-module Routing = LibBackend.Routing
-module Pusher = LibBackend.Pusher
+module Account = LibCloud.Account
+module Canvas = LibCloud.Canvas
+module Routing = LibCloud.Routing
+module Pusher = LibCloud.Pusher
 
-module HttpMiddleware = HttpMiddleware.Http
+module LibHttpMiddleware = LibHttpMiddleware.Http
 
-module RealExe = LibRealExecution.RealExecution
+module RealExe = LibCloudExecution.CloudExecution
 
 module FireAndForget = LibService.FireAndForget
 module Kubernetes = LibService.Kubernetes
@@ -50,7 +50,7 @@ module CTPusher = ClientTypes.Pusher
 // HttpHandlerTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't
 // appropriate more generally. Much of this should be migrated to the module in
-// HttpMiddleware.Http.fs.
+// LibHttpMiddleware.Http.fs.
 
 // ---------------
 // Read from HttpContext
@@ -111,7 +111,7 @@ let setResponseHeader (ctx : HttpContext) (name : string) (value : string) : uni
 /// Reads a static (Dark) favicon image
 let favicon : Lazy<ReadOnlyMemory<byte>> =
   lazy
-    (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png"
+    (LibCloud.File.readfileBytes LibCloud.Config.Webroot "favicon-32x32.png"
      |> ReadOnlyMemory)
 
 /// Handles a request for favicon.ico, returning static Dark icon
@@ -269,7 +269,7 @@ exception NotFoundException of msg : string with
 
 let config : RT.Config =
   { allowLocalHttpAccess = false
-    httpclientTimeoutInMs = LibBackend.Config.httpclientTimeoutInMs }
+    httpclientTimeoutInMs = LibCloud.Config.httpclientTimeoutInMs }
 
 /// ---------------
 /// Handle builtwithdark request
@@ -325,7 +325,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           // Do request
           use _ = Telemetry.child "executeHandler" []
 
-          let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           let inputVars = routeVars |> Map |> Map.add "request" request
           let! (result, _) =
             RealExe.executeHandler
@@ -337,7 +337,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
               inputVars
               (RealExe.InitialExecution(desc, "request", request))
 
-          let result = HttpMiddleware.Response.toHttpResponse result
+          let result = LibHttpMiddleware.Response.toHttpResponse result
 
           do! writeResponseToContext ctx result.statusCode result.headers result.body
           Telemetry.addTag "http.completion_reason" "success"
@@ -348,7 +348,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           // TODO: reenable using CloudStorage
           // FireAndForget.fireAndForgetTask "store-event" (fun () ->
-          //   let request = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          //   let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
           //   TI.storeEvent canvasID traceID desc request)
 
           return! unmatchedRouteResponse ctx requestPath route
@@ -361,7 +361,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
         // TODO: reenable using CloudStorage
         // let! reqBody = getBody ctx
         // let reqHeaders = getHeadersWithoutMergingKeys ctx
-        // let event = HttpMiddleware.Request.fromRequest url reqHeaders reqBody
+        // let event = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
         // let! timestamp = TI.storeEvent canvasID traceID desc event
 
         // CLEANUP: move pusher into storeEvent
@@ -479,8 +479,8 @@ let initSerializers () =
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.Toplevel.T>>
     "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
@@ -500,8 +500,8 @@ let main _ =
     print "Starting BwdServer"
     initSerializers ()
     LibService.Init.init name
-    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibRealExecution.Init.init name).Result
+    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
+    (LibCloudExecution.Init.init name).Result
 
     run ()
     // CLEANUP I suspect this isn't called

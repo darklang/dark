@@ -7,9 +7,9 @@ open LibExecution.StdLib.Shortcuts
 
 module Errors = LibExecution.Errors
 
-module UserDB = LibBackend.UserDB
+module UserDB = LibCloud.UserDB
 
-module Db = LibBackend.Db
+module Db = LibCloud.Db
 
 
 let varA = TVariable "a"
@@ -36,7 +36,7 @@ let handleUnexpectedExceptionDuringQuery
       state
       [ "dbName", dbname; "lambda", query; "db", state.program.dbs[dbname] ]
       e
-    LibBackend.SqlCompiler.error "An error occurred while querying the Datastore"
+    LibCloud.SqlCompiler.error "An error occurred while querying the Datastore"
 
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []

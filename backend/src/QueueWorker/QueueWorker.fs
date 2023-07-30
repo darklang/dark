@@ -8,18 +8,18 @@ type Instant = NodaTime.Instant
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
-open LibBackend.Db
+open LibCloud.Db
 
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module EQ = LibBackend.Queue
+module EQ = LibCloud.Queue
 module Execution = LibExecution.Execution
-module Pusher = LibBackend.Pusher
-module RealExecution = LibRealExecution.RealExecution
-module Canvas = LibBackend.Canvas
+module Pusher = LibCloud.Pusher
+module CloudExecution = LibCloudExecution.CloudExecution
+module Canvas = LibCloud.Canvas
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module LD = LibService.LaunchDarkly
@@ -203,18 +203,17 @@ let processNotification
                   try
                     let config : RT.Config =
                       { allowLocalHttpAccess = false
-                        httpclientTimeoutInMs =
-                          LibBackend.Config.httpclientTimeoutInMs }
+                        httpclientTimeoutInMs = LibCloud.Config.httpclientTimeoutInMs }
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
-                      RealExecution.executeHandler
+                      CloudExecution.executeHandler
                         ClientTypes2BackendTypes.Pusher.eventSerializer
                         (PT2RT.Handler.toRT h)
                         program
                         config
                         traceID
                         (Map [ "event", event.value ])
-                        (RealExecution.InitialExecution(
+                        (CloudExecution.InitialExecution(
                           EQ.toEventDesc event,
                           "event",
                           event.value
@@ -309,8 +308,8 @@ let initSerializers () =
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
@@ -330,8 +329,8 @@ let main _ : int =
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
-    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibRealExecution.Init.init name).Result
+    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
+    (LibCloudExecution.Init.init name).Result
 
     // Called if k8s tells us to stop
     let shutdownCallback () =
@@ -344,7 +343,7 @@ let main _ : int =
     LibService.Kubernetes.runKubernetesServer name healthChecks port shutdownCallback
     |> ignore<Task>
 
-    if LibBackend.Config.triggerQueueWorkers then
+    if LibCloud.Config.triggerQueueWorkers then
       (run ()).Result
     else
       Telemetry.createRoot "Pointing at prodclone; will not dequeue"

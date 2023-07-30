@@ -13,18 +13,18 @@ open Tablecloth
 
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
+open LibCloud.Db
 
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module EQ = LibBackend.Queue
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
-module SR = LibBackend.QueueSchedulingRules
+module EQ = LibCloud.Queue
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
+module SR = LibCloud.QueueSchedulingRules
 
-module TCS = LibBackend.TraceCloudStorage
+module TCS = LibCloud.TraceCloudStorage
 
 let p (code : string) : PT.Expr =
   Parser.Parser.parsePTExpr builtinResolver "Queue.Tests.fs" code
@@ -461,7 +461,7 @@ let testCount =
     do! enqueue canvasID
     do! enqueue canvasID
 
-    let! count = LibBackend.Stats.workerStats canvasID tlid
+    let! count = LibCloud.Stats.workerStats canvasID tlid
     Expect.equal count 5 "count should be 5"
     do! checkSavedEvents canvasID 5
   }

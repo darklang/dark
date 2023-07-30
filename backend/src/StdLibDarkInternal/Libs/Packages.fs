@@ -8,8 +8,8 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 module PT = LibExecution.ProgramTypes
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
 module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
 
 
@@ -36,10 +36,10 @@ let fns : List<BuiltInFn> =
         function
         | _, _, [ DUnit ] ->
           uply {
-            let! packages = LibBackend.PackageManager.allTypes
+            let! packages = LibCloud.PackageManager.allTypes
             let packages = List.map PT2DT.PackageType.toDT packages
 
-            let! fns = LibBackend.PackageManager.allFunctions
+            let! fns = LibCloud.PackageManager.allFunctions
             let fns = List.map PT2DT.PackageFn.toDT fns
 
             return

@@ -77,7 +77,7 @@ let execute
     let state =
       Exe.createState
         builtIns
-        LibBackend.PackageManager.packageManager
+        LibCloud.PackageManager.packageManager
         tracing
         sendException
         notify
@@ -143,7 +143,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
 
-    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
 
     let mainFile = "/home/dark/app/backend/src/LocalExec/local-exec.dark"
     let resolver =

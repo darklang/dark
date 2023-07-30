@@ -7,8 +7,8 @@ open Prelude
 open Tablecloth
 open TestUtils.TestUtils
 
-module File = LibBackend.File
-module Config = LibBackend.Config
+module File = LibCloud.File
+module Config = LibCloud.Config
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization

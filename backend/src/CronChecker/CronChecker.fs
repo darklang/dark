@@ -17,18 +17,18 @@ let run () : Task<unit> =
     while not shouldShutdown do
       try
         use (_span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
-        do! LibBackend.Cron.checkAndScheduleWorkForAllCrons ()
+        do! LibCloud.Cron.checkAndScheduleWorkForAllCrons ()
       with e ->
         // If there's an exception, alert and continue
         Rollbar.sendException None [] e
-      do! Task.Delay LibBackend.Config.pauseBetweenCronsInMs
+      do! Task.Delay LibCloud.Config.pauseBetweenCronsInMs
     return ()
   }
 
 let initSerializers () =
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
-  Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
 [<EntryPoint>]
@@ -39,7 +39,7 @@ let main _ : int =
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
-    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
 
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =
@@ -52,7 +52,7 @@ let main _ : int =
     LibService.Kubernetes.runKubernetesServer name healthchecks port shutdownCallback
     |> ignore<Task>
 
-    if LibBackend.Config.triggerCrons then
+    if LibCloud.Config.triggerCrons then
       (run ()).Result
     else
       Telemetry.addEvent "Pointing at prodclone; will not trigger crons" []

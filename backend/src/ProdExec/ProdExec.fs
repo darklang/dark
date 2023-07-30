@@ -14,7 +14,7 @@ open Prelude
 open Tablecloth
 
 open Npgsql.FSharp
-open LibBackend.Db
+open LibCloud.Db
 
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
@@ -36,11 +36,11 @@ let maybeClearDB () : unit =
 let runMigrations () : unit =
   print $"Running migrations"
   maybeClearDB ()
-  LibBackend.Migrations.run ()
+  LibCloud.Migrations.run ()
 
 let listMigrations () : unit =
   print "Migrations needed:\n"
-  LibBackend.Migrations.migrationsToRun ()
+  LibCloud.Migrations.migrationsToRun ()
   |> List.iter (fun name -> print $" - {name}")
 
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
@@ -112,8 +112,8 @@ let usesDB (options : Options) =
 
 let convertToRT (canvasID : CanvasID) : Task<unit> =
   task {
-    let! canvas = LibBackend.Canvas.loadAll canvasID
-    let _program = LibBackend.Canvas.toProgram canvas
+    let! canvas = LibCloud.Canvas.loadAll canvasID
+    let _program = LibCloud.Canvas.toProgram canvas
     let _handlers =
       canvas.handlers
       |> Map.values
@@ -156,7 +156,7 @@ let run (options : Options) : Task<int> =
       return 0
 
     | ConvertST2RTAll ->
-      let! allIDs = LibBackend.Canvas.allCanvasIDs ()
+      let! allIDs = LibCloud.Canvas.allCanvasIDs ()
       do! Task.iterWithConcurrency 25 convertToRT allIDs
       return 0
 
@@ -180,8 +180,8 @@ let initSerializers () =
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
-  Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
@@ -200,8 +200,7 @@ let main (args : string[]) : int =
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     let options = parse args
-    if usesDB options then
-      (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    if usesDB options then (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
     let result = (run options).Result
     LibService.Init.shutdown name
     result

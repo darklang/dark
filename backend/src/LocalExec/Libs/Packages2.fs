@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
+open LibCloud.Db
 
 open Prelude
 open Tablecloth
@@ -111,9 +111,9 @@ let fns : List<BuiltInFn> =
           uply {
             let (fns, types, constants) =
               Parser.Parser.parsePackage resolver path contents
-            do! LibBackend.PackageManager.savePackageFunctions fns
-            do! LibBackend.PackageManager.savePackageTypes types
-            do! LibBackend.PackageManager.savePackageConstants constants
+            do! LibCloud.PackageManager.savePackageFunctions fns
+            do! LibCloud.PackageManager.savePackageTypes types
+            do! LibCloud.PackageManager.savePackageConstants constants
 
             return DUnit
           }

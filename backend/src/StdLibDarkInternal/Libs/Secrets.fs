@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-module Secret = LibBackend.Secret
+module Secret = LibCloud.Secret
 
 
 let modules = [ "DarkInternal"; "Canvas"; "Secret" ]

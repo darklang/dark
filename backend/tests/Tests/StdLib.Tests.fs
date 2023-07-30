@@ -1,6 +1,6 @@
 module Tests.StdLib
 
-// Misc tests of Stdlib (both LibBackend and LibExecution) that could not be
+// Misc tests of Stdlib (both LibCloud and LibExecution) that could not be
 // tested via LibExecution.tests
 
 open Expecto

@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-module UserDB = LibBackend.UserDB
+module UserDB = LibCloud.UserDB
 
 let modules = [ "DarkInternal"; "Canvas"; "DB" ]
 

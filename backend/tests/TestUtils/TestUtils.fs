@@ -7,7 +7,7 @@ open FSharp.Control.Tasks
 
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
+open LibCloud.Db
 
 open Prelude
 open Tablecloth
@@ -16,8 +16,8 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module Account = LibBackend.Account
-module Canvas = LibBackend.Canvas
+module Account = LibCloud.Account
+module Canvas = LibCloud.Canvas
 module Exe = LibExecution.Execution
 module S = RTShortcuts
 
@@ -124,7 +124,7 @@ let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ LibTest.contents
-        LibRealExecution.RealExecution.builtins
+        LibCloudExecution.CloudExecution.builtins
         StdLibCli.StdLib.contents ]
       []
       []
@@ -211,7 +211,7 @@ let executionStateFor
     let state =
       Exe.createState
         builtIns
-        LibBackend.PackageManager.packageManager
+        LibCloud.PackageManager.packageManager
         (Exe.noTracing RT.Real)
         exceptionReporter
         notifier
@@ -225,7 +225,7 @@ let executionStateFor
 /// Saves and reloads the canvas for the Toplevels
 let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
   task {
-    let descs = tls |> List.map (fun tl -> (tl, LibBackend.Serialize.NotDeleted))
+    let descs = tls |> List.map (fun tl -> (tl, LibCloud.Serialize.NotDeleted))
     do! Canvas.saveTLIDs canvasID descs
     return! Canvas.loadAll canvasID
   }
@@ -943,7 +943,7 @@ let interestingInts : List<string * int64> =
 
 // https://github.com/minimaxir/big-list-of-naughty-strings
 let naughtyStrings : List<string * string> =
-  LibBackend.File.readfile LibBackend.Config.Testdata "naughty-strings.txt"
+  LibCloud.File.readfile LibCloud.Config.Testdata "naughty-strings.txt"
   |> String.splitOnNewline
   |> List.mapWithIndex (fun i s -> $"naughty string line {i + 1}", s)
   // 139 is the Unicode BOM on line 140, which is tough to get .NET to put in a string
@@ -1090,9 +1090,7 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     // use image bytes here to test for any weird bytes forms
     ("bytes2",
      DBytes(
-       LibBackend.File.readfileBytes
-         LibBackend.Config.Testdata
-         "sample_image_bytes.png"
+       LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png"
      // TODO: deeply nested data
      ),
      TBytes)
@@ -1198,9 +1196,6 @@ let configureLogging
   builder
     .ClearProviders()
     .Services.AddLogging(fun loggingBuilder ->
-      loggingBuilder.AddFile(
-        $"{LibBackend.Config.logDir}{name}.log",
-        append = false
-      )
+      loggingBuilder.AddFile($"{LibCloud.Config.logDir}{name}.log", append = false)
       |> ignore<ILoggingBuilder>)
   |> ignore<IServiceCollection>
