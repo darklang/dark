@@ -53,7 +53,7 @@ let seedCanvas (canvasName : string) =
     let resolver =
       let builtIns =
         LibExecution.StdLib.combine
-          [ StdLibExecution.StdLib.contents; StdLibCloudExecution.StdLib.contents ]
+          [ StdLibExecution.StdLib.contents; StdLibCloudExecution.StdLib.contents; StdLibDarkInternal.StdLib.contents ]
           []
           []
       Parser.NameResolver.fromBuiltins builtIns
