@@ -230,6 +230,40 @@ type System.Exception with
     (System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture this).Throw()
     Unchecked.defaultof<_>
 
+
+// ----------------------
+// Non-empty list
+// ----------------------
+
+/// Non-empty list
+type NEList<'a> = { head : 'a; tail : List<'a> }
+
+module NEList =
+  let toList (l : NEList<'a>) : List<'a> = l.head :: l.tail
+
+  let iter (f : 'a -> unit) (l : NEList<'a>) : unit =
+    f l.head
+    List.iter f l.tail
+
+  let map (f : 'a -> 'b) (l : NEList<'a>) : NEList<'b> =
+    { head = f l.head; tail = List.map f l.tail }
+
+  let ofList (head : 'a) (tail : List<'a>) : NEList<'a> =
+    { head = head; tail = tail }
+
+  let ofListUnsafe (msg : string) (metadata : Metadata) (l : List<'a>) : NEList<'a> =
+    match l with
+    | [] -> Exception.raiseInternal msg metadata
+    | head :: tail -> { head = head; tail = tail }
+
+
+
+  let ofSeq (head : 'a) (seq : seq<'a>) : NEList<'a> =
+    { head = head; tail = List.ofSeq seq }
+
+  let singleton (head : 'a) : NEList<'a> = { head = head; tail = [] }
+
+
 // ----------------------
 // Regex patterns
 // ----------------------
@@ -1070,8 +1104,8 @@ module Json =
       override _.Write(writer : Utf8JsonWriter, _ : Password, _options) =
         writer.WriteStringValue("Redacted")
 
-    type NonEmptyListValueConverter<'TValue>() =
-      inherit JsonConverter<FSharpPlus.Data.NonEmptyList<'TValue>>()
+    type NEListValueConverter<'TValue>() =
+      inherit JsonConverter<NEList<'TValue>>()
 
       override this.Read
         (
@@ -1079,28 +1113,30 @@ module Json =
           typeToConvert : System.Type,
           options : JsonSerializerOptions
         ) =
-        JsonSerializer.Deserialize<'TValue seq>(&reader, options)
-        |> Seq.toList
-        |> FSharpPlus.Data.NonEmptyList.ofList
+        let list =
+          JsonSerializer.Deserialize<'TValue seq>(&reader, options) |> Seq.toList
+        match list with
+        | [] -> Exception.raiseInternal "Empty list" []
+        | head :: tail -> NEList.ofList head tail
 
 
       override this.Write
         (
           writer : Utf8JsonWriter,
-          value : FSharpPlus.Data.NonEmptyList<'TValue>,
+          value : NEList<'TValue>,
           options : JsonSerializerOptions
         ) =
-        let value = FSharpPlus.Data.NonEmptyList.toList value
+        let value = NEList.toList value
         JsonSerializer.Serialize(writer, (List.toSeq value), options)
 
 
-    type NonEmptyListConverter() =
+    type NEListConverter() =
       inherit JsonConverterFactory()
       override this.CanConvert(typeToConvert : System.Type) : bool =
         typeToConvert.IsGenericType
         && List.contains
           (typeToConvert.GetGenericTypeDefinition())
-          [ typedefof<FSharpPlus.Data.NonEmptyList<_>>
+          [ typedefof<NEList<_>>
             typedefof<System.Collections.Generic.IReadOnlyCollection<_>> ]
 
       override this.CreateConverter
@@ -1110,7 +1146,7 @@ module Json =
         ) : JsonConverter =
         let typArgs = typeToConvert.GetGenericArguments()
         let converterType =
-          typedefof<NonEmptyListValueConverter<_>>.MakeGenericType(typArgs)
+          typedefof<NEListValueConverter<_>>.MakeGenericType(typArgs)
         System.Activator.CreateInstance(converterType) :?> JsonConverter
 
 
@@ -1173,7 +1209,7 @@ module Json =
       options.Converters.Add(Int64Converter())
       options.Converters.Add(PasswordConverter())
       options.Converters.Add(RawBytesConverter())
-      options.Converters.Add(NonEmptyListConverter())
+      options.Converters.Add(NEListConverter())
       options.Converters.Add(fsharpConverter)
 
       options
@@ -1712,20 +1748,6 @@ module Task =
 // them, you should move these to the files with specific formats and serialize
 // them there.
 
-type NonEmptyList<'a> = FSharpPlus.Data.NonEmptyList<'a>
-
-module NonEmptyList =
-  // Need to list these out explicitly because F# doesn't support opening modules
-  // like this
-  let toList = FSharpPlus.Data.NonEmptyList.toList
-
-  let iter (f : 'a -> unit) (l : NonEmptyList<'a>) : unit =
-    l |> toList |> List.iter f
-
-  let map = FSharpPlus.Data.NonEmptyList.map
-  let ofList = FSharpPlus.Data.NonEmptyList.ofList
-  let ofSeq = FSharpPlus.Data.NonEmptyList.ofSeq
-  let singleton = FSharpPlus.Data.NonEmptyList.singleton
 
 
 type CanvasID = System.Guid

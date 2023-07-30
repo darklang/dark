@@ -378,15 +378,15 @@ let fns : List<BuiltInFn> =
 
                   match result with
                   | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = { Head = "Stdlib"
-                                                       Tail = [ "Option" ] }
+                                           modules = { head = "Stdlib"
+                                                       tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           "Just",
                           [ o ]) -> return Some o
                   | DEnum(FQName.Package { owner = "Darklang"
-                                           modules = { Head = "Stdlib"
-                                                       Tail = [ "Option" ] }
+                                           modules = { head = "Stdlib"
+                                                       tail = [ "Option" ] }
                                            name = TypeName.TypeName "Option"
                                            version = 0 },
                           "Nothing",

@@ -47,7 +47,7 @@ type Password = Prelude.Password
 // - removing a field from a variant (eg remove b to X(a,b))
 
 [<MessagePack.MessagePackObject>]
-type NonEmptyList<'a> =
+type NEList<'a> =
   { [<MessagePack.Key 0>]
     head : 'a
     [<MessagePack.Key 1>]
@@ -80,7 +80,7 @@ module TypeName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      modules : NonEmptyList<string>
+      modules : NEList<string>
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]
@@ -118,7 +118,7 @@ module FnName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      modules : NonEmptyList<string>
+      modules : NEList<string>
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]
@@ -186,7 +186,7 @@ module ConstantName =
     { [<MessagePack.Key 0>]
       owner : string
       [<MessagePack.Key 1>]
-      modules : NonEmptyList<string>
+      modules : NEList<string>
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]

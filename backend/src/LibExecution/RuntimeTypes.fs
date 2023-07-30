@@ -48,7 +48,7 @@ module FQName =
   /// The name of a thing in the package manager
   // TODO: We plan to use UUIDs for this, but this is a placeholder
   type Package<'name> =
-    { owner : string; modules : NonEmptyList<string>; name : 'name; version : int }
+    { owner : string; modules : NEList<string>; name : 'name; version : int }
 
   type T<'name> =
     | BuiltIn of BuiltIn<'name>
@@ -108,17 +108,17 @@ module FQName =
   let package
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : 'name)
     (version : int)
     : Package<'name> =
-    assert' (NonEmptyList.toList modules) name version nameValidator
+    assert' (NEList.toList modules) name version nameValidator
     { owner = owner; modules = modules; name = name; version = version }
 
   let fqPackage
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : 'name)
     (version : int)
     : T<'name> =
@@ -137,7 +137,7 @@ module FQName =
 
   let packageToString (s : Package<'name>) (f : NamePrinter<'name>) : string =
     let name =
-      [ "PACKAGE"; s.owner ] @ NonEmptyList.toList s.modules @ [ f s.name ]
+      [ "PACKAGE"; s.owner ] @ NEList.toList s.modules @ [ f s.name ]
       |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
@@ -176,7 +176,7 @@ module TypeName =
 
   let package
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : Package =
@@ -184,7 +184,7 @@ module TypeName =
 
   let fqPackage
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : T =
@@ -232,7 +232,7 @@ module FnName =
 
   let package
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : Package =
@@ -240,7 +240,7 @@ module FnName =
 
   let fqPackage
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : T =
@@ -289,7 +289,7 @@ module ConstantName =
 
   let package
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : Package =
@@ -297,7 +297,7 @@ module ConstantName =
 
   let fqPackage
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : T =
@@ -378,21 +378,13 @@ type TypeReference =
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(
-      TypeName.fqPackage
-        "Darklang"
-        (NonEmptyList.ofList [ "Stdlib"; "Result" ])
-        "Result"
-        0,
+      TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Result" ]) "Result" 0,
       [ t1; t2 ]
     )
 
   let option (t : TypeReference) : TypeReference =
     TCustomType(
-      TypeName.fqPackage
-        "Darklang"
-        (NonEmptyList.ofList [ "Stdlib"; "Option" ])
-        "Option"
-        0,
+      TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Option" ]) "Option" 0,
       [ t ]
     )
 
@@ -777,7 +769,6 @@ module Dval =
 
 
   let int (i : int) = DInt(int64 i)
-  let parseInt (i : string) = DInt(parseInt64 i)
 
 
   // Dvals should never be constructed that contain fakevals - the fakeval
@@ -788,6 +779,31 @@ module Dval =
   let list (list : List<Dval>) : Dval =
     List.find (fun (dv : Dval) -> isFake dv) list
     |> Option.defaultValue (DList list)
+
+  let asList (dv : Dval) : Option<List<Dval>> =
+    match dv with
+    | DList l -> Some l
+    | _ -> None
+
+  let asString (dv : Dval) : Option<string> =
+    match dv with
+    | DString s -> Some s
+    | _ -> None
+
+  let asInt (dv : Dval) : Option<int64> =
+    match dv with
+    | DInt i -> Some i
+    | _ -> None
+
+  let asFloat (dv : Dval) : Option<double> =
+    match dv with
+    | DFloat f -> Some f
+    | _ -> None
+
+  let asUuid (dv : Dval) : Option<System.Guid> =
+    match dv with
+    | DUuid u -> Some u
+    | _ -> None
 
   let record (typeName : TypeName.T) (fields : List<string * Dval>) : Dval =
     // Give a warning for duplicate keys
@@ -835,18 +851,10 @@ module Dval =
 
 
   let resultType =
-    TypeName.fqPackage
-      "Darklang"
-      (NonEmptyList.ofList [ "Stdlib"; "Result" ])
-      "Result"
-      0
+    TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Result" ]) "Result" 0
 
   let optionType =
-    TypeName.fqPackage
-      "Darklang"
-      (NonEmptyList.ofList [ "Stdlib"; "Option" ])
-      "Option"
-      0
+    TypeName.fqPackage "Darklang" (NEList.ofList "Stdlib" [ "Option" ]) "Option" 0
 
   let resultOk (dv : Dval) : Dval =
     if isFake dv then dv else DEnum(resultType, "Ok", [ dv ])

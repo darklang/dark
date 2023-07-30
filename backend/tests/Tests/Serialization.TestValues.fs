@@ -29,7 +29,7 @@ module RuntimeTypes =
         { modules = [ "A" ]; name = RT.FnName.FnName "b"; version = 1 }
       RT.FQName.Package
         { owner = "a"
-          modules = NonEmptyList.ofList [ "b"; "C" ]
+          modules = NEList.ofList "b" [ "C" ]
           name = RT.FnName.FnName "d"
           version = 2 } ]
 
@@ -56,7 +56,7 @@ module RuntimeTypes =
       RT.TCustomType(
         RT.FQName.Package
           { owner = "dark"
-            modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
+            modules = NEList.ofList "Mod1" [ "Mod2" ]
             name = RT.TypeName.TypeName "Pack"
             version = 0 },
         [ RT.TBool ]
@@ -201,7 +201,7 @@ module ProgramTypes =
         { modules = [ "Int" ]; name = PT.FnName.FnName "increment"; version = 1 }
       PT.FQName.Package
         { owner = "twilio"
-          modules = NonEmptyList.singleton "Twilio"
+          modules = NEList.singleton "Twilio"
           name = PT.FnName.FnName "sms"
           version = 1 } ]
 
@@ -287,7 +287,7 @@ module ProgramTypes =
           Ok(
             PT.FQName.Package
               { owner = "dark"
-                modules = NonEmptyList.ofList [ "Mod1"; "Mod2" ]
+                modules = NEList.ofList "Mod1" [ "Mod2" ]
                 name = PT.TypeName.TypeName "Pack"
                 version = 0 }
           ),
@@ -472,7 +472,7 @@ module ProgramTypes =
                                      PT.FQName.Package(
                                        { owner = "Darklang"
                                          modules =
-                                           NonEmptyList.ofList [ "Stdlib"; "Result" ]
+                                           NEList.ofList "Stdlib" [ "Result" ]
                                          name = PT.TypeName.TypeName "Result"
                                          version = 0 }
                                      )
@@ -754,7 +754,7 @@ module ProgramTypes =
   let packageFn : PT.PackageFn.T =
     { name =
         { owner = "dark"
-          modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
+          modules = NEList.ofList "stdlib" [ "Int"; "Int64" ]
           name = PT.FnName.FnName "mod"
           version = 0 }
       body = expr
@@ -771,7 +771,7 @@ module ProgramTypes =
   let packageType : PT.PackageType.T =
     { name =
         { owner = "darklang"
-          modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
+          modules = NEList.ofList "stdlib" [ "Int"; "Int64" ]
           name = PT.TypeName.TypeName "T"
           version = 0 }
       declaration =
@@ -794,7 +794,7 @@ module ProgramTypes =
   let packageConstant : PT.PackageConstant.T =
     { name =
         { owner = "dark"
-          modules = NonEmptyList.ofList [ "stdlib"; "Int"; "Int64" ]
+          modules = NEList.ofList "stdlib" [ "Int"; "Int64" ]
           name = PT.ConstantName.ConstantName "testConstant"
           version = 0 }
       body = constValue

@@ -17,7 +17,7 @@ module FQName =
   /// The name of a thing in the package manager
   // TODO: We plan to use UUIDs for this, but this is a placeholder
   type Package<'name> =
-    { owner : string; modules : NonEmptyList<string>; name : 'name; version : int }
+    { owner : string; modules : NEList<string>; name : 'name; version : int }
 
   type T<'name> =
     | BuiltIn of BuiltIn<'name>
@@ -76,17 +76,17 @@ module FQName =
   let package
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : 'name)
     (version : int)
     : Package<'name> =
-    assert' (NonEmptyList.toList modules) name version nameValidator
+    assert' (NEList.toList modules) name version nameValidator
     { owner = owner; modules = modules; name = name; version = version }
 
   let fqPackage
     (nameValidator : NameValidator<'name>)
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : 'name)
     (version : int)
     : T<'name> =
@@ -105,7 +105,7 @@ module FQName =
 
   let packageToString (f : NamePrinter<'name>) (s : Package<'name>) : string =
     let name =
-      [ "PACKAGE"; s.owner ] @ NonEmptyList.toList s.modules @ [ f s.name ]
+      [ "PACKAGE"; s.owner ] @ NEList.toList s.modules @ [ f s.name ]
       |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
@@ -143,7 +143,7 @@ module TypeName =
 
   let package
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : Package =
@@ -151,7 +151,7 @@ module TypeName =
 
   let fqPackage
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : T =
@@ -191,7 +191,7 @@ module FnName =
 
   let package
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : Package =
@@ -199,7 +199,7 @@ module FnName =
 
   let fqPackage
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : T =
@@ -256,7 +256,7 @@ module ConstantName =
 
   let package
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : Package =
@@ -264,7 +264,7 @@ module ConstantName =
 
   let fqPackage
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (name : string)
     (version : int)
     : T =
@@ -383,7 +383,7 @@ type TypeReference =
   // A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string // replaces TAny
   | TFn of
-    List<TypeReference> *  // CLEANUP: NonEmptyList
+    List<TypeReference> *  // CLEANUP: NEList
     TypeReference // replaces TLambda
 
   /// A type defined by a standard library module, a canvas/user, or a package

@@ -33,7 +33,7 @@ module FormatV0 =
     /// The name of a thing in the package manager
     // TODO: We plan to use UUIDs for this, but this is a placeholder
     type Package<'name> =
-      { owner : string; modules : NonEmptyList<string>; name : 'name; version : int }
+      { owner : string; modules : NEList<string>; name : 'name; version : int }
 
     type T<'name> =
       | BuiltIn of BuiltIn<'name>
