@@ -75,7 +75,7 @@ human-readable data."
         (function
         | _, _, [ DUnit ] ->
           uply {
-            let! tableStats = LibBackend.Db.tableStats ()
+            let! tableStats = LibCloud.Db.tableStats ()
             // Send events to honeycomb. We could save some events by sending
             // these all as a single event - tablename.disk = 1, etc - but
             // by having an event per table, it's easier to query and graph:

@@ -13,7 +13,7 @@
     <ProjectReference Include="../../src/StdLibExecution/StdLibExecution.fsproj" />
     <ProjectReference Include="../../src/StdLibCli/StdLibCli.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="RTShortcuts.fs" />

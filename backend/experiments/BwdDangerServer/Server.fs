@@ -24,10 +24,10 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-module Account = LibBackend.Account
-module Canvas = LibBackend.Canvas
-module Routing = LibBackend.Routing
-module Pusher = LibBackend.Pusher
+module Account = LibCloud.Account
+module Canvas = LibCloud.Canvas
+module Routing = LibCloud.Routing
+module Pusher = LibCloud.Pusher
 
 module LibHttpMiddleware = LibHttpMiddleware.Http
 
@@ -104,7 +104,7 @@ let setResponseHeader (ctx : HttpContext) (name : string) (value : string) : uni
 /// Reads a static (Dark) favicon image
 let favicon : Lazy<ReadOnlyMemory<byte>> =
   lazy
-    (LibBackend.File.readfileBytes LibBackend.Config.Webroot "favicon-32x32.png"
+    (LibCloud.File.readfileBytes LibCloud.Config.Webroot "favicon-32x32.png"
      |> ReadOnlyMemory)
 
 /// Handles a request for favicon.ico, returning static Dark icon
@@ -472,8 +472,8 @@ let initSerializers () =
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibBackend.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibBackend.TraceCloudStorage.CloudStorageFormat>
+  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
@@ -502,7 +502,7 @@ let main _ =
     print "Starting BwdDangerServer"
     initSerializers ()
     LibService.Init.init name
-    (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
+    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
     (DangerExecution.init ()).Result
 
     run ()

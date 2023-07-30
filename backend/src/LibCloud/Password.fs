@@ -1,4 +1,4 @@
-module LibBackend.Password
+module LibCloud.Password
 
 open Prelude
 

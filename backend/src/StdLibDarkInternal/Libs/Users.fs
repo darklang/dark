@@ -12,7 +12,7 @@ let modules = [ "DarkInternal"; "User" ]
 let typ = typ modules
 let fn = fn modules
 
-// only accessible to the LibBackend.Config.allowedDarkInternalCanvasID canvas
+// only accessible to the LibCloud.Config.allowedDarkInternalCanvasID canvas
 let types : List<BuiltInType> = []
 let constants : List<BuiltInConstant> = []
 
@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DUnit ] ->
           uply {
-            let! canvasID = LibBackend.Account.createUser ()
+            let! canvasID = LibCloud.Account.createUser ()
             return DUuid canvasID
           }
         | _ -> incorrectArgs ())

@@ -7,17 +7,17 @@ open Expecto
 
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
+open LibCloud.Db
 
 open Prelude
 open Tablecloth
 open TestUtils.TestUtils
 
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
-module Account = LibBackend.Account
+module Account = LibCloud.Account
 
 let parse (code : string) : PT.Expr =
   Parser.Parser.parseSimple "tests.canvas.fs" code

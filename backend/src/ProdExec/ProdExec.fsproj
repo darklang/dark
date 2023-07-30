@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
   </ItemGroup>
 

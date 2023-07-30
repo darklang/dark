@@ -8,16 +8,16 @@ open Expecto
 open Prelude
 open Prelude.Tablecloth
 open Tablecloth
-open LibBackend.Db
+open LibCloud.Db
 
 open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module EQ2 = LibBackend.Queue
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
-module SR = LibBackend.QueueSchedulingRules
+module EQ2 = LibCloud.Queue
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
+module SR = LibCloud.QueueSchedulingRules
 
 let p (code : string) : PT.Expr =
   Parser.Parser.parsePTExpr builtinResolver "queueschedulingrules.fs" code

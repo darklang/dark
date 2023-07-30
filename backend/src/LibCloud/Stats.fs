@@ -1,4 +1,4 @@
-module LibBackend.Stats
+module LibCloud.Stats
 
 // Non-execution analysis
 

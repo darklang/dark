@@ -22,7 +22,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{3820D9E8
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Tests", "tests\Tests\Tests.fsproj", "{DB61305F-4CA9-4D92-82A5-503495F515E8}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibBackend", "src\LibBackend\LibBackend.fsproj", "{3FC57943-9D51-49AE-9FBD-4A112B4F68D6}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloud", "src\LibCloud\LibCloud.fsproj", "{3FC57943-9D51-49AE-9FBD-4A112B4F68D6}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Prelude", "src\Prelude\Prelude.fsproj", "{5FD0E378-FD88-45E5-9963-BFF2921E6A6A}"
 EndProject

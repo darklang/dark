@@ -1,5 +1,5 @@
 /// Supports "crons" - toplevels that are triggered on a set schedule
-module LibBackend.Cron
+module LibCloud.Cron
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

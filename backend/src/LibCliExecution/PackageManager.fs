@@ -700,7 +700,7 @@ let cachedPly (expiration : TimeSpan) (f : Ply<'a>) : Ply<'a> =
   }
 
 // TODO: fetch one by one
-// TODO: copy back to LibBackend/LibCloudExecution, or relocate somewhere central
+// TODO: copy back to LibCloud/LibCloudExecution, or relocate somewhere central
 // TODO: what should we do when the shape of types at the corresponding endpoints change?
 let packageManager : RT.PackageManager =
   let httpClient = new System.Net.Http.HttpClient()

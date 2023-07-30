@@ -8,12 +8,12 @@ open Prelude
 open Tablecloth
 open TestUtils.TestUtils
 
-module File = LibBackend.File
-module Config = LibBackend.Config
+module File = LibCloud.File
+module Config = LibCloud.Config
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module WorkerStates = LibBackend.QueueSchedulingRules.WorkerStates
+module WorkerStates = LibCloud.QueueSchedulingRules.WorkerStates
 
 module V = SerializationTestValues
 
@@ -93,13 +93,13 @@ module PersistedSerializations =
           (PT.Toplevel.TLType V.ProgramTypes.userRecordType)
 
         // ------------------
-        // LibBackend
+        // LibCloud
         // ------------------
-        v<LibBackend.Queue.NotificationData>
+        v<LibCloud.Queue.NotificationData>
           "simple"
           { id = V.uuid; canvasID = V.uuid }
 
-        v<LibBackend.TraceCloudStorage.CloudStorageFormat>
+        v<LibCloud.TraceCloudStorage.CloudStorageFormat>
           "simple"
           { storageFormatVersion = 0
             input =

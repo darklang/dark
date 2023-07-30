@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- This library only exists so that we can separate LibBackendStdLib from LibBackend -->
+  <!-- This library only exists so that we can separate LibCloudStdLib from LibCloud -->
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net7.0</TargetFramework>
@@ -13,7 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../StdLibExecution/StdLibExecution.fsproj" />
-    <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../StdLibCloudExecution/StdLibCloudExecution.fsproj" />
     <ProjectReference Include="../StdLibDarkInternal/StdLibDarkInternal.fsproj" />
   </ItemGroup>

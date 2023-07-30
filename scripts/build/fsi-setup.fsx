@@ -13,7 +13,7 @@ printfn "Loading program; if something wrong run ./scripts/build/dotnet-regen-fs
 #r "Prelude/Debug/net7.0/Prelude.dll"
 #r "LibService/Debug/net7.0/LibService.dll"
 #r "LibExecution/Debug/net7.0/linux-x64/LibExecution.dll"
-#r "LibBackend/Debug/net7.0/LibBackend.dll"
+#r "LibCloud/Debug/net7.0/LibCloud.dll"
 #r "BwdServer/Debug/net7.0/linux-x64/BwdServer.dll"
 #r "TestUtils/Debug/net7.0/TestUtils.dll"
 #r "Tests/Debug/net7.0/linux-x64/Tests.dll"

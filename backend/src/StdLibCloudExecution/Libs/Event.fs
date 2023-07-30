@@ -6,7 +6,7 @@ module StdLibCloudExecution.Libs.Event
 open Prelude
 open LibExecution.RuntimeTypes
 
-module Queue = LibBackend.Queue
+module Queue = LibCloud.Queue
 
 open LibExecution.StdLib.Shortcuts
 

@@ -1,5 +1,5 @@
 /// Fns used to compile Exprs into SQL queries
-module LibBackend.SqlCompiler
+module LibCloud.SqlCompiler
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

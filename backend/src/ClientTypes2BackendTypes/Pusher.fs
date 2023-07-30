@@ -2,7 +2,7 @@ module ClientTypes2BackendTypes.Pusher
 
 open Prelude
 
-type DomainEvent = LibBackend.Pusher.Event
+type DomainEvent = LibCloud.Pusher.Event
 
 let eventName event =
   match event with
@@ -49,7 +49,7 @@ let eventPayload event =
   | DomainEvent.CustomEvent(_, payload) -> payload
 
 
-let eventSerializer : LibBackend.Pusher.PusherEventSerializer =
+let eventSerializer : LibCloud.Pusher.PusherEventSerializer =
   { EventName = eventName
     Serialize =
       fun event -> { EventName = eventName event; Payload = eventPayload event } }

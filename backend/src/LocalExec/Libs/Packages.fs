@@ -5,7 +5,7 @@ open FSharp.Control.Tasks
 
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
+open LibCloud.Db
 
 open Prelude
 open Tablecloth

@@ -17,14 +17,14 @@ open LibExecution.RuntimeTypes
 
 module Shortcuts = TestUtils.RTShortcuts
 
-module Canvas = LibBackend.Canvas
+module Canvas = LibCloud.Canvas
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module CloudExecution = LibCloudExecution.CloudExecution
-module Tracing = LibBackend.Tracing
+module Tracing = LibCloud.Tracing
 module TSR = Tracing.TraceSamplingRule
-module TCS = LibBackend.TraceCloudStorage
+module TCS = LibCloud.TraceCloudStorage
 
 
 // let testFilterSlash =

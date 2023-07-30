@@ -1,5 +1,5 @@
 /// Tracing for real execution
-module LibBackend.Tracing
+module LibCloud.Tracing
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks

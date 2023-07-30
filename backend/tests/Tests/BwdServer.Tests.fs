@@ -22,9 +22,9 @@ open Prelude.Tablecloth
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module Routing = LibBackend.Routing
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
+module Routing = LibCloud.Routing
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
 
 open Tests
 open TestUtils.TestUtils
@@ -215,7 +215,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
     do!
       test.secrets
       |> List.map (fun (name, value, version) ->
-        LibBackend.Secret.insert canvasID name value version)
+        LibCloud.Secret.insert canvasID name value version)
       |> Task.WhenAll
       |> Task.map (fun _ -> ())
 

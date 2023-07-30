@@ -1,4 +1,4 @@
-module LibBackend.Db
+module LibCloud.Db
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

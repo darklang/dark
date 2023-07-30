@@ -13,7 +13,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Npgsql.FSharp
-open LibBackend.Db
+open LibCloud.Db
 
 open Prelude
 open Prelude.Tablecloth
@@ -24,8 +24,8 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
 
 open TestUtils.TestUtils
 

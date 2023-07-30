@@ -2,7 +2,7 @@
 /// <remarks>
 /// Serialization formats and binary conversions are stored elsewhere
 /// </remarks>
-module LibBackend.Serialize
+module LibCloud.Serialize
 
 
 open System.Threading.Tasks
@@ -10,7 +10,7 @@ open FSharp.Control.Tasks
 
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
+open LibCloud.Db
 
 open Prelude
 open Tablecloth

@@ -21,7 +21,7 @@ module S = TestUtils.RTShortcuts
 
 
 let defaultTypes () =
-  { RT.Types.empty with package = LibBackend.PackageManager.packageManager.getType }
+  { RT.Types.empty with package = LibCloud.PackageManager.packageManager.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv

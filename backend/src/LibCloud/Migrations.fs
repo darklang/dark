@@ -1,4 +1,4 @@
-module LibBackend.Migrations
+module LibCloud.Migrations
 
 
 // Migrations

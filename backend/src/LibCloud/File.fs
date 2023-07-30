@@ -1,5 +1,5 @@
 /// Helpers to work with files on disk
-module LibBackend.File
+module LibCloud.File
 
 // This makes extra careful that we're only accessing files where we expect to
 // find files, and that we're not checking outside these directories

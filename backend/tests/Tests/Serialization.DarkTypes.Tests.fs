@@ -8,8 +8,8 @@ open Tablecloth
 open TestUtils.TestUtils
 
 
-module File = LibBackend.File
-module Config = LibBackend.Config
+module File = LibCloud.File
+module Config = LibCloud.Config
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -31,7 +31,7 @@ module RoundtripTests =
 
   let types : RT.Types =
     { builtIn = builtIns.types
-      package = LibBackend.PackageManager.packageManager.getType
+      package = LibCloud.PackageManager.packageManager.getType
       userProgram = Map.empty }
 
   let testRoundtrip

@@ -1,4 +1,4 @@
-module LibBackend.Canvas
+module LibCloud.Canvas
 
 // Functions related to Canvases
 
@@ -6,7 +6,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Npgsql.FSharp
 open Npgsql
-open LibBackend.Db
+open LibCloud.Db
 
 open Prelude
 open Tablecloth

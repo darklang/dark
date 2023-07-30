@@ -1,5 +1,5 @@
 /// Functions and types for storing traces in Google Cloud Storage.
-module LibBackend.TraceCloudStorage
+module LibCloud.TraceCloudStorage
 
 // Design and implementation via https://github.com/darklang/dark/issues/3954
 //

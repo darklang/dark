@@ -8,7 +8,7 @@ open Prelude
 open Tablecloth
 
 module PT = LibExecution.ProgramTypes
-module C = LibBackend.Canvas
+module C = LibCloud.Canvas
 
 let initSerializers () = ()
 
@@ -47,8 +47,8 @@ let seedCanvas (canvasName : string) =
       | None -> Guid.NewGuid()
       | Some id -> Guid.Parse id
 
-    let! ownerID = LibBackend.Account.createUser ()
-    do! LibBackend.Canvas.createWithExactID canvasID ownerID domain
+    let! ownerID = LibCloud.Account.createUser ()
+    do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
 
     let resolver =
       let builtIns =
@@ -73,7 +73,7 @@ let seedCanvas (canvasName : string) =
       let dbs = modul.dbs |> List.map PT.Toplevel.TLDB
 
       (types @ dbs @ fns @ handlers)
-      |> List.map (fun tl -> tl, LibBackend.Serialize.NotDeleted)
+      |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)
 
     do! C.saveTLIDs canvasID tls
 
@@ -94,7 +94,7 @@ let seedCanvas (canvasName : string) =
           | _ -> Exception.raiseInternal "invalid .secrets file" [])
         |> Array.toList
         |> Task.iterSequentially (fun (k, v) ->
-          LibBackend.Secret.insert canvasID k v 0)
+          LibCloud.Secret.insert canvasID k v 0)
     else
       // we don't have secrets to load - we're done
       ()

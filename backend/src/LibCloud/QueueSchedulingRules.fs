@@ -1,5 +1,5 @@
 /// Blocking and pausing queue events
-module LibBackend.QueueSchedulingRules
+module LibCloud.QueueSchedulingRules
 
 
 open System.Threading.Tasks

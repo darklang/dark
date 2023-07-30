@@ -8,9 +8,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
-module SchedulingRules = LibBackend.QueueSchedulingRules
-module Pusher = LibBackend.Pusher
-module Queue = LibBackend.Queue
+module SchedulingRules = LibCloud.QueueSchedulingRules
+module Pusher = LibCloud.Pusher
+module Queue = LibCloud.Queue
 
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
@@ -70,7 +70,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DUuid canvasID; DInt tlid ] ->
           uply {
             let tlid = uint64 tlid
-            let! count = LibBackend.Stats.workerStats canvasID tlid
+            let! count = LibCloud.Stats.workerStats canvasID tlid
             return DInt count
           }
         | _ -> incorrectArgs ())

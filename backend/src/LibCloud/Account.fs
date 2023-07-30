@@ -1,6 +1,6 @@
 /// Functions related to Accounts/Users. Accounts have no metadata, not even a
 /// username, name, or email. That is left to be handled in the DarkEditor canvas
-module LibBackend.Account
+module LibCloud.Account
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

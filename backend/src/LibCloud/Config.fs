@@ -1,5 +1,5 @@
-/// Provides central place to fetch known configuration values used in LibBackend
-module LibBackend.Config
+/// Provides central place to fetch known configuration values used in LibCloud
+module LibCloud.Config
 
 open LibService.ConfigDsl
 

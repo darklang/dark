@@ -1,5 +1,5 @@
 /// The package manager allows types and functions to be shared with other users
-module LibBackend.PackageManager
+module LibCloud.PackageManager
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

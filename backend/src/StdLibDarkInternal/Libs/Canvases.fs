@@ -9,8 +9,8 @@ open LibExecution.RuntimeTypes
 open LibExecution.StdLib.Shortcuts
 
 module PT = LibExecution.ProgramTypes
-module Canvas = LibBackend.Canvas
-module Serialize = LibBackend.Serialize
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
 module PT2DT = StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
 
 let modules = [ "DarkInternal"; "Canvas" ]

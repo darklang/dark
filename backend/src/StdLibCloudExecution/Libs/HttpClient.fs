@@ -11,7 +11,7 @@ open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
 
-open LibBackend
+open LibCloud
 open VendoredTablecloth
 
 module Telemetry = LibService.Telemetry

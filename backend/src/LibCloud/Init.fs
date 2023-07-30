@@ -1,6 +1,6 @@
-module LibBackend.Init
+module LibCloud.Init
 
-// LibBackend holds the whole framework
+// LibCloud holds the whole framework
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -39,16 +39,16 @@ type WaitForDB =
   | WaitForDB
   | DontWaitForDB
 
-/// <summary>Initialize LibBackend.</summary>
+/// <summary>Initialize LibCloud.</summary>
 ///
 /// <remarks> This function does not do any behaviour which accesses DB tables and
 /// data, as the DB might not be migrated to it's correct form at this point (eg in
 /// the test of dev environment). This is called by ProdExec, which does the
-/// migration. You cannot expect the DB to be ready when LibBackend is initialized -
+/// migration. You cannot expect the DB to be ready when LibCloud is initialized -
 /// call `waitForDB` if you need that.</remarks>
 let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
   task {
-    print $"Initing LibBackend in {serviceName}"
+    print $"Initing LibCloud in {serviceName}"
 
     match shouldWaitForDB with
     | WaitForDB -> do! _waitForDB ()
@@ -57,5 +57,5 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     do! Queue.init ()
     do! TraceCloudStorage.init ()
 
-    print $" Inited LibBackend in {serviceName}"
+    print $" Inited LibCloud in {serviceName}"
   }

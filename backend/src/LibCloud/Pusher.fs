@@ -1,5 +1,5 @@
 /// Module supporting Pusher.com usage
-module LibBackend.Pusher
+module LibCloud.Pusher
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

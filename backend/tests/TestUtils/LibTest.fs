@@ -16,7 +16,7 @@ open LibExecution.StdLib.Shortcuts
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-open LibBackend.Db
+open LibCloud.Db
 
 
 let varA = TVariable "a"
@@ -75,7 +75,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString errorString ] ->
-          let msg = LibBackend.SqlCompiler.errorTemplate + errorString
+          let msg = LibCloud.SqlCompiler.errorTemplate + errorString
           Ply(DError(SourceNone, msg))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -226,7 +226,7 @@ let fns : List<BuiltInFn> =
           uply {
             let canvasID = state.program.canvasID
             let! results =
-              LibBackend.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
+              LibCloud.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
             let results =
               results
               |> List.map (fun x -> DString(LibExecution.DvalReprDeveloper.toRepr x))
