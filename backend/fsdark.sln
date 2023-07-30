@@ -32,7 +32,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestUtils", "tests\TestUtil
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "StdLibExecution", "src\StdLibExecution\StdLibExecution.fsproj", "{BBFC824F-A0DE-4A28-B82F-49C04EBA7475}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibRealExecution", "src\LibRealExecution\LibRealExecution.fsproj", "{FA55A52D-B880-4931-A121-85C8DAD8DD28}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloudExecution", "src\LibCloudExecution\LibCloudExecution.fsproj", "{FA55A52D-B880-4931-A121-85C8DAD8DD28}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "QueueWorker", "src\QueueWorker\QueueWorker.fsproj", "{36E1611F-55E4-4DFE-BB04-913FEA9950ED}"
 EndProject

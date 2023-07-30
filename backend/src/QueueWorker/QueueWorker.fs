@@ -18,7 +18,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module EQ = LibBackend.Queue
 module Execution = LibExecution.Execution
 module Pusher = LibBackend.Pusher
-module RealExecution = LibRealExecution.RealExecution
+module CloudExecution = LibCloudExecution.CloudExecution
 module Canvas = LibBackend.Canvas
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
@@ -207,14 +207,14 @@ let processNotification
                           LibBackend.Config.httpclientTimeoutInMs }
                     let program = Canvas.toProgram c
                     let! (result, traceResults) =
-                      RealExecution.executeHandler
+                      CloudExecution.executeHandler
                         ClientTypes2BackendTypes.Pusher.eventSerializer
                         (PT2RT.Handler.toRT h)
                         program
                         config
                         traceID
                         (Map [ "event", event.value ])
-                        (RealExecution.InitialExecution(
+                        (CloudExecution.InitialExecution(
                           EQ.toEventDesc event,
                           "event",
                           event.value
@@ -331,7 +331,7 @@ let main _ : int =
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibRealExecution.Init.init name).Result
+    (LibCloudExecution.Init.init name).Result
 
     // Called if k8s tells us to stop
     let shutdownCallback () =

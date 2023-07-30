@@ -124,7 +124,7 @@ let builtIns : RT.BuiltIns =
   let (fns, types, constants) =
     LibExecution.StdLib.combine
       [ LibTest.contents
-        LibRealExecution.RealExecution.builtins
+        LibCloudExecution.CloudExecution.builtins
         StdLibCli.StdLib.contents ]
       []
       []

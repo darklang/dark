@@ -1,4 +1,4 @@
-module LibRealExecution.RealExecution
+module LibCloudExecution.CloudExecution
 
 // For executing code with the appropriate production "real" execution, setting
 // traces, stdlib, etc, appropriately. Used by most of the executables.

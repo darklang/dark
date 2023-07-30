@@ -19,7 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="RealExecution.fs" />
+    <Compile Include="CloudExecution.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

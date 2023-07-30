@@ -25,7 +25,7 @@ let main (args : string array) : int =
     let name = "Tests"
     LibService.Init.init name
     (LibBackend.Init.init LibBackend.Init.WaitForDB name).Result
-    (LibRealExecution.Init.init name).Result
+    (LibCloudExecution.Init.init name).Result
 
     initSerializers ()
 

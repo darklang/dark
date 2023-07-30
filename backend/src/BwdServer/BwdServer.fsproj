@@ -22,7 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBackend/LibBackend.fsproj" />
-    <ProjectReference Include="../LibRealExecution/LibRealExecution.fsproj" />
+    <ProjectReference Include="../LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../LibHttpMiddleware/LibHttpMiddleware.fsproj" />
     <ProjectReference Include="../ClientTypes2BackendTypes/ClientTypes2BackendTypes.fsproj" />
   </ItemGroup>
