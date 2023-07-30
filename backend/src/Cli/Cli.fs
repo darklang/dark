@@ -56,10 +56,7 @@ let builtIns : RT.BuiltIns =
 let packageManager = LibCliExecution.PackageManager.packageManager
 
 
-let execute
-  (symtable : Map<string, RT.Dval>)
-  (args : PT.Expr)
-  : Task<RT.Dval> =
+let execute (symtable : Map<string, RT.Dval>) (args : PT.Expr) : Task<RT.Dval> =
 
   task {
     let config : RT.Config =
@@ -97,9 +94,9 @@ let execute
 
     let callFn =
       PT.EApply(
-        gid(),
+        gid (),
         PT.EFnName(
-          gid(),
+          gid (),
           Ok(
             PT.FQName.Package(
               { owner = "Darklang"
@@ -110,10 +107,10 @@ let execute
           )
         ),
         [],
-        [args]
+        [ args ]
       )
     return! Exe.executeExpr state symtable (PT2RT.Expr.toRT callFn)
-    }
+  }
 
 let initSerializers () =
   Json.Vanilla.allow<List<LibCliExecution.PackageManager.LanguageToolsTypesFork.ProgramTypes.PackageType.T>>
@@ -136,8 +133,11 @@ let main (args : string[]) =
         Map.values builtIns.types,
         Map.values builtIns.constants
       )
-    let args = args |> Array.toList |> List.map (fun arg -> PT.EString(gid(), [PT.StringText arg ]))
-    let args = PT.EList(gid(), args)
+    let args =
+      args
+      |> Array.toList
+      |> List.map (fun arg -> PT.EString(gid (), [ PT.StringText arg ]))
+    let args = PT.EList(gid (), args)
 
     let result = execute (Map.empty) args
     let result = result.Result
