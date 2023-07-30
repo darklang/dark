@@ -1,6 +1,7 @@
 module StdLibDarkInternal.Helpers.ProgramTypesToDarkTypes
 
 open Prelude
+open Tablecloth
 
 open LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -13,7 +14,7 @@ let languageToolsTyp
   : TypeName.T =
   TypeName.fqPackage
     "Darklang"
-    (NonEmptyList.ofList ([ "LanguageTools" ] @ submodules))
+    (NEList.ofList "LanguageTools" submodules)
     name
     version
 
@@ -45,8 +46,66 @@ module Sign =
     | DEnum(_, "Negative", []) -> Negative
     | _ -> Exception.raiseInternal "Invalid sign" []
 
+module Decode =
+  let unwrap = Exception.unwrapOptionInternal
+
+  let field (name : string) (m : DvalMap) : Dval =
+    m |> Map.get name |> unwrap $"Expected {name}' field" []
+
+  let string (name : string) (m : DvalMap) : string =
+    m
+    |> field name
+    |> Dval.asString
+    |> unwrap $"Expected '{name}' field to be a string" []
+
+  let list (name : string) (m : DvalMap) : List<Dval> =
+    m
+    |> field name
+    |> Dval.asList
+    |> unwrap $"Expected '{name}' field to be a list" []
+
+  let stringList (name : string) (m : DvalMap) : List<string> =
+    m
+    |> list name
+    |> List.map (fun s ->
+      s |> Dval.asString |> unwrap $"Expected string values in '{name}' list" [])
+
+  let int64 (name : string) (m : DvalMap) : int64 =
+    m
+    |> field name
+    |> Dval.asInt
+    |> unwrap $"Expected '{name}' field to be an int" []
+
+  let uint64 (name : string) (m : DvalMap) : uint64 =
+    m
+    |> field name
+    |> Dval.asInt
+    |> unwrap $"Expected '{name}' field to be an int" []
+    |> uint64
+
+  let int (name : string) (m : DvalMap) : int = m |> int64 name |> int
+
+  let uuid (name : string) (m : DvalMap) : System.Guid =
+    m
+    |> field name
+    |> Dval.asUuid
+    |> unwrap $"Expected '{name}' field to be a uuid" []
+
+
+
+module D = Decode
+
 
 module FQName =
+
+
+  let ownerField = D.string "owner"
+  let modulesField = D.stringList "modules"
+
+  let nameField = D.field "name"
+  let versionField = D.int "version"
+
+
   module BuiltIn =
     let toDT (nameMapper : 'name -> Dval) (u : PT.FQName.BuiltIn<'name>) : Dval =
       DRecord(
@@ -60,23 +119,9 @@ module FQName =
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.BuiltIn<'name> =
       match d with
       | DRecord(_, m) ->
-
-        let modules =
-          match Map.find "modules" m with
-          | DList l ->
-            l
-            |> List.map (function
-              | DString s -> s
-              | _ ->
-                Exception.raiseInternal "Expected string values in modules list" [])
-          | _ -> Exception.raiseInternal "Expected modules to be a list" []
-
-        let name = nameMapper (Map.find "name" m)
-
-        let version =
-          match Map.find "version" m with
-          | DInt i -> int i
-          | _ -> Exception.raiseInternal "Expected the version to be an integer" []
+        let modules = modulesField m
+        let name = nameField m |> nameMapper
+        let version = versionField m
 
         { modules = modules; name = name; version = version }
 
@@ -96,23 +141,13 @@ module FQName =
       (nameMapper : Dval -> 'name)
       (v : Dval)
       : PT.FQName.UserProgram<'name> =
+      let unwrap = Exception.unwrapOptionInternal
       match v with
       | DRecord(_, m) ->
-        let modules =
-          match Map.find "modules" m with
-          | DList l ->
-            l
-            |> List.map (function
-              | DString s -> s
-              | _ ->
-                Exception.raiseInternal "Expected string values in modules list" [])
-          | _ -> Exception.raiseInternal "Expected modules to be a list" []
 
-        let name = nameMapper (Map.find "name" m)
-        let version =
-          match Map.find "version" m with
-          | DInt i -> int i
-          | _ -> Exception.raiseInternal "Expected the version to be a integer" []
+        let modules = modulesField m
+        let name = nameField m |> nameMapper
+        let version = versionField m
 
         { modules = modules; name = name; version = version }
 
@@ -124,38 +159,21 @@ module FQName =
         ptTyp [ "FQName" ] "Package" 0,
         Map
           [ "owner", DString u.owner
-            "modules", DList(List.map DString (NonEmptyList.toList u.modules)) // CLEANUP source is a NonEmptyList
+            "modules", DList(List.map DString (NEList.toList u.modules)) // CLEANUP source is a NEList
             "name", nameMapper u.name
             "version", DInt u.version ]
       )
 
     let fromDT (nameMapper : Dval -> 'name) (d : Dval) : PT.FQName.Package<'name> =
+      let unwrap = Exception.unwrapOptionInternal
       match d with
       | DRecord(_, m) ->
-        let owner =
-          match Map.find "owner" m with
-          | DString s -> s
-          | _ -> Exception.raiseInternal "Expected owner to be a string" []
-
+        let owner = ownerField m
         let modules =
-          match Map.find "modules" m with
-          | DList l ->
-            NonEmptyList.ofList (
-              List.map
-                (function
-                | DString s -> s
-                | _ ->
-                  Exception.raiseInternal "Expected string values in modules list" [])
-                l
-            )
-          | _ -> Exception.raiseInternal "Expected modules to be a list" []
-
-        let name = nameMapper (Map.find "name" m)
-
-        let version =
-          match Map.find "version" m with
-          | DInt i -> int i
-          | _ -> Exception.raiseInternal "Expected the version to be integer" []
+          modulesField m
+          |> NEList.ofListUnsafe "Expected modules to be a non-empty list" []
+        let name = nameField m |> nameMapper
+        let version = versionField m
 
         { owner = owner; modules = modules; name = name; version = version }
 
@@ -333,27 +351,10 @@ module NameResolution =
 
     let fromDT (d : Dval) : LibExecution.Errors.NameResolution.Error =
       match d with
-      | DRecord(_, m) ->
-        let errorType =
-          Map.tryFind "errorType" m
-          |> Option.map ErrorType.fromDT
-          |> Exception.unwrapOptionInternal "Invalid NameResolutionError" []
-
-        let nameType =
-          Map.tryFind "nameType" m
-          |> Option.map NameType.fromDT
-          |> Exception.unwrapOptionInternal "Invalid NameResolutionError" []
-
-        let names =
-          match Map.find "names" m with
-          | DList l ->
-            List.map
-              (function
-              | DString s -> s
-              | _ ->
-                Exception.raiseInternal "Expected string values in names list" [])
-              l
-          | _ -> Exception.raiseInternal "Expected names to be a list" []
+      | DRecord(_, fields) ->
+        let errorType = fields |> D.field "errorType" |> ErrorType.fromDT
+        let nameType = fields |> D.field "nameType" |> NameType.fromDT
+        let names = fields |> D.stringList "names"
 
         { errorType = errorType; names = names; nameType = nameType }
 
@@ -974,17 +975,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
       match d with
       | DRecord(_, fields) ->
-        let name =
-          match Map.find "name" fields with
-          | DString name -> name
-          | _ -> Exception.raiseInternal "Expected name to be a string" []
-
-        let typ = TypeReference.fromDT (Map.find "typ" fields)
-
-        let description =
-          match Map.find "description" fields with
-          | DString description -> description
-          | _ -> Exception.raiseInternal "Expected description to be a string" []
+        let name = fields |> D.string "name"
+        let typ = fields |> D.field "typ" |> TypeReference.fromDT
+        let description = D.string "description" fields
 
         { name = name; typ = typ; description = description }
 
@@ -1003,19 +996,16 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumField =
       match d with
       | DRecord(_, fields) ->
-        let typ = TypeReference.fromDT (Map.find "typ" fields)
+        let typ = fields |> D.field "typ" |> TypeReference.fromDT
 
         let label =
-          match Map.find "label" fields with
-          | DEnum(_, "Just", [ DString label ]) -> Some label
-          | DEnum(_, "Nothing", []) -> None
+          match Map.get "label" fields with
+          | Some(DEnum(_, "Just", [ DString label ])) -> Some label
+          | Some(DEnum(_, "Nothing", [])) -> None
           | _ ->
             Exception.raiseInternal "Expected label to be an option of string" []
 
-        let description =
-          match Map.find "description" fields with
-          | DString description -> description
-          | _ -> Exception.raiseInternal "Expected description to be a string" []
+        let description = fields |> D.string "description"
 
         { typ = typ; label = label; description = description }
 
@@ -1035,21 +1025,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
       match d with
       | DRecord(_, attributes) ->
-        let name =
-          match Map.find "name" attributes with
-          | DString name -> name
-          | _ -> Exception.raiseInternal "Expected name to be a string" []
-
-        let fields =
-          match Map.find "fields" attributes with
-          | DList fs -> List.map EnumField.fromDT fs
-          | _ ->
-            Exception.raiseInternal "Expected fields to be a list of EnumFields" []
-
-        let description =
-          match Map.find "description" attributes with
-          | DString description -> description
-          | _ -> Exception.raiseInternal "Expected description to be a string" []
+        let name = D.string "name" attributes
+        let fields = attributes |> D.list "fields" |> List.map EnumField.fromDT
+        let description = attributes |> D.string "description"
 
         { name = name; fields = fields; description = description }
 
@@ -1104,24 +1082,8 @@ module TypeDeclaration =
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
     match d with
     | DRecord(_, fields) ->
-      let typeParams =
-        match Map.find "typeParams" fields with
-        | DList l ->
-          List.map
-            (function
-            | DString s -> s
-            | _ ->
-              Exception.raiseInternal
-                "Expected typeParams to be a list of strings"
-                [])
-            l
-
-        | _ ->
-          Exception.raiseInternal "Expected typeParams to be a list of strings" []
-
-      let definition =
-        match Map.find "definition" fields with
-        | definition -> Definition.fromDT definition
+      let typeParams = D.stringList "typeParams" fields
+      let definition = fields |> D.field "definition" |> Definition.fromDT
 
       { typeParams = typeParams; definition = definition }
 
@@ -1188,13 +1150,9 @@ module Handler =
   let fromDT (d : Dval) : PT.Handler.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
-
-      let ast = Expr.fromDT (Map.find "ast" fields)
-      let spec = Spec.fromDT (Map.find "spec" fields)
+      let tlid = fields |> D.uint64 "tlid"
+      let ast = fields |> D.field "ast" |> Expr.fromDT
+      let spec = fields |> D.field "spec" |> Spec.fromDT
 
       { tlid = tlid; ast = ast; spec = spec }
 
@@ -1215,23 +1173,10 @@ module DB =
   let fromDT (d : Dval) : PT.DB.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
-
-      let name =
-        match Map.find "name" fields with
-        | DString name -> name
-        | _ -> Exception.raiseInternal "Expected name to be a string" []
-
-      let version =
-        match Map.find "version" fields with
-        | DInt version -> int version
-        | _ -> Exception.raiseInternal "Expected version to be an int" []
-
-      let typ = TypeReference.fromDT (Map.find "typ" fields)
-
+      let tlid = fields |> D.uint64 "tlid"
+      let name = fields |> D.string "name"
+      let version = fields |> D.int "version"
+      let typ = fields |> D.field "typ" |> TypeReference.fromDT
       { tlid = tlid; name = name; version = version; typ = typ }
 
     | _ -> Exception.raiseInternal "Invalid DB" []
@@ -1252,20 +1197,12 @@ module UserType =
   let fromDT (d : Dval) : PT.UserType.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
-
-      let name = TypeName.UserProgram.fromDT (Map.find "name" fields)
-      let declaration = TypeDeclaration.fromDT (Map.find "declaration" fields)
-      let description =
-        match Map.find "description" fields with
-        | DString description -> description
-        | _ -> Exception.raiseInternal "Expected description to be a string" []
-
+      let tlid = fields |> D.uint64 "tlid"
+      let name = fields |> D.field "name" |> TypeName.UserProgram.fromDT
+      let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
+      let description = fields |> D.string "description"
       let deprecated =
-        Deprecation.fromDT TypeName.fromDT (Map.find "deprecated" fields)
+        fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
       { tlid = tlid
         name = name
@@ -1290,17 +1227,9 @@ module UserFunction =
     let fromDT (d : Dval) : PT.UserFunction.Parameter =
       match d with
       | DRecord(_, fields) ->
-        let name =
-          match Map.find "name" fields with
-          | DString name -> name
-          | _ -> Exception.raiseInternal "Invalid UserFunction.Parameter" []
-
-        let typ = TypeReference.fromDT (Map.find "typ" fields)
-
-        let description =
-          match Map.find "description" fields with
-          | DString description -> description
-          | _ -> Exception.raiseInternal "Invalid UserFunction.Parameter" []
+        let name = fields |> D.string "name"
+        let typ = fields |> D.field "typ" |> TypeReference.fromDT
+        let description = fields |> D.string "description"
 
         { name = name; typ = typ; description = description }
 
@@ -1324,39 +1253,15 @@ module UserFunction =
   let fromDT (d : Dval) : PT.UserFunction.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
-
-      let name = FnName.UserProgram.fromDT (Map.find "name" fields)
-      let typeParams =
-        match Map.find "typeParams" fields with
-        | DList l ->
-          l
-          |> List.map (function
-            | DString typeParam -> typeParam
-            | _ -> Exception.raiseInternal "Expected typeParam to be a string" [])
-        | _ -> Exception.raiseInternal "Expected typeParams to be a list" []
-
-      let parameters =
-        match Map.find "parameters" fields with
-        | DList l -> List.map Parameter.fromDT l
-        | _ -> Exception.raiseInternal "Expected parameters to be a list" []
-
-      let returnType = TypeReference.fromDT (Map.find "returnType" fields)
-
-      let returnType = TypeReference.fromDT (Map.find "returnType" fields)
-
-      let description =
-        match Map.find "description" fields with
-        | DString description -> description
-        | _ -> Exception.raiseInternal "Expected description to be a string" []
-
+      let tlid = fields |> D.uint64 "tlid"
+      let name = fields |> D.field "name" |> FnName.UserProgram.fromDT
+      let typeParams = fields |> D.stringList "typeParams"
+      let parameters = fields |> D.list "parameters" |> List.map Parameter.fromDT
+      let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
+      let description = fields |> D.string "description"
       let deprecated =
-        Deprecation.fromDT FnName.fromDT (Map.find "deprecated" fields)
-
-      let body = Expr.fromDT (Map.find "body" fields)
+        fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
+      let body = fields |> D.field "body" |> Expr.fromDT
 
       { tlid = tlid
         name = name
@@ -1384,21 +1289,13 @@ module UserConstant =
   let fromDT (d : Dval) : PT.UserConstant.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
+      let tlid = fields |> D.uint64 "tlid"
 
-      let name = ConstantName.UserProgram.fromDT (Map.find "name" fields)
-      let body = Const.fromDT (Map.find "body" fields)
-
-      let description =
-        match Map.find "description" fields with
-        | DString description -> description
-        | _ -> Exception.raiseInternal "Expected description to be a string" []
-
+      let name = fields |> D.field "name" |> ConstantName.UserProgram.fromDT
+      let body = fields |> D.field "body" |> Const.fromDT
+      let description = fields |> D.string "description"
       let deprecated =
-        Deprecation.fromDT ConstantName.fromDT (Map.find "deprecated" fields)
+        fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 
       { tlid = tlid
         name = name
@@ -1421,20 +1318,9 @@ module Secret =
   let fromDT (d : Dval) : PT.Secret.T =
     match d with
     | DRecord(_, fields) ->
-      let name =
-        match Map.find "name" fields with
-        | DString name -> name
-        | _ -> Exception.raiseInternal "Expected name to be a string" []
-
-      let value =
-        match Map.find "value" fields with
-        | DString value -> value
-        | _ -> Exception.raiseInternal "Expected value to be a string" []
-
-      let version =
-        match Map.find "version" fields with
-        | DInt version -> int version
-        | _ -> Exception.raiseInternal "Expected version to be an int" []
+      let name = fields |> D.string "name"
+      let value = fields |> D.string "value"
+      let version = fields |> D.int "version"
 
       { name = name; value = value; version = version }
 
@@ -1457,26 +1343,13 @@ module PackageType =
   let fromDT (d : Dval) : PT.PackageType.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
-
-      let id =
-        match Map.find "id" fields with
-        | DUuid id -> id
-        | _ -> Exception.raiseInternal "Expected id to be a uuid" []
-
-      let name = TypeName.Package.fromDT (Map.find "name" fields)
-      let declaration = TypeDeclaration.fromDT (Map.find "declaration" fields)
-
-      let description =
-        match Map.find "description" fields with
-        | DString description -> description
-        | _ -> Exception.raiseInternal "Expected description to be a string" []
-
+      let tlid = fields |> D.uint64 "tlid"
+      let id = fields |> D.uuid "id"
+      let name = fields |> D.field "name" |> TypeName.Package.fromDT
+      let declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
+      let description = fields |> D.string "description"
       let deprecated =
-        Deprecation.fromDT TypeName.fromDT (Map.find "deprecated" fields)
+        fields |> D.field "deprecated" |> Deprecation.fromDT TypeName.fromDT
 
       { tlid = tlid
         id = id
@@ -1502,17 +1375,9 @@ module PackageFn =
     let fromDT (d : Dval) : PT.PackageFn.Parameter =
       match d with
       | DRecord(_, fields) ->
-        let name =
-          match Map.find "name" fields with
-          | DString name -> name
-          | _ -> Exception.raiseInternal "Invalid PackageFn.Parameter" []
-
-        let typ = TypeReference.fromDT (Map.find "typ" fields)
-
-        let description =
-          match Map.find "description" fields with
-          | DString description -> description
-          | _ -> Exception.raiseInternal "Invalid PackageFn.Parameter" []
+        let name = fields |> D.string "name"
+        let typ = fields |> D.field "typ" |> TypeReference.fromDT
+        let description = fields |> D.string "description"
 
         { name = name; typ = typ; description = description }
 
@@ -1536,43 +1401,17 @@ module PackageFn =
   let fromDT (d : Dval) : PT.PackageFn.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
+      let tlid = fields |> D.uint64 "tlid"
+      let id = fields |> D.uuid "id"
+      let name = fields |> D.field "name" |> FnName.Package.fromDT
+      let body = fields |> D.field "body" |> Expr.fromDT
+      let typeParams = fields |> D.stringList "typeParams"
 
-      let id =
-        match Map.find "id" fields with
-        | DUuid id -> id
-        | _ -> Exception.raiseInternal "Expected id to be a uuid" []
-
-      let name = FnName.Package.fromDT (Map.find "name" fields)
-
-      let body = Expr.fromDT (Map.find "body" fields)
-
-      let typeParams =
-        match Map.find "typeParams" fields with
-        | DList l ->
-          l
-          |> List.map (function
-            | DString typeParam -> typeParam
-            | _ -> Exception.raiseInternal "Expected typeParam to be a string" [])
-        | _ -> Exception.raiseInternal "Expected typeParams to be a list" []
-
-      let parameters =
-        match Map.find "parameters" fields with
-        | DList l -> List.map Parameter.fromDT l
-        | _ -> Exception.raiseInternal "Expected parameters to be a list" []
-
-      let returnType = TypeReference.fromDT (Map.find "returnType" fields)
-
-      let description =
-        match Map.find "description" fields with
-        | DString description -> description
-        | _ -> Exception.raiseInternal "Expected description to be a string" []
-
+      let parameters = fields |> D.list "parameters" |> List.map Parameter.fromDT
+      let returnType = fields |> D.field "returnType" |> TypeReference.fromDT
+      let description = fields |> D.string "description"
       let deprecated =
-        Deprecation.fromDT FnName.fromDT (Map.find "deprecated" fields)
+        fields |> D.field "deprecated" |> Deprecation.fromDT FnName.fromDT
 
       { tlid = tlid
         id = id
@@ -1602,26 +1441,13 @@ module PackageConstant =
   let fromDT (d : Dval) : PT.PackageConstant.T =
     match d with
     | DRecord(_, fields) ->
-      let tlid =
-        match Map.find "tlid" fields with
-        | DInt tlid -> uint64 tlid
-        | _ -> Exception.raiseInternal "Expected tlid to be a tlid" []
-
-      let id =
-        match Map.find "id" fields with
-        | DUuid id -> id
-        | _ -> Exception.raiseInternal "Expected id to be a uuid" []
-
-      let name = ConstantName.Package.fromDT (Map.find "name" fields)
-      let body = Const.fromDT (Map.find "body" fields)
-
-      let description =
-        match Map.find "description" fields with
-        | DString description -> description
-        | _ -> Exception.raiseInternal "Expected description to be a string" []
-
+      let tlid = fields |> D.uint64 "tlid"
+      let id = fields |> D.uuid "id"
+      let name = fields |> D.field "name" |> ConstantName.Package.fromDT
+      let body = fields |> D.field "body" |> Const.fromDT
+      let description = fields |> D.string "description"
       let deprecated =
-        Deprecation.fromDT ConstantName.fromDT (Map.find "deprecated" fields)
+        fields |> D.field "deprecated" |> Deprecation.fromDT ConstantName.fromDT
 
       { tlid = tlid
         id = id

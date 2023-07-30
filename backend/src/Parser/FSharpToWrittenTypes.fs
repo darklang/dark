@@ -812,7 +812,7 @@ module UserConstant =
 module PackageFn =
   let fromSynBinding
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (b : SynBinding)
     : WT.PackageFn.T =
     let f = Function.fromSynBinding b
@@ -945,7 +945,7 @@ module UserType =
 module PackageType =
   let fromSynTypeDefn
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (typeDef : SynTypeDefn)
     : WT.PackageType.T =
     let (typeParams, names, definition) =
@@ -964,7 +964,7 @@ module PackageType =
 module PackageConstant =
   let fromSynBinding
     (owner : string)
-    (modules : NonEmptyList<string>)
+    (modules : NEList<string>)
     (b : SynBinding)
     : WT.PackageConstant.T =
     let c = Constant.fromSynBinding b

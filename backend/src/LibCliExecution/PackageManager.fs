@@ -322,7 +322,7 @@ module ExternalTypesToProgramTypes =
                   "Expected non-empty modules"
                   [ "name", p.name ]
               )
-            | head :: tail -> { Head = head; Tail = tail }
+            | head :: tail -> { head = head; tail = tail }
           name =
             match p.name with
             | EPT.TypeName.Name.TypeName name -> PT.TypeName.TypeName name
@@ -354,7 +354,7 @@ module ExternalTypesToProgramTypes =
                   "Expected non-empty modules"
                   [ "name", p.name ]
               )
-            | head :: tail -> { Head = head; Tail = tail }
+            | head :: tail -> { head = head; tail = tail }
           name =
             match p.name with
             | EPT.FnName.Name.FnName name -> PT.FnName.FnName name
@@ -386,7 +386,7 @@ module ExternalTypesToProgramTypes =
                   "Expected non-empty modules"
                   [ "name", p.name ]
               )
-            | head :: tail -> { Head = head; Tail = tail }
+            | head :: tail -> { head = head; tail = tail }
           name =
             match p.name with
             | EPT.ConstantName.Name.ConstantName name ->

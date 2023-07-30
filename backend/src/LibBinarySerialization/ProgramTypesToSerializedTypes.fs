@@ -35,13 +35,13 @@ module TypeName =
     let toST (p : PT.TypeName.Package) : ST.TypeName.Package =
       let (PT.TypeName.TypeName name) = p.name
       { owner = p.owner
-        modules = { head = p.modules.Head; tail = p.modules.Tail }
+        modules = { head = p.modules.head; tail = p.modules.tail }
         name = name
         version = p.version }
 
     let toPT (p : ST.TypeName.Package) : PT.TypeName.Package =
       { owner = p.owner
-        modules = { Head = p.modules.head; Tail = p.modules.tail }
+        modules = { head = p.modules.head; tail = p.modules.tail }
         name = PT.TypeName.TypeName p.name
         version = p.version }
 
@@ -81,13 +81,13 @@ module FnName =
     let toST (p : PT.FnName.Package) : ST.FnName.Package =
       let (PT.FnName.FnName name) = p.name
       { owner = p.owner
-        modules = { head = p.modules.Head; tail = p.modules.Tail }
+        modules = { head = p.modules.head; tail = p.modules.tail }
         name = name
         version = p.version }
 
     let toPT (p : ST.FnName.Package) : PT.FnName.Package =
       { owner = p.owner
-        modules = { Head = p.modules.head; Tail = p.modules.tail }
+        modules = { head = p.modules.head; tail = p.modules.tail }
         name = PT.FnName.FnName p.name
         version = p.version }
 
@@ -197,13 +197,13 @@ module ConstantName =
     let toST (p : PT.ConstantName.Package) : ST.ConstantName.Package =
       let (PT.ConstantName.ConstantName name) = p.name
       { owner = p.owner
-        modules = { head = p.modules.Head; tail = p.modules.Tail }
+        modules = { head = p.modules.head; tail = p.modules.tail }
         name = name
         version = p.version }
 
     let toPT (p : ST.ConstantName.Package) : PT.ConstantName.Package =
       { owner = p.owner
-        modules = { Head = p.modules.head; Tail = p.modules.tail }
+        modules = { head = p.modules.head; tail = p.modules.tail }
         name = PT.ConstantName.ConstantName p.name
         version = p.version }
 

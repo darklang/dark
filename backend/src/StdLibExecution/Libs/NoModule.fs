@@ -311,7 +311,7 @@ let fns : List<BuiltInFn> =
         | _,
           _,
           [ DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = { Head = "Stdlib"; Tail = [ "Option" ] }
+                                   modules = { head = "Stdlib"; tail = [ "Option" ] }
                                    name = TypeName.TypeName "Option"
                                    version = 0 }),
                   caseName,
@@ -326,7 +326,7 @@ let fns : List<BuiltInFn> =
         | _,
           _,
           [ DEnum(FQName.Package({ owner = "Darklang"
-                                   modules = { Head = "Stdlib"; Tail = [ "Result" ] }
+                                   modules = { head = "Stdlib"; tail = [ "Result" ] }
                                    name = TypeName.TypeName "Result"
                                    version = 0 }),
                   caseName,

@@ -49,7 +49,7 @@ module RoundtripTests =
           fnName =
             (RT.FnName.fqPackage
               "Darklang"
-              (NonEmptyList.ofList [ "LanguageTools"; "ProgramTypes" ])
+              (NEList.ofList "LanguageTools" [ "ProgramTypes" ])
               "expr"
               0),
           returnType = RT.TCustomType(typeName, []),
@@ -103,7 +103,7 @@ module RoundtripTests =
     let pkg mods name v =
       RT.TypeName.fqPackage
         "Darklang"
-        (NonEmptyList.ofList ([ "LanguageTools"; "ProgramTypes" ] @ mods))
+        (NEList.ofList "LanguageTools" ([ "ProgramTypes" ] @ mods))
         name
         v
 
