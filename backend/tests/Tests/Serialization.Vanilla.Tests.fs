@@ -122,15 +122,15 @@ module PersistedSerializations =
         // ------------------
         // Used by Pusher
         // ------------------
-        v<ClientTypes.Pusher.Payload.NewTrace> "simple" (V.uuid, V.tlids)
-        v<ClientTypes.Pusher.Payload.New404>
+        v<LibClientTypes.Pusher.Payload.NewTrace> "simple" (V.uuid, V.tlids)
+        v<LibClientTypes.Pusher.Payload.New404>
           "simple"
           ("HTTP", "/", "GET", V.instant, V.uuid)
-        // v<ClientTypes.Pusher.Payload.UpdateWorkerStates>
+        // v<LibClientTypes.Pusher.Payload.UpdateWorkerStates>
         //   "pusher-update-worker-states"
         //   CV.workerStates
-        // v<ClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
-        // v<ClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
+        // v<LibClientTypes.Pusher.Payload.AddOpV1> "simple" CV.addOpEventV1
+        // v<LibClientTypes.Pusher.Payload.AddOpV1PayloadTooBig> // this is so-far unused
         //   "simple"
         //   { tlids = testTLIDs }
 

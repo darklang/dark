@@ -18,7 +18,7 @@ open LibCloud.Db
 
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
-module CTPusher = ClientTypes.Pusher
+module CTPusher = LibClientTypes.Pusher
 
 let maybeClearDB () : unit =
   // Be super careful

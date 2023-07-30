@@ -26,7 +26,7 @@ module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 
-module CTPusher = ClientTypes.Pusher
+module CTPusher = LibClientTypes.Pusher
 
 let mutable shouldShutdown = false
 

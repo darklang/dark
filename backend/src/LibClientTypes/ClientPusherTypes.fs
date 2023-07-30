@@ -1,5 +1,5 @@
 /// Payloads that we send to the client via Pusher.com
-module ClientTypes.Pusher
+module LibClientTypes.Pusher
 
 open Prelude
 

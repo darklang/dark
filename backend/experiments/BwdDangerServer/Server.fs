@@ -38,7 +38,7 @@ module Kubernetes = LibService.Kubernetes
 module Rollbar = LibService.Rollbar
 module Telemetry = LibService.Telemetry
 
-module CTPusher = ClientTypes.Pusher
+module CTPusher = LibClientTypes.Pusher
 
 // HttpHandlerTODO there are still a number of things in this file that were
 // written with the original Http handler+middleware in mind, and aren't

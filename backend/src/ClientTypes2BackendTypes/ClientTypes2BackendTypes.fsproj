@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
-    <ProjectReference Include="../ClientTypes/ClientTypes.fsproj" />
+    <ProjectReference Include="../LibClientTypes/LibClientTypes.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
   </ItemGroup>
 
